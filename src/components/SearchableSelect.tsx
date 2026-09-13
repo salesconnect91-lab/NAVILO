@@ -1,4 +1,5 @@
-import { Children, isValidElement, useId, useMemo, useState } from "react";
+import { Children, isValidElement, useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, Search } from "lucide-react";
 import type { ChangeEvent, ReactElement, ReactNode, SelectHTMLAttributes } from "react";
 
 type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, "children"> & {
@@ -25,7 +26,7 @@ function collectOptions(children: ReactNode): Option[] {
     if (element.type === "option") {
       result.push({
         value: String(element.props.value ?? ""),
-        label: textOf(element.props.children).trim(),
+        label: textOf(element.props.children).trim() || String(element.props.value ?? ""),
         disabled: Boolean(element.props.disabled),
       });
       return;
@@ -42,55 +43,111 @@ export default function SearchableSelect({
   defaultValue,
   onChange,
   disabled,
-  required,
   name,
   id,
   searchPlaceholder = "Type to search...",
+  emptyText = "No matching option",
   ...props
 }: Props) {
-  const generatedId = useId().replace(/:/g, "");
-  const listId = `navilo-select-${generatedId}`;
   const options = useMemo(() => collectOptions(children), [children]);
-  const initialValue = String(value ?? defaultValue ?? "");
-  const [internalValue, setInternalValue] = useState(initialValue);
-  const selectedValue = value !== undefined ? String(value ?? "") : internalValue;
-  const selected = options.find(option => option.value === selectedValue);
-  const display = selected?.label ?? "";
+  const controlled = value !== undefined;
+  const [internalValue, setInternalValue] = useState(String(defaultValue ?? ""));
+  const selectedValue = controlled ? String(value ?? "") : internalValue;
+  const selected = options.find(option => option.value === selectedValue) ?? null;
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const commit = (next: string) => {
-    const match = options.find(option => !option.disabled && (option.label === next || option.value === next));
-    if (!match) return;
-    if (value === undefined) setInternalValue(match.value);
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase();
+    return options.filter(option => !q || option.label.toLocaleLowerCase().includes(q));
+  }, [options, query]);
+
+  const commit = (nextValue: string) => {
+    const option = options.find(candidate => candidate.value === nextValue);
+    if (!option || option.disabled || disabled) return;
+    if (!controlled) setInternalValue(nextValue);
     if (onChange) {
-      const target = { value: match.value, name: name ?? "" } as HTMLSelectElement;
+      const target = { value: nextValue, name: name ?? "" } as HTMLSelectElement;
       onChange({ target, currentTarget: target } as ChangeEvent<HTMLSelectElement>);
     }
+    setOpen(false);
+    setQuery("");
   };
 
   return (
-    <>
-      <input
+    <div ref={rootRef} className="relative w-full min-w-0">
+      <button
         id={id}
-        className={`${className} w-full`}
-        list={listId}
-        value={display}
+        type="button"
         disabled={disabled}
-        required={required}
-        placeholder={searchPlaceholder}
-        autoComplete="off"
-        onChange={event => commit(event.target.value)}
-        onBlur={event => {
-          if (!options.some(option => option.label === event.currentTarget.value)) event.currentTarget.value = display;
-        }}
+        className={`${className} flex w-full items-center justify-between gap-2 text-left`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         aria-label={props["aria-label"]}
         title={props.title}
-      />
-      <datalist id={listId}>
-        {options.filter(option => !option.disabled).map(option => (
-          <option key={`${option.value}-${option.label}`} value={option.label} />
-        ))}
-      </datalist>
+        onClick={() => {
+          if (disabled) return;
+          setOpen(current => !current);
+          setQuery("");
+          requestAnimationFrame(() => inputRef.current?.focus());
+        }}
+      >
+        <span className={`min-w-0 flex-1 truncate ${selectedValue ? "text-slate-900" : "text-slate-500"}`}>
+          {selected?.label || "Select..."}
+        </span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-[90] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+          <div className="border-b border-slate-100 p-2">
+            <div className="flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-2 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500">
+              <Search className="h-4 w-4 shrink-0 text-slate-400" />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={event => setQuery(event.target.value)}
+                placeholder={searchPlaceholder}
+                className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-slate-400"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          <div role="listbox" className="max-h-60 overflow-auto p-1">
+            {filtered.length ? filtered.map(option => (
+              <button
+                key={`${option.value}-${option.label}`}
+                type="button"
+                role="option"
+                aria-selected={option.value === selectedValue}
+                disabled={option.disabled}
+                onMouseDown={event => event.preventDefault()}
+                onClick={() => commit(option.value)}
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <span className="min-w-0 flex-1 break-words">{option.label || "—"}</span>
+                {option.value === selectedValue && <Check className="h-4 w-4 shrink-0 text-blue-600" />}
+              </button>
+            )) : (
+              <div className="px-3 py-4 text-center text-sm text-slate-500">{emptyText}</div>
+            )}
+          </div>
+        </div>
+      )}
       {name ? <input type="hidden" name={name} value={selectedValue} /> : null}
-    </>
+    </div>
   );
 }
