@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Columns3, X } from "lucide-react";
-import { useAuth } from "@/auth/AuthContext";
 import { loadDocumentPrintSettings } from "@/lib/documentPrintSettings";
 
 type ReportSurfaceProps = { children: ReactNode };
@@ -17,17 +16,13 @@ const isDuplicateAction = (label:string) => {
 
 export default function ReportSurface({ children }: ReportSurfaceProps) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const { activeCompany } = useAuth();
   const [columns, setColumns] = useState<ColumnChoice[]>([]);
   const [density, setDensity] = useState<Density>("compact");
   const [orientation, setOrientation] = useState<Orientation>("landscape");
   const [showTotals, setShowTotals] = useState(true);
   const [showFilters, setShowFilters] = useState(true);
   const [customizeOpen,setCustomizeOpen]=useState(false);
-  const [reportTitle,setReportTitle]=useState("Report");
-  const [reportSubtitle,setReportSubtitle]=useState("");
   const storageKey = useMemo(() => `navilo:report-prefs:${window.location.pathname}`, []);
-  const companyName = ((activeCompany as unknown as { company_name?:string; name?:string }|null)?.company_name || (activeCompany as unknown as { name?:string }|null)?.name || "NAVILO").trim();
 
   useEffect(() => { void loadDocumentPrintSettings("reports").catch(() => undefined); try { const saved=JSON.parse(localStorage.getItem(storageKey)||"{}") as SavedPrefs; if(saved.density)setDensity(saved.density);if(saved.orientation)setOrientation(saved.orientation);if(typeof saved.showTotals==="boolean")setShowTotals(saved.showTotals);if(typeof saved.showFilters==="boolean")setShowFilters(saved.showFilters);} catch{/* ignore */} }, [storageKey]);
   const reportContent=useCallback(()=>rootRef.current?.querySelector<HTMLElement>(".navilo-report-source")??rootRef.current,[]);
@@ -35,10 +30,6 @@ export default function ReportSurface({ children }: ReportSurfaceProps) {
 
   const scan=useCallback(()=>{
     const root=reportContent(); if(!root)return;
-    const title=root.querySelector<HTMLElement>("h1,.page-title,h2");
-    if(title?.textContent){setReportTitle(title.textContent.replace(/\s+/g," ").trim())}
-    const subtitle=title?.parentElement?.querySelector<HTMLElement>("p");
-    setReportSubtitle(subtitle?.textContent?.replace(/\s+/g," ").trim()||"");
     const table=root.querySelector("table"); if(!table){setColumns([]);return}
     const hidden=savedHiddenLabels(),headers=Array.from(table.querySelectorAll("thead th"));
     setColumns(prev=>headers.map((cell,index)=>{const label=(cell.textContent||`Column ${index+1}`).trim(),existing=prev.find(item=>item.label===label);return{index,label,visible:existing?.visible??!hidden.has(label)}}));
@@ -54,11 +45,6 @@ export default function ReportSurface({ children }: ReportSurfaceProps) {
   return <div ref={rootRef} className="professional-report print-report" data-report-root>
     <style>{`@media print{@page{size:A4 ${orientation};margin:10mm}}`}</style>
     <div data-report-content className="report-print-content" data-report-density={density} data-report-orientation={orientation}>
-      <div className="navilo-accounting-report-heading">
-        <div className="navilo-report-company">{companyName}</div>
-        <div className="navilo-report-title">{reportTitle}</div>
-        {reportSubtitle&&<div className="navilo-report-period">{reportSubtitle}</div>}
-      </div>
       <div className="navilo-report-source">{children}</div>
     </div>
     {customizeOpen&&<div className="navilo-report-customizer no-print" data-no-print data-no-export>
