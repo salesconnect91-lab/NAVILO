@@ -8,6 +8,7 @@ import "./printTargetRuntime";
 import "./accountNameDisplayRuntime";
 import "./languageIsolationRuntime";
 import "./documentLanguageIsolationRuntime";
+import "./i18nCoverageRuntime";
 import "./index.css";
 import "./contrast.css";
 import "./reportPrint.css";
@@ -19,6 +20,7 @@ import "./printPreviewIsolation.css";
 import "./orderBook.css";
 import "./accountingStatements.css";
 import "./erpProfessionalSystem.css";
+import "./documentLanguage.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
