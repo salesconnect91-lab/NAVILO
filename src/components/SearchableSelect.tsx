@@ -177,6 +177,7 @@ export default function SearchableSelect({
     const option = options.find((candidate) => candidate.value === nextValue);
     if (option?.disabled || disabled) return;
     if (controlledValue === undefined) setInternalValue(nextValue);
+
     const source = selectRef.current;
     if (source) {
       source.value = nextValue;
@@ -201,6 +202,7 @@ export default function SearchableSelect({
         onChange(eventLike);
       }
     }
+
     setOpen(false);
     setQuery("");
     requestAnimationFrame(() => buttonRef.current?.focus());
@@ -278,8 +280,11 @@ export default function SearchableSelect({
             aria-selected={option.value === selectedValue}
             disabled={option.disabled}
             onMouseEnter={() => setActiveIndex(index)}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => commit(option.value)}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              commit(option.value);
+            }}
             className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] ${index === activeIndex ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"} disabled:cursor-not-allowed disabled:opacity-40`}
           >
             <span className="min-w-0 flex-1">
