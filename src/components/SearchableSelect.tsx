@@ -1,4 +1,4 @@
-import { Children, Fragment, isValidElement, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactElement, type ReactNode, type SelectHTMLAttributes } from "react";
+import { Children, Fragment, isValidElement, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode, type SelectHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Search } from "lucide-react";
 
@@ -93,6 +93,7 @@ export default function SearchableSelect({
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const selectRef = useRef<HTMLSelectElement | null>(null);
 
   useEffect(() => {
     if (controlledValue !== undefined) setInternalValue(controlledValue);
@@ -168,17 +169,19 @@ export default function SearchableSelect({
       .slice(0, 150);
   }, [options, query, accountContext]);
 
-  const emitChange = (nextValue: string) => {
-    if (!onChange) return;
-    const target = { value: nextValue, name: name ?? "", id: id ?? "" } as unknown as HTMLSelectElement;
-    onChange({ target, currentTarget: target } as ChangeEvent<HTMLSelectElement>);
-  };
-
   const commit = (nextValue: string) => {
     const option = options.find((candidate) => candidate.value === nextValue);
     if (!option || option.disabled || disabled) return;
+
     setInternalValue(nextValue);
-    emitChange(nextValue);
+
+    const select = selectRef.current;
+    if (select) {
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value");
+      descriptor?.set?.call(select, nextValue);
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
     setOpen(false);
     setQuery("");
     requestAnimationFrame(() => buttonRef.current?.focus());
@@ -249,25 +252,22 @@ export default function SearchableSelect({
         {!filtered.length ? (
           <div className="px-3 py-4 text-center text-[12px] text-slate-500">{emptyText}</div>
         ) : filtered.map((option, index) => (
-          <div
+          <button
             key={`${option.group ?? ""}:${option.value}:${index}`}
+            type="button"
             role="option"
             aria-selected={option.value === selectedValue}
-            aria-disabled={option.disabled}
+            disabled={option.disabled}
             onMouseEnter={() => setActiveIndex(index)}
-            onPointerDown={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              commit(option.value);
-            }}
-            className={`flex w-full select-none items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] ${option.disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"} ${index === activeIndex ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"}`}
+            onClick={() => commit(option.value)}
+            className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] ${index === activeIndex ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"} disabled:cursor-not-allowed disabled:opacity-40`}
           >
             <span className="min-w-0 flex-1">
               {option.group && <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{option.group} ·</span>}
               <span className="break-words">{visibleLabel(option.label) || option.value || "—"}</span>
             </span>
             {option.value === selectedValue && <Check className="h-3.5 w-3.5 shrink-0" />}
-          </div>
+          </button>
         ))}
       </div>
     </div>,
@@ -278,6 +278,7 @@ export default function SearchableSelect({
     <div ref={rootRef} className="relative min-w-0 w-full">
       <select
         {...rest}
+        ref={selectRef}
         name={name}
         id={id}
         aria-label={ariaLabel}
