@@ -17,30 +17,29 @@ function isDuplicate(v:string){const x=normalize(v);return x.includes("export")|
 
 export default function UniversalDataTools(){
   const{pathname}=useLocation(),{activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
-  const[open,setOpen]=useState(false),[languageOpen,setLanguageOpen]=useState(false),[itemsHost,setItemsHost]=useState<HTMLElement|null>(null);
+  const[open,setOpen]=useState(false),[languageOpen,setLanguageOpen]=useState(false),[localHost,setLocalHost]=useState<HTMLElement|null>(null);
   const ref=useRef<HTMLDivElement|null>(null);
-  const reportMode=isReportPath(pathname),itemsMaster=pathname==="/master-data",customizable=reportMode||itemsMaster,journalList=pathname==="/accounting";
+  const reportMode=isReportPath(pathname),itemsMaster=pathname==="/master-data",categoriesMaster=pathname==="/master-data/categories",standardMaster=itemsMaster||categoriesMaster,customizable=reportMode||standardMaster,journalList=pathname==="/accounting";
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role,module=moduleForPath(pathname),permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
   const canExport=isPlatformOwner||hasPermission(role,module,"export",permissions,false),canPrint=isPlatformOwner||hasPermission(role,module,"print",permissions,false);
 
   useEffect(()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return;if(reportMode)main.dataset.naviloScreenType="report";else delete main.dataset.naviloScreenType;return()=>{delete main.dataset.naviloScreenType}},[reportMode,pathname]);
   useEffect(()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return;const suppress=()=>main.querySelectorAll<HTMLElement>("button,a,[role='button']").forEach(el=>{if(el.closest("[data-navilo-global-data-tools]")||el.dataset.naviloKeepLocalAction==="true")return;const label=el.textContent||el.getAttribute("aria-label")||el.getAttribute("title")||"";if(reportMode&&isDuplicate(label)){el.style.setProperty("display","none","important");el.dataset.naviloDuplicateGlobalAction="true"}});suppress();const o=new MutationObserver(suppress);o.observe(main,{childList:true,subtree:true,characterData:true});return()=>o.disconnect()},[pathname,reportMode]);
   useEffect(()=>{
-    if(!itemsMaster){setItemsHost(null);return;}
+    if(!standardMaster){setLocalHost(null);return;}
     const attach=()=>{
-      const main=document.querySelector<HTMLElement>("#navilo-main-content");
-      if(!main)return false;
+      const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return false;
+      if(categoriesMaster){const host=main.querySelector<HTMLElement>("[data-navilo-standard-toolbar-host]");if(!host)return false;setLocalHost(host);return true;}
       const addButton=Array.from(main.querySelectorAll<HTMLButtonElement>("button")).find(b=>normalize(b.textContent||"")==="add item");
-      const actions=addButton?.parentElement;
-      if(!actions)return false;
+      const actions=addButton?.parentElement;if(!actions)return false;
       let host=actions.querySelector<HTMLElement>("[data-navilo-items-global-tools-host]");
       if(!host){host=document.createElement("div");host.dataset.naviloItemsGlobalToolsHost="true";host.className="contents";actions.prepend(host);}
-      setItemsHost(host);return true;
+      setLocalHost(host);return true;
     };
-    if(attach())return()=>setItemsHost(null);
+    if(attach())return()=>setLocalHost(null);
     const observer=new MutationObserver(()=>{if(attach())observer.disconnect()});observer.observe(document.body,{childList:true,subtree:true});
-    return()=>{observer.disconnect();setItemsHost(null)};
-  },[itemsMaster,pathname]);
+    return()=>{observer.disconnect();setLocalHost(null)};
+  },[standardMaster,categoriesMaster,pathname]);
   useEffect(()=>{if(!journalList)return;const s=document.createElement("style");s.textContent='button[title^="Print journal voucher"]{display:none!important}';document.head.appendChild(s);return()=>s.remove()},[journalList]);
   useEffect(()=>{if(!open&&!languageOpen)return;const close=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node)){setOpen(false);setLanguageOpen(false)}};document.addEventListener("mousedown",close);return()=>document.removeEventListener("mousedown",close)},[open,languageOpen]);
 
@@ -55,6 +54,6 @@ export default function UniversalDataTools(){
     {canPrint&&<button type="button" data-print-selector={document.querySelector("[data-report-content]")?"[data-report-content]":undefined} onClick={print} className={base}><Printer className="h-4 w-4"/><span className="hidden xl:inline">Print / PDF</span></button>}
   </div>;
 
-  if(itemsMaster)return itemsHost?createPortal(toolbar,itemsHost):null;
+  if(standardMaster)return localHost?createPortal(toolbar,localHost):null;
   return toolbar;
 }
