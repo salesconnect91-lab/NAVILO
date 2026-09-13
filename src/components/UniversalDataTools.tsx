@@ -14,24 +14,36 @@ function normalize(v:string){return v.replace(/\s+/g," ").replace(/\.(xlsx|xls|c
 function moduleForPath(p:string):ModuleKey{if(p==="/")return"dashboard";if(p.startsWith("/sales/report"))return"reports";if(p.startsWith("/sales/charges"))return"master";if(p.startsWith("/sales"))return"sales";if(p.startsWith("/purchase"))return"purchase";if(p.startsWith("/master-data"))return"master";if(p.startsWith("/godown"))return"inventory";if(p.startsWith("/production")||p.startsWith("/cutting"))return"production";if(p.startsWith("/transport"))return"transport";if(p.startsWith("/reports"))return"reports";if(p.startsWith("/accounting"))return"accounting";if(p.startsWith("/settings"))return"settings";return"dashboard"}
 function isReportPath(p:string){if(p.startsWith("/reports")||p.startsWith("/sales/report")||p==="/sales/person-ledger")return true;if(!p.startsWith("/accounting/"))return false;return ["/accounting/vat-register","/accounting/day-book","/accounting/ledgers","/accounting/payroll","/accounting/loans","/accounting/bank-reconciliation","/accounting/trial-balance","/accounting/profit-loss","/accounting/balance-sheet","/accounting/cash-flow","/accounting/controls","/accounting/audit-trail","/accounting/customer-invoice-statement"].some(x=>p===x||p.startsWith(`${x}/`))}
 function isMasterStandardPath(p:string){return p==="/master-data"||["/master-data/categories","/master-data/customers","/master-data/suppliers","/master-data/employees","/master-data/warehouses","/master-data/godowns","/master-data/uom","/master-data/transporters","/sales/charges"].some(x=>p===x||p.startsWith(`${x}/`))}
+function isNaviloStandardPath(p:string){if(isMasterStandardPath(p)||isReportPath(p))return true;return ["/sales","/purchase","/godown","/production","/cutting","/accounting","/reports","/transport","/orders"].some(x=>p===x||p.startsWith(`${x}/`))}
 function isDuplicate(v:string){const x=normalize(v);return x.includes("export")||x.includes("download excel")||x.includes("download csv")||x.includes("download word")||x==="excel"||x==="csv"||x==="word"||x.includes("print")||x==="pdf"||x.startsWith("pdf /")||x.includes("customize columns")||x.includes("print options")}
-function isAddAction(v:string){const x=normalize(v);return /^(\+\s*)?(add|new|create)\s+(item|category|customer|supplier|employee|warehouse|godown|uom|unit|transporter|charge)/.test(x)}
+function isPrimaryAction(v:string){const x=normalize(v);return /^(\+\s*)?(add|new|create)\s+(item|category|customer|supplier|employee|warehouse|godown|uom|unit|transporter|charge|invoice|sales invoice|purchase invoice|order|sales order|purchase order|work order|cutting order|gate pass|receipt|payment|journal|journal entry|voucher)/.test(x)}
 
 export default function UniversalDataTools(){
   const{pathname}=useLocation(),{activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
-  const[open,setOpen]=useState(false),[languageOpen,setLanguageOpen]=useState(false),[masterHost,setMasterHost]=useState<HTMLElement|null>(null);
+  const[open,setOpen]=useState(false),[languageOpen,setLanguageOpen]=useState(false),[standardHost,setStandardHost]=useState<HTMLElement|null>(null);
   const ref=useRef<HTMLDivElement|null>(null);
-  const reportMode=isReportPath(pathname),masterStandard=isMasterStandardPath(pathname),customizable=reportMode||masterStandard,journalList=pathname==="/accounting";
+  const reportMode=isReportPath(pathname),masterStandard=isMasterStandardPath(pathname),standardPath=isNaviloStandardPath(pathname),customizable=reportMode||masterStandard,journalList=pathname==="/accounting";
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role,module=moduleForPath(pathname),permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
   const canExport=isPlatformOwner||hasPermission(role,module,"export",permissions,false),canPrint=isPlatformOwner||hasPermission(role,module,"print",permissions,false);
 
-  useEffect(()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return;if(reportMode)main.dataset.naviloScreenType="report";else delete main.dataset.naviloScreenType;return()=>{delete main.dataset.naviloScreenType}},[reportMode,pathname]);
-  useEffect(()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return;const hidden=new Set<HTMLElement>();const suppress=()=>main.querySelectorAll<HTMLElement>("button,a,[role='button']").forEach(el=>{if(el.closest("[data-navilo-global-data-tools]")||el.dataset.naviloKeepLocalAction==="true")return;const label=el.textContent||el.getAttribute("aria-label")||el.getAttribute("title")||"";if((reportMode||masterStandard)&&isDuplicate(label)){el.style.setProperty("display","none","important");el.dataset.naviloDuplicateGlobalAction="true";hidden.add(el)}});suppress();const o=new MutationObserver(suppress);o.observe(main,{childList:true,subtree:true,characterData:true});return()=>{o.disconnect();hidden.forEach(el=>{el.style.removeProperty("display");delete el.dataset.naviloDuplicateGlobalAction})}},[pathname,reportMode,masterStandard]);
+  useEffect(()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return;if(reportMode)main.dataset.naviloScreenType="report";else delete main.dataset.naviloScreenType;if(standardPath)main.dataset.naviloStandard="true";else delete main.dataset.naviloStandard;return()=>{delete main.dataset.naviloScreenType;delete main.dataset.naviloStandard}},[reportMode,standardPath,pathname]);
+  useEffect(()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main||!standardPath)return;const hidden=new Set<HTMLElement>();const suppress=()=>main.querySelectorAll<HTMLElement>("button,a,[role='button']").forEach(el=>{if(el.closest("[data-navilo-global-data-tools]")||el.dataset.naviloKeepLocalAction==="true")return;const label=el.textContent||el.getAttribute("aria-label")||el.getAttribute("title")||"";if(isDuplicate(label)){el.style.setProperty("display","none","important");el.dataset.naviloDuplicateGlobalAction="true";hidden.add(el)}});suppress();const o=new MutationObserver(suppress);o.observe(main,{childList:true,subtree:true,characterData:true});return()=>{o.disconnect();hidden.forEach(el=>{el.style.removeProperty("display");delete el.dataset.naviloDuplicateGlobalAction})}},[pathname,standardPath]);
   useEffect(()=>{
-    if(!masterStandard){setMasterHost(null);return;}
-    const attach=()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return false;const addButton=Array.from(main.querySelectorAll<HTMLButtonElement>("button")).find(b=>isAddAction(b.textContent||""));const actions=addButton?.parentElement;if(!actions)return false;let host=actions.querySelector<HTMLElement>("[data-navilo-master-global-tools-host]");if(!host){host=document.createElement("div");host.dataset.naviloMasterGlobalToolsHost="true";host.className="contents";actions.prepend(host)}setMasterHost(host);return true};
-    if(attach())return()=>setMasterHost(null);const observer=new MutationObserver(()=>{if(attach())observer.disconnect()});observer.observe(document.body,{childList:true,subtree:true});return()=>{observer.disconnect();setMasterHost(null)};
-  },[masterStandard,pathname]);
+    if(!standardPath){setStandardHost(null);return;}
+    const attach=()=>{
+      const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return false;
+      const explicit=main.querySelector<HTMLElement>("[data-navilo-standard-tools-host]");
+      if(explicit){setStandardHost(explicit);return true;}
+      const primary=Array.from(main.querySelectorAll<HTMLButtonElement>("button")).find(b=>isPrimaryAction(b.textContent||""));
+      const actions=primary?.parentElement;if(!actions)return false;
+      let host=actions.querySelector<HTMLElement>("[data-navilo-standard-tools-host]");
+      if(!host){host=document.createElement("div");host.dataset.naviloStandardToolsHost="true";host.className="contents";actions.prepend(host)}
+      setStandardHost(host);return true;
+    };
+    if(attach())return()=>setStandardHost(null);
+    const observer=new MutationObserver(()=>{if(attach())observer.disconnect()});observer.observe(document.body,{childList:true,subtree:true});
+    return()=>{observer.disconnect();setStandardHost(null)};
+  },[standardPath,pathname]);
   useEffect(()=>{if(!journalList)return;const s=document.createElement("style");s.textContent='button[title^="Print journal voucher"]{display:none!important}';document.head.appendChild(s);return()=>s.remove()},[journalList]);
   useEffect(()=>{if(!open&&!languageOpen)return;const close=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node)){setOpen(false);setLanguageOpen(false)}};document.addEventListener("mousedown",close);return()=>document.removeEventListener("mousedown",close)},[open,languageOpen]);
 
@@ -44,6 +56,6 @@ export default function UniversalDataTools(){
     {canExport&&<div className="relative"><button type="button" onClick={()=>{setOpen(v=>!v);setLanguageOpen(false)}} className={base}><Download className="h-4 w-4"/><span className="hidden xl:inline">Export</span></button>{open&&<div className="absolute right-0 top-10 z-[70] w-48 rounded-lg border bg-white py-1 shadow-xl"><button type="button" onClick={()=>exp("excel")} className="flex w-full gap-2 px-3 py-2 text-xs"><Sheet className="h-4 w-4"/>Excel (.xlsx)</button><button type="button" onClick={()=>exp("csv")} className="flex w-full gap-2 px-3 py-2 text-xs"><Table2 className="h-4 w-4"/>CSV (.csv)</button><button type="button" onClick={()=>exp("word")} className="flex w-full gap-2 px-3 py-2 text-xs"><FileText className="h-4 w-4"/>Word (.doc)</button></div>}</div>}
     {canPrint&&<button type="button" data-print-selector={document.querySelector("[data-report-content]")?"[data-report-content]":undefined} onClick={print} className={base}><Printer className="h-4 w-4"/><span className="hidden xl:inline">Print / PDF</span></button>}
   </div>;
-  if(masterStandard)return masterHost?createPortal(toolbar,masterHost):null;
+  if(standardPath&&standardHost)return createPortal(toolbar,standardHost);
   return toolbar;
 }
