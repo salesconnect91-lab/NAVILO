@@ -11,12 +11,7 @@ import MasterRecordDetail from "./MasterRecordDetail";
 
 export default function MasterData() {
   return (
-    <div className="space-y-5 pb-12 max-w-7xl mx-auto font-sans">
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-        <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Master Data Management / ماسٹر ڈیٹا مینجمنٹ</h1>
-        <p className="text-xs text-slate-500 mt-0.5">Manage centralized ERP entities, raw materials, clients, units, and godowns. / مرکزی ERP ڈیٹا، خام مال، گاہک، اکائیاں اور گودام منظم کریں۔</p>
-      </div>
-
+    <div className="space-y-5 pb-12 max-w-7xl mx-auto font-sans" data-navilo-master-standard="true">
       <Routes>
         <Route path="/" element={<Items />} />
         <Route path="/items/:id" element={<MasterRecordDetail entity="item" />} />
