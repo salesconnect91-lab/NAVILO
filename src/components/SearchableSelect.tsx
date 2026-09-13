@@ -2,9 +2,25 @@ import { Children, Fragment, isValidElement, useEffect, useMemo, useRef, useStat
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Search } from "lucide-react";
 
-type FlatOption = { value: string; label: string; disabled: boolean; group?: string };
-type Props = SelectHTMLAttributes<HTMLSelectElement> & { children: ReactNode; searchPlaceholder?: string; emptyText?: string };
-type MenuPosition = { left: number; top: number; width: number; maxHeight: number };
+type FlatOption = {
+  value: string;
+  label: string;
+  disabled: boolean;
+  group?: string;
+};
+
+type Props = SelectHTMLAttributes<HTMLSelectElement> & {
+  children: ReactNode;
+  searchPlaceholder?: string;
+  emptyText?: string;
+};
+
+type MenuPosition = {
+  left: number;
+  top: number;
+  width: number;
+  maxHeight: number;
+};
 
 function nodeText(node: ReactNode): string {
   if (node == null || typeof node === "boolean") return "";
@@ -31,12 +47,8 @@ function flattenOptions(children: ReactNode, group?: string): FlatOption[] {
       const rawValue = element.props.value ?? "";
       const explicitLabel = element.props.label == null ? "" : String(element.props.label);
       const childLabel = nodeText(element.props.children).trim();
-      out.push({
-        value: String(rawValue),
-        label: explicitLabel.trim() || childLabel || String(rawValue),
-        disabled: Boolean(element.props.disabled),
-        group,
-      });
+      const label = explicitLabel.trim() || childLabel || String(rawValue);
+      out.push({ value: String(rawValue), label, disabled: Boolean(element.props.disabled), group });
       return;
     }
     if (element.props?.children) out.push(...flattenOptions(element.props.children, group));
@@ -65,11 +77,7 @@ export default function SearchableSelect({
   ...rest
 }: Props) {
   if (multiple || (typeof size === "number" && size > 1)) {
-    return (
-      <select {...rest} name={name} id={id} aria-label={ariaLabel} multiple={multiple} size={size} value={value} defaultValue={defaultValue} onChange={onChange} disabled={disabled} className={className}>
-        {children}
-      </select>
-    );
+    return <select {...rest} name={name} id={id} aria-label={ariaLabel} multiple={multiple} size={size} value={value} defaultValue={defaultValue} onChange={onChange} disabled={disabled} className={className}>{children}</select>;
   }
 
   const options = useMemo(() => flattenOptions(children), [children]);
@@ -89,7 +97,10 @@ export default function SearchableSelect({
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const explicitAccountContext = useMemo(() => {
-    const hint = [name, id, ariaLabel, searchPlaceholder].filter(Boolean).join(" ").toLocaleLowerCase();
+    const hint = [name, id, ariaLabel, searchPlaceholder]
+      .filter(Boolean)
+      .join(" ")
+      .toLocaleLowerCase();
     return hint.includes("account") || hint.includes("اکاؤنٹ");
   }, [name, id, ariaLabel, searchPlaceholder]);
 
@@ -102,7 +113,7 @@ export default function SearchableSelect({
   }, [children]);
 
   const accountContext = explicitAccountContext || nearbyAccountContext;
-  const visibleLabel = (label: string) => (accountContext ? stripLeadingAccountCode(label) : label);
+  const visibleLabel = (label: string) => accountContext ? stripLeadingAccountCode(label) : label;
 
   useEffect(() => {
     if (controlledValue !== undefined) setInternalValue(controlledValue);
@@ -162,28 +173,25 @@ export default function SearchableSelect({
       .slice(0, 150);
   }, [options, query, accountContext]);
 
-  const emitChange = (nextValue: string) => {
-    if (controlledValue === undefined) setInternalValue(nextValue);
-
-    const source = selectRef.current;
-    if (source) {
-      const nativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
-      if (nativeSetter) nativeSetter.call(source, nextValue);
-      else source.value = nextValue;
-      source.dispatchEvent(new Event("change", { bubbles: true }));
-      return;
-    }
-
-    if (onChange) {
-      const target = { value: nextValue, name: name ?? "", id: id ?? "" } as unknown as HTMLSelectElement;
-      onChange({ target, currentTarget: target } as ChangeEvent<HTMLSelectElement>);
-    }
-  };
-
   const commit = (nextValue: string) => {
     const option = options.find((candidate) => candidate.value === nextValue);
-    if (!option || option.disabled || disabled) return;
-    emitChange(nextValue);
+    if (option?.disabled || disabled) return;
+
+    if (controlledValue === undefined) setInternalValue(nextValue);
+
+    // Do not rely on a programmatic native <select> change event here.
+    // React may suppress that event because of its internal value tracker.
+    // Parent components in NAVILO use e.target.value, so invoke their
+    // supplied onChange handler directly with the selected value.
+    if (onChange) {
+      const target = {
+        value: nextValue,
+        name: name ?? "",
+        id: id ?? "",
+      } as unknown as HTMLSelectElement;
+      onChange({ target, currentTarget: target } as ChangeEvent<HTMLSelectElement>);
+    }
+
     setOpen(false);
     setQuery("");
     requestAnimationFrame(() => buttonRef.current?.focus());
@@ -228,12 +236,12 @@ export default function SearchableSelect({
     }
   };
 
-  const displayLabel = selected ? visibleLabel(selected.label) : selectedValue ? selectedValue : "Select...";
+  const displayLabel = selected ? visibleLabel(selected.label) : (selectedValue ? selectedValue : "Select...");
 
   const menu = open && menuPosition && typeof document !== "undefined" ? createPortal(
     <div
       ref={menuRef}
-      className="erp-searchable-menu fixed z-[9999] overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl"
+      className="erp-searchable-menu fixed z-[9999] overflow-hidden border border-slate-200 bg-white shadow-xl"
       style={{ left: menuPosition.left, top: menuPosition.top, width: menuPosition.width, maxHeight: menuPosition.maxHeight }}
     >
       <div className="border-b border-slate-100 p-2">
@@ -261,10 +269,7 @@ export default function SearchableSelect({
             aria-selected={option.value === selectedValue}
             disabled={option.disabled}
             onMouseEnter={() => setActiveIndex(index)}
-            onMouseDown={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-            }}
+            onMouseDown={(event) => event.preventDefault()}
             onClick={() => commit(option.value)}
             className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] ${index === activeIndex ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"} disabled:cursor-not-allowed disabled:opacity-40`}
           >
