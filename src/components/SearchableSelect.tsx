@@ -82,8 +82,7 @@ export default function SearchableSelect({
 
   const options = useMemo(() => flattenOptions(children), [children]);
   const controlledValue = value == null ? undefined : String(value);
-  const initialValue = controlledValue ?? (defaultValue == null ? "" : String(defaultValue));
-  const [internalValue, setInternalValue] = useState(initialValue);
+  const [internalValue, setInternalValue] = useState(controlledValue ?? (defaultValue == null ? "" : String(defaultValue)));
   const selectedValue = controlledValue ?? internalValue;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -93,14 +92,14 @@ export default function SearchableSelect({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const selectRef = useRef<HTMLSelectElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    if (controlledValue !== undefined) setInternalValue(controlledValue);
+  }, [controlledValue]);
+
   const explicitAccountContext = useMemo(() => {
-    const hint = [name, id, ariaLabel, searchPlaceholder]
-      .filter(Boolean)
-      .join(" ")
-      .toLocaleLowerCase();
+    const hint = [name, id, ariaLabel, searchPlaceholder].filter(Boolean).join(" ").toLocaleLowerCase();
     return hint.includes("account") || hint.includes("اکاؤنٹ");
   }, [name, id, ariaLabel, searchPlaceholder]);
 
@@ -114,10 +113,6 @@ export default function SearchableSelect({
 
   const accountContext = explicitAccountContext || nearbyAccountContext;
   const visibleLabel = (label: string) => accountContext ? stripLeadingAccountCode(label) : label;
-
-  useEffect(() => {
-    if (controlledValue !== undefined) setInternalValue(controlledValue);
-  }, [controlledValue]);
 
   const updateMenuPosition = () => {
     const button = buttonRef.current;
@@ -149,15 +144,15 @@ export default function SearchableSelect({
   }, [open]);
 
   useEffect(() => {
-    const close = (event: MouseEvent) => {
+    const close = (event: PointerEvent) => {
       const target = event.target as Node;
       if (!rootRef.current?.contains(target) && !menuRef.current?.contains(target)) {
         setOpen(false);
         setQuery("");
       }
     };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
   }, []);
 
   const selected = useMemo(
@@ -173,25 +168,17 @@ export default function SearchableSelect({
       .slice(0, 150);
   }, [options, query, accountContext]);
 
+  const emitChange = (nextValue: string) => {
+    if (!onChange) return;
+    const target = { value: nextValue, name: name ?? "", id: id ?? "" } as unknown as HTMLSelectElement;
+    onChange({ target, currentTarget: target } as ChangeEvent<HTMLSelectElement>);
+  };
+
   const commit = (nextValue: string) => {
     const option = options.find((candidate) => candidate.value === nextValue);
-    if (option?.disabled || disabled) return;
-
-    if (controlledValue === undefined) setInternalValue(nextValue);
-
-    // Do not rely on a programmatic native <select> change event here.
-    // React may suppress that event because of its internal value tracker.
-    // Parent components in NAVILO use e.target.value, so invoke their
-    // supplied onChange handler directly with the selected value.
-    if (onChange) {
-      const target = {
-        value: nextValue,
-        name: name ?? "",
-        id: id ?? "",
-      } as unknown as HTMLSelectElement;
-      onChange({ target, currentTarget: target } as ChangeEvent<HTMLSelectElement>);
-    }
-
+    if (!option || option.disabled || disabled) return;
+    setInternalValue(nextValue);
+    emitChange(nextValue);
     setOpen(false);
     setQuery("");
     requestAnimationFrame(() => buttonRef.current?.focus());
@@ -262,23 +249,25 @@ export default function SearchableSelect({
         {!filtered.length ? (
           <div className="px-3 py-4 text-center text-[12px] text-slate-500">{emptyText}</div>
         ) : filtered.map((option, index) => (
-          <button
+          <div
             key={`${option.group ?? ""}:${option.value}:${index}`}
-            type="button"
             role="option"
             aria-selected={option.value === selectedValue}
-            disabled={option.disabled}
+            aria-disabled={option.disabled}
             onMouseEnter={() => setActiveIndex(index)}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => commit(option.value)}
-            className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] ${index === activeIndex ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"} disabled:cursor-not-allowed disabled:opacity-40`}
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              commit(option.value);
+            }}
+            className={`flex w-full select-none items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] ${option.disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"} ${index === activeIndex ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"}`}
           >
             <span className="min-w-0 flex-1">
               {option.group && <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{option.group} ·</span>}
               <span className="break-words">{visibleLabel(option.label) || option.value || "—"}</span>
             </span>
             {option.value === selectedValue && <Check className="h-3.5 w-3.5 shrink-0" />}
-          </button>
+          </div>
         ))}
       </div>
     </div>,
@@ -292,9 +281,11 @@ export default function SearchableSelect({
         name={name}
         id={id}
         aria-label={ariaLabel}
-        ref={selectRef}
         value={selectedValue}
-        onChange={onChange}
+        onChange={(event) => {
+          setInternalValue(event.target.value);
+          onChange?.(event);
+        }}
         disabled={disabled}
         className="sr-only"
         tabIndex={-1}
