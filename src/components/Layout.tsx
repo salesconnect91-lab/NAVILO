@@ -72,7 +72,7 @@ export default function Layout({children}:{children:ReactNode}){
   const{branding}=usePlatformBranding();
   const location=useLocation(),navigate=useNavigate();
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role;
-  const permissions=activeCompany?.permissions as PermissionMatrix|undefined;
+  const permissions=(activeBusinessUnit?.permissions??activeCompany?.permissions) as PermissionMatrix|undefined;
   const mods=activeBusinessUnit?.enabled_modules??[];
   const[collapsed,setCollapsed]=useState(false),[mobileOpen,setMobileOpen]=useState(false),[open,setOpen]=useState<Record<string,boolean>>({});
   const visible=useMemo(()=>navigation.map(n=>filterNode(n,role,isPlatformOwner,mods,activeBusinessUnit?.business_unit_type,permissions,(key)=>isFeatureEnabled(key,"view"))).filter(Boolean) as NavNode[],[role,isPlatformOwner,mods,activeBusinessUnit?.business_unit_type,permissions,isFeatureEnabled]);
