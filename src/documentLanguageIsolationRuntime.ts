@@ -2,7 +2,9 @@ import { isKnownDocumentLabel, normalizeDocumentLanguages, renderDocumentLabel }
 
 type Original = { value: string; translated: string };
 const originals = new WeakMap<Text, Original>();
-const semanticSelector = "th,dt,label,h1,h2,h3,h4,h5,h6,legend,caption,[data-i18n-label],[data-document-label],.label,.field-label,.print-label,.document-label,.report-label,.print-title,.document-title,.report-title,.print-heading,.document-heading,.report-heading";
+const RTL = /[\u0600-\u06FF]/;
+const LATIN = /[A-Za-z]/;
+const semanticSelector = "th,dt,label,h1,h2,h3,h4,h5,h6,legend,caption,[data-i18n-label],[data-document-label],[class*='label'],[class*='title'],[class*='heading'],.print-total-row span:first-child,.print-charge-row span:first-child";
 const permanentRoots = ".print-document,[data-document-language-root]";
 const printableRoots = "[data-navilo-primary-print-target='true'],[data-print-root],.print-report,.professional-report";
 
@@ -25,6 +27,7 @@ function isBusinessData(node: Text) {
 
 function shouldTranslate(node: Text, value: string) {
   if (!value.trim() || isBusinessData(node)) return false;
+  if (LATIN.test(value) && RTL.test(value)) return true;
   if (isKnownDocumentLabel(value)) return true;
   const parent = node.parentElement;
   return Boolean(parent?.matches(semanticSelector) || parent?.closest(semanticSelector));
