@@ -1,0 +1,84 @@
+import type { RuntimeLanguageCode } from "@/lib/languageConfig";
+
+type Localized = Partial<Record<Exclude<RuntimeLanguageCode,"en">,string>>;
+
+export const GLOBAL_UI_TRANSLATIONS: Record<string,Localized> = {
+  "Dashboard":{ur:"ڈیش بورڈ",ar:"لوحة التحكم",hi:"डैशबोर्ड",bn:"ড্যাশবোর্ড",fa:"داشبورد",tr:"Gösterge Paneli",fr:"Tableau de bord",es:"Panel",de:"Dashboard",pt:"Painel",ru:"Панель",zh:"仪表板",id:"Dasbor",ms:"Papan Pemuka"},
+  "Master Data":{ur:"ماسٹر ڈیٹا",ar:"البيانات الأساسية",hi:"मास्टर डेटा",bn:"মাস্টার ডেটা",fa:"داده‌های پایه",tr:"Ana Veriler",fr:"Données de base",es:"Datos maestros",de:"Stammdaten",pt:"Dados mestre",ru:"Справочники",zh:"主数据",id:"Data Induk",ms:"Data Induk"},
+  "Sales":{ur:"سیلز",ar:"المبيعات",hi:"बिक्री",bn:"বিক্রয়",fa:"فروش",tr:"Satış",fr:"Ventes",es:"Ventas",de:"Verkauf",pt:"Vendas",ru:"Продажи",zh:"销售",id:"Penjualan",ms:"Jualan"},
+  "Purchase":{ur:"خریداری",ar:"المشتريات",hi:"खरीद",bn:"ক্রয়",fa:"خرید",tr:"Satın Alma",fr:"Achats",es:"Compras",de:"Einkauf",pt:"Compras",ru:"Закупки",zh:"采购",id:"Pembelian",ms:"Pembelian"},
+  "Inventory":{ur:"اسٹاک",ar:"المخزون",hi:"इन्वेंटरी",bn:"ইনভেন্টরি",fa:"موجودی",tr:"Stok",fr:"Stock",es:"Inventario",de:"Lager",pt:"Estoque",ru:"Запасы",zh:"库存",id:"Persediaan",ms:"Inventori"},
+  "Production":{ur:"پیداوار",ar:"الإنتاج",hi:"उत्पादन",bn:"উৎপাদন",fa:"تولید",tr:"Üretim",fr:"Production",es:"Producción",de:"Produktion",pt:"Produção",ru:"Производство",zh:"生产",id:"Produksi",ms:"Pengeluaran"},
+  "Accounting":{ur:"اکاؤنٹنگ",ar:"المحاسبة",hi:"लेखांकन",bn:"হিসাবরক্ষণ",fa:"حسابداری",tr:"Muhasebe",fr:"Comptabilité",es:"Contabilidad",de:"Buchhaltung",pt:"Contabilidade",ru:"Бухгалтерия",zh:"会计",id:"Akuntansi",ms:"Perakaunan"},
+  "Reports":{ur:"رپورٹس",ar:"التقارير",hi:"रिपोर्ट",bn:"রিপোর্ট",fa:"گزارش‌ها",tr:"Raporlar",fr:"Rapports",es:"Informes",de:"Berichte",pt:"Relatórios",ru:"Отчёты",zh:"报表",id:"Laporan",ms:"Laporan"},
+  "Settings":{ur:"سیٹنگز",ar:"الإعدادات",hi:"सेटिंग्स",bn:"সেটিংস",fa:"تنظیمات",tr:"Ayarlar",fr:"Paramètres",es:"Configuración",de:"Einstellungen",pt:"Configurações",ru:"Настройки",zh:"设置",id:"Pengaturan",ms:"Tetapan"},
+  "Company Settings":{ur:"کمپنی سیٹنگز",ar:"إعدادات الشركة",hi:"कंपनी सेटिंग्स",bn:"কোম্পানি সেটিংস",fa:"تنظیمات شرکت",tr:"Şirket Ayarları",fr:"Paramètres de l’entreprise",es:"Configuración de empresa",de:"Unternehmenseinstellungen",pt:"Configurações da empresa",ru:"Настройки компании",zh:"公司设置",id:"Pengaturan Perusahaan",ms:"Tetapan Syarikat"},
+  "Items":{ur:"آئٹمز",ar:"الأصناف",hi:"आइटम",bn:"আইটেম",fa:"اقلام",tr:"Ürünler",fr:"Articles",es:"Artículos",de:"Artikel",pt:"Itens",ru:"Товары",zh:"物料",id:"Item",ms:"Item"},
+  "Customers":{ur:"گاہک",ar:"العملاء",hi:"ग्राहक",bn:"গ্রাহক",fa:"مشتریان",tr:"Müşteriler",fr:"Clients",es:"Clientes",de:"Kunden",pt:"Clientes",ru:"Клиенты",zh:"客户",id:"Pelanggan",ms:"Pelanggan"},
+  "Suppliers":{ur:"سپلائرز",ar:"الموردون",hi:"आपूर्तिकर्ता",bn:"সরবরাহকারী",fa:"تأمین‌کنندگان",tr:"Tedarikçiler",fr:"Fournisseurs",es:"Proveedores",de:"Lieferanten",pt:"Fornecedores",ru:"Поставщики",zh:"供应商",id:"Pemasok",ms:"Pembekal"},
+  "Employees":{ur:"ملازمین",ar:"الموظفون",hi:"कर्मचारी",bn:"কর্মচারী",fa:"کارکنان",tr:"Çalışanlar",fr:"Employés",es:"Empleados",de:"Mitarbeiter",pt:"Funcionários",ru:"Сотрудники",zh:"员工",id:"Karyawan",ms:"Pekerja"},
+  "Warehouses":{ur:"ویئرہاؤسز",ar:"المستودعات",hi:"गोदाम",bn:"গুদাম",fa:"انبارها",tr:"Depolar",fr:"Entrepôts",es:"Almacenes",de:"Lagerhäuser",pt:"Armazéns",ru:"Склады",zh:"仓库",id:"Gudang",ms:"Gudang"},
+  "Sales Invoices":{ur:"سیلز انوائسز",ar:"فواتير المبيعات",hi:"बिक्री चालान",bn:"বিক্রয় চালান",fa:"فاکتورهای فروش",tr:"Satış Faturaları",fr:"Factures de vente",es:"Facturas de venta",de:"Verkaufsrechnungen",pt:"Faturas de venda",ru:"Счета продаж",zh:"销售发票",id:"Faktur Penjualan",ms:"Invois Jualan"},
+  "Purchase Invoices":{ur:"خریداری انوائسز",ar:"فواتير المشتريات",hi:"खरीद चालान",bn:"ক্রয় চালান",fa:"فاکتورهای خرید",tr:"Satın Alma Faturaları",fr:"Factures d’achat",es:"Facturas de compra",de:"Einkaufsrechnungen",pt:"Faturas de compra",ru:"Счета закупок",zh:"采购发票",id:"Faktur Pembelian",ms:"Invois Pembelian"},
+  "Current Stock":{ur:"موجودہ اسٹاک",ar:"المخزون الحالي",hi:"वर्तमान स्टॉक",bn:"বর্তমান স্টক",fa:"موجودی فعلی",tr:"Mevcut Stok",fr:"Stock actuel",es:"Stock actual",de:"Aktueller Bestand",pt:"Estoque atual",ru:"Текущий запас",zh:"当前库存",id:"Stok Saat Ini",ms:"Stok Semasa"},
+  "Stock Movements":{ur:"اسٹاک موومنٹس",ar:"حركات المخزون",hi:"स्टॉक मूवमेंट",bn:"স্টক মুভমেন্ট",fa:"گردش موجودی",tr:"Stok Hareketleri",fr:"Mouvements de stock",es:"Movimientos de stock",de:"Lagerbewegungen",pt:"Movimentos de estoque",ru:"Движения запасов",zh:"库存移动",id:"Pergerakan Stok",ms:"Pergerakan Stok"},
+  "Journal Entries":{ur:"جرنل اندراجات",ar:"قيود اليومية",hi:"जर्नल प्रविष्टियाँ",bn:"জার্নাল এন্ট্রি",fa:"اسناد حسابداری",tr:"Yevmiye Kayıtları",fr:"Écritures comptables",es:"Asientos contables",de:"Buchungssätze",pt:"Lançamentos contábeis",ru:"Проводки",zh:"日记账分录",id:"Entri Jurnal",ms:"Entri Jurnal"},
+  "Chart of Accounts":{ur:"چارٹ آف اکاؤنٹس",ar:"دليل الحسابات",hi:"खाता चार्ट",bn:"হিসাবের তালিকা",fa:"کدینگ حساب‌ها",tr:"Hesap Planı",fr:"Plan comptable",es:"Plan de cuentas",de:"Kontenplan",pt:"Plano de contas",ru:"План счетов",zh:"科目表",id:"Bagan Akun",ms:"Carta Akaun"},
+  "Trial Balance":{ur:"ٹرائل بیلنس",ar:"ميزان المراجعة",hi:"ट्रायल बैलेंस",bn:"ট্রায়াল ব্যালেন্স",fa:"تراز آزمایشی",tr:"Mizan",fr:"Balance générale",es:"Balance de comprobación",de:"Summen- und Saldenliste",pt:"Balancete",ru:"Оборотно-сальдовая ведомость",zh:"试算平衡表",id:"Neraca Saldo",ms:"Imbangan Duga"},
+  "Profit & Loss":{ur:"نفع و نقصان",ar:"الأرباح والخسائر",hi:"लाभ और हानि",bn:"লাভ ও ক্ষতি",fa:"سود و زیان",tr:"Kâr ve Zarar",fr:"Compte de résultat",es:"Pérdidas y ganancias",de:"Gewinn und Verlust",pt:"Lucros e perdas",ru:"Прибыли и убытки",zh:"损益表",id:"Laba Rugi",ms:"Untung Rugi"},
+  "Balance Sheet":{ur:"بیلنس شیٹ",ar:"الميزانية العمومية",hi:"बैलेंस शीट",bn:"ব্যালেন্স শিট",fa:"ترازنامه",tr:"Bilanço",fr:"Bilan",es:"Balance general",de:"Bilanz",pt:"Balanço patrimonial",ru:"Баланс",zh:"资产负债表",id:"Neraca",ms:"Kunci Kira-kira"},
+  "Cash Flow":{ur:"کیش فلو",ar:"التدفق النقدي",hi:"नकदी प्रवाह",bn:"নগদ প্রবাহ",fa:"جریان نقدی",tr:"Nakit Akışı",fr:"Flux de trésorerie",es:"Flujo de caja",de:"Cashflow",pt:"Fluxo de caixa",ru:"Денежный поток",zh:"现金流量",id:"Arus Kas",ms:"Aliran Tunai"},
+  "Tax Settings":{ur:"ٹیکس سیٹنگز",ar:"إعدادات الضريبة",hi:"कर सेटिंग्स",bn:"কর সেটিংস",fa:"تنظیمات مالیات",tr:"Vergi Ayarları",fr:"Paramètres fiscaux",es:"Configuración fiscal",de:"Steuereinstellungen",pt:"Configurações fiscais",ru:"Настройки налогов",zh:"税务设置",id:"Pengaturan Pajak",ms:"Tetapan Cukai"},
+  "Tax Register":{ur:"ٹیکس رجسٹر",ar:"سجل الضريبة",hi:"कर रजिस्टर",bn:"কর রেজিস্টার",fa:"دفتر مالیات",tr:"Vergi Defteri",fr:"Registre fiscal",es:"Registro fiscal",de:"Steuerregister",pt:"Registro fiscal",ru:"Налоговый регистр",zh:"税务登记簿",id:"Register Pajak",ms:"Daftar Cukai"},
+  "Sales Tax Register":{ur:"سیلز ٹیکس رجسٹر",ar:"سجل ضريبة المبيعات",hi:"बिक्री कर रजिस्टर",bn:"বিক্রয় কর রেজিস্টার",fa:"دفتر مالیات فروش",tr:"Satış Vergisi Defteri",fr:"Registre de taxe sur les ventes",es:"Registro de impuesto sobre ventas",de:"Umsatzsteuerregister",pt:"Registro de imposto sobre vendas",ru:"Регистр налога с продаж",zh:"销售税登记簿",id:"Register Pajak Penjualan",ms:"Daftar Cukai Jualan"},
+  "Language Settings":{ur:"زبان کی سیٹنگز",ar:"إعدادات اللغة",hi:"भाषा सेटिंग्स",bn:"ভাষা সেটিংস",fa:"تنظیمات زبان",tr:"Dil Ayarları",fr:"Paramètres de langue",es:"Configuración de idioma",de:"Spracheinstellungen",pt:"Configurações de idioma",ru:"Настройки языка",zh:"语言设置",id:"Pengaturan Bahasa",ms:"Tetapan Bahasa"},
+  "Screen Language":{ur:"اسکرین زبان",ar:"لغة الشاشة",hi:"स्क्रीन भाषा",bn:"স্ক্রিন ভাষা",fa:"زبان صفحه",tr:"Ekran Dili",fr:"Langue de l’écran",es:"Idioma de pantalla",de:"Bildschirmsprache",pt:"Idioma da tela",ru:"Язык интерфейса",zh:"界面语言",id:"Bahasa Layar",ms:"Bahasa Skrin"},
+  "Document Language":{ur:"دستاویز کی زبان",ar:"لغة المستند",hi:"दस्तावेज़ भाषा",bn:"ডকুমেন্ট ভাষা",fa:"زبان سند",tr:"Belge Dili",fr:"Langue du document",es:"Idioma del documento",de:"Dokumentsprache",pt:"Idioma do documento",ru:"Язык документа",zh:"文档语言",id:"Bahasa Dokumen",ms:"Bahasa Dokumen"},
+  "Single Language":{ur:"ایک زبان",ar:"لغة واحدة",hi:"एक भाषा",bn:"একক ভাষা",fa:"تک‌زبانه",tr:"Tek Dil",fr:"Langue unique",es:"Un idioma",de:"Einzelsprache",pt:"Idioma único",ru:"Один язык",zh:"单语言",id:"Satu Bahasa",ms:"Satu Bahasa"},
+  "Bilingual":{ur:"دو زبانیں",ar:"ثنائي اللغة",hi:"द्विभाषी",bn:"দ্বিভাষিক",fa:"دوزبانه",tr:"İki Dilli",fr:"Bilingue",es:"Bilingüe",de:"Zweisprachig",pt:"Bilíngue",ru:"Двуязычный",zh:"双语",id:"Dwibahasa",ms:"Dwibahasa"},
+  "Primary Language":{ur:"بنیادی زبان",ar:"اللغة الأساسية",hi:"प्राथमिक भाषा",bn:"প্রাথমিক ভাষা",fa:"زبان اصلی",tr:"Birincil Dil",fr:"Langue principale",es:"Idioma principal",de:"Primärsprache",pt:"Idioma principal",ru:"Основной язык",zh:"主要语言",id:"Bahasa Utama",ms:"Bahasa Utama"},
+  "Secondary Language":{ur:"ثانوی زبان",ar:"اللغة الثانوية",hi:"द्वितीय भाषा",bn:"দ্বিতীয় ভাষা",fa:"زبان دوم",tr:"İkincil Dil",fr:"Langue secondaire",es:"Idioma secundario",de:"Sekundärsprache",pt:"Idioma secundário",ru:"Дополнительный язык",zh:"第二语言",id:"Bahasa Kedua",ms:"Bahasa Kedua"},
+  "Save":{ur:"محفوظ کریں",ar:"حفظ",hi:"सहेजें",bn:"সংরক্ষণ",fa:"ذخیره",tr:"Kaydet",fr:"Enregistrer",es:"Guardar",de:"Speichern",pt:"Salvar",ru:"Сохранить",zh:"保存",id:"Simpan",ms:"Simpan"},
+  "Cancel":{ur:"منسوخ",ar:"إلغاء",hi:"रद्द करें",bn:"বাতিল",fa:"لغو",tr:"İptal",fr:"Annuler",es:"Cancelar",de:"Abbrechen",pt:"Cancelar",ru:"Отмена",zh:"取消",id:"Batal",ms:"Batal"},
+  "Add":{ur:"شامل کریں",ar:"إضافة",hi:"जोड़ें",bn:"যোগ করুন",fa:"افزودن",tr:"Ekle",fr:"Ajouter",es:"Agregar",de:"Hinzufügen",pt:"Adicionar",ru:"Добавить",zh:"添加",id:"Tambah",ms:"Tambah"},
+  "Edit":{ur:"ترمیم",ar:"تعديل",hi:"संपादित करें",bn:"সম্পাদনা",fa:"ویرایش",tr:"Düzenle",fr:"Modifier",es:"Editar",de:"Bearbeiten",pt:"Editar",ru:"Изменить",zh:"编辑",id:"Ubah",ms:"Sunting"},
+  "Delete":{ur:"حذف کریں",ar:"حذف",hi:"हटाएँ",bn:"মুছুন",fa:"حذف",tr:"Sil",fr:"Supprimer",es:"Eliminar",de:"Löschen",pt:"Excluir",ru:"Удалить",zh:"删除",id:"Hapus",ms:"Padam"},
+  "Search":{ur:"تلاش",ar:"بحث",hi:"खोजें",bn:"খুঁজুন",fa:"جستجو",tr:"Ara",fr:"Rechercher",es:"Buscar",de:"Suchen",pt:"Pesquisar",ru:"Поиск",zh:"搜索",id:"Cari",ms:"Cari"},
+  "Refresh":{ur:"تازہ کریں",ar:"تحديث",hi:"रीफ्रेश",bn:"রিফ্রেশ",fa:"به‌روزرسانی",tr:"Yenile",fr:"Actualiser",es:"Actualizar",de:"Aktualisieren",pt:"Atualizar",ru:"Обновить",zh:"刷新",id:"Segarkan",ms:"Segar Semula"},
+  "Export":{ur:"ایکسپورٹ",ar:"تصدير",hi:"निर्यात",bn:"এক্সপোর্ট",fa:"خروجی",tr:"Dışa Aktar",fr:"Exporter",es:"Exportar",de:"Exportieren",pt:"Exportar",ru:"Экспорт",zh:"导出",id:"Ekspor",ms:"Eksport"},
+  "Print":{ur:"پرنٹ",ar:"طباعة",hi:"प्रिंट",bn:"প্রিন্ট",fa:"چاپ",tr:"Yazdır",fr:"Imprimer",es:"Imprimir",de:"Drucken",pt:"Imprimir",ru:"Печать",zh:"打印",id:"Cetak",ms:"Cetak"},
+  "Back":{ur:"واپس",ar:"رجوع",hi:"वापस",bn:"ফিরে যান",fa:"بازگشت",tr:"Geri",fr:"Retour",es:"Atrás",de:"Zurück",pt:"Voltar",ru:"Назад",zh:"返回",id:"Kembali",ms:"Kembali"},
+  "Active Company":{ur:"فعال کمپنی",ar:"الشركة النشطة",hi:"सक्रिय कंपनी",bn:"সক্রিয় কোম্পানি",fa:"شرکت فعال",tr:"Aktif Şirket",fr:"Entreprise active",es:"Empresa activa",de:"Aktives Unternehmen",pt:"Empresa ativa",ru:"Активная компания",zh:"当前公司",id:"Perusahaan Aktif",ms:"Syarikat Aktif"},
+  "Date":{ur:"تاریخ",ar:"التاريخ",hi:"तारीख",bn:"তারিখ",fa:"تاریخ",tr:"Tarih",fr:"Date",es:"Fecha",de:"Datum",pt:"Data",ru:"Дата",zh:"日期",id:"Tanggal",ms:"Tarikh"},
+  "Amount":{ur:"رقم",ar:"المبلغ",hi:"राशि",bn:"পরিমাণ",fa:"مبلغ",tr:"Tutar",fr:"Montant",es:"Importe",de:"Betrag",pt:"Valor",ru:"Сумма",zh:"金额",id:"Jumlah",ms:"Amaun"},
+  "Total":{ur:"کل",ar:"الإجمالي",hi:"कुल",bn:"মোট",fa:"جمع",tr:"Toplam",fr:"Total",es:"Total",de:"Gesamt",pt:"Total",ru:"Итого",zh:"合计",id:"Total",ms:"Jumlah"},
+  "Debit":{ur:"ڈیبٹ",ar:"مدين",hi:"डेबिट",bn:"ডেবিট",fa:"بدهکار",tr:"Borç",fr:"Débit",es:"Debe",de:"Soll",pt:"Débito",ru:"Дебет",zh:"借方",id:"Debit",ms:"Debit"},
+  "Credit":{ur:"کریڈٹ",ar:"دائن",hi:"क्रेडिट",bn:"ক্রেডিট",fa:"بستانکار",tr:"Alacak",fr:"Crédit",es:"Haber",de:"Haben",pt:"Crédito",ru:"Кредит",zh:"贷方",id:"Kredit",ms:"Kredit"},
+  "Balance":{ur:"بیلنس",ar:"الرصيد",hi:"शेष",bn:"ব্যালেন্স",fa:"مانده",tr:"Bakiye",fr:"Solde",es:"Saldo",de:"Saldo",pt:"Saldo",ru:"Сальдо",zh:"余额",id:"Saldo",ms:"Baki"},
+  "Customer":{ur:"گاہک",ar:"العميل",hi:"ग्राहक",bn:"গ্রাহক",fa:"مشتری",tr:"Müşteri",fr:"Client",es:"Cliente",de:"Kunde",pt:"Cliente",ru:"Клиент",zh:"客户",id:"Pelanggan",ms:"Pelanggan"},
+  "Supplier":{ur:"سپلائر",ar:"المورد",hi:"आपूर्तिकर्ता",bn:"সরবরাহকারী",fa:"تأمین‌کننده",tr:"Tedarikçi",fr:"Fournisseur",es:"Proveedor",de:"Lieferant",pt:"Fornecedor",ru:"Поставщик",zh:"供应商",id:"Pemasok",ms:"Pembekal"},
+  "Invoice":{ur:"انوائس",ar:"الفاتورة",hi:"चालान",bn:"চালান",fa:"فاکتور",tr:"Fatura",fr:"Facture",es:"Factura",de:"Rechnung",pt:"Fatura",ru:"Счёт",zh:"发票",id:"Faktur",ms:"Invois"},
+  "Payment":{ur:"ادائیگی",ar:"الدفع",hi:"भुगतान",bn:"পেমেন্ট",fa:"پرداخت",tr:"Ödeme",fr:"Paiement",es:"Pago",de:"Zahlung",pt:"Pagamento",ru:"Платёж",zh:"付款",id:"Pembayaran",ms:"Bayaran"},
+  "Receipt":{ur:"وصولی",ar:"الإيصال",hi:"रसीद",bn:"রসিদ",fa:"دریافت",tr:"Tahsilat",fr:"Reçu",es:"Recibo",de:"Beleg",pt:"Recibo",ru:"Квитанция",zh:"收款",id:"Penerimaan",ms:"Resit"},
+  "Status":{ur:"حالت",ar:"الحالة",hi:"स्थिति",bn:"অবস্থা",fa:"وضعیت",tr:"Durum",fr:"Statut",es:"Estado",de:"Status",pt:"Status",ru:"Статус",zh:"状态",id:"Status",ms:"Status"},
+  "Draft":{ur:"مسودہ",ar:"مسودة",hi:"मसौदा",bn:"খসড়া",fa:"پیش‌نویس",tr:"Taslak",fr:"Brouillon",es:"Borrador",de:"Entwurf",pt:"Rascunho",ru:"Черновик",zh:"草稿",id:"Draf",ms:"Draf"},
+  "Posted":{ur:"پوسٹ شدہ",ar:"مرحّل",hi:"पोस्ट किया गया",bn:"পোস্টেড",fa:"ثبت‌شده",tr:"Muhasebeleştirildi",fr:"Comptabilisé",es:"Contabilizado",de:"Gebucht",pt:"Lançado",ru:"Проведено",zh:"已过账",id:"Diposting",ms:"Dipost"},
+  "Language":{ur:"زبان",ar:"اللغة",hi:"भाषा",bn:"ভাষা",fa:"زبان",tr:"Dil",fr:"Langue",es:"Idioma",de:"Sprache",pt:"Idioma",ru:"Язык",zh:"语言",id:"Bahasa",ms:"Bahasa"},
+  "Country":{ur:"ملک",ar:"الدولة",hi:"देश",bn:"দেশ",fa:"کشور",tr:"Ülke",fr:"Pays",es:"País",de:"Land",pt:"País",ru:"Страна",zh:"国家",id:"Negara",ms:"Negara"},
+  "Currency":{ur:"کرنسی",ar:"العملة",hi:"मुद्रा",bn:"মুদ্রা",fa:"ارز",tr:"Para Birimi",fr:"Devise",es:"Moneda",de:"Währung",pt:"Moeda",ru:"Валюта",zh:"货币",id:"Mata Uang",ms:"Mata Wang"}
+};
+
+export function translateGlobalUi(value:string,language:RuntimeLanguageCode){
+  if(language==="en")return value;
+  const exact=GLOBAL_UI_TRANSLATIONS[value]?.[language];
+  if(exact)return exact;
+  let output=value;
+  const entries=Object.entries(GLOBAL_UI_TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length);
+  for(const [source,localized] of entries){
+    const target=localized[language];
+    if(!target)continue;
+    const escaped=source.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    output=output.replace(new RegExp(`\\b${escaped}\\b`,"gi"),target);
+  }
+  return output;
+}
