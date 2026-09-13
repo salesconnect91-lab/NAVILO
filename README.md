@@ -1,5 +1,5 @@
-# metalforge
+# NAVILO
 
-[![Open in Bolt](https://bolt.new/static/open-in-bolt.svg)](https://bolt.new/~/sb1-7pecgzmw)
+**Run Your Business as One.**
 
-<!-- deployment trigger: management report suite -->
+NAVILO ERP — unified business management platform.
