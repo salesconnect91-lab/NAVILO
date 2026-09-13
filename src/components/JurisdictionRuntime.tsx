@@ -39,10 +39,21 @@ function processTextNode(node: Text, currency: string, primaryTaxId: string, sec
   if (!parent || parent.closest("script,style,code,pre,[data-jurisdiction-skip='true']")) return;
   const current = node.nodeValue || "";
   if (!current.trim()) return;
-  if (!originalText.has(node)) originalText.set(node, current);
+
+  const previousSource = originalText.get(node);
+  if (!previousSource) originalText.set(node, current);
   const source = originalText.get(node) || current;
-  const next = applyProfileText(source, currency, primaryTaxId, secondaryTaxId);
-  if (node.nodeValue !== next) node.nodeValue = next;
+  const expected = applyProfileText(source, currency, primaryTaxId, secondaryTaxId);
+
+  // React may reuse the same Text node for a changed amount/status. Preserve the
+  // new source instead of restoring a stale value from the first render.
+  if (previousSource && current !== source && current !== expected) {
+    originalText.set(node, current);
+    const next = applyProfileText(current, currency, primaryTaxId, secondaryTaxId);
+    if (node.nodeValue !== next) node.nodeValue = next;
+    return;
+  }
+  if (node.nodeValue !== expected) node.nodeValue = expected;
 }
 
 function processAttributes(element: Element, currency: string, primaryTaxId: string, secondaryTaxId: string) {
@@ -52,9 +63,13 @@ function processAttributes(element: Element, currency: string, primaryTaxId: str
   for (const attribute of ATTRIBUTES) {
     const current = element.getAttribute(attribute);
     if (!current) continue;
-    if (!stored.has(attribute)) stored.set(attribute, current);
+    const previousSource = stored.get(attribute);
+    if (!previousSource) stored.set(attribute, current);
     const source = stored.get(attribute) || current;
-    const next = applyProfileText(source, currency, primaryTaxId, secondaryTaxId);
+    const expected = applyProfileText(source, currency, primaryTaxId, secondaryTaxId);
+    if (previousSource && current !== source && current !== expected) stored.set(attribute, current);
+    const latestSource = stored.get(attribute) || current;
+    const next = applyProfileText(latestSource, currency, primaryTaxId, secondaryTaxId);
     if (current !== next) element.setAttribute(attribute, next);
   }
 }
@@ -104,9 +119,10 @@ export default function JurisdictionRuntime() {
       for (const mutation of mutations) {
         mutation.addedNodes.forEach((node) => applyTree(node, currency, primaryTaxId, secondaryTaxId));
         if (mutation.type === "characterData" && mutation.target.nodeType === Node.TEXT_NODE) processTextNode(mutation.target as Text, currency, primaryTaxId, secondaryTaxId);
+        if (mutation.type === "attributes" && mutation.target.nodeType === Node.ELEMENT_NODE) processAttributes(mutation.target as Element, currency, primaryTaxId, secondaryTaxId);
       }
     });
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: [...ATTRIBUTES] });
 
     void refresh();
     const handleChange = () => void refresh();
