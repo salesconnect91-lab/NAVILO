@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Download, FileText, Languages, Printer, Settings2, Sheet, Table2, Upload } from "lucide-react";
+import { Download, FileText, Printer, Settings2, Sheet, Table2, Upload } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission, type ModuleKey } from "@/auth/permissions";
 import { exportDomReportToCSV, exportDomReportToExcel, exportDomReportToWord, triggerPrint } from "@/lib/exportUtils";
-import UserLanguagePreference from "@/components/UserLanguagePreference";
 
 function cleanTitle(v:string){return v.replace(/\s*\/\s*[\u0600-\u06FF].*$/,"").replace(/[^a-z0-9]+/gi,"-").replace(/^-+|-+$/g,"").toLowerCase()||"navilo-export"}
 function reportRoot(){return document.querySelector<HTMLElement>("[data-report-content]")||document.querySelector<HTMLElement>(".professional-report")||document.querySelector<HTMLElement>("#order-book-report")||document.querySelector<HTMLElement>("#navilo-main-content")}
@@ -25,7 +24,7 @@ function findLocalAction(predicate:(label:string)=>boolean){const main=document.
 
 export default function UniversalDataTools(){
   const{pathname}=useLocation(),{activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
-  const[open,setOpen]=useState(false),[languageOpen,setLanguageOpen]=useState(false),[importOpen,setImportOpen]=useState(false),[standardHost,setStandardHost]=useState<HTMLElement|null>(null),[hasTemplate,setHasTemplate]=useState(false),[hasUpload,setHasUpload]=useState(false),[hasCustomizableTable,setHasCustomizableTable]=useState(false);
+  const[open,setOpen]=useState(false),[importOpen,setImportOpen]=useState(false),[standardHost,setStandardHost]=useState<HTMLElement|null>(null),[hasTemplate,setHasTemplate]=useState(false),[hasUpload,setHasUpload]=useState(false),[hasCustomizableTable,setHasCustomizableTable]=useState(false);
   const ref=useRef<HTMLDivElement|null>(null);
   const reportMode=isReportPath(pathname),masterStandard=isMasterStandardPath(pathname),standardPath=isNaviloStandardPath(pathname),customizable=reportMode||masterStandard||hasCustomizableTable,journalList=pathname==="/accounting";
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role,module=moduleForPath(pathname),permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
@@ -51,7 +50,7 @@ export default function UniversalDataTools(){
     return()=>{observer.disconnect();setStandardHost(null)};
   },[standardPath,pathname]);
   useEffect(()=>{if(!journalList)return;const s=document.createElement("style");s.textContent='button[title^="Print journal voucher"]{display:none!important}';document.head.appendChild(s);return()=>s.remove()},[journalList]);
-  useEffect(()=>{if(!open&&!languageOpen&&!importOpen)return;const close=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node)){setOpen(false);setLanguageOpen(false);setImportOpen(false)}};document.addEventListener("mousedown",close);return()=>document.removeEventListener("mousedown",close)},[open,languageOpen,importOpen]);
+  useEffect(()=>{if(!open&&!importOpen)return;const close=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node)){setOpen(false);setImportOpen(false)}};document.addEventListener("mousedown",close);return()=>document.removeEventListener("mousedown",close)},[open,importOpen]);
 
   const exp=(t:"excel"|"csv"|"word")=>{if(!canExport)return;const root=currentExportRoot();if(!root)return;const title=currentPageTitle(),file=cleanTitle(title);if(t==="excel")exportDomReportToExcel(file,root,title);if(t==="csv")exportDomReportToCSV(file,root,title);if(t==="word")exportDomReportToWord(file,root,title);setOpen(false)};
   const print=()=>{if(canPrint){setOpen(false);triggerPrint(reportSelector())}};
@@ -59,10 +58,9 @@ export default function UniversalDataTools(){
   const runUpload=()=>{findLocalAction(isUploadAction)?.click();setImportOpen(false)};
   const base=reportMode?"navilo-report-tool":"inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-[12px] font-bold text-slate-700 shadow-sm hover:bg-slate-50";
   const toolbar=<div className={reportMode?"navilo-report-toolbar":"relative flex items-center gap-2"} ref={ref} data-no-print data-no-export data-navilo-global-data-tools>
-    <div className="relative"><button type="button" onClick={()=>{setLanguageOpen(v=>!v);setOpen(false);setImportOpen(false)}} className={base}><Languages className="h-4 w-4"/><span className="hidden xl:inline">Language</span></button>{languageOpen&&<div className="absolute right-0 top-10 z-[80] w-[min(92vw,520px)] rounded-lg border bg-white p-2 shadow-xl"><UserLanguagePreference/></div>}</div>
     {customizable&&<button type="button" onClick={()=>window.dispatchEvent(new Event("navilo:report-customize"))} className={base}><Settings2 className="h-4 w-4"/><span>Customize</span></button>}
-    {(hasTemplate||hasUpload)&&<div className="relative"><button type="button" onClick={()=>{setImportOpen(v=>!v);setOpen(false);setLanguageOpen(false)}} className={base}><Upload className="h-4 w-4"/><span>Import</span></button>{importOpen&&<div className="absolute right-0 top-10 z-[75] w-52 rounded-lg border bg-white py-1 shadow-xl">{hasTemplate&&<button type="button" onClick={runTemplate} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50"><FileText className="h-4 w-4"/>Download Template</button>}{hasUpload&&<button type="button" onClick={runUpload} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50"><Upload className="h-4 w-4"/>Choose File / Upload</button>}</div>}</div>}
-    {canExport&&<div className="relative"><button type="button" onClick={()=>{setOpen(v=>!v);setLanguageOpen(false);setImportOpen(false)}} className={base}><Download className="h-4 w-4"/><span className="hidden xl:inline">Export</span></button>{open&&<div className="absolute right-0 top-10 z-[70] w-48 rounded-lg border bg-white py-1 shadow-xl"><button type="button" onClick={()=>exp("excel")} className="flex w-full gap-2 px-3 py-2 text-xs"><Sheet className="h-4 w-4"/>Excel (.xlsx)</button><button type="button" onClick={()=>exp("csv")} className="flex w-full gap-2 px-3 py-2 text-xs"><Table2 className="h-4 w-4"/>CSV (.csv)</button><button type="button" onClick={()=>exp("word")} className="flex w-full gap-2 px-3 py-2 text-xs"><FileText className="h-4 w-4"/>Word (.doc)</button></div>}</div>}
+    {(hasTemplate||hasUpload)&&<div className="relative"><button type="button" onClick={()=>{setImportOpen(v=>!v);setOpen(false)}} className={base}><Upload className="h-4 w-4"/><span>Import</span></button>{importOpen&&<div className="absolute right-0 top-10 z-[75] w-52 rounded-lg border bg-white py-1 shadow-xl">{hasTemplate&&<button type="button" onClick={runTemplate} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50"><FileText className="h-4 w-4"/>Download Template</button>}{hasUpload&&<button type="button" onClick={runUpload} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50"><Upload className="h-4 w-4"/>Choose File / Upload</button>}</div>}</div>}
+    {canExport&&<div className="relative"><button type="button" onClick={()=>{setOpen(v=>!v);setImportOpen(false)}} className={base}><Download className="h-4 w-4"/><span className="hidden xl:inline">Export</span></button>{open&&<div className="absolute right-0 top-10 z-[70] w-48 rounded-lg border bg-white py-1 shadow-xl"><button type="button" onClick={()=>exp("excel")} className="flex w-full gap-2 px-3 py-2 text-xs"><Sheet className="h-4 w-4"/>Excel (.xlsx)</button><button type="button" onClick={()=>exp("csv")} className="flex w-full gap-2 px-3 py-2 text-xs"><Table2 className="h-4 w-4"/>CSV (.csv)</button><button type="button" onClick={()=>exp("word")} className="flex w-full gap-2 px-3 py-2 text-xs"><FileText className="h-4 w-4"/>Word (.doc)</button></div>}</div>}
     {canPrint&&<button type="button" data-print-selector={reportSelector()} onClick={print} className={base}><Printer className="h-4 w-4"/><span className="hidden xl:inline">Print / PDF</span></button>}
   </div>;
   if(standardPath&&standardHost)return createPortal(toolbar,standardHost);
