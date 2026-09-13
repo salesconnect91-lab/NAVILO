@@ -1,0 +1,15 @@
+create index if not exists idx_cpi_charges_operating_location on public.consolidated_purchase_invoice_charges(operating_location_id);
+create index if not exists idx_cpi_lines_operating_location on public.consolidated_purchase_invoice_lines(operating_location_id);
+create index if not exists idx_cpi_operating_location on public.consolidated_purchase_invoices(operating_location_id);
+create index if not exists idx_csi_charges_operating_location on public.consolidated_sales_invoice_charges(operating_location_id);
+create index if not exists idx_csi_lines_operating_location on public.consolidated_sales_invoice_lines(operating_location_id);
+create index if not exists idx_csi_operating_location on public.consolidated_sales_invoices(operating_location_id);
+create index if not exists idx_gate_pass_lines_operating_location on public.gate_pass_lines(operating_location_id);
+create index if not exists idx_poci_operating_location on public.purchase_order_consolidated_invoices(operating_location_id);
+create index if not exists idx_purchase_order_lines_operating_location on public.purchase_order_lines(operating_location_id);
+create index if not exists idx_return_note_lines_operating_location on public.return_note_lines(operating_location_id);
+create index if not exists idx_return_notes_operating_location on public.return_notes(operating_location_id);
+create index if not exists idx_sales_consolidation_invoices_operating_location on public.sales_consolidation_invoices(operating_location_id);
+create index if not exists idx_sales_consolidations_operating_location on public.sales_consolidations(operating_location_id);
+create index if not exists idx_sales_order_hawala_operating_location on public.sales_order_hawala_invoices(operating_location_id);
+create index if not exists idx_sales_order_lines_operating_location on public.sales_order_lines(operating_location_id);
