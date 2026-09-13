@@ -1,78 +1,83 @@
-type DocumentLanguage = "en" | "ur" | "ar";
+import { isKnownDocumentLabel, normalizeDocumentLanguages, renderDocumentLabel } from "@/lib/documentI18n";
 
-const ARABIC_SCRIPT = /[\u0600-\u06FF]/;
-const LATIN = /[A-Za-z]/;
-const URDU_SPECIFIC = /[ٹڈڑںھہےۓژگچپ]/;
-const originals = new WeakMap<Text, string>();
+type Original = { value: string; translated: string };
+const originals = new WeakMap<Text, Original>();
+const semanticSelector = "th,dt,label,h1,h2,h3,h4,h5,h6,legend,caption,[data-i18n-label],[data-document-label],.label,.field-label,.print-label,.document-label,.report-label,.print-title,.document-title,.report-title,.print-heading,.document-heading,.report-heading";
+const permanentRoots = ".print-document,[data-document-language-root]";
+const printableRoots = "[data-navilo-primary-print-target='true'],[data-print-root],.print-report,.professional-report";
 
 function config() {
   const root = document.documentElement;
-  const mode = root.dataset.documentLanguageMode === "bilingual" ? "bilingual" : "single";
-  const primary = (root.dataset.documentPrimaryLanguage || "en") as DocumentLanguage;
-  const secondary = (root.dataset.documentSecondaryLanguage || "") as DocumentLanguage | "";
-  const selected = mode === "bilingual" && secondary && secondary !== primary ? [primary, secondary] : [primary];
-  return { selected };
+  return normalizeDocumentLanguages(
+    root.dataset.documentLanguageMode,
+    root.dataset.documentPrimaryLanguage,
+    root.dataset.documentSecondaryLanguage,
+  );
 }
 
-function kind(text: string): DocumentLanguage | "mixed" | "neutral" {
-  const arabic = ARABIC_SCRIPT.test(text);
-  const latin = LATIN.test(text);
-  if (arabic && latin) return "mixed";
-  if (latin) return "en";
-  if (!arabic) return "neutral";
-  return URDU_SPECIFIC.test(text) ? "ur" : "ar";
-}
-
-function split(value: string) {
-  return value.split(/\s*\/\s*|\s*[|•·]\s*|\n+/).map((part) => part.trim()).filter(Boolean);
-}
-
-function keep(segment: string, selected: DocumentLanguage[]) {
-  const k = kind(segment);
-  if (k === "neutral" || k === "mixed") return true;
-  if (k === "en") return selected.includes("en");
-  if (k === "ur") return selected.includes("ur");
-  if (k === "ar") return selected.includes("ar") || selected.includes("ur");
-  return true;
-}
-
-function hasSiblingScript(node: Text, want: "latin" | "arabic") {
+function isBusinessData(node: Text) {
   const parent = node.parentElement;
-  if (!parent) return false;
-  const siblings = Array.from(parent.childNodes).filter((candidate) => candidate !== node);
-  const text = siblings.map((candidate) => candidate.textContent || "").join(" ");
-  return want === "latin" ? LATIN.test(text) : ARABIC_SCRIPT.test(text);
+  if (!parent) return true;
+  if (parent.closest("[data-i18n-skip='true'],[data-business-data],script,style,code,pre,input,textarea")) return true;
+  if (parent.closest("tbody td") && !parent.closest("[data-document-label]")) return true;
+  return false;
 }
 
-function transform(original: string, node: Text, selected: DocumentLanguage[]) {
-  const trimmed = original.trim();
-  if (!trimmed) return original;
-  const segments = split(trimmed);
-  if (segments.length > 1) {
-    const kept = segments.filter((segment) => keep(segment, selected));
-    if (kept.length && kept.length !== segments.length) return kept.join(" / ");
+function shouldTranslate(node: Text, value: string) {
+  if (!value.trim() || isBusinessData(node)) return false;
+  if (isKnownDocumentLabel(value)) return true;
+  const parent = node.parentElement;
+  return Boolean(parent?.matches(semanticSelector) || parent?.closest(semanticSelector));
+}
+
+function processText(node: Text) {
+  const current = node.nodeValue || "";
+  if (!current.trim()) return;
+
+  let record = originals.get(node);
+  if (!record) {
+    record = { value: current, translated: current };
+    originals.set(node, record);
+  } else if (current !== record.value && current !== record.translated) {
+    record = { value: current, translated: current };
+    originals.set(node, record);
   }
 
-  if (selected.length === 1 && selected[0] === "en" && ARABIC_SCRIPT.test(trimmed) && !LATIN.test(trimmed) && hasSiblingScript(node, "latin")) return "";
-  if (selected.length === 1 && (selected[0] === "ur" || selected[0] === "ar") && LATIN.test(trimmed) && !ARABIC_SCRIPT.test(trimmed) && hasSiblingScript(node, "arabic")) return "";
+  const source = record.value;
+  if (!shouldTranslate(node, source)) {
+    record.translated = source;
+    if (node.nodeValue !== source) node.nodeValue = source;
+    return;
+  }
 
-  return original;
+  const language = config();
+  const leading = source.match(/^\s*/)?.[0] || "";
+  const trailing = source.match(/\s*$/)?.[0] || "";
+  const translated = `${leading}${renderDocumentLabel(source, language.mode, language.primary, language.secondary)}${trailing}`;
+  record.translated = translated;
+  if (node.nodeValue !== translated) node.nodeValue = translated;
 }
 
-function applyDocumentLanguage() {
-  const { selected } = config();
-  document.querySelectorAll<HTMLElement>(".print-document").forEach((root) => {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    const nodes: Text[] = [];
-    while (walker.nextNode()) nodes.push(walker.currentNode as Text);
-    nodes.forEach((node) => {
-      if (!originals.has(node)) originals.set(node, node.nodeValue || "");
-      const original = originals.get(node) || "";
-      const next = transform(original, node, selected);
-      if (node.nodeValue !== next) node.nodeValue = next;
-    });
-  });
+function applyRoot(root: HTMLElement) {
+  const language = config();
+  root.dataset.naviloDocumentLanguageApplied = "true";
+  root.dataset.naviloDocumentLanguage = language.mode === "bilingual" && language.secondary
+    ? `${language.primary}+${language.secondary}`
+    : language.primary;
+  root.setAttribute("dir", language.mode === "single" && language.primary !== "en" ? "rtl" : "ltr");
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode as Text);
+  nodes.forEach(processText);
 }
+
+function roots(includePrintTargets = false) {
+  const selector = includePrintTargets ? `${permanentRoots},${printableRoots}` : permanentRoots;
+  return Array.from(document.querySelectorAll<HTMLElement>(selector));
+}
+
+function applyPermanent() { roots(false).forEach(applyRoot); }
+function applyForPrint() { roots(true).forEach(applyRoot); }
 
 let queued = false;
 function queueApply() {
@@ -80,7 +85,7 @@ function queueApply() {
   queued = true;
   window.setTimeout(() => {
     queued = false;
-    applyDocumentLanguage();
+    applyPermanent();
   }, 0);
 }
 
@@ -90,9 +95,11 @@ observer.observe(document.documentElement, {
   subtree: true,
   characterData: true,
   attributes: true,
-  attributeFilter: ["data-document-language-mode", "data-document-primary-language", "data-document-secondary-language"],
+  attributeFilter: ["data-document-language-mode", "data-document-primary-language", "data-document-secondary-language", "data-navilo-primary-print-target"],
 });
 
 document.addEventListener("DOMContentLoaded", queueApply, { once: true });
+window.addEventListener("navilo-language-changed", queueApply as EventListener);
 window.addEventListener("navilo:language-changed", queueApply as EventListener);
+window.addEventListener("beforeprint", applyForPrint);
 queueApply();
