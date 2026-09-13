@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Download, FileText, Filter, Languages, Plus, Printer, Settings2, Sheet, Table2, Upload } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Download, FileText, Languages, Printer, Settings2, Sheet, Table2 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission, type ModuleKey } from "@/auth/permissions";
@@ -13,23 +14,10 @@ function normalize(v:string){return v.replace(/\s+/g," ").replace(/\.(xlsx|xls|c
 function moduleForPath(p:string):ModuleKey{if(p==="/")return"dashboard";if(p.startsWith("/sales/report"))return"reports";if(p.startsWith("/sales/charges"))return"master";if(p.startsWith("/sales"))return"sales";if(p.startsWith("/purchase"))return"purchase";if(p.startsWith("/master-data"))return"master";if(p.startsWith("/godown"))return"inventory";if(p.startsWith("/production")||p.startsWith("/cutting"))return"production";if(p.startsWith("/transport"))return"transport";if(p.startsWith("/reports"))return"reports";if(p.startsWith("/accounting"))return"accounting";if(p.startsWith("/settings"))return"settings";return"dashboard"}
 function isReportPath(p:string){if(p.startsWith("/reports")||p.startsWith("/sales/report")||p==="/sales/person-ledger")return true;if(!p.startsWith("/accounting/"))return false;return ["/accounting/vat-register","/accounting/day-book","/accounting/ledgers","/accounting/payroll","/accounting/loans","/accounting/bank-reconciliation","/accounting/trial-balance","/accounting/profit-loss","/accounting/balance-sheet","/accounting/cash-flow","/accounting/controls","/accounting/audit-trail","/accounting/customer-invoice-statement"].some(x=>p===x||p.startsWith(`${x}/`))}
 function isDuplicate(v:string){const x=normalize(v);return x.includes("export")||x.includes("download excel")||x.includes("download csv")||x.includes("download word")||x==="excel"||x==="csv"||x==="word"||x.includes("print")||x==="pdf"||x.startsWith("pdf /")||x.includes("customize columns")||x.includes("print options")}
-function clickItemsAction(kind:"filters"|"import"|"add"){
-  const main=document.querySelector<HTMLElement>("#navilo-main-content");
-  if(!main)return;
-  const buttons=Array.from(main.querySelectorAll<HTMLButtonElement>("button"));
-  const match=buttons.find(button=>{
-    if(button.closest("[data-navilo-global-data-tools]"))return false;
-    const label=normalize(button.textContent||button.getAttribute("aria-label")||"");
-    if(kind==="filters")return label.startsWith("filters");
-    if(kind==="import")return label==="import";
-    return label==="add item";
-  });
-  match?.click();
-}
 
 export default function UniversalDataTools(){
   const{pathname}=useLocation(),{activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
-  const[open,setOpen]=useState(false),[languageOpen,setLanguageOpen]=useState(false);
+  const[open,setOpen]=useState(false),[languageOpen,setLanguageOpen]=useState(false),[itemsHost,setItemsHost]=useState<HTMLElement|null>(null);
   const ref=useRef<HTMLDivElement|null>(null);
   const reportMode=isReportPath(pathname),itemsMaster=pathname==="/master-data",customizable=reportMode||itemsMaster,journalList=pathname==="/accounting";
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role,module=moduleForPath(pathname),permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
@@ -38,37 +26,35 @@ export default function UniversalDataTools(){
   useEffect(()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return;if(reportMode)main.dataset.naviloScreenType="report";else delete main.dataset.naviloScreenType;return()=>{delete main.dataset.naviloScreenType}},[reportMode,pathname]);
   useEffect(()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return;const suppress=()=>main.querySelectorAll<HTMLElement>("button,a,[role='button']").forEach(el=>{if(el.closest("[data-navilo-global-data-tools]")||el.dataset.naviloKeepLocalAction==="true")return;const label=el.textContent||el.getAttribute("aria-label")||el.getAttribute("title")||"";if(reportMode&&isDuplicate(label)){el.style.setProperty("display","none","important");el.dataset.naviloDuplicateGlobalAction="true"}});suppress();const o=new MutationObserver(suppress);o.observe(main,{childList:true,subtree:true,characterData:true});return()=>o.disconnect()},[pathname,reportMode]);
   useEffect(()=>{
-    if(!itemsMaster)return;
-    const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return;
-    const hidden=new Set<HTMLElement>();
-    const suppressItemsActions=()=>{
-      Array.from(main.querySelectorAll<HTMLButtonElement>("button")).forEach(button=>{
-        if(button.closest("[data-navilo-global-data-tools]"))return;
-        const label=normalize(button.textContent||button.getAttribute("aria-label")||"");
-        if(label.startsWith("filters")||label==="import"||label==="add item"){
-          button.style.setProperty("display","none","important");
-          button.dataset.naviloItemsToolbarMoved="true";
-          hidden.add(button);
-        }
-      });
+    if(!itemsMaster){setItemsHost(null);return;}
+    const attach=()=>{
+      const main=document.querySelector<HTMLElement>("#navilo-main-content");
+      if(!main)return false;
+      const addButton=Array.from(main.querySelectorAll<HTMLButtonElement>("button")).find(b=>normalize(b.textContent||"")==="add item");
+      const actions=addButton?.parentElement;
+      if(!actions)return false;
+      let host=actions.querySelector<HTMLElement>("[data-navilo-items-global-tools-host]");
+      if(!host){host=document.createElement("div");host.dataset.naviloItemsGlobalToolsHost="true";host.className="contents";actions.prepend(host);}
+      setItemsHost(host);return true;
     };
-    suppressItemsActions();
-    const observer=new MutationObserver(suppressItemsActions);observer.observe(main,{childList:true,subtree:true,characterData:true});
-    return()=>{observer.disconnect();hidden.forEach(el=>{el.style.removeProperty("display");delete el.dataset.naviloItemsToolbarMoved})};
-  },[itemsMaster]);
+    if(attach())return()=>setItemsHost(null);
+    const observer=new MutationObserver(()=>{if(attach())observer.disconnect()});observer.observe(document.body,{childList:true,subtree:true});
+    return()=>{observer.disconnect();setItemsHost(null)};
+  },[itemsMaster,pathname]);
   useEffect(()=>{if(!journalList)return;const s=document.createElement("style");s.textContent='button[title^="Print journal voucher"]{display:none!important}';document.head.appendChild(s);return()=>s.remove()},[journalList]);
   useEffect(()=>{if(!open&&!languageOpen)return;const close=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node)){setOpen(false);setLanguageOpen(false)}};document.addEventListener("mousedown",close);return()=>document.removeEventListener("mousedown",close)},[open,languageOpen]);
 
   const exp=(t:"excel"|"csv"|"word")=>{if(!canExport)return;const root=currentExportRoot();if(!root)return;const title=currentPageTitle(),file=cleanTitle(title);if(t==="excel")exportDomReportToExcel(file,root,title);if(t==="csv")exportDomReportToCSV(file,root,title);if(t==="word")exportDomReportToWord(file,root,title);setOpen(false)};
   const print=()=>{if(canPrint){setOpen(false);triggerPrint(document.querySelector("[data-report-content]")?"[data-report-content]":"#navilo-main-content")}};
   const base=reportMode?"navilo-report-tool":"inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-[12px] font-bold text-slate-700 shadow-sm hover:bg-slate-50";
-  const primary="inline-flex h-9 items-center gap-2 rounded-md bg-blue-600 px-3 text-[12px] font-bold text-white shadow-sm hover:bg-blue-700";
 
-  return <div className={reportMode?"navilo-report-toolbar":"relative flex items-center gap-2"} ref={ref} data-no-print data-no-export data-navilo-global-data-tools>
+  const toolbar=<div className={reportMode?"navilo-report-toolbar":"relative flex items-center gap-2"} ref={ref} data-no-print data-no-export data-navilo-global-data-tools>
     <div className="relative"><button type="button" onClick={()=>{setLanguageOpen(v=>!v);setOpen(false)}} className={base}><Languages className="h-4 w-4"/><span className="hidden xl:inline">Language</span></button>{languageOpen&&<div className="absolute right-0 top-10 z-[80] w-[min(92vw,520px)] rounded-lg border bg-white p-2 shadow-xl"><UserLanguagePreference/></div>}</div>
     {customizable&&<button type="button" onClick={()=>window.dispatchEvent(new Event("navilo:report-customize"))} className={base}><Settings2 className="h-4 w-4"/><span>Customize</span></button>}
     {canExport&&<div className="relative"><button type="button" onClick={()=>{setOpen(v=>!v);setLanguageOpen(false)}} className={base}><Download className="h-4 w-4"/><span className="hidden xl:inline">Export</span></button>{open&&<div className="absolute right-0 top-10 z-[70] w-48 rounded-lg border bg-white py-1 shadow-xl"><button type="button" onClick={()=>exp("excel")} className="flex w-full gap-2 px-3 py-2 text-xs"><Sheet className="h-4 w-4"/>Excel (.xlsx)</button><button type="button" onClick={()=>exp("csv")} className="flex w-full gap-2 px-3 py-2 text-xs"><Table2 className="h-4 w-4"/>CSV (.csv)</button><button type="button" onClick={()=>exp("word")} className="flex w-full gap-2 px-3 py-2 text-xs"><FileText className="h-4 w-4"/>Word (.doc)</button></div>}</div>}
     {canPrint&&<button type="button" data-print-selector={document.querySelector("[data-report-content]")?"[data-report-content]":undefined} onClick={print} className={base}><Printer className="h-4 w-4"/><span className="hidden xl:inline">Print / PDF</span></button>}
-    {itemsMaster&&<><span className="mx-1 h-6 w-px bg-slate-200" aria-hidden="true"/><button type="button" onClick={()=>clickItemsAction("filters")} className={base}><Filter className="h-4 w-4"/><span>Filters</span></button><button type="button" onClick={()=>clickItemsAction("import")} className={base}><Upload className="h-4 w-4"/><span>Import</span></button><button type="button" onClick={()=>clickItemsAction("add")} className={primary}><Plus className="h-4 w-4"/><span>Add Item</span></button></>}
-  </div>
+  </div>;
+
+  if(itemsMaster)return itemsHost?createPortal(toolbar,itemsHost):null;
+  return toolbar;
 }
