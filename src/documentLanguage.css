@@ -1,0 +1,37 @@
+/* NAVILO document-language runtime: preserve accounting numerics while allowing Urdu/Arabic RTL labels. */
+.print-document[data-navilo-document-language-applied="true"][dir="rtl"],
+[data-document-language-root][data-navilo-document-language-applied="true"][dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+.print-document[data-navilo-document-language-applied="true"][dir="rtl"] table,
+[data-document-language-root][data-navilo-document-language-applied="true"][dir="rtl"] table {
+  direction: rtl;
+}
+
+.print-document[data-navilo-document-language-applied="true"] [data-business-data],
+.print-document[data-navilo-document-language-applied="true"] .tabular-nums,
+.print-document[data-navilo-document-language-applied="true"] [data-numeric],
+[data-document-language-root][data-navilo-document-language-applied="true"] [data-business-data],
+[data-document-language-root][data-navilo-document-language-applied="true"] .tabular-nums,
+[data-document-language-root][data-navilo-document-language-applied="true"] [data-numeric] {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}
+
+.print-document[data-navilo-document-language="en+ur"],
+.print-document[data-navilo-document-language="ur+en"],
+.print-document[data-navilo-document-language="en+ar"],
+.print-document[data-navilo-document-language="ar+en"],
+[data-document-language-root][data-navilo-document-language="en+ur"],
+[data-document-language-root][data-navilo-document-language="ur+en"],
+[data-document-language-root][data-navilo-document-language="en+ar"],
+[data-document-language-root][data-navilo-document-language="ar+en"] {
+  direction: ltr;
+}
+
+@media print {
+  [data-i18n-missing="true"] { outline: none !important; }
+}
