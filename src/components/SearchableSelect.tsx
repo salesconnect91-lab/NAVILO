@@ -8,7 +8,7 @@ type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, "children"> & {
   emptyText?: string;
 };
 
-type Option = { value: string; label: string; disabled: boolean };
+type Option = { value: string; label: string; searchText: string; disabled: boolean };
 
 function textOf(node: ReactNode): string {
   if (node == null || typeof node === "boolean") return "";
@@ -18,15 +18,36 @@ function textOf(node: ReactNode): string {
   return "";
 }
 
+/**
+ * NAVILO display rule: business/master codes stay internal/searchable but are not
+ * shown beside human-readable names in dropdowns. Examples:
+ *   FG-001 — Girder            -> Girder
+ *   1100 - Cash in Hand        -> Cash in Hand
+ *   SUP-004 | Al Noor Traders  -> Al Noor Traders
+ * Bilingual labels such as "Customer / گاہک" are left untouched.
+ */
+function displayLabel(raw: string): string {
+  const value = raw.replace(/\s+/g, " ").trim();
+  const match = value.match(/^([A-Za-z0-9][A-Za-z0-9._/#()]*?(?:-[A-Za-z0-9._/#()]+)*)\s+(?:—|–|-|·|\||:)\s+(.+)$/);
+  if (!match) return value;
+
+  const prefix = match[1];
+  const name = match[2].trim();
+  const looksLikeCode = /\d/.test(prefix) || /^[A-Z]{2,}(?:[-_/].+)?$/.test(prefix);
+  return looksLikeCode && name ? name : value;
+}
+
 function collectOptions(children: ReactNode): Option[] {
   const result: Option[] = [];
   Children.forEach(children, child => {
     if (!isValidElement(child)) return;
     const element = child as ReactElement<{ value?: string | number; disabled?: boolean; children?: ReactNode }>;
     if (element.type === "option") {
+      const rawLabel = textOf(element.props.children).trim() || String(element.props.value ?? "");
       result.push({
         value: String(element.props.value ?? ""),
-        label: textOf(element.props.children).trim() || String(element.props.value ?? ""),
+        label: displayLabel(rawLabel),
+        searchText: rawLabel,
         disabled: Boolean(element.props.disabled),
       });
       return;
@@ -72,7 +93,7 @@ export default function SearchableSelect({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase();
-    return options.filter(option => !q || option.label.toLocaleLowerCase().includes(q));
+    return options.filter(option => !q || `${option.label} ${option.searchText}`.toLocaleLowerCase().includes(q));
   }, [options, query]);
 
   const commit = (nextValue: string) => {
@@ -129,7 +150,7 @@ export default function SearchableSelect({
           <div role="listbox" className="max-h-60 overflow-auto p-1">
             {filtered.length ? filtered.map(option => (
               <button
-                key={`${option.value}-${option.label}`}
+                key={`${option.value}-${option.searchText}`}
                 type="button"
                 role="option"
                 aria-selected={option.value === selectedValue}
