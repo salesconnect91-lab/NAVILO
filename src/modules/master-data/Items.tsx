@@ -31,15 +31,25 @@ export default function Items(){
   const[typeFilter,setTypeFilter]=useState("all"),[categoryFilter,setCategoryFilter]=useState("all"),[warehouseFilter,setWarehouseFilter]=useState("all");
   const[filtersOpen,setFiltersOpen]=useState(false),[importOpen,setImportOpen]=useState(false),[customizeOpen,setCustomizeOpen]=useState(false);
   const[columns,setColumns]=useState<Record<ColumnKey,boolean>>(()=>{try{return{...DEFAULT_COLUMNS,...JSON.parse(localStorage.getItem("navilo-items-columns")||"{}")}}catch{return DEFAULT_COLUMNS}});
-  const[error,setError]=useState(""),[saving,setSaving]=useState(false);
+  const[error,setError]=useState(""),[saving,setSaving]=useState(false),[languageVersion,setLanguageVersion]=useState(0);
 
   const load=async()=>{const[i,c,w,u]=await Promise.all([supabase.from("items").select("id,sku,name,name_urdu,type,grade,size,unit,hs_code,cost,price,category_id,warehouse_id").order("name"),supabase.from("categories").select("id,name,name_urdu").order("name"),supabase.from("warehouses").select("id,name,name_urdu").order("name"),supabase.from("uom").select("id,name,name_urdu,symbol").order("name")]);if(i.error||c.error||w.error||u.error)setError(i.error?.message||c.error?.message||w.error?.message||u.error?.message||"Load failed");else{setItems((i.data??[]) as Item[]);setCategories((c.data??[]) as Category[]);setWarehouses((w.data??[]) as Warehouse[]);setUoms((u.data??[]) as Uom[])}};
   useEffect(()=>{void load()},[]);
   useEffect(()=>{const h=()=>setCustomizeOpen(true);window.addEventListener("navilo:report-customize",h);return()=>window.removeEventListener("navilo:report-customize",h)},[]);
+  useEffect(()=>{const h=()=>setLanguageVersion(v=>v+1);window.addEventListener("navilo-language-changed",h);window.addEventListener("navilo:language-changed",h);return()=>{window.removeEventListener("navilo-language-changed",h);window.removeEventListener("navilo:language-changed",h)}},[]);
   useEffect(()=>{localStorage.setItem("navilo-items-columns",JSON.stringify(columns))},[columns]);
 
+  const languageState=useMemo(()=>({mode:document.documentElement.dataset.languageMode||"single",primary:document.documentElement.dataset.primaryLanguage||"en"}),[languageVersion]);
+  const masterLabel=(english:string,secondary?:string|null,symbol?:string)=>{
+    const en=symbol?`${english} (${symbol})`:english;
+    const other=String(secondary||"").trim();
+    if(languageState.mode==="bilingual"&&other)return `${en} — ${other}`;
+    if(languageState.primary==="ur"&&other)return symbol?`${other} (${symbol})`:other;
+    return en;
+  };
+
   const cat=(id:string|null)=>categories.find(x=>x.id===id);const wh=(id:string|null)=>warehouses.find(x=>x.id===id);
-  const shown=useMemo(()=>items.filter(x=>(typeFilter==="all"||x.type===typeFilter)&&(categoryFilter==="all"||x.category_id===categoryFilter)&&(warehouseFilter==="all"||x.warehouse_id===warehouseFilter)&&(!search||[x.sku,x.name,x.name_urdu,x.grade,x.size,x.hs_code,x.unit,cat(x.category_id)?.name,wh(x.warehouse_id)?.name].some(v=>n(v).includes(n(search))))),[items,search,typeFilter,categoryFilter,warehouseFilter,categories,warehouses]);
+  const shown=useMemo(()=>items.filter(x=>(typeFilter==="all"||x.type===typeFilter)&&(categoryFilter==="all"||x.category_id===categoryFilter)&&(warehouseFilter==="all"||x.warehouse_id===warehouseFilter)&&(!search||[x.sku,x.name,x.name_urdu,x.grade,x.size,x.hs_code,x.unit,cat(x.category_id)?.name,cat(x.category_id)?.name_urdu,wh(x.warehouse_id)?.name,wh(x.warehouse_id)?.name_urdu].some(v=>n(v).includes(n(search))))),[items,search,typeFilter,categoryFilter,warehouseFilter,categories,warehouses]);
   const activeFilterCount=[typeFilter!=="all",categoryFilter!=="all",warehouseFilter!=="all"].filter(Boolean).length;
   const totalCost=shown.reduce((s,x)=>s+Number(x.cost||0),0),totalPrice=shown.reduce((s,x)=>s+Number(x.price||0),0);
 
@@ -69,8 +79,8 @@ export default function Items(){
       <label className="relative block min-w-0"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/><input className="h-10 w-full rounded-md border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search SKU, item, category, warehouse, HS/PCT, UOM, size or grade..."/></label>
       {filtersOpen&&<div className="grid gap-3 rounded-xl border bg-white p-4 md:grid-cols-4">
         <div><label className="label">Type</label><SearchableSelect className="input" value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}><option value="all">All Types</option><option value="raw">Raw</option><option value="component">Component</option><option value="finished">Finished</option></SearchableSelect></div>
-        <div><label className="label">Category</label><SearchableSelect className="input" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="all">All Categories</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</SearchableSelect></div>
-        <div><label className="label">Warehouse</label><SearchableSelect className="input" value={warehouseFilter} onChange={e=>setWarehouseFilter(e.target.value)}><option value="all">All Warehouses</option>{warehouses.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</SearchableSelect></div>
+        <div><label className="label">Category</label><SearchableSelect className="input" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="all">All Categories</option>{categories.map(c=><option key={c.id} value={c.id}>{masterLabel(c.name,c.name_urdu)}</option>)}</SearchableSelect></div>
+        <div><label className="label">Warehouse</label><SearchableSelect className="input" value={warehouseFilter} onChange={e=>setWarehouseFilter(e.target.value)}><option value="all">All Warehouses</option>{warehouses.map(w=><option key={w.id} value={w.id}>{masterLabel(w.name,w.name_urdu)}</option>)}</SearchableSelect></div>
         <div className="flex items-end"><button type="button" className="btn-secondary w-full justify-center" onClick={clearFilters}>Clear Filters</button></div>
       </div>}
     </div>
@@ -98,11 +108,11 @@ export default function Items(){
       <div><label className="label">Type</label><SearchableSelect className="input" value={form.type} onChange={async e=>{const type=e.target.value as ItemType;if(edit){setForm(x=>({...x,type}));return;}try{const sku=await nextSku(type);setForm(x=>({...x,type,sku}))}catch(x){setError(x instanceof Error?x.message:"SKU generation failed")}}}><option value="raw">Raw</option><option value="component">Component</option><option value="finished">Finished</option></SearchableSelect></div>
       <div><label className="label">Item Name (English)</label><input className="input" value={form.name} onChange={e=>setForm(x=>({...x,name:e.target.value,name_urdu:(!x.name_urdu||x.name_urdu===toUrduName(x.name))?toUrduName(e.target.value):x.name_urdu}))}/></div>
       <div><div className="flex items-center justify-between"><label className="label">Urdu Name</label><button type="button" className="text-xs font-semibold text-primary-600" onClick={()=>setForm(x=>({...x,name_urdu:toUrduName(x.name)}))}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.name_urdu} onChange={e=>setForm(x=>({...x,name_urdu:e.target.value}))}/></div>
-      <div><label className="label">Category</label><SearchableSelect className="input" value={form.category_id} onChange={e=>setForm(x=>({...x,category_id:e.target.value}))}><option value="">None</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}{c.name_urdu?` / ${c.name_urdu}`:""}</option>)}</SearchableSelect></div>
-      <div><label className="label">Warehouse</label><SearchableSelect className="input" value={form.warehouse_id} onChange={e=>setForm(x=>({...x,warehouse_id:e.target.value}))}><option value="">None</option>{warehouses.map(w=><option key={w.id} value={w.id}>{w.name}{w.name_urdu?` / ${w.name_urdu}`:""}</option>)}</SearchableSelect></div>
+      <div><label className="label">Category</label><SearchableSelect className="input" value={form.category_id} onChange={e=>setForm(x=>({...x,category_id:e.target.value}))}><option value="">None</option>{categories.map(c=><option key={c.id} value={c.id}>{masterLabel(c.name,c.name_urdu)}</option>)}</SearchableSelect></div>
+      <div><label className="label">Warehouse</label><SearchableSelect className="input" value={form.warehouse_id} onChange={e=>setForm(x=>({...x,warehouse_id:e.target.value}))}><option value="">None</option>{warehouses.map(w=><option key={w.id} value={w.id}>{masterLabel(w.name,w.name_urdu)}</option>)}</SearchableSelect></div>
       <div><label className="label">Grade</label><input className="input" value={form.grade} onChange={e=>setForm(x=>({...x,grade:e.target.value}))}/></div>
       <div><label className="label">Size</label><input className="input" value={form.size} onChange={e=>setForm(x=>({...x,size:e.target.value}))}/></div>
-      <div><label className="label">Unit</label><SearchableSelect className="input" value={form.unit} onChange={e=>setForm(x=>({...x,unit:e.target.value}))}><option value="">None</option>{uoms.map(u=><option key={u.id} value={u.symbol}>{u.name}{u.symbol?` (${u.symbol})`:""}{u.name_urdu?` / ${u.name_urdu}`:""}</option>)}</SearchableSelect></div>
+      <div><label className="label">Unit</label><SearchableSelect className="input" value={form.unit} onChange={e=>setForm(x=>({...x,unit:e.target.value}))}><option value="">None</option>{uoms.map(u=><option key={u.id} value={u.symbol}>{masterLabel(u.name,u.name_urdu,u.symbol)}</option>)}</SearchableSelect></div>
       <div><label className="label">HS/PCT Code</label><input className="input" value={form.hs_code} onChange={e=>setForm(x=>({...x,hs_code:e.target.value}))} placeholder="Applicable statutory code"/></div>
       <div><label className="label">Cost</label><input type="number" step="any" className="input" value={form.cost} onChange={e=>setForm(x=>({...x,cost:e.target.value}))}/></div>
       <div><label className="label">Sale Price</label><input type="number" step="any" className="input" value={form.price} onChange={e=>setForm(x=>({...x,price:e.target.value}))}/></div>
