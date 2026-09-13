@@ -40,7 +40,8 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const module=moduleForPath(location.pathname);
   if(module&&!isPlatformOwner&&activeCompany){
     const role=activeBusinessUnit?.membership_role??activeCompany.membership_role;
-    if(!hasPermission(role,module,"view",activeCompany.permissions,false))return <Navigate to="/" replace/>;
+    const permissions=activeBusinessUnit?.permissions??activeCompany.permissions;
+    if(!hasPermission(role,module,"view",permissions,false))return <Navigate to="/" replace/>;
   }
 
   return <>{children}</>;
