@@ -71,7 +71,7 @@ export default function AccountingPeriods() {
   }
 
   return (
-    <div>
+    <div className="navilo-closing-workflow space-y-4">
       <PageHeader
         title="Accounting Periods / اکاؤنٹنگ پیریڈز"
         subtitle="Close finalized months to prevent backdated accounting postings."
@@ -86,33 +86,33 @@ export default function AccountingPeriods() {
       />
 
       {error && <ErrorBanner message={error} />}
-      {success && <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div>}
+      {success && <div className="navilo-status-success">{success}</div>}
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
-        <div className="card p-4"><p className="text-xs font-semibold uppercase text-slate-500">Year</p><p className="mt-1 text-2xl font-bold">{year}</p></div>
-        <div className="card p-4"><p className="text-xs font-semibold uppercase text-slate-500">Open Months</p><p className="mt-1 text-2xl font-bold text-emerald-600">{summary.open}</p></div>
-        <div className="card p-4"><p className="text-xs font-semibold uppercase text-slate-500">Closed Months</p><p className="mt-1 text-2xl font-bold text-slate-700">{summary.closed}</p></div>
+      <div className="navilo-closing-summary-grid">
+        <div className="navilo-summary-tile"><p>Year</p><strong>{year}</strong></div>
+        <div className="navilo-summary-tile"><p>Open Months</p><strong>{summary.open}</strong></div>
+        <div className="navilo-summary-tile"><p>Closed Months</p><strong>{summary.closed}</strong></div>
       </div>
 
-      <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+      <div className="navilo-closing-note">
         Closing a month blocks new Sale, Purchase, Receipt, Payment and Journal postings dated inside that month. Existing posted records remain unchanged.
       </div>
 
       {loading ? <LoadingState /> : periods.length === 0 ? (
-        <div className="card p-10 text-center text-slate-500">No periods exist for {year}. Click Create Year to initialize all 12 months.</div>
+        <div className="navilo-workflow-panel p-10 text-center text-slate-500">No periods exist for {year}. Click Create Year to initialize all 12 months.</div>
       ) : (
-        <div className="card overflow-hidden">
+        <div className="navilo-workflow-panel overflow-hidden p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-left text-slate-600"><tr><th className="px-4 py-3">Period</th><th className="px-4 py-3">Start</th><th className="px-4 py-3">End</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Action</th></tr></thead>
-              <tbody className="divide-y divide-slate-100">
+            <table className="navilo-closing-table w-full text-sm">
+              <thead><tr><th>Period</th><th>Start</th><th>End</th><th>Status</th><th className="text-right">Action</th></tr></thead>
+              <tbody>
                 {periods.map((period) => (
-                  <tr key={period.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-semibold text-slate-900">{period.period_name}</td>
-                    <td className="px-4 py-3">{formatDate(period.period_start)}</td>
-                    <td className="px-4 py-3">{formatDate(period.period_end)}</td>
-                    <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${period.status === "closed" ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-700"}`}>{period.status === "closed" ? "Closed" : "Open"}</span></td>
-                    <td className="px-4 py-3 text-right"><button className={period.status === "closed" ? "btn-secondary" : "btn-primary"} disabled={savingId !== null} onClick={() => void changeStatus(period)}>{period.status === "closed" ? <LockOpen size={15} /> : <Lock size={15} />}{savingId === period.id ? "Saving…" : period.status === "closed" ? "Reopen" : "Close"}</button></td>
+                  <tr key={period.id}>
+                    <td className="font-semibold text-slate-900">{period.period_name}</td>
+                    <td>{formatDate(period.period_start)}</td>
+                    <td>{formatDate(period.period_end)}</td>
+                    <td><span className={`navilo-status-pill ${period.status === "closed" ? "is-closed" : "is-open"}`}>{period.status === "closed" ? "Closed" : "Open"}</span></td>
+                    <td className="text-right"><button className={period.status === "closed" ? "btn-secondary" : "btn-primary"} disabled={savingId !== null} onClick={() => void changeStatus(period)}>{period.status === "closed" ? <LockOpen size={15} /> : <Lock size={15} />}{savingId === period.id ? "Saving…" : period.status === "closed" ? "Reopen" : "Close"}</button></td>
                   </tr>
                 ))}
               </tbody>
