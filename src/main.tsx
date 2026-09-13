@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
-import LanguageRuntime from "./components/LanguageRuntime";
+import GlobalLanguageRuntime from "./components/GlobalLanguageRuntime";
 import "./printTargetRuntime";
 import "./accountNameDisplayRuntime";
 import "./languageIsolationRuntime";
@@ -27,7 +27,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <LanguageRuntime />
+        <GlobalLanguageRuntime />
         <App />
       </AuthProvider>
     </BrowserRouter>
