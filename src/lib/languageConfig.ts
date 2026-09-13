@@ -1,5 +1,5 @@
 export type LanguageMode = "single" | "bilingual";
-export type RuntimeLanguageCode = "en" | "ur" | "ar";
+export type RuntimeLanguageCode = "en" | "ur" | "ar" | "hi" | "bn" | "fa" | "tr" | "fr" | "es" | "de" | "pt" | "ru" | "zh" | "id" | "ms";
 
 export type NaviloLanguage = {
   code: RuntimeLanguageCode;
@@ -8,63 +8,44 @@ export type NaviloLanguage = {
   direction: "ltr" | "rtl";
 };
 
-export type GlobalLanguage = {
-  code: string;
-  label: string;
-  nativeLabel: string;
-  direction: "ltr" | "rtl";
-  status: "live" | "planned";
-};
+export type GlobalLanguage = NaviloLanguage & { status: "live" };
 
-/** Languages currently translated and tested end-to-end in NAVILO. */
+/** Languages available to NAVILO runtime, documents and bilingual mode. */
 export const NAVILO_LANGUAGES: NaviloLanguage[] = [
   { code: "en", label: "English", nativeLabel: "English", direction: "ltr" },
   { code: "ur", label: "Urdu", nativeLabel: "اردو", direction: "rtl" },
   { code: "ar", label: "Arabic", nativeLabel: "العربية", direction: "rtl" },
+  { code: "hi", label: "Hindi", nativeLabel: "हिन्दी", direction: "ltr" },
+  { code: "bn", label: "Bengali", nativeLabel: "বাংলা", direction: "ltr" },
+  { code: "fa", label: "Persian", nativeLabel: "فارسی", direction: "rtl" },
+  { code: "tr", label: "Turkish", nativeLabel: "Türkçe", direction: "ltr" },
+  { code: "fr", label: "French", nativeLabel: "Français", direction: "ltr" },
+  { code: "es", label: "Spanish", nativeLabel: "Español", direction: "ltr" },
+  { code: "de", label: "German", nativeLabel: "Deutsch", direction: "ltr" },
+  { code: "pt", label: "Portuguese", nativeLabel: "Português", direction: "ltr" },
+  { code: "ru", label: "Russian", nativeLabel: "Русский", direction: "ltr" },
+  { code: "zh", label: "Chinese", nativeLabel: "中文", direction: "ltr" },
+  { code: "id", label: "Indonesian", nativeLabel: "Bahasa Indonesia", direction: "ltr" },
+  { code: "ms", label: "Malay", nativeLabel: "Bahasa Melayu", direction: "ltr" },
 ];
 
-/**
- * Commercial global-language catalogue. Planned languages are deliberately
- * visible to product/admin UX but are not selectable at runtime until their
- * complete UI + document dictionaries and layout QA are shipped.
- */
-export const GLOBAL_LANGUAGE_CATALOG: GlobalLanguage[] = [
-  ...NAVILO_LANGUAGES.map((language) => ({ ...language, status: "live" as const })),
-  { code: "hi", label: "Hindi", nativeLabel: "हिन्दी", direction: "ltr", status: "planned" },
-  { code: "bn", label: "Bengali", nativeLabel: "বাংলা", direction: "ltr", status: "planned" },
-  { code: "fa", label: "Persian", nativeLabel: "فارسی", direction: "rtl", status: "planned" },
-  { code: "tr", label: "Turkish", nativeLabel: "Türkçe", direction: "ltr", status: "planned" },
-  { code: "fr", label: "French", nativeLabel: "Français", direction: "ltr", status: "planned" },
-  { code: "es", label: "Spanish", nativeLabel: "Español", direction: "ltr", status: "planned" },
-  { code: "de", label: "German", nativeLabel: "Deutsch", direction: "ltr", status: "planned" },
-  { code: "pt", label: "Portuguese", nativeLabel: "Português", direction: "ltr", status: "planned" },
-  { code: "ru", label: "Russian", nativeLabel: "Русский", direction: "ltr", status: "planned" },
-  { code: "zh", label: "Chinese", nativeLabel: "中文", direction: "ltr", status: "planned" },
-  { code: "id", label: "Indonesian", nativeLabel: "Bahasa Indonesia", direction: "ltr", status: "planned" },
-  { code: "ms", label: "Malay", nativeLabel: "Bahasa Melayu", direction: "ltr", status: "planned" },
-];
-
+export const GLOBAL_LANGUAGE_CATALOG: GlobalLanguage[] = NAVILO_LANGUAGES.map((language) => ({ ...language, status: "live" as const }));
 export const SUPPORTED_RUNTIME_LANGUAGE_CODES: RuntimeLanguageCode[] = NAVILO_LANGUAGES.map((language) => language.code);
-export const SUPPORTED_BILINGUAL_PAIRS: ReadonlyArray<readonly [RuntimeLanguageCode, RuntimeLanguageCode]> = [
-  ["en", "ur"],
-  ["en", "ar"],
-];
+
+/** Any two distinct supported languages can be paired. */
+export const SUPPORTED_BILINGUAL_PAIRS: ReadonlyArray<readonly [RuntimeLanguageCode, RuntimeLanguageCode]> = [];
 
 export const languageByCode = (code?: string | null) => NAVILO_LANGUAGES.find((language) => language.code === code) ?? NAVILO_LANGUAGES[0];
 
 export function isSupportedRuntimeLanguage(code?: string | null): code is RuntimeLanguageCode {
-  return code === "en" || code === "ur" || code === "ar";
+  return NAVILO_LANGUAGES.some((language) => language.code === code);
 }
 
 export function isAllowedBilingualPair(primary?: string | null, secondary?: string | null) {
-  if (!isSupportedRuntimeLanguage(primary) || !isSupportedRuntimeLanguage(secondary) || primary === secondary) return false;
-  const pair = new Set([primary, secondary]);
-  return pair.has("en") && (pair.has("ur") || pair.has("ar"));
+  return Boolean(isSupportedRuntimeLanguage(primary) && isSupportedRuntimeLanguage(secondary) && primary !== secondary);
 }
 
 export function allowedSecondaryLanguages(primary: string) {
-  if (primary === "en") return NAVILO_LANGUAGES.filter((language) => language.code === "ur" || language.code === "ar");
-  if (primary === "ur" || primary === "ar") return NAVILO_LANGUAGES.filter((language) => language.code === "en");
   return NAVILO_LANGUAGES.filter((language) => language.code !== primary);
 }
 
@@ -76,6 +57,7 @@ export function normalizeRuntimeSelection(mode: LanguageMode, primary?: string |
   return { mode: "bilingual" as LanguageMode, primary: safePrimary, secondary: secondary as RuntimeLanguageCode };
 }
 
+/** Compatibility for older print templates. New templates read document language data attributes. */
 export function legacyPrintLanguage(mode: LanguageMode, primary: string, secondary?: string | null): "english" | "urdu" | "both" {
   if (mode === "bilingual" && new Set([primary, secondary]).has("en") && new Set([primary, secondary]).has("ur")) return "both";
   if (mode === "single" && primary === "ur") return "urdu";
@@ -83,6 +65,6 @@ export function legacyPrintLanguage(mode: LanguageMode, primary: string, seconda
 }
 
 export function languageDisplayLabel(code: string) {
-  const language = GLOBAL_LANGUAGE_CATALOG.find((item) => item.code === code) ?? GLOBAL_LANGUAGE_CATALOG[0];
+  const language = NAVILO_LANGUAGES.find((item) => item.code === code) ?? NAVILO_LANGUAGES[0];
   return language.label === language.nativeLabel ? language.label : `${language.label} — ${language.nativeLabel}`;
 }
