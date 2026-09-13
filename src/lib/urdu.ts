@@ -9,8 +9,9 @@ const WORDS: Record<string, string> = {
   customer: "گاہک", customers: "گاہک", supplier: "سپلائر", suppliers: "سپلائرز", transport: "ٹرانسپورٹ", transporter: "ٹرانسپورٹر",
   loading: "لوڈنگ", unloading: "ان لوڈنگ", cutting: "کٹنگ", labour: "مزدوری", labor: "مزدوری", handling: "ہینڈلنگ", freight: "مال برداری",
   charge: "چارج", charges: "چارجز", warehouse: "گودام", warehouses: "گودام", godown: "گودام", godowns: "گودام",
-  kilogram: "کلوگرام", kilograms: "کلوگرام", kg: "کلوگرام", ton: "ٹن", tons: "ٹن", piece: "عدد", pieces: "عدد", pcs: "عدد",
+  kilogram: "کلوگرام", kilograms: "کلوگرام", kg: "کلوگرام", ton: "ٹن", tons: "ٹن", tonne: "ٹن", tonnes: "ٹن", piece: "عدد", pieces: "عدد", pcs: "عدد",
   serya: "سریا", rebar: "سریا", garder: "گارڈر", girder: "گارڈر", beam: "بیم", main: "مرکزی", branch: "برانچ", lahore: "لاہور",
+  grade: "گریڈ", mm: "ایم ایم", cm: "سینٹی میٹر", ft: "فٹ", feet: "فٹ", foot: "فٹ", inch: "انچ", inches: "انچ", meter: "میٹر", meters: "میٹر", metre: "میٹر", metres: "میٹر",
   production: "پیداوار", accounts: "اکاؤنٹس", account: "اکاؤنٹ", operator: "آپریٹر", manager: "منیجر", sales: "فروخت", sale: "فروخت", purchase: "خریداری",
   store: "اسٹور", office: "دفتر", address: "پتہ", location: "مقام", department: "شعبہ", designation: "عہدہ",
   head: "مرکزی", raw: "خام", material: "مال", materials: "مال", finished: "تیار", goods: "مال", service: "سروس", services: "سروسز",
@@ -38,7 +39,7 @@ const REPLACEMENTS: Array<[string, string]> = [
 ];
 
 function normalize(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+  return value.toLowerCase().replace(/([0-9])([a-z])/g, "$1 $2").replace(/([a-z])([0-9])/g, "$1 $2").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
 }
 
 function transliterateUnknownWord(word: string) {
