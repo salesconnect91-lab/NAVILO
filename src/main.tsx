@@ -3,13 +3,11 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
-import GlobalLanguageRuntime from "./components/GlobalLanguageRuntime";
+import LanguageRuntime from "./components/LanguageRuntime";
 import JurisdictionRuntime from "./components/JurisdictionRuntime";
 import "./printTargetRuntime";
 import "./accountNameDisplayRuntime";
-import "./languageIsolationRuntime";
 import "./documentLanguageIsolationRuntime";
-import "./i18nCoverageRuntime";
 import "./index.css";
 import "./contrast.css";
 import "./reportPrint.css";
@@ -28,7 +26,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <GlobalLanguageRuntime />
+        <LanguageRuntime />
         <JurisdictionRuntime />
         <App />
       </AuthProvider>
