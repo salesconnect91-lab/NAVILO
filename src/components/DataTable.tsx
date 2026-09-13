@@ -25,29 +25,42 @@ export default function DataTable<T extends { id: string }>({
   }
 
   return (
-    <div className="card overflow-hidden">
+    <div className="card overflow-hidden" data-report-content data-navilo-data-table>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className={`text-left px-4 py-3 font-medium text-slate-600 ${col.className ?? ""}`}
-                >
-                  {col.label}
-                </th>
-              ))}
+              {columns.map((col) => {
+                const actionColumn = col.key === "actions" || col.key === "action";
+                return (
+                  <th
+                    key={col.key}
+                    data-no-print={actionColumn ? true : undefined}
+                    data-no-export={actionColumn ? true : undefined}
+                    className={`text-left px-4 py-3 font-medium text-slate-600 ${col.className ?? ""}`}
+                  >
+                    {col.label}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {rows.map((row) => (
               <tr key={row.id} className="hover:bg-slate-50 transition-colors">
-                {columns.map((col) => (
-                  <td key={col.key} className={`px-4 py-3 text-slate-700 ${col.className ?? ""}`}>
-                    {col.render ? col.render(row) : (row as Record<string, unknown>)[col.key] as React.ReactNode}
-                  </td>
-                ))}
+                {columns.map((col) => {
+                  const actionColumn = col.key === "actions" || col.key === "action";
+                  return (
+                    <td
+                      key={col.key}
+                      data-no-print={actionColumn ? true : undefined}
+                      data-no-export={actionColumn ? true : undefined}
+                      className={`px-4 py-3 text-slate-700 ${col.className ?? ""}`}
+                    >
+                      {col.render ? col.render(row) : (row as Record<string, unknown>)[col.key] as React.ReactNode}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
