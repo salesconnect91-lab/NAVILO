@@ -6,28 +6,28 @@ const originalText = new WeakMap<Text, string>();
 const originalAttributes = new WeakMap<Element, Map<string, string>>();
 const ATTRIBUTES = ["placeholder", "title", "aria-label"] as const;
 const currencyCodes = Array.from(new Set(JURISDICTIONS.map((item) => item.currency)));
-const currencyPattern = new RegExp(`\\b(?:${currencyCodes.join("|")}|PKR)\\b(?=\\s*[-+(]?\\d)`, "g");
+const currencyPattern = new RegExp(`\b(?:${currencyCodes.join("|")}|PKR)\b(?=\s*[-+(]?\d)`, "g");
 
 function applyProfileText(value: string, currency: string, primaryTaxId: string, secondaryTaxId: string) {
   if (!value) return value;
   let output = value;
-  output = output.replace(/\\bRs\\.?\\s*(?=[-+(]?\\d)/g, `${currency} `);
+  output = output.replace(/\bRs\.?\s*(?=[-+(]?\d)/g, `${currency} `);
   output = output.replace(currencyPattern, currency);
 
   const replacements: Array<[RegExp, string]> = [
-    [/\\bNTN\\b/g, primaryTaxId],
-    [/\\bSTRN\\b/g, secondaryTaxId || primaryTaxId],
-    [/\\bGSTIN\\b/g, primaryTaxId],
-    [/\\bTRN\\b/g, primaryTaxId],
-    [/\\bVAT Registration Number\\b/g, primaryTaxId],
-    [/\\bVAT Number\\b/g, primaryTaxId],
-    [/\\bVAT ID\\b/g, primaryTaxId],
-    [/\\bBusiness Number\\b/g, primaryTaxId],
-    [/\\bABN\\b/g, primaryTaxId],
-    [/\\bGST Number\\b/g, primaryTaxId],
-    [/\\bEIN\\b/g, primaryTaxId],
-    [/\\bState Tax ID\\b/g, secondaryTaxId || primaryTaxId],
-    [/Tax ID \/ Registration No\\./g, primaryTaxId],
+    [/\bNTN\b/g, primaryTaxId],
+    [/\bSTRN\b/g, secondaryTaxId || primaryTaxId],
+    [/\bGSTIN\b/g, primaryTaxId],
+    [/\bTRN\b/g, primaryTaxId],
+    [/\bVAT Registration Number\b/g, primaryTaxId],
+    [/\bVAT Number\b/g, primaryTaxId],
+    [/\bVAT ID\b/g, primaryTaxId],
+    [/\bBusiness Number\b/g, primaryTaxId],
+    [/\bABN\b/g, primaryTaxId],
+    [/\bGST Number\b/g, primaryTaxId],
+    [/\bEIN\b/g, primaryTaxId],
+    [/\bState Tax ID\b/g, secondaryTaxId || primaryTaxId],
+    [/Tax ID \/ Registration No\./g, primaryTaxId],
     [/Secondary Tax Registration/g, secondaryTaxId || primaryTaxId],
   ];
   for (const [pattern, replacement] of replacements) output = output.replace(pattern, replacement);
@@ -45,8 +45,6 @@ function processTextNode(node: Text, currency: string, primaryTaxId: string, sec
   const source = originalText.get(node) || current;
   const expected = applyProfileText(source, currency, primaryTaxId, secondaryTaxId);
 
-  // React may reuse the same Text node for a changed amount/status. Preserve the
-  // new source instead of restoring a stale value from the first render.
   if (previousSource && current !== source && current !== expected) {
     originalText.set(node, current);
     const next = applyProfileText(current, currency, primaryTaxId, secondaryTaxId);
