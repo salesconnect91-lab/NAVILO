@@ -1,0 +1,2 @@
+create unique index if not exists return_notes_company_unit_note_no_uidx on public.return_notes(company_id,business_unit_id,lower(trim(note_no))) where company_id is not null and business_unit_id is not null and note_no is not null;
+create unique index if not exists work_orders_company_unit_order_no_uidx on public.work_orders(company_id,business_unit_id,lower(trim(order_no))) where company_id is not null and business_unit_id is not null and order_no is not null;
