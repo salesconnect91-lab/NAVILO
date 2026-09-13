@@ -39,10 +39,10 @@ export default function Accounting() {
         <Route path="/accounts" element={<ChartOfAccounts />} />
         <Route path="/mappings" element={<AccountMappingSetup />} />
         <Route path="/opening-balances" element={<OpeningBalances />} />
-        <Route path="/periods" element={report(<AccountingPeriods />)} />
+        <Route path="/periods" element={<AccountingPeriods />} />
         <Route path="/returns" element={<ReturnNotes />} />
         <Route path="/bank-reconciliation" element={report(<BankReconciliation />)} />
-        <Route path="/year-closing" element={report(<FiscalYearClosing />)} />
+        <Route path="/year-closing" element={<FiscalYearClosing />} />
         <Route path="/cash-flow" element={report(<CashFlowStatement />)} />
         <Route path="/controls" element={report(<FinancialControls />)} />
         <Route path="/ledgers" element={report(<Ledgers />)} />
