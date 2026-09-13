@@ -31,20 +31,20 @@ export default function Accounting() {
       <Routes>
         <Route path="/" element={<JournalEntryList />} />
         <Route path="/cash-counter" element={<CashCounterWorkspace />} />
-        <Route path="/payroll" element={<PayrollLedger />} />
-        <Route path="/loans" element={<LoanLedger />} />
+        <Route path="/payroll" element={report(<PayrollLedger />)} />
+        <Route path="/loans" element={report(<LoanLedger />)} />
         <Route path="/payment-reversals" element={<PaymentReversals />} />
         <Route path="/vat-register" element={report(<VatRegister />)} />
         <Route path="/day-book" element={report(<DayBook />)} />
         <Route path="/accounts" element={<ChartOfAccounts />} />
         <Route path="/mappings" element={<AccountMappingSetup />} />
         <Route path="/opening-balances" element={<OpeningBalances />} />
-        <Route path="/periods" element={<AccountingPeriods />} />
+        <Route path="/periods" element={report(<AccountingPeriods />)} />
         <Route path="/returns" element={<ReturnNotes />} />
         <Route path="/bank-reconciliation" element={report(<BankReconciliation />)} />
         <Route path="/year-closing" element={report(<FiscalYearClosing />)} />
         <Route path="/cash-flow" element={report(<CashFlowStatement />)} />
-        <Route path="/controls" element={<FinancialControls />} />
+        <Route path="/controls" element={report(<FinancialControls />)} />
         <Route path="/ledgers" element={report(<Ledgers />)} />
         <Route path="/trial-balance" element={report(<TrialBalance />)} />
         <Route path="/profit-loss" element={report(<ProfitLoss />)} />
