@@ -8,15 +8,40 @@ export type NaviloLanguage = {
   direction: "ltr" | "rtl";
 };
 
-/**
- * Languages that NAVILO can currently translate end-to-end at runtime.
- * Add a language here only after its UI/document translation dictionaries
- * and RTL/LTR behaviour are fully implemented and tested.
- */
+export type GlobalLanguage = {
+  code: string;
+  label: string;
+  nativeLabel: string;
+  direction: "ltr" | "rtl";
+  status: "live" | "planned";
+};
+
+/** Languages currently translated and tested end-to-end in NAVILO. */
 export const NAVILO_LANGUAGES: NaviloLanguage[] = [
   { code: "en", label: "English", nativeLabel: "English", direction: "ltr" },
   { code: "ur", label: "Urdu", nativeLabel: "اردو", direction: "rtl" },
   { code: "ar", label: "Arabic", nativeLabel: "العربية", direction: "rtl" },
+];
+
+/**
+ * Commercial global-language catalogue. Planned languages are deliberately
+ * visible to product/admin UX but are not selectable at runtime until their
+ * complete UI + document dictionaries and layout QA are shipped.
+ */
+export const GLOBAL_LANGUAGE_CATALOG: GlobalLanguage[] = [
+  ...NAVILO_LANGUAGES.map((language) => ({ ...language, status: "live" as const })),
+  { code: "hi", label: "Hindi", nativeLabel: "हिन्दी", direction: "ltr", status: "planned" },
+  { code: "bn", label: "Bengali", nativeLabel: "বাংলা", direction: "ltr", status: "planned" },
+  { code: "fa", label: "Persian", nativeLabel: "فارسی", direction: "rtl", status: "planned" },
+  { code: "tr", label: "Turkish", nativeLabel: "Türkçe", direction: "ltr", status: "planned" },
+  { code: "fr", label: "French", nativeLabel: "Français", direction: "ltr", status: "planned" },
+  { code: "es", label: "Spanish", nativeLabel: "Español", direction: "ltr", status: "planned" },
+  { code: "de", label: "German", nativeLabel: "Deutsch", direction: "ltr", status: "planned" },
+  { code: "pt", label: "Portuguese", nativeLabel: "Português", direction: "ltr", status: "planned" },
+  { code: "ru", label: "Russian", nativeLabel: "Русский", direction: "ltr", status: "planned" },
+  { code: "zh", label: "Chinese", nativeLabel: "中文", direction: "ltr", status: "planned" },
+  { code: "id", label: "Indonesian", nativeLabel: "Bahasa Indonesia", direction: "ltr", status: "planned" },
+  { code: "ms", label: "Malay", nativeLabel: "Bahasa Melayu", direction: "ltr", status: "planned" },
 ];
 
 export const SUPPORTED_RUNTIME_LANGUAGE_CODES: RuntimeLanguageCode[] = NAVILO_LANGUAGES.map((language) => language.code);
@@ -58,6 +83,6 @@ export function legacyPrintLanguage(mode: LanguageMode, primary: string, seconda
 }
 
 export function languageDisplayLabel(code: string) {
-  const language = languageByCode(code);
+  const language = GLOBAL_LANGUAGE_CATALOG.find((item) => item.code === code) ?? GLOBAL_LANGUAGE_CATALOG[0];
   return language.label === language.nativeLabel ? language.label : `${language.label} — ${language.nativeLabel}`;
 }
