@@ -6,19 +6,20 @@ const WORDS: Record<string, string> = {
   enterprise: "انٹرپرائز", enterprises: "انٹرپرائزز", private: "پرائیویٹ", limited: "لمیٹڈ", ltd: "لمیٹڈ",
   sheet: "شیٹ", sheets: "شیٹس", pipe: "پائپ", pipes: "پائپس", coil: "کوائل", coils: "کوائلز", bar: "بار", bars: "بارز",
   rod: "راڈ", rods: "راڈز", scrap: "اسکریپ", plate: "پلیٹ", plates: "پلیٹس", angle: "اینگل", angles: "اینگلز", channel: "چینل", channels: "چینلز",
-  customer: "گاہک", customers: "گاہک", supplier: "سپلائر", suppliers: "سپلائرز", transport: "ٹرانسپورٹ", transporter: "ٹرانسپورٹر",
+  customer: "گاہک", customers: "گاہک", supplier: "سپلائر", suppliers: "سپلائرز", transport: "ٹرانسپورٹ", transporter: "ٹرانسپورٹر", transporters: "ٹرانسپورٹرز",
   loading: "لوڈنگ", unloading: "ان لوڈنگ", cutting: "کٹنگ", labour: "مزدوری", labor: "مزدوری", handling: "ہینڈلنگ", freight: "مال برداری",
-  charge: "چارج", charges: "چارجز", warehouse: "گودام", warehouses: "گودام", godown: "گودام", godowns: "گودام",
+  charge: "چارج", charges: "چارجز", warehouse: "ویئرہاؤس", warehouses: "ویئرہاؤسز", wearhouse: "ویئرہاؤس", wearhouses: "ویئرہاؤسز", godown: "گودام", godowns: "گودام",
   kilogram: "کلوگرام", kilograms: "کلوگرام", kg: "کلوگرام", ton: "ٹن", tons: "ٹن", tonne: "ٹن", tonnes: "ٹن", piece: "عدد", pieces: "عدد", pcs: "عدد",
-  serya: "سریا", rebar: "سریا", garder: "گارڈر", girder: "گارڈر", beam: "بیم", main: "مرکزی", branch: "برانچ", lahore: "لاہور",
+  sarya: "سریا", serya: "سریا", rebar: "سریا", garder: "گارڈر", girder: "گارڈر", beam: "بیم", main: "مرکزی", branch: "برانچ", lahore: "لاہور",
   grade: "گریڈ", mm: "ایم ایم", cm: "سینٹی میٹر", ft: "فٹ", feet: "فٹ", foot: "فٹ", inch: "انچ", inches: "انچ", meter: "میٹر", meters: "میٹر", metre: "میٹر", metres: "میٹر",
   production: "پیداوار", accounts: "اکاؤنٹس", account: "اکاؤنٹ", operator: "آپریٹر", manager: "منیجر", sales: "فروخت", sale: "فروخت", purchase: "خریداری",
-  store: "اسٹور", office: "دفتر", address: "پتہ", location: "مقام", department: "شعبہ", designation: "عہدہ",
+  store: "اسٹور", office: "دفتر", address: "پتہ", location: "مقام", department: "شعبہ", designation: "عہدہ", category: "کیٹیگری", categories: "کیٹیگریز",
   head: "مرکزی", raw: "خام", material: "مال", materials: "مال", finished: "تیار", goods: "مال", service: "سروس", services: "سروسز",
 };
 
 const PHRASES: Record<string, string> = {
-  "main warehouse": "مرکزی گودام",
+  "main warehouse": "مرکزی ویئرہاؤس",
+  "main wearhouse": "مرکزی ویئرہاؤس",
   "main godown": "مرکزی گودام",
   "main store": "مرکزی اسٹور",
   "head office": "مرکزی دفتر",
@@ -49,9 +50,10 @@ function transliterateUnknownWord(word: string) {
 }
 
 /**
- * Central legacy English -> Urdu helper used by NAVILO Auto Urdu controls.
- * Separators such as '-', '_', '/', and repeated spaces are normalized first,
- * so business phrases (for example Main-Warehouse) resolve semantically.
+ * Central English -> Urdu helper used by NAVILO Auto Urdu controls.
+ * Known ERP/steel words use curated spellings first (for example Garder/Girder -> گارڈر),
+ * while unknown words fall back to transliteration. Separators such as '-', '_', '/', and
+ * repeated spaces are normalized so business phrases resolve consistently everywhere.
  */
 export function toUrduName(value: string): string {
   const input = value.trim();
