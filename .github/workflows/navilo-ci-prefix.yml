@@ -1,0 +1,37 @@
+name: Apply consolidated sales CI prefix
+on:
+  push:
+    paths:
+      - '.github/workflows/navilo-ci-prefix.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Replace legacy HWL prefix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/modules/sales/ConsolidatedInvoices.tsx')
+          s=p.read_text()
+          old='return `HWL-${stamp}`;'
+          new='return `CI-${stamp}`;'
+          if old not in s:
+              raise SystemExit('Expected consolidated sales prefix generator not found')
+          p.write_text(s.replace(old,new,1))
+          PY
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+      - name: Commit
+        run: |
+          git config user.name 'NAVILO Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add src/modules/sales/ConsolidatedInvoices.tsx
+          git commit -m 'Use CI prefix for consolidated sales invoices'
+          git push origin main
