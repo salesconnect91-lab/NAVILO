@@ -241,9 +241,9 @@ export default function PurchaseInvoiceDetail() {
   const addLine = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!id || !order || order.status === "posted") return;
-    if (!newLine.item_id || !newLine.godown_id) { setError("Select an item and destination godown. / آئٹم اور منزل گودام منتخب کریں۔"); return; }
+    if (!newLine.item_id || !newLine.godown_id) { setError("Select an item and destination godown."); return; }
     const qty = n(newLine.qty); const cost = n(newLine.unit_cost);
-    if (qty <= 0 || cost < 0) { setError("Quantity/cost invalid hai."); return; }
+    if (qty <= 0 || cost < 0) { setError("Quantity or unit cost is invalid."); return; }
     const { error: insertError } = await supabase.from("purchase_order_lines").insert({ order_id: id, item_id: newLine.item_id, description: newLine.description.trim() || null, godown_id: newLine.godown_id, qty, unit_cost: cost, tax_percent: isTax ? n(order.tax_percent) : 0, line_total: qty * cost });
     if (insertError) { setError(insertError.message); return; }
     setNewLine({ item_id: "", description: "", godown_id: godowns[0]?.id || "", qty: "1", unit_cost: "0" });
@@ -268,9 +268,9 @@ export default function PurchaseInvoiceDetail() {
 
   const post = async () => {
     if (!id || order?.status === "posted") return;
-    if (!order.purchase_person_employee_id || !order.purchase_person) { setError("Purchase Person / Buyer select aur save karein before posting."); return; }
-    if (isTax && (!order.supplier_invoice_no || !order.supplier_invoice_date)) { setError("Purchase Tax Invoice post karne se pehle Supplier Original Invoice No. aur Invoice Date save karein."); return; }
-    if (!window.confirm("Post Main Purchase Invoice? Is ke baad stock/accounting lock ho jayegi.")) return;
+    if (!order.purchase_person_employee_id || !order.purchase_person) { setError("Select and save the Purchase Person / Buyer before posting."); return; }
+    if (isTax && (!order.supplier_invoice_no || !order.supplier_invoice_date)) { setError("Enter and save the Supplier Original Invoice No. and Invoice Date before posting the Purchase Tax Invoice."); return; }
+    if (!window.confirm("Post Main Purchase Invoice? After posting, stock and accounting will be locked.")) return;
     setPosting(true); setError(null); setSuccess(null);
     const { data, error: postError } = await supabase.rpc("post_purchase_invoice", { p_order_id: id });
     setPosting(false);
@@ -284,8 +284,8 @@ export default function PurchaseInvoiceDetail() {
     if (!order?.supplier_id || order.status !== "posted") return;
     const amount = n(paymentAmount);
     const account = paymentAccounts.find((row) => row.account_id === paymentAccountId);
-    if (amount <= 0 || amount > outstanding + 0.005) { setError("Payment amount outstanding se zyada ya invalid hai."); return; }
-    if (!account) { setError("Cash/Bank payment account select karein."); return; }
+    if (amount <= 0 || amount > outstanding + 0.005) { setError("Payment amount is invalid or exceeds the outstanding balance."); return; }
+    if (!account) { setError("Select a Cash / Bank payment account."); return; }
     setPaying(true); setError(null); setSuccess(null);
     const { error: paymentError } = await supabase.rpc("pay_supplier", { p_supplier_id: order.supplier_id, p_payment_date: new Date().toISOString().slice(0, 10), p_payment_account_id: account.account_id, p_payment_method: account.mapping_key === "cash" ? "Cash" : "Bank", p_reference: null, p_description: `Payment against ${order.order_no}`, p_notes: null, p_purchase_order_id: order.id, p_amount: amount });
     setPaying(false);
@@ -313,7 +313,7 @@ export default function PurchaseInvoiceDetail() {
 
   return <div className="space-y-5">
     <div className="print:hidden flex flex-wrap items-center justify-between gap-3">
-      <div><Link to="/purchase" className="text-sm text-primary-600">← Back to Purchase</Link><h1 className="mt-2 text-2xl font-bold text-slate-900">{isTax ? "Purchase Tax Invoice" : "Purchase Invoice"} / خریداری انوائس</h1><div className="mt-1 text-sm text-slate-500">{order.order_no} · Supplier: {order.supplier?.name ?? "—"}</div></div>
+      <div><Link to="/purchase" className="text-sm text-primary-600">← Back to Purchase</Link><h1 className="mt-2 text-2xl font-bold text-slate-900">{isTax ? "Purchase Tax Invoice" : "Purchase Invoice"}</h1><div className="mt-1 text-sm text-slate-500">{order.order_no} · Supplier: {order.supplier?.name ?? "—"}</div></div>
       <div className="flex flex-wrap gap-2">
         {order.status !== "posted" && <PurchaseDraftAddControls orderId={order.id} onChanged={() => void load()} />}
         {order.status !== "posted" && <button className="btn-primary" disabled={posting} onClick={() => void post()}>{posting ? "Posting…" : "Post Purchase Invoice"}</button>}
