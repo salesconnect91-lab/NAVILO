@@ -6,7 +6,9 @@ import { translateGlobalUi } from "@/lib/globalTranslations";
 type RuntimeLanguage={mode:LanguageMode;primary:RuntimeLanguageCode;secondary:RuntimeLanguageCode|null;documentMode:LanguageMode;documentPrimary:RuntimeLanguageCode;documentSecondary:RuntimeLanguageCode|null};
 const ENGLISH_ONLY:RuntimeLanguage={mode:"single",primary:"en",secondary:null,documentMode:"single",documentPrimary:"en",documentSecondary:null};
 const originals=new WeakMap<Text,string>();
+const renderedText=new WeakMap<Text,string>();
 const attributes=new WeakMap<Element,Map<string,string>>();
+const renderedAttributes=new WeakMap<Element,Map<string,string>>();
 const TRANSLATABLE_ATTRIBUTES=["placeholder","title","aria-label"] as const;
 const GENERIC_TAGS=new Set(["BUTTON","LABEL","H1","H2","H3","H4","H5","H6","TH","OPTION","LEGEND","SUMMARY"]);
 const UI_HINT=/(btn|button|label|title|heading|menu|nav|tab|badge|pill|filter|toolbar|action|error|warning|alert|hint|help|subtitle|summary)/i;
@@ -75,18 +77,23 @@ function localize(value:string,language:RuntimeLanguage,force=false){
 function processText(node:Text,language:RuntimeLanguage){
   const current=node.nodeValue||"";
   if(!current.trim())return;
-  if(!originals.has(node))originals.set(node,current);
+  const lastRendered=renderedText.get(node);
+  if(!originals.has(node)||(lastRendered!==undefined&&current!==lastRendered))originals.set(node,current);
   const source=originals.get(node)||current;
   const expected=localize(source,language,isUiText(node));
+  renderedText.set(node,expected);
   if(node.nodeValue!==expected)node.nodeValue=expected;
 }
 function processAttributes(element:Element,language:RuntimeLanguage){
   if(element.closest("[data-i18n-skip='true'],[data-business-data]"))return;
   let map=attributes.get(element);if(!map){map=new Map();attributes.set(element,map);}
+  let rendered=renderedAttributes.get(element);if(!rendered){rendered=new Map();renderedAttributes.set(element,rendered);}
   for(const name of TRANSLATABLE_ATTRIBUTES){
     const current=element.getAttribute(name);if(!current)continue;
-    if(!map.has(name))map.set(name,current);
+    const lastRendered=rendered.get(name);
+    if(!map.has(name)||(lastRendered!==undefined&&current!==lastRendered))map.set(name,current);
     const next=localize(map.get(name)||current,language,true);
+    rendered.set(name,next);
     if(current!==next)element.setAttribute(name,next);
   }
   if(language.mode==="single"&&RTL_LANGUAGES.has(language.primary)&&element.matches("button,label,h1,h2,h3,h4,h5,h6,th,option,[role='button'],[role='menuitem'],[role='tab']"))element.setAttribute("dir","rtl");
