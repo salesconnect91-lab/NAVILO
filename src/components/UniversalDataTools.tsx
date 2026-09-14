@@ -19,12 +19,18 @@ function journalDetailRoot(){
   const heading=Array.from(main.querySelectorAll<HTMLElement>("h2,h3,h4")).find(el=>normalize(el.textContent||"")==="journal line items");
   return heading?.closest<HTMLElement>("[data-report-content],.card,.bg-white")||null;
 }
-function reportRoot(){return document.querySelector<HTMLElement>("[data-report-content]")||document.querySelector<HTMLElement>(".professional-report")||document.querySelector<HTMLElement>("#order-book-report")||journalDetailRoot()||journalListRoot()||document.querySelector<HTMLElement>("#navilo-main-content")}
+function chartOfAccountsRoot(){
+  if(window.location.pathname!=="/accounting/accounts")return null;
+  const main=document.querySelector<HTMLElement>("#navilo-main-content");
+  const table=main?.querySelector<HTMLElement>("table");
+  return table?.closest<HTMLElement>("[data-report-content],[data-navilo-data-table],.rounded-2xl,.card")||table?.parentElement||null;
+}
+function reportRoot(){return document.querySelector<HTMLElement>("[data-report-content]")||document.querySelector<HTMLElement>(".professional-report")||document.querySelector<HTMLElement>("#order-book-report")||chartOfAccountsRoot()||journalDetailRoot()||journalListRoot()||document.querySelector<HTMLElement>("#navilo-main-content")}
 function reportSelector(){
   if(document.querySelector("[data-report-content]"))return"[data-report-content]";
   if(document.querySelector(".professional-report"))return".professional-report";
   if(document.querySelector("#order-book-report"))return"#order-book-report";
-  const generatedRoot=journalDetailRoot()||journalListRoot();
+  const generatedRoot=chartOfAccountsRoot()||journalDetailRoot()||journalListRoot();
   if(generatedRoot){
     document.querySelectorAll<HTMLElement>("[data-navilo-generated-print-root]").forEach(el=>delete el.dataset.naviloGeneratedPrintRoot);
     generatedRoot.dataset.naviloGeneratedPrintRoot="true";
@@ -42,7 +48,7 @@ function isNaviloStandardPath(p:string){if(isMasterStandardPath(p)||isReportPath
 function isExportDuplicate(v:string){const x=normalize(v);return x.includes("export")||x.includes("download excel")||x.includes("download csv")||x.includes("download word")||x==="excel"||x==="csv"||x==="word"||x.includes("print")||x==="pdf"||x.startsWith("pdf /")||x.includes("customize columns")||x.includes("print options")}
 function isTemplateAction(v:string){const x=normalize(v);return x.includes("template")}
 function isUploadAction(v:string){const x=normalize(v);return x==="import"||x.startsWith("import ")||x.includes("bulk import")||x.includes("bulk upload")||x.includes("choose file")||x.includes("load excel")||x.includes("load csv")||x.includes("upload csv")||x.includes("upload excel")||x.includes("upload file")}
-function isPrimaryAction(v:string){const x=normalize(v);return /^(\+\s*)?(add|new|create)\s+(item|category|customer|supplier|employee|warehouse|godown|uom|unit|transporter|charge|invoice|sales invoice|purchase invoice|order|sales order|purchase order|work order|cutting order|gate pass|receipt|payment|journal|journal entry|voucher)/.test(x)||x.includes("post journal")||x.includes("reverse journal")||x.includes("main purchase invoice")||x.includes("stock adjustment")||x.includes("transfer stock")||x.includes("stock transfer")||x.includes("new loading token")||x.includes("loading token")}
+function isPrimaryAction(v:string){const x=normalize(v);return /^(\+\s*)?(add|new|create)\s+(account|item|category|customer|supplier|employee|warehouse|godown|uom|unit|transporter|charge|invoice|sales invoice|purchase invoice|order|sales order|purchase order|work order|cutting order|gate pass|receipt|payment|journal|journal entry|voucher)/.test(x)||x.includes("post journal")||x.includes("reverse journal")||x.includes("main purchase invoice")||x.includes("stock adjustment")||x.includes("transfer stock")||x.includes("stock transfer")||x.includes("new loading token")||x.includes("loading token")}
 function labelOf(el:HTMLElement){return el.textContent||el.getAttribute("aria-label")||el.getAttribute("title")||""}
 function isDocumentOutputAction(el:HTMLElement){
   if(el.dataset.naviloKeepLocalAction==="true"||el.hasAttribute("data-direct-print"))return true;
