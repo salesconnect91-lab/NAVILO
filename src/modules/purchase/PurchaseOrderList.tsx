@@ -99,7 +99,7 @@ export default function PurchaseOrderList() {
       </div>
 
       {error && <ErrorBanner message={error} />}
-      <div data-report-content className="rounded-xl border border-slate-200 bg-white p-3">
+      <div data-report-content data-navilo-customizable="true" className="rounded-xl border border-slate-200 bg-white p-3">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h2 className="navilo-report-title text-base font-bold text-slate-900">Purchase Invoices</h2>
