@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Plus, Trash2, Upload } from "lucide-react";
 import * as XLSX from "xlsx";
+import SearchableSelect from "@/components/SearchableSelect";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner, formatCurrency } from "@/components/ui";
 
@@ -169,6 +170,7 @@ export default function OpeningBalances() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div><h1 className="text-2xl font-bold text-slate-900">Opening Balances</h1><p className="mt-1 text-sm text-slate-500">Post controlled opening Asset, Liability and Equity balances into General Ledger and party sub-ledgers.</p></div>
         <div className="flex flex-wrap gap-2">
+          <span data-navilo-standard-tools-host className="contents" />
           <button type="button" className="btn-secondary" onClick={downloadTemplate}><Download className="h-4 w-4"/> Template</button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => e.target.files?.[0] && void importFile(e.target.files[0])}/>
           <button type="button" className="btn-secondary" onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4"/> Import File</button>
@@ -178,7 +180,7 @@ export default function OpeningBalances() {
 
     {error && <ErrorBanner message={error}/>} {success && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{success}</div>}
 
-    <div className="grid gap-3 md:grid-cols-4">
+    <div className="grid gap-3 md:grid-cols-4" data-no-print data-no-export>
       <label className="rounded-xl border bg-white p-4 text-xs font-bold text-slate-600">OPENING DATE<input type="date" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} className="input mt-2 w-full"/></label>
       <div className="rounded-xl border bg-white p-4"><div className="text-xs font-bold text-slate-500">TOTAL DEBIT</div><div className="mt-2 text-xl font-bold">{formatCurrency(totals.debit)}</div></div>
       <div className="rounded-xl border bg-white p-4"><div className="text-xs font-bold text-slate-500">TOTAL CREDIT</div><div className="mt-2 text-xl font-bold">{formatCurrency(totals.credit)}</div></div>
@@ -187,20 +189,23 @@ export default function OpeningBalances() {
 
     {existing && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><b>{year} opening balances are already posted and locked.</b> Debit {formatCurrency(existing.total_debit)} = Credit {formatCurrency(existing.total_credit)}. Use accounting correction/reversal controls rather than editing posted history.</div>}
 
-    <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b bg-slate-50 px-4 py-3"><div><div className="font-bold text-slate-800">Opening Balance Lines</div><div className="text-xs text-slate-500">Revenue and expense accounts are intentionally excluded.</div></div><button type="button" className="btn-secondary" disabled={Boolean(existing)} onClick={() => setRows((x) => [...x, row()])}><Plus className="h-4 w-4"/> Add Line</button></div>
-      <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-sm"><thead className="bg-white text-xs uppercase text-slate-500"><tr><th className="px-3 py-3 text-left">Account</th><th className="px-3 py-3 text-left">Party</th><th className="px-3 py-3 text-right">Debit</th><th className="px-3 py-3 text-right">Credit</th><th className="px-3 py-3 text-right">Action</th></tr></thead><tbody className="divide-y">{rows.map((item) => {
+    <div className="overflow-hidden rounded-xl border bg-white shadow-sm" data-report-content>
+      <div className="flex items-center justify-between border-b bg-slate-50 px-4 py-3">
+        <div><div className="navilo-report-title font-bold text-slate-800">Opening Balances / اوپننگ بیلنس</div><div className="text-xs text-slate-500">Opening date: {openingDate} · Revenue and expense accounts are intentionally excluded.</div></div>
+        <button type="button" className="btn-secondary" data-no-print data-no-export disabled={Boolean(existing)} onClick={() => setRows((x) => [...x, row()])}><Plus className="h-4 w-4"/> Add Line</button>
+      </div>
+      <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-sm"><thead className="bg-white text-xs uppercase text-slate-500"><tr><th className="px-3 py-3 text-left">Account</th><th className="px-3 py-3 text-left">Party</th><th className="px-3 py-3 text-right">Debit</th><th className="px-3 py-3 text-right">Credit</th><th className="px-3 py-3 text-right" data-no-print data-no-export>Action</th></tr></thead><tbody className="divide-y">{rows.map((item) => {
         const parties = item.partyType === "customer" ? customers : item.partyType === "supplier" ? suppliers : [];
         return <tr key={item.key}>
-          <td className="px-3 py-3"><select className="input w-full" disabled={Boolean(existing)} value={item.accountId} onChange={(e) => selectAccount(item, e.target.value)}><option value="">Select posting account</option>{postingAccounts.map((a) => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}</select></td>
-          <td className="px-3 py-3">{item.partyType ? <select className="input w-full" disabled={Boolean(existing)} value={item.partyId} onChange={(e) => update(item.key, { partyId: e.target.value })}><option value="">Select {item.partyType}</option>{parties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select> : <span className="text-slate-400">Not applicable</span>}</td>
+          <td className="px-3 py-3"><SearchableSelect className="input w-full" disabled={Boolean(existing)} value={item.accountId} onChange={(e) => selectAccount(item, e.target.value)}><option value="">Select posting account</option>{postingAccounts.map((a) => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}</SearchableSelect></td>
+          <td className="px-3 py-3">{item.partyType ? <SearchableSelect className="input w-full" disabled={Boolean(existing)} value={item.partyId} onChange={(e) => update(item.key, { partyId: e.target.value })}><option value="">Select {item.partyType}</option>{parties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</SearchableSelect> : <span className="text-slate-400">Not applicable</span>}</td>
           <td className="px-3 py-3"><input className="input w-full text-right font-mono" type="number" min="0" step="0.01" disabled={Boolean(existing)} value={item.debit} onChange={(e) => setDebit(item, e.target.value)}/></td>
           <td className="px-3 py-3"><input className="input w-full text-right font-mono" type="number" min="0" step="0.01" disabled={Boolean(existing)} value={item.credit} onChange={(e) => setCredit(item, e.target.value)}/></td>
-          <td className="px-3 py-3 text-right"><button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border text-slate-500 hover:bg-slate-50 disabled:opacity-40" disabled={Boolean(existing) || rows.length <= 2} onClick={() => setRows((x) => x.filter((r) => r.key !== item.key))} title="Remove line"><Trash2 className="h-4 w-4"/></button></td>
+          <td className="px-3 py-3 text-right" data-no-print data-no-export><button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border text-slate-500 hover:bg-slate-50 disabled:opacity-40" disabled={Boolean(existing) || rows.length <= 2} onClick={() => setRows((x) => x.filter((r) => r.key !== item.key))} title="Remove line"><Trash2 className="h-4 w-4"/></button></td>
         </tr>;
-      })}</tbody><tfoot><tr className="border-t-2 bg-slate-50 font-bold"><td colSpan={2} className="px-3 py-3">GRAND TOTAL</td><td className="px-3 py-3 text-right">{formatCurrency(totals.debit)}</td><td className="px-3 py-3 text-right">{formatCurrency(totals.credit)}</td><td/></tr></tfoot></table></div>
+      })}</tbody><tfoot><tr className="border-t-2 bg-slate-50 font-bold"><td colSpan={2} className="px-3 py-3">GRAND TOTAL</td><td className="px-3 py-3 text-right">{formatCurrency(totals.debit)}</td><td className="px-3 py-3 text-right">{formatCurrency(totals.credit)}</td><td data-no-print data-no-export/></tr></tfoot></table></div>
     </div>
 
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-4"><p className="max-w-3xl text-xs text-slate-500">Posting creates a balanced, locked opening journal. AR/AP lines also feed customer/supplier sub-ledgers. Duplicate opening batches for the same business unit/year are blocked.</p><button type="button" className="btn-primary" disabled={posting || Boolean(existing)} onClick={() => void post()}>{posting ? "Posting..." : "Post Opening Balances"}</button></div>
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-4" data-no-print data-no-export><p className="max-w-3xl text-xs text-slate-500">Posting creates a balanced, locked opening journal. AR/AP lines also feed customer/supplier sub-ledgers. Duplicate opening batches for the same business unit/year are blocked.</p><button type="button" className="btn-primary" disabled={posting || Boolean(existing)} onClick={() => void post()}>{posting ? "Posting..." : "Post Opening Balances"}</button></div>
   </div>;
 }
