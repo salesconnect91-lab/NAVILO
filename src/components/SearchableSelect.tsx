@@ -24,17 +24,28 @@ function textOf(node: ReactNode): string {
  *   FG-001 — Girder            -> Girder
  *   1100 - Cash in Hand        -> Cash in Hand
  *   SUP-004 | Al Noor Traders  -> Al Noor Traders
+ *   Girder (FG-001)            -> Girder
  * Bilingual labels such as "Customer / گاہک" are left untouched.
  */
 function displayLabel(raw: string): string {
   const value = raw.replace(/\s+/g, " ").trim();
-  const match = value.match(/^([A-Za-z0-9][A-Za-z0-9._/#()]*?(?:-[A-Za-z0-9._/#()]+)*)\s+(?:—|–|-|·|\||:)\s+(.+)$/);
-  if (!match) return value;
+  const leadingCode = value.match(/^([A-Za-z0-9][A-Za-z0-9._/#()]*?(?:-[A-Za-z0-9._/#()]+)*)\s+(?:—|–|-|·|\||:)\s+(.+)$/);
+  if (leadingCode) {
+    const prefix = leadingCode[1];
+    const name = leadingCode[2].trim();
+    const looksLikeCode = /\d/.test(prefix) || /^[A-Z]{2,}(?:[-_/].+)?$/.test(prefix);
+    if (looksLikeCode && name) return name;
+  }
 
-  const prefix = match[1];
-  const name = match[2].trim();
-  const looksLikeCode = /\d/.test(prefix) || /^[A-Z]{2,}(?:[-_/].+)?$/.test(prefix);
-  return looksLikeCode && name ? name : value;
+  const trailingCode = value.match(/^(.+?)\s+\(([A-Za-z0-9._/#-]+)\)$/);
+  if (trailingCode) {
+    const name = trailingCode[1].trim();
+    const code = trailingCode[2].trim();
+    const looksLikeCode = /\d/.test(code) || /^[A-Z]{2,}(?:[-_/].+)?$/.test(code);
+    if (looksLikeCode && name) return name;
+  }
+
+  return value;
 }
 
 function collectOptions(children: ReactNode): Option[] {
