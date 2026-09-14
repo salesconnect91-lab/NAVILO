@@ -18,6 +18,12 @@ function textOf(node: ReactNode): string {
   return "";
 }
 
+function looksLikeBusinessCode(value: string): boolean {
+  const code = value.trim();
+  if (!code || /[\u0600-\u06FF\s]/.test(code)) return false;
+  return /\d/.test(code) || /^[A-Z]{2,}(?:[-_/][A-Z0-9._/#-]+)*$/.test(code);
+}
+
 /**
  * NAVILO display rule: business/master codes stay internal/searchable but are not
  * shown beside human-readable names in dropdowns. Examples:
@@ -25,6 +31,7 @@ function textOf(node: ReactNode): string {
  *   1100 - Cash in Hand        -> Cash in Hand
  *   SUP-004 | Al Noor Traders  -> Al Noor Traders
  *   Girder (FG-001)            -> Girder
+ *   Girder · FG-001            -> Girder
  * Bilingual labels such as "Customer / گاہک" are left untouched.
  */
 function displayLabel(raw: string): string {
@@ -33,16 +40,21 @@ function displayLabel(raw: string): string {
   if (leadingCode) {
     const prefix = leadingCode[1];
     const name = leadingCode[2].trim();
-    const looksLikeCode = /\d/.test(prefix) || /^[A-Z]{2,}(?:[-_/].+)?$/.test(prefix);
-    if (looksLikeCode && name) return name;
+    if (looksLikeBusinessCode(prefix) && name) return name;
   }
 
-  const trailingCode = value.match(/^(.+?)\s+\(([A-Za-z0-9._/#-]+)\)$/);
-  if (trailingCode) {
-    const name = trailingCode[1].trim();
-    const code = trailingCode[2].trim();
-    const looksLikeCode = /\d/.test(code) || /^[A-Z]{2,}(?:[-_/].+)?$/.test(code);
-    if (looksLikeCode && name) return name;
+  const trailingParenthesizedCode = value.match(/^(.+?)\s+\(([A-Za-z0-9._/#-]+)\)$/);
+  if (trailingParenthesizedCode) {
+    const name = trailingParenthesizedCode[1].trim();
+    const code = trailingParenthesizedCode[2].trim();
+    if (looksLikeBusinessCode(code) && name) return name;
+  }
+
+  const trailingSeparatedCode = value.match(/^(.+?)\s+(?:—|–|·|\||:)\s+([A-Za-z0-9._/#-]+)$/);
+  if (trailingSeparatedCode) {
+    const name = trailingSeparatedCode[1].trim();
+    const code = trailingSeparatedCode[2].trim();
+    if (looksLikeBusinessCode(code) && name) return name;
   }
 
   return value;
