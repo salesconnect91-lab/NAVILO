@@ -1,0 +1,38 @@
+name: Fix purchase detail charge column
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-purchase-detail-charge-column.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repair PurchaseInvoiceDetail schema reference
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/modules/purchase/PurchaseInvoiceDetail.tsx')
+          s=p.read_text()
+          old='type PurchaseChargeRow = { charge_key:string; charge_name:string; amount:number|string; tax_percent?:number|string|null; quantity?:number|string|null; rate?:number|string|null };'
+          new='type PurchaseChargeRow = { charge_key:string; charge_label:string; amount:number|string; tax_percent?:number|string|null; quantity?:number|string|null; rate?:number|string|null };'
+          if old not in s: raise SystemExit('PurchaseChargeRow anchor not found')
+          s=s.replace(old,new)
+          oldq='supabase.from("purchase_order_charges").select("charge_key,charge_name,amount,tax_percent,quantity,rate").eq("order_id", id).order("created_at")'
+          newq='supabase.from("purchase_order_charges").select("charge_key,charge_label,amount,tax_percent,quantity,rate").eq("order_id", id).order("created_at")'
+          if oldq not in s: raise SystemExit('charge query anchor not found')
+          s=s.replace(oldq,newq)
+          s=s.replace('charge.charge_name','charge.charge_label')
+          p.write_text(s)
+          PY
+      - name: Verify build
+        run: npm ci && npm run build
+      - name: Commit repair
+        run: |
+          git config user.name "NAVILO Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/modules/purchase/PurchaseInvoiceDetail.tsx
+          git diff --cached --quiet || git commit -m "Fix purchase invoice detail charge schema mismatch"
+          git push
