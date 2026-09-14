@@ -73,7 +73,7 @@ type Consolidated = {
   invoice_type?: "Purchase Invoice" | "Tax Invoice" | null;
 };
 type PaymentAccount = { account_id: string; mapping_key: "cash" | "bank"; label: string };
-type PurchaseChargeRow = { charge_key:string; charge_name:string; amount:number|string; tax_percent?:number|string|null; quantity?:number|string|null; rate?:number|string|null };
+type PurchaseChargeRow = { charge_key:string; charge_label:string; amount:number|string; tax_percent?:number|string|null; quantity?:number|string|null; rate?:number|string|null };
 type CompanyPrintSettings = {
   company_name?: string | null;
   address?: string | null;
@@ -174,7 +174,7 @@ export default function PurchaseInvoiceDetail() {
       supabase.from("purchase_order_lines").select("*, item:items(id,name,name_urdu,sku,hs_code,unit), godown:godowns(id,name,name_urdu)").eq("order_id", id).order("created_at"),
       supabase.from("items").select("id,name,name_urdu,sku,cost,hs_code,unit").order("name"),
       supabase.from("godowns").select("id,name,name_urdu").order("name"),
-      supabase.from("purchase_order_charges").select("charge_key,charge_name,amount,tax_percent,quantity,rate").eq("order_id", id).order("created_at"),
+      supabase.from("purchase_order_charges").select("charge_key,charge_label,amount,tax_percent,quantity,rate").eq("order_id", id).order("created_at"),
       supabase.from("employees").select("id,employee_code,name,designation").eq("is_active", true).order("name"),
     ]);
     const firstError = orderRes.error || linesRes.error || itemsRes.error || godownRes.error || chargesRes.error || employeesRes.error;
@@ -368,7 +368,7 @@ export default function PurchaseInvoiceDetail() {
         {linkedLines.length > 0 && <div className="mt-5 rounded-lg bg-slate-50 p-4 text-sm"><div className="font-semibold text-slate-700">Linked consolidated item lines: {linkedLines.length}</div><div className="mt-1 text-xs text-slate-500">Ye accounting total mein included hain, lekin Main posting par inka stock movement repeat nahi hota.</div></div>}
       </div>
 
-      <div className="card mt-5 p-6"><h2 className="mb-4 font-bold text-slate-900">Invoice Summary</h2><div className="ml-auto max-w-md space-y-2 text-sm"><div className="flex justify-between"><span>Direct Items</span><span>{formatCurrency(directBase)}</span></div><div className="flex justify-between"><span>Linked Consolidated Items</span><span>{formatCurrency(linkedBase)}</span></div>{charges.map((charge) => <div key={charge.charge_key} className="flex justify-between text-slate-600"><span>{charge.charge_name}</span><span>{formatCurrency(n(charge.amount))}</span></div>)}<div className="flex justify-between"><span>Charges Total</span><span>{formatCurrency(chargeTotal)}</span></div>{isTax && <><div className="flex justify-between"><span>Items VAT</span><span>{formatCurrency(directVat + linkedVat)}</span></div><div className="flex justify-between"><span>Charges VAT</span><span>{formatCurrency(chargeVat)}</span></div><div className="flex justify-between font-semibold"><span>Total VAT</span><span>{formatCurrency(totalVat)}</span></div></>}<div className="flex justify-between border-t pt-3 text-lg font-bold"><span>Grand Total</span><span>{formatCurrency(n(order.total) || computedTotal)}</span></div><div className="flex justify-between text-slate-600"><span>Paid</span><span>{formatCurrency(n(order.paid_amount))}</span></div><div className="flex justify-between font-semibold"><span>Outstanding</span><span>{formatCurrency(outstanding)}</span></div></div></div>
+      <div className="card mt-5 p-6"><h2 className="mb-4 font-bold text-slate-900">Invoice Summary</h2><div className="ml-auto max-w-md space-y-2 text-sm"><div className="flex justify-between"><span>Direct Items</span><span>{formatCurrency(directBase)}</span></div><div className="flex justify-between"><span>Linked Consolidated Items</span><span>{formatCurrency(linkedBase)}</span></div>{charges.map((charge) => <div key={charge.charge_key} className="flex justify-between text-slate-600"><span>{charge.charge_label}</span><span>{formatCurrency(n(charge.amount))}</span></div>)}<div className="flex justify-between"><span>Charges Total</span><span>{formatCurrency(chargeTotal)}</span></div>{isTax && <><div className="flex justify-between"><span>Items VAT</span><span>{formatCurrency(directVat + linkedVat)}</span></div><div className="flex justify-between"><span>Charges VAT</span><span>{formatCurrency(chargeVat)}</span></div><div className="flex justify-between font-semibold"><span>Total VAT</span><span>{formatCurrency(totalVat)}</span></div></>}<div className="flex justify-between border-t pt-3 text-lg font-bold"><span>Grand Total</span><span>{formatCurrency(n(order.total) || computedTotal)}</span></div><div className="flex justify-between text-slate-600"><span>Paid</span><span>{formatCurrency(n(order.paid_amount))}</span></div><div className="flex justify-between font-semibold"><span>Outstanding</span><span>{formatCurrency(outstanding)}</span></div></div></div>
     </div>
 
     <div className="hidden print:block">
@@ -379,7 +379,7 @@ export default function PurchaseInvoiceDetail() {
         company={{ name: companyPrint.company_name || undefined, address: companyPrint.address || undefined, phone: companyPrint.phone || undefined, email: companyPrint.email || undefined, taxId: [companyPrint.ntn, companyPrint.strn].filter(Boolean).join(" / ") || undefined, logoUrl: companyPrint.logo_url || undefined }}
         party={{ name: order.supplier?.name || "—", address: order.supplier?.address, phone: order.supplier?.phone, ntn: order.supplier?.ntn, strn: order.supplier?.strn, cnic: order.supplier?.cnic, taxRegistrationStatus: order.supplier?.tax_registration_status }}
         items={lines.map((line) => ({ name: line.item?.name || "—", description: line.description || (line.source_consolidated_purchase_invoice_id ? "Consolidated Purchase" : null), qty: n(line.qty), unitPrice: n(line.unit_cost), lineTotal: n(line.line_total) + (isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0), taxPercent: isTax ? n(line.tax_percent) : 0, taxAmount: isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0, hsCode: line.item?.hs_code, unit: line.item?.unit }))}
-        chargeBreakdown={charges.map((charge) => ({ label: charge.charge_name, amount: n(charge.amount) }))}
+        chargeBreakdown={charges.map((charge) => ({ label: charge.charge_label, amount: n(charge.amount) }))}
         itemsTotal={directBase + linkedBase}
         chargesTotal={chargeTotal}
         taxAmount={totalVat}
