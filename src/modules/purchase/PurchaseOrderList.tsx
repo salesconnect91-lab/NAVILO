@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Papa from "papaparse";
 import { supabase } from "@/lib/supabase";
 import { PurchaseOrder } from "@/types";
 import DataTable, { Column } from "@/components/DataTable";
@@ -7,12 +8,37 @@ import { PageHeader, ErrorBanner, StatusBadge, formatCurrency, formatDate } from
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
 
+type ImportRow = {
+  invoice_no?: string;
+  supplier?: string;
+  invoice_date?: string;
+  invoice_type?: string;
+  item?: string;
+  description?: string;
+  godown?: string;
+  qty?: string | number;
+  unit_cost?: string | number;
+  tax_percent?: string | number;
+};
+
+type ImportSupplier = { id: string; name: string };
+type ImportItem = { id: string; name: string; sku?: string | null };
+type ImportGodown = { id: string; name: string };
+
+const normalize = (value: unknown) => String(value ?? "").trim().toLowerCase();
+const importInvoiceType = (value: unknown) => {
+  const v = normalize(value);
+  return v === "with tax" || v === "tax invoice" || v === "with-tax" ? "Tax Invoice" : "Purchase Invoice";
+};
+
 export default function PurchaseOrderList() {
   const navigate = useNavigate();
   const { activeCompany, isPlatformOwner } = useAuth();
   const canCreate = canPerformModule(activeCompany?.membership_role, "purchase", "create", activeCompany?.permissions, isPlatformOwner);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [rows, setRows] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -30,6 +56,145 @@ export default function PurchaseOrderList() {
   }, []);
 
   useEffect(() => { void fetchRows(); }, [fetchRows]);
+
+  const downloadTemplate = () => {
+    const csv = [
+      "invoice_no,supplier,invoice_date,invoice_type,item,description,godown,qty,unit_cost,tax_percent",
+      "PO-1001,ABC Steel,2026-09-14,Without Tax,Steel Bar,,Godown No. 2,10,1000,0",
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "purchase_invoice_import_template.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setError(null);
+
+    Papa.parse<ImportRow>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async ({ data }) => {
+        const createdOrderIds: string[] = [];
+        try {
+          if (!data.length) throw new Error("Import file is empty.");
+
+          const [supplierRes, itemRes, godownRes] = await Promise.all([
+            supabase.from("suppliers").select("id,name").eq("is_active", true),
+            supabase.from("items").select("id,name,sku").eq("is_active", true),
+            supabase.from("godowns").select("id,name"),
+          ]);
+          const firstError = [supplierRes.error, itemRes.error, godownRes.error].find(Boolean);
+          if (firstError) throw firstError;
+
+          const suppliers = (supplierRes.data ?? []) as ImportSupplier[];
+          const items = (itemRes.data ?? []) as ImportItem[];
+          const godowns = (godownRes.data ?? []) as ImportGodown[];
+          const grouped = new Map<string, ImportRow[]>();
+
+          data.forEach((row, index) => {
+            const invoiceNo = String(row.invoice_no ?? "").trim();
+            if (!invoiceNo) throw new Error(`Row ${index + 2}: invoice_no is required.`);
+            grouped.set(invoiceNo, [...(grouped.get(invoiceNo) ?? []), row]);
+          });
+
+          for (const [invoiceNo, invoiceRows] of grouped) {
+            const first = invoiceRows[0];
+            const supplierName = String(first.supplier ?? "").trim();
+            const supplier = suppliers.find((s) => normalize(s.name) === normalize(supplierName));
+            if (!supplier) throw new Error(`${invoiceNo}: supplier "${supplierName}" not found.`);
+
+            const orderDate = String(first.invoice_date ?? "").trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(orderDate)) throw new Error(`${invoiceNo}: invoice_date must be YYYY-MM-DD.`);
+            const invoiceType = importInvoiceType(first.invoice_type);
+
+            const preparedLines = invoiceRows.map((row, index) => {
+              if (normalize(row.supplier) !== normalize(supplierName)) throw new Error(`${invoiceNo}: all rows must use the same supplier.`);
+              if (String(row.invoice_date ?? "").trim() !== orderDate) throw new Error(`${invoiceNo}: all rows must use the same invoice_date.`);
+              if (importInvoiceType(row.invoice_type) !== invoiceType) throw new Error(`${invoiceNo}: all rows must use the same invoice_type.`);
+
+              const itemKey = normalize(row.item);
+              const item = items.find((i) => normalize(i.name) === itemKey || normalize(i.sku) === itemKey);
+              if (!item) throw new Error(`${invoiceNo} row ${index + 2}: item "${row.item ?? ""}" not found.`);
+
+              const godownName = String(row.godown ?? "").trim();
+              const godown = godowns.find((g) => normalize(g.name) === normalize(godownName));
+              if (!godown) throw new Error(`${invoiceNo} row ${index + 2}: godown "${godownName}" not found.`);
+
+              const qty = Number(row.qty);
+              const unitCost = Number(row.unit_cost);
+              const taxPercent = invoiceType === "Tax Invoice" ? Math.max(0, Number(row.tax_percent) || 0) : 0;
+              if (!(qty > 0)) throw new Error(`${invoiceNo} row ${index + 2}: qty must be greater than zero.`);
+              if (!(unitCost >= 0)) throw new Error(`${invoiceNo} row ${index + 2}: unit_cost is invalid.`);
+
+              const lineTotal = qty * unitCost;
+              return {
+                item_id: item.id,
+                godown_id: godown.id,
+                qty,
+                unit_cost: unitCost,
+                tax_percent: taxPercent,
+                description: String(row.description ?? "").trim() || null,
+                line_total: lineTotal,
+                total_with_tax: lineTotal + lineTotal * taxPercent / 100,
+              };
+            });
+
+            const total = preparedLines.reduce((sum, line) => sum + line.total_with_tax, 0);
+            const headerTax = invoiceType === "Tax Invoice"
+              ? Math.max(...preparedLines.map((line) => line.tax_percent), 0)
+              : 0;
+
+            const { data: order, error: orderError } = await supabase
+              .from("purchase_orders")
+              .insert({
+                order_no: invoiceNo,
+                supplier_id: supplier.id,
+                order_date: orderDate,
+                status: "draft",
+                invoice_type: invoiceType,
+                tax_percent: headerTax,
+                total: Number(total.toFixed(2)),
+              })
+              .select("id")
+              .single();
+            if (orderError) throw orderError;
+            createdOrderIds.push(order.id);
+
+            const { error: lineError } = await supabase.from("purchase_order_lines").insert(
+              preparedLines.map(({ total_with_tax: _ignored, ...line }) => ({ ...line, order_id: order.id })),
+            );
+            if (lineError) throw lineError;
+          }
+
+          await fetchRows();
+          alert(`Successfully imported ${grouped.size} purchase invoice${grouped.size === 1 ? "" : "s"} as draft.`);
+        } catch (err: any) {
+          if (createdOrderIds.length) {
+            await supabase.from("purchase_order_lines").delete().in("order_id", createdOrderIds);
+            await supabase.from("purchase_orders").delete().in("id", createdOrderIds).eq("status", "draft");
+          }
+          setError(err?.message || "Purchase invoice import failed.");
+        } finally {
+          setImporting(false);
+          event.target.value = "";
+        }
+      },
+      error: (parseError) => {
+        setError(parseError.message || "Failed to parse CSV file.");
+        setImporting(false);
+        event.target.value = "";
+      },
+    });
+  };
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -66,14 +231,26 @@ export default function PurchaseOrderList() {
 
   return (
     <div>
+      <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleImport} />
+
       <PageHeader
         title="Purchase Invoices / خریداری انوائسز"
         subtitle="Manage supplier invoices, payment status, balances & posting"
         action={(
           <div className="flex flex-wrap items-center gap-2">
-            {canCreate && <button onClick={() => navigate("/purchase/consolidated")} className="btn-secondary">Consolidated Purchase / کنسولیڈیٹڈ</button>}
+            {canCreate && (
+              <button
+                onClick={() => navigate("/purchase/consolidated")}
+                className="px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                📚 Consolidated Purchase / کنسولیڈیٹڈ
+              </button>
+            )}
             {canCreate && <button onClick={() => navigate("/purchase/new")} className="btn-primary">+ Main Purchase Invoice</button>}
             <span data-navilo-standard-tools-host className="contents" />
+
+            {canCreate && <button type="button" onClick={downloadTemplate} className="hidden">Download Template</button>}
+            {canCreate && <button type="button" onClick={() => fileInputRef.current?.click()} disabled={importing} className="hidden">{importing ? "Uploading..." : "Bulk Upload (CSV)"}</button>}
           </div>
         )}
       />
