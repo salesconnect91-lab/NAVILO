@@ -1,0 +1,41 @@
+name: Remove salesperson shortcut
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/remove-salesperson-shortcut.yml
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Remove Sales Person Report shortcut only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/modules/sales/SalesInvoiceList.tsx')
+          s = p.read_text()
+          old = '''            <Link
+              to="/sales/report"
+              className="px-3 py-2 text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-1.5"
+            >
+              📈 Sales Person Report
+            </Link>
+
+'''
+          if old not in s:
+              raise SystemExit('Sales Person Report shortcut block not found')
+          p.write_text(s.replace(old, '', 1))
+          PY
+      - name: Commit change
+        run: |
+          git config user.name "salesconnect91-lab"
+          git config user.email "sales.connect91@gmail.com"
+          git add src/modules/sales/SalesInvoiceList.tsx
+          git commit -m "Remove Sales Person Report shortcut from invoice list"
+          git push origin main
