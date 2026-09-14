@@ -46,12 +46,21 @@ function consolidatedPurchaseRoot(){
   });
   return listTable?.closest<HTMLElement>("[data-report-content],[data-navilo-data-table],.card")||listTable?.parentElement||null;
 }
-function reportRoot(){return document.querySelector<HTMLElement>("[data-report-content]")||document.querySelector<HTMLElement>(".professional-report")||document.querySelector<HTMLElement>("#order-book-report")||consolidatedPurchaseRoot()||consolidatedSalesRoot()||chartOfAccountsRoot()||journalDetailRoot()||journalListRoot()||document.querySelector<HTMLElement>("#navilo-main-content")}
+function salesInvoiceDetailRoot(){
+  const path=window.location.pathname;
+  if(!/^\/sales\/[^/]+$/.test(path)||path==="/sales/new"||path==="/sales/consolidated"||path==="/sales/order-book")return null;
+  const main=document.querySelector<HTMLElement>("#navilo-main-content");
+  if(!main)return null;
+  const headings=Array.from(main.querySelectorAll<HTMLElement>("h1,h2,h3,.text-\\[12px\\].font-semibold"));
+  const invoiceLines=headings.find(el=>normalize(el.textContent||"").startsWith("invoice lines"));
+  return invoiceLines?.closest<HTMLElement>("section.grid")||invoiceLines?.closest<HTMLElement>("section")||invoiceLines?.closest<HTMLElement>(".rounded-lg")||null;
+}
+function reportRoot(){return document.querySelector<HTMLElement>("[data-report-content]")||document.querySelector<HTMLElement>(".professional-report")||document.querySelector<HTMLElement>("#order-book-report")||salesInvoiceDetailRoot()||consolidatedPurchaseRoot()||consolidatedSalesRoot()||chartOfAccountsRoot()||journalDetailRoot()||journalListRoot()||document.querySelector<HTMLElement>("#navilo-main-content")}
 function reportSelector(){
   if(document.querySelector("[data-report-content]"))return"[data-report-content]";
   if(document.querySelector(".professional-report"))return".professional-report";
   if(document.querySelector("#order-book-report"))return"#order-book-report";
-  const generatedRoot=consolidatedPurchaseRoot()||consolidatedSalesRoot()||chartOfAccountsRoot()||journalDetailRoot()||journalListRoot();
+  const generatedRoot=salesInvoiceDetailRoot()||consolidatedPurchaseRoot()||consolidatedSalesRoot()||chartOfAccountsRoot()||journalDetailRoot()||journalListRoot();
   if(generatedRoot){
     document.querySelectorAll<HTMLElement>("[data-navilo-generated-print-root]").forEach(el=>delete el.dataset.naviloGeneratedPrintRoot);
     generatedRoot.dataset.naviloGeneratedPrintRoot="true";
@@ -69,7 +78,7 @@ function isNaviloStandardPath(p:string){if(isMasterStandardPath(p)||isReportPath
 function isExportDuplicate(v:string){const x=normalize(v);return x.includes("export")||x.includes("download excel")||x.includes("download csv")||x.includes("download word")||x==="excel"||x==="csv"||x==="word"||x.includes("print")||x==="pdf"||x.startsWith("pdf /")||x.includes("customize columns")||x.includes("print options")}
 function isTemplateAction(v:string){const x=normalize(v);return x.includes("template")}
 function isUploadAction(v:string){const x=normalize(v);return x==="import"||x.startsWith("import ")||x.includes("bulk import")||x.includes("bulk upload")||x.includes("choose file")||x.includes("load excel")||x.includes("load csv")||x.includes("upload csv")||x.includes("upload excel")||x.includes("upload file")}
-function isPrimaryAction(v:string){const x=normalize(v);return /^(\+\s*)?(add|new|create)\s+(account|item|category|customer|supplier|employee|warehouse|godown|uom|unit|transporter|charge|invoice|sales invoice|purchase invoice|order|sales order|purchase order|work order|cutting order|gate pass|receipt|payment|journal|journal entry|voucher)/.test(x)||x.includes("new consolidated / hawala")||x.includes("new consolidated purchase")||x.includes("new consolidated")||x.includes("post journal")||x.includes("reverse journal")||x.includes("main purchase invoice")||x.includes("stock adjustment")||x.includes("transfer stock")||x.includes("stock transfer")||x.includes("new loading token")||x.includes("loading token")}
+function isPrimaryAction(v:string){const x=normalize(v);return /^(\+\s*)?(add|new|create)\s+(account|item|category|customer|supplier|employee|warehouse|godown|uom|unit|transporter|charge|invoice|sales invoice|purchase invoice|order|sales order|purchase order|work order|cutting order|gate pass|receipt|payment|journal|journal entry|voucher)/.test(x)||x.includes("new consolidated / hawala")||x.includes("new consolidated purchase")||x.includes("new consolidated")||x.includes("post invoice")||x.includes("post purchase invoice")||x.includes("post journal")||x.includes("reverse journal")||x.includes("main purchase invoice")||x.includes("stock adjustment")||x.includes("transfer stock")||x.includes("stock transfer")||x.includes("new loading token")||x.includes("loading token")}
 function labelOf(el:HTMLElement){return el.textContent||el.getAttribute("aria-label")||el.getAttribute("title")||""}
 function isDocumentOutputAction(el:HTMLElement){
   if(el.dataset.naviloKeepLocalAction==="true"||el.hasAttribute("data-direct-print")||el.hasAttribute("data-print-selector"))return true;
@@ -78,6 +87,7 @@ function isDocumentOutputAction(el:HTMLElement){
   if(!isOutput)return false;
   const path=window.location.pathname;
   if(/^\/purchase\/[^/]+$/.test(path)&&path!=="/purchase/new"&&path!=="/purchase/consolidated"&&path!=="/purchase/order-book")return true;
+  if(/^\/sales\/[^/]+$/.test(path)&&path!=="/sales/new"&&path!=="/sales/consolidated"&&path!=="/sales/order-book")return true;
   const isDocument=/\b(receipt|voucher|gate pass|loading worksheet|closing|credit note|debit note|return note|purchase invoice|sales invoice|consolidated purchase|hawala)\b/.test(x);
   return isDocument;
 }
