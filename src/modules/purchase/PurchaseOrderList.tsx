@@ -201,8 +201,9 @@ export default function PurchaseOrderList() {
     if (String(row.status).toLowerCase() !== "draft") return;
     if (!window.confirm(`Delete draft Purchase Invoice ${row.order_no}?`)) return;
     setError(null);
-    const { error: deleteError } = await supabase.from("purchase_orders").delete().eq("id", row.id).eq("status", "draft");
+    const { data: deleted, error: deleteError } = await supabase.rpc("delete_draft_purchase_invoice", { p_order_id: row.id });
     if (deleteError) { setError(deleteError.message); return; }
+    if (!deleted) { setError("Draft Purchase Invoice could not be deleted. Refresh and try again."); return; }
     await fetchRows();
   };
 
