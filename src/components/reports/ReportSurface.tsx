@@ -35,15 +35,18 @@ export default function ReportSurface({ children }: ReportSurfaceProps) {
     setColumns(prev=>headers.map((cell,index)=>{const label=(cell.textContent||`Column ${index+1}`).trim(),existing=prev.find(item=>item.label===label);return{index,label,visible:existing?.visible??!hidden.has(label)}}));
   },[reportContent,savedHiddenLabels]);
 
-  useEffect(()=>{scan();const root=reportContent();if(!root)return;const observer=new MutationObserver(scan);observer.observe(root,{childList:true,subtree:true,characterData:true});return()=>observer.disconnect()},[reportContent,scan]);
+  useEffect(()=>{scan();const root=reportContent();if(!root)return;const observer=new MutationObserver(scan);observer.observe(root,{childList:true,subtree:true});return()=>observer.disconnect()},[reportContent,scan]);
   useEffect(()=>{const onCustomize=()=>setCustomizeOpen(v=>!v);window.addEventListener("navilo:report-customize",onCustomize);return()=>window.removeEventListener("navilo:report-customize",onCustomize)},[]);
-  useEffect(()=>{const root=reportContent();if(!root)return;const hide=()=>root.querySelectorAll<HTMLElement>("button,a,[role='button']").forEach(el=>{if(el.dataset.naviloKeepLocalAction==="true")return;const label=el.textContent||el.getAttribute("aria-label")||el.getAttribute("title")||"";if(isDuplicateAction(label)){el.style.setProperty("display","none","important");el.dataset.naviloDuplicateReportAction="true"}});hide();const observer=new MutationObserver(hide);observer.observe(root,{childList:true,subtree:true,characterData:true});return()=>observer.disconnect()},[reportContent]);
+  useEffect(()=>{const root=reportContent();if(!root)return;const hide=()=>root.querySelectorAll<HTMLElement>("button,a,[role='button']").forEach(el=>{if(el.dataset.naviloKeepLocalAction==="true"||el.hasAttribute("data-direct-print"))return;const label=el.textContent||el.getAttribute("aria-label")||el.getAttribute("title")||"";if(isDuplicateAction(label)){el.style.setProperty("display","none","important");el.dataset.naviloDuplicateReportAction="true"}});hide();const observer=new MutationObserver(hide);observer.observe(root,{childList:true,subtree:true});return()=>observer.disconnect()},[reportContent]);
   useEffect(()=>{const root=reportContent();if(!root)return;const hidden=new Set(columns.filter(c=>!c.visible).map(c=>c.index));root.querySelectorAll("table").forEach(table=>table.querySelectorAll("tr").forEach(row=>Array.from(row.children).forEach((cell,index)=>{(cell as HTMLElement).style.display=hidden.has(index)?"none":""})));root.querySelectorAll<HTMLElement>("tfoot,[data-report-total],.report-total-row").forEach(el=>{el.style.display=showTotals?"":"none"});root.querySelectorAll<HTMLElement>("[data-report-filters]").forEach(el=>{el.style.display=showFilters?"":"none"});try{localStorage.setItem(storageKey,JSON.stringify({hiddenLabels:columns.filter(c=>!c.visible).map(c=>c.label),density,orientation,showTotals,showFilters} satisfies SavedPrefs))}catch{/* ignore */}},[columns,density,orientation,reportContent,showFilters,showTotals,storageKey]);
 
   const reset=()=>{setColumns(list=>list.map(item=>({...item,visible:true})));setDensity("compact");setOrientation("landscape");setShowTotals(true);setShowFilters(true)};
 
   return <div ref={rootRef} className="professional-report print-report" data-report-root>
     <style>{`@media print{@page{size:A4 ${orientation};margin:10mm}}`}</style>
+    <div className="mb-3 flex flex-wrap items-center justify-end gap-2 no-print" data-no-print data-no-export>
+      <span data-navilo-standard-tools-host className="contents" />
+    </div>
     <div data-report-content className="report-print-content" data-report-density={density} data-report-orientation={orientation}>
       <div className="navilo-report-source">{children}</div>
     </div>
