@@ -129,6 +129,7 @@ export default function SalesInvoiceCreate() {
   const [referenceNo, setReferenceNo] = useState("");
   const [referenceNotes, setReferenceNotes] = useState("");
   const [configuredTaxRate, setConfiguredTaxRate] = useState<string | null>(null);
+  const [discountAmount, setDiscountAmount] = useState("0");
   const [rows, setRows] = useState<InvoiceRow[]>([emptyRow()]);
   const [charges, setCharges] = useState<ChargeRow[]>([]);
   const [chargeToAdd, setChargeToAdd] = useState("");
@@ -204,6 +205,7 @@ export default function SalesInvoiceCreate() {
     setReferenceNo(header.reference_no || "");
     setReferenceNotes(header.reference_notes || "");
     setConfiguredTaxRate(canonicalType === "Tax Invoice" ? String(Number(header.tax_percent) || 0) : null);
+    setDiscountAmount(String(Number(header.discount_amount) || 0));
     setIsLocked(header.status === "posted" || header.status === "closed");
 
     setRows((linesRes.data ?? []).length
@@ -282,7 +284,9 @@ export default function SalesInvoiceCreate() {
   const normalInvoiceTotal = rowsSubtotal + itemTax + chargesSubtotal + chargeTax;
   const selectedHawalaInvoices = hawalaOptions.filter((row) => selectedHawalaIds.includes(row.id));
   const selectedHawalaTotal = selectedHawalaInvoices.reduce((sum, row) => sum + (Number(row.total) || 0), 0);
-  const grandTotal = normalInvoiceTotal + selectedHawalaTotal;
+  const grossTotal = normalInvoiceTotal + selectedHawalaTotal;
+  const discountValue = Math.max(0, Number(discountAmount) || 0);
+  const grandTotal = Math.max(0, grossTotal - discountValue);
 
   const selectedCustomer = useMemo(() => customers.find((row) => row.id === customerId) || null, [customers, customerId]);
 
@@ -343,6 +347,7 @@ export default function SalesInvoiceCreate() {
     }
     if (!customerId) return setError("Select a customer.");
     if (!salesPersonId || !salesPerson) return setError("Select a sales person from Employee Master.");
+    if (discountValue > grossTotal) return setError("Discount cannot exceed the invoice gross total.");
     if (invoiceType === "Tax Invoice" && !configuredTaxRate) return setError("Configure one active fixed Sales/Both tax rate in Tax Settings before using With Tax.");
 
     const validRows = rows.filter((row) => row.item_id && Number(row.qty) > 0);
@@ -358,7 +363,8 @@ export default function SalesInvoiceCreate() {
         sales_person_account_id: null,
         order_date: invoiceDate,
         status: "draft",
-        total: Number(grandTotal.toFixed(2)),
+        total: Number(grossTotal.toFixed(2)),
+        discount_amount: Number(discountValue.toFixed(2)),
         reference_name: referenceName.trim() || null,
         reference_no: referenceNo.trim() || null,
         reference_notes: referenceNotes.trim() || null,
@@ -368,6 +374,7 @@ export default function SalesInvoiceCreate() {
       };
 
       let orderId = id || null;
+      let savedOrderNo = invoiceNo;
       if (orderId) {
         const { error: updateError } = await supabase.from("sales_orders").update(headerPayload).eq("id", orderId);
         if (updateError) throw updateError;
@@ -381,7 +388,8 @@ export default function SalesInvoiceCreate() {
         const { data, error: insertError } = await supabase.from("sales_orders").insert({ order_no: null, ...headerPayload }).select("id,order_no").single();
         if (insertError) throw insertError;
         orderId = data.id;
-        setInvoiceNo(data.order_no || invoiceNo);
+        savedOrderNo = data.order_no || invoiceNo;
+        setInvoiceNo(savedOrderNo);
       }
 
       if (!orderId) throw new Error("Sales invoice ID was not created.");
@@ -419,6 +427,21 @@ export default function SalesInvoiceCreate() {
         }));
         if (chargeError) throw chargeError;
       }
+
+      const { error: discountError } = await supabase.rpc("upsert_commercial_invoice_discount", {
+        p_document_type: "sales_main",
+        p_document_no: savedOrderNo,
+        p_mode: "fixed",
+        p_value: Number(discountValue.toFixed(2)),
+        p_amount: Number(discountValue.toFixed(2)),
+      });
+      if (discountError) throw discountError;
+
+      const { error: totalSyncError } = await supabase.from("sales_orders").update({
+        total: Number(grossTotal.toFixed(2)),
+        discount_amount: Number(discountValue.toFixed(2)),
+      }).eq("id", orderId).eq("status", "draft");
+      if (totalSyncError) throw totalSyncError;
 
       const { error: linkError } = await supabase.rpc("replace_sales_order_hawala_invoices", {
         p_order_id: orderId,
@@ -520,7 +543,7 @@ export default function SalesInvoiceCreate() {
         <div className="grid gap-2 p-3 md:grid-cols-2">{charges.length === 0 ? <div className="text-[12px] text-slate-400">No additional charges selected.</div> : charges.map((charge,index) => { const master=chargeMaster.find((row)=>row.charge_key===charge.charge_key); return <div key={charge.charge_key} className="rounded-lg border border-slate-200 bg-slate-50 p-3"><div className="mb-2 flex items-center justify-between"><strong className="text-[12px]">{master?.charge_name || charge.charge_key}</strong>{!isLocked && <button type="button" className="text-rose-600" onClick={() => setCharges((current) => current.filter((_,rowIndex)=>rowIndex!==index))}><Trash2 className="h-3.5 w-3.5" /></button>}</div><div className="grid grid-cols-2 gap-2"><div><label className="label">Qty / Basis</label><input className="input bg-slate-100 text-right" readOnly value={charge.quantity} /></div><div><label className="label">Rate</label><input className="input text-right" type="number" step="0.01" disabled={isLocked || Boolean(master?.is_fixed)} value={charge.rate} onChange={(e) => setCharges((current) => current.map((candidate,rowIndex) => rowIndex===index ? recalculateCharge(candidate,e.target.value) : candidate))} /></div><div><label className="label">Amount</label><input className="input bg-slate-100 text-right" readOnly value={charge.amount} /></div>{invoiceType === "Tax Invoice" && master?.tax_applicable && <div><label className="label">VAT %</label><input className="input bg-slate-100 text-right" readOnly value={charge.tax_percent} /></div>}</div></div>; })}</div>
       </section>
 
-      <section className="ml-auto w-full max-w-md rounded-lg border border-slate-200 bg-white p-3 text-[12px]"><div className="flex justify-between py-1"><span>Items Subtotal</span><strong>{formatCurrency(rowsSubtotal)}</strong></div>{invoiceType === "Tax Invoice" && <div className="flex justify-between py-1"><span>Item VAT</span><strong>{formatCurrency(itemTax)}</strong></div>}<div className="flex justify-between py-1"><span>Charges</span><strong>{formatCurrency(chargesSubtotal)}</strong></div>{invoiceType === "Tax Invoice" && <div className="flex justify-between py-1"><span>Charge VAT</span><strong>{formatCurrency(chargeTax)}</strong></div>}<div className="flex justify-between py-1 text-blue-700"><span>Linked Consolidated</span><strong>{formatCurrency(selectedHawalaTotal)}</strong></div><div className="mt-2 flex justify-between border-t border-slate-200 pt-2 text-sm"><span className="font-semibold">Grand Total</span><strong>{formatCurrency(grandTotal)}</strong></div></section>
+      <section className="ml-auto w-full max-w-md rounded-lg border border-slate-200 bg-white p-3 text-[12px]"><div className="mb-3"><label className="label">Discount / رعایت</label><input className="input text-right" type="number" min="0" step="0.01" disabled={isLocked} value={discountAmount} onChange={(e) => setDiscountAmount(e.target.value)} /><p className="mt-1 text-[11px] text-slate-400">Main Sales Invoice only.</p></div><div className="flex justify-between py-1"><span>Items Subtotal</span><strong>{formatCurrency(rowsSubtotal)}</strong></div>{invoiceType === "Tax Invoice" && <div className="flex justify-between py-1"><span>Item VAT</span><strong>{formatCurrency(itemTax)}</strong></div>}<div className="flex justify-between py-1"><span>Charges</span><strong>{formatCurrency(chargesSubtotal)}</strong></div>{invoiceType === "Tax Invoice" && <div className="flex justify-between py-1"><span>Charge VAT</span><strong>{formatCurrency(chargeTax)}</strong></div>}<div className="flex justify-between py-1 text-blue-700"><span>Linked Consolidated</span><strong>{formatCurrency(selectedHawalaTotal)}</strong></div><div className="flex justify-between py-1 text-rose-700"><span>Discount</span><strong>- {formatCurrency(discountValue)}</strong></div><div className="mt-2 flex justify-between border-t border-slate-200 pt-2 text-sm"><span className="font-semibold">Grand Total</span><strong>{formatCurrency(grandTotal)}</strong></div></section>
 
       <Modal open={previewOpen} title={`${invoiceType === "Tax Invoice" ? "With Tax" : "Without Tax"} Sales Invoice Preview — ${invoiceNo}`} onClose={() => setPreviewOpen(false)}>
         <div className="p-2">
@@ -539,7 +562,7 @@ export default function SalesInvoiceCreate() {
             normalInvoiceTotal={normalInvoiceTotal}
             hawalaDocuments={selectedHawalaInvoices.map((row) => ({ id: row.id, invoiceNo: row.invoice_no, invoiceDate: row.invoice_date, referenceName: row.reference_name, referenceNo: row.reference_no, referenceNotes: row.reference_notes, amount: Number(row.total) || 0 }))}
             grandTotal={grandTotal}
-            extraFields={[{ label: "Sales Person / سیلز مین", value: salesPerson || "—" }, { label: "Reference", value: [referenceName, referenceNo].filter(Boolean).join(" · ") || "—" }]}
+            extraFields={[{ label: "Sales Person / سیلز مین", value: salesPerson || "—" }, { label: "Reference", value: [referenceName, referenceNo].filter(Boolean).join(" · ") || "—" }, ...(discountValue > 0 ? [{ label: "Discount / رعایت", value: formatCurrency(discountValue) }] : [])]}
             documentHeader={companyPrint.document_header || undefined}
             documentHeaderUrdu={companyPrint.document_header_urdu || undefined}
             documentFooter={companyPrint.document_footer || undefined}
