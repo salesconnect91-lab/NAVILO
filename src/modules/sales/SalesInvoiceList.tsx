@@ -104,6 +104,10 @@ export default function SalesInvoiceList() {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  const [listSearch, setListSearch] = useState("");
+  const [postingFilter, setPostingFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | PaymentStatus>("all");
+
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
@@ -302,6 +306,50 @@ export default function SalesInvoiceList() {
         .includes(q)
     );
   }, [openInvoices, invoiceSearch]);
+
+  const filteredRows = useMemo(() => {
+    const q = listSearch.trim().toLowerCase();
+
+    return rows.filter((row) => {
+      const matchesSearch =
+        !q ||
+        [
+          row.order_no,
+          row.customer?.name || "",
+          row.sales_person || "",
+          row.order_date || "",
+          row.due_date || "",
+          row.status || "",
+          row.payment_status || "",
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(q);
+
+      const matchesPosting =
+        postingFilter === "all" || row.status === postingFilter;
+
+      const matchesPayment =
+        paymentFilter === "all" ||
+        (row.payment_status || "unpaid") === paymentFilter;
+
+      return matchesSearch && matchesPosting && matchesPayment;
+    });
+  }, [rows, listSearch, postingFilter, paymentFilter]);
+
+  const filteredInvoiceTotal = useMemo(
+    () => filteredRows.reduce((sum, row) => sum + toNumber(row.total), 0),
+    [filteredRows]
+  );
+
+  const filteredBalanceDue = useMemo(
+    () =>
+      filteredRows.reduce(
+        (sum, row) => sum + toNumber(row.outstanding_amount),
+        0
+      ),
+    [filteredRows]
+  );
 
   const allocatedTotal = useMemo(
     () =>
@@ -505,7 +553,6 @@ export default function SalesInvoiceList() {
     }
   };
 
-  // Handle Bulk CSV File Upload & Parsing
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -684,7 +731,7 @@ export default function SalesInvoiceList() {
         title="Sales Invoices / فروخت انوائسز"
         subtitle="Manage customer invoices, payment status, balances & posting / گاہک انوائس، ادائیگی اور بقایا منظم کریں"
         action={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3" data-navilo-standard-tools-host>
             <Link
               to="/sales/report"
               className="px-3 py-2 text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-1.5"
@@ -728,12 +775,66 @@ export default function SalesInvoiceList() {
 
       {error && <ErrorBanner message={error} />}
 
-      <DataTable
-        columns={columns}
-        rows={rows}
-        loading={loading}
-        emptyMessage="No invoices yet. Create your first sales invoice."
-      />
+      <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4" data-no-print data-no-export>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <input
+            className="input"
+            value={listSearch}
+            onChange={(event) => setListSearch(event.target.value)}
+            placeholder="Search invoice, customer or sales person..."
+          />
+
+          <SearchableSelect
+            className="input"
+            value={postingFilter}
+            onChange={(event) => setPostingFilter(event.target.value)}
+          >
+            <option value="all">All posting statuses</option>
+            <option value="draft">Draft</option>
+            <option value="posted">Posted</option>
+            <option value="cancelled">Cancelled</option>
+          </SearchableSelect>
+
+          <SearchableSelect
+            className="input"
+            value={paymentFilter}
+            onChange={(event) => setPaymentFilter(event.target.value as "all" | PaymentStatus)}
+          >
+            <option value="all">All payment statuses</option>
+            <option value="unpaid">Unpaid</option>
+            <option value="partial">Partial</option>
+            <option value="paid">Paid</option>
+            <option value="overpaid">Overpaid</option>
+          </SearchableSelect>
+        </div>
+      </div>
+
+      <section data-report-content className="space-y-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <h2 className="navilo-report-title text-lg font-bold text-slate-900">Sales Invoices</h2>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="text-xs font-medium text-slate-500">Visible Invoices</div>
+              <div className="mt-1 text-lg font-bold text-slate-900">{filteredRows.length}</div>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="text-xs font-medium text-slate-500">Invoice Total</div>
+              <div className="mt-1 text-lg font-bold text-slate-900">{formatCurrency(filteredInvoiceTotal)}</div>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="text-xs font-medium text-slate-500">Balance Due</div>
+              <div className="mt-1 text-lg font-bold text-rose-700">{formatCurrency(filteredBalanceDue)}</div>
+            </div>
+          </div>
+        </div>
+
+        <DataTable
+          columns={columns}
+          rows={filteredRows}
+          loading={loading}
+          emptyMessage="No invoices match the selected filters."
+        />
+      </section>
 
       <Modal
         open={paymentModalOpen}
