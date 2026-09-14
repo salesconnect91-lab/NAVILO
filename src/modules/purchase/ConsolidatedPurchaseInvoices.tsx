@@ -1,8 +1,9 @@
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Plus, RefreshCw, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { ErrorBanner, PageHeader, StatusBadge, formatCurrency, formatDate } from "@/components/ui";
+import { ErrorBanner, StatusBadge, formatCurrency, formatDate } from "@/components/ui";
 import PrintLayout from "@/components/PrintLayout";
 import UnifiedOrderBookInvoicePicker from "@/components/UnifiedOrderBookInvoicePicker";
 import { calculateConfiguredChargeAmount, type ConfiguredChargeUnit } from "@/lib/chargeCalculation";
@@ -86,6 +87,7 @@ export default function ConsolidatedPurchaseInvoices() {
   const [deleting, setDeleting] = useState(false);
   const [postingId, setPostingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -135,6 +137,12 @@ export default function ConsolidatedPurchaseInvoices() {
   const currentInvoice = useMemo(() => invoices.find((invoice) => invoice.id === editingId) ?? null, [invoices, editingId]);
   const locked = currentInvoice?.status === "posted";
   const currentSupplier = suppliers.find((supplier) => supplier.id === supplierId) ?? currentInvoice?.supplier ?? null;
+  const filteredInvoices = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return invoices;
+    return invoices.filter((invoice) => [invoice.invoice_no, invoice.supplier?.name, invoice.invoice_date, invoice.invoice_type, invoice.status, invoice.reference_name, invoice.reference_no]
+      .some((value) => String(value ?? "").toLowerCase().includes(q)));
+  }, [invoices, search]);
 
   useEffect(() => {
     if (!selectedChargeKeys.length) return;
@@ -287,15 +295,26 @@ export default function ConsolidatedPurchaseInvoices() {
   const printCharges = selectedCharges.map((charge) => ({ label: charge.charge_name, amount: n(chargeAmounts[charge.charge_key]) }));
 
   return <div>
-    <div className="print:hidden">
-      <Link to="/purchase" className="mb-4 inline-block text-sm text-primary-600">← Back to Purchase</Link>
-      <PageHeader
-        title="Consolidated Purchase Invoices / کنسولیڈیٹڈ خریداری"
-        subtitle="Separate receiving documents; add them later to a Main Purchase Invoice"
-        action={<button className="btn-primary" onClick={() => { reset(); setShowForm(true); requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }}>+ New Consolidated Purchase</button>}
-      />
+    <div className="print:hidden space-y-3">
+      <section className="flex flex-col gap-3 border-b border-slate-200 pb-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <Link to="/purchase" className="mb-1 inline-flex items-center gap-1 text-[12px] text-slate-500 hover:text-blue-700"><ArrowLeft className="h-3 w-3" />Purchase</Link>
+          <h1 className="text-xl font-bold text-slate-900">Consolidated Purchase</h1>
+          <p className="text-[12px] text-slate-500">Separate receiving documents. Stock posts here; supplier accounting posts only through the linked Main Purchase Invoice.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span data-navilo-standard-tools-host className="contents" />
+          <button type="button" className="btn-secondary" onClick={() => void load()}><RefreshCw className="h-3.5 w-3.5" />Refresh</button>
+          <button type="button" className="btn-primary" onClick={() => { reset(); setShowForm(true); requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }}><Plus className="h-3.5 w-3.5" />New Consolidated Purchase</button>
+        </div>
+      </section>
       {error && <ErrorBanner message={error} />}
-      {success && <div className="mb-4 rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-700">{success}</div>}
+      {success && <div className="rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-700">{success}</div>}
+
+      {!showForm && <div className="relative max-w-md" data-no-export data-no-print>
+        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+        <input className="input pl-8" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search document, supplier or reference…" />
+      </div>}
 
       {showForm && <form ref={formRef} onSubmit={save} className="navilo-consolidated-purchase-editor mb-6 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -353,7 +372,7 @@ export default function ConsolidatedPurchaseInvoices() {
         {!locked && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">{editingId && currentInvoice?.status === "draft" && <button type="button" className="btn-danger" disabled={deleting} onClick={() => void deleteDraft(editingId, invoiceNo)}>{deleting ? "Deleting..." : "Delete Draft / بل حذف کریں"}</button>}<button className="btn-primary" disabled={saving}>{saving ? "Saving..." : "Save Consolidated Purchase"}</button></div>}
       </form>}
 
-      <div className="card overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b bg-slate-50"><th className="p-3 text-left">Invoice</th><th className="p-3 text-left">Supplier</th><th className="p-3 text-left">Date</th><th className="p-3 text-left">Type</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">VAT</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Actions</th></tr></thead><tbody>{loading ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">Loading…</td></tr> : invoices.length === 0 ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">No Consolidated Purchase Invoices yet.</td></tr> : invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-3 font-medium">{invoice.invoice_no}</td><td className="p-3">{invoice.supplier?.name ?? "—"}</td><td className="p-3">{formatDate(invoice.invoice_date)}</td><td className="p-3">{invoice.invoice_type === "Tax Invoice" ? "With Tax" : "Without Tax"}</td><td className="p-3"><StatusBadge status={invoice.status} /></td><td className="p-3 text-right">{invoice.invoice_type === "Tax Invoice" ? formatCurrency(n(invoice.item_tax) + n(invoice.charge_tax)) : "—"}</td><td className="p-3 text-right font-semibold">{formatCurrency(n(invoice.total))}</td><td className="p-3 text-right"><div className="flex justify-end gap-2"><button type="button" className="btn-secondary text-xs" onClick={() => void editInvoice(invoice)}>{editingId === invoice.id && showForm ? "Editing" : "Open / Edit"}</button>{invoice.status === "draft" && <button type="button" className="btn-danger text-xs" disabled={deleting} onClick={() => void deleteDraft(invoice.id, invoice.invoice_no)}>Delete</button>}{invoice.status === "draft" && <button type="button" className="btn-primary text-xs" disabled={postingId === invoice.id} onClick={() => void post(invoice)}>{postingId === invoice.id ? "Posting..." : "Post / Receive Stock"}</button>}</div></td></tr>)}</tbody></table></div>
+      {!showForm && <div data-report-content className="card overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b bg-slate-50"><th className="p-3 text-left">Invoice</th><th className="p-3 text-left">Supplier</th><th className="p-3 text-left">Date</th><th className="p-3 text-left">Type</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">VAT</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Actions</th></tr></thead><tbody>{loading ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">Loading…</td></tr> : filteredInvoices.length === 0 ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">No Consolidated Purchase Invoices found.</td></tr> : filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-3 font-medium">{invoice.invoice_no}</td><td className="p-3">{invoice.supplier?.name ?? "—"}</td><td className="p-3">{formatDate(invoice.invoice_date)}</td><td className="p-3">{invoice.invoice_type === "Tax Invoice" ? "With Tax" : "Without Tax"}</td><td className="p-3"><StatusBadge status={invoice.status} /></td><td className="p-3 text-right">{invoice.invoice_type === "Tax Invoice" ? formatCurrency(n(invoice.item_tax) + n(invoice.charge_tax)) : "—"}</td><td className="p-3 text-right font-semibold">{formatCurrency(n(invoice.total))}</td><td className="p-3 text-right"><div className="flex justify-end gap-2"><button type="button" className="btn-secondary text-xs" onClick={() => void editInvoice(invoice)}>{editingId === invoice.id && showForm ? "Editing" : "Open / Edit"}</button>{invoice.status === "draft" && <button type="button" className="btn-danger text-xs" disabled={deleting} onClick={() => void deleteDraft(invoice.id, invoice.invoice_no)}>Delete</button>}{invoice.status === "draft" && <button type="button" className="btn-primary text-xs" disabled={postingId === invoice.id} onClick={() => void post(invoice)}>{postingId === invoice.id ? "Posting..." : "Post / Receive Stock"}</button>}</div></td></tr>)}</tbody></table></div>}
     </div>
 
     {showForm && editingId && <div id="consolidated-purchase-print-root" className="hidden print:block" data-print-root><PrintLayout
