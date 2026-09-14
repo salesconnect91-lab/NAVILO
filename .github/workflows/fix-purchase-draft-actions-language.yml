@@ -1,0 +1,57 @@
+name: Fix purchase draft actions and language
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-purchase-draft-actions-language.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch purchase list and detail
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p=Path('src/modules/purchase/PurchaseOrderList.tsx')
+          s=p.read_text()
+          s=s.replace(
+            '  const canCreate = canPerformModule(activeCompany?.membership_role, "purchase", "create", activeCompany?.permissions, isPlatformOwner);',
+            '  const canCreate = canPerformModule(activeCompany?.membership_role, "purchase", "create", activeCompany?.permissions, isPlatformOwner);\n  const canDelete = canPerformModule(activeCompany?.membership_role, "purchase", "delete", activeCompany?.permissions, isPlatformOwner);'
+          )
+          anchor='  const filteredRows = useMemo(() => {'
+          helper='''  const deleteDraft = async (row: PurchaseOrder) => {\n    if (String(row.status).toLowerCase() !== "draft") return;\n    if (!window.confirm(`Delete draft Purchase Invoice ${row.order_no}?`)) return;\n    setError(null);\n    const { error: deleteError } = await supabase.from("purchase_orders").delete().eq("id", row.id).eq("status", "draft");\n    if (deleteError) { setError(deleteError.message); return; }\n    await fetchRows();\n  };\n\n'''
+          if helper not in s:
+            s=s.replace(anchor,helper+anchor)
+          old='''    { key: "actions", label: "", className: "text-right", render: (r) => <button onClick={() => navigate(`/purchase/${r.id}`)} className="text-primary-600 hover:text-primary-700 text-sm font-medium">Open →</button> },'''
+          new='''    { key: "actions", label: "Actions", className: "text-right", render: (r) => {\n      const isDraft = String(r.status ?? "").toLowerCase() === "draft";\n      return <div className="flex justify-end gap-2">\n        <button onClick={() => navigate(`/purchase/${r.id}`)} className="text-primary-600 hover:text-primary-700 text-sm font-medium">{isDraft ? "Edit" : "View"}</button>\n        {isDraft && canDelete && <button onClick={() => void deleteDraft(r)} className="text-rose-600 hover:text-rose-700 text-sm font-medium">Delete</button>}\n      </div>;\n    } },'''
+          if old not in s:
+            raise SystemExit('PurchaseOrderList action anchor not found')
+          s=s.replace(old,new)
+          p.write_text(s)
+
+          p=Path('src/modules/purchase/PurchaseInvoiceDetail.tsx')
+          s=p.read_text()
+          repl={
+            'Item aur destination godown select karein.':'Select an item and destination godown. / آئٹم اور منزل گودام منتخب کریں۔',
+            'Main Purchase Invoice ka internal number alag rahega; supplier ke original invoice/reference aur responsible Purchase Person ko yahan preserve karein.':'The NAVILO purchase invoice number remains separate; preserve the supplier original invoice/reference and responsible Purchase Person here. / نیویلو خریداری انوائس نمبر الگ رہے گا؛ سپلائر کا اصل انوائس یا حوالہ اور ذمہ دار خریداری شخص یہاں محفوظ کریں۔',
+            'Is supplier aur isi tax type ke liye koi available posted Consolidated Purchase nahi.':'No posted Consolidated Purchase is available for this supplier and tax type. / اس سپلائر اور اسی ٹیکس قسم کے لیے کوئی پوسٹ شدہ کنسولیڈیٹڈ خریداری دستیاب نہیں۔',
+            'Ye accounting total mein included hain, lekin Main posting par inka stock movement repeat nahi hota.':'These lines are included in accounting totals, but their stock movement is not repeated when the Main Purchase Invoice is posted. / یہ لائنیں اکاؤنٹنگ ٹوٹل میں شامل ہیں، لیکن مین خریداری انوائس پوسٹ ہونے پر ان کی اسٹاک موومنٹ دوبارہ نہیں ہوتی۔',
+            'Payment timing invoice tax type se separate hai. Cash ya Bank account explicitly select karein.':'Payment timing is independent of invoice tax type. Select the Cash or Bank account explicitly. / ادائیگی کا وقت انوائس کی ٹیکس قسم سے الگ ہے۔ کیش یا بینک اکاؤنٹ واضح طور پر منتخب کریں۔',
+            'VAT {n(order.tax_percent)}% Tax Settings se fixed hai; line par manually edit nahi hoga.':'VAT {n(order.tax_percent)}% is fixed in Tax Settings and cannot be edited on the line. / وی اے ٹی {n(order.tax_percent)}% ٹیکس سیٹنگز میں فکس ہے اور لائن پر تبدیل نہیں کیا جا سکتا۔'
+          }
+          for a,b in repl.items():
+            s=s.replace(a,b)
+          p.write_text(s)
+          PY
+      - name: Verify build
+        run: npm ci && npm run build
+      - name: Commit fixes
+        run: |
+          git config user.name "NAVILO Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/modules/purchase/PurchaseOrderList.tsx src/modules/purchase/PurchaseInvoiceDetail.tsx
+          git diff --cached --quiet || git commit -m "Fix purchase draft actions and bilingual wording"
+          git push
