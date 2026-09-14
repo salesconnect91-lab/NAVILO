@@ -485,7 +485,7 @@ export default function LanguageRuntime() {
         if (mutation.type === "attributes" && mutation.target.nodeType === Node.ELEMENT_NODE) processElementAttributes(mutation.target as Element, language);
       }
     });
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: [...TRANSLATABLE_ATTRIBUTES] });
+    observer.observe(document.body, { childList: true, subtree: true });
     void refresh();
     const handleChange = () => void refresh();
     window.addEventListener("navilo-language-changed", handleChange);

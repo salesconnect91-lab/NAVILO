@@ -120,7 +120,7 @@ export default function JurisdictionRuntime() {
         if (mutation.type === "attributes" && mutation.target.nodeType === Node.ELEMENT_NODE) processAttributes(mutation.target as Element, currency, primaryTaxId, secondaryTaxId);
       }
     });
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: [...ATTRIBUTES] });
+    observer.observe(document.body, { childList: true, subtree: true });
 
     void refresh();
     const handleChange = () => void refresh();
