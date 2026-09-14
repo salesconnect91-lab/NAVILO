@@ -11,12 +11,17 @@ export function StatusBadge({ status }: { status: string }) {
 export function EmptyState({ message }: { message: string }) { return <div className="card p-12 text-center text-slate-400">{message}</div>; }
 const PROFESSIONAL_ERROR_COPY: Record<string,string> = {
   "Main Purchase Invoice aur Consolidated Purchase ka supplier same hona chahiye.": "Main Purchase Invoice and Consolidated Purchase must use the same supplier.",
+  "Purchase Person / Buyer select aur save karein before posting.": "Select and save the Purchase Person / Buyer before posting.",
+  "Purchase Tax Invoice post karne se pehle Supplier Original Invoice No. aur Invoice Date save karein.": "Enter and save the Supplier Original Invoice No. and Invoice Date before posting the Purchase Tax Invoice.",
+  "Quantity/cost invalid hai.": "Enter a valid quantity and unit cost.",
+  "Payment amount outstanding se zyada ya invalid hai.": "Enter a valid payment amount that does not exceed the outstanding balance.",
+  "Cash/Bank payment account select karein.": "Select a Cash or Bank payment account.",
 };
 export function ErrorBanner({ message }: { message: string }) { const cleanMessage=PROFESSIONAL_ERROR_COPY[message]||message; return <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{cleanMessage}</div>; }
 export function LoadingState() { return <div className="card p-12 text-center text-slate-400">Loading…</div>; }
 
 export function ConfirmModal({open,title,message,onConfirm,onCancel}:{open:boolean;title:string;message:string;onConfirm:()=>void;onCancel:()=>void}) {
-  if (!open) return null;
+  if(!open)return null;
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onCancel}><div className="card mx-4 w-full max-w-sm p-6" onClick={e=>e.stopPropagation()}><h3 className="mb-2 text-lg font-semibold text-slate-900">{title}</h3><p className="mb-6 text-sm text-slate-500">{message}</p><div className="flex justify-end gap-3"><button onClick={onCancel} className="btn-secondary">Cancel / منسوخ کریں</button><button onClick={onConfirm} className="btn-danger">Confirm / تصدیق کریں</button></div></div></div>;
 }
 
