@@ -27,11 +27,13 @@ function looksLikeBusinessCode(value: string): boolean {
 /**
  * NAVILO display rule: business/master codes stay internal/searchable but are not
  * shown beside human-readable names in dropdowns. Examples:
- *   FG-001 — Girder            -> Girder
- *   1100 - Cash in Hand        -> Cash in Hand
- *   SUP-004 | Al Noor Traders  -> Al Noor Traders
- *   Girder (FG-001)            -> Girder
- *   Girder · FG-001            -> Girder
+ *   FG-001 — Girder                    -> Girder
+ *   1100 - Cash in Hand                -> Cash in Hand
+ *   SUP-004 | Al Noor Traders          -> Al Noor Traders
+ *   Girder (FG-001)                    -> Girder
+ *   Girder · FG-001                    -> Girder
+ *   Cash — 1100 · Cash in Hand         -> Cash — Cash in Hand
+ *   Muhammad Ali · EMP-004 · Buyer     -> Muhammad Ali — Buyer
  * Bilingual labels such as "Customer / گاہک" are left untouched.
  */
 function displayLabel(raw: string): string {
@@ -55,6 +57,14 @@ function displayLabel(raw: string): string {
     const name = trailingSeparatedCode[1].trim();
     const code = trailingSeparatedCode[2].trim();
     if (looksLikeBusinessCode(code) && name) return name;
+  }
+
+  const embeddedCode = value.match(/^(.+?)\s+(?:—|–|·|\||:)\s+([A-Za-z0-9._/#-]+)\s+(?:—|–|·|\||:)\s+(.+)$/);
+  if (embeddedCode) {
+    const left = embeddedCode[1].trim();
+    const code = embeddedCode[2].trim();
+    const right = embeddedCode[3].trim();
+    if (looksLikeBusinessCode(code) && left && right) return `${left} — ${right}`;
   }
 
   return value;
