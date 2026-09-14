@@ -5,6 +5,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission, type ModuleKey } from "@/auth/permissions";
 import { exportDomReportToCSV, exportDomReportToExcel, exportDomReportToWord, triggerPrint } from "@/lib/exportUtils";
+import ConsolidatedInvoiceTools from "@/components/ConsolidatedInvoiceTools";
 
 function cleanTitle(v:string){return v.replace(/\s*\/\s*[\u0600-\u06FF].*$/,"").replace(/[^a-z0-9]+/gi,"-").replace(/^-+|-+$/g,"").toLowerCase()||"navilo-export"}
 function journalListRoot(){
@@ -144,6 +145,6 @@ export default function UniversalDataTools(){
     {!invoiceEditor&&canExport&&<div className="relative"><button type="button" onClick={()=>{setOpen(v=>!v);setImportOpen(false)}} className={base}><Download className="h-4 w-4"/><span className="hidden xl:inline">Export</span></button>{open&&<div className="absolute right-0 top-10 z-[70] w-48 rounded-lg border bg-white py-1 shadow-xl"><button type="button" onClick={()=>exp("excel")} className="flex w-full gap-2 px-3 py-2 text-xs"><Sheet className="h-4 w-4"/>Excel (.xlsx)</button><button type="button" onClick={()=>exp("csv")} className="flex w-full gap-2 px-3 py-2 text-xs"><Table2 className="h-4 w-4"/>CSV (.csv)</button><button type="button" onClick={()=>exp("word")} className="flex w-full gap-2 px-3 py-2 text-xs"><FileText className="h-4 w-4"/>Word (.doc)</button></div>}</div>}
     {!invoiceEditor&&canPrint&&!hasLocalDocumentOutput&&<button type="button" data-print-selector={reportSelector()} onClick={print} className={base}><Printer className="h-4 w-4"/><span className="hidden xl:inline">Print / PDF</span></button>}
   </div>;
-  if(standardPath)return standardHost?createPortal(toolbar,standardHost):null;
+  if(standardPath)return standardHost?createPortal(<><ConsolidatedInvoiceTools/>{toolbar}</>,standardHost):null;
   return toolbar;
 }
