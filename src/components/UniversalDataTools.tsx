@@ -27,7 +27,7 @@ export default function UniversalDataTools(){
   const{pathname}=useLocation(),{activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
   const[open,setOpen]=useState(false),[importOpen,setImportOpen]=useState(false),[standardHost,setStandardHost]=useState<HTMLElement|null>(null),[hasTemplate,setHasTemplate]=useState(false),[hasUpload,setHasUpload]=useState(false),[hasCustomizableTable,setHasCustomizableTable]=useState(false);
   const ref=useRef<HTMLDivElement|null>(null);
-  const reportMode=isReportPath(pathname),masterStandard=isMasterStandardPath(pathname),standardPath=isNaviloStandardPath(pathname),customizable=reportMode||masterStandard||hasCustomizableTable,journalList=pathname==="/accounting";
+  const reportMode=isReportPath(pathname),masterStandard=isMasterStandardPath(pathname),standardPath=isNaviloStandardPath(pathname),customizable=reportMode||masterStandard||hasCustomizableTable;
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role,module=moduleForPath(pathname),permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
   const canExport=isPlatformOwner||hasPermission(role,module,"export",permissions,false),canPrint=isPlatformOwner||hasPermission(role,module,"print",permissions,false);
 
@@ -53,7 +53,6 @@ export default function UniversalDataTools(){
     const observer=new MutationObserver(()=>{if(attach())observer.disconnect()});observer.observe(document.body,{childList:true,subtree:true});
     return()=>{observer.disconnect();setStandardHost(null)};
   },[standardPath,pathname]);
-  useEffect(()=>{if(!journalList)return;const s=document.createElement("style");s.textContent='button[title^="Print journal voucher"]{display:none!important}';document.head.appendChild(s);return()=>s.remove()},[journalList]);
   useEffect(()=>{if(!open&&!importOpen)return;const close=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node)){setOpen(false);setImportOpen(false)}};document.addEventListener("mousedown",close);return()=>document.removeEventListener("mousedown",close)},[open,importOpen]);
 
   const exp=(t:"excel"|"csv"|"word")=>{if(!canExport)return;const root=currentExportRoot();if(!root)return;const title=currentPageTitle(),file=cleanTitle(title);if(t==="excel")exportDomReportToExcel(file,root,title);if(t==="csv")exportDomReportToCSV(file,root,title);if(t==="word")exportDomReportToWord(file,root,title);setOpen(false)};
@@ -67,6 +66,6 @@ export default function UniversalDataTools(){
     {canExport&&<div className="relative"><button type="button" onClick={()=>{setOpen(v=>!v);setImportOpen(false)}} className={base}><Download className="h-4 w-4"/><span className="hidden xl:inline">Export</span></button>{open&&<div className="absolute right-0 top-10 z-[70] w-48 rounded-lg border bg-white py-1 shadow-xl"><button type="button" onClick={()=>exp("excel")} className="flex w-full gap-2 px-3 py-2 text-xs"><Sheet className="h-4 w-4"/>Excel (.xlsx)</button><button type="button" onClick={()=>exp("csv")} className="flex w-full gap-2 px-3 py-2 text-xs"><Table2 className="h-4 w-4"/>CSV (.csv)</button><button type="button" onClick={()=>exp("word")} className="flex w-full gap-2 px-3 py-2 text-xs"><FileText className="h-4 w-4"/>Word (.doc)</button></div>}</div>}
     {canPrint&&<button type="button" data-print-selector={reportSelector()} onClick={print} className={base}><Printer className="h-4 w-4"/><span className="hidden xl:inline">Print / PDF</span></button>}
   </div>;
-  if(standardPath&&standardHost)return createPortal(toolbar,standardHost);
+  if(standardPath)return standardHost?createPortal(toolbar,standardHost):null;
   return toolbar;
 }
