@@ -1,0 +1,54 @@
+name: Fix sales draft actions
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-sales-draft-actions.yml'
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch sales invoice list actions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/modules/sales/SalesInvoiceList.tsx')
+          s=p.read_text()
+          old='''  const canCreateSales = canPerformModule(activeCompany?.membership_role, "sales", "create", activeCompany?.permissions, isPlatformOwner);\n  const canReceivePayment = canPerformModule(activeCompany?.membership_role, "accounting", "post", activeCompany?.permissions, isPlatformOwner);'''
+          new='''  const canCreateSales = canPerformModule(activeCompany?.membership_role, "sales", "create", activeCompany?.permissions, isPlatformOwner);\n  const canDeleteSales = canPerformModule(activeCompany?.membership_role, "sales", "delete", activeCompany?.permissions, isPlatformOwner);\n  const canReceivePayment = canPerformModule(activeCompany?.membership_role, "accounting", "post", activeCompany?.permissions, isPlatformOwner);'''
+          if old not in s: raise SystemExit('permission anchor not found')
+          s=s.replace(old,new,1)
+          anchor='''  const filteredRows = useMemo(() => {'''
+          fn='''  const deleteDraftSalesInvoice = async (row: SalesInvoiceRow) => {\n    if (String(row.status ?? "").toLowerCase() !== "draft") return;\n    if (!window.confirm(`Delete draft Sales Invoice ${row.order_no}?`)) return;\n    setError(null);\n    const { data: deleted, error: deleteError } = await supabase.rpc("delete_draft_sales_invoice", { p_order_id: row.id });\n    if (deleteError) { setError(deleteError.message); return; }\n    if (!deleted) { setError("Draft Sales Invoice could not be deleted. Refresh and try again."); return; }\n    await fetchRows();\n  };\n\n'''
+          if anchor not in s: raise SystemExit('filteredRows anchor not found')
+          s=s.replace(anchor,fn+anchor,1)
+          # Replace the final Open action cell with professional draft Edit/Delete vs posted View.
+          candidates=[
+            '''{ key: "actions", label: "", className: "text-right", render: (r) => <button onClick={() => navigate(`/sales/${r.id}`)} className="text-primary-600 hover:text-primary-700 text-sm font-medium">Open →</button> },''',
+            '''{ key: "actions", label: "Actions", className: "text-right", render: (r) => <button onClick={() => navigate(`/sales/${r.id}`)} className="text-primary-600 hover:text-primary-700 text-sm font-medium">Open →</button> },'''
+          ]
+          repl='''{ key: "actions", label: "Actions", className: "text-right", render: (r) => {\n      const isDraft = String(r.status ?? "").toLowerCase() === "draft";\n      return <div className="flex justify-end gap-2">\n        <button onClick={() => navigate(isDraft ? `/sales/${r.id}/edit` : `/sales/${r.id}`)} className="text-primary-600 hover:text-primary-700 text-sm font-medium">{isDraft ? "Edit" : "View"}</button>\n        {isDraft && canDeleteSales && <button onClick={() => void deleteDraftSalesInvoice(r)} className="text-rose-600 hover:text-rose-700 text-sm font-medium">Delete</button>}\n      </div>;\n    } },'''
+          replaced=False
+          for c in candidates:
+            if c in s:
+              s=s.replace(c,repl,1); replaced=True; break
+          if not replaced:
+            # Flexible fallback for the exact Open-arrow render used in this file.
+            import re
+            pat=r'\{ key: "actions", label: "[^"]*", className: "text-right", render: \(r\) => .*?Open →.*?\},'
+            s2,n=re.subn(pat,repl,s,count=1,flags=re.S)
+            if n!=1: raise SystemExit('sales action column anchor not found')
+            s=s2
+          p.write_text(s)
+          PY
+      - name: Verify build
+        run: npm ci && npm run build
+      - name: Commit fixes
+        run: |
+          git config user.name "NAVILO Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/modules/sales/SalesInvoiceList.tsx
+          git commit -m "Align sales draft edit and delete actions" || exit 0
+          git push
