@@ -1,0 +1,33 @@
+name: Mount owner language control
+on:
+  push:
+    paths:
+      - '.github/workflows/mount-owner-language-control.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch OwnerPanel
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/modules/platform/OwnerPanel.tsx')
+          s=p.read_text()
+          imp='import OwnerLanguageControl from "./OwnerLanguageControl";\n'
+          anchor='import OwnerOrderBookMigration from "./OwnerOrderBookMigration";\n'
+          if imp not in s: s=s.replace(anchor,anchor+imp)
+          mount='    {selectedCompanyId && <OwnerLanguageControl companyId={selectedCompanyId}/>} \n'
+          anchor2='    {selectedCompanyId && <SubscriptionControl companyId={selectedCompanyId} onSaved={async () => { await load(); await refreshAccess(); }}/>} \n'
+          if mount not in s: s=s.replace(anchor2,anchor2+mount)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "NAVILO Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/modules/platform/OwnerPanel.tsx
+          git diff --cached --quiet || git commit -m "Mount owner-managed language entitlements"
+          git push
