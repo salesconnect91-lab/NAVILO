@@ -68,19 +68,15 @@ export default function PurchaseOrderList() {
     <div>
       <PageHeader
         title="Purchase Invoices / خریداری انوائسز"
-        subtitle="Manage supplier invoices, tax status, posting and consolidated receiving workflow"
+        subtitle="Manage supplier invoices, payment status, balances & posting"
         action={(
           <div className="flex flex-wrap items-center gap-2">
-            <span data-navilo-standard-tools-host className="contents" />
             {canCreate && <button onClick={() => navigate("/purchase/consolidated")} className="btn-secondary">Consolidated Purchase / کنسولیڈیٹڈ</button>}
             {canCreate && <button onClick={() => navigate("/purchase/new")} className="btn-primary">+ Main Purchase Invoice</button>}
+            <span data-navilo-standard-tools-host className="contents" />
           </div>
         )}
       />
-
-      <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600" data-no-export data-no-print>
-        <strong>Main Purchase Invoice</strong> is the supplier/accounting invoice. <strong>Consolidated Purchase</strong> stays separate, receives stock first, and can be added later to a Main Purchase Invoice without receiving the same stock twice.
-      </div>
 
       <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-3 md:grid-cols-[minmax(0,1fr)_180px_180px]" data-no-export data-no-print>
         <input
