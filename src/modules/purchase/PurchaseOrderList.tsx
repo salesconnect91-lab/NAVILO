@@ -45,6 +45,15 @@ export default function PurchaseOrderList() {
     });
   }, [rows, search, typeFilter, statusFilter]);
 
+  const visiblePurchaseTotal = useMemo(
+    () => filteredRows.reduce((sum, row) => sum + (Number(row.total) || 0), 0),
+    [filteredRows],
+  );
+  const visiblePostedTotal = useMemo(
+    () => filteredRows.reduce((sum, row) => String(row.status ?? "").toLowerCase() === "posted" ? sum + (Number(row.total) || 0) : sum, 0),
+    [filteredRows],
+  );
+
   const columns: Column<PurchaseOrder>[] = [
     { key: "order_no", label: "Invoice # / انوائس", render: (r) => <span className="font-medium text-primary-600">{r.order_no}</span> },
     { key: "supplier", label: "Supplier / سپلائر", render: (r) => r.supplier?.name ?? "—" },
@@ -59,7 +68,7 @@ export default function PurchaseOrderList() {
     <div>
       <PageHeader
         title="Purchase Invoices / خریداری انوائسز"
-        subtitle="Supplier invoices, tax status and consolidated receiving workflow"
+        subtitle="Manage supplier invoices, tax status, posting and consolidated receiving workflow"
         action={(
           <div className="flex flex-wrap items-center gap-2">
             <span data-navilo-standard-tools-host className="contents" />
@@ -73,7 +82,7 @@ export default function PurchaseOrderList() {
         <strong>Main Purchase Invoice</strong> is the supplier/accounting invoice. <strong>Consolidated Purchase</strong> stays separate, receives stock first, and can be added later to a Main Purchase Invoice without receiving the same stock twice.
       </div>
 
-      <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-[minmax(0,1fr)_180px_180px_auto]" data-no-export data-no-print>
+      <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-3 md:grid-cols-[minmax(0,1fr)_180px_180px]" data-no-export data-no-print>
         <input
           className="input"
           value={search}
@@ -86,33 +95,41 @@ export default function PurchaseOrderList() {
           <option value="with-tax">With Tax</option>
         </select>
         <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="all">All Statuses</option>
+          <option value="all">All Posting Statuses</option>
           <option value="draft">Draft</option>
           <option value="posted">Posted</option>
           <option value="cancelled">Cancelled</option>
         </select>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => { setSearch(""); setTypeFilter("all"); setStatusFilter("all"); }}
-        >
-          Clear Filters
-        </button>
       </div>
 
       {error && <ErrorBanner message={error} />}
-      <div data-report-content>
+      <div data-report-content className="rounded-xl border border-slate-200 bg-white p-3">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h2 className="navilo-report-title text-base font-bold text-slate-900">Purchase Invoices</h2>
-            <p className="text-xs text-slate-500">Showing {filteredRows.length} of {rows.length}</p>
+            {(search || typeFilter !== "all" || statusFilter !== "all") && (
+              <p className="text-xs text-slate-500">
+                Active filters: {search ? `Search “${search}” ` : ""}{typeFilter !== "all" ? `• ${typeFilter === "with-tax" ? "With Tax" : "Without Tax"} ` : ""}{statusFilter !== "all" ? `• ${statusFilter}` : ""}
+              </p>
+            )}
           </div>
-          {(search || typeFilter !== "all" || statusFilter !== "all") && (
-            <div className="text-xs text-slate-500">
-              Active filters: {search ? `Search “${search}” ` : ""}{typeFilter !== "all" ? `• ${typeFilter === "with-tax" ? "With Tax" : "Without Tax"} ` : ""}{statusFilter !== "all" ? `• ${statusFilter}` : ""}
-            </div>
-          )}
         </div>
+
+        <div className="mb-3 grid gap-3 md:grid-cols-3" data-no-export>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+            <div className="text-xs text-slate-500">Visible Invoices</div>
+            <div className="mt-2 text-sm font-bold text-slate-900">{filteredRows.length}</div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+            <div className="text-xs text-slate-500">Purchase Total</div>
+            <div className="mt-2 text-sm font-bold text-slate-900">{formatCurrency(visiblePurchaseTotal)}</div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+            <div className="text-xs text-slate-500">Posted Purchase Total</div>
+            <div className="mt-2 text-sm font-bold text-slate-900">{formatCurrency(visiblePostedTotal)}</div>
+          </div>
+        </div>
+
         <DataTable columns={columns} rows={filteredRows} loading={loading} emptyMessage="No Main Purchase Invoices found." />
       </div>
     </div>
