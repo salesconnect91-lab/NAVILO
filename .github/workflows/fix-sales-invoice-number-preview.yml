@@ -32,10 +32,8 @@ jobs:
                   raise SystemExit('taxPercent anchor not found')
               s = s.replace(anchor, anchor + insert, 1)
           old = '    setInvoiceType(next);\n    setInvoiceNo(next === "Tax Invoice" ? "TAX-AUTO" : "INV-AUTO");\n'
-          new = '    setInvoiceType(next);\n'
-          if old not in s:
-              raise SystemExit('changeInvoiceType anchor not found')
-          s = s.replace(old, new, 1)
+          if old in s:
+              s = s.replace(old, '    setInvoiceType(next);\n', 1)
           p.write_text(s)
           PY
       - name: Remove one-time workflow
@@ -44,6 +42,6 @@ jobs:
         run: |
           git config user.name "NAVILO Automation"
           git config user.email "actions@users.noreply.github.com"
-          git add src/modules/sales/SalesInvoiceCreate.tsx .github/workflows/fix-sales-invoice-number-preview.yml
+          git add -A
           git commit -m "Show next real sales invoice number instead of AUTO placeholder"
           git push origin main
