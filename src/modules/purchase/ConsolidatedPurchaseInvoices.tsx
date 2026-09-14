@@ -297,14 +297,14 @@ export default function ConsolidatedPurchaseInvoices() {
       {error && <ErrorBanner message={error} />}
       {success && <div className="mb-4 rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-700">{success}</div>}
 
-      {showForm && <form ref={formRef} onSubmit={save} className="card mb-6 space-y-5 p-4 md:p-6">
+      {showForm && <form ref={formRef} onSubmit={save} className="navilo-consolidated-purchase-editor mb-6 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-semibold">{editingId ? "Open" : "New"} Consolidated Purchase Invoice</h3>
           <div className="flex flex-wrap gap-2">
             {editingId && <button type="button" className="btn-secondary" data-print-selector="#consolidated-purchase-print-root">Print / PDF</button>}
-            {!locked && <button type="button" className="btn-secondary" onClick={addLine}>+ Add Line / لائن شامل کریں</button>}
+            {!locked && <button type="button" className="btn-secondary" onClick={addLine}>+ Add Line</button>}
             {editingId && currentInvoice?.status === "draft" && <button type="button" className="btn-danger" disabled={deleting} onClick={() => void deleteDraft(editingId, invoiceNo)}>{deleting ? "Deleting..." : "Delete Draft / بل حذف کریں"}</button>}
-            <button type="button" className="btn-secondary" onClick={reset}>Close / بند کریں</button>
+            <button type="button" className="btn-secondary" onClick={reset}>Close</button>
           </div>
         </div>
 
@@ -335,21 +335,21 @@ export default function ConsolidatedPurchaseInvoices() {
                 <td className="p-2"><input className="input w-full text-right" type="number" min="0" step="0.01" disabled={locked || Boolean(row.order_book_commitment_id)} value={row.unit_cost} onChange={(e) => updateRow(index, "unit_cost", e.target.value)} /></td>
                 {invoiceType === "Tax Invoice" && <><td className="p-2 text-right font-medium">{n(row.tax_percent)}%</td><td className="p-2 text-right whitespace-nowrap">{formatCurrency(tax)}</td></>}
                 <td className="p-2 text-right font-semibold whitespace-nowrap">{formatCurrency(base + tax)}</td>
-                <td className="p-2 text-center">{!locked && <button type="button" className="btn-danger px-3 py-1.5 text-xs" onClick={() => removeLine(index)}>Remove Line / لائن حذف کریں</button>}</td>
+                <td className="p-2 text-center">{!locked && <button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-lg leading-none text-rose-600 hover:bg-rose-50" onClick={() => removeLine(index)} aria-label="Remove line" title="Remove line">×</button>}</td>
               </tr>;
             })}</tbody>
           </table>
         </div>
 
-        {!locked && <div className="flex flex-wrap gap-2"><button type="button" className="btn-secondary" onClick={addLine}>+ Add Line / لائن شامل کریں</button></div>}
+        {!locked && <div className="flex flex-wrap gap-2"><button type="button" className="btn-secondary" onClick={addLine}>+ Add Line</button></div>}
 
         <div className="rounded-lg border border-slate-200 p-4">
-          <div className="mb-3"><h4 className="font-semibold text-slate-900">Purchase Charges / خریداری چارجز</h4><p className="text-xs text-slate-500">Charge Master se Purchase/Both charges. Taxable charges par fixed VAT apply hota hai.</p></div>
+          <div className="mb-3"><h4 className="font-semibold text-slate-900">Applicable Charges</h4><p className="text-xs text-slate-500">Rates and calculation basis come from Charge Master. Taxable charges use the configured fixed VAT rate.</p></div>
           {!locked && <div className="mb-3 flex flex-wrap gap-2"><SearchableSelect className="input max-w-sm" value={chargeToAdd} onChange={(e) => setChargeToAdd(e.target.value)}><option value="">— Select charge to add —</option>{availableCharges.map((charge) => <option key={charge.charge_key} value={charge.charge_key}>{charge.charge_name}{charge.charge_name_urdu ? ` / ${charge.charge_name_urdu}` : ""} · {n(charge.default_rate)} {unitLabel(charge.unit)}</option>)}</SearchableSelect><button type="button" className="btn-secondary" disabled={!chargeToAdd} onClick={addCharge}>+ Add Charge</button></div>}
           {selectedCharges.length === 0 ? <div className="rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-400">No purchase charges added.</div> : <div className="space-y-2">{selectedCharges.map((charge) => <div key={charge.charge_key} className="grid grid-cols-1 items-center gap-3 rounded-lg border border-slate-200 p-3 md:grid-cols-[1fr_150px_120px_120px_auto]"><div><div className="font-medium">{charge.charge_name}{charge.charge_name_urdu ? ` / ${charge.charge_name_urdu}` : ""}</div><div className="text-xs text-slate-500">{n(charge.default_rate)} {unitLabel(charge.unit)} · {charge.purchase_treatment === "expense" ? "Expense" : "Landed Cost / Inventory"}</div></div><input className="input text-right" type="number" min="0" step="0.01" disabled={locked || charge.is_fixed} value={chargeAmounts[charge.charge_key] ?? "0"} onChange={(e) => setChargeAmounts((current) => ({ ...current, [charge.charge_key]: e.target.value }))} /><div className="text-right text-sm">{charge.tax_applicable && invoiceType === "Tax Invoice" ? `${n(taxPercent)}% VAT` : "No VAT"}</div><div className="text-right font-semibold">{formatCurrency(n(chargeAmounts[charge.charge_key]))}</div>{!locked && <button type="button" className="text-sm font-semibold text-error-600" onClick={() => { setSelectedChargeKeys((current) => current.filter((key) => key !== charge.charge_key)); setChargeAmounts((current) => ({ ...current, [charge.charge_key]: "0" })); }}>Remove</button>}</div>)}</div>}
         </div>
 
-        <div className="flex justify-end"><div className="w-full max-w-md rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex justify-between py-1.5"><span>Subtotal / ذیلی مجموعہ</span><span className="font-semibold">{formatCurrency(subtotal)}</span></div><div className="flex justify-between py-1.5"><span>Charges / چارجز</span><span className="font-semibold">{formatCurrency(chargesTotal)}</span></div>{invoiceType === "Tax Invoice" && <><div className="flex justify-between py-1.5"><span>Items VAT / آئٹمز ٹیکس</span><span className="font-semibold">{formatCurrency(itemTax)}</span></div><div className="flex justify-between py-1.5"><span>Charges VAT / چارجز ٹیکس</span><span className="font-semibold">{formatCurrency(chargeTax)}</span></div></>}<div className="mt-2 flex justify-between border-t border-slate-300 pt-3 text-lg font-bold"><span>Invoice Total / کل</span><span>{formatCurrency(total)}</span></div></div></div>
+        <div className="flex justify-end"><div className="w-full max-w-md rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex justify-between py-1.5"><span>Direct Items</span><span className="font-semibold">{formatCurrency(subtotal)}</span></div><div className="flex justify-between py-1.5"><span>Charges</span><span className="font-semibold">{formatCurrency(chargesTotal)}</span></div>{invoiceType === "Tax Invoice" && <><div className="flex justify-between py-1.5"><span>Items VAT</span><span className="font-semibold">{formatCurrency(itemTax)}</span></div><div className="flex justify-between py-1.5"><span>Charge VAT</span><span className="font-semibold">{formatCurrency(chargeTax)}</span></div></>}<div className="mt-2 flex justify-between border-t border-slate-300 pt-3 text-lg font-bold"><span>Grand Total</span><span>{formatCurrency(total)}</span></div></div></div>
         {!locked && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">{editingId && currentInvoice?.status === "draft" && <button type="button" className="btn-danger" disabled={deleting} onClick={() => void deleteDraft(editingId, invoiceNo)}>{deleting ? "Deleting..." : "Delete Draft / بل حذف کریں"}</button>}<button className="btn-primary" disabled={saving}>{saving ? "Saving..." : "Save Consolidated Purchase"}</button></div>}
       </form>}
 

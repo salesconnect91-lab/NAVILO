@@ -6821,3 +6821,77 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
     color: #e5e7eb !important;
   }
 }
+
+
+/* NAVILO consolidated invoice visual parity */
+#navilo-main-content:has(.navilo-consolidated-purchase-editor) [data-navilo-global-data-tools],
+#navilo-main-content:has(.navilo-consolidated-sales-editor) [data-navilo-global-data-tools] {
+  display: none !important;
+}
+
+.navilo-consolidated-purchase-editor {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.navilo-consolidated-purchase-editor > .flex:first-child,
+.navilo-consolidated-purchase-editor > .grid {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.75rem;
+}
+
+.navilo-consolidated-purchase-editor > .overflow-x-auto,
+.navilo-consolidated-purchase-editor > .rounded-lg.border,
+.navilo-consolidated-purchase-editor > .flex.justify-end,
+.navilo-consolidated-purchase-editor > .flex.flex-wrap.justify-end,
+.navilo-consolidated-purchase-editor > .flex.flex-wrap.gap-2 {
+  width: 92%;
+  max-width: 1480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.navilo-consolidated-purchase-editor > .overflow-x-auto,
+.navilo-consolidated-purchase-editor > .rounded-lg.border {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.75rem;
+}
+
+.navilo-consolidated-purchase-editor > .flex.justify-end > div,
+.navilo-consolidated-sales-editor > section {
+  box-shadow: none !important;
+}
+
+.navilo-consolidated-sales-editor > section.rounded-lg,
+.navilo-consolidated-sales-editor > section.overflow-hidden {
+  border-color: #e2e8f0;
+  background: #fff;
+}
+
+.navilo-consolidated-sales-editor > section:nth-of-type(n+3) {
+  width: 92%;
+  max-width: 1480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.navilo-consolidated-sales-editor > section.ml-auto {
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 900px) {
+  .navilo-consolidated-purchase-editor > .overflow-x-auto,
+  .navilo-consolidated-purchase-editor > .rounded-lg.border,
+  .navilo-consolidated-purchase-editor > .flex.justify-end,
+  .navilo-consolidated-purchase-editor > .flex.flex-wrap.justify-end,
+  .navilo-consolidated-purchase-editor > .flex.flex-wrap.gap-2,
+  .navilo-consolidated-sales-editor > section:nth-of-type(n+3) {
+    width: 100%;
+  }
+}
