@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
 import GlobalLanguageRuntime from "./components/GlobalLanguageRuntime";
+import LanguageVisibilityRuntime from "./components/LanguageVisibilityRuntime";
 import JurisdictionRuntime from "./components/JurisdictionRuntime";
 import "./printTargetRuntime";
 import "./accountNameDisplayRuntime";
@@ -27,6 +28,7 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <AuthProvider>
         <GlobalLanguageRuntime />
+        <LanguageVisibilityRuntime />
         <JurisdictionRuntime />
         <App />
       </AuthProvider>
