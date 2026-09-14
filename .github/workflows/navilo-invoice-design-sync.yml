@@ -1,0 +1,180 @@
+name: NAVILO invoice design sync
+
+on:
+  push:
+    paths:
+      - .github/workflows/navilo-invoice-design-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  design-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Align consolidated invoice presentation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f"Missing expected pattern: {label}")
+              return text.replace(old, new, 1)
+
+          purchase_path = Path('src/modules/purchase/ConsolidatedPurchaseInvoices.tsx')
+          purchase = purchase_path.read_text()
+          purchase = replace_once(
+              purchase,
+              'className="card mb-6 space-y-5 p-4 md:p-6"',
+              'className="navilo-consolidated-purchase-editor mb-6 space-y-3"',
+              'purchase form class',
+          )
+          purchase = replace_once(
+              purchase,
+              'className="btn-secondary" onClick={addLine}>+ Add Line / لائن شامل کریں</button>',
+              'className="btn-secondary" onClick={addLine}>+ Add Line</button>',
+              'purchase top add line label',
+          )
+          purchase = replace_once(
+              purchase,
+              'className="btn-secondary" onClick={reset}>Close / بند کریں</button>',
+              'className="btn-secondary" onClick={reset}>Close</button>',
+              'purchase close label',
+          )
+          purchase = replace_once(
+              purchase,
+              '<button type="button" className="btn-danger px-3 py-1.5 text-xs" onClick={() => removeLine(index)}>Remove Line / لائن حذف کریں</button>',
+              '<button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-lg leading-none text-rose-600 hover:bg-rose-50" onClick={() => removeLine(index)} aria-label="Remove line" title="Remove line">×</button>',
+              'purchase remove line action',
+          )
+          purchase = replace_once(
+              purchase,
+              '<button type="button" className="btn-secondary" onClick={addLine}>+ Add Line / لائن شامل کریں</button>',
+              '<button type="button" className="btn-secondary" onClick={addLine}>+ Add Line</button>',
+              'purchase lower add line label',
+          )
+          purchase = replace_once(
+              purchase,
+              '<h4 className="font-semibold text-slate-900">Purchase Charges / خریداری چارجز</h4><p className="text-xs text-slate-500">Charge Master se Purchase/Both charges. Taxable charges par fixed VAT apply hota hai.</p>',
+              '<h4 className="font-semibold text-slate-900">Applicable Charges</h4><p className="text-xs text-slate-500">Rates and calculation basis come from Charge Master. Taxable charges use the configured fixed VAT rate.</p>',
+              'purchase charges heading',
+          )
+          purchase = replace_once(
+              purchase,
+              '<span>Subtotal / ذیلی مجموعہ</span>',
+              '<span>Direct Items</span>',
+              'purchase summary subtotal label',
+          )
+          purchase = replace_once(purchase, '<span>Charges / چارجز</span>', '<span>Charges</span>', 'purchase summary charges label')
+          purchase = replace_once(purchase, '<span>Invoice Total / کل</span>', '<span>Grand Total</span>', 'purchase summary total label')
+          purchase_path.write_text(purchase)
+
+          sales_path = Path('src/modules/sales/ConsolidatedInvoices.tsx')
+          sales = sales_path.read_text()
+          sales = replace_once(
+              sales,
+              'return <div className="space-y-3">\n      <section className="flex flex-col gap-3 border-b border-slate-200 pb-3 xl:flex-row xl:items-center xl:justify-between">',
+              'return <div className="navilo-consolidated-sales-editor space-y-3">\n      <section className="flex flex-col gap-3 border-b border-slate-200 pb-3 xl:flex-row xl:items-center xl:justify-between">',
+              'sales consolidated editor root',
+          )
+          sales_path.write_text(sales)
+
+          css_path = Path('src/index.css')
+          css = css_path.read_text()
+          marker = '/* NAVILO consolidated invoice visual parity */'
+          if marker not in css:
+              css += r'''
+
+/* NAVILO consolidated invoice visual parity */
+#navilo-main-content:has(.navilo-consolidated-purchase-editor) [data-navilo-global-data-tools],
+#navilo-main-content:has(.navilo-consolidated-sales-editor) [data-navilo-global-data-tools] {
+  display: none !important;
+}
+
+.navilo-consolidated-purchase-editor {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.navilo-consolidated-purchase-editor > .flex:first-child,
+.navilo-consolidated-purchase-editor > .grid {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.75rem;
+}
+
+.navilo-consolidated-purchase-editor > .overflow-x-auto,
+.navilo-consolidated-purchase-editor > .rounded-lg.border,
+.navilo-consolidated-purchase-editor > .flex.justify-end,
+.navilo-consolidated-purchase-editor > .flex.flex-wrap.justify-end {
+  width: 92%;
+  max-width: 1480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.navilo-consolidated-purchase-editor > .overflow-x-auto,
+.navilo-consolidated-purchase-editor > .rounded-lg.border {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.75rem;
+}
+
+.navilo-consolidated-purchase-editor > .flex.flex-wrap.gap-2 {
+  width: 92%;
+  max-width: 1480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.navilo-consolidated-purchase-editor > .flex.justify-end > div {
+  box-shadow: none;
+}
+
+.navilo-consolidated-sales-editor > section:not(:first-child) {
+  box-shadow: none;
+}
+
+.navilo-consolidated-sales-editor > section.rounded-lg,
+.navilo-consolidated-sales-editor > section.overflow-hidden {
+  border-color: #e2e8f0;
+  background: #fff;
+}
+
+.navilo-consolidated-sales-editor > section.ml-auto {
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 900px) {
+  .navilo-consolidated-purchase-editor > .overflow-x-auto,
+  .navilo-consolidated-purchase-editor > .rounded-lg.border,
+  .navilo-consolidated-purchase-editor > .flex.justify-end,
+  .navilo-consolidated-purchase-editor > .flex.flex-wrap.justify-end,
+  .navilo-consolidated-purchase-editor > .flex.flex-wrap.gap-2 {
+    width: 100%;
+  }
+}
+'''
+          css_path.write_text(css)
+          PY
+
+      - name: Commit design-only changes
+        shell: bash
+        run: |
+          git config user.name "salesconnect91-lab"
+          git config user.email "sales.connect91@gmail.com"
+          git add src/modules/purchase/ConsolidatedPurchaseInvoices.tsx src/modules/sales/ConsolidatedInvoices.tsx src/index.css
+          git rm .github/workflows/navilo-invoice-design-sync.yml
+          git commit -m "Align consolidated invoice screens with NAVILO professional design"
+          git push origin main
