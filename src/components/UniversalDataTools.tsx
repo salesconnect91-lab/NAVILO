@@ -13,20 +13,26 @@ function journalListRoot(){
   const table=main?.querySelector<HTMLElement>("table");
   return table?.closest<HTMLElement>("[data-report-content],[data-navilo-data-table],.card,.navilo-workflow-panel")||table?.parentElement||null;
 }
-function reportRoot(){return document.querySelector<HTMLElement>("[data-report-content]")||document.querySelector<HTMLElement>(".professional-report")||document.querySelector<HTMLElement>("#order-book-report")||journalListRoot()||document.querySelector<HTMLElement>("#navilo-main-content")}
+function journalDetailRoot(){
+  const main=document.querySelector<HTMLElement>("#navilo-main-content");
+  if(!main||!window.location.pathname.startsWith("/accounting/"))return null;
+  const heading=Array.from(main.querySelectorAll<HTMLElement>("h2,h3,h4")).find(el=>normalize(el.textContent||"")==="journal line items");
+  return heading?.closest<HTMLElement>("[data-report-content],.card,.bg-white")||null;
+}
+function reportRoot(){return document.querySelector<HTMLElement>("[data-report-content]")||document.querySelector<HTMLElement>(".professional-report")||document.querySelector<HTMLElement>("#order-book-report")||journalDetailRoot()||journalListRoot()||document.querySelector<HTMLElement>("#navilo-main-content")}
 function reportSelector(){
   if(document.querySelector("[data-report-content]"))return"[data-report-content]";
   if(document.querySelector(".professional-report"))return".professional-report";
   if(document.querySelector("#order-book-report"))return"#order-book-report";
-  const journalRoot=journalListRoot();
-  if(journalRoot){
+  const generatedRoot=journalDetailRoot()||journalListRoot();
+  if(generatedRoot){
     document.querySelectorAll<HTMLElement>("[data-navilo-generated-print-root]").forEach(el=>delete el.dataset.naviloGeneratedPrintRoot);
-    journalRoot.dataset.naviloGeneratedPrintRoot="true";
+    generatedRoot.dataset.naviloGeneratedPrintRoot="true";
     return"[data-navilo-generated-print-root='true']";
   }
   return"#navilo-main-content";
 }
-function currentPageTitle(){const r=reportRoot()||document.body;return r.querySelector<HTMLElement>(".navilo-report-title,h1,h2,.page-title")?.textContent?.replace(/\s+/g," ").trim()||document.querySelector<HTMLElement>("#navilo-main-content h1")?.textContent?.replace(/\s+/g," ").trim()||document.title||"NAVILO"}
+function currentPageTitle(){const r=reportRoot()||document.body;return r.querySelector<HTMLElement>(".navilo-report-title,h1,h2,h3,.page-title")?.textContent?.replace(/\s+/g," ").trim()||document.querySelector<HTMLElement>("#navilo-main-content h1")?.textContent?.replace(/\s+/g," ").trim()||document.title||"NAVILO"}
 function currentExportRoot(){return reportRoot()}
 function normalize(v:string){return v.replace(/\s+/g," ").replace(/\.(xlsx|xls|csv|docx|doc|pdf)\b/gi,"").replace(/[()]/g,"").trim().toLowerCase()}
 function moduleForPath(p:string):ModuleKey{if(p==="/")return"dashboard";if(p.startsWith("/sales/report"))return"reports";if(p.startsWith("/sales/charges"))return"master";if(p.startsWith("/sales"))return"sales";if(p.startsWith("/purchase"))return"purchase";if(p.startsWith("/master-data"))return"master";if(p.startsWith("/godown"))return"inventory";if(p.startsWith("/production")||p.startsWith("/cutting"))return"production";if(p.startsWith("/transport"))return"transport";if(p.startsWith("/reports"))return"reports";if(p.startsWith("/accounting"))return"accounting";if(p.startsWith("/settings"))return"settings";return"dashboard"}
@@ -35,8 +41,8 @@ function isMasterStandardPath(p:string){if(p.startsWith("/master-data/"))return 
 function isNaviloStandardPath(p:string){if(isMasterStandardPath(p)||isReportPath(p))return true;return ["/sales","/purchase","/godown","/production","/cutting","/accounting","/reports","/transport","/orders"].some(x=>p===x||p.startsWith(`${x}/`))}
 function isExportDuplicate(v:string){const x=normalize(v);return x.includes("export")||x.includes("download excel")||x.includes("download csv")||x.includes("download word")||x==="excel"||x==="csv"||x==="word"||x.includes("print")||x==="pdf"||x.startsWith("pdf /")||x.includes("customize columns")||x.includes("print options")}
 function isTemplateAction(v:string){const x=normalize(v);return x.includes("template")}
-function isUploadAction(v:string){const x=normalize(v);return x==="import"||x.startsWith("import ")||x.includes("bulk import")||x.includes("bulk upload")||x.includes("choose file")||x.includes("upload csv")||x.includes("upload excel")||x.includes("upload file")}
-function isPrimaryAction(v:string){const x=normalize(v);return /^(\+\s*)?(add|new|create)\s+(item|category|customer|supplier|employee|warehouse|godown|uom|unit|transporter|charge|invoice|sales invoice|purchase invoice|order|sales order|purchase order|work order|cutting order|gate pass|receipt|payment|journal|journal entry|voucher)/.test(x)||x.includes("main purchase invoice")||x.includes("stock adjustment")||x.includes("transfer stock")||x.includes("stock transfer")||x.includes("new loading token")||x.includes("loading token")}
+function isUploadAction(v:string){const x=normalize(v);return x==="import"||x.startsWith("import ")||x.includes("bulk import")||x.includes("bulk upload")||x.includes("choose file")||x.includes("load excel")||x.includes("load csv")||x.includes("upload csv")||x.includes("upload excel")||x.includes("upload file")}
+function isPrimaryAction(v:string){const x=normalize(v);return /^(\+\s*)?(add|new|create)\s+(item|category|customer|supplier|employee|warehouse|godown|uom|unit|transporter|charge|invoice|sales invoice|purchase invoice|order|sales order|purchase order|work order|cutting order|gate pass|receipt|payment|journal|journal entry|voucher)/.test(x)||x.includes("post journal")||x.includes("reverse journal")||x.includes("main purchase invoice")||x.includes("stock adjustment")||x.includes("transfer stock")||x.includes("stock transfer")||x.includes("new loading token")||x.includes("loading token")}
 function labelOf(el:HTMLElement){return el.textContent||el.getAttribute("aria-label")||el.getAttribute("title")||""}
 function isDocumentOutputAction(el:HTMLElement){
   if(el.dataset.naviloKeepLocalAction==="true"||el.hasAttribute("data-direct-print"))return true;
@@ -68,7 +74,13 @@ export default function UniversalDataTools(){
       const primary=all.find(el=>isPrimaryAction(labelOf(el)));
       const standardAction=all.find(el=>isTemplateAction(labelOf(el))||isUploadAction(labelOf(el))||isExportDuplicate(labelOf(el)));
       const anchor=primary??standardAction;
-      const actions=anchor?.parentElement;if(!actions)return false;
+      let actions=anchor?.parentElement??null;
+      if(!actions&&journalDetailRoot()){
+        const entryHeading=main.querySelector<HTMLElement>("h1");
+        const header=entryHeading?.closest<HTMLElement>(".bg-white");
+        actions=(header?.lastElementChild as HTMLElement|null)??header??null;
+      }
+      if(!actions)return false;
       let host=actions.querySelector<HTMLElement>("[data-navilo-standard-tools-host]");
       if(!host){host=document.createElement("span");host.dataset.naviloStandardToolsHost="true";host.className="contents";actions.prepend(host)}
       setStandardHost(host);return true;
