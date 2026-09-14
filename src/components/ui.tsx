@@ -9,7 +9,10 @@ export function StatusBadge({ status }: { status: string }) {
   return <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${colors[status] ?? "bg-slate-100 text-slate-700"}`}>{status.replace("_", " ")}</span>;
 }
 export function EmptyState({ message }: { message: string }) { return <div className="card p-12 text-center text-slate-400">{message}</div>; }
-export function ErrorBanner({ message }: { message: string }) { return <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{message}</div>; }
+const PROFESSIONAL_ERROR_COPY: Record<string,string> = {
+  "Main Purchase Invoice aur Consolidated Purchase ka supplier same hona chahiye.": "Main Purchase Invoice and Consolidated Purchase must use the same supplier.",
+};
+export function ErrorBanner({ message }: { message: string }) { const cleanMessage=PROFESSIONAL_ERROR_COPY[message]||message; return <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{cleanMessage}</div>; }
 export function LoadingState() { return <div className="card p-12 text-center text-slate-400">Loading…</div>; }
 
 export function ConfirmModal({open,title,message,onConfirm,onCancel}:{open:boolean;title:string;message:string;onConfirm:()=>void;onCancel:()=>void}) {
