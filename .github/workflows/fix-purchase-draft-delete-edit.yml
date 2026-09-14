@@ -1,0 +1,49 @@
+name: Fix purchase draft delete and edit
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-purchase-draft-delete-edit.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch purchase draft actions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p=Path('src/modules/purchase/PurchaseInvoiceDetail.tsx')
+          s=p.read_text()
+          old='{order.status !== "posted" && <button className="btn-danger" onClick={async () => { if (!window.confirm("Delete this draft Purchase Invoice?")) return; const { error: delError } = await supabase.from("purchase_orders").delete().eq("id", order.id); if (delError) setError(delError.message); else navigate("/purchase"); }}>Delete</button>}'
+          new='{order.status !== "posted" && <button className="btn-secondary" onClick={() => { document.getElementById("purchase-draft-editor")?.scrollIntoView({ behavior: "smooth", block: "start" }); setSuccess("Draft editing is active below. Update the required section and save the change."); }}>Edit Draft</button>}\n        {order.status !== "posted" && <button className="btn-danger" onClick={async () => { if (!window.confirm("Delete this draft Purchase Invoice?")) return; setError(null); const { data: deleted, error: delError } = await supabase.rpc("delete_draft_purchase_invoice", { p_order_id: order.id }); if (delError) { setError(delError.message); return; } if (!deleted) { setError("Draft Purchase Invoice could not be deleted. Refresh and try again."); return; } navigate("/purchase"); }}>Delete</button>}'
+          if old not in s: raise SystemExit('detail delete pattern not found')
+          s=s.replace(old,new)
+          s=s.replace('<div className="card mt-5 p-5">\n        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-bold text-slate-900">Supplier Source Document', '<div id="purchase-draft-editor" className="card mt-5 p-5 scroll-mt-24">\n        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-bold text-slate-900">Supplier Source Document',1)
+          s=s.replace('Separate posted documents. Main Invoice mein baad mein add hote hain; stock dobara receive nahi hota.','Separate posted documents are linked to the Main Purchase Invoice later; their stock receipt is not repeated. / الگ پوسٹ شدہ دستاویزات بعد میں مین خریداری انوائس سے منسلک ہوتی ہیں؛ ان کا اسٹاک دوبارہ وصول نہیں کیا جاتا۔')
+          p.write_text(s)
+
+          p=Path('src/modules/purchase/PurchaseOrderList.tsx')
+          s=p.read_text()
+          old='const { error: deleteError } = await supabase.from("purchase_orders").delete().eq("id", row.id).eq("status", "draft");\n    if (deleteError) { setError(deleteError.message); return; }\n    await fetchRows();'
+          new='const { data: deleted, error: deleteError } = await supabase.rpc("delete_draft_purchase_invoice", { p_order_id: row.id });\n    if (deleteError) { setError(deleteError.message); return; }\n    if (!deleted) { setError("Draft Purchase Invoice could not be deleted. Refresh and try again."); return; }\n    await fetchRows();'
+          if old not in s: raise SystemExit('list delete pattern not found')
+          s=s.replace(old,new)
+          p.write_text(s)
+
+          p=Path('src/modules/purchase/MainPurchaseInvoiceV2.tsx')
+          s=p.read_text()
+          s=s.replace('Main Purchase Invoice aur Consolidated Purchase ka supplier same hona chahiye.','Main Purchase Invoice and Consolidated Purchase must use the same supplier. / مین خریداری انوائس اور کنسولیڈیٹڈ خریداری میں ایک ہی سپلائر ہونا ضروری ہے۔')
+          p.write_text(s)
+          PY
+      - name: Verify build
+        run: npm ci && npm run build
+      - name: Commit fixes
+        run: |
+          git config user.name "NAVILO Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/modules/purchase/PurchaseInvoiceDetail.tsx src/modules/purchase/PurchaseOrderList.tsx src/modules/purchase/MainPurchaseInvoiceV2.tsx
+          git diff --cached --quiet || git commit -m "Fix purchase draft delete flow and edit clarity"
+          git push
