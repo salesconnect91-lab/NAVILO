@@ -2,3 +2,26 @@
 #navilo-main-content [data-navilo-standard-tools-host] > a[href="/sales/report"] {
   display: none !important;
 }
+
+/* Main Sales Invoice: keep header/invoice information full width, but give the
+   operational sections the same balanced side margins as Consolidated Sales.
+   Presentation only — no invoice, stock, VAT, charge or accounting logic. */
+@media (min-width: 1024px) {
+  #navilo-main-content:has(input[readonly][value^="INV-"], input[readonly][value^="TAX-"])
+    > div.space-y-3
+    > section.overflow-hidden.rounded-lg.border.border-slate-200.bg-white,
+  #navilo-main-content:has(input[readonly][value^="INV-"], input[readonly][value^="TAX-"])
+    > div.space-y-3
+    > section.border-blue-200,
+  #navilo-main-content:has(input[readonly][value^="INV-"], input[readonly][value^="TAX-"])
+    > div.space-y-3
+    > section.rounded-lg.border.border-slate-200.bg-white:has(+ section.ml-auto.w-full.max-w-md),
+  #navilo-main-content:has(input[readonly][value^="INV-"], input[readonly][value^="TAX-"])
+    > div.space-y-3
+    > section.ml-auto.w-full.max-w-md {
+    width: min(90%, 1480px) !important;
+    max-width: 1480px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}
