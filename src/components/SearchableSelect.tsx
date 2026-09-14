@@ -9,6 +9,7 @@ type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, "children"> & {
 };
 
 type Option = { value: string; label: string; searchText: string; disabled: boolean };
+type DropdownPosition = { left: number; top: number; width: number };
 
 function textOf(node: ReactNode): string {
   if (node == null || typeof node === "boolean") return "";
@@ -24,18 +25,6 @@ function looksLikeBusinessCode(value: string): boolean {
   return /\d/.test(code) || /^[A-Z]{2,}(?:[-_/][A-Z0-9._/#-]+)*$/.test(code);
 }
 
-/**
- * NAVILO display rule: business/master codes stay internal/searchable but are not
- * shown beside human-readable names in dropdowns. Examples:
- *   FG-001 — Girder                    -> Girder
- *   1100 - Cash in Hand                -> Cash in Hand
- *   SUP-004 | Al Noor Traders          -> Al Noor Traders
- *   Girder (FG-001)                    -> Girder
- *   Girder · FG-001                    -> Girder
- *   Cash — 1100 · Cash in Hand         -> Cash — Cash in Hand
- *   Muhammad Ali · EMP-004 · Buyer     -> Muhammad Ali — Buyer
- * Bilingual labels such as "Customer / گاہک" are left untouched.
- */
 function displayLabel(raw: string): string {
   const value = raw.replace(/\s+/g, " ").trim();
   const leadingCode = value.match(/^([A-Za-z0-9][A-Za-z0-9._/#()]*?(?:-[A-Za-z0-9._/#()]+)*)\s+(?:—|–|-|·|\||:)\s+(.+)$/);
@@ -77,12 +66,7 @@ function collectOptions(children: ReactNode): Option[] {
     const element = child as ReactElement<{ value?: string | number; disabled?: boolean; children?: ReactNode }>;
     if (element.type === "option") {
       const rawLabel = textOf(element.props.children).trim() || String(element.props.value ?? "");
-      result.push({
-        value: String(element.props.value ?? ""),
-        label: displayLabel(rawLabel),
-        searchText: rawLabel,
-        disabled: Boolean(element.props.disabled),
-      });
+      result.push({ value: String(element.props.value ?? ""), label: displayLabel(rawLabel), searchText: rawLabel, disabled: Boolean(element.props.disabled) });
       return;
     }
     if (element.type === "optgroup") result.push(...collectOptions(element.props.children));
@@ -110,19 +94,44 @@ export default function SearchableSelect({
   const selected = options.find(option => option.value === selectedValue) ?? null;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [dropdownPosition, setDropdownPosition] = useState<DropdownPosition | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  const closeDropdown = () => {
+    setOpen(false);
+    setQuery("");
+    setDropdownPosition(null);
+  };
+
+  const openDropdown = () => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setDropdownPosition({ left: rect.left, top: rect.bottom + 4, width: rect.width });
+    setOpen(true);
+    setQuery("");
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
   useEffect(() => {
-    const close = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-        setQuery("");
-      }
+    const closeOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!rootRef.current?.contains(target) && !(target instanceof Element && target.closest("[data-navilo-searchable-dropdown]"))) closeDropdown();
     };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    document.addEventListener("mousedown", closeOutside);
+    return () => document.removeEventListener("mousedown", closeOutside);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnViewportChange = () => closeDropdown();
+    window.addEventListener("resize", closeOnViewportChange);
+    window.addEventListener("scroll", closeOnViewportChange, true);
+    return () => {
+      window.removeEventListener("resize", closeOnViewportChange);
+      window.removeEventListener("scroll", closeOnViewportChange, true);
+    };
+  }, [open]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase();
@@ -137,8 +146,7 @@ export default function SearchableSelect({
       const target = { value: nextValue, name: name ?? "" } as HTMLSelectElement;
       onChange({ target, currentTarget: target } as ChangeEvent<HTMLSelectElement>);
     }
-    setOpen(false);
-    setQuery("");
+    closeDropdown();
   };
 
   return (
@@ -154,9 +162,7 @@ export default function SearchableSelect({
         title={props.title}
         onClick={() => {
           if (disabled) return;
-          setOpen(current => !current);
-          setQuery("");
-          requestAnimationFrame(() => inputRef.current?.focus());
+          if (open) closeDropdown(); else openDropdown();
         }}
       >
         <span className={`min-w-0 flex-1 truncate ${selectedValue ? "text-slate-900" : "text-slate-500"}`}>
@@ -165,39 +171,25 @@ export default function SearchableSelect({
         <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
-      {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-[90] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+      {open && dropdownPosition && (
+        <div
+          data-navilo-searchable-dropdown
+          className="fixed z-[9999] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl"
+          style={{ left: dropdownPosition.left, top: dropdownPosition.top, width: dropdownPosition.width }}
+        >
           <div className="border-b border-slate-100 p-2">
             <div className="flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-2 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500">
               <Search className="h-4 w-4 shrink-0 text-slate-400" />
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={event => setQuery(event.target.value)}
-                placeholder={searchPlaceholder}
-                className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-slate-400"
-                autoComplete="off"
-              />
+              <input ref={inputRef} value={query} onChange={event => setQuery(event.target.value)} placeholder={searchPlaceholder} className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-slate-400" autoComplete="off" />
             </div>
           </div>
           <div role="listbox" className="max-h-60 overflow-auto p-1">
             {filtered.length ? filtered.map(option => (
-              <button
-                key={`${option.value}-${option.searchText}`}
-                type="button"
-                role="option"
-                aria-selected={option.value === selectedValue}
-                disabled={option.disabled}
-                onMouseDown={event => event.preventDefault()}
-                onClick={() => commit(option.value)}
-                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
+              <button key={`${option.value}-${option.searchText}`} type="button" role="option" aria-selected={option.value === selectedValue} disabled={option.disabled} onMouseDown={event => event.preventDefault()} onClick={() => commit(option.value)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
                 <span className="min-w-0 flex-1 break-words">{option.label || "—"}</span>
                 {option.value === selectedValue && <Check className="h-4 w-4 shrink-0 text-blue-600" />}
               </button>
-            )) : (
-              <div className="px-3 py-4 text-center text-sm text-slate-500">{emptyText}</div>
-            )}
+            )) : <div className="px-3 py-4 text-center text-sm text-slate-500">{emptyText}</div>}
           </div>
         </div>
       )}
