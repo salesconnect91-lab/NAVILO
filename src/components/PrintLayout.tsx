@@ -39,6 +39,20 @@ type PaymentSummary = {
   currentOutstanding?: number;
 };
 
+type PrintVisibility = {
+  showCompanyName?: boolean;
+  showLogo?: boolean;
+  showAddress?: boolean;
+  showPhoneEmail?: boolean;
+  showTaxDetails?: boolean;
+  showHeader?: boolean;
+  showFooter?: boolean;
+  showSignatures?: boolean;
+  showPrintDatetime?: boolean;
+  showPageNumbers?: boolean;
+  showQrCode?: boolean;
+};
+
 export interface PrintLayoutProps {
   voucherTitle: string;
   voucherNo: string;
@@ -60,19 +74,7 @@ export interface PrintLayoutProps {
   paymentSummary?: PaymentSummary;
   bilingual?: boolean;
   signatureLabels?: string[];
-  visibility?: {
-    showCompanyName?: boolean;
-    showLogo?: boolean;
-    showAddress?: boolean;
-    showPhoneEmail?: boolean;
-    showTaxDetails?: boolean;
-    showHeader?: boolean;
-    showFooter?: boolean;
-    showSignatures?: boolean;
-    showPrintDatetime?: boolean;
-    showPageNumbers?: boolean;
-    showQrCode?: boolean;
-  };
+  visibility?: PrintVisibility;
   documentHeader?: string | null;
   documentHeaderUrdu?: string | null;
   documentFooter?: string | null;
@@ -106,19 +108,30 @@ function documentLanguageState() {
   return { mode, primary, secondary };
 }
 
+function mapStoredVisibility(row: any): PrintVisibility {
+  if (!row) return {};
+  return {
+    showCompanyName: row.show_company_name,
+    showLogo: row.show_logo,
+    showAddress: row.show_address,
+    showPhoneEmail: row.show_phone_email,
+    showTaxDetails: row.show_tax_details,
+    showHeader: row.show_header,
+    showFooter: row.show_footer,
+    showSignatures: row.show_signatures,
+    showPrintDatetime: row.show_print_datetime,
+    showPageNumbers: row.show_page_numbers,
+    showQrCode: row.show_qr_code,
+  };
+}
+
 export default function PrintLayout({
   voucherTitle, voucherNo, voucherDate, company, party, items, chargeBreakdown, itemsTotal, chargesTotal,
   taxAmount = 0, showTaxSummary = false, grandTotal, extraFields, hawalaDocuments = [], normalInvoiceTotal,
   documentNotice, documentNoticeUrdu, paymentSummary, bilingual,
   signatureLabels = ["Authorized Signature / مجاز دستخط", "Customer Signature / گاہک دستخط"],
-  visibility = {}, documentHeader, documentHeaderUrdu, documentFooter, documentFooterUrdu,
+  visibility: visibilityProp = {}, documentHeader, documentHeaderUrdu, documentFooter, documentFooterUrdu,
 }: PrintLayoutProps) {
-  const {
-    showCompanyName = true, showLogo = true, showAddress = true, showPhoneEmail = true, showTaxDetails = true,
-    showHeader = true, showFooter = true, showSignatures = true, showPrintDatetime = false, showPageNumbers = true,
-    showQrCode = false,
-  } = visibility;
-
   const language = documentLanguageState();
   const showEnglishText = language.primary === "en" || (language.mode === "bilingual" && language.secondary === "en");
   const showUrduText = language.primary === "ur" || (language.mode === "bilingual" && language.secondary === "ur");
@@ -126,6 +139,29 @@ export default function PrintLayout({
 
   const isPurchase = voucherTitle.toLowerCase().includes("purchase");
   const isSales = !isPurchase && ["sales invoice", "tax invoice", "cash bill"].includes(voucherTitle.toLowerCase());
+  const [storedVisibility, setStoredVisibility] = useState<PrintVisibility>({});
+
+  useEffect(() => {
+    const documentType = isPurchase ? "purchase_invoice" : isSales ? "sales_invoice" : null;
+    if (!documentType) {
+      setStoredVisibility({});
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase.from("document_print_visibility").select("*").eq("document_type", documentType).maybeSingle();
+      if (!cancelled) setStoredVisibility(error ? {} : mapStoredVisibility(data));
+    })();
+    return () => { cancelled = true; };
+  }, [isPurchase, isSales]);
+
+  const visibility = { ...storedVisibility, ...visibilityProp };
+  const {
+    showCompanyName = true, showLogo = true, showAddress = true, showPhoneEmail = true, showTaxDetails = true,
+    showHeader = true, showFooter = true, showSignatures = true, showPrintDatetime = false, showPageNumbers = true,
+    showQrCode = false,
+  } = visibility;
+
   const statusValue = String(extraFields?.find((field) => field.label.toLowerCase().includes("status"))?.value || "").toLowerCase();
   const isDraft = statusValue === "draft";
   const [livePaymentSummary, setLivePaymentSummary] = useState<PaymentSummary | null>(null);
