@@ -1,5 +1,5 @@
 export type LanguageMode = "single" | "bilingual";
-export type RuntimeLanguageCode = "en" | "ur" | "ar" | "hi" | "bn" | "fa" | "tr" | "fr" | "es" | "de" | "pt" | "ru" | "zh" | "id" | "ms";
+export type RuntimeLanguageCode = "en" | "ur" | "ar";
 
 export type NaviloLanguage = {
   code: RuntimeLanguageCode;
@@ -10,29 +10,17 @@ export type NaviloLanguage = {
 
 export type GlobalLanguage = NaviloLanguage & { status: "live" };
 
-/** Languages available to NAVILO runtime, documents and bilingual mode. */
+/** Languages fully audited for NAVILO runtime, documents and bilingual mode. */
 export const NAVILO_LANGUAGES: NaviloLanguage[] = [
   { code: "en", label: "English", nativeLabel: "English", direction: "ltr" },
   { code: "ur", label: "Urdu", nativeLabel: "اردو", direction: "rtl" },
   { code: "ar", label: "Arabic", nativeLabel: "العربية", direction: "rtl" },
-  { code: "hi", label: "Hindi", nativeLabel: "हिन्दी", direction: "ltr" },
-  { code: "bn", label: "Bengali", nativeLabel: "বাংলা", direction: "ltr" },
-  { code: "fa", label: "Persian", nativeLabel: "فارسی", direction: "rtl" },
-  { code: "tr", label: "Turkish", nativeLabel: "Türkçe", direction: "ltr" },
-  { code: "fr", label: "French", nativeLabel: "Français", direction: "ltr" },
-  { code: "es", label: "Spanish", nativeLabel: "Español", direction: "ltr" },
-  { code: "de", label: "German", nativeLabel: "Deutsch", direction: "ltr" },
-  { code: "pt", label: "Portuguese", nativeLabel: "Português", direction: "ltr" },
-  { code: "ru", label: "Russian", nativeLabel: "Русский", direction: "ltr" },
-  { code: "zh", label: "Chinese", nativeLabel: "中文", direction: "ltr" },
-  { code: "id", label: "Indonesian", nativeLabel: "Bahasa Indonesia", direction: "ltr" },
-  { code: "ms", label: "Malay", nativeLabel: "Bahasa Melayu", direction: "ltr" },
 ];
 
 export const GLOBAL_LANGUAGE_CATALOG: GlobalLanguage[] = NAVILO_LANGUAGES.map((language) => ({ ...language, status: "live" as const }));
 export const SUPPORTED_RUNTIME_LANGUAGE_CODES: RuntimeLanguageCode[] = NAVILO_LANGUAGES.map((language) => language.code);
 
-/** Any two distinct supported languages can be paired. */
+/** Any two distinct fully supported languages can be paired. */
 export const SUPPORTED_BILINGUAL_PAIRS: ReadonlyArray<readonly [RuntimeLanguageCode, RuntimeLanguageCode]> = [];
 
 export const languageByCode = (code?: string | null) => NAVILO_LANGUAGES.find((language) => language.code === code) ?? NAVILO_LANGUAGES[0];
