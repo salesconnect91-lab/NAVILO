@@ -1,5 +1,5 @@
 export type LanguageMode = "single" | "bilingual";
-export type RuntimeLanguageCode = "en" | "ur" | "ar";
+export type RuntimeLanguageCode = "en" | "ur" | "ar" | "hi" | "bn" | "fa" | "tr" | "fr" | "es" | "de" | "pt" | "ru" | "zh" | "id" | "ms";
 
 export type NaviloLanguage = {
   code: RuntimeLanguageCode;
