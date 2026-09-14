@@ -31,7 +31,13 @@ export function chargeQuantityForUnit(
   if (chargeUnit === "fixed" || chargeUnit === "manual") return 1;
   if (chargeUnit === "percent") return Math.max(0, Number(baseAmount) || 0);
   if (chargeUnit === "per_qty") {
-    return rows.reduce((sum, row) => sum + Math.max(0, Number(row.qty) || 0), 0);
+    // Only real item lines contribute to quantity-based charges. Purchase forms
+    // intentionally start with an empty row whose default qty is 1; counting it
+    // would overstate per-qty charges before an item is selected.
+    return rows.reduce((sum, row) => {
+      if (!row.item_id) return sum;
+      return sum + Math.max(0, Number(row.qty) || 0);
+    }, 0);
   }
 
   let totalKg = 0;
