@@ -1,0 +1,49 @@
+name: Fix sales invoice number preview
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-sales-invoice-number-preview.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch SalesInvoiceCreate
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/modules/sales/SalesInvoiceCreate.tsx')
+          s = p.read_text()
+          s = s.replace('const [invoiceNo, setInvoiceNo] = useState("INV-AUTO");', 'const [invoiceNo, setInvoiceNo] = useState("Loading…");')
+          s = s.replace('setInvoiceNo(header.order_no || (canonicalType === "Tax Invoice" ? "TAX-AUTO" : "INV-AUTO"));', 'setInvoiceNo(header.order_no || "Unassigned");')
+          anchor = '  const taxPercent = invoiceType === "Tax Invoice" ? Number(configuredTaxRate || 0) : 0;\n\n'
+          insert = '''  const loadNextInvoiceNo = useCallback(async (type: InvoiceType) => {\n    if (isEditing) return;\n    const { data, error: numberError } = await supabase.rpc("preview_next_sales_invoice_number", { p_invoice_type: type });\n    if (numberError) {\n      setError(numberError.message);\n      setInvoiceNo(type === "Tax Invoice" ? "TAX" : "INV");\n      return;\n    }\n    setInvoiceNo(String(data || (type === "Tax Invoice" ? "TAX" : "INV")));\n  }, [isEditing]);\n\n  useEffect(() => {\n    if (!isEditing) void loadNextInvoiceNo(invoiceType);\n  }, [invoiceType, isEditing, loadNextInvoiceNo]);\n\n'''
+          if insert not in s:
+              if anchor not in s:
+                  raise SystemExit('taxPercent anchor not found')
+              s = s.replace(anchor, anchor + insert, 1)
+          old = '    setInvoiceType(next);\n    setInvoiceNo(next === "Tax Invoice" ? "TAX-AUTO" : "INV-AUTO");\n'
+          new = '    setInvoiceType(next);\n'
+          if old not in s:
+              raise SystemExit('changeInvoiceType anchor not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Remove one-time workflow
+        run: git rm .github/workflows/fix-sales-invoice-number-preview.yml
+      - name: Commit fix
+        run: |
+          git config user.name "NAVILO Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/modules/sales/SalesInvoiceCreate.tsx .github/workflows/fix-sales-invoice-number-preview.yml
+          git commit -m "Show next real sales invoice number instead of AUTO placeholder"
+          git push origin main
