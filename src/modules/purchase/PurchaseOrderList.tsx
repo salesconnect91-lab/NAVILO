@@ -35,6 +35,7 @@ export default function PurchaseOrderList() {
   const navigate = useNavigate();
   const { activeCompany, isPlatformOwner } = useAuth();
   const canCreate = canPerformModule(activeCompany?.membership_role, "purchase", "create", activeCompany?.permissions, isPlatformOwner);
+  const canDelete = canPerformModule(activeCompany?.membership_role, "purchase", "delete", activeCompany?.permissions, isPlatformOwner);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [rows, setRows] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -196,6 +197,15 @@ export default function PurchaseOrderList() {
     });
   };
 
+  const deleteDraft = async (row: PurchaseOrder) => {
+    if (String(row.status).toLowerCase() !== "draft") return;
+    if (!window.confirm(`Delete draft Purchase Invoice ${row.order_no}?`)) return;
+    setError(null);
+    const { error: deleteError } = await supabase.from("purchase_orders").delete().eq("id", row.id).eq("status", "draft");
+    if (deleteError) { setError(deleteError.message); return; }
+    await fetchRows();
+  };
+
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
     return rows.filter((row) => {
@@ -226,7 +236,13 @@ export default function PurchaseOrderList() {
     { key: "invoice_type", label: "Type / قسم", render: (r) => r.invoice_type === "Tax Invoice" ? "With Tax / ٹیکس کے ساتھ" : "Without Tax / بغیر ٹیکس" },
     { key: "status", label: "Status / حالت", render: (r) => <StatusBadge status={r.status} /> },
     { key: "total", label: "Total / کل", render: (r) => <span className="font-medium">{formatCurrency(r.total)}</span> },
-    { key: "actions", label: "", className: "text-right", render: (r) => <button onClick={() => navigate(`/purchase/${r.id}`)} className="text-primary-600 hover:text-primary-700 text-sm font-medium">Open →</button> },
+    { key: "actions", label: "Actions", className: "text-right", render: (r) => {
+      const isDraft = String(r.status ?? "").toLowerCase() === "draft";
+      return <div className="flex justify-end gap-2">
+        <button onClick={() => navigate(`/purchase/${r.id}`)} className="text-primary-600 hover:text-primary-700 text-sm font-medium">{isDraft ? "Edit" : "View"}</button>
+        {isDraft && canDelete && <button onClick={() => void deleteDraft(r)} className="text-rose-600 hover:text-rose-700 text-sm font-medium">Delete</button>}
+      </div>;
+    } },
   ];
 
   return (
