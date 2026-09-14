@@ -30,6 +30,7 @@ import PrintLayout from "@/components/PrintLayout";
 import InvoiceFinancialSummary from "./InvoiceFinancialSummary";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
+import { userFacingError } from "@/lib/errorMessage";
 
 type LinkedHawalaPrintRow = {
   id: string;
@@ -227,7 +228,7 @@ export default function SalesInvoiceDetail() {
         setHawala([]);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load invoice.");
+      setError(userFacingError(e, "Failed to load invoice."));
     } finally {
       setLoading(false);
     }
@@ -260,10 +261,10 @@ export default function SalesInvoiceDetail() {
       return;
     }
     if (isTaxInvoice && order.customer.tax_registration_status === "registered" && !order.customer.strn && !order.customer.ntn) {
-      setError("Registered customer ka STRN/NTN Tax Invoice post karne se pehle Customer Master mein save karein.");
+      setError("A registered customer must have an STRN or NTN saved in Customer Master before posting a Tax Invoice.");
       return;
     }
-    if (!window.confirm("Post Main Sales Invoice? Is ke baad stock/accounting history lock ho jayegi.")) return;
+    if (!window.confirm("Post Main Sales Invoice? This will lock the stock and accounting history for this invoice.")) return;
 
     setPosting(true);
     setError(null);
@@ -276,7 +277,7 @@ export default function SalesInvoiceDetail() {
       setPostSuccess(result.journal_entry_no ? `Invoice posted successfully — Journal ${result.journal_entry_no}.` : "Invoice posted successfully.");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to post sales invoice.");
+      setError(userFacingError(e, "Failed to post sales invoice."));
     } finally {
       setPosting(false);
     }
@@ -328,7 +329,7 @@ export default function SalesInvoiceDetail() {
   ];
 
   if (loading) return <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">Loading invoice…</div>;
-  if (!order) return <ErrorBanner message="Invoice not found. / انوائس نہیں ملی۔" />;
+  if (!order) return <ErrorBanner message="Invoice not found." />;
 
   return (
     <div className="space-y-3">
