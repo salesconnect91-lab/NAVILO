@@ -119,7 +119,7 @@ export default function SalesInvoiceCreate() {
   const [chargeMaster, setChargeMaster] = useState<ChargeMaster[]>([]);
   const [companyPrint, setCompanyPrint] = useState<CompanyPrintSettings>({});
 
-  const [invoiceNo, setInvoiceNo] = useState("INV-AUTO");
+  const [invoiceNo, setInvoiceNo] = useState("Loading…");
   const [invoiceDate, setInvoiceDate] = useState(today());
   const [invoiceType, setInvoiceType] = useState<InvoiceType>("Sale Invoice");
   const [customerId, setCustomerId] = useState("");
@@ -145,6 +145,21 @@ export default function SalesInvoiceCreate() {
   const [error, setError] = useState<string | null>(null);
 
   const taxPercent = invoiceType === "Tax Invoice" ? Number(configuredTaxRate || 0) : 0;
+
+  const loadNextInvoiceNo = useCallback(async (type: InvoiceType) => {
+    if (isEditing) return;
+    const { data, error: numberError } = await supabase.rpc("preview_next_sales_invoice_number", { p_invoice_type: type });
+    if (numberError) {
+      setError(numberError.message);
+      setInvoiceNo(type === "Tax Invoice" ? "TAX" : "INV");
+      return;
+    }
+    setInvoiceNo(String(data || (type === "Tax Invoice" ? "TAX" : "INV")));
+  }, [isEditing]);
+
+  useEffect(() => {
+    if (!isEditing) void loadNextInvoiceNo(invoiceType);
+  }, [invoiceType, isEditing, loadNextInvoiceNo]);
 
   const loadBaseData = useCallback(async () => {
     const [customersRes, itemsRes, godownsRes, peopleRes, chargesRes, taxRes, companyRes] = await Promise.all([
@@ -195,7 +210,7 @@ export default function SalesInvoiceCreate() {
 
     const header = headerRes.data;
     const canonicalType: InvoiceType = header.invoice_type === "Tax Invoice" ? "Tax Invoice" : "Sale Invoice";
-    setInvoiceNo(header.order_no || (canonicalType === "Tax Invoice" ? "TAX-AUTO" : "INV-AUTO"));
+    setInvoiceNo(header.order_no || "Unassigned");
     setInvoiceDate(header.order_date || today());
     setInvoiceType(canonicalType);
     setCustomerId(header.customer_id || "");
@@ -293,7 +308,6 @@ export default function SalesInvoiceCreate() {
   const changeInvoiceType = (next: InvoiceType) => {
     if (isLocked) return;
     setInvoiceType(next);
-    setInvoiceNo(next === "Tax Invoice" ? "TAX-AUTO" : "INV-AUTO");
     const nextTax = next === "Tax Invoice" ? configuredTaxRate || "0" : "0";
     setRows((current) => current.map((row) => ({ ...row, tax_percent: nextTax })));
     setCharges((current) => current.map((charge) => ({
