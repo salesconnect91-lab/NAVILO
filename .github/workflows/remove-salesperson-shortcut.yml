@@ -1,11 +1,13 @@
 name: Remove salesperson shortcut
+
 on:
-  workflow_dispatch:
   push:
     paths:
       - .github/workflows/remove-salesperson-shortcut.yml
+
 permissions:
   contents: write
+
 jobs:
   patch:
     runs-on: ubuntu-latest
@@ -14,7 +16,9 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+
       - name: Remove Sales Person Report shortcut only
+        shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -32,7 +36,9 @@ jobs:
               raise SystemExit('Sales Person Report shortcut block not found')
           p.write_text(s.replace(old, '', 1))
           PY
+
       - name: Commit change
+        shell: bash
         run: |
           git config user.name "salesconnect91-lab"
           git config user.email "sales.connect91@gmail.com"
