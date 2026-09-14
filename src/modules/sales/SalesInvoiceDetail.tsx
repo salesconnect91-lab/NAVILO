@@ -306,8 +306,6 @@ export default function SalesInvoiceDetail() {
     description: line.description ?? "",
     hs_code: line.item?.hs_code ?? "",
     uom: line.item?.unit ?? "",
-    grade: line.grade ?? "",
-    size: line.size ?? "",
     qty: n(line.qty),
     rate: n(line.unit_price),
     vat_percent: isTaxInvoice ? n(line.tax_percent) : 0,
@@ -320,8 +318,6 @@ export default function SalesInvoiceDetail() {
     { key: "description", label: "Description / تفصیل" },
     { key: "hs_code", label: "HS Code" },
     { key: "uom", label: "UOM" },
-    { key: "grade", label: "Grade / گریڈ" },
-    { key: "size", label: "Size / سائز" },
     { key: "qty", label: "Qty" },
     { key: "rate", label: "Rate / ریٹ" },
     ...(isTaxInvoice ? [{ key: "vat_percent", label: "VAT %" }, { key: "vat_amount", label: "VAT Amount" }] : []),
@@ -411,10 +407,10 @@ export default function SalesInvoiceDetail() {
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] text-[12px]">
-                <thead className="bg-slate-50"><tr className="border-b border-slate-200 uppercase tracking-wide text-slate-500"><th className="px-3 py-2 text-left">Item</th><th className="px-2 py-2 text-left">Description</th><th className="px-2 py-2 text-left">Grade</th><th className="px-2 py-2 text-left">Size</th><th className="px-2 py-2 text-right">Qty</th><th className="px-2 py-2 text-right">Rate</th>{isTaxInvoice && <th className="px-2 py-2 text-right">VAT</th>}<th className="px-3 py-2 text-right">Amount</th></tr></thead>
+                <thead className="bg-slate-50"><tr className="border-b border-slate-200 uppercase tracking-wide text-slate-500"><th className="px-3 py-2 text-left">Item</th><th className="px-2 py-2 text-left">Description</th><th className="px-2 py-2 text-right">Qty</th><th className="px-2 py-2 text-right">Rate</th>{isTaxInvoice && <th className="px-2 py-2 text-right">VAT</th>}<th className="px-3 py-2 text-right">Amount</th></tr></thead>
                 <tbody>
-                  {lines.map((line) => <tr key={line.id} className="border-b border-slate-100"><td className="px-3 py-2 font-semibold">{line.item?.name || "—"}</td><td className="px-2 py-2 text-slate-500">{line.description || "—"}</td><td className="px-2 py-2">{line.grade || "—"}</td><td className="px-2 py-2">{line.size || "—"}</td><td className="px-2 py-2 text-right">{line.qty}</td><td className="px-2 py-2 text-right">{formatCurrency(n(line.unit_price))}</td>{isTaxInvoice && <td className="px-2 py-2 text-right">{n(line.tax_percent)}%<div className="text-[10px] text-slate-400">{formatCurrency((n(line.line_total) * n(line.tax_percent)) / 100)}</div></td>}<td className="px-3 py-2 text-right font-semibold">{formatCurrency(n(line.line_total))}</td></tr>)}
-                  {!lines.length && <tr><td colSpan={isTaxInvoice ? 8 : 7} className="px-3 py-8 text-center text-slate-400">No invoice items.</td></tr>}
+                  {lines.map((line) => <tr key={line.id} className="border-b border-slate-100"><td className="px-3 py-2 font-semibold">{line.item?.name || "—"}</td><td className="px-2 py-2 text-slate-500">{line.description || "—"}</td><td className="px-2 py-2 text-right">{line.qty}</td><td className="px-2 py-2 text-right">{formatCurrency(n(line.unit_price))}</td>{isTaxInvoice && <td className="px-2 py-2 text-right">{n(line.tax_percent)}%<div className="text-[10px] text-slate-400">{formatCurrency((n(line.line_total) * n(line.tax_percent)) / 100)}</div></td>}<td className="px-3 py-2 text-right font-semibold">{formatCurrency(n(line.line_total))}</td></tr>)}
+                  {!lines.length && <tr><td colSpan={isTaxInvoice ? 6 : 5} className="px-3 py-8 text-center text-slate-400">No invoice items.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -482,8 +478,6 @@ export default function SalesInvoiceDetail() {
             items={lines.map((line) => ({
               name: line.item?.name || "—",
               description: line.description,
-              grade: line.grade,
-              size: line.size,
               qty: n(line.qty),
               unitPrice: n(line.unit_price),
               lineTotal: n(line.line_total),

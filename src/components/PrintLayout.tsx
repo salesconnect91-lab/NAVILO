@@ -241,8 +241,8 @@ export default function PrintLayout({
   const itemGridClass = showTaxSummary ? "invoice-items-grid invoice-items-grid-tax" : "invoice-items-grid invoice-items-grid-no-tax";
   const itemGridStyle = {
     gridTemplateColumns: showTaxSummary
-      ? "24px minmax(135px,1.05fr) minmax(115px,0.9fr) 70px 62px 82px 84px 98px"
-      : "24px minmax(165px,1.1fr) minmax(130px,0.95fr) 74px 68px 92px 106px",
+      ? "24px minmax(165px,1.15fr) minmax(135px,0.95fr) 68px 88px 86px 104px"
+      : "24px minmax(190px,1.2fr) minmax(150px,1fr) 72px 96px 112px",
   };
   const partyLabel = isPurchase ? "Supplier / سپلائر" : "Bill To / گاہک";
   const qrPayload = JSON.stringify({ company: company.name || "", taxId: company.taxId || "", documentType: voucherTitle, documentNo: voucherNo, documentDate: voucherDate, party: party.name, amount: n(grandTotal).toFixed(2), tax: n(taxAmount).toFixed(2) });
@@ -288,7 +288,7 @@ export default function PrintLayout({
 
     <div className="invoice-items-wrap">
       <div className={`${itemGridClass} invoice-items-head`} style={itemGridStyle}>
-        <div>#</div><div>Item / آئٹم</div><div>Description / تفصیل</div><div>Grade / گریڈ</div><div className="invoice-num">Qty / مقدار</div><div className="invoice-num">Rate / ریٹ</div>{showTaxSummary && <div className="invoice-num">VAT / ٹیکس</div>}<div className="invoice-num invoice-amount-col">Amount / رقم</div>
+        <div>#</div><div>Item / آئٹم</div><div>Description / تفصیل</div><div className="invoice-num">Qty / مقدار</div><div className="invoice-num">Rate / ریٹ</div>{showTaxSummary && <div className="invoice-num">VAT / ٹیکس</div>}<div className="invoice-num invoice-amount-col">Amount / رقم</div>
       </div>
       {items.map((item, index) => {
         const baseAmount = n(item.qty) * n(item.unitPrice);
@@ -296,7 +296,7 @@ export default function PrintLayout({
           <div className="invoice-center">{index + 1}</div>
           <div className="invoice-item-name"><div>{item.name}</div>{(item.hsCode || item.unit) && <div className="invoice-item-description">{[item.hsCode ? `HS: ${item.hsCode}` : "", item.unit ? `UOM: ${item.unit}` : ""].filter(Boolean).join(" · ")}</div>}</div>
           <div className="invoice-item-description" style={{ color: item.description ? "#334155" : "#94a3b8", fontStyle: item.description ? "normal" : "italic" }}>{item.description || "—"}</div>
-          <div>{item.grade ?? "—"}</div><div className="invoice-num">{item.qty}</div><div className="invoice-num">{formatCurrency(item.unitPrice)}</div>
+          <div className="invoice-num">{item.qty}</div><div className="invoice-num">{formatCurrency(item.unitPrice)}</div>
           {showTaxSummary && <div className="invoice-num invoice-vat-col"><div>{formatCurrency(item.taxAmount || 0)}</div><div className="invoice-tax-rate">{item.taxPercent || 0}%</div></div>}
           <div className="invoice-num invoice-amount-col">{formatCurrency(baseAmount || item.lineTotal)}</div>
         </div>;
