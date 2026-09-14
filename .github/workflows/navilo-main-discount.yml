@@ -1,0 +1,128 @@
+name: NAVILO Main Invoice Discount
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch main Sales and Purchase discount UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'pattern not found: {label}')
+              return text.replace(old, new, 1)
+
+          # SALES MAIN
+          p=Path('src/modules/sales/SalesInvoiceCreate.tsx')
+          s=p.read_text()
+          s=replace_once(s,
+            '  const [configuredTaxRate, setConfiguredTaxRate] = useState<string | null>(null);\n',
+            '  const [configuredTaxRate, setConfiguredTaxRate] = useState<string | null>(null);\n  const [discountAmount, setDiscountAmount] = useState("0");\n',
+            'sales discount state')
+          s=replace_once(s,
+            '    setConfiguredTaxRate(canonicalType === "Tax Invoice" ? String(Number(header.tax_percent) || 0) : null);\n',
+            '    setConfiguredTaxRate(canonicalType === "Tax Invoice" ? String(Number(header.tax_percent) || 0) : null);\n    setDiscountAmount(String(Number(header.discount_amount) || 0));\n',
+            'sales load discount')
+          s=replace_once(s,
+            '  const grandTotal = normalInvoiceTotal + selectedHawalaTotal;\n',
+            '  const grossTotal = normalInvoiceTotal + selectedHawalaTotal;\n  const discountValue = Math.max(0, Number(discountAmount) || 0);\n  const grandTotal = Math.max(0, grossTotal - discountValue);\n',
+            'sales grand total')
+          s=replace_once(s,
+            '    if (!salesPersonId || !salesPerson) return setError("Select a sales person from Employee Master.");\n',
+            '    if (!salesPersonId || !salesPerson) return setError("Select a sales person from Employee Master.");\n    if (discountValue > grossTotal) return setError("Discount cannot exceed the invoice gross total.");\n',
+            'sales discount validation')
+          s=replace_once(s,
+            '        tax_percent: invoiceType === "Tax Invoice" ? taxPercent : 0,\n',
+            '        tax_percent: invoiceType === "Tax Invoice" ? taxPercent : 0,\n        discount_amount: Number(discountValue.toFixed(2)),\n',
+            'sales payload discount')
+          s=replace_once(s,
+            '      const { error: linkError } = await supabase.rpc("replace_sales_order_hawala_invoices", {\n',
+            '      const { error: discountError } = await supabase.rpc("upsert_commercial_invoice_discount", { p_document_type: "sales_main", p_document_no: invoiceNo, p_mode: "fixed", p_value: Number(discountValue.toFixed(2)), p_amount: Number(discountValue.toFixed(2)) });\n      if (discountError) throw discountError;\n\n      const { error: linkError } = await supabase.rpc("replace_sales_order_hawala_invoices", {\n',
+            'sales upsert discount')
+          old='''      <section className="ml-auto w-full max-w-md rounded-lg border border-slate-200 bg-white p-3 text-[12px]"><div className="flex justify-between py-1"><span>Items Subtotal</span><strong>{formatCurrency(rowsSubtotal)}</strong></div>{invoiceType === "Tax Invoice" && <div className="flex justify-between py-1"><span>Item VAT</span><strong>{formatCurrency(itemTax)}</strong></div>}<div className="flex justify-between py-1"><span>Charges</span><strong>{formatCurrency(chargesSubtotal)}</strong></div>{invoiceType === "Tax Invoice" && <div className="flex justify-between py-1"><span>Charge VAT</span><strong>{formatCurrency(chargeTax)}</strong></div>}<div className="flex justify-between py-1 text-blue-700"><span>Linked Consolidated</span><strong>{formatCurrency(selectedHawalaTotal)}</strong></div><div className="mt-2 flex justify-between border-t border-slate-200 pt-2 text-sm"><span className="font-semibold">Grand Total</span><strong>{formatCurrency(grandTotal)}</strong></div></section>'''
+          new='''      <section className="mx-auto w-[90%] max-w-[1480px] rounded-lg border border-slate-200 bg-white p-3 text-[12px]">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+          <div><label className="label">Discount / رعایت</label><div className="relative max-w-xs"><input className="input pr-20 text-right" type="number" min="0" step="0.01" disabled={isLocked} value={discountAmount} onChange={(e) => setDiscountAmount(e.target.value)} /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">Amount</span></div><p className="mt-1 text-[11px] text-slate-400">Main Sales Invoice only. Discount cannot exceed gross total.</p></div>
+          <div><div className="flex justify-between py-1"><span>Items Subtotal</span><strong>{formatCurrency(rowsSubtotal)}</strong></div>{invoiceType === "Tax Invoice" && <div className="flex justify-between py-1"><span>Item VAT</span><strong>{formatCurrency(itemTax)}</strong></div>}<div className="flex justify-between py-1"><span>Charges</span><strong>{formatCurrency(chargesSubtotal)}</strong></div>{invoiceType === "Tax Invoice" && <div className="flex justify-between py-1"><span>Charge VAT</span><strong>{formatCurrency(chargeTax)}</strong></div>}<div className="flex justify-between py-1 text-blue-700"><span>Linked Consolidated</span><strong>{formatCurrency(selectedHawalaTotal)}</strong></div><div className="flex justify-between py-1 text-rose-700"><span>Discount</span><strong>- {formatCurrency(discountValue)}</strong></div><div className="mt-2 flex justify-between border-t border-slate-200 pt-2 text-sm"><span className="font-semibold">Grand Total</span><strong>{formatCurrency(grandTotal)}</strong></div></div>
+        </div>
+      </section>'''
+          s=replace_once(s,old,new,'sales totals block')
+          s=replace_once(s,
+            '            grandTotal={grandTotal}\n',
+            '            discountAmount={discountValue}\n            grandTotal={grandTotal}\n',
+            'sales print discount')
+          p.write_text(s)
+
+          # PURCHASE MAIN
+          p=Path('src/modules/purchase/MainPurchaseInvoiceV2.tsx')
+          s=p.read_text()
+          s=replace_once(s,
+            'const [rows, setRows] = useState<PurchaseLine[]>([emptyLine()]);',
+            'const [discountAmount, setDiscountAmount] = useState("0"); const [rows, setRows] = useState<PurchaseLine[]>([emptyLine()]);',
+            'purchase discount state')
+          s=replace_once(s,
+            'const consolidatedTotal=selectedConsolidated.reduce((s,i)=>s+Number(i.total||0),0); const grandTotal=directSubtotal+directItemTax+directCharges+directChargeTax+consolidatedTotal;',
+            'const consolidatedTotal=selectedConsolidated.reduce((s,i)=>s+Number(i.total||0),0); const grossTotal=directSubtotal+directItemTax+directCharges+directChargeTax+consolidatedTotal; const discountValue=Math.max(0,Number(discountAmount)||0); const grandTotal=Math.max(0,grossTotal-discountValue);',
+            'purchase grand total')
+          s=replace_once(s,
+            'if(invoiceType==="Tax Invoice"&&!configuredTaxRate)return setError("Configure one active fixed Purchase/Both tax rate before using With Tax.");',
+            'if(invoiceType==="Tax Invoice"&&!configuredTaxRate)return setError("Configure one active fixed Purchase/Both tax rate before using With Tax.");if(discountValue>grossTotal)return setError("Discount cannot exceed the invoice gross total.");',
+            'purchase validation')
+          s=replace_once(s,
+            'tax_percent:invoiceType==="Tax Invoice"?Number(configuredTaxRate)||0:0,total:Number(grandTotal.toFixed(2))',
+            'tax_percent:invoiceType==="Tax Invoice"?Number(configuredTaxRate)||0:0,discount_amount:Number(discountValue.toFixed(2)),total:Number(grandTotal.toFixed(2))',
+            'purchase payload discount')
+          s=replace_once(s,
+            'const{error:linkError}=await supabase.rpc("replace_purchase_order_consolidated_invoices",{p_order_id:order.id,p_consolidated_invoice_ids:selectedConsolidatedIds});',
+            'const{error:discountError}=await supabase.rpc("upsert_commercial_invoice_discount",{p_document_type:"purchase_main",p_document_no:orderNo,p_mode:"fixed",p_value:Number(discountValue.toFixed(2)),p_amount:Number(discountValue.toFixed(2))});if(discountError)throw discountError;const{error:linkError}=await supabase.rpc("replace_purchase_order_consolidated_invoices",{p_order_id:order.id,p_consolidated_invoice_ids:selectedConsolidatedIds});',
+            'purchase upsert discount')
+          # Insert discount UI immediately before Review & Save heading/card when available.
+          marker='<div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Review & Save</div>'
+          if marker not in s:
+              raise SystemExit('pattern not found: purchase review marker')
+          s=s.replace(marker, '<div className="mb-3 max-w-xs"><label className="label">Discount / رعایت</label><input className="input text-right" type="number" min="0" step="0.01" value={discountAmount} onChange={(e)=>setDiscountAmount(e.target.value)} /><p className="mt-1 text-[11px] text-slate-400">Main Purchase Invoice only.</p></div>'+marker,1)
+          # Add discount summary row before grand total using a stable label.
+          gt='<div className="flex justify-between border-t border-slate-200 pt-2 text-sm font-bold"><span>Grand Total</span><span>{formatCurrency(grandTotal)}</span></div>'
+          if gt in s:
+              s=s.replace(gt,'<div className="flex justify-between py-1 text-rose-700"><span>Discount</span><strong>- {formatCurrency(discountValue)}</strong></div>'+gt,1)
+          else:
+              # fallback for slightly different markup
+              s=s.replace('<span>Grand Total</span><strong>{formatCurrency(grandTotal)}</strong>','<span>Discount</span><strong>- {formatCurrency(discountValue)}</strong></div><div className="flex justify-between border-t border-slate-200 pt-2 text-sm font-bold"><span>Grand Total</span><strong>{formatCurrency(grandTotal)}</strong>',1)
+          s=s.replace('grandTotal={grandTotal}', 'discountAmount={discountValue} grandTotal={grandTotal}', 1)
+          p.write_text(s)
+
+          # SHARED PRINT LAYOUT
+          p=Path('src/components/PrintLayout.tsx')
+          s=p.read_text()
+          s=replace_once(s,
+            '  grandTotal: number;\n',
+            '  discountAmount?: number;\n  grandTotal: number;\n',
+            'print prop type')
+          s=replace_once(s,
+            '  taxAmount = 0, showTaxSummary = false, grandTotal, extraFields, hawalaDocuments = [], normalInvoiceTotal,\n',
+            '  taxAmount = 0, showTaxSummary = false, discountAmount = 0, grandTotal, extraFields, hawalaDocuments = [], normalInvoiceTotal,\n',
+            'print prop destructure')
+          s=replace_once(s,
+            '        <div className="print-total-row print-grand-total"><span>Grand Total / کل رقم</span><span>{formatCurrency(grandTotal)}</span></div>\n',
+            '        {n(discountAmount) > 0 && <div className="print-total-row"><span>Discount / رعایت</span><span>- {formatCurrency(discountAmount)}</span></div>}\n        <div className="print-total-row print-grand-total"><span>Grand Total / کل رقم</span><span>{formatCurrency(grandTotal)}</span></div>\n',
+            'print discount row')
+          p.write_text(s)
+          PY
+      - name: Commit patch and remove workflow
+        run: |
+          rm -f .github/workflows/navilo-main-discount.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/modules/sales/SalesInvoiceCreate.tsx src/modules/purchase/MainPurchaseInvoiceV2.tsx src/components/PrintLayout.tsx .github/workflows/navilo-main-discount.yml
+          git commit -m "Complete main sales and purchase invoice discount"
+          git push
