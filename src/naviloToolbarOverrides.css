@@ -1,0 +1,4 @@
+/* NAVILO invoice toolbar presentation overrides. Keep report routes/functions intact. */
+#navilo-main-content [data-navilo-standard-tools-host] > a[href="/sales/report"] {
+  display: none !important;
+}
