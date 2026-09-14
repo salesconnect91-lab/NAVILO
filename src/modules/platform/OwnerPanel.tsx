@@ -14,6 +14,7 @@ import BusinessWorkspaceLoginControl from "./BusinessWorkspaceLoginControl";
 import CompanyDeleteControl from "./CompanyDeleteControl";
 import CoreAccountingControl from "./CoreAccountingControl";
 import OwnerOrderBookMigration from "./OwnerOrderBookMigration";
+import OwnerLanguageControl from "./OwnerLanguageControl";
 
 type Company = {
   id: string; name: string; code: string; status: string; subscription_expires_at: string | null; max_users: number;
@@ -157,6 +158,7 @@ export default function OwnerPanel() {
     {selectedCompanyId && <BusinessUnitControl companyId={selectedCompanyId} onSaved={refreshAccess}/>} 
     {selectedCompanyId && <BusinessWorkspaceLoginControl companyId={selectedCompanyId}/>} 
     {selectedCompanyId && <SubscriptionControl companyId={selectedCompanyId} onSaved={async () => { await load(); await refreshAccess(); }}/>} 
+    {selectedCompanyId && <OwnerLanguageControl companyId={selectedCompanyId}/>} 
     {selectedCompanyId && <CoreAccountingControl companyId={selectedCompanyId}/>} 
 
     <section className="rounded-xl border bg-white p-4 shadow-sm"><div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5"/><div><h2 className="font-semibold">Create Company / Group User</h2><p className="text-xs text-slate-500">Use for users who may access more than one assigned business unit. Dedicated single-business logins are managed above.</p></div></div><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><label className="text-xs font-semibold text-slate-700">Full Name<input className="input mt-1 w-full" value={user.full_name} onChange={event => setUser({ ...user, full_name: event.target.value })}/></label><label className="text-xs font-semibold text-slate-700">Email / Login ID<input className="input mt-1 w-full" type="email" value={user.email} onChange={event => setUser({ ...user, email: event.target.value })}/></label><label className="text-xs font-semibold text-slate-700">Temporary Password<input className="input mt-1 w-full" type="password" value={user.password} onChange={event => setUser({ ...user, password: event.target.value })}/></label><label className="text-xs font-semibold text-slate-700">Company Role<SearchableSelect className="input mt-1 w-full" value={user.role} onChange={event => setUser({ ...user, role: event.target.value })}>{roles.map(role => <option key={role} value={role}>{roleLabel(role)}</option>)}</SearchableSelect></label></div><p className="mt-2 text-xs text-slate-500">Use a temporary password only for onboarding; the user should change it through the account password flow after first access.</p><button className="btn-primary mt-3" disabled={saving || !selectedCompanyId} onClick={() => void createUser()}>Create Group User</button></section>
