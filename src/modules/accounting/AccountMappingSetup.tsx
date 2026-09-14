@@ -126,7 +126,7 @@ export default function AccountMappingSetup() {
         title="Account Mapping Setup / اکاؤنٹ میپنگ"
         subtitle="Choose the exact posting account used by each accounting transaction."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" data-navilo-standard-tools-host>
             <button
               className="btn-secondary"
               disabled={changedKeys.length === 0 || savingKey !== null}
