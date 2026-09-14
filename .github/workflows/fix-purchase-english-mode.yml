@@ -1,0 +1,41 @@
+name: Fix purchase English mode cleanup
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-purchase-english-mode.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clean hardcoded bilingual and Roman Urdu purchase copy
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/modules/purchase/PurchaseInvoiceDetail.tsx')
+          s=p.read_text()
+          replacements={
+            '{isTax ? "Purchase Tax Invoice" : "Purchase Invoice"} / خریداری انوائس':'{isTax ? "Purchase Tax Invoice" : "Purchase Invoice"}',
+            'Select an item and destination godown. / آئٹم اور منزل گودام منتخب کریں۔':'Select an item and destination godown.',
+            'Quantity/cost invalid hai.':'Quantity or unit cost is invalid.',
+            'Purchase Person / Buyer select aur save karein before posting.':'Select and save the Purchase Person / Buyer before posting.',
+            'Purchase Tax Invoice post karne se pehle Supplier Original Invoice No. aur Invoice Date save karein.':'Enter and save the Supplier Original Invoice No. and Invoice Date before posting the Purchase Tax Invoice.',
+            'Post Main Purchase Invoice? Is ke baad stock/accounting lock ho jayegi.':'Post Main Purchase Invoice? After posting, stock and accounting will be locked.',
+            'Payment amount outstanding se zyada ya invalid hai.':'Payment amount is invalid or exceeds the outstanding balance.',
+            'Cash/Bank payment account select karein.':'Select a Cash / Bank payment account.',
+          }
+          for old,new in replacements.items():
+            s=s.replace(old,new)
+          p.write_text(s)
+          PY
+      - name: Verify build
+        run: npm ci && npm run build
+      - name: Commit cleanup
+        run: |
+          git config user.name "NAVILO Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/modules/purchase/PurchaseInvoiceDetail.tsx
+          git diff --cached --quiet || git commit -m "Clean purchase English mode and validation copy"
+          git push
