@@ -1,0 +1,65 @@
+name: Standardize ERP error messages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/standardize-error-messages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply professional error-message standard
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          helper = Path('src/lib/errorMessage.ts')
+          helper.write_text('''export type ErrorLike = {\n  message?: unknown;\n  details?: unknown;\n  hint?: unknown;\n  code?: unknown;\n};\n\nexport function userFacingError(error: unknown, fallback = "Something went wrong.") {\n  if (error instanceof Error && error.message.trim()) return error.message.trim();\n  if (error && typeof error === "object") {\n    const value = error as ErrorLike;\n    const message = typeof value.message === "string" ? value.message.trim() : "";\n    const details = typeof value.details === "string" ? value.details.trim() : "";\n    const hint = typeof value.hint === "string" ? value.hint.trim() : "";\n    const parts = [message, details, hint].filter(Boolean);\n    if (parts.length) return [...new Set(parts)].join(" ");\n  }\n  if (typeof error === "string" && error.trim()) return error.trim();\n  return fallback;\n}\n''', encoding='utf-8')
+
+          path = Path('src/modules/sales/SalesInvoiceDetail.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          if 'import { userFacingError } from "@/lib/errorMessage";' not in text:
+              text = text.replace(
+                  'import { canPerformModule } from "@/auth/permissions";',
+                  'import { canPerformModule } from "@/auth/permissions";\nimport { userFacingError } from "@/lib/errorMessage";'
+              )
+
+          text = text.replace(
+              'setError(e instanceof Error ? e.message : "Failed to load invoice.");',
+              'setError(userFacingError(e, "Failed to load invoice."));'
+          )
+          text = text.replace(
+              'setError("Registered customer ka STRN/NTN Tax Invoice post karne se pehle Customer Master mein save karein.");',
+              'setError("A registered customer must have an STRN or NTN saved in Customer Master before posting a Tax Invoice.");'
+          )
+          text = text.replace(
+              'if (!window.confirm("Post Main Sales Invoice? Is ke baad stock/accounting history lock ho jayegi.")) return;',
+              'if (!window.confirm("Post Main Sales Invoice? This will lock the stock and accounting history for this invoice.")) return;'
+          )
+          text = text.replace(
+              'setError(e instanceof Error ? e.message : "Failed to post sales invoice.");',
+              'setError(userFacingError(e, "Failed to post sales invoice."));'
+          )
+          text = text.replace(
+              '<ErrorBanner message="Invoice not found. / انوائس نہیں ملی۔" />',
+              '<ErrorBanner message="Invoice not found." />'
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit changes
+        run: |
+          git config user.name "NAVILO Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/lib/errorMessage.ts src/modules/sales/SalesInvoiceDetail.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Standardize ERP error reasons and remove Roman Urdu from sales posting"
+          git push origin main
