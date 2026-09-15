@@ -143,6 +143,30 @@ function cleanClone(target: HTMLElement, context: PrintContext) {
 function collectStyles() { return Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map((node) => node.outerHTML).join("\n"); }
 const FRAME_CSS = `html,body{background:#fff!important;color:#111827!important;margin:0!important;padding:0!important;width:100%!important}*,*::before,*::after{box-sizing:border-box!important}button,input,select,textarea,.no-print,[data-no-print],[data-print-ui],nav,aside{display:none!important}img,svg{max-width:100%!important}`;
 
+async function waitForPrintAssets(doc: Document) {
+  const links = Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'));
+  const waitForLink = (link: HTMLLinkElement) => new Promise<void>((resolve) => {
+    if (link.sheet) { resolve(); return; }
+    let settled = false;
+    const done = () => { if (settled) return; settled = true; resolve(); };
+    link.addEventListener("load", done, { once: true });
+    link.addEventListener("error", done, { once: true });
+    window.setTimeout(done, 4000);
+  });
+  await Promise.all(links.map(waitForLink));
+  await Promise.all(Array.from(doc.images).map((img) => img.complete ? Promise.resolve() : new Promise<void>((resolve) => {
+    const done = () => resolve();
+    img.addEventListener("load", done, { once: true });
+    img.addEventListener("error", done, { once: true });
+  })));
+  if (doc.fonts?.ready) await doc.fonts.ready;
+  await new Promise<void>((resolve) => {
+    const view = doc.defaultView;
+    if (view?.requestAnimationFrame) view.requestAnimationFrame(() => view.requestAnimationFrame(() => resolve()));
+    else window.setTimeout(resolve, 80);
+  });
+}
+
 export default function PrintPreviewController() {
   const { activeCompany, activeBusinessUnit } = useAuth();
   const { branding } = usePlatformBranding();
@@ -182,13 +206,15 @@ export default function PrintPreviewController() {
 
   const printNow = () => {
     if (!preview) return;
-    const frame = document.createElement("iframe"); frame.setAttribute("aria-hidden", "true"); Object.assign(frame.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" }); document.body.appendChild(frame);
+    const frame = document.createElement("iframe"); frame.setAttribute("aria-hidden", "true"); Object.assign(frame.style, { position: "fixed", right: "0", bottom: "0", width: "1px", height: "1px", opacity: "0", pointerEvents: "none", border: "0" }); document.body.appendChild(frame);
     const doc = frame.contentDocument; if (!doc) { frame.remove(); return; }
     const pageRule = preview.orientation === "landscape" ? "@page{size:A4 landscape;margin:10mm}" : "@page{size:A4 portrait;margin:10mm}";
     doc.open(); doc.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="${document.baseURI}"><title>${preview.title}</title>${styleMarkup}<style>${FRAME_CSS}${pageRule}</style></head><body><div class="navilo-print-output navilo-${preview.orientation}">${preview.html}</div></body></html>`); doc.close();
     const executePrint = async () => {
-      try { await Promise.all(Array.from(doc.images).map((img) => img.complete ? Promise.resolve() : new Promise<void>((resolve) => { const done = () => resolve(); img.addEventListener("load", done, { once: true }); img.addEventListener("error", done, { once: true }); }))); if (doc.fonts?.ready) await doc.fonts.ready; } catch { /* continue */ }
-      await new Promise((resolve) => window.setTimeout(resolve, 120)); frame.contentWindow?.focus(); frame.contentWindow?.print(); window.setTimeout(() => frame.remove(), 1800);
+      try { await waitForPrintAssets(doc); } catch { /* print with available assets */ }
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+      window.setTimeout(() => frame.remove(), 2500);
     };
     if (doc.readyState === "complete") void executePrint(); else frame.onload = () => void executePrint();
   };
