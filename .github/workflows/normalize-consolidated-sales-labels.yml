@@ -1,0 +1,49 @@
+name: Normalize consolidated invoice terminology
+
+on:
+  push:
+    paths:
+      - '.github/workflows/normalize-consolidated-sales-labels.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Normalize consolidated sales wording
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/modules/sales/ConsolidatedInvoices.tsx')
+          s = p.read_text()
+          replacements = {
+              'voucherTitle="Unbilled Dispatch"': 'voucherTitle="Consolidated Invoice"',
+              'documentNotice="NON-ACCOUNTING"': 'documentNotice={undefined}',
+              'Operational unbilled dispatch:': 'Operational consolidated invoice:',
+              'Unbilled Dispatch No': 'Consolidated Invoice No',
+          }
+          changed = False
+          for old, new in replacements.items():
+              if old in s:
+                  s = s.replace(old, new)
+                  changed = True
+          if not changed:
+              raise SystemExit('Expected consolidated sales labels were not found; refusing blind edit.')
+          p.write_text(s)
+          PY
+      - name: Commit normalized terminology
+        shell: bash
+        run: |
+          git config user.name "NAVILO Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/modules/sales/ConsolidatedInvoices.tsx
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Use consolidated invoice terminology consistently"
+          git push origin HEAD:main
