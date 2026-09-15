@@ -1,70 +1,96 @@
-/* Ensure the browser print/PDF output uses the same decorated NAVILO layout
-   that is shown in Professional Print Preview.
-
-   Some legacy report components include their own @media print rule that moves
-   .print-report (or #customer-order-book-report) to position:absolute. Inside
-   the centralized print iframe that legacy rule can overlay the injected
-   NAVILO brand header/footer and make the native print look plain or create a
-   blank second page. The centralized print surface must remain the layout
-   owner. */
-
-/* Sales and Purchase, main and consolidated, share PrintLayout. Keep the item
-   header and every item row stretched to the full printable page width. */
-.print-document .invoice-items-wrap {
-  width: 100% !important;
-  max-width: none !important;
-}
-
-.print-document .invoice-items-grid {
-  width: 100% !important;
-  max-width: none !important;
-  box-sizing: border-box !important;
-}
-
-/* Description is a commercial invoice-line field. A legacy print preference
-   hid the third grid cell, which is now Description in PrintLayout. Explicitly
-   restore it in both preview and printer/PDF output. */
+/* Final NAVILO print parity + modern invoice presentation overrides. */
+.print-document .invoice-items-wrap,
+.print-document .invoice-items-grid { width:100%!important;max-width:none!important;box-sizing:border-box!important; }
 .navilo-live-preview .print-document .invoice-items-grid > :nth-child(3),
-.navilo-print-output .print-document .invoice-items-grid > :nth-child(3) {
-  display: block !important;
-}
+.navilo-print-output .print-document .invoice-items-grid > :nth-child(3) { display:block!important; }
 
-.print-document .invoice-items-grid-tax {
-  grid-template-columns: 24px minmax(0, 2.25fr) minmax(0, 1.75fr) minmax(58px, .7fr) minmax(72px, .9fr) minmax(78px, .9fr) minmax(92px, 1fr) !important;
+/* Modern but conservative commercial-document typography. */
+.navilo-live-preview .print-document,
+.navilo-print-output .print-document,
+.navilo-live-preview .print-page,
+.navilo-print-output .print-page {
+  font-family: Inter, "Segoe UI", Arial, Helvetica, sans-serif!important;
+  font-size:9.25pt!important;
+  line-height:1.35!important;
+  color:#172033!important;
 }
+.navilo-live-preview .print-header,
+.navilo-print-output .print-header {
+  padding:0 0 4mm!important;
+  margin-bottom:4mm!important;
+  border-bottom:2px solid #1f4f7a!important;
+}
+.navilo-live-preview .print-company-name,
+.navilo-print-output .print-company-name { font-size:16pt!important;font-weight:800!important;letter-spacing:-.2px!important; }
+.navilo-live-preview .print-company-addr,
+.navilo-live-preview .print-company-tax,
+.navilo-print-output .print-company-addr,
+.navilo-print-output .print-company-tax { font-size:8pt!important;line-height:1.4!important;font-weight:500!important; }
+.navilo-live-preview .print-voucher-title-box,
+.navilo-print-output .print-voucher-title-box {
+  padding:3mm 4mm!important;border-radius:6px!important;background:#174a75!important;color:#fff!important;
+}
+.navilo-live-preview .print-voucher-title,
+.navilo-print-output .print-voucher-title { font-size:15pt!important;font-weight:800!important;color:#fff!important; }
 
-.print-document .invoice-items-grid-no-tax {
-  grid-template-columns: 24px minmax(0, 2.5fr) minmax(0, 1.9fr) minmax(58px, .7fr) minmax(76px, .9fr) minmax(96px, 1fr) !important;
+.navilo-live-preview .print-meta,
+.navilo-print-output .print-meta { gap:4mm!important;margin-bottom:4mm!important; }
+.navilo-live-preview .print-meta-col,
+.navilo-live-preview .print-party-box,
+.navilo-print-output .print-meta-col,
+.navilo-print-output .print-party-box {
+  border:1px solid #cbd8e6!important;border-radius:6px!important;background:#fbfdff!important;padding:2.6mm!important;
 }
+.navilo-live-preview .print-meta-label,
+.navilo-live-preview .print-party-label,
+.navilo-print-output .print-meta-label,
+.navilo-print-output .print-party-label { font-size:7.8pt!important;font-weight:700!important;color:#526477!important; }
+.navilo-live-preview .print-meta-value,
+.navilo-live-preview .print-party-name,
+.navilo-print-output .print-meta-value,
+.navilo-print-output .print-party-name { font-size:8.5pt!important;font-weight:700!important;color:#172033!important; }
+
+.print-document .invoice-items-grid-tax { grid-template-columns:24px minmax(0,2.15fr) minmax(0,1.7fr) minmax(68px,.78fr) minmax(72px,.86fr) minmax(78px,.9fr) minmax(94px,1fr)!important; }
+.print-document .invoice-items-grid-no-tax { grid-template-columns:24px minmax(0,2.4fr) minmax(0,1.85fr) minmax(68px,.78fr) minmax(76px,.9fr) minmax(98px,1fr)!important; }
+.navilo-live-preview .invoice-items-head,
+.navilo-print-output .invoice-items-head { background:#174a75!important;color:#fff!important;font-weight:800!important; }
+.navilo-live-preview .invoice-items-grid > div,
+.navilo-print-output .invoice-items-grid > div { font-size:8pt!important;line-height:1.3!important;padding:2mm 1.4mm!important; }
+.navilo-live-preview .invoice-item-name,
+.navilo-print-output .invoice-item-name { font-weight:700!important; }
+.navilo-live-preview .invoice-item-description,
+.navilo-print-output .invoice-item-description { font-size:7.4pt!important;line-height:1.3!important; }
+
+.navilo-live-preview .print-consolidated-box,
+.navilo-print-output .print-consolidated-box,
+.navilo-live-preview .print-charges-box,
+.navilo-live-preview .print-totals-side,
+.navilo-print-output .print-charges-box,
+.navilo-print-output .print-totals-side,
+.navilo-live-preview .print-payment-summary,
+.navilo-print-output .print-payment-summary { border-color:#cbd8e6!important;border-radius:6px!important;overflow:hidden!important; }
+.navilo-live-preview .print-total-row,
+.navilo-live-preview .print-charge-row,
+.navilo-print-output .print-total-row,
+.navilo-print-output .print-charge-row { font-size:8pt!important;padding:1.2mm 0!important; }
+.navilo-live-preview .print-discount-row,
+.navilo-print-output .print-discount-row { color:#087f5b!important;font-weight:800!important;background:#effcf6!important;margin:0 -2mm!important;padding:1.4mm 2mm!important; }
+.navilo-live-preview .print-grand-total,
+.navilo-print-output .print-grand-total { background:#174a75!important;color:#fff!important;margin:1.5mm -2mm -2mm!important;padding:2.2mm!important;border:0!important;font-size:10.5pt!important;font-weight:900!important; }
+.navilo-live-preview .print-payment-summary,
+.navilo-print-output .print-payment-summary { background:#f8fbff!important;font-size:8pt!important; }
+.navilo-live-preview .print-signature-label,
+.navilo-print-output .print-signature-label,
+.navilo-live-preview .print-footer p,
+.navilo-print-output .print-footer p { font-size:7.5pt!important;font-weight:500!important; }
 
 @media print {
   html body .navilo-print-output,
-  html body .navilo-print-output * {
-    visibility: visible !important;
+  html body .navilo-print-output * { visibility:visible!important; }
+  html body .navilo-print-output :is(#customer-order-book-report,.print-report) {
+    position:static!important;inset:auto!important;width:100%!important;max-width:none!important;margin:0!important;padding-left:0!important;padding-right:0!important;
   }
-
-  html body .navilo-print-output :is(#customer-order-book-report, .print-report) {
-    position: static !important;
-    inset: auto !important;
-    left: auto !important;
-    right: auto !important;
-    top: auto !important;
-    bottom: auto !important;
-    width: 100% !important;
-    max-width: none !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-  }
-
-  html body .navilo-print-output :is(#customer-order-book-report, .print-report) > :first-child {
-    margin-top: 0 !important;
-  }
-
+  html body .navilo-print-output :is(#customer-order-book-report,.print-report) > :first-child { margin-top:0!important; }
   html body .navilo-print-output .navilo-report-brand-header,
-  html body .navilo-print-output .navilo-report-footer {
-    position: static !important;
-    visibility: visible !important;
-  }
+  html body .navilo-print-output .navilo-report-footer { position:static!important;visibility:visible!important; }
 }
