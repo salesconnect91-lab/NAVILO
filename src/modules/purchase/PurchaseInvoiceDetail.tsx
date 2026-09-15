@@ -6,6 +6,8 @@ import { ErrorBanner, StatusBadge, formatCurrency, formatDate } from "@/componen
 import { exportToCSV, exportToExcel, triggerPrint } from "@/lib/exportUtils";
 import PrintLayout from "@/components/PrintLayout";
 import PurchaseDraftAddControls from "@/components/PurchaseDraftAddControls";
+import { useAuth } from "@/auth/AuthContext";
+import { userFacingError } from "@/lib/errorMessage";
 
 type PurchaseOrder = {
   id: string;
@@ -120,6 +122,9 @@ const n = (value: unknown) => Number(value) || 0;
 export default function PurchaseInvoiceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { activeCompany, isPlatformOwner } = useAuth();
+  const role = activeCompany?.membership_role;
+  const canAdminCorrectPosted = Boolean(isPlatformOwner || role === "company_owner" || role === "admin");
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [items, setItems] = useState<Option[]>([]);
@@ -140,6 +145,7 @@ export default function PurchaseInvoiceDetail() {
   const [savingSource, setSavingSource] = useState(false);
   const [posting, setPosting] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [reopening, setReopening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -280,6 +286,23 @@ export default function PurchaseInvoiceDetail() {
     await load();
   };
 
+  const adminReopen = async () => {
+    if (!order || order.status !== "posted" || reopening) return;
+    const reason = window.prompt("Reason for reopening this posted Purchase Invoice for correction:");
+    if (!reason?.trim()) return;
+    if (!window.confirm("Reopen this posted Purchase Invoice? NAVILO will create accounting and stock reversals and preserve the original history.")) return;
+    setReopening(true); setError(null); setSuccess(null);
+    try {
+      const { data, error: reopenError } = await supabase.rpc("admin_reopen_posted_invoice", { p_document_type: "purchase", p_document_id: order.id, p_reason: reason.trim(), p_reversal_date: new Date().toISOString().slice(0, 10) });
+      if (reopenError) throw reopenError;
+      const result = data as { success?: boolean } | null;
+      if (!result?.success) throw new Error("Purchase Invoice could not be reopened for correction.");
+      setSuccess("Purchase Invoice reopened for correction. Original accounting and stock history has been preserved through reversal entries.");
+      await load();
+    } catch (e) { setError(userFacingError(e, "Failed to reopen Purchase Invoice for correction.")); }
+    finally { setReopening(false); }
+  };
+
   const paySupplier = async () => {
     if (!order?.supplier_id || order.status !== "posted") return;
     const amount = n(paymentAmount);
@@ -315,6 +338,7 @@ export default function PurchaseInvoiceDetail() {
     <div className="print:hidden flex flex-wrap items-center justify-between gap-3">
       <div><Link to="/purchase" className="text-sm text-primary-600">← Back to Purchase</Link><h1 className="mt-2 text-2xl font-bold text-slate-900">{isTax ? "Purchase Tax Invoice" : "Purchase Invoice"}</h1><div className="mt-1 text-sm text-slate-500">{order.order_no} · Supplier: {order.supplier?.name ?? "—"}</div></div>
       <div className="flex flex-wrap gap-2">
+        {order.status === "posted" && canAdminCorrectPosted && <button className="btn-secondary" disabled={reopening} onClick={() => void adminReopen()}>{reopening ? "Reopening…" : "Reopen for Correction"}</button>}
         {order.status !== "posted" && <PurchaseDraftAddControls orderId={order.id} onChanged={() => void load()} />}
         {order.status !== "posted" && <button className="btn-primary" disabled={posting} onClick={() => void post()}>{posting ? "Posting…" : "Post Purchase Invoice"}</button>}
         <button className="btn-secondary" onClick={() => exportToCSV(`${order.order_no}-purchase.csv`, exportColumns, rowsForExport)}>CSV</button>

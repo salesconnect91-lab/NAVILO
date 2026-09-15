@@ -176,6 +176,7 @@ export default function SalesInvoiceDetail() {
   const canDelete = canPerformModule(role, "sales", "delete", permissions, isPlatformOwner);
   const canPost = canPerformModule(role, "sales", "post", permissions, isPlatformOwner);
   const canPrint = canPerformModule(role, "sales", "print", permissions, isPlatformOwner);
+  const canAdminCorrectPosted = Boolean(isPlatformOwner || role === "company_owner" || role === "admin");
 
   const [order, setOrder] = useState<SalesInvoiceDetailOrder | null>(null);
   const [lines, setLines] = useState<SalesInvoiceLine[]>([]);
@@ -190,6 +191,7 @@ export default function SalesInvoiceDetail() {
   const [postSuccess, setPostSuccess] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
+  const [reopening, setReopening] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -283,6 +285,23 @@ export default function SalesInvoiceDetail() {
     }
   };
 
+  const handleAdminReopen = async () => {
+    if (!order || order.status !== "posted" || reopening) return;
+    const reason = window.prompt("Reason for reopening this posted Sales Invoice for correction:");
+    if (!reason?.trim()) return;
+    if (!window.confirm("Reopen this posted Sales Invoice? NAVILO will create accounting and stock reversals and preserve the original history.")) return;
+    setReopening(true); setError(null); setPostSuccess(null);
+    try {
+      const { data, error: rpcError } = await supabase.rpc("admin_reopen_posted_invoice", { p_document_type: "sales", p_document_id: order.id, p_reason: reason.trim(), p_reversal_date: new Date().toISOString().slice(0, 10) });
+      if (rpcError) throw rpcError;
+      const result = data as { success?: boolean } | null;
+      if (!result?.success) throw new Error("Sales Invoice could not be reopened for correction.");
+      setPostSuccess("Sales Invoice reopened for correction. Original accounting and stock history has been preserved through reversal entries.");
+      await load();
+    } catch (e) { setError(userFacingError(e, "Failed to reopen Sales Invoice for correction.")); }
+    finally { setReopening(false); }
+  };
+
   const handleDelete = async () => {
     if (!order || locked) return;
     const { error: deleteError } = await supabase.from("sales_orders").delete().eq("id", order.id).eq("status", "draft");
@@ -350,6 +369,11 @@ export default function SalesInvoiceDetail() {
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
+          {order.status === "posted" && canAdminCorrectPosted && (
+            <button type="button" className="btn-secondary" disabled={reopening} onClick={() => void handleAdminReopen()}>
+              <Pencil className="h-3.5 w-3.5" /> {reopening ? "Reopening…" : "Reopen for Correction"}
+            </button>
+          )}
           {!locked && canPost && (
             <button type="button" className="btn-primary" disabled={posting} onClick={() => void handlePost()}>
               <ShieldCheck className="h-3.5 w-3.5" /> {posting ? "Posting…" : "Post Invoice / پوسٹ کریں"}
