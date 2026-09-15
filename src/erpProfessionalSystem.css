@@ -110,6 +110,64 @@
   max-height: 280px !important;
 }
 
+/* Purchase visual parity only. These rules deliberately do not alter data, totals, posting, stock or accounting logic. */
+.erp-shell main .navilo-consolidated-purchase-editor {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding: 12px;
+  border: 1px solid var(--erp-border-soft);
+  border-radius: 10px;
+  background: var(--erp-panel);
+}
+
+.erp-shell main .navilo-consolidated-purchase-editor > div {
+  min-width: 0;
+}
+
+.erp-shell main .navilo-consolidated-purchase-editor label.label {
+  display: block;
+  margin-bottom: 5px;
+  color: #475569;
+  font-size: 11.5px !important;
+  font-weight: 650;
+}
+
+.erp-shell main .navilo-consolidated-purchase-editor .input {
+  min-height: 36px;
+  border-color: var(--erp-border);
+  border-radius: 7px;
+  background: #fff;
+}
+
+.erp-shell main .navilo-consolidated-purchase-editor table {
+  font-size: 12px !important;
+}
+
+.erp-shell main .navilo-consolidated-purchase-editor table th {
+  padding: 8px !important;
+  background: #f8fafc !important;
+  color: #475569 !important;
+  font-size: 11px !important;
+}
+
+.erp-shell main .navilo-consolidated-purchase-editor table td {
+  padding: 7px 8px !important;
+  vertical-align: top;
+}
+
+.erp-shell main .navilo-consolidated-purchase-editor table .input {
+  min-height: 34px;
+  font-size: 12px !important;
+}
+
+.erp-shell main .navilo-consolidated-purchase-editor .btn-primary,
+.erp-shell main .navilo-consolidated-purchase-editor .btn-secondary,
+.erp-shell main .navilo-consolidated-purchase-editor .btn-danger {
+  min-height: 34px;
+  font-size: 12px;
+}
+
 /* Print preview/output only. This never changes normal application layout. */
 .navilo-live-preview,
 .navilo-print-output {
