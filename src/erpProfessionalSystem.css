@@ -9,394 +9,51 @@
   --erp-panel-soft: #f8fafc;
 }
 
-.erp-shell main {
-  font-family: var(--erp-font);
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--erp-text);
-}
+.erp-shell main { font-family: var(--erp-font); font-size: 13px; line-height: 1.45; color: var(--erp-text); }
+.erp-shell main .page-title,.erp-shell main h1 { font-size:20px!important;line-height:1.25!important;font-weight:700!important;letter-spacing:-.02em!important; }
+.erp-shell main h2 { font-size:15px!important;line-height:1.35!important;font-weight:700!important; }
+.erp-shell main h3 { font-size:13px!important;line-height:1.4!important;font-weight:700!important; }
+.erp-shell main .page-subtitle,.erp-shell main .text-slate-500,.erp-shell main .text-slate-400 { color:var(--erp-muted)!important; }
+.erp-shell main .card,.erp-shell main section.rounded-xl,.erp-shell main .table-shell { border-color:var(--erp-border-soft)!important; }
+.erp-shell main input:not([type="checkbox"]):not([type="radio"]),.erp-shell main select,.erp-shell main textarea,.erp-shell main .input { font-size:13px!important; }
+.erp-shell main table,.erp-shell main .data-table { width:100%;border-collapse:collapse;font-size:12.5px!important;font-variant-numeric:tabular-nums; }
+.erp-shell main table th,.erp-shell main .data-table th { background:var(--erp-panel-soft)!important;color:#475569!important;border-bottom:1px solid var(--erp-border)!important;padding:8px 10px!important;font-size:11.5px!important;line-height:1.3!important;font-weight:700!important;letter-spacing:.02em!important;text-transform:none!important;white-space:nowrap; }
+.erp-shell main table td,.erp-shell main .data-table td { border-bottom:1px solid var(--erp-border-soft)!important;padding:8px 10px!important;font-size:12.5px!important;line-height:1.35!important; }
+.erp-shell main table td.text-right,.erp-shell main table th.text-right,.erp-shell main .tabular-nums,.erp-shell main [data-number],.erp-shell main [data-amount] { font-variant-numeric:tabular-nums; }
+.erp-searchable-menu { font-family:var(--erp-font);border-radius:8px!important;border:1px solid var(--erp-border)!important;box-shadow:0 12px 30px rgba(15,23,42,.14)!important; }
+.erp-shell main .relative:has(> .relative > input[placeholder*="customer or supplier"]):not(:focus-within) > .absolute.z-30 { display:none!important; }
+.erp-shell main .relative:has(> .relative > input[placeholder*="customer or supplier"]):focus-within > .absolute.z-30 { display:block!important;max-height:280px!important; }
 
-.erp-shell main .page-title,
-.erp-shell main h1 {
-  font-size: 20px !important;
-  line-height: 1.25 !important;
-  font-weight: 700 !important;
-  letter-spacing: -0.02em !important;
-}
+/* Purchase editor visual parity only. No business/accounting/stock logic is changed here. */
+.erp-shell main .navilo-consolidated-purchase-editor { width:100%;max-width:none;margin-inline:0;padding:12px;border:1px solid var(--erp-border-soft);border-radius:10px;background:var(--erp-panel); }
+.erp-shell main .navilo-consolidated-purchase-editor > div { min-width:0; }
+.erp-shell main .navilo-consolidated-purchase-editor label.label { display:block;margin-bottom:5px;color:#475569;font-size:11.5px!important;font-weight:650; }
+.erp-shell main .navilo-consolidated-purchase-editor .input { min-height:36px;border-color:var(--erp-border);border-radius:7px;background:#fff; }
+.erp-shell main .navilo-consolidated-purchase-editor table { font-size:12px!important; }
+.erp-shell main .navilo-consolidated-purchase-editor table th { padding:8px!important;background:#f8fafc!important;color:#475569!important;font-size:11px!important; }
+.erp-shell main .navilo-consolidated-purchase-editor table td { padding:7px 8px!important;vertical-align:top; }
+.erp-shell main .navilo-consolidated-purchase-editor table .input { min-height:34px;font-size:12px!important; }
+.erp-shell main .navilo-consolidated-purchase-editor .btn-primary,.erp-shell main .navilo-consolidated-purchase-editor .btn-secondary,.erp-shell main .navilo-consolidated-purchase-editor .btn-danger { min-height:34px;font-size:12px; }
 
-.erp-shell main h2 {
-  font-size: 15px !important;
-  line-height: 1.35 !important;
-  font-weight: 700 !important;
-}
+/* Main Purchase create screen: same compact visual density as Consolidated Purchase. */
+.erp-shell main form:has(button[type="submit"]):has(input[type="number"]):has(.btn-primary) { font-size:12px; }
+.erp-shell main form:has(button[type="submit"]):has(input[type="number"]):has(.btn-primary) .rounded-xl,
+.erp-shell main form:has(button[type="submit"]):has(input[type="number"]):has(.btn-primary) .rounded-lg { border-radius:8px!important; }
+.erp-shell main form:has(button[type="submit"]):has(input[type="number"]):has(.btn-primary) .p-4 { padding:10px!important; }
+.erp-shell main form:has(button[type="submit"]):has(input[type="number"]):has(.btn-primary) .p-5 { padding:12px!important; }
+.erp-shell main form:has(button[type="submit"]):has(input[type="number"]):has(.btn-primary) .gap-4 { gap:10px!important; }
+.erp-shell main form:has(button[type="submit"]):has(input[type="number"]):has(.btn-primary) .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top:10px!important; }
+.erp-shell main form:has(button[type="submit"]):has(input[type="number"]):has(.btn-primary) .input { min-height:34px!important;font-size:12px!important; }
+.erp-shell main form:has(button[type="submit"]):has(input[type="number"]):has(.btn-primary) table th { padding:7px 8px!important;font-size:11px!important; }
+.erp-shell main form:has(button[type="submit"]):has(input[type="number"]):has(.btn-primary) table td { padding:7px 8px!important;font-size:12px!important; }
+.erp-shell main form:has(button[type="submit"]):has(input[type="number"]):has(.btn-primary) .btn-primary,
+.erp-shell main form:has(button[type="submit"]):has(input[type="number"]):has(.btn-primary) .btn-secondary { min-height:32px!important;font-size:12px!important;padding-top:5px!important;padding-bottom:5px!important; }
 
-.erp-shell main h3 {
-  font-size: 13px !important;
-  line-height: 1.4 !important;
-  font-weight: 700 !important;
-}
-
-.erp-shell main .page-subtitle,
-.erp-shell main .text-slate-500,
-.erp-shell main .text-slate-400 {
-  color: var(--erp-muted) !important;
-}
-
-.erp-shell main .card,
-.erp-shell main section.rounded-xl,
-.erp-shell main .table-shell {
-  border-color: var(--erp-border-soft) !important;
-}
-
-.erp-shell main input:not([type="checkbox"]):not([type="radio"]),
-.erp-shell main select,
-.erp-shell main textarea,
-.erp-shell main .input {
-  font-size: 13px !important;
-}
-
-.erp-shell main table,
-.erp-shell main .data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12.5px !important;
-  font-variant-numeric: tabular-nums;
-}
-
-.erp-shell main table th,
-.erp-shell main .data-table th {
-  background: var(--erp-panel-soft) !important;
-  color: #475569 !important;
-  border-bottom: 1px solid var(--erp-border) !important;
-  padding: 8px 10px !important;
-  font-size: 11.5px !important;
-  line-height: 1.3 !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.02em !important;
-  text-transform: none !important;
-  white-space: nowrap;
-}
-
-.erp-shell main table td,
-.erp-shell main .data-table td {
-  border-bottom: 1px solid var(--erp-border-soft) !important;
-  padding: 8px 10px !important;
-  font-size: 12.5px !important;
-  line-height: 1.35 !important;
-}
-
-.erp-shell main table td.text-right,
-.erp-shell main table th.text-right,
-.erp-shell main .tabular-nums,
-.erp-shell main [data-number],
-.erp-shell main [data-amount] {
-  font-variant-numeric: tabular-nums;
-}
-
-.erp-searchable-menu {
-  font-family: var(--erp-font);
-  border-radius: 8px !important;
-  border: 1px solid var(--erp-border) !important;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14) !important;
-}
-
-/* Legacy ledger party picker used to render its result panel even before interaction. */
-.erp-shell main .relative:has(> .relative > input[placeholder*="customer or supplier"]):not(:focus-within) > .absolute.z-30 {
-  display: none !important;
-}
-
-.erp-shell main .relative:has(> .relative > input[placeholder*="customer or supplier"]):focus-within > .absolute.z-30 {
-  display: block !important;
-  max-height: 280px !important;
-}
-
-/* Purchase visual parity only. These rules deliberately do not alter data, totals, posting, stock or accounting logic. */
-.erp-shell main .navilo-consolidated-purchase-editor {
-  width: 100%;
-  max-width: none;
-  margin-inline: 0;
-  padding: 12px;
-  border: 1px solid var(--erp-border-soft);
-  border-radius: 10px;
-  background: var(--erp-panel);
-}
-
-.erp-shell main .navilo-consolidated-purchase-editor > div {
-  min-width: 0;
-}
-
-.erp-shell main .navilo-consolidated-purchase-editor label.label {
-  display: block;
-  margin-bottom: 5px;
-  color: #475569;
-  font-size: 11.5px !important;
-  font-weight: 650;
-}
-
-.erp-shell main .navilo-consolidated-purchase-editor .input {
-  min-height: 36px;
-  border-color: var(--erp-border);
-  border-radius: 7px;
-  background: #fff;
-}
-
-.erp-shell main .navilo-consolidated-purchase-editor table {
-  font-size: 12px !important;
-}
-
-.erp-shell main .navilo-consolidated-purchase-editor table th {
-  padding: 8px !important;
-  background: #f8fafc !important;
-  color: #475569 !important;
-  font-size: 11px !important;
-}
-
-.erp-shell main .navilo-consolidated-purchase-editor table td {
-  padding: 7px 8px !important;
-  vertical-align: top;
-}
-
-.erp-shell main .navilo-consolidated-purchase-editor table .input {
-  min-height: 34px;
-  font-size: 12px !important;
-}
-
-.erp-shell main .navilo-consolidated-purchase-editor .btn-primary,
-.erp-shell main .navilo-consolidated-purchase-editor .btn-secondary,
-.erp-shell main .navilo-consolidated-purchase-editor .btn-danger {
-  min-height: 34px;
-  font-size: 12px;
-}
-
-/* Print preview/output only. This never changes normal application layout. */
-.navilo-live-preview,
-.navilo-print-output {
-  font-family: var(--erp-font) !important;
-  color: #111827 !important;
-  background: #fff !important;
-  font-size: 9.5pt !important;
-  line-height: 1.35 !important;
-}
-
-.navilo-live-preview.navilo-portrait,
-.navilo-print-output.navilo-portrait {
-  width: 190mm !important;
-  max-width: 190mm !important;
-}
-
-.navilo-live-preview.navilo-landscape,
-.navilo-print-output.navilo-landscape {
-  width: 277mm !important;
-  max-width: 277mm !important;
-}
-
-.navilo-generic-report {
-  width: 100% !important;
-  max-width: 100% !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  background: #fff !important;
-  color: #111827 !important;
-}
-
-.navilo-generic-report .navilo-report-header {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr) !important;
-  gap: 18px !important;
-  align-items: start !important;
-  margin: 0 0 7mm !important;
-  padding: 0 0 4mm !important;
-  border-bottom: 1.5px solid #1f2937 !important;
-}
-
-.navilo-report-identity {
-  min-width: 0;
-}
-
-.navilo-report-logo {
-  display: block;
-  width: auto !important;
-  max-width: 42mm !important;
-  height: auto !important;
-  max-height: 16mm !important;
-  object-fit: contain !important;
-  object-position: left center !important;
-  margin: 0 0 2mm !important;
-}
-
-.navilo-report-company-name {
-  font-size: 14.5pt !important;
-  line-height: 1.15 !important;
-  font-weight: 750 !important;
-  color: #0f172a !important;
-}
-
-.navilo-report-business-unit {
-  margin-top: 1mm !important;
-  font-size: 8.5pt !important;
-  font-weight: 600 !important;
-  color: #64748b !important;
-}
-
-.navilo-report-meta {
-  text-align: right !important;
-}
-
-.navilo-report-title {
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
-  color: #0f172a !important;
-  font-size: 15pt !important;
-  line-height: 1.2 !important;
-  font-weight: 750 !important;
-  letter-spacing: -0.01em !important;
-  text-transform: none !important;
-}
-
-.navilo-report-subtitle {
-  margin-top: 1.5mm !important;
-  font-size: 8.5pt !important;
-  color: #64748b !important;
-}
-
-.navilo-report-date {
-  margin-top: 2mm !important;
-  font-size: 8pt !important;
-  color: #64748b !important;
-}
-
-.navilo-generic-report .card,
-.navilo-generic-report section,
-.navilo-generic-report [class*="shadow"] {
-  box-shadow: none !important;
-}
-
-.navilo-generic-report .card,
-.navilo-generic-report section.rounded-xl,
-.navilo-generic-report section.rounded-lg {
-  border-radius: 0 !important;
-}
-
-.navilo-generic-report table {
-  width: 100% !important;
-  max-width: 100% !important;
-  border-collapse: collapse !important;
-  table-layout: auto !important;
-  margin: 0 !important;
-  font-size: 8.7pt !important;
-  color: #111827 !important;
-}
-
-.navilo-generic-report thead {
-  display: table-header-group !important;
-}
-
-.navilo-generic-report th {
-  padding: 2.2mm 2mm !important;
-  border: 1px solid #cbd5e1 !important;
-  background: #f1f5f9 !important;
-  color: #334155 !important;
-  font-size: 8pt !important;
-  line-height: 1.2 !important;
-  font-weight: 700 !important;
-  text-transform: none !important;
-  letter-spacing: 0 !important;
-  vertical-align: middle !important;
-  white-space: normal !important;
-}
-
-.navilo-generic-report td {
-  padding: 2.1mm 2mm !important;
-  border: 1px solid #e2e8f0 !important;
-  color: #1f2937 !important;
-  font-size: 8.7pt !important;
-  line-height: 1.25 !important;
-  vertical-align: top !important;
-}
-
-.navilo-generic-report td.text-right,
-.navilo-generic-report th.text-right,
-.navilo-generic-report .text-right {
-  text-align: right !important;
-  font-variant-numeric: tabular-nums !important;
-}
-
-.navilo-generic-report tbody tr:nth-child(even) td {
-  background: #fbfdff !important;
-}
-
-.navilo-generic-report .summary-card,
-.navilo-generic-report [class*="summary"] {
-  box-shadow: none !important;
-}
-
-.navilo-report-footer {
-  display: flex !important;
-  justify-content: space-between !important;
-  align-items: center !important;
-  gap: 12px !important;
-  margin-top: 7mm !important;
-  padding-top: 2.5mm !important;
-  border-top: 1px solid #cbd5e1 !important;
-  color: #64748b !important;
-  font-size: 7.5pt !important;
-}
-
-.navilo-generic-report button,
-.navilo-generic-report input,
-.navilo-generic-report select,
-.navilo-generic-report textarea,
-.navilo-generic-report nav,
-.navilo-generic-report aside,
-.navilo-generic-report .page-actions,
-.navilo-generic-report .search-bar,
-.navilo-generic-report .search-box,
-.navilo-generic-report .filter-bar,
-.navilo-generic-report .filter-toolbar,
-.navilo-generic-report .table-toolbar,
-.navilo-generic-report [data-no-print],
-.navilo-generic-report [data-print-ui] {
-  display: none !important;
-}
-
-@media print {
-  html,
-  body {
-    background: #fff !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  .navilo-print-output {
-    margin: 0 auto !important;
-    padding: 0 !important;
-    overflow: visible !important;
-  }
-
-  .navilo-print-output table {
-    page-break-inside: auto !important;
-  }
-
-  .navilo-print-output thead {
-    display: table-header-group !important;
-  }
-
-  .navilo-print-output tfoot {
-    display: table-footer-group !important;
-  }
-
-  .navilo-print-output tr,
-  .navilo-print-output .print-total-row,
-  .navilo-print-output .print-signatures {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-  }
-
-  .navilo-print-output *,
-  .navilo-live-preview * {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-}
+/* Print preview/output only. */
+.navilo-live-preview,.navilo-print-output { font-family:var(--erp-font)!important;color:#111827!important;background:#fff!important;font-size:9.5pt!important;line-height:1.35!important; }
+.navilo-live-preview.navilo-portrait,.navilo-print-output.navilo-portrait { width:190mm!important;max-width:190mm!important; }
+.navilo-live-preview.navilo-landscape,.navilo-print-output.navilo-landscape { width:277mm!important;max-width:277mm!important; }
+.navilo-generic-report { width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;background:#fff!important;color:#111827!important; }
+.navilo-generic-report .navilo-report-header { display:grid!important;grid-template-columns:minmax(0,1fr) minmax(220px,.8fr)!important;gap:18px!important;align-items:start!important;margin:0 0 7mm!important;padding:0 0 4mm!important;border-bottom:1.5px solid #1f2937!important; }
+.navilo-report-identity{min-width:0}.navilo-report-logo{display:block;width:auto!important;max-width:42mm!important;height:auto!important;max-height:16mm!important;object-fit:contain!important;object-position:left center!important;margin:0 0 2mm!important}.navilo-report-company-name{font-size:14.5pt!important;line-height:1.15!important;font-weight:750!important;color:#0f172a!important}.navilo-report-business-unit{margin-top:1mm!important;font-size:8.5pt!important;font-weight:600!important;color:#64748b!important}.navilo-report-meta{text-align:right!important}.navilo-report-title{margin:0!important;padding:0!important;border:0!important;background:transparent!important;color:#0f172a!important;font-size:15pt!important;line-height:1.2!important;font-weight:750!important;letter-spacing:-.01em!important;text-transform:none!important}.navilo-report-subtitle{margin-top:1.5mm!important;font-size:8.5pt!important;color:#64748b!important}.navilo-report-date{margin-top:2mm!important;font-size:8pt!important;color:#64748b!important}.navilo-generic-report .card,.navilo-generic-report section,.navilo-generic-report [class*="shadow"]{box-shadow:none!important}.navilo-generic-report .card,.navilo-generic-report section.rounded-xl,.navilo-generic-report section.rounded-lg{border-radius:0!important}.navilo-generic-report table{width:100%!important;max-width:100%!important;border-collapse:collapse!important;table-layout:auto!important;margin:0!important;font-size:8.7pt!important;color:#111827!important}.navilo-generic-report thead{display:table-header-group!important}.navilo-generic-report th{padding:2.2mm 2mm!important;border:1px solid #cbd5e1!important;background:#f1f5f9!important;color:#334155!important;font-size:8pt!important;line-height:1.2!important;font-weight:700!important;text-transform:none!important;letter-spacing:0!important;vertical-align:middle!important;white-space:normal!important}.navilo-generic-report td{padding:2.1mm 2mm!important;border:1px solid #e2e8f0!important;color:#1f2937!important;font-size:8.7pt!important;line-height:1.25!important;vertical-align:top!important}.navilo-generic-report td.text-right,.navilo-generic-report th.text-right,.navilo-generic-report .text-right{text-align:right!important;font-variant-numeric:tabular-nums!important}.navilo-generic-report tbody tr:nth-child(even) td{background:#fbfdff!important}.navilo-generic-report .summary-card,.navilo-generic-report [class*="summary"]{box-shadow:none!important}.navilo-report-footer{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:12px!important;margin-top:7mm!important;padding-top:2.5mm!important;border-top:1px solid #cbd5e1!important;color:#64748b!important;font-size:7.5pt!important}.navilo-generic-report button,.navilo-generic-report input,.navilo-generic-report select,.navilo-generic-report textarea,.navilo-generic-report nav,.navilo-generic-report aside,.navilo-generic-report .page-actions,.navilo-generic-report .search-bar,.navilo-generic-report .search-box,.navilo-generic-report .filter-bar,.navilo-generic-report .filter-toolbar,.navilo-generic-report .table-toolbar,.navilo-generic-report [data-no-print],.navilo-generic-report [data-print-ui]{display:none!important}
+@media print{html,body{background:#fff!important;margin:0!important;padding:0!important}.navilo-print-output{margin:0 auto!important;padding:0!important;overflow:visible!important}.navilo-print-output table{page-break-inside:auto!important}.navilo-print-output thead{display:table-header-group!important}.navilo-print-output tfoot{display:table-footer-group!important}.navilo-print-output tr,.navilo-print-output .print-total-row,.navilo-print-output .print-signatures{break-inside:avoid!important;page-break-inside:avoid!important}.navilo-print-output *,.navilo-live-preview *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
