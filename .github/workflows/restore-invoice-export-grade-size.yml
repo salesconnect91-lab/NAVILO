@@ -1,0 +1,41 @@
+name: Restore invoice export Grade and Size
+on:
+  push:
+    paths:
+      - '.github/workflows/restore-invoice-export-grade-size.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Restore Grade and Size only in Sales Invoice exports
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/modules/sales/SalesInvoiceDetail.tsx')
+          s=p.read_text()
+          old='    uom: line.item?.unit ?? "",\n    qty: n(line.qty),'
+          new='    uom: line.item?.unit ?? "",\n    grade: line.grade ?? "",\n    size: line.size ?? "",\n    qty: n(line.qty),'
+          if old not in s: raise SystemExit('export row anchor not found')
+          s=s.replace(old,new,1)
+          old='    { key: "uom", label: "UOM" },\n    { key: "qty", label: "Qty" },'
+          new='    { key: "uom", label: "UOM" },\n    { key: "grade", label: "Grade / گریڈ" },\n    { key: "size", label: "Size / سائز" },\n    { key: "qty", label: "Qty" },'
+          if old not in s: raise SystemExit('export column anchor not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit correction
+        run: |
+          git config user.name "NAVILO Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/modules/sales/SalesInvoiceDetail.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Keep Grade and Size in invoice exports"
+          git push origin main
