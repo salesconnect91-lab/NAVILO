@@ -8,6 +8,27 @@
    blank second page. The centralized print surface must remain the layout
    owner. */
 
+/* Sales Invoice and Purchase Invoice share PrintLayout. Keep the item header
+   and every item row stretched to the full printable page width. */
+.print-document .invoice-items-wrap {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.print-document .invoice-items-grid {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+}
+
+.print-document .invoice-items-grid-tax {
+  grid-template-columns: 24px minmax(0, 2.25fr) minmax(0, 1.75fr) minmax(58px, .7fr) minmax(72px, .9fr) minmax(78px, .9fr) minmax(92px, 1fr) !important;
+}
+
+.print-document .invoice-items-grid-no-tax {
+  grid-template-columns: 24px minmax(0, 2.5fr) minmax(0, 1.9fr) minmax(58px, .7fr) minmax(76px, .9fr) minmax(96px, 1fr) !important;
+}
+
 @media print {
   html body .navilo-print-output,
   html body .navilo-print-output * {
