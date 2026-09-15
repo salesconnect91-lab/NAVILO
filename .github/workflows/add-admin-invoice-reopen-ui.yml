@@ -1,0 +1,53 @@
+name: Add admin invoice correction UI
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch Sales and Purchase invoice detail
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p=Path('src/modules/sales/SalesInvoiceDetail.tsx')
+          s=p.read_text()
+          s=s.replace('  const canPrint = canPerformModule(role, "sales", "print", permissions, isPlatformOwner);', '  const canPrint = canPerformModule(role, "sales", "print", permissions, isPlatformOwner);\n  const canAdminCorrectPosted = Boolean(isPlatformOwner || role === "company_owner" || role === "admin");')
+          s=s.replace('  const [showPrint, setShowPrint] = useState(false);', '  const [showPrint, setShowPrint] = useState(false);\n  const [reopening, setReopening] = useState(false);')
+          marker='  const handleDelete = async () => {'
+          fn='''  const handleAdminReopen = async () => {\n    if (!order || order.status !== "posted" || reopening) return;\n    const reason = window.prompt("Reason for reopening this posted Sales Invoice for correction:");\n    if (!reason?.trim()) return;\n    if (!window.confirm("Reopen this posted Sales Invoice? NAVILO will create accounting and stock reversals and preserve the original history.")) return;\n    setReopening(true); setError(null); setPostSuccess(null);\n    try {\n      const { data, error: rpcError } = await supabase.rpc("admin_reopen_posted_invoice", { p_document_type: "sales", p_document_id: order.id, p_reason: reason.trim(), p_reversal_date: new Date().toISOString().slice(0, 10) });\n      if (rpcError) throw rpcError;\n      const result = data as { success?: boolean } | null;\n      if (!result?.success) throw new Error("Sales Invoice could not be reopened for correction.");\n      setPostSuccess("Sales Invoice reopened for correction. Original accounting and stock history has been preserved through reversal entries.");\n      await load();\n    } catch (e) { setError(userFacingError(e, "Failed to reopen Sales Invoice for correction.")); }\n    finally { setReopening(false); }\n  };\n\n'''
+          if fn.strip() not in s: s=s.replace(marker,fn+marker)
+          anchor='''          {!locked && canPost && (\n            <button type="button" className="btn-primary" disabled={posting} onClick={() => void handlePost()}>'''
+          button='''          {order.status === "posted" && canAdminCorrectPosted && (\n            <button type="button" className="btn-secondary" disabled={reopening} onClick={() => void handleAdminReopen()}>\n              <Pencil className="h-3.5 w-3.5" /> {reopening ? "Reopening…" : "Reopen for Correction"}\n            </button>\n          )}\n'''
+          if button.strip() not in s: s=s.replace(anchor,button+anchor)
+          p.write_text(s)
+
+          p=Path('src/modules/purchase/PurchaseInvoiceDetail.tsx')
+          s=p.read_text()
+          if 'useAuth' not in s:
+            s=s.replace('import PurchaseDraftAddControls from "@/components/PurchaseDraftAddControls";', 'import PurchaseDraftAddControls from "@/components/PurchaseDraftAddControls";\nimport { useAuth } from "@/auth/AuthContext";\nimport { userFacingError } from "@/lib/errorMessage";')
+          s=s.replace('  const navigate = useNavigate();', '  const navigate = useNavigate();\n  const { activeCompany, isPlatformOwner } = useAuth();\n  const role = activeCompany?.membership_role;\n  const canAdminCorrectPosted = Boolean(isPlatformOwner || role === "company_owner" || role === "admin");')
+          s=s.replace('  const [paying, setPaying] = useState(false);', '  const [paying, setPaying] = useState(false);\n  const [reopening, setReopening] = useState(false);')
+          marker='  const paySupplier = async () => {'
+          fn='''  const adminReopen = async () => {\n    if (!order || order.status !== "posted" || reopening) return;\n    const reason = window.prompt("Reason for reopening this posted Purchase Invoice for correction:");\n    if (!reason?.trim()) return;\n    if (!window.confirm("Reopen this posted Purchase Invoice? NAVILO will create accounting and stock reversals and preserve the original history.")) return;\n    setReopening(true); setError(null); setSuccess(null);\n    try {\n      const { data, error: reopenError } = await supabase.rpc("admin_reopen_posted_invoice", { p_document_type: "purchase", p_document_id: order.id, p_reason: reason.trim(), p_reversal_date: new Date().toISOString().slice(0, 10) });\n      if (reopenError) throw reopenError;\n      const result = data as { success?: boolean } | null;\n      if (!result?.success) throw new Error("Purchase Invoice could not be reopened for correction.");\n      setSuccess("Purchase Invoice reopened for correction. Original accounting and stock history has been preserved through reversal entries.");\n      await load();\n    } catch (e) { setError(userFacingError(e, "Failed to reopen Purchase Invoice for correction.")); }\n    finally { setReopening(false); }\n  };\n\n'''
+          if fn.strip() not in s: s=s.replace(marker,fn+marker)
+          anchor='''        {order.status !== "posted" && <PurchaseDraftAddControls orderId={order.id} onChanged={() => void load()} />}'''
+          button='''        {order.status === "posted" && canAdminCorrectPosted && <button className="btn-secondary" disabled={reopening} onClick={() => void adminReopen()}>{reopening ? "Reopening…" : "Reopen for Correction"}</button>}\n'''
+          if button.strip() not in s: s=s.replace(anchor,button+anchor)
+          p.write_text(s)
+      - run: npm ci
+      - run: npm run build
+      - name: Commit
+        run: |
+          git config user.name "NAVILO Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/modules/sales/SalesInvoiceDetail.tsx src/modules/purchase/PurchaseInvoiceDetail.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Add admin posted invoice correction controls"
+          git push origin main
