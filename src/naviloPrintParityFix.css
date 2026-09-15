@@ -8,8 +8,8 @@
    blank second page. The centralized print surface must remain the layout
    owner. */
 
-/* Sales Invoice and Purchase Invoice share PrintLayout. Keep the item header
-   and every item row stretched to the full printable page width. */
+/* Sales and Purchase, main and consolidated, share PrintLayout. Keep the item
+   header and every item row stretched to the full printable page width. */
 .print-document .invoice-items-wrap {
   width: 100% !important;
   max-width: none !important;
@@ -19,6 +19,14 @@
   width: 100% !important;
   max-width: none !important;
   box-sizing: border-box !important;
+}
+
+/* Description is a commercial invoice-line field. A legacy print preference
+   hid the third grid cell, which is now Description in PrintLayout. Explicitly
+   restore it in both preview and printer/PDF output. */
+.navilo-live-preview .print-document .invoice-items-grid > :nth-child(3),
+.navilo-print-output .print-document .invoice-items-grid > :nth-child(3) {
+  display: block !important;
 }
 
 .print-document .invoice-items-grid-tax {
