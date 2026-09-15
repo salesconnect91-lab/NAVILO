@@ -1,63 +1,68 @@
-/* NAVILO invoice-entry screen column proportions.
-   Presentation only: no calculations, stock, tax, posting or accounting behavior. */
+/* NAVILO shared invoice-entry visual standard.
+   Presentation only: no calculations, stock, tax, posting, linking or accounting behavior. */
 
-/* Item-entry tables are identified by editable numeric inputs + selects, which keeps
-   these rules away from read-only lists/reports and print output. */
+/* Keep all four invoice editors compact instead of stretching excessively on wide monitors. */
+.erp-shell main form:has(table tbody input[type="number"]):has(table tbody select),
+.erp-shell main .navilo-consolidated-purchase-editor,
+.erp-shell main .navilo-consolidated-sales-editor {
+  width: min(100%, 1480px) !important;
+  max-width: 1480px !important;
+  margin-inline: auto !important;
+}
+
+/* Shared editable item grid. */
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select),
 .erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) {
   width: 100% !important;
   table-layout: fixed !important;
 }
 
-/* Item: large */
+/* Final proportions: Item widest, Description smaller, Godown medium,
+   Qty/Rate compact, Amount readable, Action minimal when present. */
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) th:nth-child(1),
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) td:nth-child(1),
 .erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) th:nth-child(1),
-.erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) td:nth-child(1) {
-  width: 22% !important;
-}
+.erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) td:nth-child(1) { width: 30% !important; }
 
-/* Description: large */
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) th:nth-child(2),
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) td:nth-child(2),
 .erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) th:nth-child(2),
-.erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) td:nth-child(2) {
-  width: 24% !important;
-}
+.erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) td:nth-child(2) { width: 17% !important; }
 
-/* Godown: room for roughly 15–18 characters */
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) th:nth-child(3),
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) td:nth-child(3),
 .erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) th:nth-child(3),
-.erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) td:nth-child(3) {
-  width: 18% !important;
-}
+.erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) td:nth-child(3) { width: 19% !important; }
 
-/* Qty: compact but comfortably supports 5–6 digits */
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) th:nth-child(4),
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) td:nth-child(4),
 .erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) th:nth-child(4),
 .erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) td:nth-child(4) {
-  width: 10% !important;
-  min-width: 8ch !important;
+  width: 8% !important;
+  min-width: 7ch !important;
 }
 
-/* Rate / Unit Cost: compact but comfortably supports 5–6 digits */
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) th:nth-child(5),
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) td:nth-child(5),
 .erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) th:nth-child(5),
 .erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) td:nth-child(5) {
-  width: 11% !important;
-  min-width: 9ch !important;
+  width: 9% !important;
+  min-width: 8ch !important;
 }
 
-/* Amount keeps the remaining useful width and numeric alignment. */
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) th:nth-child(6),
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) td:nth-child(6),
 .erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) th:nth-child(6),
 .erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) td:nth-child(6) {
-  width: 15% !important;
+  width: 12% !important;
+  font-variant-numeric: tabular-nums;
 }
+
+/* Seven-column grids reserve only a small final Action column. */
+.erp-shell main table:has(tbody input[type="number"]):has(tbody select) th:nth-child(7):last-child,
+.erp-shell main table:has(tbody input[type="number"]):has(tbody select) td:nth-child(7):last-child,
+.erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) th:nth-child(7):last-child,
+.erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) td:nth-child(7):last-child { width: 5% !important; }
 
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) td:nth-child(4) input,
 .erp-shell main table:has(tbody input[type="number"]):has(tbody select) td:nth-child(5) input,
@@ -68,9 +73,20 @@
   text-align: right;
 }
 
+/* Consistent compact density for the four invoice editors. */
+.erp-shell main form:has(table tbody input[type="number"]):has(table tbody select) .input,
+.erp-shell main .navilo-consolidated-purchase-editor .input,
+.erp-shell main .navilo-consolidated-sales-editor .input { min-height: 34px !important; }
+
+.erp-shell main form:has(table tbody input[type="number"]):has(table tbody select) table th,
+.erp-shell main .navilo-consolidated-purchase-editor table th,
+.erp-shell main .navilo-consolidated-sales-editor table th { padding: 7px 8px !important; }
+
+.erp-shell main form:has(table tbody input[type="number"]):has(table tbody select) table td,
+.erp-shell main .navilo-consolidated-purchase-editor table td,
+.erp-shell main .navilo-consolidated-sales-editor table td { padding: 7px 8px !important; }
+
 @media (max-width: 1100px) {
   .erp-shell main table:has(tbody input[type="number"]):has(tbody select),
-  .erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) {
-    min-width: 900px !important;
-  }
+  .erp-shell main table:has(tbody input[inputmode="decimal"]):has(tbody select) { min-width: 900px !important; }
 }
