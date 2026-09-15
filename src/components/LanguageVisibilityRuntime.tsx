@@ -11,6 +11,8 @@ const LANGUAGE_NAMES = Object.fromEntries(NAVILO_LANGUAGES.map((language) => [
   [language.label.toLowerCase(), language.nativeLabel.toLowerCase(), ...(LANGUAGE_ALIASES[language.code] || [])],
 ])) as Record<RuntimeLanguageCode, string[]>;
 const HIDDEN_ATTR = "data-navilo-language-hidden";
+const RTL_SCRIPT = /[\u0600-\u06FF]/;
+const LATIN_SCRIPT = /[A-Za-z]/;
 
 function selectedLanguages() {
   const root = document.documentElement;
@@ -52,6 +54,18 @@ function updateLanguageFields(root: ParentNode, active: Set<RuntimeLanguageCode>
     if (!code) return;
     const host = label.closest<HTMLElement>("[data-language-field]") || label.parentElement;
     if (host) setVisible(host, active.has(code));
+  });
+
+  // Legacy master-data views render translated business names as a dedicated
+  // RTL element instead of declaring data-language-code. Treat those elements
+  // as alternate-language values so a single-English workspace does not leak
+  // the Urdu/Arabic value. Explicit data-language-code remains authoritative.
+  root.querySelectorAll<HTMLElement>("[dir='rtl']:not([data-language-code]):not([data-language])").forEach((element) => {
+    if (element.matches("input,textarea,[contenteditable='true']")) return;
+    const value = (element.textContent || "").trim();
+    if (!value || !RTL_SCRIPT.test(value) || LATIN_SCRIPT.test(value)) return;
+    const rtlEnabled = active.has("ur") || active.has("ar") || active.has("fa");
+    setVisible(element, rtlEnabled);
   });
 }
 export default function LanguageVisibilityRuntime() {

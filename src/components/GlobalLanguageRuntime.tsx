@@ -112,7 +112,8 @@ function translateTree(root:Node,language:RuntimeLanguage){
 export default function GlobalLanguageRuntime(){
   useEffect(()=>{
     let active=true,language:RuntimeLanguage=ENGLISH_ONLY,frame=0,applying=false;
-    const apply=()=>{if(!active)return;cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{applying=true;applyRoot(language);translateTree(document.body,language);queueMicrotask(()=>{applying=false;});});};
+    let titleSource=document.title,titleRendered=document.title;
+    const apply=()=>{if(!active)return;cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{applying=true;applyRoot(language);translateTree(document.body,language);if(document.title!==titleRendered)titleSource=document.title;titleRendered=localize(titleSource,language,true);if(document.title!==titleRendered)document.title=titleRendered;queueMicrotask(()=>{applying=false;});});};
     const refresh=async()=>{try{language=await loadLanguage();}catch{language=ENGLISH_ONLY;}apply();};
     const observer=new MutationObserver(mutations=>{if(!active||applying)return;for(const mutation of mutations){mutation.addedNodes.forEach(node=>{if(node.nodeType===Node.TEXT_NODE||node.nodeType===Node.ELEMENT_NODE)translateTree(node,language);});if(mutation.type==="characterData"&&mutation.target.nodeType===Node.TEXT_NODE)processText(mutation.target as Text,language);if(mutation.type==="attributes"&&mutation.target.nodeType===Node.ELEMENT_NODE)processAttributes(mutation.target as Element,language);}});
     observer.observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:[...TRANSLATABLE_ATTRIBUTES]});

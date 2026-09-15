@@ -279,7 +279,7 @@ export default function Customers() {
   };
 
   const columns: Column<CustomerRow>[] = [
-    { key: "name", label: "Name / نام", render: (r) => <div><div className="font-medium text-slate-900">{r.name}</div><div dir="rtl" className="text-sm text-slate-500">{r.name_urdu ?? "—"}</div></div> },
+    { key: "name", label: "Name / نام", render: (r) => <div data-business-data><div data-language-code="en" className="font-medium text-slate-900">{r.name}</div><div data-language-code="ur" dir="rtl" className="text-sm text-slate-500">{r.name_urdu ?? "—"}</div></div> },
     { key: "tax", label: "Tax Registration", render: (r) => <div><div className="font-medium capitalize">{r.tax_registration_status ?? "unregistered"}</div><div className="text-xs text-slate-500">{r.strn ? `STRN ${r.strn}` : r.ntn ? `NTN ${r.ntn}` : "—"}</div></div> },
     { key: "email", label: "Email / ای میل", render: (r) => r.email ?? "—" },
     { key: "phone", label: "Phone / فون", render: (r) => r.phone ?? "—" },
