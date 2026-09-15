@@ -1,0 +1,52 @@
+name: Upgrade return notes
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Upgrade Credit Debit Notes UI and print
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/modules/accounting/ReturnNotes.tsx')
+          s=p.read_text()
+          s=s.replace('interface Note { id: string; note_no: string; note_type: NoteType; note_date: string; party_name: string; reason: string; total: number; sales_order_id: string | null; purchase_order_id: string | null; }','interface Note { id: string; note_no: string; note_type: NoteType; note_date: string; party_name: string; reason: string; subtotal?: number; tax_total?: number; total: number; sales_order_id: string | null; purchase_order_id: string | null; }')
+          s=s.replace('.select("id,note_no,note_type,note_date,party_name,reason,total,sales_order_id,purchase_order_id")','.select("id,note_no,note_type,note_date,party_name,reason,subtotal,tax_total,total,sales_order_id,purchase_order_id")')
+          start=s.index('  function printNote(note: Note) {')
+          end=s.index('\n\n  if (loading)', start)
+          new=r'''  async function printNote(note: Note) {
+    const source = orders.find((order) => order.id === (note.sales_order_id ?? note.purchase_order_id));
+    const { data: detailLines } = await supabase.from("return_note_lines").select("qty,rate,tax_percent,item:items(name)").eq("return_note_id", note.id);
+    const { data: company } = await supabase.from("company_settings").select("*").maybeSingle();
+    const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]!));
+    const subtotal = Number(note.subtotal ?? (detailLines ?? []).reduce((a:any,l:any)=>a+Number(l.qty)*Number(l.rate),0));
+    const tax = Number(note.tax_total ?? (detailLines ?? []).reduce((a:any,l:any)=>a+Number(l.qty)*Number(l.rate)*Number(l.tax_percent||0)/100,0));
+    const isTax = tax > 0.005;
+    const rows=(detailLines ?? []).map((l:any,i:number)=>{const net=Number(l.qty)*Number(l.rate);const vat=net*Number(l.tax_percent||0)/100;return `<tr><td>${i+1}</td><td>${esc(l.item?.name ?? "Item")}</td><td class="r">${esc(l.qty)}</td><td class="r">${money(Number(l.rate))}</td><td class="r">${money(net)}</td><td class="r">${Number(l.tax_percent||0).toFixed(2)}%</td><td class="r">${money(vat)}</td><td class="r"><b>${money(net+vat)}</b></td></tr>`}).join("");
+    const qrPayload=isTax ? `NAVILO|${note.note_no}|${source?.order_no ?? ""}|${note.note_date}|${note.party_name}|VAT:${tax.toFixed(2)}|TOTAL:${Number(note.total).toFixed(2)}` : "";
+    const qrUrl=isTax ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrPayload)}` : "";
+    const popup = window.open("", "_blank", "width=1100,height=800"); if (!popup) return;
+    popup.document.write(`<html><head><title>${esc(note.note_no)}</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#172033;margin:0}.doc{max-width:190mm;margin:auto}.head{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #173a5e;padding-bottom:12px}.brand h2{margin:0;color:#173a5e;font-size:22px}.brand div{margin-top:4px;color:#475569}.title{text-align:right}.title h1{font-size:20px;margin:0;color:#173a5e}.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}.box{border:1px solid #d8dee8;border-radius:6px;padding:10px}.label{font-size:10px;text-transform:uppercase;color:#64748b}.value{font-weight:700;margin-top:3px}table{width:100%;border-collapse:collapse}th{background:#eef3f8;color:#173a5e;text-align:left;padding:8px;border:1px solid #d8dee8}td{padding:8px;border:1px solid #e1e6ed}.r{text-align:right}.summary{margin:14px 0 0 auto;width:310px}.summary td{border:none;border-bottom:1px solid #e5e7eb}.grand{font-size:16px;font-weight:800;color:#173a5e}.reason{margin-top:18px;padding:10px;border:1px solid #d8dee8}.footer{display:flex;justify-content:space-between;align-items:flex-end;margin-top:28px;padding-top:12px;border-top:1px solid #cbd5e1;color:#64748b}.qr{text-align:center;font-size:9px;color:#475569}.qr img{width:90px;height:90px;display:block;margin:auto}.tax-badge{display:inline-block;margin-top:5px;padding:3px 7px;border:1px solid #173a5e;border-radius:12px;font-size:10px;color:#173a5e}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body><div class="doc"><div class="head"><div class="brand"><h2>${esc((company as any)?.name ?? "NAVILO")}</h2><div>${esc((company as any)?.address ?? "")}</div><div>${esc((company as any)?.tax_id ?? (company as any)?.ntn ?? "")}</div></div><div class="title"><h1>${note.note_type === "sales_credit" ? "SALES CREDIT NOTE" : "PURCHASE DEBIT NOTE"}</h1><div><b>${esc(note.note_no)}</b></div><div>${esc(formatDate(note.note_date))}</div>${isTax?'<span class="tax-badge">TAX ADJUSTMENT</span>':''}</div></div><div class="meta"><div class="box"><div class="label">Party</div><div class="value">${esc(note.party_name)}</div></div><div class="box"><div class="label">Original Invoice</div><div class="value">${esc(source?.order_no ?? "—")}</div></div></div><table><thead><tr><th>#</th><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Net</th><th class="r">VAT %</th><th class="r">VAT</th><th class="r">Total</th></tr></thead><tbody>${rows || '<tr><td colspan="8">No line details available.</td></tr>'}</tbody></table><table class="summary"><tr><td>Net Amount</td><td class="r">${money(subtotal)}</td></tr><tr><td>VAT</td><td class="r">${money(tax)}</td></tr><tr class="grand"><td>Total Adjustment</td><td class="r">${money(Number(note.total))}</td></tr></table><div class="reason"><span class="label">Reason</span><div class="value">${esc(note.reason)}</div></div><div class="footer"><div>System-posted document. Accounting and stock entries are linked to this note.</div>${isTax?`<div class="qr"><img src="${qrUrl}"/><div>Tax document QR</div></div>`:''}</div></div><script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`);
+    popup.document.close();
+  }'''
+          s=s[:start]+new+s[end:]
+          s=s.replace('<div className="navilo-report-title font-semibold">Posted Credit / Debit Notes</div>','<div className="navilo-report-title font-semibold">{type === "sales_credit" ? "Posted Sales Credit Notes" : "Posted Purchase Debit Notes"}</div>')
+          p.write_text(s)
+          PY
+      - run: npm run build
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/modules/accounting/ReturnNotes.tsx
+          git diff --cached --quiet || git commit -m "Upgrade credit debit note print and tax QR"
+          git push origin main
