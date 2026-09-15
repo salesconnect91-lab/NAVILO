@@ -20,6 +20,7 @@ import "./printPreviewIsolation.css";
 import "./orderBook.css";
 import "./accountingStatements.css";
 import "./erpProfessionalSystem.css";
+import "./invoiceEntryColumnWidths.css";
 import "./naviloProfessionalReports.css";
 import "./documentLanguage.css";
 
