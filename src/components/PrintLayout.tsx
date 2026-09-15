@@ -92,12 +92,19 @@ function urduTitle(title: string) {
   if (title === "Tax Invoice") return "ٹیکس انوائس";
   if (title === "Purchase Invoice") return "خریداری انوائس";
   if (title === "Purchase Tax Invoice") return "خریداری ٹیکس انوائس";
-  if (title === "Unbilled Dispatch") return "حوالہ ڈسپیچ";
   return "دستاویز";
 }
 
 function normalize(value?: string | null) {
   return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function cleanCompanyTaxId(value?: string | null) {
+  return String(value || "")
+    .replace(/\bNTN\s*:\s*/gi, "")
+    .replace(/\bSTRN\s*:\s*/gi, "")
+    .replace(/^\s*NTN\s*\/\s*STRN\s*\/[^:]*:\s*/i, "")
+    .trim();
 }
 
 function documentLanguageState() {
@@ -238,14 +245,18 @@ export default function PrintLayout({
   const effectivePayment = paymentSummary ?? livePaymentSummary ?? draftFallback;
   const itemVat = useMemo(() => items.reduce((sum, item) => sum + n(item.taxAmount), 0), [items]);
   const chargeVat = Math.max(n(taxAmount) - itemVat, 0);
+  const consolidatedTotal = hawalaDocuments.reduce((sum, row) => sum + n(row.amount), 0);
+  const beforeDiscount = n(itemsTotal) + n(chargesTotal) + n(taxAmount) + consolidatedTotal;
+  const inferredDiscount = Math.max(beforeDiscount - n(grandTotal), 0);
+  const cleanTaxId = cleanCompanyTaxId(company.taxId);
   const itemGridClass = showTaxSummary ? "invoice-items-grid invoice-items-grid-tax" : "invoice-items-grid invoice-items-grid-no-tax";
   const itemGridStyle = {
     gridTemplateColumns: showTaxSummary
-      ? "24px minmax(165px,1.15fr) minmax(135px,0.95fr) 68px 88px 86px 104px"
-      : "24px minmax(190px,1.2fr) minmax(150px,1fr) 72px 96px 112px",
+      ? "24px minmax(165px,1.15fr) minmax(135px,0.95fr) 76px 88px 86px 104px"
+      : "24px minmax(190px,1.2fr) minmax(150px,1fr) 80px 96px 112px",
   };
   const partyLabel = isPurchase ? "Supplier / سپلائر" : "Bill To / گاہک";
-  const qrPayload = JSON.stringify({ company: company.name || "", taxId: company.taxId || "", documentType: voucherTitle, documentNo: voucherNo, documentDate: voucherDate, party: party.name, amount: n(grandTotal).toFixed(2), tax: n(taxAmount).toFixed(2) });
+  const qrPayload = JSON.stringify({ company: company.name || "", taxId: cleanTaxId, documentType: voucherTitle, documentNo: voucherNo, documentDate: voucherDate, party: party.name, amount: n(grandTotal).toFixed(2), tax: n(taxAmount).toFixed(2) });
   const duplicateEnglishHeader = normalize(documentHeader) && normalize(documentHeader) === normalize(company.name);
   const visibleEnglishHeader = showEnglishText && documentHeader && !duplicateEnglishHeader ? documentHeader : null;
   const visibleUrduHeader = showUrduText ? documentHeaderUrdu : null;
@@ -260,7 +271,7 @@ export default function PrintLayout({
           {showCompanyName && company.name && (!showLogo || !company.logoUrl) && <h1 className="print-company-name">{company.name}</h1>}
           {showAddress && company.address && <p className="print-company-addr">{company.address}</p>}
           {showPhoneEmail && (company.phone || company.email) && <p className="print-company-addr">{[company.phone ? `Phone / فون: ${company.phone}` : "", company.email || ""].filter(Boolean).join(" · ")}</p>}
-          {showTaxDetails && company.taxId && <p className="print-company-tax">NTN / STRN / ٹیکس نمبر: {company.taxId}</p>}
+          {showTaxDetails && cleanTaxId && <p className="print-company-tax">NTN / STRN / ٹیکس نمبر: {cleanTaxId}</p>}
         </div>
       </div>
       <div className="print-voucher-title-box" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
@@ -294,20 +305,20 @@ export default function PrintLayout({
         const baseAmount = n(item.qty) * n(item.unitPrice);
         return <div key={index} className={`${itemGridClass} invoice-items-row`} style={itemGridStyle}>
           <div className="invoice-center">{index + 1}</div>
-          <div className="invoice-item-name"><div>{item.name}</div>{(item.hsCode || item.unit) && <div className="invoice-item-description">{[item.hsCode ? `HS: ${item.hsCode}` : "", item.unit ? `UOM: ${item.unit}` : ""].filter(Boolean).join(" · ")}</div>}</div>
+          <div className="invoice-item-name"><div>{item.name}</div>{item.hsCode && <div className="invoice-item-description">HS: {item.hsCode}</div>}</div>
           <div className="invoice-item-description" style={{ color: item.description ? "#334155" : "#94a3b8", fontStyle: item.description ? "normal" : "italic" }}>{item.description || "—"}</div>
-          <div className="invoice-num">{item.qty}</div><div className="invoice-num">{formatCurrency(item.unitPrice)}</div>
+          <div className="invoice-num">{item.qty}{item.unit ? ` ${item.unit}` : ""}</div><div className="invoice-num">{formatCurrency(item.unitPrice)}</div>
           {showTaxSummary && <div className="invoice-num invoice-vat-col"><div>{formatCurrency(item.taxAmount || 0)}</div><div className="invoice-tax-rate">{item.taxPercent || 0}%</div></div>}
           <div className="invoice-num invoice-amount-col">{formatCurrency(baseAmount || item.lineTotal)}</div>
         </div>;
       })}
     </div>
 
-    {hawalaDocuments.length > 0 && <div style={{ marginTop: 12, border: "1px solid #cbd5e1", borderRadius: 4, overflow: "hidden", breakInside: "avoid" }}>
-      <div style={{ padding: "7px 9px", background: "#f1f5f9", borderBottom: "1px solid #cbd5e1" }}><div style={{ fontSize: 11, fontWeight: 700, color: "#0f172a" }}>Unbilled Dispatch Details / حوالہ تفصیل</div><div style={{ marginTop: 2, fontSize: 10, color: "#64748b" }}>Unbilled dispatch documents included in this Sales Invoice / اس فروخت بل میں شامل حوالہ دستاویزات</div></div>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}><thead><tr style={{ background: "#f8fafc" }}><th style={{ padding: 5, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Dispatch No.</th><th style={{ padding: 5, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Date</th><th style={{ padding: 5, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Reference Name</th><th style={{ padding: 5, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Reference No.</th><th style={{ padding: 5, borderBottom: "1px solid #cbd5e1", textAlign: "right" }}>Amount</th></tr></thead>
-      <tbody>{hawalaDocuments.map((row) => <tr key={row.id}><td style={{ padding: 5, borderBottom: "1px solid #e2e8f0", fontWeight: 600 }}>{row.invoiceNo}</td><td style={{ padding: 5, borderBottom: "1px solid #e2e8f0" }}>{row.invoiceDate ? formatDate(row.invoiceDate) : "—"}</td><td style={{ padding: 5, borderBottom: "1px solid #e2e8f0" }}>{row.referenceName || "—"}</td><td style={{ padding: 5, borderBottom: "1px solid #e2e8f0" }}>{row.referenceNo || "—"}</td><td style={{ padding: 5, borderBottom: "1px solid #e2e8f0", textAlign: "right", fontWeight: 600 }}>{formatCurrency(row.amount)}</td></tr>)}</tbody>
-      <tfoot><tr style={{ background: "#f8fafc" }}><td colSpan={4} style={{ padding: 6, textAlign: "right", fontWeight: 700 }}>Unbilled Dispatch Total / کل حوالہ رقم</td><td style={{ padding: 6, textAlign: "right", fontWeight: 700 }}>{formatCurrency(hawalaDocuments.reduce((sum, row) => sum + n(row.amount), 0))}</td></tr></tfoot></table>
+    {hawalaDocuments.length > 0 && <div className="print-consolidated-box" style={{ marginTop: 12, border: "1px solid #cbd5e1", borderRadius: 6, overflow: "hidden", breakInside: "avoid" }}>
+      <div className="print-section-heading" style={{ padding: "8px 10px", background: "#eef6ff", borderBottom: "1px solid #cbd5e1" }}><div style={{ fontSize: 11, fontWeight: 800, color: "#0f3d6e" }}>Consolidated Invoice Details</div><div style={{ marginTop: 2, fontSize: 10, color: "#64748b" }}>Previously dispatched consolidated documents included in this invoice.</div></div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}><thead><tr style={{ background: "#f8fafc" }}><th style={{ padding: 6, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Invoice No.</th><th style={{ padding: 6, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Date</th><th style={{ padding: 6, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Reference Name</th><th style={{ padding: 6, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Reference No.</th><th style={{ padding: 6, borderBottom: "1px solid #cbd5e1", textAlign: "right" }}>Amount</th></tr></thead>
+      <tbody>{hawalaDocuments.map((row) => <tr key={row.id}><td style={{ padding: 6, borderBottom: "1px solid #e2e8f0", fontWeight: 700 }}>{row.invoiceNo}</td><td style={{ padding: 6, borderBottom: "1px solid #e2e8f0" }}>{row.invoiceDate ? formatDate(row.invoiceDate) : "—"}</td><td style={{ padding: 6, borderBottom: "1px solid #e2e8f0" }}>{row.referenceName || "—"}</td><td style={{ padding: 6, borderBottom: "1px solid #e2e8f0" }}>{row.referenceNo || "—"}</td><td style={{ padding: 6, borderBottom: "1px solid #e2e8f0", textAlign: "right", fontWeight: 700 }}>{formatCurrency(row.amount)}</td></tr>)}</tbody>
+      <tfoot><tr style={{ background: "#f8fafc" }}><td colSpan={4} style={{ padding: 7, textAlign: "right", fontWeight: 800 }}>Consolidated Invoice Total</td><td style={{ padding: 7, textAlign: "right", fontWeight: 800 }}>{formatCurrency(consolidatedTotal)}</td></tr></tfoot></table>
     </div>}
 
     <div className="print-totals-section">
@@ -315,13 +326,14 @@ export default function PrintLayout({
       <div className="print-totals-side">
         <div className="print-total-row"><span>Items Total / آئٹمز کل</span><span>{formatCurrency(itemsTotal)}</span></div><div className="print-total-row"><span>Charges Total / کل چارجز</span><span>{formatCurrency(chargesTotal)}</span></div>
         {showTaxSummary && <><div className="print-total-row"><span>Items VAT / آئٹمز ٹیکس</span><span>{formatCurrency(itemVat)}</span></div>{chargeVat > 0 && <div className="print-total-row"><span>Charges VAT / چارجز ٹیکس</span><span>{formatCurrency(chargeVat)}</span></div>}<div className="print-total-row"><span>Total VAT / کل ٹیکس</span><span>{formatCurrency(taxAmount)}</span></div></>}
-        {hawalaDocuments.length > 0 && <><div className="print-total-row"><span>Normal Invoice Total / اصل انوائس رقم</span><span>{formatCurrency(normalInvoiceTotal ?? Math.max(grandTotal - hawalaDocuments.reduce((sum, row) => sum + n(row.amount), 0), 0))}</span></div><div className="print-total-row"><span>Unbilled Dispatch Total / کل حوالہ رقم</span><span>{formatCurrency(hawalaDocuments.reduce((sum, row) => sum + n(row.amount), 0))}</span></div></>}
+        {inferredDiscount > 0.005 && <><div className="print-total-row print-before-discount"><span>Total Before Discount</span><span>{formatCurrency(beforeDiscount - consolidatedTotal)}</span></div><div className="print-total-row print-discount-row"><span>Discount</span><span>- {formatCurrency(inferredDiscount)}</span></div></>}
+        {hawalaDocuments.length > 0 && <><div className="print-total-row"><span>Main Invoice Total</span><span>{formatCurrency(normalInvoiceTotal ?? Math.max(grandTotal - consolidatedTotal, 0))}</span></div><div className="print-total-row"><span>Consolidated Invoice Total</span><span>{formatCurrency(consolidatedTotal)}</span></div></>}
         <div className="print-total-row print-grand-total"><span>Grand Total / کل رقم</span><span>{formatCurrency(grandTotal)}</span></div>
       </div>
     </div>
 
     {effectivePayment && <div className="print-payment-summary" style={{ marginTop: 12, border: "1px solid #cbd5e1", padding: 10, breakInside: "avoid" }}>
-      <div style={{ fontWeight: 700, marginBottom: 7 }}>{isPurchase ? "Payment & Balance / ادائیگی اور بقایا" : "Receipt & Balance / وصولی اور بقایا"}</div>
+      <div style={{ fontWeight: 800, marginBottom: 7 }}>{isPurchase ? "Payment & Balance / ادائیگی اور بقایا" : "Receipt & Balance / وصولی اور بقایا"}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 7, fontSize: 10 }}>
         <div>Previous Balance / سابقہ بقایا<br/><strong>{formatCurrency(effectivePayment.previousBalance || 0)}</strong></div>
         <div>{isPurchase ? "Total Paid / کل ادائیگی" : "Total Received / کل وصولی"}<br/><strong>{formatCurrency(effectivePayment.totalReceived || 0)}</strong></div>
