@@ -17,7 +17,7 @@ const clean=(v:unknown)=>String(v??"").trim();
 const norm=(v:unknown)=>clean(v).toLowerCase();
 
 export default function Categories(){
- const[rows,setRows]=useState<Category[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false);
+ const[rows,setRows]=useState<Category[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[languageVersion,setLanguageVersion]=useState(0);
  const[error,setError]=useState<string|null>(null),[modalOpen,setModalOpen]=useState(false),[editing,setEditing]=useState<Category|null>(null),[deleteId,setDeleteId]=useState<string|null>(null),[form,setForm]=useState<CategoryForm>(EMPTY_FORM);
  const[search,setSearch]=useState(""),[translationFilter,setTranslationFilter]=useState("all"),[descriptionFilter,setDescriptionFilter]=useState("all");
  const[filtersOpen,setFiltersOpen]=useState(false),[importOpen,setImportOpen]=useState(false),[customizeOpen,setCustomizeOpen]=useState(false);
@@ -27,16 +27,20 @@ export default function Categories(){
  useEffect(()=>{void fetchCategories()},[fetchCategories]);
  useEffect(()=>{localStorage.setItem("navilo-categories-columns",JSON.stringify(columns))},[columns]);
  useEffect(()=>{const h=()=>setCustomizeOpen(true);window.addEventListener("navilo:report-customize",h);return()=>window.removeEventListener("navilo:report-customize",h)},[]);
+ useEffect(()=>{const h=()=>setLanguageVersion(v=>v+1);window.addEventListener("navilo-language-changed",h);window.addEventListener("navilo:language-changed",h);return()=>{window.removeEventListener("navilo-language-changed",h);window.removeEventListener("navilo:language-changed",h)}},[]);
+
+ const languageState=useMemo(()=>({mode:document.documentElement.dataset.languageMode||"single",primary:document.documentElement.dataset.primaryLanguage||"en"}),[languageVersion]);
+ const showUrdu=languageState.mode==="bilingual"||languageState.primary==="ur";
 
  const shown=useMemo(()=>rows.filter(r=>{
-   const matchesSearch=!search||[r.name,r.name_urdu,r.description].some(v=>norm(v).includes(norm(search)));
-   const matchesTranslation=translationFilter==="all"||(translationFilter==="available"?Boolean(clean(r.name_urdu)):!clean(r.name_urdu));
+   const matchesSearch=!search||[r.name,showUrdu?r.name_urdu:null,r.description].some(v=>norm(v).includes(norm(search)));
+   const matchesTranslation=!showUrdu||translationFilter==="all"||(translationFilter==="available"?Boolean(clean(r.name_urdu)):!clean(r.name_urdu));
    const matchesDescription=descriptionFilter==="all"||(descriptionFilter==="available"?Boolean(clean(r.description)):!clean(r.description));
    return matchesSearch&&matchesTranslation&&matchesDescription;
- }),[rows,search,translationFilter,descriptionFilter]);
- const activeFilterCount=[translationFilter!=="all",descriptionFilter!=="all"].filter(Boolean).length;
- const visible=(key:ColumnKey)=>columns[key];
- const visibleCount=Math.max(1,Object.values(columns).filter(Boolean).length);
+ }),[rows,search,translationFilter,descriptionFilter,showUrdu]);
+ const activeFilterCount=[showUrdu&&translationFilter!=="all",descriptionFilter!=="all"].filter(Boolean).length;
+ const visible=(key:ColumnKey)=>columns[key]&&(key!=="urdu"||showUrdu);
+ const visibleCount=Math.max(1,(Object.keys(columns) as ColumnKey[]).filter(visible).length);
 
  const openCreate=()=>{setEditing(null);setForm(EMPTY_FORM);setError(null);setModalOpen(true)};
  const openEdit=(r:Category)=>{setEditing(r);setForm({name:r.name,name_urdu:r.name_urdu??"",description:r.description??""});setError(null);setModalOpen(true)};
@@ -50,7 +54,7 @@ export default function Categories(){
 
  return <div className="space-y-4">
    <div className="flex flex-wrap items-start justify-between gap-3" data-no-print data-no-export>
-     <div><h1 className="text-2xl font-bold">Categories</h1><p className="text-sm text-slate-500">Central item categories with bilingual names used across NAVILO.</p></div>
+     <div><h1 className="text-2xl font-bold">Categories</h1><p className="text-sm text-slate-500">Central item categories used across NAVILO.</p></div>
      <div className="flex flex-wrap gap-2">
        <span className="contents" data-navilo-standard-toolbar-host/>
        <button type="button" className="btn-secondary" onClick={()=>setFiltersOpen(v=>!v)}><Filter className="h-4 w-4"/>Filters{activeFilterCount?` (${activeFilterCount})`:""}</button>
@@ -62,9 +66,9 @@ export default function Categories(){
    {error&&<ErrorBanner message={error}/>} 
 
    <div className="space-y-3" data-no-print data-no-export>
-     <label className="relative block min-w-0"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/><input className="h-10 w-full rounded-md border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search category, Urdu name or description..."/></label>
+     <label className="relative block min-w-0"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/><input className="h-10 w-full rounded-md border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" value={search} onChange={e=>setSearch(e.target.value)} placeholder={showUrdu?"Search category, Urdu name or description...":"Search category or description..."}/></label>
      {filtersOpen&&<div className="grid gap-3 rounded-xl border bg-white p-4 md:grid-cols-3">
-       <div><label className="label">Urdu Translation</label><SearchableSelect className="input" value={translationFilter} onChange={e=>setTranslationFilter(e.target.value)}><option value="all">All Categories</option><option value="available">Translation Available</option><option value="missing">Translation Missing</option></SearchableSelect></div>
+       {showUrdu&&<div><label className="label">Urdu Translation</label><SearchableSelect className="input" value={translationFilter} onChange={e=>setTranslationFilter(e.target.value)}><option value="all">All Categories</option><option value="available">Translation Available</option><option value="missing">Translation Missing</option></SearchableSelect></div>}
        <div><label className="label">Description</label><SearchableSelect className="input" value={descriptionFilter} onChange={e=>setDescriptionFilter(e.target.value)}><option value="all">All</option><option value="available">With Description</option><option value="missing">Without Description</option></SearchableSelect></div>
        <div className="flex items-end"><button type="button" className="btn-secondary w-full justify-center" onClick={clearFilters}>Clear Filters</button></div>
      </div>}
@@ -73,7 +77,7 @@ export default function Categories(){
    <section data-report-content className="space-y-3 rounded-xl bg-white print:shadow-none">
      <div className="border-b border-slate-200 px-4 py-4">
        <div className="navilo-report-title text-xl font-bold text-slate-900">Categories Master</div>
-       <div className="mt-1 text-xs text-slate-500">{shown.length} categor{shown.length===1?"y":"ies"} • {translationFilter==="all"?"All translations":translationFilter==="available"?"Urdu available":"Urdu missing"} • {descriptionFilter==="all"?"All descriptions":descriptionFilter==="available"?"With description":"Without description"}</div>
+       <div className="mt-1 text-xs text-slate-500">{shown.length} categor{shown.length===1?"y":"ies"}{showUrdu?` • ${translationFilter==="all"?"All translations":translationFilter==="available"?"Urdu available":"Urdu missing"}`:""} • {descriptionFilter==="all"?"All descriptions":descriptionFilter==="available"?"With description":"Without description"}</div>
        {search&&<div className="mt-1 text-xs text-slate-500">Search: {search}</div>}
      </div>
      <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50"><tr>
@@ -88,9 +92,9 @@ export default function Categories(){
 
    {importOpen&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 p-4" data-no-print data-no-export><div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"><div className="flex items-center justify-between"><div><h2 className="text-lg font-bold">Import Categories</h2><p className="text-sm text-slate-500">Download the NAVILO template, complete it, then choose the file.</p></div><button type="button" onClick={()=>setImportOpen(false)}><X className="h-5 w-5"/></button></div><div className="mt-5 grid gap-3"><button type="button" className="btn-secondary justify-center" onClick={downloadTemplate}><Download className="h-4 w-4"/>Download Template</button><label className="btn-primary cursor-pointer justify-center"><Upload className="h-4 w-4"/>Choose File<input hidden type="file" accept=".xlsx,.xls,.csv" onChange={importExcel}/></label><p className="text-xs text-slate-500">Accepted: .xlsx, .xls, .csv. Duplicate category names are blocked.</p></div></div></div>}
 
-   {customizeOpen&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 p-4" data-no-print data-no-export><div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-xl"><div className="flex items-center justify-between"><div><h2 className="text-lg font-bold">Customize Categories View</h2><p className="text-sm text-slate-500">Visible columns are also used by Print and Export.</p></div><button type="button" onClick={()=>setCustomizeOpen(false)}><X className="h-5 w-5"/></button></div><div className="mt-4 grid gap-2 sm:grid-cols-2">{(Object.keys(COLUMN_LABELS) as ColumnKey[]).map(key=><label key={key} className="flex items-center gap-2 rounded-lg border px-3 py-2"><input type="checkbox" checked={columns[key]} onChange={e=>setColumns(v=>({...v,[key]:e.target.checked}))}/><span>{COLUMN_LABELS[key]}</span></label>)}</div><div className="mt-5 flex justify-between"><button type="button" className="btn-secondary" onClick={()=>setColumns(DEFAULT_COLUMNS)}>Reset Default</button><button type="button" className="btn-primary" onClick={()=>setCustomizeOpen(false)}>Done</button></div></div></div>}
+   {customizeOpen&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 p-4" data-no-print data-no-export><div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-xl"><div className="flex items-center justify-between"><div><h2 className="text-lg font-bold">Customize Categories View</h2><p className="text-sm text-slate-500">Visible columns are also used by Print and Export.</p></div><button type="button" onClick={()=>setCustomizeOpen(false)}><X className="h-5 w-5"/></button></div><div className="mt-4 grid gap-2 sm:grid-cols-2">{(Object.keys(COLUMN_LABELS) as ColumnKey[]).filter(key=>key!=="urdu"||showUrdu).map(key=><label key={key} className="flex items-center gap-2 rounded-lg border px-3 py-2"><input type="checkbox" checked={columns[key]} onChange={e=>setColumns(v=>({...v,[key]:e.target.checked}))}/><span>{COLUMN_LABELS[key]}</span></label>)}</div><div className="mt-5 flex justify-between"><button type="button" className="btn-secondary" onClick={()=>setColumns(DEFAULT_COLUMNS)}>Reset Default</button><button type="button" className="btn-primary" onClick={()=>setCustomizeOpen(false)}>Done</button></div></div></div>}
 
-   <Modal open={modalOpen} title={editing?"Edit Category":"Add Category"} onClose={closeModal}><form onSubmit={submit} className="space-y-4"><div><label className="label">Category Name (English)</label><input className="input" required autoFocus value={form.name} onChange={e=>setForm(c=>({...c,name:e.target.value,name_urdu:(!c.name_urdu||c.name_urdu===toUrduName(c.name))?toUrduName(e.target.value):c.name_urdu}))}/></div><div><div className="flex items-center justify-between"><label className="label">Urdu Name</label><button type="button" className="text-xs font-semibold text-primary-600" onClick={()=>setForm(c=>({...c,name_urdu:toUrduName(c.name)}))}>Auto Urdu</button></div><input className="input text-right" dir="rtl" value={form.name_urdu} onChange={e=>setForm(c=>({...c,name_urdu:e.target.value}))}/></div><div><label className="label">Description</label><input className="input" value={form.description} onChange={e=>setForm(c=>({...c,description:e.target.value}))}/></div><div className="flex justify-end gap-3"><button type="button" onClick={closeModal} disabled={saving} className="btn-secondary">Cancel</button><button type="submit" disabled={saving} className="btn-primary">{saving?"Saving...":editing?"Save Changes":"Save Category"}</button></div></form></Modal>
+   <Modal open={modalOpen} title={editing?"Edit Category":"Add Category"} onClose={closeModal}><form onSubmit={submit} className="space-y-4"><div><label className="label">Category Name (English)</label><input className="input" required autoFocus value={form.name} onChange={e=>setForm(c=>({...c,name:e.target.value,name_urdu:(!c.name_urdu||c.name_urdu===toUrduName(c.name))?toUrduName(e.target.value):c.name_urdu}))}/></div>{showUrdu&&<div><div className="flex items-center justify-between"><label className="label">Urdu Name</label><button type="button" className="text-xs font-semibold text-primary-600" onClick={()=>setForm(c=>({...c,name_urdu:toUrduName(c.name)}))}>Auto Urdu</button></div><input className="input text-right" dir="rtl" value={form.name_urdu} onChange={e=>setForm(c=>({...c,name_urdu:e.target.value}))}/></div>}<div><label className="label">Description</label><input className="input" value={form.description} onChange={e=>setForm(c=>({...c,description:e.target.value}))}/></div><div className="flex justify-end gap-3"><button type="button" onClick={closeModal} disabled={saving} className="btn-secondary">Cancel</button><button type="submit" disabled={saving} className="btn-primary">{saving?"Saving...":editing?"Save Changes":"Save Category"}</button></div></form></Modal>
    <ConfirmModal open={!!deleteId} title="Delete Category" message="Are you sure? Categories already used by items may be protected by database relationships." onConfirm={del} onCancel={()=>setDeleteId(null)}/>
  </div>;
 }
