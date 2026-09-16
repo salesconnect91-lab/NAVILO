@@ -38,6 +38,7 @@ import OrderBook from "@/modules/orders/OrderBook";
 import OwnerPanel from "@/modules/platform/OwnerPanel";
 import OpeningBalanceMigration from "@/modules/platform/OpeningBalanceMigration";
 import TransportWorkspace from "@/modules/transport/TransportWorkspace";
+import PreInvoiceWorkspace from "@/modules/commercial/PreInvoiceWorkspace";
 
 function OwnerOnly({ children }: { children?: ReactNode }) {
   const { isPlatformOwner } = useAuth();
@@ -114,6 +115,7 @@ export default function App() {
       <Route path="/sales/charges" element={<ModuleOnly module="master"><ChargeMaster /></ModuleOnly>} />
       <Route path="/sales/consolidated" element={<ModuleOnly module="sales"><ConsolidatedInvoices /></ModuleOnly>} />
       <Route path="/sales/order-book" element={<ModuleOnly module="sales"><OrderBook type="sales" /></ModuleOnly>} />
+      <Route path="/sales/workflow" element={<ModuleOnly module="sales"><PreInvoiceWorkspace side="sales" /></ModuleOnly>} />
       <Route path="/sales/:id" element={<ModuleOnly module="sales"><SalesInvoiceDetail /></ModuleOnly>} />
       <Route path="/purchase/*" element={<ModuleOnly module="purchase"><Purchase /></ModuleOnly>} />
       <Route path="/godown/*" element={<ModuleOnly module="inventory"><Godown /></ModuleOnly>} />
