@@ -41,6 +41,7 @@ export const FEATURE_REGISTRY: FeatureDefinition[] = [
   { key:"purchase-workflow", module:"purchase", label:"Requisition to GRN", category:"transaction", route:"/purchase/workflow", actions:operational, sortOrder:305 },
   { key:"current-stock", module:"inventory", label:"Current Stock", category:"transaction", route:"/godown", actions:["view","print","export"], sortOrder:400 },
   { key:"stock-movements", module:"inventory", label:"Stock Movements", category:"transaction", route:"/godown/movements", actions:operational, sortOrder:410 },
+  { key:"inventory-advanced", module:"inventory", label:"Inventory Advanced Controls", category:"control", route:"/godown/advanced", actions:operational, sortOrder:415 },
   { key:"work-orders", module:"production", label:"Work Orders", category:"transaction", route:"/production", actions:operational, businessUnitTypes:["steel"], sortOrder:500 },
   { key:"manufacturing-core", module:"production", label:"Manufacturing Core", category:"transaction", route:"/production/core", actions:operational, businessUnitTypes:["steel"], sortOrder:505 },
   { key:"furnace-yield", module:"production", label:"Furnace Yield", category:"transaction", route:"/production/yields", actions:operational, businessUnitTypes:["steel"], sortOrder:510 },
