@@ -28,6 +28,11 @@ function looksLikeBusinessCode(value: string): boolean {
 
 function displayLabel(raw: string): string {
   const value = raw.replace(/\s+/g, " ").trim();
+  const separatedParts = value.split(/\s+(?:—|–|·|\|)\s+/).map(part => part.trim()).filter(Boolean);
+  if (separatedParts.length > 1) {
+    if (looksLikeBusinessCode(separatedParts[0])) return separatedParts.slice(1).join(" — ");
+    if (looksLikeBusinessCode(separatedParts[separatedParts.length - 1])) return separatedParts.slice(0, -1).join(" — ");
+  }
   const leadingCode = value.match(/^([A-Za-z0-9][A-Za-z0-9._/#()]*?(?:-[A-Za-z0-9._/#()]+)*)\s+(?:—|–|-|·|\||:)\s+(.+)$/);
   if (leadingCode) {
     const prefix = leadingCode[1];
