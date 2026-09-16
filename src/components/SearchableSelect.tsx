@@ -1,4 +1,5 @@
 import { Children, isValidElement, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown, Search } from "lucide-react";
 import type { ChangeEvent, ReactElement, ReactNode, SelectHTMLAttributes } from "react";
 
@@ -98,6 +99,19 @@ export default function SearchableSelect({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  const positionDropdown = () => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const availableBelow = window.innerHeight - rect.bottom - 8;
+    const openAbove = availableBelow < 220 && rect.top > availableBelow;
+    const estimatedHeight = Math.min(288, 53 + options.length * 36);
+    setDropdownPosition({
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - Math.max(rect.width, 180) - 8)),
+      top: openAbove ? Math.max(8, rect.top - estimatedHeight - 4) : rect.bottom + 4,
+      width: Math.max(rect.width, 180),
+    });
+  };
+
   const closeDropdown = () => {
     setOpen(false);
     setQuery("");
@@ -105,9 +119,7 @@ export default function SearchableSelect({
   };
 
   const openDropdown = () => {
-    const rect = rootRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setDropdownPosition({ left: rect.left, top: rect.bottom + 4, width: rect.width });
+    positionDropdown();
     setOpen(true);
     setQuery("");
     requestAnimationFrame(() => inputRef.current?.focus());
@@ -124,14 +136,18 @@ export default function SearchableSelect({
 
   useEffect(() => {
     if (!open) return;
-    const closeOnViewportChange = () => closeDropdown();
-    window.addEventListener("resize", closeOnViewportChange);
-    window.addEventListener("scroll", closeOnViewportChange, true);
-    return () => {
-      window.removeEventListener("resize", closeOnViewportChange);
-      window.removeEventListener("scroll", closeOnViewportChange, true);
+    const reposition = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-navilo-searchable-dropdown]")) return;
+      positionDropdown();
     };
-  }, [open]);
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [open, options.length]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase();
@@ -171,11 +187,14 @@ export default function SearchableSelect({
         <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
-      {open && dropdownPosition && (
+      {open && dropdownPosition && createPortal(
         <div
           data-navilo-searchable-dropdown
-          className="fixed z-[9999] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl"
+          className="fixed z-[2147483000] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl"
           style={{ left: dropdownPosition.left, top: dropdownPosition.top, width: dropdownPosition.width }}
+          onKeyDown={event => {
+            if (event.key === "Escape") closeDropdown();
+          }}
         >
           <div className="border-b border-slate-100 p-2">
             <div className="flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-2 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500">
@@ -183,7 +202,7 @@ export default function SearchableSelect({
               <input ref={inputRef} value={query} onChange={event => setQuery(event.target.value)} placeholder={searchPlaceholder} className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-slate-400" autoComplete="off" />
             </div>
           </div>
-          <div role="listbox" className="max-h-60 overflow-auto p-1">
+          <div role="listbox" className="max-h-60 overscroll-contain overflow-y-auto p-1" onWheel={event => event.stopPropagation()}>
             {filtered.length ? filtered.map(option => (
               <button key={`${option.value}-${option.searchText}`} type="button" role="option" aria-selected={option.value === selectedValue} disabled={option.disabled} onMouseDown={event => event.preventDefault()} onClick={() => commit(option.value)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
                 <span className="min-w-0 flex-1 break-words">{option.label || "—"}</span>
@@ -191,7 +210,8 @@ export default function SearchableSelect({
               </button>
             )) : <div className="px-3 py-4 text-center text-sm text-slate-500">{emptyText}</div>}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
       {name ? <input type="hidden" name={name} value={selectedValue} /> : null}
     </div>
