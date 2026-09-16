@@ -7,7 +7,6 @@ import {
   Plus,
   Printer,
   Search,
-  Trash2,
   Upload,
   X,
 } from "lucide-react";
@@ -205,29 +204,6 @@ export default function Employees() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const deleteEmployee = async (employee: Employee) => {
-    const ok = window.confirm(
-      `Delete employee "${employee.name}"? / کیا آپ "${employee.name}" کو حذف کرنا چاہتے ہیں؟`
-    );
-    if (!ok) return;
-
-    setError("");
-    setSuccess("");
-
-    const { error: deleteError } = await supabase
-      .from("employees")
-      .delete()
-      .eq("id", employee.id);
-
-    if (deleteError) {
-      setError(deleteError.message);
-      return;
-    }
-
-    setSuccess("Employee deleted / ملازم حذف ہوگیا۔");
-    await loadEmployees();
   };
 
   const toggleStatus = async (employee: Employee) => {
@@ -632,13 +608,6 @@ export default function Employees() {
                           onClick={() => openEdit(employee)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          className="btn"
-                          title="Delete"
-                          onClick={() => void deleteEmployee(employee)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </td>
