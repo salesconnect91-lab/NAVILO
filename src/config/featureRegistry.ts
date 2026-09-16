@@ -96,6 +96,7 @@ export const FEATURE_REGISTRY: FeatureDefinition[] = [
   { key:"gate-pass-report", module:"reports", label:"Gate Pass Report", category:"report", route:"/reports/gate-pass", actions:report, sortOrder:1270 },
   { key:"company-settings", module:"settings", label:"Company Settings", category:"settings", route:"/settings", actions:setup, sortOrder:1300 },
   { key:"access-settings", module:"settings", label:"Users & Branches", category:"settings", route:"/settings/access", description:"Company user, role, permission and branch access management.", actions:["view","create","edit","delete"], sortOrder:1305 },
+  { key:"approval-settings", module:"settings", label:"Approval Workflows", category:"settings", route:"/settings/approvals", description:"Maker-checker workflow, threshold and decision controls.", actions:["view","create","edit","delete","post"], sortOrder:1307 },
   { key:"tax-settings", module:"settings", label:"Tax Settings", category:"settings", route:"/settings/tax", actions:setup, sortOrder:1310 },
   { key:"document-settings", module:"settings", label:"Document & Print Settings", category:"settings", route:"/settings/documents", actions:setup, sortOrder:1320 },
   { key:"order-book-settings", module:"settings", label:"Order Book Settings", category:"settings", route:"/settings/order-book", actions:setup, sortOrder:1330 },
