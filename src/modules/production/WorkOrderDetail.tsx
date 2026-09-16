@@ -578,7 +578,6 @@ export default function WorkOrderDetail() {
             ? lines.map((line, index) => [
                 String(index + 1),
                 line.item?.name || "—",
-                line.item?.sku || "—",
                 String(line.qty),
               ])
             : [
@@ -794,11 +793,6 @@ export default function WorkOrderDetail() {
                     <td class="center">${index + 1}</td>
                     <td>
                       <strong>${safe(line.item?.name || "—")}</strong>
-                      ${
-                        line.item?.sku
-                          ? `<div class="muted">${safe(line.item.sku)}</div>`
-                          : ""
-                      }
                     </td>
                     <td class="right">${safe(line.qty)}</td>
                   </tr>
@@ -1493,7 +1487,7 @@ export default function WorkOrderDetail() {
 
                 {items.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.name} ({item.sku})
+                    {item.name}
                   </option>
                 ))}
               </SearchableSelect>
