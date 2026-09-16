@@ -23,9 +23,10 @@ function selectedLanguages() {
 }
 function specificLanguage(text: string): RuntimeLanguageCode | null {
   const value = text.trim().toLowerCase().replace(/\s+/g, " ");
-  if (!value || !/(name|translation|label|description|title)/i.test(value)) return null;
+  if (!value) return null;
+  const hasFieldHint = /(name|translation|label|description|title)/i.test(value);
   for (const [code, names] of Object.entries(LANGUAGE_NAMES) as [RuntimeLanguageCode, string[]][]) {
-    if (names.some((name) => value.includes(name))) return code;
+    if (names.some((name) => value.includes(name)) && (hasFieldHint || /[^\u0000-\u007f]/.test(value))) return code;
   }
   return null;
 }
