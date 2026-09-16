@@ -6,6 +6,7 @@ import { ErrorBanner, StatusBadge, formatCurrency, formatDate } from "@/componen
 import { exportToCSV, exportToExcel, triggerPrint } from "@/lib/exportUtils";
 import PrintLayout from "@/components/PrintLayout";
 import PurchaseDraftAddControls from "@/components/PurchaseDraftAddControls";
+import DocumentTraceability from "@/components/DocumentTraceability";
 
 type PurchaseOrder = {
   id: string;
@@ -370,6 +371,7 @@ export default function PurchaseInvoiceDetail() {
       </div>
 
       <div className="card mt-5 p-6"><h2 className="mb-4 font-bold text-slate-900">Invoice Summary</h2><div className="ml-auto max-w-md space-y-2 text-sm"><div className="flex justify-between"><span>Direct Items</span><span>{formatCurrency(directBase)}</span></div><div className="flex justify-between"><span>Linked Consolidated Items</span><span>{formatCurrency(linkedBase)}</span></div>{charges.map((charge) => <div key={charge.charge_key} className="flex justify-between text-slate-600"><span>{charge.charge_label}</span><span>{formatCurrency(n(charge.amount))}</span></div>)}<div className="flex justify-between"><span>Charges Total</span><span>{formatCurrency(chargeTotal)}</span></div>{isTax && <><div className="flex justify-between"><span>Items VAT</span><span>{formatCurrency(directVat + linkedVat)}</span></div><div className="flex justify-between"><span>Charges VAT</span><span>{formatCurrency(chargeVat)}</span></div><div className="flex justify-between font-semibold"><span>Total VAT</span><span>{formatCurrency(totalVat)}</span></div></>}<div className="flex justify-between border-t pt-3 text-lg font-bold"><span>Grand Total</span><span>{formatCurrency(n(order.total) || computedTotal)}</span></div><div className="flex justify-between text-slate-600"><span>Paid</span><span>{formatCurrency(n(order.paid_amount))}</span></div><div className="flex justify-between font-semibold"><span>Outstanding</span><span>{formatCurrency(outstanding)}</span></div></div></div>
+      <DocumentTraceability documentType="purchase_invoice" documentId={order.id} />
     </div>
 
     <div className="hidden print:block">
