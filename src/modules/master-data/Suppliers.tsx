@@ -268,7 +268,7 @@ export default function Suppliers() {
   };
 
   const columns: Column<SupplierRow>[] = [
-    { key: "name", label: "Name / نام", render: (r) => <div><div className="font-medium text-slate-900">{r.name}</div><div dir="rtl" className="text-sm text-slate-500">{r.name_urdu ?? "—"}</div></div> },
+    { key: "name", label: "Name / نام", render: (r) => <div data-business-data><div data-language-code="en" className="font-medium text-slate-900">{r.name}</div><div data-language-code="ur" dir="rtl" className="text-sm text-slate-500">{r.name_urdu ?? "—"}</div></div> },
     { key: "tax", label: "Tax Registration", render: (r) => <div><div className="font-medium capitalize">{r.tax_registration_status ?? "unregistered"}</div><div className="text-xs text-slate-500">{r.strn ? `STRN ${r.strn}` : r.ntn ? `NTN ${r.ntn}` : "—"}</div></div> },
     { key: "email", label: "Email / ای میل", render: (r) => r.email ?? "—" },
     { key: "phone", label: "Phone / فون", render: (r) => r.phone ?? "—" },
@@ -285,7 +285,7 @@ export default function Suppliers() {
     <Modal open={modalOpen} title={editing ? "Edit Supplier" : "New Supplier"} onClose={() => setModalOpen(false)}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div><label className="label">English Name</label><input className="input" required value={form.name} onChange={(e) => { const name = e.target.value; setForm((f) => ({ ...f, name, name_urdu: urduTouched ? f.name_urdu : toUrduName(name) })); }} /></div>
-        <div><div className="flex items-center justify-between"><label className="label">Urdu Name / اردو نام</label><button type="button" className="text-xs text-primary-600" onClick={() => { setUrduTouched(false); setForm((f) => ({ ...f, name_urdu: toUrduName(f.name) })); }}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.name_urdu} onChange={(e) => { setUrduTouched(true); setForm({ ...form, name_urdu: e.target.value }); }} placeholder="خودکار اردو نام" /></div>
+        <div data-language-code="ur"><div className="flex items-center justify-between"><label className="label">Urdu Name / اردو نام</label><button type="button" className="text-xs text-primary-600" onClick={() => { setUrduTouched(false); setForm((f) => ({ ...f, name_urdu: toUrduName(f.name) })); }}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.name_urdu} onChange={(e) => { setUrduTouched(true); setForm({ ...form, name_urdu: e.target.value }); }} placeholder="خودکار اردو نام" /></div>
         <div><label className="label">Email / ای میل</label><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
         <div><label className="label">Phone / فون</label><input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
         <div><label className="label">Address / پتہ</label><textarea className="input" rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
