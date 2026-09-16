@@ -31,6 +31,7 @@ import InvoiceFinancialSummary from "./InvoiceFinancialSummary";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
 import { userFacingError } from "@/lib/errorMessage";
+import DocumentTraceability from "@/components/DocumentTraceability";
 
 type LinkedHawalaPrintRow = {
   id: string;
@@ -392,6 +393,7 @@ export default function SalesInvoiceDetail() {
       )}
 
       <InvoiceFinancialSummary invoiceId={order.id} customerId={order.customer_id} onFinancialChange={setFinancial} />
+      <DocumentTraceability documentType="sales_invoice" documentId={order.id} />
 
       <section className="grid grid-cols-2 gap-2.5 lg:grid-cols-6">
         <Metric icon={<CalendarDays className="h-3 w-3" />} label="Invoice Date" value={formatDate(order.order_date)} />
