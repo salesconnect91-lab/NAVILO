@@ -43,6 +43,15 @@ function updateTable(table: HTMLTableElement, active: Set<RuntimeLanguageCode>) 
     for (const row of [...table.rows]) { const target = row.cells[index] as HTMLElement | undefined; if (target) setVisible(target, active.has(code)); }
   });
 }
+function languageFieldHost(label: HTMLLabelElement) {
+  const explicit = label.closest<HTMLElement>("[data-language-field]");
+  if (explicit) return explicit;
+  let candidate: HTMLElement | null = label.parentElement;
+  for (let depth = 0; candidate && depth < 3; depth += 1, candidate = candidate.parentElement) {
+    if (candidate.querySelector("input,textarea,select,[role='combobox']")) return candidate;
+  }
+  return label.parentElement;
+}
 function updateLanguageFields(root: ParentNode, active: Set<RuntimeLanguageCode>) {
   root.querySelectorAll<HTMLElement>("[data-language-code],[data-language]").forEach((element) => {
     const raw = element.dataset.languageCode || element.dataset.language || "";
@@ -52,7 +61,7 @@ function updateLanguageFields(root: ParentNode, active: Set<RuntimeLanguageCode>
   root.querySelectorAll<HTMLLabelElement>("label").forEach((label) => {
     const code = specificLanguage(label.textContent || "");
     if (!code) return;
-    const host = label.closest<HTMLElement>("[data-language-field]") || label.parentElement;
+    const host = languageFieldHost(label);
     if (host) setVisible(host, active.has(code));
   });
 
