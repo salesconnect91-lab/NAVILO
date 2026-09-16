@@ -41,7 +41,7 @@ export default function CompanySwitcher() {
           >
             {availableCompanies.map((company) => (
               <option key={company.company_id} value={company.company_id}>
-                {company.company_name} ({company.company_code})
+                {company.company_name}
               </option>
             ))}
           </SearchableSelect>
