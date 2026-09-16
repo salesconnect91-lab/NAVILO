@@ -103,7 +103,7 @@ export default function CuttingOrderList() {
             <label className="label">Item / آئٹم</label>
             <SearchableSelect className="input" value={form.item_id} onChange={(e) => setForm({ ...form, item_id: e.target.value })}>
               <option value="">— Select item —</option>
-              {items.map((i) => <option key={i.id} value={i.id}>{i.name} ({i.sku})</option>)}
+              {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
             </SearchableSelect>
           </div>
           <div className="grid grid-cols-2 gap-4">
