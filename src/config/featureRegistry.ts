@@ -42,6 +42,7 @@ export const FEATURE_REGISTRY: FeatureDefinition[] = [
   { key:"current-stock", module:"inventory", label:"Current Stock", category:"transaction", route:"/godown", actions:["view","print","export"], sortOrder:400 },
   { key:"stock-movements", module:"inventory", label:"Stock Movements", category:"transaction", route:"/godown/movements", actions:operational, sortOrder:410 },
   { key:"work-orders", module:"production", label:"Work Orders", category:"transaction", route:"/production", actions:operational, businessUnitTypes:["steel"], sortOrder:500 },
+  { key:"manufacturing-core", module:"production", label:"Manufacturing Core", category:"transaction", route:"/production/core", actions:operational, businessUnitTypes:["steel"], sortOrder:505 },
   { key:"furnace-yield", module:"production", label:"Furnace Yield", category:"transaction", route:"/production/yields", actions:operational, businessUnitTypes:["steel"], sortOrder:510 },
   { key:"cutting-orders", module:"production", label:"Cutting Orders", category:"transaction", route:"/cutting", actions:operational, businessUnitTypes:["steel"], sortOrder:520 },
   { key:"gate-pass", module:"production", label:"Gate Pass & Weighbridge", category:"transaction", route:"/cutting/gate-pass", actions:operational, businessUnitTypes:["steel"], sortOrder:530 },
