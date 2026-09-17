@@ -15,6 +15,8 @@ import CompanyDeleteControl from "./CompanyDeleteControl";
 import CoreAccountingControl from "./CoreAccountingControl";
 import OwnerOrderBookMigration from "./OwnerOrderBookMigration";
 import OwnerLanguageControl from "./OwnerLanguageControl";
+import CustomerOnboardingWizard from "./CustomerOnboardingWizard";
+import BillingLedgerControl from "./BillingLedgerControl";
 
 type Company = {
   id: string; name: string; code: string; status: string; subscription_expires_at: string | null; max_users: number;
@@ -124,6 +126,8 @@ export default function OwnerPanel() {
 
     <PlatformBrandingControl />
 
+    <CustomerOnboardingWizard onComplete={async()=>{await load();await refreshAccess();}} />
+
     <section className="rounded-xl border bg-white p-4 shadow-sm">
       <div className="mb-4 flex items-center gap-2"><Building2 className="h-5 w-5"/><div><h2 className="font-semibold">Company Management</h2><p className="text-xs text-slate-500">Create a tenant company and define its initial contact, expiry and user allowance.</p></div></div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -158,6 +162,7 @@ export default function OwnerPanel() {
     {selectedCompanyId && <BusinessUnitControl companyId={selectedCompanyId} onSaved={refreshAccess}/>} 
     {selectedCompanyId && <BusinessWorkspaceLoginControl companyId={selectedCompanyId}/>} 
     {selectedCompanyId && <SubscriptionControl companyId={selectedCompanyId} onSaved={async () => { await load(); await refreshAccess(); }}/>} 
+    {selectedCompanyId && <BillingLedgerControl companyId={selectedCompanyId}/>} 
     {selectedCompanyId && <OwnerLanguageControl companyId={selectedCompanyId}/>} 
     {selectedCompanyId && <CoreAccountingControl companyId={selectedCompanyId}/>} 
 
