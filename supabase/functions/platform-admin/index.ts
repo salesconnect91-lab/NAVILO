@@ -41,6 +41,83 @@ Deno.serve(async (request) => {
   const action = String(body.action || "");
 
   try {
+    if (action === "onboard_company") {
+      const name = String(body.name || "").trim();
+      const code = String(body.code || "").trim().toUpperCase();
+      const ownerEmail = String(body.owner_email || "").trim().toLowerCase();
+      const ownerName = String(body.owner_name || "").trim();
+      const password = String(body.password || "");
+      const planId = String(body.plan_id || "");
+      const unitName = String(body.business_unit_name || name).trim();
+      const unitCode = String(body.business_unit_code || code).trim().toUpperCase();
+      const branchName = String(body.branch_name || "Head Office").trim();
+      const branchCode = String(body.branch_code || "HO").trim().toUpperCase();
+      const status = body.status === "active" ? "active" : "trial";
+      const modules: string[] = Array.isArray(body.modules) ? [...new Set<string>(body.modules.map(String))] : [];
+      if (!name || !code || !ownerEmail || !planId || !unitName || !unitCode || !branchName || !branchCode) {
+        return json({ error: "Company, owner, plan, business unit and branch details are required." }, 400);
+      }
+      if (password.length < 8) return json({ error: "Temporary password must be at least 8 characters." }, 400);
+
+      const [{ data: duplicateCode }, { data: duplicateName }, { data: plan }] = await Promise.all([
+        admin.from("companies").select("id").eq("code",code).limit(1).maybeSingle(),
+        admin.from("companies").select("id").ilike("name",name).limit(1).maybeSingle(),
+        admin.from("subscription_plans").select("*").eq("id", planId).eq("is_active", true).single(),
+      ]);
+      if (duplicateCode || duplicateName) return json({ error: "A company with this name or code already exists." }, 409);
+      if (!plan) return json({ error: "Selected subscription plan is not active." }, 400);
+
+      const startsAt = new Date();
+      const requestedExpiry = body.expires_at ? new Date(String(body.expires_at)) : null;
+      const expiresAt = requestedExpiry && !Number.isNaN(requestedExpiry.getTime())
+        ? requestedExpiry
+        : new Date(startsAt.getTime() + (status === "trial" ? Number(plan.trial_days || 14) : (plan.billing_cycle === "yearly" ? 365 : 30)) * 86400000);
+      let companyId = "";
+      let userId = "";
+      try {
+        const { data: createdCompany, error: companyError } = await admin.from("companies").insert({
+          name, code, status, contact_email: ownerEmail, contact_phone: body.contact_phone || null,
+          address: body.address || null, notes: body.notes || null, created_by: actor.id,
+          subscription_expires_at: expiresAt.toISOString(), max_users: Number(plan.max_users || 10),
+          max_business_units: Number(plan.max_business_units || 1), max_branches: Number(plan.max_branches || 1),
+          max_godowns: Number(plan.max_godowns || 1),
+        }).select("id").single();
+        if (companyError || !createdCompany) throw companyError || new Error("Company creation failed");
+        companyId = createdCompany.id;
+
+        const { data: unit, error: unitError } = await admin.from("business_units").insert({
+          company_id: companyId, name: unitName, code: unitCode, unit_type: String(body.business_unit_type || "steel"), is_default: true,
+        }).select("id").single();
+        if (unitError || !unit) throw unitError || new Error("Business unit creation failed");
+        const { data: branch, error: branchError } = await admin.from("operating_locations").insert({
+          company_id: companyId, business_unit_id: unit.id, name: branchName, code: branchCode, location_type: "branch", is_active: true,
+        }).select("id").single();
+        if (branchError || !branch) throw branchError || new Error("Branch creation failed");
+
+        const { data: createdUser, error: userError } = await admin.auth.admin.createUser({
+          email: ownerEmail, password, email_confirm: true, user_metadata: { full_name: ownerName || name },
+        });
+        if (userError || !createdUser.user) throw userError || new Error("Owner login creation failed");
+        userId = createdUser.user.id;
+
+        const writes = await Promise.all([
+          admin.from("user_profiles").upsert({ id:userId,role:"admin",is_active:true,full_name:ownerName||name,email:ownerEmail,platform_role:"user",last_company_id:companyId,last_business_unit_id:unit.id,updated_at:new Date().toISOString() },{onConflict:"id"}),
+          admin.from("company_memberships").insert({ company_id:companyId,user_id:userId,role:"company_owner",is_active:true,permissions:{},invited_by:actor.id }),
+          admin.from("business_unit_memberships").insert({ company_id:companyId,business_unit_id:unit.id,user_id:userId,role:"company_owner",is_active:true }),
+          admin.from("operating_location_memberships").insert({ company_id:companyId,business_unit_id:unit.id,operating_location_id:branch.id,user_id:userId,role:"company_owner",is_active:true }),
+          admin.from("company_subscriptions").insert({ company_id:companyId,plan_id:planId,billing_cycle:plan.billing_cycle,status,starts_at:startsAt.toISOString(),expires_at:expiresAt.toISOString(),amount:Number(plan.price||0),currency_code:plan.currency_code||"USD",created_by:actor.id,notes:"Created through Platform Owner onboarding" }),
+          admin.from("company_modules").insert((modules.length ? modules : (plan.module_defaults || [])).map((module_key:string)=>({company_id:companyId,module_key,enabled:true,updated_by:actor.id}))),
+        ]);
+        const writeError = writes.find(result => result.error)?.error;
+        if (writeError) throw writeError;
+        return json({ company_id:companyId,user_id:userId,business_unit_id:unit.id,branch_id:branch.id,status,expires_at:expiresAt.toISOString() }, 201);
+      } catch (error) {
+        if (userId) await admin.auth.admin.deleteUser(userId);
+        if (companyId) await admin.from("companies").delete().eq("id", companyId);
+        return json({ error:error instanceof Error ? error.message : "Onboarding failed and was rolled back." }, 400);
+      }
+    }
+
     if (action === "create_user") {
       const email = String(body.email || "").trim().toLowerCase();
       const companyId = String(body.company_id || "");
