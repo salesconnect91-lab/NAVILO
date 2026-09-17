@@ -82,7 +82,7 @@ Deno.serve(async(request)=>{
         admin.from("company_memberships").select("id,user_id,role,is_active,permissions,created_at").eq("company_id",companyId).order("created_at"),
         admin.from("business_units").select("id,name,code,unit_type,is_active,is_default").eq("company_id",companyId).order("is_default",{ascending:false}).order("name"),
         admin.from("operating_locations").select("id,business_unit_id,name,code,location_type,is_active").eq("company_id",companyId).order("name"),
-        admin.rpc("company_resource_limits",{p_company_id:companyId}),
+        admin.from("companies").select("max_users,max_business_units,max_branches,max_godowns").eq("id",companyId).single(),
       ]);
       const firstError=memberships.error||units.error||locations.error||limits.error;if(firstError)throw firstError;
       const ids=(memberships.data??[]).map((m:any)=>m.user_id);
@@ -105,7 +105,7 @@ Deno.serve(async(request)=>{
       if(!canAssignRole(role)||role==="company_owner")return json({error:"You cannot assign this role."},403);
       const workspace=await validateWorkspace(unitId,locationId);if(workspace.error)return json({error:workspace.error},400);
       const [{data:limitData},{count}]=await Promise.all([
-        admin.rpc("company_resource_limits",{p_company_id:companyId}),
+        admin.from("companies").select("max_users,max_business_units,max_branches,max_godowns").eq("id",companyId).single(),
         admin.from("company_memberships").select("id",{count:"exact",head:true}).eq("company_id",companyId).eq("is_active",true),
       ]);
       const maxUsers=Number((limitData as any)?.max_users||0)||null;
