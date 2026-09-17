@@ -217,11 +217,11 @@ export default function BalanceSheet() {
     accounts.forEach((acc) => {
       const type = acc.type?.toLowerCase() || "";
       accountMetaMap[acc.id] = {
-        name: `${acc.code} - ${acc.name}`,
+        name: acc.name,
         type,
         parentHead: professionalParentHead(
           type,
-          `${acc.code} - ${acc.name}`,
+          acc.name,
           acc.detail_type,
           acc.parent_head
         ),

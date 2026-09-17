@@ -223,7 +223,7 @@ export default function AccountMappingSetup() {
                           <option value={selectedId} disabled>Current mapping is unavailable or invalid</option>
                         )}
                         {options.map((account) => (
-                          <option value={account.id} key={account.id}>{account.code} — {account.name}</option>
+                          <option value={account.id} key={account.id} data-search={account.code}>{account.name}</option>
                         ))}
                       </SearchableSelect>
                       {options.length === 0 && (

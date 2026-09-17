@@ -90,7 +90,7 @@ export default function Items(){
       const resolvedName=(form.name.trim()||buildItemName(form.category_id,form.size,form.grade)).trim();
       if(!resolvedName)throw new Error("Item name is required. Select a category and enter size/grade, or type a manual name.");
       const duplicateName=items.find(x=>x.id!==edit?.id&&n(x.name)===n(resolvedName));
-      if(duplicateName)throw new Error(`Duplicate item name: ${duplicateName.name} (${duplicateName.sku}).`);
+      if(duplicateName)throw new Error(`Duplicate item name: ${duplicateName.name}.`);
       const sku=edit?edit.sku:await nextSku(form.type);
       const duplicateSku=items.find(x=>x.id!==edit?.id&&n(x.sku)===n(sku));
       if(duplicateSku)throw new Error(`Duplicate SKU: ${sku}.`);

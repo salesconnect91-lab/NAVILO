@@ -2516,7 +2516,7 @@ export default function JournalEntryList() {
       const totalCredit = (lines ?? []).reduce((sum: number, line: any) => sum + Number(line.credit ?? 0), 0);
       const lineRows = (lines ?? []).map((line: any, index: number) => {
         const coa = Array.isArray(line.coa) ? line.coa[0] : line.coa;
-        const accountName = coa?.code && coa?.name ? `${coa.code} — ${coa.name}` : line.account || line.account_id || "—";
+        const accountName = coa?.code && coa?.name ? `${coa.name}` : line.account || line.account_id || "—";
         return `<tr><td class="center">${index + 1}</td><td>${safe(accountName)}</td><td class="right">${money(line.debit)}</td><td class="right">${money(line.credit)}</td></tr>`;
       }).join("");
 

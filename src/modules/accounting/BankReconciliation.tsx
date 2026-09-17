@@ -91,7 +91,7 @@ export default function BankReconciliation() {
     {!active&&<div className="card mb-5 p-5" data-report-filters>
       <h3 className="mb-4 font-semibold">New Reconciliation</h3>
       <div className="grid gap-4 md:grid-cols-3">
-        <label className="text-sm font-medium">Bank account<SearchableSelect className="input mt-1 w-full" value={form.account_id} onChange={e=>setForm({...form,account_id:e.target.value})}><option value="">Select bank</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}</SearchableSelect></label>
+        <label className="text-sm font-medium">Bank account<SearchableSelect className="input mt-1 w-full" value={form.account_id} onChange={e=>setForm({...form,account_id:e.target.value})}><option value="">Select bank</option>{accounts.map(a=><option key={a.id} value={a.id} data-search={a.code}>{a.name}</option>)}</SearchableSelect></label>
         <label className="text-sm font-medium">Statement start<input className="input mt-1 w-full" type="date" value={form.start} onChange={e=>setForm({...form,start:e.target.value})}/></label>
         <label className="text-sm font-medium">Statement end<input className="input mt-1 w-full" type="date" value={form.end} onChange={e=>setForm({...form,end:e.target.value})}/></label>
         <label className="text-sm font-medium">Opening statement balance<input className="input mt-1 w-full text-right" type="number" step="0.01" value={form.opening} onChange={e=>setForm({...form,opening:e.target.value})}/></label>
@@ -104,7 +104,7 @@ export default function BankReconciliation() {
     {active&&<div className="card mb-5 overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
         <div>
-          <b data-report-filter-value data-report-filter-label="Bank Account">{active.account?.code} — {active.account?.name}</b>
+          <b data-report-filter-value data-report-filter-label="Bank Account">{active.account?.name}</b>
           <div className="text-xs text-slate-500"><span data-report-filter-value data-report-filter-label="Statement Period">{formatDate(active.statement_start)} to {formatDate(active.statement_end)}</span> • <span data-report-filter-value data-report-filter-label="Status">{active.status}</span></div>
           {active.notes&&<div className="mt-1 text-xs text-slate-500" data-report-filter-value data-report-filter-label="Notes">{active.notes}</div>}
         </div>
@@ -132,7 +132,7 @@ export default function BankReconciliation() {
 
     <div className="card overflow-hidden">
       <div className="border-b px-5 py-3 font-semibold">Reconciliation History</div>
-      <div className="overflow-x-auto"><div className="sr-only" data-export-table-title>Reconciliation History</div><table className="table"><thead><tr><th>Bank</th><th>Period</th><th>Status</th><th className="text-right">Statement Balance</th><th className="text-right">Difference</th><th></th></tr></thead><tbody>{recs.length?recs.map(r=><tr key={r.id}><td>{r.account?.code} — {r.account?.name}</td><td>{formatDate(r.statement_start)} – {formatDate(r.statement_end)}</td><td><span className={r.status==="closed"?"badge badge-success":"badge badge-warning"}>{r.status}</span></td><td className="text-right">{money(r.closing_statement_balance)}</td><td className="text-right">{money(r.difference)}</td><td><button className="btn btn-secondary no-print" data-no-export onClick={()=>void loadDetails(r)}>Open</button></td></tr>):<tr><td colSpan={6} className="py-8 text-center text-slate-500">No reconciliations yet.</td></tr>}</tbody></table></div>
+      <div className="overflow-x-auto"><div className="sr-only" data-export-table-title>Reconciliation History</div><table className="table"><thead><tr><th>Bank</th><th>Period</th><th>Status</th><th className="text-right">Statement Balance</th><th className="text-right">Difference</th><th></th></tr></thead><tbody>{recs.length?recs.map(r=><tr key={r.id}><td>{r.account?.name}</td><td>{formatDate(r.statement_start)} – {formatDate(r.statement_end)}</td><td><span className={r.status==="closed"?"badge badge-success":"badge badge-warning"}>{r.status}</span></td><td className="text-right">{money(r.closing_statement_balance)}</td><td className="text-right">{money(r.difference)}</td><td><button className="btn btn-secondary no-print" data-no-export onClick={()=>void loadDetails(r)}>Open</button></td></tr>):<tr><td colSpan={6} className="py-8 text-center text-slate-500">No reconciliations yet.</td></tr>}</tbody></table></div>
     </div>
   </div>;
 }

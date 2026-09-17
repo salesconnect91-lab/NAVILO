@@ -13,6 +13,7 @@ node_modules/
 # Local platform metadata
 .vercel/
 .supabase/
+supabase/.temp/
 
 # Build and editor noise
 dist/

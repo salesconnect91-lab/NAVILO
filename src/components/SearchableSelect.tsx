@@ -69,10 +69,11 @@ function collectOptions(children: ReactNode): Option[] {
   const result: Option[] = [];
   Children.forEach(children, child => {
     if (!isValidElement(child)) return;
-    const element = child as ReactElement<{ value?: string | number; disabled?: boolean; children?: ReactNode }>;
+    const element = child as ReactElement<{ value?: string | number; disabled?: boolean; children?: ReactNode; "data-search"?: string }>;
     if (element.type === "option") {
       const rawLabel = textOf(element.props.children).trim() || String(element.props.value ?? "");
-      result.push({ value: String(element.props.value ?? ""), label: displayLabel(rawLabel), searchText: rawLabel, disabled: Boolean(element.props.disabled) });
+      const hiddenSearch = String(element.props["data-search"] ?? "").trim();
+      result.push({ value: String(element.props.value ?? ""), label: displayLabel(rawLabel), searchText: `${rawLabel} ${hiddenSearch}`.trim(), disabled: Boolean(element.props.disabled) });
       return;
     }
     if (element.type === "optgroup") result.push(...collectOptions(element.props.children));

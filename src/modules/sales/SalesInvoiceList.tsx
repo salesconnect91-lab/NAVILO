@@ -951,7 +951,7 @@ export default function SalesInvoiceList() {
                   <option value="">— Select account —</option>
                   {paymentAccounts.map((account) => (
                     <option key={account.id} value={account.id}>
-                      {account.code} — {account.name}
+                      {account.name}
                     </option>
                   ))}
                 </SearchableSelect>

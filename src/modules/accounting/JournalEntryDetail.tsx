@@ -261,7 +261,7 @@ export default function JournalEntryDetail() {
               line.account ||
               (
                 line.coa
-                  ? `${line.coa.code} - ${line.coa.name}`
+                  ? `${line.coa.name}`
                   : ""
               ),
             party_type:
@@ -1101,7 +1101,7 @@ export default function JournalEntryDetail() {
 
           if (account.is_group) {
             importErrors.push(
-              `Row ${rowNumber}: "${account.code} - ${account.name}" is a group account.`
+              `Row ${rowNumber}: "${account.name}" is a group account.`
             );
 
             return;
@@ -1109,7 +1109,7 @@ export default function JournalEntryDetail() {
 
           if (!account.is_active) {
             importErrors.push(
-              `Row ${rowNumber}: "${account.code} - ${account.name}" is inactive.`
+              `Row ${rowNumber}: "${account.name}" is inactive.`
             );
 
             return;
@@ -1119,7 +1119,7 @@ export default function JournalEntryDetail() {
             !account.allow_manual_entries
           ) {
             importErrors.push(
-              `Row ${rowNumber}: "${account.code} - ${account.name}" does not allow manual journal entries.`
+              `Row ${rowNumber}: "${account.name}" does not allow manual journal entries.`
             );
 
             return;
@@ -1130,7 +1130,7 @@ export default function JournalEntryDetail() {
             (!partyType || !partyName)
           ) {
             importErrors.push(
-              `Row ${rowNumber}: "${account.code} - ${account.name}" requires Party Type and Party Name.`
+              `Row ${rowNumber}: "${account.name}" requires Party Type and Party Name.`
             );
 
             return;
@@ -1174,7 +1174,7 @@ export default function JournalEntryDetail() {
               account.id
             ) {
               importErrors.push(
-                `Row ${rowNumber}: Customer "${customer.name}" is not linked to account "${account.code} - ${account.name}".`
+                `Row ${rowNumber}: Customer "${customer.name}" is not linked to account "${account.name}".`
               );
 
               return;
@@ -1208,7 +1208,7 @@ export default function JournalEntryDetail() {
               account.id
             ) {
               importErrors.push(
-                `Row ${rowNumber}: Supplier "${supplier.name}" is not linked to account "${account.code} - ${account.name}".`
+                `Row ${rowNumber}: Supplier "${supplier.name}" is not linked to account "${account.name}".`
               );
 
               return;
@@ -1447,7 +1447,7 @@ export default function JournalEntryDetail() {
           (!line.partyType || !line.partyId)
         ) {
           setError(
-            `Row ${rowNumber}: "${account.code} - ${account.name}" requires a customer or supplier in Name / Party.`
+            `Row ${rowNumber}: "${account.name}" requires a customer or supplier in Name / Party.`
           );
 
           return;
@@ -1490,7 +1490,7 @@ export default function JournalEntryDetail() {
             account.id
           ) {
             setError(
-              `Row ${rowNumber}: Customer "${customer.name}" is not linked to "${account.code} - ${account.name}".`
+              `Row ${rowNumber}: Customer "${customer.name}" is not linked to "${account.name}".`
             );
 
             return;
@@ -1523,7 +1523,7 @@ export default function JournalEntryDetail() {
             account.id
           ) {
             setError(
-              `Row ${rowNumber}: Supplier "${supplier.name}" is not linked to "${account.code} - ${account.name}".`
+              `Row ${rowNumber}: Supplier "${supplier.name}" is not linked to "${account.name}".`
             );
 
             return;
@@ -1576,7 +1576,7 @@ export default function JournalEntryDetail() {
           account_id:
             account.id,
           account:
-            `${account.code} - ${account.name}`,
+            `${account.name}`,
           party_type:
             line.partyType || null,
           party_id:
@@ -1621,7 +1621,7 @@ export default function JournalEntryDetail() {
                 line.account ||
                 (
                   line.coa
-                    ? `${line.coa.code} - ${line.coa.name}`
+                    ? `${line.coa.name}`
                     : ""
                 ),
               party_type:
@@ -2276,7 +2276,7 @@ export default function JournalEntryDetail() {
                           <td className="py-3.5 px-4">
                             <div className="font-medium text-slate-900">
                               {coa
-                                ? `${coa.code} - ${coa.name}`
+                                ? `${coa.name}`
                                 : line.account}
                             </div>
 
@@ -2520,7 +2520,7 @@ export default function JournalEntryDetail() {
                                         account.id
                                       }
                                     >
-                                      {account.code} - {account.name} ({account.type})
+                                      {account.name} ({account.type})
                                     </option>
                                   )
                                 )}

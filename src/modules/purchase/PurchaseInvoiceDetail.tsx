@@ -26,6 +26,8 @@ type PurchaseOrder = {
   reference_notes?: string | null;
   purchase_person?: string | null;
   purchase_person_employee_id?: string | null;
+  supplier_name_snapshot?: string | null;
+  purchase_person_name_snapshot?: string | null;
   supplier?: {
     id: string;
     name: string;
@@ -56,6 +58,9 @@ type Line = {
   line_total: number | string;
   description?: string | null;
   source_consolidated_purchase_invoice_id?: string | null;
+  item_name_snapshot?: string | null;
+  item_unit_snapshot?: string | null;
+  godown_name_snapshot?: string | null;
   item?: { id: string; name: string; name_urdu?: string | null; sku?: string | null; hs_code?: string | null; unit?: string | null } | null;
   godown?: { id: string; name: string; name_urdu?: string | null } | null;
 };
@@ -161,7 +166,7 @@ export default function PurchaseInvoiceDetail() {
     const byId = new Map((accounts ?? []).map((account: any) => [account.id, account]));
     const rows = mappings.map((row: any) => {
       const account = byId.get(row.account_id) as any;
-      return { account_id: row.account_id, mapping_key: row.mapping_key as "cash" | "bank", label: `${row.mapping_key === "cash" ? "Cash" : "Bank"} — ${account?.code ? `${account.code} · ` : ""}${account?.name || "Configured Account"}` };
+      return { account_id: row.account_id, mapping_key: row.mapping_key as "cash" | "bank", label: `${row.mapping_key === "cash" ? "Cash" : "Bank"} — ${account?.name || "Configured Account"}` };
     });
     setPaymentAccounts(rows);
     setPaymentAccountId((current) => current || rows[0]?.account_id || "");
@@ -293,10 +298,13 @@ export default function PurchaseInvoiceDetail() {
     if (paymentError) setError(paymentError.message); else { setPaymentAmount(""); setSuccess("Supplier payment posted."); await load(); }
   };
 
+  const itemName = (line: Line) => line.item_name_snapshot || line.item?.name || "—";
+  const itemUnit = (line: Line) => line.item_unit_snapshot || line.item?.unit || "";
+  const godownName = (line: Line) => line.godown_name_snapshot || line.godown?.name || "—";
   const rowsForExport = lines.map((line) => ({
     source: line.source_consolidated_purchase_invoice_id ? "Consolidated" : "Direct",
-    item: `${line.item?.name ?? "—"}${line.item?.name_urdu ? ` / ${line.item.name_urdu}` : ""}`,
-    description: line.description ?? "", godown: line.godown?.name ?? "—", hs_code: line.item?.hs_code ?? "", uom: line.item?.unit ?? "", qty: n(line.qty), unit_cost: n(line.unit_cost),
+    item: itemName(line),
+    description: line.description ?? "", godown: godownName(line), hs_code: line.item?.hs_code ?? "", uom: itemUnit(line), qty: n(line.qty), unit_cost: n(line.unit_cost),
     vat_percent: isTax ? n(line.tax_percent) : 0,
     vat_amount: isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0,
     base_amount: n(line.line_total), amount_incl_vat: n(line.line_total) + (isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0),
@@ -314,7 +322,7 @@ export default function PurchaseInvoiceDetail() {
 
   return <div className="space-y-5">
     <div className="print:hidden flex flex-wrap items-center justify-between gap-3">
-      <div><Link to="/purchase" className="text-sm text-primary-600">← Back to Purchase</Link><h1 className="mt-2 text-2xl font-bold text-slate-900">{isTax ? "Purchase Tax Invoice" : "Purchase Invoice"}</h1><div className="mt-1 text-sm text-slate-500">{order.order_no} · Supplier: {order.supplier?.name ?? "—"}</div></div>
+      <div><Link to="/purchase" className="text-sm text-primary-600">← Back to Purchase</Link><h1 className="mt-2 text-2xl font-bold text-slate-900">{isTax ? "Purchase Tax Invoice" : "Purchase Invoice"}</h1><div className="mt-1 text-sm text-slate-500">{order.order_no} · Supplier: {order.supplier_name_snapshot || order.supplier?.name || "—"}</div></div>
       <div className="flex flex-wrap gap-2">
         {order.status !== "posted" && <PurchaseDraftAddControls orderId={order.id} onChanged={() => void load()} />}
         {order.status !== "posted" && <button className="btn-primary" disabled={posting} onClick={() => void post()}>{posting ? "Posting…" : "Post Purchase Invoice"}</button>}
@@ -334,7 +342,7 @@ export default function PurchaseInvoiceDetail() {
         <div className="card p-4"><div className="text-xs text-slate-500">Invoice Type</div><div className="mt-1 font-semibold">{isTax ? "With Tax" : "Without Tax"}</div></div>
         <div className="card p-4"><div className="text-xs text-slate-500">VAT Rate</div><div className="mt-1 font-semibold">{isTax ? `${n(order.tax_percent)}% (Fixed)` : "—"}</div></div>
         <div className="card p-4"><div className="text-xs text-slate-500">Date</div><div className="mt-1 font-semibold">{formatDate(order.order_date)}</div></div>
-        <div className="card p-4"><div className="text-xs text-slate-500">Purchase Person</div><div className="mt-1 font-semibold">{order.purchase_person || "—"}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-500">Purchase Person</div><div className="mt-1 font-semibold">{order.purchase_person_name_snapshot || order.purchase_person || "—"}</div></div>
         <div className="card p-4"><div className="text-xs text-slate-500">Status</div><div className="mt-1"><StatusBadge status={order.status as any} /></div></div>
         <div className="card p-4"><div className="text-xs text-slate-500">Paid</div><div className="mt-1 font-semibold">{formatCurrency(n(order.paid_amount))}</div></div>
         <div className="card p-4"><div className="text-xs text-slate-500">Outstanding</div><div className="mt-1 font-semibold">{formatCurrency(outstanding)}</div></div>
@@ -343,7 +351,7 @@ export default function PurchaseInvoiceDetail() {
       <div id="purchase-draft-editor" className="card mt-5 p-5 scroll-mt-24">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-bold text-slate-900">Supplier Source Document / سپلائر اصل بل</h2><p className="mt-1 text-xs text-slate-500">The NAVILO purchase invoice number remains separate; preserve the supplier original invoice/reference and responsible Purchase Person here. / نیویلو خریداری انوائس نمبر الگ رہے گا؛ سپلائر کا اصل انوائس یا حوالہ اور ذمہ دار خریداری شخص یہاں محفوظ کریں۔</p></div>{isTax && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Required before Tax Invoice posting</span>}</div>
         <div className="mt-4 grid gap-3 md:grid-cols-5">
-          <div><label className="label">Purchase Person / Buyer</label><SearchableSelect className="input" disabled={order.status === "posted"} value={sourceDocument.purchase_person_employee_id} onChange={(e) => setSourceDocument({ ...sourceDocument, purchase_person_employee_id: e.target.value })}><option value="">— Select employee —</option>{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}{employee.employee_code ? ` · ${employee.employee_code}` : ""}{employee.designation ? ` · ${employee.designation}` : ""}</option>)}</SearchableSelect></div>
+          <div><label className="label">Purchase Person / Buyer</label><SearchableSelect className="input" disabled={order.status === "posted"} value={sourceDocument.purchase_person_employee_id} onChange={(e) => setSourceDocument({ ...sourceDocument, purchase_person_employee_id: e.target.value })}><option value="">— Select employee —</option>{employees.map((employee) => <option key={employee.id} value={employee.id} data-search={employee.employee_code || undefined}>{employee.name}{employee.designation ? ` · ${employee.designation}` : ""}</option>)}</SearchableSelect></div>
           <div><label className="label">Supplier Invoice No.</label><input className="input" disabled={order.status === "posted"} value={sourceDocument.supplier_invoice_no} onChange={(e) => setSourceDocument({ ...sourceDocument, supplier_invoice_no: e.target.value })} /></div>
           <div><label className="label">Supplier Invoice Date</label><input className="input" type="date" disabled={order.status === "posted"} value={sourceDocument.supplier_invoice_date} onChange={(e) => setSourceDocument({ ...sourceDocument, supplier_invoice_date: e.target.value })} /></div>
           <div><label className="label">Reference No.</label><input className="input" disabled={order.status === "posted"} value={sourceDocument.reference_no} onChange={(e) => setSourceDocument({ ...sourceDocument, reference_no: e.target.value })} /></div>
@@ -359,8 +367,8 @@ export default function PurchaseInvoiceDetail() {
 
       <div className="card mt-5 p-6">
         <div className="mb-4"><h2 className="font-bold text-slate-900">Main Purchase Invoice Items</h2><p className="text-xs text-slate-500">Direct items entered on this Main Invoice.</p></div>
-        <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-slate-500"><th className="py-2 text-left">Item</th><th className="text-left">Description</th><th className="text-left">Godown</th><th className="text-right">Qty</th><th className="text-right">Unit Cost</th>{isTax && <><th className="text-right">VAT %</th><th className="text-right">VAT Amount</th></>}<th className="text-right">Amount</th><th /></tr></thead><tbody>{directLines.length === 0 ? <tr><td colSpan={isTax ? 9 : 7} className="py-6 text-center text-slate-400">No direct items yet.</td></tr> : directLines.map((line) => <tr key={line.id} className="border-b border-slate-100"><td className="py-3"><div>{line.item?.name ?? "—"}</div>{(line.item?.hs_code || line.item?.unit) && <div className="text-[11px] text-slate-400">{[line.item?.hs_code ? `HS ${line.item.hs_code}` : "", line.item?.unit ? `UOM ${line.item.unit}` : ""].filter(Boolean).join(" · ")}</div>}</td><td>{line.description || "—"}</td><td>{line.godown?.name ?? "—"}</td><td className="text-right">{line.qty}</td><td className="text-right">{formatCurrency(n(line.unit_cost))}</td>{isTax && <><td className="text-right">{n(line.tax_percent)}%</td><td className="text-right">{formatCurrency(n(line.line_total) * n(line.tax_percent) / 100)}</td></>}<td className="text-right font-semibold">{formatCurrency(n(line.line_total) + (isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0))}</td><td className="text-right">{order.status !== "posted" && <button className="text-rose-600" onClick={() => void removeLine(line.id)}>Remove</button>}</td></tr>)}</tbody></table></div>
-        {order.status !== "posted" && <form onSubmit={addLine} className="mt-5 grid grid-cols-1 gap-3 border-t pt-5 md:grid-cols-7"><div className="md:col-span-2"><label className="label">Item</label><SearchableSelect className="input" required value={newLine.item_id} onChange={(e) => { const item = items.find((candidate) => candidate.id === e.target.value); setNewLine({ ...newLine, item_id: e.target.value, unit_cost: item ? String(n(item.cost)) : newLine.unit_cost }); }}><option value="">— Select item —</option>{items.map((item) => <option key={item.id} value={item.id}>{item.name}{item.sku ? ` (${item.sku})` : ""}</option>)}</SearchableSelect></div><div><label className="label">Description</label><input className="input" value={newLine.description} onChange={(e) => setNewLine({ ...newLine, description: e.target.value })} /></div><div><label className="label">Godown</label><SearchableSelect className="input" required value={newLine.godown_id} onChange={(e) => setNewLine({ ...newLine, godown_id: e.target.value })}><option value="">— Select —</option>{godowns.map((godown) => <option key={godown.id} value={godown.id}>{godown.name}</option>)}</SearchableSelect></div><div><label className="label">Qty</label><input className="input text-right" type="number" step="0.01" min="0.01" required value={newLine.qty} onChange={(e) => setNewLine({ ...newLine, qty: e.target.value })} /></div><div><label className="label">Unit Cost</label><input className="input text-right" type="number" step="0.01" min="0" required value={newLine.unit_cost} onChange={(e) => setNewLine({ ...newLine, unit_cost: e.target.value })} /></div><div className="flex items-end"><button className="btn-primary w-full" type="submit">Add Line</button></div>{isTax && <div className="md:col-span-7 text-xs font-medium text-slate-500">VAT {n(order.tax_percent)}% is fixed in Tax Settings and cannot be edited on the line. / وی اے ٹی {n(order.tax_percent)}% ٹیکس سیٹنگز میں فکس ہے اور لائن پر تبدیل نہیں کیا جا سکتا۔</div>}</form>}
+        <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-slate-500"><th className="py-2 text-left">Item</th><th className="text-left">Description</th><th className="text-left">Godown</th><th className="text-right">Qty</th><th className="text-right">Unit Cost</th>{isTax && <><th className="text-right">VAT %</th><th className="text-right">VAT Amount</th></>}<th className="text-right">Amount</th><th /></tr></thead><tbody>{directLines.length === 0 ? <tr><td colSpan={isTax ? 9 : 7} className="py-6 text-center text-slate-400">No direct items yet.</td></tr> : directLines.map((line) => <tr key={line.id} className="border-b border-slate-100"><td className="py-3"><div>{itemName(line)}</div>{(line.item?.hs_code || itemUnit(line)) && <div className="text-[11px] text-slate-400">{[line.item?.hs_code ? `HS ${line.item.hs_code}` : "", itemUnit(line) ? `UOM ${itemUnit(line)}` : ""].filter(Boolean).join(" · ")}</div>}</td><td>{line.description || "—"}</td><td>{godownName(line)}</td><td className="text-right">{line.qty}</td><td className="text-right">{formatCurrency(n(line.unit_cost))}</td>{isTax && <><td className="text-right">{n(line.tax_percent)}%</td><td className="text-right">{formatCurrency(n(line.line_total) * n(line.tax_percent) / 100)}</td></>}<td className="text-right font-semibold">{formatCurrency(n(line.line_total) + (isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0))}</td><td className="text-right">{order.status !== "posted" && <button className="text-rose-600" onClick={() => void removeLine(line.id)}>Remove</button>}</td></tr>)}</tbody></table></div>
+        {order.status !== "posted" && <form onSubmit={addLine} className="mt-5 grid grid-cols-1 gap-3 border-t pt-5 md:grid-cols-7"><div className="md:col-span-2"><label className="label">Item</label><SearchableSelect className="input" required value={newLine.item_id} onChange={(e) => { const item = items.find((candidate) => candidate.id === e.target.value); setNewLine({ ...newLine, item_id: e.target.value, unit_cost: item ? String(n(item.cost)) : newLine.unit_cost }); }}><option value="">— Select item —</option>{items.map((item) => <option key={item.id} value={item.id} data-search={item.sku || undefined}>{item.name}</option>)}</SearchableSelect></div><div><label className="label">Description</label><input className="input" value={newLine.description} onChange={(e) => setNewLine({ ...newLine, description: e.target.value })} /></div><div><label className="label">Godown</label><SearchableSelect className="input" required value={newLine.godown_id} onChange={(e) => setNewLine({ ...newLine, godown_id: e.target.value })}><option value="">— Select —</option>{godowns.map((godown) => <option key={godown.id} value={godown.id}>{godown.name}</option>)}</SearchableSelect></div><div><label className="label">Qty</label><input className="input text-right" type="number" step="0.01" min="0.01" required value={newLine.qty} onChange={(e) => setNewLine({ ...newLine, qty: e.target.value })} /></div><div><label className="label">Unit Cost</label><input className="input text-right" type="number" step="0.01" min="0" required value={newLine.unit_cost} onChange={(e) => setNewLine({ ...newLine, unit_cost: e.target.value })} /></div><div className="flex items-end"><button className="btn-primary w-full" type="submit">Add Line</button></div>{isTax && <div className="md:col-span-7 text-xs font-medium text-slate-500">VAT {n(order.tax_percent)}% is fixed in Tax Settings and cannot be edited on the line. / وی اے ٹی {n(order.tax_percent)}% ٹیکس سیٹنگز میں فکس ہے اور لائن پر تبدیل نہیں کیا جا سکتا۔</div>}</form>}
       </div>
 
       <div className="card mt-5 p-6">
@@ -380,8 +388,8 @@ export default function PurchaseInvoiceDetail() {
         voucherNo={order.order_no}
         voucherDate={order.order_date}
         company={{ name: companyPrint.company_name || undefined, address: companyPrint.address || undefined, phone: companyPrint.phone || undefined, email: companyPrint.email || undefined, taxId: [companyPrint.ntn, companyPrint.strn].filter(Boolean).join(" / ") || undefined, logoUrl: companyPrint.logo_url || undefined }}
-        party={{ name: order.supplier?.name || "—", address: order.supplier?.address, phone: order.supplier?.phone, ntn: order.supplier?.ntn, strn: order.supplier?.strn, cnic: order.supplier?.cnic, taxRegistrationStatus: order.supplier?.tax_registration_status }}
-        items={lines.map((line) => ({ name: line.item?.name || "—", description: line.description || (line.source_consolidated_purchase_invoice_id ? "Consolidated Purchase" : null), qty: n(line.qty), unitPrice: n(line.unit_cost), lineTotal: n(line.line_total) + (isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0), taxPercent: isTax ? n(line.tax_percent) : 0, taxAmount: isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0, hsCode: line.item?.hs_code, unit: line.item?.unit }))}
+        party={{ name: order.supplier_name_snapshot || order.supplier?.name || "—", address: order.supplier?.address, phone: order.supplier?.phone, ntn: order.supplier?.ntn, strn: order.supplier?.strn, cnic: order.supplier?.cnic, taxRegistrationStatus: order.supplier?.tax_registration_status }}
+        items={lines.map((line) => ({ name: itemName(line), description: line.description || (line.source_consolidated_purchase_invoice_id ? "Consolidated Purchase" : null), qty: n(line.qty), unitPrice: n(line.unit_cost), lineTotal: n(line.line_total) + (isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0), taxPercent: isTax ? n(line.tax_percent) : 0, taxAmount: isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0, hsCode: line.item?.hs_code, unit: itemUnit(line) }))}
         chargeBreakdown={charges.map((charge) => ({ label: charge.charge_label, amount: n(charge.amount) }))}
         itemsTotal={directBase + linkedBase}
         chargesTotal={chargeTotal}
@@ -391,7 +399,7 @@ export default function PurchaseInvoiceDetail() {
         extraFields={[
           { label: "Status / حیثیت", value: order.status.toUpperCase() },
           { label: "Type / قسم", value: isTax ? "With Tax" : "Without Tax" },
-          ...(order.purchase_person ? [{ label: "Purchase Person / Buyer", value: order.purchase_person }] : []),
+          ...((order.purchase_person_name_snapshot || order.purchase_person) ? [{ label: "Purchase Person / Buyer", value: order.purchase_person_name_snapshot || order.purchase_person || "" }] : []),
           ...(order.supplier_invoice_no ? [{ label: "Supplier Invoice No.", value: order.supplier_invoice_no }] : []),
           ...(order.supplier_invoice_date ? [{ label: "Supplier Invoice Date", value: formatDate(order.supplier_invoice_date) }] : []),
           ...(order.reference_no ? [{ label: "Reference No.", value: order.reference_no }] : []),

@@ -8,7 +8,7 @@ export type NaviloLanguage = {
   direction: "ltr" | "rtl";
 };
 
-export type GlobalLanguage = NaviloLanguage & { status: "live" };
+export type GlobalLanguage = NaviloLanguage & { status: "verified" | "requires_verification" };
 
 export const NAVILO_LANGUAGES: NaviloLanguage[] = [
   { code: "en", label: "English", nativeLabel: "English", direction: "ltr" },
@@ -28,7 +28,10 @@ export const NAVILO_LANGUAGES: NaviloLanguage[] = [
   { code: "ms", label: "Malay", nativeLabel: "Bahasa Melayu", direction: "ltr" },
 ];
 
-export const GLOBAL_LANGUAGE_CATALOG: GlobalLanguage[] = NAVILO_LANGUAGES.map((language) => ({ ...language, status: "live" as const }));
+export const GLOBAL_LANGUAGE_CATALOG: GlobalLanguage[] = NAVILO_LANGUAGES.map((language) => ({
+  ...language,
+  status: language.code === "en" ? "verified" as const : "requires_verification" as const,
+}));
 export const SUPPORTED_RUNTIME_LANGUAGE_CODES: RuntimeLanguageCode[] = NAVILO_LANGUAGES.map((language) => language.code);
 export const SUPPORTED_BILINGUAL_PAIRS: ReadonlyArray<readonly [RuntimeLanguageCode, RuntimeLanguageCode]> = [];
 

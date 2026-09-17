@@ -1495,9 +1495,7 @@ export default function CashCounter() {
         payment_method:
           paymentMethod,
         account:
-          selectedAccount
-            ? `${selectedAccount.code} — ${selectedAccount.name}`
-            : "—",
+          selectedAccount?.name || "—",
         amount:
           toNumber(
             result.payment_amount ||

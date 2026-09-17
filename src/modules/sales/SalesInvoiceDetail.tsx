@@ -69,6 +69,8 @@ type PaymentStatus = "unpaid" | "partial" | "paid" | "overpaid";
 
 type SalesInvoiceDetailOrder = Omit<SalesOrder, "customer"> & {
   customer?: CustomerDetail | null;
+  customer_name_snapshot?: string | null;
+  salesperson_name_snapshot?: string | null;
   due_date?: string | null;
   paid_amount?: number | string | null;
   outstanding_amount?: number | string | null;
@@ -80,6 +82,9 @@ type SalesInvoiceDetailOrder = Omit<SalesOrder, "customer"> & {
 type SalesInvoiceLine = Omit<SalesOrderLine, "item"> & {
   item?: ItemDetail | null;
   description?: string | null;
+  item_name_snapshot?: string | null;
+  item_unit_snapshot?: string | null;
+  godown_name_snapshot?: string | null;
 };
 
 type CompanyPrintSettings = {
@@ -302,11 +307,13 @@ export default function SalesInvoiceDetail() {
     }, 150);
   };
 
+  const itemName = (line: SalesInvoiceLine) => line.item_name_snapshot || line.item?.name || "—";
+  const itemUnit = (line: SalesInvoiceLine) => line.item_unit_snapshot || line.item?.unit || "";
   const exportRows = lines.map((line) => ({
-    item: line.item?.name ?? "—",
+    item: itemName(line),
     description: line.description ?? "",
     hs_code: line.item?.hs_code ?? "",
-    uom: line.item?.unit ?? "",
+    uom: itemUnit(line),
     grade: line.grade ?? "",
     size: line.size ?? "",
     qty: n(line.qty),
@@ -346,7 +353,7 @@ export default function SalesInvoiceDetail() {
             {paymentBadge(order.payment_status)}
           </div>
           <p className="mt-0.5 text-[12px] text-slate-500">
-            {isTaxInvoice ? "With Tax / Tax Invoice" : "Without Tax / Sale Invoice"} · {order.customer?.name || "No customer linked"}
+            {isTaxInvoice ? "With Tax / Tax Invoice" : "Without Tax / Sale Invoice"} · {order.customer_name_snapshot || order.customer?.name || "No customer linked"}
           </p>
         </div>
 
@@ -398,7 +405,7 @@ export default function SalesInvoiceDetail() {
       <section className="grid grid-cols-2 gap-2.5 lg:grid-cols-6">
         <Metric icon={<CalendarDays className="h-3 w-3" />} label="Invoice Date" value={formatDate(order.order_date)} />
         <Metric icon={<CalendarDays className="h-3 w-3" />} label="Due Date" value={order.due_date ? formatDate(order.due_date) : "—"} />
-        <Metric icon={<UserRound className="h-3 w-3" />} label="Sales Person" value={order.sales_person || "—"} />
+        <Metric icon={<UserRound className="h-3 w-3" />} label="Sales Person" value={order.salesperson_name_snapshot || order.sales_person || "—"} />
         <Metric label="Invoice Total" value={formatCurrency(n(order.total))} strong />
         <Metric icon={<Banknote className="h-3 w-3" />} label="Received" value={formatCurrency(paidAmount)} tone="emerald" strong />
         <Metric icon={<WalletCards className="h-3 w-3" />} label="Balance Due" value={formatCurrency(outstanding)} tone="rose" strong />
@@ -415,7 +422,7 @@ export default function SalesInvoiceDetail() {
               <table className="w-full min-w-[900px] text-[12px]">
                 <thead className="bg-slate-50"><tr className="border-b border-slate-200 uppercase tracking-wide text-slate-500"><th className="px-3 py-2 text-left">Item</th><th className="px-2 py-2 text-left">Description</th><th className="px-2 py-2 text-right">Qty</th><th className="px-2 py-2 text-right">Rate</th>{isTaxInvoice && <th className="px-2 py-2 text-right">VAT</th>}<th className="px-3 py-2 text-right">Amount</th></tr></thead>
                 <tbody>
-                  {lines.map((line) => <tr key={line.id} className="border-b border-slate-100"><td className="px-3 py-2 font-semibold">{line.item?.name || "—"}</td><td className="px-2 py-2 text-slate-500">{line.description || "—"}</td><td className="px-2 py-2 text-right">{line.qty}</td><td className="px-2 py-2 text-right">{formatCurrency(n(line.unit_price))}</td>{isTaxInvoice && <td className="px-2 py-2 text-right">{n(line.tax_percent)}%<div className="text-[10px] text-slate-400">{formatCurrency((n(line.line_total) * n(line.tax_percent)) / 100)}</div></td>}<td className="px-3 py-2 text-right font-semibold">{formatCurrency(n(line.line_total))}</td></tr>)}
+                  {lines.map((line) => <tr key={line.id} className="border-b border-slate-100"><td className="px-3 py-2 font-semibold">{itemName(line)}</td><td className="px-2 py-2 text-slate-500">{line.description || "—"}</td><td className="px-2 py-2 text-right">{line.qty}</td><td className="px-2 py-2 text-right">{formatCurrency(n(line.unit_price))}</td>{isTaxInvoice && <td className="px-2 py-2 text-right">{n(line.tax_percent)}%<div className="text-[10px] text-slate-400">{formatCurrency((n(line.line_total) * n(line.tax_percent)) / 100)}</div></td>}<td className="px-3 py-2 text-right font-semibold">{formatCurrency(n(line.line_total))}</td></tr>)}
                   {!lines.length && <tr><td colSpan={isTaxInvoice ? 6 : 5} className="px-3 py-8 text-center text-slate-400">No invoice items.</td></tr>}
                 </tbody>
               </table>
@@ -472,7 +479,7 @@ export default function SalesInvoiceDetail() {
               logoUrl: companyPrint.logo_url || undefined,
             }}
             party={{
-              name: order.customer?.name || "—",
+              name: order.customer_name_snapshot || order.customer?.name || "—",
               address: order.customer?.address,
               phone: order.customer?.phone,
               email: order.customer?.email,
@@ -482,7 +489,7 @@ export default function SalesInvoiceDetail() {
               taxRegistrationStatus: order.customer?.tax_registration_status,
             }}
             items={lines.map((line) => ({
-              name: line.item?.name || "—",
+              name: itemName(line),
               description: line.description,
               qty: n(line.qty),
               unitPrice: n(line.unit_price),
@@ -490,7 +497,7 @@ export default function SalesInvoiceDetail() {
               taxPercent: isTaxInvoice ? n(line.tax_percent) : 0,
               taxAmount: isTaxInvoice ? (n(line.line_total) * n(line.tax_percent)) / 100 : 0,
               hsCode: line.item?.hs_code,
-              unit: line.item?.unit,
+              unit: itemUnit(line),
             }))}
             chargeBreakdown={chargeBreakdown}
             itemsTotal={itemsTotal}
@@ -512,7 +519,7 @@ export default function SalesInvoiceDetail() {
             extraFields={[
               { label: "Status / حیثیت", value: String(order.status).toUpperCase() },
               { label: "Settlement / ادائیگی", value: "Receipts recorded separately" },
-              ...(order.sales_person ? [{ label: "Sales Person / سیلز مین", value: order.sales_person }] : []),
+              ...((order.salesperson_name_snapshot || order.sales_person) ? [{ label: "Sales Person / سیلز مین", value: order.salesperson_name_snapshot || order.sales_person || "" }] : []),
               ...(order.fbr_invoice_no ? [{ label: "FBR Invoice No.", value: order.fbr_invoice_no }] : []),
             ]}
             signatureLabels={[

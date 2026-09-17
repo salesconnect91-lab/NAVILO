@@ -494,7 +494,7 @@ export default function Ledgers() {
 
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
-                    {account.code} — {account.name} ({account.type})
+                    {account.name} ({account.type})
                   </option>
                 ))}
               </SearchableSelect>
@@ -594,7 +594,7 @@ export default function Ledgers() {
             <h3 className="font-bold text-slate-900 text-base">
               {viewMode === "general"
                 ? selectedAccountObj
-                  ? `${selectedAccountObj.code} — ${selectedAccountObj.name}`
+                  ? selectedAccountObj.name
                   : "General Ledger Statement"
                 : selectedParty
                   ? `${selectedParty.name} — ${
@@ -674,9 +674,7 @@ export default function Ledgers() {
                       </td>
 
                       <td className="py-2.5 px-3 font-medium text-slate-900">
-                        {row.account
-                          ? `${row.account.code} — ${row.account.name}`
-                          : "—"}
+                        {row.account?.name || "—"}
                       </td>
 
                       <td className="py-2.5 px-3 text-slate-700">

@@ -84,8 +84,8 @@ export default function BusinessWorkspaceLoginControl({ companyId }: { companyId
     {message && <div className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</div>}
     {loading ? <div className="mt-4 flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin"/>Loading...</div> : <>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <SearchableSelect className="input" value={unitId} onChange={event => setUnitId(event.target.value)}>{units.map(unit => <option key={unit.id} value={unit.id}>{unit.name} ({unit.code})</option>)}</SearchableSelect>
-        <SearchableSelect className="input" value={locationId} onChange={event => setLocationId(event.target.value)}><option value="">Whole business</option>{branchOptions.map(location => <option key={location.id} value={location.id}>{location.name} ({location.code})</option>)}</SearchableSelect>
+        <SearchableSelect className="input" value={unitId} onChange={event => setUnitId(event.target.value)}>{units.map(unit => <option key={unit.id} value={unit.id} data-search={unit.code}>{unit.name}</option>)}</SearchableSelect>
+        <SearchableSelect className="input" value={locationId} onChange={event => setLocationId(event.target.value)}><option value="">Whole business</option>{branchOptions.map(location => <option key={location.id} value={location.id} data-search={location.code}>{location.name}</option>)}</SearchableSelect>
         <input className="input" placeholder="Full name" value={fullName} onChange={event => setFullName(event.target.value)}/>
         <input className="input" type="email" placeholder="Login email" value={email} onChange={event => setEmail(event.target.value)}/>
         <input className="input" type="password" placeholder="Temporary password" value={password} onChange={event => setPassword(event.target.value)}/>

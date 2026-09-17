@@ -107,7 +107,7 @@ export default function DayBook() {
         entry_no: entry.entry_no,
         entry_date: entry.entry_date,
         description: entry.description ?? "",
-        account: line.coa ? `${line.coa.code} — ${line.coa.name}` : line.account || "Unlinked account",
+        account: line.coa?.name || line.account || "Unlinked account",
         debit: Number(line.debit || 0),
         credit: Number(line.credit || 0),
       }];

@@ -6,14 +6,15 @@ import { supabase } from "@/lib/supabase";
 import { JURISDICTIONS, getJurisdictionProfile } from "@/lib/jurisdictionConfig";
 import {
   GLOBAL_LANGUAGE_CATALOG,
-  NAVILO_LANGUAGES,
-  allowedSecondaryLanguages,
   isAllowedBilingualPair,
   languageDisplayLabel,
   type LanguageMode,
+  type NaviloLanguage,
 } from "@/lib/languageConfig";
+import { useCompanyLanguages } from "@/hooks/useCompanyLanguages";
 
 export default function CompanySettings() {
+  const {languages:enabledLanguages,enabledCodes,loading:languageEntitlementsLoading}=useCompanyLanguages();
   const [name,setName]=useState("Steel Mill ERP");
   const [currency,setCurrency]=useState("PKR");
   const [countryCode,setCountryCode]=useState("");
@@ -180,7 +181,7 @@ export default function CompanySettings() {
         <div className="flex items-center gap-2 font-bold text-amber-900"><Globe2 size={18}/>Country & Statutory Jurisdiction</div>
         <p className="mt-1 text-xs text-amber-800">Select the company's legal country. NAVILO uses it for statutory tax terminology, authority labels, currency defaults and country-specific reports.</p>
         <div className="mt-3 grid gap-4 md:grid-cols-2">
-          <Field label="Country / Jurisdiction"><SearchableSelect className="input w-full" value={countryCode} onChange={e=>changeCountry(e.target.value)}><option value="">Select country...</option>{JURISDICTIONS.map(j=><option key={j.code} value={j.code}>{j.name} ({j.code})</option>)}</SearchableSelect></Field>
+          <Field label="Country / Jurisdiction"><SearchableSelect className="input w-full" value={countryCode} onChange={e=>changeCountry(e.target.value)}><option value="">Select country...</option>{JURISDICTIONS.map(j=><option key={j.code} value={j.code}>{j.name}</option>)}</SearchableSelect></Field>
           <Field label="Active statutory profile"><div className="rounded-lg border bg-white px-3 py-2 text-sm"><div className="font-semibold">{countryCode?jurisdiction.name:"Not selected"}</div>{countryCode&&<div className="mt-1 text-xs text-slate-600">{jurisdiction.taxRegisterLabel} · {jurisdiction.authorityLabel} · {jurisdiction.taxIdLabels.join(" / ")} · {jurisdiction.currency}</div>}</div></Field>
         </div>
         <button type="button" onClick={()=>void applyJurisdiction()} disabled={jurisdictionSaving||saving} className="btn btn-primary mt-3">{jurisdictionSaving?<Loader2 className="h-4 w-4 animate-spin"/>:<Globe2 className="h-4 w-4"/>}Apply Country & Jurisdiction</button>
@@ -189,11 +190,12 @@ export default function CompanySettings() {
       <section className="rounded-xl border border-violet-200 bg-violet-50 p-4">
         <div className="flex items-center gap-2 font-bold text-violet-900"><Globe2 size={18}/>NAVILO Global Language Center</div>
         <p className="mt-1 text-xs text-violet-800">All supported NAVILO languages below are available for screen use and official document output. Country and language remain separate.</p>
-        <div className="mt-3 flex flex-wrap gap-2">{GLOBAL_LANGUAGE_CATALOG.map(language=><span key={language.code} className="rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">{language.label}{language.label!==language.nativeLabel?` · ${language.nativeLabel}`:""} · AVAILABLE</span>)}</div>
+        <div className="mt-3 flex flex-wrap gap-2">{GLOBAL_LANGUAGE_CATALOG.map(language=>{const enabled=enabledCodes.has(language.code);return <span key={language.code} className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${enabled?"border-emerald-300 bg-emerald-50 text-emerald-800":"border-slate-200 bg-slate-50 text-slate-500"}`}>{language.label}{language.label!==language.nativeLabel?` · ${language.nativeLabel}`:""} · {enabled?"VERIFIED & ENABLED":"REQUIRES VERIFIED PACK"}</span>})}</div>
+        {languageEntitlementsLoading&&<p className="mt-2 text-xs text-slate-500">Checking company language entitlements…</p>}
       </section>
 
-      <LanguagePanel title="Software / Screen Language" mode={screenMode} setMode={setScreenMode} primary={screenPrimary} setPrimary={value=>{setScreenPrimary(value);if(screenMode==="bilingual"&&!isAllowedBilingualPair(value,screenSecondary))setScreenSecondary(value==="en"?"ur":"en");}} secondary={screenSecondary} setSecondary={setScreenSecondary}/>
-      <LanguagePanel title="Invoice / Print / PDF Language" mode={documentMode} setMode={setDocumentMode} primary={documentPrimary} setPrimary={value=>{setDocumentPrimary(value);if(documentMode==="bilingual"&&!isAllowedBilingualPair(value,documentSecondary))setDocumentSecondary(value==="en"?"ur":"en");}} secondary={documentSecondary} setSecondary={setDocumentSecondary}/>
+      <LanguagePanel title="Software / Screen / On-screen Reports" languages={enabledLanguages} mode={screenMode} setMode={setScreenMode} primary={screenPrimary} setPrimary={value=>{setScreenPrimary(value);if(screenMode==="bilingual"&&!isAllowedBilingualPair(value,screenSecondary))setScreenSecondary(enabledLanguages.find(x=>x.code!==value)?.code||value);}} secondary={screenSecondary} setSecondary={setScreenSecondary}/>
+      <LanguagePanel title="Documents / Report Print / PDF / Export" languages={enabledLanguages} mode={documentMode} setMode={setDocumentMode} primary={documentPrimary} setPrimary={value=>{setDocumentPrimary(value);if(documentMode==="bilingual"&&!isAllowedBilingualPair(value,documentSecondary))setDocumentSecondary(enabledLanguages.find(x=>x.code!==value)?.code||value);}} secondary={documentSecondary} setSecondary={setDocumentSecondary}/>
 
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><div className="font-bold">Company language settings are authoritative across the ERP.</div><div className="mt-1 text-xs">Single Language shows one selected language. Bilingual allows any two different supported languages. Screen language and official document/print language remain separate. Business data, amounts and document numbers are never automatically translated.</div><button type="button" onClick={()=>void saveLanguages()} disabled={languageSaving||saving} className="btn btn-primary mt-3">{languageSaving?<Loader2 className="h-4 w-4 animate-spin"/>:<Languages className="h-4 w-4"/>}Apply Language Settings</button></div>
 
@@ -214,10 +216,13 @@ export default function CompanySettings() {
   </div>;
 }
 
-function LanguagePanel({title,mode,setMode,primary,setPrimary,secondary,setSecondary}:{title:string;mode:LanguageMode;setMode:(v:LanguageMode)=>void;primary:string;setPrimary:(v:string)=>void;secondary:string;setSecondary:(v:string)=>void}){
-  const secondaryOptions=allowedSecondaryLanguages(primary);
-  const changeMode=(next:LanguageMode)=>{setMode(next);if(next==="bilingual"&&!isAllowedBilingualPair(primary,secondary)){setPrimary("en");setSecondary(primary==="en"?"ur":primary);}};
-  return <section className="rounded-xl border border-blue-200 bg-blue-50 p-4"><div className="flex items-center gap-2 font-bold"><Languages size={18}/>{title}</div><div className="mt-3 grid gap-4 md:grid-cols-3"><Field label="Display Mode"><SearchableSelect className="input w-full" value={mode} onChange={e=>changeMode(e.target.value as LanguageMode)}><option value="single">Single Language</option><option value="bilingual">Bilingual / Two Languages</option></SearchableSelect></Field><Field label="Primary Language"><LanguageSelect value={primary} onChange={setPrimary}/></Field>{mode==="bilingual"&&<Field label="Secondary Language"><SearchableSelect className="input w-full" value={secondary} onChange={e=>setSecondary(e.target.value)}>{secondaryOptions.map(l=><option key={l.code} value={l.code}>{languageDisplayLabel(l.code)}</option>)}</SearchableSelect></Field>}</div><div className="mt-3 rounded-lg border border-blue-100 bg-white px-3 py-2 text-xs text-slate-600"><span className="font-semibold text-slate-800">Live preview:</span> {mode==="single"?languageDisplayLabel(primary):`${languageDisplayLabel(primary)} + ${languageDisplayLabel(secondary)}`}</div></section>;
+function LanguagePanel({title,languages,mode,setMode,primary,setPrimary,secondary,setSecondary}:{title:string;languages:NaviloLanguage[];mode:LanguageMode;setMode:(v:LanguageMode)=>void;primary:string;setPrimary:(v:string)=>void;secondary:string;setSecondary:(v:string)=>void}){
+  const safeLanguages=languages.length?languages:[GLOBAL_LANGUAGE_CATALOG[0]];
+  const safePrimary=safeLanguages.some(x=>x.code===primary)?primary:safeLanguages[0].code;
+  const secondaryOptions=safeLanguages.filter(language=>language.code!==safePrimary);
+  const bilingualAvailable=secondaryOptions.length>0;
+  const changeMode=(next:LanguageMode)=>{const safeMode=next==="bilingual"&&bilingualAvailable?next:"single";setMode(safeMode);if(safeMode==="bilingual"&&!secondaryOptions.some(x=>x.code===secondary))setSecondary(secondaryOptions[0].code);};
+  return <section className="rounded-xl border border-blue-200 bg-blue-50 p-4"><div className="flex items-center gap-2 font-bold"><Languages size={18}/>{title}</div><div className="mt-3 grid gap-4 md:grid-cols-3"><Field label="Display Mode"><SearchableSelect className="input w-full" value={mode==="bilingual"&&bilingualAvailable?mode:"single"} onChange={e=>changeMode(e.target.value as LanguageMode)}><option value="single">Single Language</option><option value="bilingual" disabled={!bilingualAvailable}>Bilingual / Two Languages</option></SearchableSelect></Field><Field label="Primary Language"><LanguageSelect languages={safeLanguages} value={safePrimary} onChange={setPrimary}/></Field>{mode==="bilingual"&&bilingualAvailable&&<Field label="Secondary Language"><SearchableSelect className="input w-full" value={secondaryOptions.some(x=>x.code===secondary)?secondary:secondaryOptions[0].code} onChange={e=>setSecondary(e.target.value)}>{secondaryOptions.map(l=><option key={l.code} value={l.code}>{languageDisplayLabel(l.code)}</option>)}</SearchableSelect></Field>}</div>{!bilingualAvailable&&<p className="mt-2 text-xs font-medium text-amber-700">Bilingual mode becomes available after the Platform Owner enables a second verified language pack.</p>}<div className="mt-3 rounded-lg border border-blue-100 bg-white px-3 py-2 text-xs text-slate-600"><span className="font-semibold text-slate-800">Live preview:</span> {mode==="single"||!bilingualAvailable?languageDisplayLabel(safePrimary):`${languageDisplayLabel(safePrimary)} + ${languageDisplayLabel(secondary)}`}</div></section>;
 }
-function LanguageSelect({value,onChange}:{value:string;onChange:(v:string)=>void}){return <SearchableSelect className="input w-full" value={value} onChange={e=>onChange(e.target.value)}>{NAVILO_LANGUAGES.map(l=><option key={l.code} value={l.code}>{languageDisplayLabel(l.code)}</option>)}</SearchableSelect>}
+function LanguageSelect({languages,value,onChange}:{languages:NaviloLanguage[];value:string;onChange:(v:string)=>void}){return <SearchableSelect className="input w-full" value={value} onChange={e=>onChange(e.target.value)}>{languages.map(l=><option key={l.code} value={l.code}>{languageDisplayLabel(l.code)}</option>)}</SearchableSelect>}
 function Field({label,children}:{label:string;children:React.ReactNode}){return <div><label className="mb-1 block text-sm font-medium text-slate-700">{label}</label>{children}</div>}
