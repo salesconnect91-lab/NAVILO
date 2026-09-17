@@ -123,6 +123,48 @@ Deno.serve(async(request)=>{
       }catch(error){await admin.auth.admin.deleteUser(userId);throw error;}
     }
 
+    if(action==="create_business_unit"){
+      if(!isPlatformOwner&&actorRole!=="company_owner")return json({error:"Only the Company Owner can create a business unit."},403);
+      const name=String(body.name||"").trim();
+      const code=String(body.code||"").trim().toUpperCase();
+      const unitType=String(body.unit_type||"custom");
+      if(!name||!code)return json({error:"Business unit name and code are required."},400);
+      if(!["steel","transport","retail","fuel","construction","custom"].includes(unitType))return json({error:"Invalid business type."},400);
+      const [{data:company},{count},{data:duplicate}]=await Promise.all([
+        admin.from("companies").select("max_business_units").eq("id",companyId).single(),
+        admin.from("business_units").select("id",{count:"exact",head:true}).eq("company_id",companyId).eq("is_active",true),
+        admin.from("business_units").select("id").eq("company_id",companyId).eq("code",code).maybeSingle(),
+      ]);
+      if(duplicate)return json({error:"This business unit code already exists."},409);
+      const maxUnits=company?.max_business_units==null?null:Number(company.max_business_units);
+      if(maxUnits!==null&&(count||0)>=maxUnits)return json({error:`Business unit limit reached (${maxUnits}). Ask the NAVILO Platform Owner to increase the allowance.`},409);
+      const {data:unit,error:unitError}=await admin.from("business_units").insert({company_id:companyId,name,code,unit_type:unitType,is_active:true,is_default:false}).select("id").single();
+      if(unitError||!unit)throw unitError||new Error("Business unit creation failed.");
+      const {data:licensed,error:moduleError}=await admin.from("company_modules").select("module_key").eq("company_id",companyId).eq("enabled",true);
+      if(moduleError){await admin.from("business_units").delete().eq("id",unit.id);throw moduleError;}
+      const moduleKeys=[...new Set(["dashboard",...(licensed||[]).map((row:any)=>String(row.module_key))])];
+      if(moduleKeys.length){const result=await admin.from("business_unit_modules").insert(moduleKeys.map(module_key=>({company_id:companyId,business_unit_id:unit.id,module_key,enabled:true})));if(result.error){await admin.from("business_units").delete().eq("id",unit.id);throw result.error;}}
+      return json({success:true,business_unit_id:unit.id});
+    }
+
+    if(action==="update_business_unit"){
+      if(!isPlatformOwner&&actorRole!=="company_owner")return json({error:"Only the Company Owner can change a business unit."},403);
+      const unitId=String(body.business_unit_id||"");
+      const {data:unit}=await admin.from("business_units").select("id,is_default,is_active").eq("id",unitId).eq("company_id",companyId).maybeSingle();
+      if(!unit)return json({error:"Business unit not found."},404);
+      const patch:Record<string,unknown>={updated_at:new Date().toISOString()};
+      if(body.name!==undefined){const name=String(body.name||"").trim();if(!name)return json({error:"Business unit name is required."},400);patch.name=name;}
+      if(body.code!==undefined){const code=String(body.code||"").trim().toUpperCase();if(!code)return json({error:"Business unit code is required."},400);patch.code=code;}
+      if(body.is_active!==undefined){
+        const active=!!body.is_active;
+        if(!active&&unit.is_default)return json({error:"The default business unit cannot be disabled."},409);
+        if(!active){const {count}=await admin.from("business_unit_memberships").select("id",{count:"exact",head:true}).eq("business_unit_id",unitId).eq("is_active",true);if((count||0)>0)return json({error:"Reassign active users before disabling this business unit."},409);}
+        patch.is_active=active;
+      }
+      const {error}=await admin.from("business_units").update(patch).eq("id",unitId).eq("company_id",companyId);if(error)throw error;
+      return json({success:true});
+    }
+
     if(action==="update_user"){
       const userId=String(body.user_id||"");
       if(!userId)return json({error:"User is required."},400);

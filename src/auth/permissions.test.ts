@@ -28,4 +28,28 @@ describe("ERP permission model", () => {
     expect(merged.sales?.view).toBe(false);
     expect(merged.reports?.view).toBe(true);
   });
+
+  it("gives every supported company role dashboard access", () => {
+    for (const role of ["company_owner","admin","accounts","sales","purchase","store","production","transport","viewer"]) {
+      expect(hasPermission(role,"dashboard","view"),role).toBe(true);
+    }
+  });
+
+  it("keeps each operational role inside its write module", () => {
+    const assignments = {
+      accounts:"accounting",sales:"sales",purchase:"purchase",store:"inventory",production:"production",transport:"transport",
+    } as const;
+    for (const [role,module] of Object.entries(assignments)) {
+      expect(hasPermission(role,module,"create"),`${role} create ${module}`).toBe(true);
+      expect(hasPermission(role,module,"edit"),`${role} edit ${module}`).toBe(true);
+      expect(hasPermission(role,module,"post"),`${role} post ${module}`).toBe(true);
+      expect(hasPermission(role,module,"delete"),`${role} delete ${module}`).toBe(false);
+    }
+  });
+
+  it("keeps viewers read-only and custom denies authoritative", () => {
+    for (const action of ["create","edit","delete","post"] as const) expect(hasPermission("viewer","reports",action)).toBe(false);
+    expect(hasPermission("accounts","accounting","post",{accounting:{post:false}})).toBe(false);
+    expect(hasPermission("viewer","sales","view",{sales:{view:true}})).toBe(true);
+  });
 });

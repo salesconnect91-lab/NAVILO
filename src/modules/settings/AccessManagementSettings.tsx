@@ -1,6 +1,6 @@
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback,useEffect,useMemo,useState } from "react";
-import { KeyRound,Loader2,MapPin,Plus,RefreshCw,Save,ShieldCheck,SlidersHorizontal,Users } from "lucide-react";
+import { Building2,KeyRound,Loader2,MapPin,Plus,Save,ShieldCheck,SlidersHorizontal,Users } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { defaultRolePermissions, mergePermissions, type ModuleAction, type ModuleKey, type PermissionMatrix } from "@/auth/permissions";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
@@ -29,6 +29,7 @@ export default function AccessManagementSettings(){
   const[customCreate,setCustomCreate]=useState(false),[createPermissions,setCreatePermissions]=useState<PermissionMatrix>(()=>defaultRolePermissions("viewer"));
   const[editingPermissionUser,setEditingPermissionUser]=useState<string|null>(null),[permissionDraft,setPermissionDraft]=useState<PermissionMatrix>({});
   const[branch,setBranch]=useState({business_unit_id:"",name:"",code:""});
+  const[unit,setUnit]=useState({name:"",code:"",unit_type:"steel"});
 
   const load=useCallback(async()=>{
     if(!companyId||!allowed){setLoading(false);return;}
@@ -45,6 +46,8 @@ export default function AccessManagementSettings(){
   const branchLimitReached=data?.limits.max_branches!=null&&activeBranches>=data.limits.max_branches;
   const roleOptions=useMemo(()=>data?.is_platform_owner?["company_owner",...ALL_ROLES]:data?.actor_role==="company_owner"?ALL_ROLES:ALL_ROLES.filter(x=>x!=="admin"),[data?.actor_role,data?.is_platform_owner]);
   const formBranches=(data?.locations||[]).filter(x=>x.is_active&&x.business_unit_id===form.business_unit_id);
+  const canManageUnits=Boolean(data?.is_platform_owner||data?.actor_role==="company_owner");
+  const unitLimitReached=data?.limits.max_business_units!=null&&(data?.units.filter(x=>x.is_active).length||0)>=data.limits.max_business_units;
 
   const changeCreateRole=(role:string)=>{setForm(v=>({...v,role}));setCreatePermissions(defaultRolePermissions(role));};
   const createUser=async()=>{
@@ -64,6 +67,15 @@ export default function AccessManagementSettings(){
   const savePermissions=async(row:UserRow)=>{await saveUser(row,{permissions:permissionDraft});setEditingPermissionUser(null);};
   const resetPermissions=async(row:UserRow)=>{await saveUser(row,{permissions:{}});setEditingPermissionUser(null);};
 
+  const createUnit=async()=>{
+    if(!unit.name.trim()||!unit.code.trim()){setError("Business unit name and code are required.");return;}
+    setBusy(true);setError("");setMessage("");
+    try{await invokeEdgeFunction("company-admin",{action:"create_business_unit",company_id:companyId,...unit});setUnit({name:"",code:"",unit_type:"steel"});setMessage("Business unit created with the company licensed modules.");await load();}
+    catch(e){setError(e instanceof Error?e.message:"Could not create business unit.");}finally{setBusy(false);}
+  };
+  const editUnit=async(row:Unit)=>{const name=window.prompt("Business unit name",row.name);if(name===null)return;setBusy(true);setError("");try{await invokeEdgeFunction("company-admin",{action:"update_business_unit",company_id:companyId,business_unit_id:row.id,name});setMessage("Business unit updated.");await load();}catch(e){setError(e instanceof Error?e.message:"Could not update business unit.");}finally{setBusy(false);}};
+  const toggleUnit=async(row:Unit)=>{setBusy(true);setError("");try{await invokeEdgeFunction("company-admin",{action:"update_business_unit",company_id:companyId,business_unit_id:row.id,is_active:!row.is_active});setMessage(row.is_active?"Business unit disabled.":"Business unit enabled.");await load();}catch(e){setError(e instanceof Error?e.message:"Could not update business unit.");}finally{setBusy(false);}};
+
   const createBranch=async()=>{
     if(!branch.business_unit_id||!branch.name.trim()||!branch.code.trim()){setError("Business unit, branch name and branch code are required.");return;}
     if(branchLimitReached){setError(`Branch limit reached (${data?.limits.max_branches}). Ask the NAVILO Platform Owner to increase the company allowance.`);return;}
@@ -82,6 +94,12 @@ export default function AccessManagementSettings(){
     <PageHeader title="Users & Branch Access" subtitle="Role preset + optional custom permissions + business unit / branch scope"/>
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}{message&&<div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Stat label="Users" value={`${activeUsers} / ${data.limits.max_users??"∞"}`}/><Stat label="Branches" value={`${activeBranches} / ${data.limits.max_branches??"∞"}`}/><Stat label="Business Units" value={`${data.units.filter(x=>x.is_active).length} / ${data.limits.max_business_units??"∞"}`}/><Stat label="Your Admin Role" value={roleLabel(data.actor_role)}/></div>
+
+    <section className="rounded-xl border bg-white p-4 shadow-sm"><div className="flex items-center gap-2"><Building2 className="h-5 w-5 text-violet-700"/><div><h2 className="font-semibold">Business Units / Workspaces</h2><p className="text-xs text-slate-500">Company Owner may create workspaces inside the Platform Owner allowance. New workspaces inherit only company-licensed modules.</p></div></div>
+      {!canManageUnits&&<div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">Business unit structure is Company Owner controlled. Administrators may continue managing users and branches.</div>}
+      {canManageUnits&&<><div className="mt-4 grid gap-3 sm:grid-cols-4"><input className="input" placeholder="Business unit name" value={unit.name} onChange={e=>setUnit({...unit,name:e.target.value})}/><input className="input" placeholder="Business unit code" value={unit.code} onChange={e=>setUnit({...unit,code:e.target.value})}/><SearchableSelect className="input" value={unit.unit_type} onChange={e=>setUnit({...unit,unit_type:e.target.value})}><option value="steel">Steel / Manufacturing</option><option value="transport">Transport</option><option value="retail">Retail</option><option value="fuel">Fuel</option><option value="construction">Construction</option><option value="custom">General / Custom</option></SearchableSelect><button className="btn-primary" disabled={busy||unitLimitReached} onClick={()=>void createUnit()}><Plus className="h-4 w-4"/>Add Business Unit</button></div>{unitLimitReached&&<div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">Business unit allowance is fully used. Ask the NAVILO Platform Owner to increase it.</div>}</>}
+      <div className="mt-4 grid gap-2 md:grid-cols-2">{data.units.map(row=><div key={row.id} className="flex items-center justify-between gap-3 rounded-lg border p-3"><div><div className="font-semibold">{row.name}</div><div className="text-xs text-slate-500">{row.unit_type.replace(/_/g," ")} · {row.is_default?"Default · ":""}{row.is_active?"Active":"Disabled"}</div></div>{canManageUnits&&<div className="flex gap-2"><button className="btn-secondary" disabled={busy} onClick={()=>void editUnit(row)}>Edit</button><button className="btn-secondary" disabled={busy||row.is_default} onClick={()=>void toggleUnit(row)}>{row.is_active?"Disable":"Enable"}</button></div>}</div>)}</div>
+    </section>
 
     <section className="rounded-xl border bg-white p-4 shadow-sm"><div className="flex items-center gap-2"><Users className="h-5 w-5 text-blue-700"/><div><h2 className="font-semibold">Create Company User</h2><p className="text-xs text-slate-500">Select a role preset first, then optionally customize module actions. BU and branch scope remain separate.</p></div></div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><input className="input" placeholder="Full name" value={form.full_name} onChange={e=>setForm({...form,full_name:e.target.value})}/><input className="input" type="email" placeholder="Login email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/><input className="input" type="password" placeholder="Temporary password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/><SearchableSelect className="input" value={form.role} onChange={e=>changeCreateRole(e.target.value)}>{roleOptions.filter(r=>r!=="company_owner").map(r=><option key={r} value={r}>{roleLabel(r)}</option>)}</SearchableSelect><SearchableSelect className="input" value={form.business_unit_id} onChange={e=>setForm({...form,business_unit_id:e.target.value,operating_location_id:""})}>{data.units.filter(x=>x.is_active).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</SearchableSelect><SearchableSelect className="input" value={form.operating_location_id} onChange={e=>setForm({...form,operating_location_id:e.target.value})}><option value="">Whole business unit</option>{formBranches.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</SearchableSelect><label className="flex items-center gap-2 rounded-lg border px-3 text-sm font-semibold"><input type="checkbox" checked={customCreate} onChange={e=>{setCustomCreate(e.target.checked);setCreatePermissions(defaultRolePermissions(form.role));}}/>Custom permissions</label><button className="btn-primary" disabled={busy} onClick={()=>void createUser()}><Plus className="h-4 w-4"/>Create User</button></div>

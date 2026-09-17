@@ -6,12 +6,14 @@ import OrderBookSettings from "./OrderBookSettings";
 import GatePassWeighbridgeSettings from "./GatePassWeighbridgeSettings";
 import AccessManagementSettings from "./AccessManagementSettings";
 import ApprovalWorkflowSettings from "./ApprovalWorkflowSettings";
+import LicenceBillingStatus from "./LicenceBillingStatus";
 
 export default function Settings() {
   return (
     <Routes>
       <Route path="/" element={<CompanySettings />} />
       <Route path="/access" element={<AccessManagementSettings />} />
+      <Route path="/licence" element={<LicenceBillingStatus />} />
       <Route path="/approvals" element={<ApprovalWorkflowSettings />} />
       <Route path="/tax" element={<TaxSettings />} />
       <Route path="/documents" element={<DocumentPrintSettings />} />

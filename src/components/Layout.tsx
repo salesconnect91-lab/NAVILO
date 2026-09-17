@@ -45,6 +45,7 @@ const navigation:NavNode[]=[
   {key:"settings",label:"Settings / سیٹنگز",icon:Lucide.Settings,module:"settings",children:[
     {key:"company-settings",to:"/settings",label:"Company / کمپنی",end:true,module:"settings"},
     {key:"access-settings",to:"/settings/access",label:"Users & Branches / یوزرز اور برانچز",module:"settings",accessAdminOnly:true},
+    {key:"licence-settings",to:"/settings/licence",label:"Licence & Billing / لائسنس",module:"settings",accessAdminOnly:true},
     {key:"approval-settings",to:"/settings/approvals",label:"Approval Workflows / منظوری کے مراحل",module:"settings",accessAdminOnly:true},
     {key:"tax-settings",to:"/settings/tax",label:"Tax Settings / ٹیکس سیٹنگز",module:"settings"},
     {key:"document-settings",to:"/settings/documents",label:"Document & Print / ڈاکومنٹ و پرنٹ",module:"settings"},
