@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { employeeSecondaryName, preserveEmployeeUrduFields, suggestEmployeeName } from "./employeeLanguageFields";
+import { employeeSecondaryName, prepareEmployeeUrduImport, preserveEmployeeUrduFields, suggestEmployeeName } from "./employeeLanguageFields";
 
 const existing = {
   name_urdu: "وسیم",
@@ -34,5 +34,19 @@ describe("employee language isolation", () => {
 
   it("never invents Urdu for an Arabic name suggestion", () => {
     expect(suggestEmployeeName("Waseem", "ar")).toEqual({ status: "manual_required", language: "ar", value: null });
+  });
+
+  it("drops Urdu-only import columns for English-only, Arabic and Hindi selections", () => {
+    for (const language of [null, "en", "ar", "hi"]) {
+      expect(prepareEmployeeUrduImport(existing, language)).toEqual({
+        name_urdu: null, designation_urdu: null, department_urdu: null,
+      });
+    }
+  });
+
+  it("keeps only explicitly imported, trimmed Urdu fields in Urdu mode", () => {
+    expect(prepareEmployeeUrduImport({ name_urdu: " وسیم ", designation_urdu: " " }, "ur")).toEqual({
+      name_urdu: "وسیم", designation_urdu: null, department_urdu: null,
+    });
   });
 });
