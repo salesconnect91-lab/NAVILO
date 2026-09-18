@@ -6,6 +6,10 @@ describe("business name conversion", () => {
     expect(suggestBusinessNameConversion("Waseem", "ur")).toEqual({ status: "suggested", language: "ur", value: "وسیم" });
   });
 
+  it("preserves approved spelling inside a compound business name", () => {
+    expect(suggestBusinessNameConversion("Waseem Steel", "ur")).toEqual({ status: "suggested", language: "ur", value: "وسیم اسٹیل" });
+  });
+
   it("never substitutes Urdu when Arabic, French or Hindi was selected", () => {
     for (const language of ["ar", "fr", "hi"]) {
       expect(suggestBusinessNameConversion("Waseem", language)).toEqual({ status: "manual_required", language, value: null });
