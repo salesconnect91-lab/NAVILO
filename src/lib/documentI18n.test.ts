@@ -14,6 +14,15 @@ describe("document language isolation", () => {
     expect(renderDocumentLabel("Invoice", "bilingual", "en", "en")).toBe("Invoice");
   });
 
+  it("supports Urdu and Arabic together without inserting English", () => {
+    expect(normalizeDocumentLanguages("bilingual", "ur", "ar")).toEqual({ mode: "bilingual", primary: "ur", secondary: "ar" });
+    expect(renderDocumentLabel("Invoice", "bilingual", "ur", "ar")).toBe("انوائس / الفاتورة");
+  });
+
+  it("never generates partly translated unknown labels", () => {
+    expect(renderDocumentLabel("Invoice Custom Workflow", "single", "ur", null)).toBe("Invoice Custom Workflow");
+  });
+
   it("preserves document field values while translating known labels", () => {
     expect(isKnownDocumentLabel("Invoice No: INV-2026-001")).toBe(true);
     expect(renderDocumentLabel("Invoice No: INV-2026-001", "single", "ur", null)).toBe("انوائس نمبر: INV-2026-001");

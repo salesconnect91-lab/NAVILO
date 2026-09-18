@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { normalizeDocumentLanguages, renderDocumentLabel } from "./documentI18n";
 
 describe("worldwide document language requirements", () => {
-  it.fails("allows an explicitly selected Urdu and Arabic pair without requiring English", () => {
+  it("allows an explicitly selected Urdu and Arabic pair without requiring English", () => {
     expect(normalizeDocumentLanguages("bilingual", "ur", "ar")).toEqual({
       mode: "bilingual", primary: "ur", secondary: "ar",
     });
