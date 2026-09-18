@@ -20,14 +20,10 @@ function nearbyAccountContext(select: HTMLSelectElement) {
     looksLikeAccountHint(select.getAttribute("data-field"))
   ) return true;
 
-  // Only use labels actually associated with this select. Scanning ancestor forms
-  // can pick up an unrelated "Account" label and alter item/customer options.
-  if (Array.from(select.labels || []).some((label) => looksLikeAccountHint(label.textContent))) return true;
-
-  const coded = Array.from(select.options).filter((option) => ACCOUNT_CODE.test(option.textContent || ""));
-  const nonEmpty = Array.from(select.options).filter((option) => option.value && (option.textContent || "").trim());
-  const uuidValues = nonEmpty.filter((option) => /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(option.value));
-  return nonEmpty.length >= 2 && coded.length >= Math.max(2, Math.ceil(nonEmpty.length * 0.7)) && uuidValues.length >= Math.ceil(nonEmpty.length * 0.7);
+  // Only labels associated with this select identify an account selector.
+  // UUID option values and numeric-looking names are common in item/customer
+  // selectors too, so their shape must never be used to infer account context.
+  return Array.from(select.labels || []).some((label) => looksLikeAccountHint(label.textContent));
 }
 
 function normalizeSelect(select: HTMLSelectElement) {
