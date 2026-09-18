@@ -68,17 +68,7 @@ export const GLOBAL_UI_TRANSLATIONS: Record<string,Localized> = {
   "Currency":{ur:"کرنسی",ar:"العملة",hi:"मुद्रा",bn:"মুদ্রা",fa:"ارز",tr:"Para Birimi",fr:"Devise",es:"Moneda",de:"Währung",pt:"Moeda",ru:"Валюта",zh:"货币",id:"Mata Uang",ms:"Mata Wang"}
 };
 
-export function translateGlobalUi(value:string,language:RuntimeLanguageCode){
-  if(language==="en")return value;
-  const exact=GLOBAL_UI_TRANSLATIONS[value]?.[language];
-  if(exact)return exact;
-  let output=value;
-  const entries=Object.entries(GLOBAL_UI_TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length);
-  for(const [source,localized] of entries){
-    const target=localized[language];
-    if(!target)continue;
-    const escaped=source.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
-    output=output.replace(new RegExp(`\\b${escaped}\\b`,"gi"),target);
-  }
-  return output;
+export function translateGlobalUi(value: string, language: RuntimeLanguageCode) {
+  if (language === "en") return value;
+  return GLOBAL_UI_TRANSLATIONS[value]?.[language] ?? value;
 }
