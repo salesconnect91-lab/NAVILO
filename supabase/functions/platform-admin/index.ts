@@ -154,7 +154,7 @@ Deno.serve(async (request) => {
         if (!location) return json({ error: "Invalid or inactive branch for this business workspace" }, 400);
       }
 
-      const [{ data: company }, { count }] = await Promise.all([
+      const [companyResult, membershipResult] = await Promise.all([
         admin.from("companies").select("max_users").eq("id", companyId).single(),
         admin
           .from("company_memberships")
@@ -163,7 +163,18 @@ Deno.serve(async (request) => {
           .eq("is_active", true),
       ]);
 
-      if (company && (count || 0) >= company.max_users) {
+      // Never create an Auth user if its company or membership limit cannot be verified.
+      if (companyResult.error || !companyResult.data) {
+        return json({ error: "Company could not be verified" }, companyResult.error ? 503 : 404);
+      }
+      if (membershipResult.error || membershipResult.count === null) {
+        return json({ error: "Company user count could not be verified" }, 503);
+      }
+      const maxUsers = Number(companyResult.data.max_users);
+      if (!Number.isSafeInteger(maxUsers) || maxUsers < 1) {
+        return json({ error: "Company user limit is invalid" }, 503);
+      }
+      if (membershipResult.count >= maxUsers) {
         return json({ error: "Company user limit reached" }, 409);
       }
 
