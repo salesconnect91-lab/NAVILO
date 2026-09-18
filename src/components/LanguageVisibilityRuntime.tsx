@@ -66,22 +66,23 @@ function updateLanguageFields(root: ParentNode, active: Set<RuntimeLanguageCode>
     if (host) setVisible(host, active.has(code));
   });
 
-  // Urdu-only legacy controls must never masquerade as an Arabic, Hindi or
-  // Chinese converter. Hide the entire field, including its Auto Urdu button.
-  // This is display isolation only: persistence must be fixed in each module.
+  // Legacy employee fields store Urdu only; never expose their Auto Urdu
+  // controls as if they could convert into another selected language.
+  // Persistence remains the responsibility of the employee module.
   root.querySelectorAll<HTMLLabelElement>("label").forEach((label) => {
     if (!/\b(?:Urdu Name|Designation Urdu|Department Urdu)\b/i.test(label.textContent || "")) return;
     const host = languageFieldHost(label);
     if (host) setVisible(host, active.has("ur"));
   });
 
-  // Arabic and Urdu share a script, but are different languages. Never use
-  // Arabic selection as permission to expose an untagged legacy Urdu value.
+  // Untagged RTL text can be Arabic, Persian or Urdu. Preserve existing
+  // script visibility until each value is tagged with its exact locale.
   root.querySelectorAll<HTMLElement>("[dir='rtl']:not([data-language-code]):not([data-language])").forEach((element) => {
     if (element.matches("input,textarea,[contenteditable='true']")) return;
     const value = (element.textContent || "").trim();
     if (!value || !RTL_SCRIPT.test(value) || LATIN_SCRIPT.test(value)) return;
-    setVisible(element, active.has("ur"));
+    const rtlEnabled = active.has("ur") || active.has("ar") || active.has("fa");
+    setVisible(element, rtlEnabled);
   });
 }
 export default function LanguageVisibilityRuntime() {
