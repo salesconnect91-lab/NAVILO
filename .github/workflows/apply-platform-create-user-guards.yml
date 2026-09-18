@@ -1,0 +1,30 @@
+name: Apply Platform Owner user provisioning guard
+on:
+  push:
+    branches:
+      - work/navilo-unified-release-audit-20260918
+    paths:
+      - .github/workflows/apply-platform-create-user-guards.yml
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/navilo-unified-release-audit-20260918
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply reviewed patch, refusing unexpected source
+        run: python scripts/patch-platform-create-user-guards.py
+      - name: Commit patch to development branch only
+        run: |
+          git config user.name "NAVILO Release Audit"
+          git config user.email "actions@users.noreply.github.com"
+          git add supabase/functions/platform-admin/index.ts
+          git diff --cached --quiet && { echo 'Expected patch was not applied'; exit 1; }
+          git commit -m "Fail closed when verifying company and user limits"
+          git push origin HEAD:work/navilo-unified-release-audit-20260918
