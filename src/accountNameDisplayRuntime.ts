@@ -1,5 +1,5 @@
 // Account selectors may render codes as "1120 Bank" as well as "1120 - Bank".
-// This pattern is applied only after an account-select context check, not to business data.
+// Never strip codes from non-account business data.
 const ACCOUNT_CODE = /^\s*[A-Z]{0,4}[-/]?\d{2,10}(?:[./-]\d+)?(?:\s*[-–—:|]\s*|\s+)/;
 
 function stripAccountCode(value: string) {
@@ -20,14 +20,9 @@ function nearbyAccountContext(select: HTMLSelectElement) {
     looksLikeAccountHint(select.getAttribute("data-field"))
   ) return true;
 
-  let node: HTMLElement | null = select.parentElement;
-  for (let depth = 0; node && depth < 5; depth += 1, node = node.parentElement) {
-    const labels = Array.from(node.querySelectorAll("label"))
-      .slice(0, 6)
-      .map((label) => label.textContent || "")
-      .join(" ");
-    if (looksLikeAccountHint(labels)) return true;
-  }
+  // Only use labels actually associated with this select. Scanning ancestor forms
+  // can pick up an unrelated "Account" label and alter item/customer options.
+  if (Array.from(select.labels || []).some((label) => looksLikeAccountHint(label.textContent))) return true;
 
   const coded = Array.from(select.options).filter((option) => ACCOUNT_CODE.test(option.textContent || ""));
   const nonEmpty = Array.from(select.options).filter((option) => option.value && (option.textContent || "").trim());
