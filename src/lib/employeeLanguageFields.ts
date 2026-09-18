@@ -1,6 +1,6 @@
 import { suggestBusinessNameConversion } from "@/lib/nameConversion";
 
-/** Existing employee columns are Urdu-only. Never store another language in them. */
+/** Legacy employee columns contain Urdu only, never Arabic, Hindi or other locales. */
 export type EmployeeUrduFields = {
   name_urdu: string | null;
   designation_urdu: string | null;
@@ -13,16 +13,11 @@ export type EmployeeEnglishFields = {
   department: string | null;
 };
 
-/** A suggestion is never persisted until the user explicitly accepts or edits it. */
 export function suggestEmployeeName(name: string, selectedLanguage: string) {
   return suggestBusinessNameConversion(name, selectedLanguage);
 }
 
-/**
- * Preserve legacy Urdu data when editing an employee in another language.
- * Blank inputs do not erase an approved translation; a deliberate clearing
- * operation must be implemented separately with an explicit user action.
- */
+/** An empty form value must not erase an existing approved translation. */
 export function preserveEmployeeUrduFields(
   existing: EmployeeUrduFields | null,
   selectedLanguage: string,
@@ -38,6 +33,23 @@ export function preserveEmployeeUrduFields(
     name_urdu: approved.name_urdu?.trim() || previous.name_urdu,
     designation_urdu: approved.designation_urdu?.trim() || previous.designation_urdu,
     department_urdu: approved.department_urdu?.trim() || previous.department_urdu,
+  };
+}
+
+/** Import columns are Urdu-specific. Never generate Urdu from English or persist
+ * imported Urdu columns while the workspace uses another secondary language.
+ * The import preview must require review before calling this function. */
+export function prepareEmployeeUrduImport(
+  imported: Partial<EmployeeUrduFields>,
+  selectedLanguage: string | null,
+): EmployeeUrduFields {
+  if (selectedLanguage !== "ur") {
+    return { name_urdu: null, designation_urdu: null, department_urdu: null };
+  }
+  return {
+    name_urdu: imported.name_urdu?.trim() || null,
+    designation_urdu: imported.designation_urdu?.trim() || null,
+    department_urdu: imported.department_urdu?.trim() || null,
   };
 }
 
