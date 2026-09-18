@@ -43,4 +43,21 @@ describe("account dropdown display isolation", () => {
     expect(select.options[0].textContent).toBe("Bank");
     expect(select.options[1].textContent).toBe("Cash");
   });
+
+  it("preserves UUID-backed numeric item and customer names", async () => {
+    await mountRuntime(`
+      <label for="items">Item</label>
+      <select id="items">
+        <option value="123e4567-e89b-12d3-a456-426614174000">40 Foot Girder</option>
+        <option value="123e4567-e89b-12d3-a456-426614174001">60 Foot Girder</option>
+      </select>
+      <label for="customers">Customer</label>
+      <select id="customers">
+        <option value="123e4567-e89b-12d3-a456-426614174002">2026 Trading Company</option>
+        <option value="123e4567-e89b-12d3-a456-426614174003">2027 Trading Company</option>
+      </select>
+    `);
+    expect(Array.from(document.querySelector<HTMLSelectElement>("#items")!.options, (option) => option.textContent)).toEqual(["40 Foot Girder", "60 Foot Girder"]);
+    expect(Array.from(document.querySelector<HTMLSelectElement>("#customers")!.options, (option) => option.textContent)).toEqual(["2026 Trading Company", "2027 Trading Company"]);
+  });
 });
