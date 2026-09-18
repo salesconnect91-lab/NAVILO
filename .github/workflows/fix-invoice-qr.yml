@@ -1,70 +1,16 @@
-name: Fix invoice QR details
+# Legacy one-shot QR patch is intentionally disabled.
+# The former push trigger checked out main and pushed a generated change directly
+# to production, bypassing the unified release gates. QR changes must instead
+# be reviewed, tested and merged through the development release process.
+name: Legacy invoice QR patch (disabled)
 on:
-  push:
-    paths:
-      - '.github/workflows/fix-invoice-qr.yml'
+  workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
-  fix:
+  notice:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-      - name: Make invoice QR visible and include invoice details
+      - name: Explain retired workflow
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('src/components/PrintLayout.tsx')
-          s=p.read_text()
-          old='''    showQrCode = false,\n  } = visibility;'''
-          new='''    showQrCode = true,\n  } = visibility;'''
-          if old not in s: raise SystemExit('QR visibility pattern not found')
-          s=s.replace(old,new,1)
-          old='''  const qrPayload = JSON.stringify({ company: company.name || "", taxId: company.taxId || "", documentType: voucherTitle, documentNo: voucherNo, documentDate: voucherDate, party: party.name, amount: n(grandTotal).toFixed(2), tax: n(taxAmount).toFixed(2) });'''
-          new='''  const qrPayload = JSON.stringify({
-    company: company.name || "",
-    taxId: company.taxId || "",
-    documentType: voucherTitle,
-    documentNo: voucherNo,
-    documentDate: voucherDate,
-    party: {
-      name: party.name,
-      ntn: party.ntn || "",
-      strn: party.strn || "",
-      cnic: party.cnic || "",
-    },
-    items: items.map((item) => ({
-      name: item.name,
-      qty: n(item.qty),
-      rate: n(item.unitPrice),
-      amount: n(item.lineTotal),
-      vatPercent: n(item.taxPercent),
-      vatAmount: n(item.taxAmount),
-      hsCode: item.hsCode || "",
-      uom: item.unit || "",
-    })),
-    itemsTotal: n(itemsTotal),
-    charges: chargeBreakdown.map((charge) => ({ label: charge.label, amount: n(charge.amount) })),
-    chargesTotal: n(chargesTotal),
-    tax: n(taxAmount),
-    grandTotal: n(grandTotal),
-    status: statusValue || "",
-    documentLink: typeof window !== "undefined" ? window.location.href : "",
-  });'''
-          if old not in s: raise SystemExit('QR payload pattern not found')
-          s=s.replace(old,new,1)
-          p.write_text(s)
-          PY
-      - name: Commit QR fix
-        run: |
-          git config user.name "NAVILO Automation"
-          git config user.email "actions@users.noreply.github.com"
-          git add src/components/PrintLayout.tsx
-          git diff --cached --quiet && exit 0
-          git commit -m "Show invoice QR with complete invoice details"
-          git push origin main
+          echo 'The legacy QR auto-patch is retired. Make QR fixes in source on the development branch and run the normal build/test workflow.'
