@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { employeeSecondaryName, prepareEmployeeUrduImport, preserveEmployeeUrduFields, suggestEmployeeName } from "./employeeLanguageFields";
+import { employeeSecondaryName, mergeReviewedEmployeeImport, prepareEmployeeUrduImport, preserveEmployeeUrduFields, suggestEmployeeName } from "./employeeLanguageFields";
 
 const existing = {
   name_urdu: "وسیم",
@@ -47,6 +47,25 @@ describe("employee language isolation", () => {
   it("keeps only explicitly imported, trimmed Urdu fields in Urdu mode", () => {
     expect(prepareEmployeeUrduImport({ name_urdu: " وسیم ", designation_urdu: " " }, "ur")).toEqual({
       name_urdu: "وسیم", designation_urdu: null, department_urdu: null,
+    });
+  });
+
+  it("preserves historical Urdu during an Arabic or Hindi import", () => {
+    for (const language of ["ar", "hi", "en", null]) {
+      expect(mergeReviewedEmployeeImport(existing, { name_urdu: "غلط" }, language)).toEqual(existing);
+    }
+  });
+
+  it("merges reviewed Urdu imports without erasing untouched or blank fields", () => {
+    expect(mergeReviewedEmployeeImport(existing, { name_urdu: " وسیم احمد ", designation_urdu: " " }, "ur")).toEqual({
+      ...existing,
+      name_urdu: "وسیم احمد",
+    });
+  });
+
+  it("does not generate a translation for a new employee without reviewed input", () => {
+    expect(mergeReviewedEmployeeImport(null, {}, "ur")).toEqual({
+      name_urdu: null, designation_urdu: null, department_urdu: null,
     });
   });
 });
