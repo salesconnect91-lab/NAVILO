@@ -22,8 +22,10 @@ describe("platform onboarding lookup preflight", () => {
     expect(checkOnboardingLookups(duplicate, absent, validPlan)).toMatchObject({ ok: false, status: 409 });
     expect(checkOnboardingLookups(absent, duplicate, validPlan)).toMatchObject({ ok: false, status: 409 });
   });
-  it("rejects missing or inactive plans", () => {
+  it("rejects missing, inactive or unverified plans", () => {
     expect(checkOnboardingLookups(absent, absent, absent)).toMatchObject({ ok: false, status: 400 });
     expect(checkOnboardingLookups(absent, absent, { data: { id: "plan-1", is_active: false }, error: null })).toMatchObject({ ok: false, status: 400 });
+    expect(checkOnboardingLookups(absent, absent, { data: { id: "plan-1" }, error: null })).toMatchObject({ ok: false, status: 400 });
+    expect(checkOnboardingLookups(absent, absent, { data: { id: "", is_active: true }, error: null })).toMatchObject({ ok: false, status: 400 });
   });
 });
