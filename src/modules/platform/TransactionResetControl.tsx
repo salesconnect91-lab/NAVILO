@@ -2,14 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Database, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 
-type Preview = {
-  total_rows: number;
-  counts: Record<string, number>;
-  preserved: string[];
-};
-
+type Preview = { total_rows: number; counts: Record<string, number>; preserved: string[] };
 type Props = { companyId: string; companyName: string; companyCode: string };
-
 const label = (key: string) => key.replaceAll("_", " ").replace(/\b\w/g, c => c.toUpperCase());
 
 export default function TransactionResetControl({ companyId, companyName, companyCode }: Props) {
@@ -22,6 +16,8 @@ export default function TransactionResetControl({ companyId, companyName, compan
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const requestId = useRef(0);
+  const companyRef = useRef(companyId);
+  companyRef.current = companyId;
   const expected = `RESET ${companyCode}`;
   const validPreview = previewCompanyId === companyId && preview !== null;
   const canReset = validPreview && !loading && !resetting && preview.total_rows > 0 && confirmation === expected && ack;
@@ -29,19 +25,20 @@ export default function TransactionResetControl({ companyId, companyName, compan
 
   const loadPreview = async () => {
     const request = ++requestId.current;
+    const targetCompany = companyId;
     setLoading(true); setPreview(null); setPreviewCompanyId(null);
     setConfirmation(""); setAck(false); setError(""); setMessage("");
     try {
-      const result = await invokeEdgeFunction<Preview>("platform-admin", { action: "reset_company_preview", company_id: companyId });
-      if (request !== requestId.current) return;
+      const result = await invokeEdgeFunction<Preview>("platform-admin", { action: "reset_company_preview", company_id: targetCompany });
+      if (request !== requestId.current || companyRef.current !== targetCompany) return;
       if (!result || !Number.isSafeInteger(result.total_rows) || result.total_rows < 0 || !result.counts || !Array.isArray(result.preserved)) {
         throw new Error("Reset preview is incomplete. No reset is permitted.");
       }
-      setPreview(result); setPreviewCompanyId(companyId);
+      setPreview(result); setPreviewCompanyId(targetCompany);
     } catch (e) {
-      if (request === requestId.current) setError(e instanceof Error ? e.message : "Could not inspect company data.");
+      if (request === requestId.current && companyRef.current === targetCompany) setError(e instanceof Error ? e.message : "Could not inspect company data.");
     } finally {
-      if (request === requestId.current) setLoading(false);
+      if (request === requestId.current && companyRef.current === targetCompany) setLoading(false);
     }
   };
 
@@ -52,23 +49,31 @@ export default function TransactionResetControl({ companyId, companyName, compan
 
   const reset = async () => {
     if (!canReset) return;
+    const targetCompany = companyId;
+    const targetConfirmation = expected;
     const ok = window.confirm(`Permanently reset transactional/test data for ${companyName}?\n\nMaster data, users, settings, COA and audit history are expected to be preserved. Confirm the backend scope and verified backup before proceeding.`);
-    if (!ok) return;
+    if (!ok || companyRef.current !== targetCompany) return;
     setResetting(true); setError(""); setMessage("");
     try {
       const result = await invokeEdgeFunction<{ deleted_rows?: number }>("platform-admin", {
-        action: "reset_company_transactions",
-        company_id: companyId,
-        confirmation,
-        acknowledge: true,
+        action: "reset_company_transactions", company_id: targetCompany,
+        confirmation: targetConfirmation, acknowledge: true,
       });
+      if (companyRef.current !== targetCompany) return;
       setConfirmation(""); setAck(false);
+      // A successful reset response does not prove that the follow-up preview or reconciliation succeeded.
+      setMessage(`Server reported ${Number(result?.deleted_rows ?? 0).toLocaleString()} rows removed. Verify accounting, stock and backup before continuing.`);
       await loadPreview();
-      setMessage(`Reset request completed. Server reported ${Number(result?.deleted_rows ?? 0).toLocaleString()} rows removed. Verify accounting and stock before continuing.`);
+      if (companyRef.current === targetCompany) {
+        setMessage(`Server reported ${Number(result?.deleted_rows ?? 0).toLocaleString()} rows removed. Verify accounting, stock and backup before continuing.`);
+      }
     } catch (e) {
+      if (companyRef.current !== targetCompany) return;
       setPreview(null); setPreviewCompanyId(null);
       setError(e instanceof Error ? e.message : "Reset failed. Refresh preview before retrying.");
-    } finally { setResetting(false); }
+    } finally {
+      if (companyRef.current === targetCompany) setResetting(false);
+    }
   };
 
   return <section className="rounded-xl border border-rose-200 bg-white p-4 shadow-sm">
@@ -79,10 +84,8 @@ export default function TransactionResetControl({ companyId, companyName, compan
       </div>
       <button type="button" className="btn-secondary" disabled={loading || resetting} onClick={() => void loadPreview()}>{loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4"/>}Refresh Preview</button>
     </div>
-
     {error && <div role="alert" className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
     {message && <div role="status" className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</div>}
-
     <div className="mt-4 grid gap-4 lg:grid-cols-2">
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
         <div className="flex items-center justify-between"><span className="text-sm font-semibold text-slate-800">Data that will be removed</span><span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-700">{validPreview ? preview.total_rows.toLocaleString() : "Preview required"}</span></div>
@@ -93,7 +96,6 @@ export default function TransactionResetControl({ companyId, companyName, compan
         <div className="mt-3 grid gap-1 text-xs text-emerald-800 sm:grid-cols-2">{(validPreview ? preview.preserved : []).map(x => <div key={x}>✓ {x}</div>)}</div>
       </div>
     </div>
-
     <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4">
       <div className="flex gap-2 text-sm font-semibold text-rose-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0"/>Permanent action — use only with a verified backup.</div>
       <p className="mt-2 text-xs text-rose-700">Type <b>{expected}</b> exactly. Preview alone does not guarantee recoverability or backend safety.</p>
