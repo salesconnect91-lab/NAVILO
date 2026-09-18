@@ -3,6 +3,10 @@ import type { RuntimeLanguageCode } from "@/lib/languageConfig";
 type Localized = Partial<Record<Exclude<RuntimeLanguageCode,"en">,string>>;
 
 export const GLOBAL_UI_TRANSLATIONS: Record<string,Localized> = {
+  "Business Overview":{ur:"کاروباری جائزہ"},
+  "Purchases":{ur:"خریداری"},
+  "Receivables":{ur:"قابلِ وصول رقوم"},
+  "Payables":{ur:"قابلِ ادا رقوم"},
   "Dashboard":{ur:"ڈیش بورڈ",ar:"لوحة التحكم",hi:"डैशबोर्ड",bn:"ড্যাশবোর্ড",fa:"داشبورد",tr:"Gösterge Paneli",fr:"Tableau de bord",es:"Panel",de:"Dashboard",pt:"Painel",ru:"Панель",zh:"仪表板",id:"Dasbor",ms:"Papan Pemuka"},
   "Master Data":{ur:"ماسٹر ڈیٹا",ar:"البيانات الأساسية",hi:"मास्टर डेटा",bn:"মাস্টার ডেটা",fa:"داده‌های پایه",tr:"Ana Veriler",fr:"Données de base",es:"Datos maestros",de:"Stammdaten",pt:"Dados mestre",ru:"Справочники",zh:"主数据",id:"Data Induk",ms:"Data Induk"},
   "Sales":{ur:"سیلز",ar:"المبيعات",hi:"बिक्री",bn:"বিক্রয়",fa:"فروش",tr:"Satış",fr:"Ventes",es:"Ventas",de:"Verkauf",pt:"Vendas",ru:"Продажи",zh:"销售",id:"Penjualan",ms:"Jualan"},
