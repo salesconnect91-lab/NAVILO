@@ -19,4 +19,10 @@ describe("business name conversion", () => {
   it("does not invent a secondary name in English-only mode", () => {
     expect(suggestBusinessNameConversion("Waseem", "en")).toEqual({ status: "manual_required", language: "en", value: null });
   });
+
+  it("requires manual review for existing Urdu, Arabic, Hindi and mixed-script names", () => {
+    for (const name of ["وسیم", "وسيم", "वसीम", "Waseem وسیم"]) {
+      expect(suggestBusinessNameConversion(name, "ur")).toEqual({ status: "manual_required", language: "ur", value: null });
+    }
+  });
 });
