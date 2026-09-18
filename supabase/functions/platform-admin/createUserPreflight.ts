@@ -11,11 +11,14 @@ export type CompanyUserCapacity = {
 
 export type UserPreflightResult =
   | { ok: true }
-  | { ok: false; status: 400 | 409 | 503; error: string };
+  | { ok: false; status: 404 | 409 | 503; error: string };
 
 export function checkCompanyUserCapacity(input: CompanyUserCapacity): UserPreflightResult {
-  if (input.companyError || !input.company) {
-    return { ok: false, status: 400, error: "Company could not be verified" };
+  if (input.companyError) {
+    return { ok: false, status: 503, error: "Company could not be verified" };
+  }
+  if (!input.company) {
+    return { ok: false, status: 404, error: "Company could not be verified" };
   }
   if (input.membershipError || input.activeMembershipCount === null ||
       !Number.isSafeInteger(input.activeMembershipCount) || input.activeMembershipCount < 0) {
