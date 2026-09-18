@@ -67,7 +67,7 @@ function applyRoot(root: HTMLElement) {
   root.dataset.naviloDocumentLanguage = language.mode === "bilingual" && language.secondary
     ? `${language.primary}+${language.secondary}`
     : language.primary;
-  root.setAttribute("dir", language.mode === "single" && language.primary !== "en" ? "rtl" : "ltr");
+  root.setAttribute("dir", language.mode === "single" && (language.primary === "ur" || language.primary === "ar") ? "rtl" : "ltr");
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const nodes: Text[] = [];
   while (walker.nextNode()) nodes.push(walker.currentNode as Text);
