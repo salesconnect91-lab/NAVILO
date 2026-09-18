@@ -19,4 +19,15 @@ describe("document language isolation", () => {
     expect(renderDocumentLabel("Invoice No: INV-2026-001", "single", "ur", null)).toBe("انوائس نمبر: INV-2026-001");
     expect(renderDocumentLabel("Customer: 2026 Trading Company", "single", "en", "ur")).toBe("Customer: 2026 Trading Company");
   });
+
+  it("does not enable an unrequested language when configuration is invalid", () => {
+    expect(normalizeDocumentLanguages("bilingual", "en", "en")).toEqual({ mode: "single", primary: "en", secondary: null });
+    expect(normalizeDocumentLanguages("bilingual", "en", "unknown")).toEqual({ mode: "single", primary: "en", secondary: null });
+    expect(normalizeDocumentLanguages("single", "unknown", "ur")).toEqual({ mode: "single", primary: "en", secondary: null });
+  });
+
+  it("keeps customer values and invoice identifiers intact in bilingual labels", () => {
+    expect(renderDocumentLabel("Customer: 2026 Trading Company", "bilingual", "en", "ur")).toBe("Customer / گاہک: 2026 Trading Company");
+    expect(renderDocumentLabel("Invoice No: INV-2026-001", "bilingual", "en", "ar")).toBe("Invoice No / رقم الفاتورة: INV-2026-001");
+  });
 });
