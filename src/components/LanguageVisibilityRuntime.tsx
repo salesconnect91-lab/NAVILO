@@ -13,6 +13,10 @@ const LANGUAGE_NAMES = Object.fromEntries(NAVILO_LANGUAGES.map((language) => [
 const HIDDEN_ATTR = "data-navilo-language-hidden";
 const RTL_SCRIPT = /[\u0600-\u06FF]/;
 const LATIN_SCRIPT = /[A-Za-z]/;
+// Legacy Employees captions embed translations in the same text node. Keep the
+// original text so switching workspaces can restore it without losing content.
+const originalCaptions = new WeakMap<Text, string>();
+const LEGACY_EMPLOYEE_CAPTIONS = /^(?:Add Employee|Edit Employee|Save Employee|Cancel|Employee Code|Employees|Total Records|Employee name is required)\s*\/\s*.+$/i;
 
 function selectedLanguages() {
   const root = document.documentElement;
@@ -53,6 +57,28 @@ function languageFieldHost(label: HTMLLabelElement) {
   }
   return label.parentElement;
 }
+function updateLegacyEmployeeCaptions(root: ParentNode, active: Set<RuntimeLanguageCode>) {
+  // Only touch the Employees modal, not unrelated pages or user-entered data.
+  root.querySelectorAll<HTMLElement>("[role='dialog'],.fixed").forEach((modal) => {
+    if (!/\b(?:Add Employee|Edit Employee)\b/.test(modal.textContent || "")) return;
+    const walker = document.createTreeWalker(modal, NodeFilter.SHOW_TEXT);
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      const text = node as Text;
+      const parent = text.parentElement;
+      if (!parent || parent.closest("input,textarea,select,[contenteditable='true']")) continue;
+      const original = originalCaptions.get(text) ?? text.data;
+      if (!LEGACY_EMPLOYEE_CAPTIONS.test(original.trim())) continue;
+      if (!originalCaptions.has(text)) originalCaptions.set(text, original);
+      const separator = original.indexOf("/");
+      const translation = original.slice(separator + 1).trim();
+      // The old hard-coded caption translations are Arabic/Urdu, never Hindi.
+      const translatedLanguage = /[\u0600-\u06FF]/.test(translation) ? "ar" : null;
+      const visible = translatedLanguage && active.has(translatedLanguage) ? original : original.slice(0, separator).trimEnd();
+      if (text.data !== visible) text.data = visible;
+    }
+  });
+}
 function updateLanguageFields(root: ParentNode, active: Set<RuntimeLanguageCode>) {
   root.querySelectorAll<HTMLElement>("[data-language-code],[data-language]").forEach((element) => {
     const raw = element.dataset.languageCode || element.dataset.language || "";
@@ -65,16 +91,14 @@ function updateLanguageFields(root: ParentNode, active: Set<RuntimeLanguageCode>
     const host = languageFieldHost(label);
     if (host) setVisible(host, active.has(code));
   });
-
-  // Legacy employee fields store Urdu only; never expose their Auto Urdu
-  // controls as if they could convert into another selected language.
-  // Persistence remains the responsibility of the employee module.
+  // Legacy employee fields store Urdu only; never expose Auto Urdu controls
+  // as if they could convert into another selected language.
   root.querySelectorAll<HTMLLabelElement>("label").forEach((label) => {
     if (!/\b(?:Urdu Name|Designation Urdu|Department Urdu)\b/i.test(label.textContent || "")) return;
     const host = languageFieldHost(label);
     if (host) setVisible(host, active.has("ur"));
   });
-
+  updateLegacyEmployeeCaptions(root, active);
   // Untagged RTL text can be Arabic, Persian or Urdu. Preserve existing
   // script visibility until each value is tagged with its exact locale.
   root.querySelectorAll<HTMLElement>("[dir='rtl']:not([data-language-code]):not([data-language])").forEach((element) => {
