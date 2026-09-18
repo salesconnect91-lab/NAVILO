@@ -47,11 +47,16 @@ function normalizeAccountText(root: ParentNode = document) {
   root.querySelectorAll<HTMLSelectElement>("select").forEach(normalizeSelect);
 }
 
+// Avoid rescanning every select in a large page when an unrelated text node changes.
 function normalizeChangedNode(node: Node) {
-  const element = node instanceof HTMLElement ? node : node.parentElement;
+  const element = node instanceof Element ? node : node.parentElement;
   if (!element) return;
-  const select = element instanceof HTMLSelectElement ? element : element.closest("select");
-  if (select) normalizeSelect(select);
+  const select = element.closest("select");
+  if (select instanceof HTMLSelectElement) {
+    normalizeSelect(select);
+    return;
+  }
+  if (element instanceof HTMLSelectElement) normalizeSelect(element);
   normalizeAccountText(element);
 }
 
@@ -60,14 +65,19 @@ function start() {
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       if (mutation.type === "characterData") {
-        normalizeChangedNode(mutation.target);
+        // Only changes inside options can affect account labels.
+        const parent = mutation.target.parentElement;
+        if (parent?.closest("select")) normalizeChangedNode(parent);
         continue;
       }
       if (mutation.type === "childList") {
         if (mutation.target instanceof HTMLOptionElement || mutation.target instanceof HTMLSelectElement) {
           normalizeChangedNode(mutation.target);
         }
-        mutation.addedNodes.forEach(normalizeChangedNode);
+        mutation.addedNodes.forEach((node) => {
+          // New text outside selects cannot contain a dropdown to normalize.
+          if (node instanceof Element || node.parentElement?.closest("select")) normalizeChangedNode(node);
+        });
       }
     }
   });
