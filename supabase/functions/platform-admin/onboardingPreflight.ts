@@ -16,7 +16,8 @@ export function checkOnboardingLookups(
   if (code.data || name.data) {
     return { ok: false, status: 409, error: "A company with this name or code already exists" };
   }
-  if (!plan.data || plan.data.is_active === false) {
+  // An absent active flag is unverified, not proof that the plan is active.
+  if (!plan.data || !plan.data.id || plan.data.is_active !== true) {
     return { ok: false, status: 400, error: "Selected subscription plan is not active" };
   }
   return { ok: true };
