@@ -47,24 +47,31 @@ function normalizeAccountText(root: ParentNode = document) {
   root.querySelectorAll<HTMLSelectElement>("select").forEach(normalizeSelect);
 }
 
+function normalizeChangedNode(node: Node) {
+  const element = node instanceof HTMLElement ? node : node.parentElement;
+  if (!element) return;
+  const select = element instanceof HTMLSelectElement ? element : element.closest("select");
+  if (select) normalizeSelect(select);
+  normalizeAccountText(element);
+}
+
 function start() {
   normalizeAccountText();
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
-      if (mutation.type === "childList") {
-        mutation.addedNodes.forEach((node) => {
-          if (!(node instanceof HTMLElement)) return;
-          if (node instanceof HTMLSelectElement) normalizeSelect(node);
-          normalizeAccountText(node);
-        });
+      if (mutation.type === "characterData") {
+        normalizeChangedNode(mutation.target);
+        continue;
       }
-      if (mutation.target instanceof HTMLOptionElement) {
-        const select = mutation.target.closest("select");
-        if (select) normalizeSelect(select);
+      if (mutation.type === "childList") {
+        if (mutation.target instanceof HTMLOptionElement || mutation.target instanceof HTMLSelectElement) {
+          normalizeChangedNode(mutation.target);
+        }
+        mutation.addedNodes.forEach(normalizeChangedNode);
       }
     }
   });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  observer.observe(document.documentElement, { childList: true, characterData: true, subtree: true });
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
