@@ -1,111 +1,71 @@
 import { useEffect } from "react";
 import { NAVILO_LANGUAGES, isSupportedRuntimeLanguage, type RuntimeLanguageCode } from "@/lib/languageConfig";
 
-const LANGUAGE_ALIASES: Partial<Record<RuntimeLanguageCode, string[]>> = {
-  ur: ["اردو"], ar: ["العربية"], hi: ["हिन्दी", "हिंदी"], bn: ["বাংলা"], fa: ["فارسی"],
-  tr: ["türkçe"], fr: ["français"], es: ["español"], de: ["deutsch"], pt: ["português"],
-  ru: ["русский"], zh: ["中文"], id: ["bahasa indonesia"], ms: ["bahasa melayu"],
-};
-const LANGUAGE_NAMES = Object.fromEntries(NAVILO_LANGUAGES.map((language) => [
-  language.code,
-  [language.label.toLowerCase(), language.nativeLabel.toLowerCase(), ...(LANGUAGE_ALIASES[language.code] || [])],
-])) as Record<RuntimeLanguageCode, string[]>;
 const HIDDEN_ATTR = "data-navilo-language-hidden";
-const RTL_SCRIPT = /[\u0600-\u06FF]/;
-const LATIN_SCRIPT = /[A-Za-z]/;
-const originalCaptions = new WeakMap<Text, string>();
-const LEGACY_EMPLOYEE_CAPTIONS = /^(?:Add Employee|Edit Employee|Save Employee|Cancel|Employee Code|Employees|Total Records|Employee name is required)\s*\/\s*.+$/i;
+const languageNames = new Map<string, RuntimeLanguageCode>();
+for (const language of NAVILO_LANGUAGES) {
+  languageNames.set(language.label.toLowerCase(), language.code);
+  languageNames.set(language.nativeLabel.toLowerCase(), language.code);
+}
+languageNames.set("हिंदी", "hi");
 
-function selectedLanguages() {
+function selectedLanguages(): Set<RuntimeLanguageCode> {
   const root = document.documentElement;
   const primary: RuntimeLanguageCode = isSupportedRuntimeLanguage(root.dataset.primaryLanguage) ? root.dataset.primaryLanguage : "en";
-  const secondary: RuntimeLanguageCode | null = isSupportedRuntimeLanguage(root.dataset.secondaryLanguage) ? root.dataset.secondaryLanguage : null;
-  const bilingual = root.dataset.languageMode === "bilingual" && secondary && secondary !== primary;
-  return new Set<RuntimeLanguageCode>(bilingual ? [primary, secondary] : [primary]);
+  const secondary = root.dataset.secondaryLanguage;
+  return new Set(root.dataset.languageMode === "bilingual" && isSupportedRuntimeLanguage(secondary) && secondary !== primary
+    ? [primary, secondary] : [primary]);
 }
-function specificLanguage(text: string): RuntimeLanguageCode | null {
+
+// Match a language *field label*, never arbitrary business names or script ranges.
+// Arabic, Urdu and Persian share characters and cannot be identified by Unicode block.
+function fieldLanguage(text: string): RuntimeLanguageCode | null {
   const value = text.trim().toLowerCase().replace(/\s+/g, " ");
-  if (!value) return null;
-  const hasFieldHint = /(name|translation|label|description|title)/i.test(value);
-  for (const [code, names] of Object.entries(LANGUAGE_NAMES) as [RuntimeLanguageCode, string[]][]) {
-    if (names.some((name) => value.includes(name)) && (hasFieldHint || /[^\u0000-\u007f]/.test(value))) return code;
-  }
-  return null;
+  const match = value.match(/^(?:(?:name|item name|employee name|designation|department|description|translation|label|title)\s*(?:\(|:|\-|\/)?\s*)(.+?)(?:\))?\s*$/i)
+    ?? value.match(/^(.+?)\s+(?:name|translation|description|label|title)$/i);
+  if (!match) return null;
+  return languageNames.get(match[1].replace(/[():/\-]/g, "").trim()) ?? null;
 }
+
 function setVisible(element: HTMLElement, visible: boolean) {
   if (visible) {
-    if (element.getAttribute(HIDDEN_ATTR) === "true") { element.hidden = false; element.removeAttribute(HIDDEN_ATTR); }
-  } else { element.hidden = true; element.setAttribute(HIDDEN_ATTR, "true"); }
-}
-function updateTable(table: HTMLTableElement, active: Set<RuntimeLanguageCode>) {
-  const headerRow = table.tHead?.rows?.[0] ?? table.querySelector("tr");
-  if (!headerRow) return;
-  [...headerRow.cells].forEach((cell, index) => {
-    const code = specificLanguage(cell.textContent || "");
-    if (!code) return;
-    for (const row of [...table.rows]) { const target = row.cells[index] as HTMLElement | undefined; if (target) setVisible(target, active.has(code)); }
-  });
-}
-function languageFieldHost(label: HTMLLabelElement) {
-  const explicit = label.closest<HTMLElement>("[data-language-field]");
-  if (explicit) return explicit;
-  let candidate: HTMLElement | null = label.parentElement;
-  for (let depth = 0; candidate && depth < 3; depth += 1, candidate = candidate.parentElement) {
-    if (candidate.querySelector("input,textarea,select,[role='combobox']")) return candidate;
-  }
-  return label.parentElement;
-}
-function updateLegacyEmployeeCaptions(root: ParentNode, active: Set<RuntimeLanguageCode>) {
-  // The legacy Employees component hard-codes mixed captions. Keep the original
-  // text for workspace changes; never guess that Arabic-script text is Arabic
-  // (Urdu and Persian use the same Unicode block).
-  root.querySelectorAll<HTMLElement>("[role='dialog'],.fixed").forEach((modal) => {
-    if (!/\b(?:Add Employee|Edit Employee)\b/.test(modal.textContent || "")) return;
-    const walker = document.createTreeWalker(modal, NodeFilter.SHOW_TEXT);
-    let node: Node | null;
-    while ((node = walker.nextNode())) {
-      const text = node as Text;
-      const parent = text.parentElement;
-      if (!parent || parent.closest("input,textarea,select,[contenteditable='true']")) continue;
-      const original = originalCaptions.get(text) ?? text.data;
-      if (!LEGACY_EMPLOYEE_CAPTIONS.test(original.trim())) continue;
-      if (!originalCaptions.has(text)) originalCaptions.set(text, original);
-      const separator = original.indexOf("/");
-      // Only English-only can safely strip an unidentified translation.
-      // Other language pairs must use explicitly locale-tagged translations.
-      const visible = active.size === 1 && active.has("en")
-        ? original.slice(0, separator).trimEnd()
-        : original;
-      if (text.data !== visible) text.data = visible;
+    if (element.getAttribute(HIDDEN_ATTR) === "true") {
+      element.hidden = false;
+      element.removeAttribute(HIDDEN_ATTR);
     }
-  });
+  } else if (element.getAttribute(HIDDEN_ATTR) !== "true") {
+    // Only restore elements that this runtime itself hid.
+    if (element.hidden) return;
+    element.hidden = true;
+    element.setAttribute(HIDDEN_ATTR, "true");
+  }
 }
+
 function updateLanguageFields(root: ParentNode, active: Set<RuntimeLanguageCode>) {
   root.querySelectorAll<HTMLElement>("[data-language-code],[data-language]").forEach((element) => {
-    const raw = element.dataset.languageCode || element.dataset.language || "";
-    if (isSupportedRuntimeLanguage(raw)) setVisible(element, active.has(raw));
+    const code = element.dataset.languageCode || element.dataset.language;
+    if (isSupportedRuntimeLanguage(code)) setVisible(element, active.has(code));
   });
-  root.querySelectorAll<HTMLTableElement>("table").forEach((table) => updateTable(table, active));
+  root.querySelectorAll<HTMLTableElement>("table").forEach((table) => {
+    const header = table.tHead?.rows[0];
+    if (!header) return;
+    [...header.cells].forEach((cell, index) => {
+      const code = fieldLanguage(cell.textContent || "");
+      if (!code) return;
+      [...table.rows].forEach((row) => {
+        const target = row.cells[index];
+        if (target) setVisible(target, active.has(code));
+      });
+    });
+  });
   root.querySelectorAll<HTMLLabelElement>("label").forEach((label) => {
-    const code = specificLanguage(label.textContent || "");
+    const code = fieldLanguage(label.textContent || "");
     if (!code) return;
-    const host = languageFieldHost(label);
+    const host = label.closest<HTMLElement>("[data-language-field]") ?? label.parentElement;
     if (host) setVisible(host, active.has(code));
   });
-  root.querySelectorAll<HTMLLabelElement>("label").forEach((label) => {
-    if (!/\b(?:Urdu Name|Designation Urdu|Department Urdu)\b/i.test(label.textContent || "")) return;
-    const host = languageFieldHost(label);
-    if (host) setVisible(host, active.has("ur"));
-  });
-  updateLegacyEmployeeCaptions(root, active);
-  root.querySelectorAll<HTMLElement>("[dir='rtl']:not([data-language-code]):not([data-language])").forEach((element) => {
-    if (element.matches("input,textarea,[contenteditable='true']")) return;
-    const value = (element.textContent || "").trim();
-    if (!value || !RTL_SCRIPT.test(value) || LATIN_SCRIPT.test(value)) return;
-    const rtlEnabled = active.has("ur") || active.has("ar") || active.has("fa");
-    setVisible(element, rtlEnabled);
-  });
 }
+
 export default function LanguageVisibilityRuntime() {
   useEffect(() => {
     let frame = 0;
@@ -122,7 +82,13 @@ export default function LanguageVisibilityRuntime() {
     window.addEventListener("navilo:language-changed", apply);
     window.addEventListener("navilo-workspace-changed", apply);
     apply();
-    return () => { observer.disconnect(); cancelAnimationFrame(frame); window.removeEventListener("navilo-language-changed", apply); window.removeEventListener("navilo:language-changed", apply); window.removeEventListener("navilo-workspace-changed", apply); };
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+      window.removeEventListener("navilo-language-changed", apply);
+      window.removeEventListener("navilo:language-changed", apply);
+      window.removeEventListener("navilo-workspace-changed", apply);
+    };
   }, []);
   return null;
 }
