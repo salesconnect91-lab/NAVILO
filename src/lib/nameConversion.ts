@@ -1,0 +1,27 @@
+import { toUrduName } from "@/lib/urdu";
+
+/** Business names are transliterated, never translated as UI labels. */
+export type NameConversionResult =
+  | { status: "suggested"; language: string; value: string }
+  | { status: "manual_required"; language: string; value: null };
+
+const APPROVED_URDU_NAMES: Readonly<Record<string, string>> = {
+  waseem: "وسیم",
+};
+
+/**
+ * A suggestion is only available for an explicitly supported converter.
+ * Never silently replace an unavailable language with Urdu or English.
+ * The caller must let the user review/edit the suggestion before saving it.
+ */
+export function suggestBusinessNameConversion(name: string, language: string): NameConversionResult {
+  const source = name.trim();
+  if (!source || !language || language === "en") {
+    return { status: "manual_required", language, value: null };
+  }
+  if (language === "ur") {
+    const value = APPROVED_URDU_NAMES[source.toLowerCase()] ?? toUrduName(source);
+    return { status: "suggested", language, value };
+  }
+  return { status: "manual_required", language, value: null };
+}
