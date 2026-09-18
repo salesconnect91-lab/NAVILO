@@ -36,6 +36,18 @@ export function preserveEmployeeUrduFields(
   };
 }
 
+/** Merge reviewed import values with existing records without erasing translations.
+ * Import callers must match records by a stable identifier before passing existing.
+ * No conversion is performed implicitly: suggestions require explicit approval. */
+export function mergeReviewedEmployeeImport(
+  existing: EmployeeUrduFields | null,
+  imported: Partial<EmployeeUrduFields>,
+  selectedLanguage: string | null,
+): EmployeeUrduFields {
+  if (selectedLanguage !== "ur") return preserveEmployeeUrduFields(existing, "en");
+  return preserveEmployeeUrduFields(existing, "ur", prepareEmployeeUrduImport(imported, "ur"));
+}
+
 /** Import columns are Urdu-specific. Never generate Urdu from English or persist
  * imported Urdu columns while the workspace uses another secondary language.
  * The import preview must require review before calling this function. */
