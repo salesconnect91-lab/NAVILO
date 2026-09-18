@@ -1,4 +1,6 @@
-const ACCOUNT_CODE = /^\s*[A-Z]{0,4}[-/]?\d{2,10}(?:[./-]\d+)?\s*(?:[-–—:|]\s*)+/;
+// Account selectors may render codes as "1120 Bank" as well as "1120 - Bank".
+// This pattern is applied only after an account-select context check, not to business data.
+const ACCOUNT_CODE = /^\s*[A-Z]{0,4}[-/]?\d{2,10}(?:[./-]\d+)?(?:\s*[-–—:|]\s*|\s+)/;
 
 function stripAccountCode(value: string) {
   const cleaned = value.replace(ACCOUNT_CODE, "").trim();
