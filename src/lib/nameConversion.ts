@@ -20,7 +20,11 @@ export function suggestBusinessNameConversion(name: string, language: string): N
     return { status: "manual_required", language, value: null };
   }
   if (language === "ur") {
-    const value = APPROVED_URDU_NAMES[source.toLowerCase()] ?? toUrduName(source);
+    // Apply curated spellings to individual names too: "Waseem Steel" must not
+    // bypass the Waseem override simply because it is part of a longer name.
+    const value = source.split(/(\s+)/).map((part) =>
+      /^\s+$/.test(part) ? part : APPROVED_URDU_NAMES[part.toLowerCase()] ?? toUrduName(part),
+    ).join("");
     return { status: "suggested", language, value };
   }
   return { status: "manual_required", language, value: null };
