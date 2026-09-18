@@ -20,6 +20,12 @@ export function suggestBusinessNameConversion(name: string, language: string): N
     return { status: "manual_required", language, value: null };
   }
   if (language === "ur") {
+    // Existing non-Latin names may already be approved Urdu, Arabic, Hindi or
+    // another script. Do not pass them through a Latin-to-Urdu converter.
+    // Mixed-script names also need a human review rather than a destructive guess.
+    if (/[^\u0000-\u007f]/u.test(source)) {
+      return { status: "manual_required", language, value: null };
+    }
     // Apply curated spellings to individual names too: "Waseem Steel" must not
     // bypass the Waseem override simply because it is part of a longer name.
     const value = source.split(/(\s+)/).map((part) =>
