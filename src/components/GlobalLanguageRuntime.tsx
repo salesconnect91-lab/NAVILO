@@ -71,6 +71,7 @@ function localize(value:string,language:RuntimeLanguage,force=false){
   return `${leading}${parts.join(" / ")}${trailing}`;
 }
 function processText(node:Text,language:RuntimeLanguage){
+  if(node.parentElement?.closest(".print-document,[data-document-language-root]"))return;
   const current=node.nodeValue||"";
   if(!current.trim())return;
   const lastRendered=renderedText.get(node);
@@ -81,6 +82,7 @@ function processText(node:Text,language:RuntimeLanguage){
   if(node.nodeValue!==expected)node.nodeValue=expected;
 }
 function processAttributes(element:Element,language:RuntimeLanguage){
+  if(element.closest(".print-document,[data-document-language-root]"))return;
   if(element.closest("[data-i18n-skip='true'],[data-business-data]"))return;
   let map=attributes.get(element);if(!map){map=new Map();attributes.set(element,map);}
   let rendered=renderedAttributes.get(element);if(!rendered){rendered=new Map();renderedAttributes.set(element,rendered);}
