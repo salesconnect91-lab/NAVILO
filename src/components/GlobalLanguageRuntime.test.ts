@@ -3,21 +3,22 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, waitFor, cleanup } from "@testing-library/react";
 import { createElement } from "react";
 
+const mockCompany = vi.hoisted(() => ({
+  data: {
+    screen_language_mode: "single",
+    screen_primary_language: "ur",
+    screen_secondary_language: null,
+    document_language_mode: "single",
+    document_primary_language: "en",
+    document_secondary_language: null,
+  },
+}));
+
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     from: () => ({
       select: () => ({
-        maybeSingle: async () => ({
-          data: {
-            screen_language_mode: "single",
-            screen_primary_language: "ur",
-            screen_secondary_language: null,
-            document_language_mode: "single",
-            document_primary_language: "en",
-            document_secondary_language: null,
-          },
-          error: null,
-        }),
+        maybeSingle: async () => ({ data: mockCompany.data, error: null }),
       }),
     }),
     auth: { getUser: async () => ({ data: { user: null }, error: null }) },
@@ -27,6 +28,9 @@ vi.mock("@/lib/supabase", () => ({
 afterEach(() => {
   cleanup();
   document.body.innerHTML = "";
+  mockCompany.data.screen_language_mode = "single";
+  mockCompany.data.screen_primary_language = "ur";
+  mockCompany.data.screen_secondary_language = null;
   vi.restoreAllMocks();
 });
 
@@ -50,5 +54,33 @@ describe("global screen translation and print isolation", () => {
     expect(printLabel?.textContent).toBe("Posted");
     expect(printLabel?.getAttribute("title")).toBe("Posted");
     expect(printLabel?.getAttribute("aria-label")).toBe("Posted");
+  });
+
+  it("removes hard-coded Urdu from English-only UI labels", async () => {
+    mockCompany.data.screen_language_mode = "single";
+    mockCompany.data.screen_primary_language = "en";
+    document.body.innerHTML = `<h1>Company Settings / کمپنی سیٹنگز</h1><button>Save / محفوظ کریں</button>`;
+
+    const { default: GlobalLanguageRuntime } = await import("./GlobalLanguageRuntime");
+    render(createElement(GlobalLanguageRuntime));
+
+    await waitFor(() => {
+      expect(document.querySelector("h1")?.textContent).toBe("Company Settings");
+      expect(document.querySelector("button")?.textContent).toBe("Save");
+    });
+  });
+
+  it("rebuilds hard-coded bilingual UI labels from the selected language pair", async () => {
+    mockCompany.data.screen_language_mode = "bilingual";
+    mockCompany.data.screen_primary_language = "en";
+    mockCompany.data.screen_secondary_language = "ur";
+    document.body.innerHTML = `<h1>Company Settings / کمپنی سیٹنگز</h1>`;
+
+    const { default: GlobalLanguageRuntime } = await import("./GlobalLanguageRuntime");
+    render(createElement(GlobalLanguageRuntime));
+
+    await waitFor(() => {
+      expect(document.querySelector("h1")?.textContent).toBe("Company Settings / کمپنی سیٹنگز");
+    });
   });
 });
