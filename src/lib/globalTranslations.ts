@@ -3,6 +3,14 @@ import type { RuntimeLanguageCode } from "@/lib/languageConfig";
 type Localized = Partial<Record<Exclude<RuntimeLanguageCode,"en">,string>>;
 
 export const GLOBAL_UI_TRANSLATIONS: Record<string,Localized> = {
+  "Cash Balance":{ur:"نقد رقم کا بیلنس"},
+  "Bank Balance":{ur:"بینک بیلنس"},
+  "Inventory Value":{ur:"اسٹاک کی مالیت"},
+  "No activity":{ur:"کوئی سرگرمی نہیں"},
+  "Business Overview":{ur:"کاروباری جائزہ"},
+  "Purchases":{ur:"خریداری"},
+  "Receivables":{ur:"قابلِ وصول رقوم"},
+  "Payables":{ur:"قابلِ ادا رقوم"},
   "Dashboard":{ur:"ڈیش بورڈ",ar:"لوحة التحكم",hi:"डैशबोर्ड",bn:"ড্যাশবোর্ড",fa:"داشبورد",tr:"Gösterge Paneli",fr:"Tableau de bord",es:"Panel",de:"Dashboard",pt:"Painel",ru:"Панель",zh:"仪表板",id:"Dasbor",ms:"Papan Pemuka"},
   "Master Data":{ur:"ماسٹر ڈیٹا",ar:"البيانات الأساسية",hi:"मास्टर डेटा",bn:"মাস্টার ডেটা",fa:"داده‌های پایه",tr:"Ana Veriler",fr:"Données de base",es:"Datos maestros",de:"Stammdaten",pt:"Dados mestre",ru:"Справочники",zh:"主数据",id:"Data Induk",ms:"Data Induk"},
   "Sales":{ur:"سیلز",ar:"المبيعات",hi:"बिक्री",bn:"বিক্রয়",fa:"فروش",tr:"Satış",fr:"Ventes",es:"Ventas",de:"Verkauf",pt:"Vendas",ru:"Продажи",zh:"销售",id:"Penjualan",ms:"Jualan"},
@@ -68,17 +76,7 @@ export const GLOBAL_UI_TRANSLATIONS: Record<string,Localized> = {
   "Currency":{ur:"کرنسی",ar:"العملة",hi:"मुद्रा",bn:"মুদ্রা",fa:"ارز",tr:"Para Birimi",fr:"Devise",es:"Moneda",de:"Währung",pt:"Moeda",ru:"Валюта",zh:"货币",id:"Mata Uang",ms:"Mata Wang"}
 };
 
-export function translateGlobalUi(value:string,language:RuntimeLanguageCode){
-  if(language==="en")return value;
-  const exact=GLOBAL_UI_TRANSLATIONS[value]?.[language];
-  if(exact)return exact;
-  let output=value;
-  const entries=Object.entries(GLOBAL_UI_TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length);
-  for(const [source,localized] of entries){
-    const target=localized[language];
-    if(!target)continue;
-    const escaped=source.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
-    output=output.replace(new RegExp(`\\b${escaped}\\b`,"gi"),target);
-  }
-  return output;
+export function translateGlobalUi(value: string, language: RuntimeLanguageCode) {
+  if (language === "en") return value;
+  return GLOBAL_UI_TRANSLATIONS[value]?.[language] ?? value;
 }

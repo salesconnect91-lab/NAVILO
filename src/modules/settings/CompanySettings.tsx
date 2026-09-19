@@ -190,7 +190,7 @@ export default function CompanySettings() {
       <section className="rounded-xl border border-violet-200 bg-violet-50 p-4">
         <div className="flex items-center gap-2 font-bold text-violet-900"><Globe2 size={18}/>NAVILO Global Language Center</div>
         <p className="mt-1 text-xs text-violet-800">All supported NAVILO languages below are available for screen use and official document output. Country and language remain separate.</p>
-        <div className="mt-3 flex flex-wrap gap-2">{GLOBAL_LANGUAGE_CATALOG.map(language=>{const enabled=enabledCodes.has(language.code);return <span key={language.code} className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${enabled?"border-emerald-300 bg-emerald-50 text-emerald-800":"border-slate-200 bg-slate-50 text-slate-500"}`}>{language.label}{language.label!==language.nativeLabel?` · ${language.nativeLabel}`:""} · {enabled?"VERIFIED & ENABLED":"REQUIRES VERIFIED PACK"}</span>})}</div>
+        <div className="mt-3 flex flex-wrap gap-2">{GLOBAL_LANGUAGE_CATALOG.map(language=>{const enabled=enabledCodes.has(language.code);return <span key={language.code} className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${enabled?"border-emerald-300 bg-emerald-50 text-emerald-800":"border-slate-200 bg-slate-50 text-slate-500"}`}>{language.label}{language.label!==language.nativeLabel?` · ${language.nativeLabel}`:""} · {enabled?(language.status==="verified"?"ENABLED · VERIFIED":"ENABLED · TRANSLATION VERIFICATION PENDING"):"NOT ENABLED"}</span>})}</div>
         {languageEntitlementsLoading&&<p className="mt-2 text-xs text-slate-500">Checking company language entitlements…</p>}
       </section>
 

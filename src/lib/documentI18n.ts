@@ -117,8 +117,6 @@ export function normalizeDocumentLanguages(mode: string | null | undefined, prim
   if (mode !== "bilingual") return { mode: "single" as DocumentLanguageMode, primary: safePrimary, secondary: null as DocumentLanguage | null };
   const requestedSecondary: DocumentLanguage | null = secondary === "ur" || secondary === "ar" || secondary === "en" ? secondary : null;
   if (!requestedSecondary || requestedSecondary === safePrimary) return { mode: "single" as DocumentLanguageMode, primary: safePrimary, secondary: null as DocumentLanguage | null };
-  const pair = new Set([safePrimary, requestedSecondary]);
-  if (!pair.has("en") || (!pair.has("ur") && !pair.has("ar"))) return { mode: "single" as DocumentLanguageMode, primary: safePrimary, secondary: null as DocumentLanguage | null };
   return { mode: "bilingual" as DocumentLanguageMode, primary: safePrimary, secondary: requestedSecondary };
 }
 
@@ -134,7 +132,9 @@ function translateEnglish(value: string, language: DocumentLanguage) {
   const key = normalize(value);
   const exact = CATALOG[key];
   if (exact) return exact[language];
-  return value.replace(/[A-Za-z]+(?:'[A-Za-z]+)?/g, (token) => WORDS[token.toLowerCase()]?.[language] || token);
+  // Never produce a partly translated label by replacing individual words.
+  // Unknown labels stay unchanged until a complete, reviewed translation exists.
+  return value.trim();
 }
 
 function splitLabelAndValue(value: string) {

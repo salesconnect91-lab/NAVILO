@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
+import { checkOnboardingLookups } from "./onboardingPreflight.ts";
 
 const HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -59,13 +60,14 @@ Deno.serve(async (request) => {
       }
       if (password.length < 8) return json({ error: "Temporary password must be at least 8 characters." }, 400);
 
-      const [{ data: duplicateCode }, { data: duplicateName }, { data: plan }] = await Promise.all([
+      const [codeLookup, nameLookup, planLookup] = await Promise.all([
         admin.from("companies").select("id").eq("code",code).limit(1).maybeSingle(),
         admin.from("companies").select("id").ilike("name",name).limit(1).maybeSingle(),
-        admin.from("subscription_plans").select("*").eq("id", planId).eq("is_active", true).single(),
+        admin.from("subscription_plans").select("*").eq("id", planId).eq("is_active", true).maybeSingle(),
       ]);
-      if (duplicateCode || duplicateName) return json({ error: "A company with this name or code already exists." }, 409);
-      if (!plan) return json({ error: "Selected subscription plan is not active." }, 400);
+      const preflight = checkOnboardingLookups(codeLookup, nameLookup, planLookup);
+      if (!preflight.ok) return json({ error: preflight.error }, preflight.status);
+      const plan = planLookup.data!;
 
       const startsAt = new Date();
       const requestedExpiry = body.expires_at ? new Date(String(body.expires_at)) : null;
@@ -154,7 +156,7 @@ Deno.serve(async (request) => {
         if (!location) return json({ error: "Invalid or inactive branch for this business workspace" }, 400);
       }
 
-      const [{ data: company }, { count }] = await Promise.all([
+      const [companyResult, membershipResult] = await Promise.all([
         admin.from("companies").select("max_users").eq("id", companyId).single(),
         admin
           .from("company_memberships")
@@ -163,7 +165,18 @@ Deno.serve(async (request) => {
           .eq("is_active", true),
       ]);
 
-      if (company && (count || 0) >= company.max_users) {
+      // Never create an Auth user if its company or membership limit cannot be verified.
+      if (companyResult.error || !companyResult.data) {
+        return json({ error: "Company could not be verified" }, companyResult.error ? 503 : 404);
+      }
+      if (membershipResult.error || membershipResult.count === null) {
+        return json({ error: "Company user count could not be verified" }, 503);
+      }
+      const maxUsers = Number(companyResult.data.max_users);
+      if (!Number.isSafeInteger(maxUsers) || maxUsers < 1) {
+        return json({ error: "Company user limit is invalid" }, 503);
+      }
+      if (membershipResult.count >= maxUsers) {
         return json({ error: "Company user limit reached" }, 409);
       }
 
