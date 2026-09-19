@@ -3,6 +3,10 @@ import type { RuntimeLanguageCode } from "@/lib/languageConfig";
 type Localized = Partial<Record<Exclude<RuntimeLanguageCode,"en">,string>>;
 
 export const GLOBAL_UI_TRANSLATIONS: Record<string,Localized> = {
+  "Cash Balance":{ur:"نقد رقم کا بیلنس"},
+  "Bank Balance":{ur:"بینک بیلنس"},
+  "Inventory Value":{ur:"اسٹاک کی مالیت"},
+  "No activity":{ur:"کوئی سرگرمی نہیں"},
   "Business Overview":{ur:"کاروباری جائزہ"},
   "Purchases":{ur:"خریداری"},
   "Receivables":{ur:"قابلِ وصول رقوم"},
