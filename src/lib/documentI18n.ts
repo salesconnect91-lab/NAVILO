@@ -113,9 +113,12 @@ const RTL = /[\u0600-\u06FF]/;
 const LATIN = /[A-Za-z]/;
 
 export function normalizeDocumentLanguages(mode: string | null | undefined, primary: string | null | undefined, secondary: string | null | undefined) {
-  const safePrimary: DocumentLanguage = primary === "ur" || primary === "ar" ? primary : "en";
+  // Pakistan release supports English and Urdu only. Historical Arabic support
+  // remains in the type/catalog for backward compatibility, but it is no longer
+  // selectable or rendered as an active document language.
+  const safePrimary: DocumentLanguage = primary === "ur" ? "ur" : "en";
   if (mode !== "bilingual") return { mode: "single" as DocumentLanguageMode, primary: safePrimary, secondary: null as DocumentLanguage | null };
-  const requestedSecondary: DocumentLanguage | null = secondary === "ur" || secondary === "ar" || secondary === "en" ? secondary : null;
+  const requestedSecondary: DocumentLanguage | null = secondary === "ur" || secondary === "en" ? secondary : null;
   if (!requestedSecondary || requestedSecondary === safePrimary) return { mode: "single" as DocumentLanguageMode, primary: safePrimary, secondary: null as DocumentLanguage | null };
   return { mode: "bilingual" as DocumentLanguageMode, primary: safePrimary, secondary: requestedSecondary };
 }
