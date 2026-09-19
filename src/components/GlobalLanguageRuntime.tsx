@@ -64,8 +64,20 @@ function isUiText(node:Text){
 function localize(value:string,language:RuntimeLanguage,force=false){
   if(!value.trim())return value;
   const leading=value.match(/^\s*/)?.[0]||"",trailing=value.match(/\s*$/)?.[0]||"";
-  const source=sourceEnglish(value);
-  if(!force&&!hasLatin(source))return value;
+  const normalized=normalize(value);
+  const source=sourceEnglish(normalized);
+  const containsBilingualSeparator=/\s\/\s(?=[\u0600-\u06FF])/.test(normalized)&&hasLatin(normalized);
+  // Existing components historically contain hard-coded labels such as
+  // "Company Settings / کمپنی سیٹنگز". Treat these as one UI source phrase
+  // so single-language mode can remove the secondary language everywhere,
+  // while bilingual mode rebuilds the pair from the English source.
+  const uiLike=force||containsBilingualSeparator;
+  if(!uiLike&&!hasLatin(source))return value;
+  if(!hasLatin(source)){
+    // Do not alter Urdu/Arabic business data merely because the global
+    // observer encountered it. Only explicitly identified UI text is eligible.
+    return value;
+  }
   const requested:RuntimeLanguageCode[]=language.mode==="bilingual"&&language.secondary?[language.primary,language.secondary]:[language.primary];
   const parts=requested.map(code=>code==="en"?source:translateGlobalUi(source,code)).filter((part,index,all)=>part&&all.indexOf(part)===index);
   return `${leading}${parts.join(" / ")}${trailing}`;
