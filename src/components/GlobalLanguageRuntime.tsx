@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { isSupportedRuntimeLanguage, languageByCode, type LanguageMode, type RuntimeLanguageCode } from "@/lib/languageConfig";
 import { translateGlobalUi } from "@/lib/globalTranslations";
+import { sourceEnglish } from "@/lib/uiLanguageSource";
 
 type RuntimeLanguage={mode:LanguageMode;primary:RuntimeLanguageCode;secondary:RuntimeLanguageCode|null;documentMode:LanguageMode;documentPrimary:RuntimeLanguageCode;documentSecondary:RuntimeLanguageCode|null};
 const ENGLISH_ONLY:RuntimeLanguage={mode:"single",primary:"en",secondary:null,documentMode:"single",documentPrimary:"en",documentSecondary:null};
@@ -53,11 +54,6 @@ function applyRoot(language:RuntimeLanguage){
 function normalize(value:string){return value.trim().replace(/\s+/g," ");}
 function hasLatin(value:string){return /[A-Za-z]/.test(value);}
 function hasRtl(value:string){return /[\u0600-\u06FF]/.test(value);}
-function sourceEnglish(value:string){
-  const normalized=normalize(value);
-  const parts=normalized.split("/").map(normalize).filter(Boolean);
-  return parts.find(part=>hasLatin(part)&&!hasRtl(part))||normalized;
-}
 function isUiText(node:Text){
   const parent=node.parentElement;
   if(!parent||parent.closest("[data-i18n-skip='true'],[data-business-data],input,textarea,script,style,code,pre"))return false;
