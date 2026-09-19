@@ -3,6 +3,15 @@ import type { RuntimeLanguageCode } from "@/lib/languageConfig";
 type Localized = Partial<Record<Exclude<RuntimeLanguageCode,"en">,string>>;
 
 export const GLOBAL_UI_TRANSLATIONS: Record<string,Localized> = {
+  "{count} posted document(s) · {period}":{ur:"{count} پوسٹ شدہ دستاویزات · {period}"},
+  "Posted A/R balance as of {date}":{ur:"{date} تک پوسٹ شدہ قابلِ وصول بیلنس"},
+  "Posted A/P balance as of {date}":{ur:"{date} تک پوسٹ شدہ قابلِ ادا بیلنس"},
+  "Mapped cash tree · as of {date}":{ur:"{date} تک میپ شدہ نقد اکاؤنٹس"},
+  "Mapped bank tree · as of {date}":{ur:"{date} تک میپ شدہ بینک اکاؤنٹس"},
+  "{quantity} current stock quantity":{ur:"موجودہ اسٹاک کی مقدار: {quantity}"},
+  "Sales vs Purchase · {period}":{ur:"سیلز بمقابلہ خریداری · {period}"},
+  "Cash In vs Cash Out · {period}":{ur:"نقد آمد بمقابلہ نقد اخراج · {period}"},
+  "Gross Profit & Margin · {period}":{ur:"مجموعی منافع اور مارجن · {period}"},
   "Cash Balance":{ur:"نقد رقم کا بیلنس"},
   "Bank Balance":{ur:"بینک بیلنس"},
   "Inventory Value":{ur:"اسٹاک کی مالیت"},
