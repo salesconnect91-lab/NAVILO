@@ -1,5 +1,11 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Phase 2B provisioning attempt — 2026-09-22
+
+The user authorized only a separate synthetic-data project named `NAVILO-ISOLATED-UAT` in organization `mjjubagcqiqqoqujscba`, region `ap-southeast-1`, at $0/month. Supabase `get_cost(type=project)` returned $0/month again; `confirm_cost` succeeded. `create_project` then returned `BadRequestException`: organization member `salesconnect91-lab` has reached the **two active free projects per owner/administrator limit**; the provider suggested delete, pause or upgrade. Creation failed; no isolated project reference exists. The prior list for this organization showed only one active production project; the error describes a per-member limit across organizations, so the second project is not identified here. No paid branch, production SQL, test data, migration or deployment action occurred.
+
+**Phase 2B authenticated migration replay and cross-tenant/RPC negative tests remain BLOCKED.** A zero-cost free project slot must first be made available by an authorized owner without pausing/deleting NAVILO production, or an independently owned free organization/project must be connected and explicitly authorized. Do not infer an exploitable security issue from this block. See [Phase 2B results](docs/NAVILO_PHASE2B_TEST_PLAN_AND_RESULTS.md). Previous local checker/unit/typecheck/build outputs are historical results from the preceding continuation, not rerun now.
+
 ## Phase 2B update — isolated test environment blocked
 
 The [Phase 2B test plan and results](docs/NAVILO_PHASE2B_TEST_PLAN_AND_RESULTS.md) records the provisioning decision, synthetic fixture requirements and expected/actual status. No Supabase branch or project was created: connected organization is free with one existing production project, quoted separate-project cost $0/month, branch $0.01344/hour, and provider requires organization selection plus cost confirmation before project creation. This executor has no Docker/PostgreSQL/Supabase CLI. No production data was used as a test fixture. Therefore migration replay and authenticated cross-tenant/BU/branch tests remain **BLOCKED**, not failed or passed.

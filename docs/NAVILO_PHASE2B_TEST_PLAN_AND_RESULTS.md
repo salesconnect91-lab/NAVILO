@@ -1,5 +1,18 @@
 # Phase 2B isolated testing: preparation and truthful results — 2026-09-22
 
+## Provisioning result after user authorization — 2026-09-22
+
+The user approved `NAVILO-ISOLATED-UAT` in `mjjubagcqiqqoqujscba`, `ap-southeast-1`, only at $0/month. A fresh project cost quote returned `$0/month`, and cost confirmation succeeded. The project creation attempt failed with `BadRequestException`: `salesconnect91-lab` has reached the maximum **two active free projects** across organizations it owns/administers; provider proposed deleting, pausing or upgrading a project. No isolated project ref exists, and no paid branch or replacement was attempted. The earlier paragraph below describes the historical preparation state and is superseded as to authorization and the attempted creation.
+
+| Operation | Expected | Actual | Status |
+|---|---|---|---|
+| Quote separate project | Exactly $0/month | Supabase returned type project, recurrence monthly, amount 0 | PASS |
+| Confirm quoted cost | Confirmation returned | Confirmation ID returned (not stored in repo) | PASS |
+| Create approved project | New isolated ref, no paid cost | Provider rejected with member free-project quota error | BLOCKED |
+| Migration replay and authenticated tenant/RPC tests | Synthetic isolated evidence | No isolated project exists | BLOCKED |
+
+Next step requires owner action outside this repository: make one free project slot available by pausing/deleting a different disposable project, never production, or provide an eligible separate free organization/project and authorization. Re-quote before any retry. Existing local test results below were **not rerun** in this continuation.
+
 ## Isolation decision
 
 Connected Supabase organization `mjjubagcqiqqoqujscba` (salesconnect91-lab's Org) is on the **free** plan. Its project list shows one active project, `ijdaosaqpbgnqojudjbj` (production), and zero development branches. The provider quoted **$0/month** to create a separate project in that organization and **$0.01344/hour** for a branch. The project creation connector requires the user to select an organization and confirm the quoted cost before creation. Neither new environment nor cost confirmation was performed. Docker, PostgreSQL server/client and Supabase CLI are unavailable in this executor. Therefore there was no safe isolated database to run migrations or authenticated RPC tests. The production project was never used as a test environment.

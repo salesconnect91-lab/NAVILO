@@ -1,5 +1,13 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## Phase 2B free-project quota blocker — confirmed 2026-09-22
+
+| ID / severity | Evidence and root cause | Impact and dependency | Resolution and acceptance test |
+|---|---|---|---|
+| ENV-02 / P0 release gate, provider quota (not a product security vulnerability) | Supabase project cost was re-quoted at $0/month for organization `mjjubagcqiqqoqujscba`; `confirm_cost` succeeded; `create_project(name=NAVILO-ISOLATED-UAT, region=ap-southeast-1)` returned `BadRequestException` that owner/admin `salesconnect91-lab` reached its two active free-project limit. No project ID was created. | Prevents migration replay, two-tenant synthetic fixtures and authenticated RPC negative tests. No source file/RPC/migration fix can bypass the account quota safely. | Owner frees a slot by pausing/deleting **another disposable project** (never NAVILO production), or connects a separate eligible free organization/project and authorizes its use. No paid option approved. Acceptance: project created at verified $0/month, different ref from production, isolated schema replay and JWT-backed denials actually executed and logged. |
+
+Earlier ENV-01 wording that only cost/organization consent blocked provisioning is superseded by this attempted creation and quota response. All prior unexecuted test statuses remain BLOCKED.
+
 ## Phase 2B gate
 
 **TEST-ENV-01 / P0 BLOCKED:** There is no isolated Supabase project/branch and no local PostgreSQL runtime. Project creation is quoted $0/month but requires user selection of organization and explicit cost confirmation; branch creation is quoted $0.01344/hour and was not requested. `docs/NAVILO_PHASE2B_TEST_PLAN_AND_RESULTS.md` records the exact next decision and fixture plan. Without an isolated environment, DB-01/DB-02 replay and TEN-01/SEC-01 authenticated negative cases are unexecuted. `scripts/phase2b_negative_tests.mjs` is a prepared safe harness; its production-ref guard passed locally, but its authorization outcomes are **not tested**.
