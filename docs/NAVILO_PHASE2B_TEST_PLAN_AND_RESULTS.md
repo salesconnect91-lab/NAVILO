@@ -1,5 +1,9 @@
 # Phase 2B isolated testing: preparation and truthful results — 2026-09-22
 
+## Quota scope clarification — 2026-09-22
+
+Supabase official [billing guide](https://supabase.com/docs/guides/platform/billing-on-supabase) applies its two-active-free-project quota across all organizations where the member is Owner/Admin, and its [FAQ](https://supabase.com/docs/guides/platform/billing-faq) also checks every Owner/Admin member's free limit. The rejection named member `salesconnect91-lab`. User says Toqeer Builder is a separate organization, but the connected list returns only NAVILO's organization and NAVILO project; the Toqeer organization ID, role, subscription, project status, availability and exact cost have **not** been verified. Earlier $0/month quote applied to the NAVILO organization only. An isolated project in Toqeer would use distinct Postgres/Auth/Storage but share that organization's administrators and billing governance. No project creation attempted in Toqeer. New Toqeer-specific authorization is required after read-only ID/plan/cost verification. All migration and authenticated-negative tests remain BLOCKED; no test rerun in this continuation.
+
 ## Provisioning result after user authorization — 2026-09-22
 
 The user approved `NAVILO-ISOLATED-UAT` in `mjjubagcqiqqoqujscba`, `ap-southeast-1`, only at $0/month. A fresh project cost quote returned `$0/month`, and cost confirmation succeeded. The project creation attempt failed with `BadRequestException`: `salesconnect91-lab` has reached the maximum **two active free projects** across organizations it owns/administers; provider proposed deleting, pausing or upgrading a project. No isolated project ref exists, and no paid branch or replacement was attempted. The earlier paragraph below describes the historical preparation state and is superseded as to authorization and the attempted creation.

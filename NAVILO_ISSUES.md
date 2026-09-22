@@ -1,5 +1,9 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## ENV-02 root cause refinement — 2026-09-22
+
+Official Supabase [billing guide](https://supabase.com/docs/guides/platform/billing-on-supabase) aggregates two active free projects across organizations where a member is Owner/Admin; [FAQ](https://supabase.com/docs/guides/platform/billing-faq) says every Owner/Admin member's limit is checked on creation. The failed NAVILO creation specifically named `salesconnect91-lab`; connector lists one NAVILO project and does not expose the separate Toqeer Builder organization. Thus account-wide quota is documented and implicated by the error, while Toqeer's membership/status/plan/project ID and any Toqeer-specific $0 quote are **unverified**. Do not treat a separate organization as an automatic free slot or attempt creation under the existing NAVILO authorization. No project will be paused/deleted. Acceptance for a future isolated environment: verify Toqeer org ID and membership, current plan, member-wide availability and project cost; obtain user approval specific to that organization, then provision without touching existing projects.
+
 ## Phase 2B free-project quota blocker — confirmed 2026-09-22
 
 | ID / severity | Evidence and root cause | Impact and dependency | Resolution and acceptance test |
