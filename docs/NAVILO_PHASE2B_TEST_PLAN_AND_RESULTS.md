@@ -1,5 +1,9 @@
 # Phase 2B isolated testing: preparation and truthful results — 2026-09-22
 
+## Local Supabase path — 2026-09-22
+
+After user confirmed a second existing Free project in the separate Toqeer Builder organization (region `ap-southeast-2`), neither existing project may be used, paused, deleted or reset. A disposable **unlinked local** Supabase CLI + Docker-compatible stack can provide independent Postgres/Auth without a paid Supabase project; this executor lacks the runtime, and user's Windows host prerequisites remain unverified. Read the [local isolation feasibility report](NAVILO_PHASE2B_LOCAL_ISOLATION_FEASIBILITY.md) for exact test scope, guard requirements and safe setup. Checker 2 unit tests and Node harness syntax passed on current code; migration checker exits 1 with 9 duplicate IDs and 3 empty SQL files. No DB replay/JWT/RPC test executed this continuation.
+
 ## Quota scope clarification — 2026-09-22
 
 Supabase official [billing guide](https://supabase.com/docs/guides/platform/billing-on-supabase) applies its two-active-free-project quota across all organizations where the member is Owner/Admin, and its [FAQ](https://supabase.com/docs/guides/platform/billing-faq) also checks every Owner/Admin member's free limit. The rejection named member `salesconnect91-lab`. User says Toqeer Builder is a separate organization, but the connected list returns only NAVILO's organization and NAVILO project; the Toqeer organization ID, role, subscription, project status, availability and exact cost have **not** been verified. Earlier $0/month quote applied to the NAVILO organization only. An isolated project in Toqeer would use distinct Postgres/Auth/Storage but share that organization's administrators and billing governance. No project creation attempted in Toqeer. New Toqeer-specific authorization is required after read-only ID/plan/cost verification. All migration and authenticated-negative tests remain BLOCKED; no test rerun in this continuation.

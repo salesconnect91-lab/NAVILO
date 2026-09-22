@@ -1,5 +1,14 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## Local isolation path — Phase 2B
+
+| ID / priority | Evidence / root cause | Required fix or dependency | Acceptance test |
+|---|---|---|---|
+| ENV-03 / P0 release gate | This executor lacks Docker/Podman, Supabase CLI and PostgreSQL tools; Windows host state unknown. Two existing Free projects belong to different organizations and neither may be used for tests. | Use a disposable **unlinked local** Supabase CLI stack on user's Windows host after `wsl --status` prerequisite check; no hosted project, paid branch, remote flags, production credentials or data. See [local plan](docs/NAVILO_PHASE2B_LOCAL_ISOLATION_FEASIBILITY.md). | Local Postgres/Auth actually start on loopback and both existing cloud project references remain unchanged. |
+| TEST-02 / P1 | `scripts/phase2b_negative_tests.mjs` requires a hosted 20-character project ref and `<ref>.supabase.co` hostname; local URL is rejected. Existing calls are only a subset of 103 RPCs. | Implement guarded explicit local loopback mode and fixture provisioning with synthetic Auth users, positive controls, mutation denial and per-function coverage; keep remote production exclusion. | Fake remote/production endpoint refused; local signed-in roles obtain expected positive results and foreign/revoked/forged calls are denied with recorded actual results. |
+
+Migration version collisions/empty placeholders (MIG-01) remain confirmed; no clean local replay or security vulnerability was inferred.
+
 ## ENV-02 root cause refinement — 2026-09-22
 
 Official Supabase [billing guide](https://supabase.com/docs/guides/platform/billing-on-supabase) aggregates two active free projects across organizations where a member is Owner/Admin; [FAQ](https://supabase.com/docs/guides/platform/billing-faq) says every Owner/Admin member's limit is checked on creation. The failed NAVILO creation specifically named `salesconnect91-lab`; connector lists one NAVILO project and does not expose the separate Toqeer Builder organization. Thus account-wide quota is documented and implicated by the error, while Toqeer's membership/status/plan/project ID and any Toqeer-specific $0 quote are **unverified**. Do not treat a separate organization as an automatic free slot or attempt creation under the existing NAVILO authorization. No project will be paused/deleted. Acceptance for a future isolated environment: verify Toqeer org ID and membership, current plan, member-wide availability and project cost; obtain user approval specific to that organization, then provision without touching existing projects.

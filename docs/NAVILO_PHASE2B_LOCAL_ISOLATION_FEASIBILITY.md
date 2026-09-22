@@ -1,0 +1,30 @@
+# Phase 2B local isolated Supabase feasibility — 2026-09-22
+
+## Decision and evidence
+
+User verified Toqeer Builder is a separate organization with one existing Free project (`salesconnect91-lab’s Project`, region `ap-southeast-2`, 27 MB database, 1 monthly active user). Its project and NAVILO production must not be paused, deleted, reset or used for tests. No new hosted project, paid branch or remote resource is needed for a **local** Supabase stack. The existing projects remain untouched.
+
+In this execution workspace, `command -v` found `node`, `npm` and `python3`, but **no** `docker`, `podman`, `supabase`, `psql`, `postgres` or `initdb`. Therefore a real local PostgreSQL/Auth service cannot be started **here**; no migration replay or JWT/RPC call was executed in this continuation. Windows host capabilities have not been inspected. Supabase [local development documentation](https://supabase.com/docs/guides/local-development) requires Supabase CLI and a Docker-compatible container runtime; it says the local stack is free and does not consume the hosted project's quota. [CLI setup](https://supabase.com/docs/guides/local-development/cli/getting-started) runs Postgres, Auth, Storage and other services locally and downloads images on first start. Docker's [Windows requirements](https://docs.docker.com/desktop/setup/install/windows-install/) include WSL 2.1.5+, supported Windows version, virtualization and 8 GB RAM for its WSL 2 backend.
+
+## Checks actually run on clean development tree at `016bda83d84748c8aaf1d6311843c2ff0c08bec3`
+
+| Check | Actual result |
+|---|---|
+| `python3 -m unittest discover -s scripts -p 'test_check_migration_versions.py' -v` | Exit 0; 2 tests OK |
+| `python3 scripts/check_migration_versions.py` | Exit 1 intentionally; 9 duplicate version IDs and 3 empty SQL files, names in [Phase 2A reconciliation](NAVILO_PHASE2A_MIGRATION_RECONCILIATION.md) |
+| `node --check scripts/phase2b_negative_tests.mjs` | Exit 0; syntax only |
+| Authenticated local tenant/RPC requests | BLOCKED: no local stack, fixtures or users |
+| Full ordered migration replay | BLOCKED: no local stack; migration identity defects unresolved |
+
+The repository has migrations but no committed `supabase/config.toml` or `supabase/seed.sql`. The current `scripts/phase2b_negative_tests.mjs` requires a 20-character hosted project ref and URL `https://<ref>.supabase.co`; it **cannot** be pointed at `http://127.0.0.1:54321` as written. Its existing calls cover a limited subset of company/BU/branch selectors and role helpers, not all 103 definer functions. An isolated local mode must explicitly allow only loopback hosts/ports, retain the production-ref refusal, require synthetic fixtures and deny all remote URLs; implement and test these guards before a local run.
+
+## Safe local setup and test sequence (future work; no commands here executed)
+
+1. On user's Windows host, **first read-only step**: in PowerShell run `wsl --status` and return its text (no secrets). Inspect WSL version/installation; if insufficient, use the official Docker/Windows setup instructions. Install/start Docker-compatible runtime and a versioned Supabase CLI only after prerequisites are known. Node 20+ supports CLI through `npx`; confirm installed CLI syntax with `supabase --help` or `npx supabase --help`.
+2. Clone development commit into a **disposable, unlinked copy** with no production `.env` files. Initialize local config in that copy only if absent; bind services to loopback. Never use `supabase link`, `--linked`, `--db-url`, production reference, production credentials or customer dumps. Local `supabase db reset` destroys only the disposable local DB **when run unlinked without remote flags**; the [CLI reference](https://supabase.com/docs/reference/cli/supabase-db-reset) warns `--linked` or `--db-url` may drop remote user entities.
+3. Run the checker first. Copy and uniquely order the nine duplicate migration versions in an *ephemeral rehearsal copy*, explicitly map every old→new filename and decide the three empty placeholders based on commit history. Preserve original repository filenames for audit. Start the local stack and attempt ordered replay. Record exact first failure, SQLSTATE, object name and commands; do not call it successful until every file executes. Compare local resulting schema to production metadata only through existing read-only evidence, and flag any environment/version differences.
+4. Create **only synthetic** companies A/B; each with 2 BUs and 2 branches; role users owner/accounts/sales/viewer/revoked/tenant B via local Supabase Auth signup/admin API. Keep randomly generated local passwords, test JWTs and local service key outside git/chat. Seed memberships/roles only after schema and guards are understood. Test RLS through signed-in `anon` clients and API, never claim a service-role database query tests tenant isolation.
+5. Extend the negative harness for explicit loopback-only operation and per-test expected outcomes; cover forged foreign IDs, cross-company/BU/branch read+mutation, owner-only operations, role revocation after JWT refresh, posted-document locks and selected privileged RPCs. Verify positive authorized controls to distinguish denied access from a broken setup. Report each actual result. The full 103-function matrix needs individual dynamic coverage or explicit exclusions; subset pass does not certify all 103.
+6. Re-run typecheck, tests and build. Commit fixes/regression tests only to development branch after local reproduction. Keep local runtime private; Supabase [workflow guide](https://supabase.com/docs/guides/local-development/cli-workflows) says local stack is development-only, without production TLS/rate limits/default credential hardening. Production parity, cloud integration and backup/restore remain separately unverified.
+
+**Limits:** Windows machine specifications, installed runtime, disk/network image availability, Postgres extension parity, migration replay success, Auth fixture provisioning and all cross-tenant/RPC outcomes remain unverified. No existing Supabase project was accessed or mutated for this feasibility check.
