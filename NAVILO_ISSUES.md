@@ -1,5 +1,9 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## Phase 2B gate
+
+**TEST-ENV-01 / P0 BLOCKED:** There is no isolated Supabase project/branch and no local PostgreSQL runtime. Project creation is quoted $0/month but requires user selection of organization and explicit cost confirmation; branch creation is quoted $0.01344/hour and was not requested. `docs/NAVILO_PHASE2B_TEST_PLAN_AND_RESULTS.md` records the exact next decision and fixture plan. Without an isolated environment, DB-01/DB-02 replay and TEN-01/SEC-01 authenticated negative cases are unexecuted. `scripts/phase2b_negative_tests.mjs` is a prepared safe harness; its production-ref guard passed locally, but its authorization outcomes are **not tested**.
+
 ## Phase 2A decisions
 
 **DB-01 is now a confirmed repository integrity defect, not merely a count discrepancy.** Exact filenames, name mappings, hash comparison and three empty files appear in [the reconciliation](docs/NAVILO_PHASE2A_MIGRATION_RECONCILIATION.md) and [full CSV](docs/NAVILO_PHASE2A_MIGRATION_MATRIX.csv). Severity P0 release gate: nine duplicate version IDs can make clean migration playback ambiguous. `scripts/check_migration_versions.py` is a prepared, read-only guard that fails with all 12 findings; integrate it in CI only once historical version handling is resolved. Do not auto-rename live-applied versions or apply the 186 locally unmatched IDs to production.

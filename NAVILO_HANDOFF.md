@@ -1,5 +1,11 @@
 # NAVILO audit handoff — 2026-09-22
 
+## Phase 2B continuation — 2026-09-22
+
+Starting remote development commit `40ae959fd3a8c056b7c8295ed0a37d7ff97ca212` was verified via connected GitHub. This local checkout still points to `eee4f41…` but has the Phase 2A files as working-tree contents identical to the remote commit; preserve them in the next remote tree rather than restarting investigation. Phase 2B added [test plan and results](docs/NAVILO_PHASE2B_TEST_PLAN_AND_RESULTS.md) and a production-ref-denying synthetic test harness `scripts/phase2b_negative_tests.mjs`. No isolated project was created because the project connector requires user-selected organization and quoted-cost confirmation. Organization `mjjubagcqiqqoqujscba` has one free-plan production project; separate project quoted $0/month, branch $0.01344/hour. No local Docker, psql, postgres, initdb or Supabase CLI. No production SQL or deployment action.
+
+Actually run: `node --check` PASS; no-ref and explicit production-ref invocation both exited 1 with the expected refusal before network; 2 migration-checker unit tests PASS; `npm run check` exit 0 with 19 files/81 tests and build, large JS chunk warning. Migration checker on existing repository remains expected FAIL (9 duplicate version IDs, 3 empty files). **No migration replay or authenticated security test was run.** No synthetic users/data were created, no passwords/keys written. To resume, obtain user decision on the separate free test project and its organization/cost, create it, then use secure Auth provisioning and synthetic fixtures described in Phase 2B plan. Never run the harness against production or put credentials in chat/repo. Resolve final remote Phase 2B SHA from the development branch after this update.
+
 ## Phase 2A continuation — 2026-09-22
 
 Starting remote audit SHA `eee4f41ee40a9be1c757e7fe7596450eabe2c3b3` confirmed on `work/dashboard-en-ur-20260921`; remote main SHA `a7879524ab0f2bb404e640edd784a9a9b545b1e0` confirmed by `git ls-remote`. This continuation wrote only reports, a full migration matrix, a per-function RPC matrix and a read-only local migration filename checker; no production SQL, main merge or deployment.

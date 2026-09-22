@@ -1,5 +1,11 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Phase 2B update — isolated test environment blocked
+
+The [Phase 2B test plan and results](docs/NAVILO_PHASE2B_TEST_PLAN_AND_RESULTS.md) records the provisioning decision, synthetic fixture requirements and expected/actual status. No Supabase branch or project was created: connected organization is free with one existing production project, quoted separate-project cost $0/month, branch $0.01344/hour, and provider requires organization selection plus cost confirmation before project creation. This executor has no Docker/PostgreSQL/Supabase CLI. No production data was used as a test fixture. Therefore migration replay and authenticated cross-tenant/BU/branch tests remain **BLOCKED**, not failed or passed.
+
+Prepared `scripts/phase2b_negative_tests.mjs` for a future isolated project. Its syntax and no-ref/production-ref rejection preflight passed; no user credentials or real data were committed. Existing `npm run check` again passed typecheck, 81 tests and build. The migration filename checker still reports the 9 duplicate IDs and 3 empty files as an expected failure. No confirmed security exploit and no database remediation were produced in Phase 2B.
+
 ## Phase 2A update — 2026-09-22
 
 Development baseline and all three original reports were confirmed on remote branch commit `eee4f41ee40a9be1c757e7fe7596450eabe2c3b3`; remote `main` was `a7879524ab0f2bb404e640edd784a9a9b545b1e0`. The complete read-only version/name comparison is [migration reconciliation](docs/NAVILO_PHASE2A_MIGRATION_RECONCILIATION.md) with [692 source rows](docs/NAVILO_PHASE2A_MIGRATION_MATRIX.csv). It confirms nine duplicate local version IDs and three empty local migration files. Among 201 uniquely named single-statement pairs, 140 whitespace-normalized texts match and 61 differ; semantic equivalence and current schema parity are still unproven. **No live migration was applied.**
