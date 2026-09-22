@@ -1,5 +1,13 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## Phase 2A decisions
+
+**DB-01 is now a confirmed repository integrity defect, not merely a count discrepancy.** Exact filenames, name mappings, hash comparison and three empty files appear in [the reconciliation](docs/NAVILO_PHASE2A_MIGRATION_RECONCILIATION.md) and [full CSV](docs/NAVILO_PHASE2A_MIGRATION_MATRIX.csv). Severity P0 release gate: nine duplicate version IDs can make clean migration playback ambiguous. `scripts/check_migration_versions.py` is a prepared, read-only guard that fails with all 12 findings; integrate it in CI only once historical version handling is resolved. Do not auto-rename live-applied versions or apply the 186 locally unmatched IDs to production.
+
+**SEC-01 is a high-impact unverified exposure, not 103 confirmed vulnerabilities.** The [per-function review](docs/NAVILO_PHASE2A_RPC_MATRIX.md) and [guard analysis](docs/NAVILO_PHASE2A_SECURITY_REVIEW.md) show 103 direct authenticated grants, no anonymous/PUBLIC grants, fixed search paths and representative guards. No exploit was reproduced. Retain P0 **verification gate** for isolated role/tenant negative tests and nested call-graph review; do not revoke functions based on count alone.
+
+**DB-02 / P0 — 61 textual differences in uniquely named, one-statement migration pairs.** Fourteen retain the same version ID; differences include comments/format or SQL, so semantic drift is not yet confirmed. Dependency: compare SQL AST or exact effective catalog, including RLS, functions, grants and indexes in isolated environments. Acceptance: every difference explained with a source-to-live mapping and reproducible isolated bootstrap/upgrade.
+
 No issue below implies an unrun workflow passed. Severity is based on potential business impact and evidence; `BLOCKED` entries are evidence gaps, not demonstrated defects.
 
 | ID / priority | Status; exact evidence | Root cause / business impact | Dependency, proposed fix and acceptance test |

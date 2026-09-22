@@ -1,5 +1,13 @@
 # NAVILO audit handoff — 2026-09-22
 
+## Phase 2A continuation — 2026-09-22
+
+Starting remote audit SHA `eee4f41ee40a9be1c757e7fe7596450eabe2c3b3` confirmed on `work/dashboard-en-ur-20260921`; remote main SHA `a7879524ab0f2bb404e640edd784a9a9b545b1e0` confirmed by `git ls-remote`. This continuation wrote only reports, a full migration matrix, a per-function RPC matrix and a read-only local migration filename checker; no production SQL, main merge or deployment.
+
+Read [migration reconciliation](docs/NAVILO_PHASE2A_MIGRATION_RECONCILIATION.md), [692-row matrix](docs/NAVILO_PHASE2A_MIGRATION_MATRIX.csv), [103-function matrix](docs/NAVILO_PHASE2A_RPC_MATRIX.md) and [security review](docs/NAVILO_PHASE2A_SECURITY_REVIEW.md) before implementation. Live history: 430 versions; repository 262 SQL files / 253 unique versions; exact version overlap 76; repo-only version occurrences 186, live-only 354. Twenty-four repository filenames and 194 live history names have no exact name counterpart. Nine repo version collisions and three empty SQL files are confirmed. One-statement unique-name comparisons: 140 normalized text matches, 61 mismatches; current effective schema parity needs isolated validation. Live 103 direct authenticated grants, zero anonymous/PUBLIC, 37/37 invoker views and 150/150 RLS-enabled public tables. No critical exploitable RPC bug confirmed, no authenticated negative calls run.
+
+Verification: `npm run check` exited 0 (typecheck, 19 test files/81 tests, build with 3150.13 kB primary JS warning). `python3 scripts/check_migration_versions.py` exited **1 as intended**, reporting 3 empty files and 9 duplicated version IDs; it is a proposal, not yet a CI gate. For cross-tenant tests, provision the isolated fixtures specified in the security review; do not use real customer data. First resolve migration-file identity in an isolated rehearsal, then execute role/tenant/BU/branch negative tests and trace nested privileged helpers. Final Phase 2A documentation commit SHA is the remote development branch head after this report update; resolve with `git ls-remote origin refs/heads/work/dashboard-en-ur-20260921`.
+
 ## Exact identity and mutations
 
 - Repository: `salesconnect91-lab/NAVILO` (GitHub connector confirmed, push permission present).

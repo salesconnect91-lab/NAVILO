@@ -1,5 +1,11 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Phase 2A update — 2026-09-22
+
+Development baseline and all three original reports were confirmed on remote branch commit `eee4f41ee40a9be1c757e7fe7596450eabe2c3b3`; remote `main` was `a7879524ab0f2bb404e640edd784a9a9b545b1e0`. The complete read-only version/name comparison is [migration reconciliation](docs/NAVILO_PHASE2A_MIGRATION_RECONCILIATION.md) with [692 source rows](docs/NAVILO_PHASE2A_MIGRATION_MATRIX.csv). It confirms nine duplicate local version IDs and three empty local migration files. Among 201 uniquely named single-statement pairs, 140 whitespace-normalized texts match and 61 differ; semantic equivalence and current schema parity are still unproven. **No live migration was applied.**
+
+The [103-function matrix](docs/NAVILO_PHASE2A_RPC_MATRIX.md) and [security review](docs/NAVILO_PHASE2A_SECURITY_REVIEW.md) capture live definition fingerprints, grants, path and individual static triage. All 103 have direct authenticated grants and no anonymous/PUBLIC grant; 37 of 37 public views use security invoker, 150 of 150 public tables have RLS. Targeted bodies show owner, company and module guards in many cases. **No critical exploitable RPC flaw was confirmed** and no authenticated cross-tenant negative test was run. A local filename checker was prepared as a prospective CI gate; it fails on the known 3 empty/9 duplicate fixtures. `npm run check` again passed typecheck, 19 files/81 tests and build, retaining the large-bundle warning. Release gate remains OPEN.
+
 ## Executive decision
 
 **Release gate OPEN. Audit coverage PARTIAL.** This is a repository-wide inventory and sampled code/database audit, not an authenticated A-to-Z UAT. Do not merge or deploy on this evidence. The development checkout was `salesconnect91-lab/NAVILO`, `work/dashboard-en-ur-20260921`, `2f4549737d0258d7d7e2daf596353d775cd7b43b`. Vercel's latest production-target deployment metadata identifies `main` SHA `a7879524ab0f2bb404e640edd784a9a9b545b1e0`, READY; the preview at development SHA is also READY. Production alias mapping was not independently verified. The live login page rendered, but no authenticated screen was inspected. Current main ref was not fetched independently. No percentage is defensible: implementation presence, behavior and UAT are different denominators.
