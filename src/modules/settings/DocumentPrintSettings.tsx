@@ -47,27 +47,27 @@ type VisibilityRow = {
 };
 
 const DOCUMENTS: Array<{ type: DocumentType; label: string }> = [
-  { type: "sales_invoice", label: "Sales Invoice / سیلز انوائس" },
-  { type: "purchase", label: "Purchase / خریداری" },
-  { type: "work_order", label: "Work Order / ورک آرڈر" },
-  { type: "receipt_payment", label: "Receipt / Payment / وصولی و ادائیگی" },
-  { type: "gate_pass", label: "Gate Pass / گیٹ پاس" },
-  { type: "reports", label: "Reports / رپورٹس" },
+  { type: "sales_invoice", label: "Sales Invoice" },
+  { type: "purchase", label: "Purchase" },
+  { type: "work_order", label: "Work Order" },
+  { type: "receipt_payment", label: "Receipt / Payment" },
+  { type: "gate_pass", label: "Gate Pass" },
+  { type: "reports", label: "Reports" },
 ];
 
 const ELEMENTS: Array<{ key: VisibilityKey; label: string }> = [
-  { key: "show_company_name", label: "Company Name / کمپنی نام" },
-  { key: "show_logo", label: "Company Logo / کمپنی لوگو" },
-  { key: "show_address", label: "Address / پتہ" },
-  { key: "show_phone_email", label: "Phone / Email / فون و ای میل" },
+  { key: "show_company_name", label: "Company Name" },
+  { key: "show_logo", label: "Company Logo" },
+  { key: "show_address", label: "Address" },
+  { key: "show_phone_email", label: "Phone / Email" },
   { key: "show_tax_details", label: "NTN / STRN" },
-  { key: "show_header", label: "Header / ہیڈر" },
-  { key: "show_footer", label: "Footer / فوٹر" },
-  { key: "show_signatures", label: "Signatures / دستخط" },
-  { key: "show_print_datetime", label: "Print Date / Time / پرنٹ تاریخ و وقت" },
-  { key: "show_page_numbers", label: "Page Numbers / صفحہ نمبر" },
-  { key: "show_previous_balance", label: "Previous Balance / سابقہ بیلنس" },
-  { key: "show_closing_balance", label: "Closing Balance / بقایا بیلنس" },
+  { key: "show_header", label: "Header" },
+  { key: "show_footer", label: "Footer" },
+  { key: "show_signatures", label: "Signatures" },
+  { key: "show_print_datetime", label: "Print Date / Time" },
+  { key: "show_page_numbers", label: "Page Numbers" },
+  { key: "show_previous_balance", label: "Previous Balance" },
+  { key: "show_closing_balance", label: "Closing Balance" },
 ];
 
 function defaultVisibility(documentType: DocumentType): VisibilityRow {
@@ -262,23 +262,23 @@ export default function DocumentPrintSettings() {
 
   return (
     <div>
-      <PageHeader title="Document & Print Settings / ڈاکومنٹ اور پرنٹ سیٹنگز" subtitle="Control content and design without changing transaction or accounting data / مواد اور ڈیزائن تبدیل کریں، کاروباری ڈیٹا نہیں" />
+      <PageHeader title="Document & Print Settings" subtitle="Control content and design without changing transaction or accounting data" />
       {error && <div className="mt-4"><ErrorBanner message={error} /></div>}
-      {saved && <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">Document & print settings saved successfully / ڈاکومنٹ اور پرنٹ سیٹنگز کامیابی سے محفوظ ہوگئیں۔</div>}
+      {saved && <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">Document & print settings saved successfully</div>}
 
       <div className="mt-4 max-w-[1500px] space-y-5">
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2"><FileText className="h-5 w-5 text-blue-600" /><div><h2 className="font-bold">Header & Footer / ہیڈر اور فوٹر</h2><p className="mt-1 text-xs text-slate-500">Common text used by enabled document types.</p></div></div>
+          <div className="mb-4 flex items-center gap-2"><FileText className="h-5 w-5 text-blue-600" /><div><h2 className="font-bold">Header & Footer</h2><p className="mt-1 text-xs text-slate-500">Common text used by enabled document types.</p></div></div>
           <div className="grid gap-4 md:grid-cols-2">
-            <Area label="Header / ہیڈر" value={header} setValue={setHeader} />
-            <Area label="Urdu Header / اردو ہیڈر" value={headerUrdu} setValue={setHeaderUrdu} />
-            <Area label="Footer / فوٹر" value={footer} setValue={setFooter} />
-            <Area label="Urdu Footer / اردو فوٹر" value={footerUrdu} setValue={setFooterUrdu} />
+            <Area label="Header" value={header} setValue={setHeader} />
+            <Area label="Urdu Header" value={headerUrdu} setValue={setHeaderUrdu} />
+            <Area label="Footer" value={footer} setValue={setFooter} />
+            <Area label="Urdu Footer" value={footerUrdu} setValue={setFooterUrdu} />
           </div>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2"><LayoutTemplate className="h-5 w-5 text-violet-600" /><div><h2 className="font-bold">Print Design by Document / ہر ڈاکومنٹ کا پرنٹ ڈیزائن</h2><p className="mt-1 text-xs text-slate-500">Changing a template only changes appearance. Invoice amounts, tax, stock and accounting postings are never changed.</p></div></div>
+          <div className="mb-4 flex items-center gap-2"><LayoutTemplate className="h-5 w-5 text-violet-600" /><div><h2 className="font-bold">Print Design by Document</h2><p className="mt-1 text-xs text-slate-500">Changing a template only changes appearance. Invoice amounts, tax, stock and accounting postings are never changed.</p></div></div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {DOCUMENTS.map((doc) => {
               const row = matrixByType[doc.type] || defaultVisibility(doc.type);
@@ -295,27 +295,27 @@ export default function DocumentPrintSettings() {
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-bold">Signature Labels / دستخط لیبل</h2>
+          <h2 className="mb-4 font-bold">Signature Labels</h2>
           <div className="grid gap-4 md:grid-cols-3">
-            <Input label="Prepared By / تیار کردہ" value={preparedBy} setValue={setPreparedBy} />
-            <Input label="Checked By / جانچ کردہ" value={checkedBy} setValue={setCheckedBy} />
-            <Input label="Approved By / منظور کردہ" value={approvedBy} setValue={setApprovedBy} />
+            <Input label="Prepared By" value={preparedBy} setValue={setPreparedBy} />
+            <Input label="Checked By" value={checkedBy} setValue={setCheckedBy} />
+            <Input label="Approved By" value={approvedBy} setValue={setApprovedBy} />
           </div>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-bold">Page Setup / صفحہ سیٹنگ</h2>
+          <h2 className="mb-4 font-bold">Page Setup</h2>
           <div className="grid gap-4 md:grid-cols-2">
-            <label className="text-sm font-medium">Page Size / صفحہ سائز<SearchableSelect className="input mt-1 w-full" value={pageSize} onChange={(e) => setPageSize(e.target.value)}><option value="A4">A4</option><option value="Letter">Letter</option></SearchableSelect></label>
-            <label className="text-sm font-medium">Orientation / رخ<SearchableSelect className="input mt-1 w-full" value={orientation} onChange={(e) => setOrientation(e.target.value)}><option value="portrait">Portrait / عمودی</option><option value="landscape">Landscape / افقی</option></SearchableSelect></label>
+            <label className="text-sm font-medium">Page Size<SearchableSelect className="input mt-1 w-full" value={pageSize} onChange={(e) => setPageSize(e.target.value)}><option value="A4">A4</option><option value="Letter">Letter</option></SearchableSelect></label>
+            <label className="text-sm font-medium">Orientation<SearchableSelect className="input mt-1 w-full" value={orientation} onChange={(e) => setOrientation(e.target.value)}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></SearchableSelect></label>
           </div>
         </section>
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 p-5"><h2 className="font-bold">Document Visibility Matrix / ڈاکومنٹ شو ہائیڈ میٹرکس</h2></div>
+          <div className="border-b border-slate-200 p-5"><h2 className="font-bold">Document Visibility Matrix</h2></div>
           <div className="overflow-x-auto">
             <table className="min-w-[1250px] w-full text-xs">
-              <thead className="bg-slate-950 text-white"><tr><th className="px-4 py-3 text-left">Element / عنصر</th>{DOCUMENTS.map((doc) => <th key={doc.type} className="px-3 py-3 text-center"><div>{doc.label}</div><div className="mt-2 flex justify-center gap-1"><button type="button" onClick={() => setAllForDocument(doc.type, true)} className="rounded bg-white/10 px-2 py-1">All Show</button><button type="button" onClick={() => setAllForDocument(doc.type, false)} className="rounded bg-white/10 px-2 py-1">All Hide</button></div></th>)}</tr></thead>
+              <thead className="bg-slate-950 text-white"><tr><th className="px-4 py-3 text-left">Element</th>{DOCUMENTS.map((doc) => <th key={doc.type} className="px-3 py-3 text-center"><div>{doc.label}</div><div className="mt-2 flex justify-center gap-1"><button type="button" onClick={() => setAllForDocument(doc.type, true)} className="rounded bg-white/10 px-2 py-1">All Show</button><button type="button" onClick={() => setAllForDocument(doc.type, false)} className="rounded bg-white/10 px-2 py-1">All Hide</button></div></th>)}</tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {ELEMENTS.map((element) => <tr key={element.key} className="hover:bg-slate-50"><td className="px-4 py-3 font-semibold"><div className="flex items-center justify-between gap-2"><span>{element.label}</span><span className="flex gap-1"><button type="button" onClick={() => setAllForElement(element.key, true)} className="rounded border px-1.5 py-0.5">All ✓</button><button type="button" onClick={() => setAllForElement(element.key, false)} className="rounded border px-1.5 py-0.5">All ×</button></span></div></td>{DOCUMENTS.map((doc) => { const enabled = matrixByType[doc.type]?.[element.key] ?? false; return <td key={`${doc.type}-${element.key}`} className="px-3 py-2 text-center"><button type="button" onClick={() => toggleMatrix(doc.type, element.key)} className={`inline-flex min-w-[78px] items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 font-semibold ${enabled ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-400"}`}>{enabled ? <><Check className="h-3.5 w-3.5" />Show</> : <><X className="h-3.5 w-3.5" />Hide</>}</button></td>; })}</tr>)}
               </tbody>
@@ -328,7 +328,7 @@ export default function DocumentPrintSettings() {
           <p className="mt-1 text-xs leading-5">Templates, show/hide options, language, header/footer and page setup are presentation settings only. Posted accounting, VAT, stock movements and document values remain controlled by the transaction data.</p>
         </div>
 
-        <div className="flex justify-end"><button type="button" onClick={() => void save()} disabled={saving} className="btn btn-primary">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Save Document Settings / محفوظ کریں</button></div>
+        <div className="flex justify-end"><button type="button" onClick={() => void save()} disabled={saving} className="btn btn-primary">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Save Document Settings</button></div>
       </div>
     </div>
   );
