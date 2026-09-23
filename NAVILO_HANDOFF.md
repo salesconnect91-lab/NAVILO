@@ -16,6 +16,8 @@ At commit `94f014ce6c1c57914312465c8fff1dacb4e0aeda`, Windows replay applied 000
 
 At commit `dea6514619bb18ec17ae121b92ab3d56ecf5f89d`, Windows replay applied 0001 through 0024, then 0025 failed with SQLSTATE 42703 because it creates `items_warehouse_id_fkey` before any local creator for `items.warehouse_id`. Read-only live catalog confirmed the nullable UUID and `ON DELETE RESTRICT` FK. The following development commit adds only the missing column to 0002 and preserves 0025 as the constraint migration.
 
+At commit `de2b227f78d1f92a431d518585ac7ba06b939c41`, Windows replay applied 0001 through 0025, then 0026 failed because `warehouse_stock.warehouse_id` was absent; the same migration also requires `godown_id` and both fields on `stock_movements`. Read-only live catalog confirmed all four columns and restrictive FKs. The following development commit restores the complete stock-location foundation in 0002; production remains unchanged.
+
 ## Latest continuation: local isolation feasibility — 2026-09-22
 
 Started from clean development SHA `016bda83d84748c8aaf1d6311843c2ff0c08bec3`. User verified Toqeer Builder's separate organization has existing Free project `salesconnect91-lab’s Project` (`ap-southeast-2`, 27 MB database, 1 MAU); neither it nor NAVILO production may be paused, deleted, reset or used for tests. No paid resources. This continuation only updates reports; no cloud SQL, project operations, source fix, migration apply, main merge or deployment.

@@ -155,6 +155,10 @@ CREATE TABLE IF NOT EXISTS transporters (
 ALTER TABLE public.items
   ADD COLUMN IF NOT EXISTS warehouse_id uuid;
 
+ALTER TABLE public.stock_movements
+  ADD COLUMN IF NOT EXISTS warehouse_id uuid REFERENCES public.warehouses(id) ON DELETE RESTRICT,
+  ADD COLUMN IF NOT EXISTS godown_id uuid REFERENCES public.godowns(id) ON DELETE RESTRICT;
+
 -- The tables are exposed through public, so enable RLS at creation.  Migration
 -- 0020 installs the authenticated policies before application use.
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
@@ -171,6 +175,8 @@ CREATE TABLE IF NOT EXISTS warehouse_stock (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
   item_id uuid REFERENCES items(id) ON DELETE SET NULL,
+  warehouse_id uuid REFERENCES warehouses(id) ON DELETE RESTRICT,
+  godown_id uuid REFERENCES godowns(id) ON DELETE RESTRICT,
   godown text NOT NULL DEFAULT 'Main',
   quantity numeric(12,2) NOT NULL DEFAULT 0,
   updated_at timestamptz NOT NULL DEFAULT now()

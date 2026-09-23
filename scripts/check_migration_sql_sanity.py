@@ -10,6 +10,10 @@ FORBIDDEN_TOKENS = ("PKRPKR",)
 REQUIRED_SNIPPETS = {
     "20260821170557_0002_steel_mill_extension.sql": (
         "ALTER TABLE public.items\n  ADD COLUMN IF NOT EXISTS warehouse_id uuid",
+        "ALTER TABLE public.stock_movements\n  ADD COLUMN IF NOT EXISTS warehouse_id uuid REFERENCES public.warehouses(id) ON DELETE RESTRICT",
+        "ADD COLUMN IF NOT EXISTS godown_id uuid REFERENCES public.godowns(id) ON DELETE RESTRICT",
+        "warehouse_id uuid REFERENCES warehouses(id) ON DELETE RESTRICT",
+        "godown_id uuid REFERENCES godowns(id) ON DELETE RESTRICT",
     ),
     "20260824220000_0004_coa_foundation.sql": (
         "ALTER TABLE public.journal_entries\n  ADD COLUMN IF NOT EXISTS payment_mode",

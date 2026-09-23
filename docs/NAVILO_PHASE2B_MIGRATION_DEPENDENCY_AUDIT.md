@@ -113,3 +113,14 @@ read-only live catalog confirms a nullable UUID column and a restrictive FK to
 `warehouses(id)`; 0025 already defines that FK. Migration 0002 now restores only
 the missing column alongside the legacy warehouse foundation, leaving 0025 to
 apply the constraint. A regression contract checks the chronological provider.
+
+## Windows replay continuation — migration 0026
+
+The next fresh replay applied migrations 0001 through 0025. Migration 0026 then
+failed while setting `warehouse_stock.warehouse_id`/`godown_id` NOT NULL because
+the exported table lacked both columns; its next statement requires the same
+pair on `stock_movements`. Read-only live catalog confirms all four UUID columns
+and restrictive foreign keys to `warehouses`/`godowns`. No later repository
+migration creates those constraints. Migration 0002 now restores the nullable
+location columns and exact FKs; 0026 remains responsible for NOT NULL and stock
+integrity. Regression checks cover both tables.
