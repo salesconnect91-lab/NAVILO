@@ -131,6 +131,21 @@ REQUIRED_SNIPPETS = {
         "create trigger purchase_order_line_capture_name_snapshots\nbefore insert or update of status on public.purchase_orders",
         "notify pgrst, 'reload schema';",
     ),
+    "20260923190959_restore_consolidated_descriptions_and_bu_inventory_cost.sql": (
+        "alter table public.consolidated_sales_invoice_lines\n  add column if not exists description text;",
+        "alter table public.consolidated_purchase_invoice_lines\n  add column if not exists description text;",
+        "create or replace function public.get_inventory_avg_cost(p_item_id uuid)",
+        "perform public.assert_module_permission('inventory', 'view');",
+        "create or replace function public.apply_inventory_cost_in(",
+        "perform public.assert_module_permission('inventory', 'edit');",
+        "and company_id = v_company_id",
+        "and business_unit_id = v_unit_id",
+        "on conflict (company_id, business_unit_id, item_id)",
+        "revoke all on function public.get_inventory_avg_cost(uuid)",
+        "revoke all on function public.apply_inventory_cost_in(uuid, numeric, numeric, numeric)",
+        "grant execute on function public.apply_inventory_cost_in(uuid, numeric, numeric, numeric)",
+        "notify pgrst, 'reload schema';",
+    ),
 }
 
 

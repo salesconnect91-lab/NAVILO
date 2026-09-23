@@ -282,3 +282,13 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - Prepared `20260923185524_restore_line_descriptions_and_prelock_snapshots.sql`: exact nullable description columns plus BEFORE status-transition snapshot triggers. Posted-line locks are not weakened. Runner adds descriptions and two snapshot assertions.
 - Post-change gates: migration version/sanity/dependency/order checks 0 findings; 27 checker tests PASS; TypeScript PASS; 19 files/81 tests PASS; Vite build PASS with the existing 3,150.13 kB bundle warning.
 - Production Supabase, `main`, Vercel and hosted projects remain unchanged. Apply/rerun locally before claiming sales, purchase, stock, AR/AP or returns PASS.
+
+## Phase 3 fifth Windows run and next repair — 2026-09-23
+
+- Exact tested SHA: `2499db182d168f224af9037114ea54f8d4452f43`; local history was up to date.
+- Measured result: **19 total / 16 PASS / 3 FAIL**. All role/tenant denials, manual journal balance/posting/immutability/reversal and period controls passed.
+- The prior description/snapshot errors disappeared. New independent blockers are purchase `42P10` from stale `ON CONFLICT (user_id,item_id)` after company/BU/item uniqueness, and sales `42703` from missing consolidated sales-line description. Returns is dependent on both postings.
+- Read-only live evidence confirms consolidated sales/purchase descriptions and company/BU-aware inventory-cost functions. No production data was copied or changed.
+- Prepared `20260923190959_restore_consolidated_descriptions_and_bu_inventory_cost.sql`. It restores exact columns and intended tenant-aware costing, retains permission checks/pinned search paths, revokes public/anon/authenticated direct execution and grants service role.
+- Pre-commit gates: migration versions, SQL sanity, dependency and object-order checks all 0 findings; **28 checker tests PASS**; runner syntax PASS; TypeScript PASS; **19 test files / 81 tests PASS**; Vite production build PASS. The known 3,150.13 kB main bundle warning remains.
+- Safe resume: use only `C:\NAVILO-latest`, pull the next development SHA, run `npx supabase migration up --local`, then rerun Phase 3. Never use `db push`, link production, merge main or deploy.
