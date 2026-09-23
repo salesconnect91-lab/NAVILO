@@ -231,12 +231,12 @@ export default function PurchaseOrderList() {
   );
 
   const columns: Column<PurchaseOrder>[] = [
-    { key: "order_no", label: "Invoice # / انوائس", render: (r) => <span className="font-medium text-primary-600">{r.order_no}</span> },
-    { key: "supplier", label: "Supplier / سپلائر", render: (r) => r.supplier?.name ?? "—" },
-    { key: "order_date", label: "Date / تاریخ", render: (r) => formatDate(r.order_date) },
-    { key: "invoice_type", label: "Type / قسم", render: (r) => r.invoice_type === "Tax Invoice" ? "With Tax / ٹیکس کے ساتھ" : "Without Tax / بغیر ٹیکس" },
-    { key: "status", label: "Status / حالت", render: (r) => <StatusBadge status={r.status} /> },
-    { key: "total", label: "Total / کل", render: (r) => <span className="font-medium">{formatCurrency(r.total)}</span> },
+    { key: "order_no", label: "Invoice #", render: (r) => <span className="font-medium text-primary-600">{r.order_no}</span> },
+    { key: "supplier", label: "Supplier", render: (r) => r.supplier?.name ?? "—" },
+    { key: "order_date", label: "Date", render: (r) => formatDate(r.order_date) },
+    { key: "invoice_type", label: "Type", render: (r) => r.invoice_type === "Tax Invoice" ? "With Tax" : "Without Tax" },
+    { key: "status", label: "Status", render: (r) => <StatusBadge status={r.status} /> },
+    { key: "total", label: "Total", render: (r) => <span className="font-medium">{formatCurrency(r.total)}</span> },
     { key: "actions", label: "Actions", className: "text-right", render: (r) => {
       const isDraft = String(r.status ?? "").toLowerCase() === "draft";
       return <div className="flex justify-end gap-2">
@@ -251,7 +251,7 @@ export default function PurchaseOrderList() {
       <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleImport} />
 
       <PageHeader
-        title="Purchase Invoices / خریداری انوائسز"
+        title="Purchase Invoices"
         subtitle="Manage supplier invoices, payment status, balances & posting"
         action={(
           <div className="flex flex-wrap items-center gap-2">
@@ -260,7 +260,7 @@ export default function PurchaseOrderList() {
                 onClick={() => navigate("/purchase/consolidated")}
                 className="px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
               >
-                📚 Consolidated Purchase / کنسولیڈیٹڈ
+                📚 Consolidated Purchase
               </button>
             )}
             {canCreate && <button onClick={() => navigate("/purchase/new")} className="btn-primary">+ Main Purchase Invoice</button>}
