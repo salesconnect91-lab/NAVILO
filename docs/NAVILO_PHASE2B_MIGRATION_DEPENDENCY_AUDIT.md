@@ -249,3 +249,20 @@ known legacy pattern does not match. A regression contract protects both the
 final-state validation and the fail-closed unknown-pattern path. Static gates
 remain clean and 23 migration-checker tests pass; only another full fresh replay
 can prove the remaining chain.
+
+## Full fresh replay result — PASS (2026-09-23)
+
+Windows evidence at exact development SHA
+`f6b3f4da1f7e29528e1ca9b4fca086e22e285f92` closes the repository dependency
+replay gate. `npx supabase start --debug` initialized a new local database,
+applied every migration from `20260821163309` through `20260921204530`, then
+started the local stack and passed REST/Edge Function health checks. In
+particular, the restored stock foundations, corrected branch ordering and
+already-hardened sales-core compatibility migration all executed before their
+consumers without error.
+
+The warning for absent `supabase/seed.sql` means fixture seeding did not happen;
+the Windows Analytics warning concerns an optional service and did not invalidate
+the database replay. This result proves clean schema construction only. It does
+not prove authenticated RLS/RPC isolation, production-history equivalence,
+backup restoration or business-workflow correctness.

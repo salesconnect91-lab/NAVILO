@@ -187,3 +187,13 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - Static gates: 0 empty, duplicate or misversioned files; 0 SQL-sanity, strict-dependency or object-order findings; 23 migration-checker tests PASS. Full application gate and fresh PostgreSQL replay remain required after this change.
 - Full application gate rerun: `npm run check` PASS — TypeScript, 19 test files/81 tests and Vite build. Known primary bundle warning remains 3,150.13 kB minified / 882.09 kB gzip.
 - Production/main/Vercel/Toqeer remain unchanged. After the next fresh replay, continue to synthetic authenticated company/BU/branch/RPC negative tests before UI redesign implementation.
+
+## Phase 2B clean replay passed; authenticated local tests next — 2026-09-23
+
+- Windows repository: `C:\NAVILO-latest`; branch `work/dashboard-en-ur-20260921`; tested SHA `f6b3f4da1f7e29528e1ca9b4fca086e22e285f92`.
+- Actual command: `npx supabase start --debug` on a fresh local volume. It applied the complete chain from `20260821163309` through `20260921204530`, started containers and passed REST/Edge Function health checks. Migration replay is now PASS, not pending.
+- Non-blocking warnings: no optional `supabase/seed.sql`; Windows Analytics requires Docker TCP exposure. Neither affected database migration completion. Do not enable insecure Docker TCP merely for Phase 2B authorization tests.
+- No synthetic fixtures or authenticated negative calls ran yet. Local endpoint/key values printed by the CLI are development defaults and were not copied into source or reports.
+- Added `scripts/phase2b_local_security_tests.mjs`. It accepts only `localhost:54321`, explicitly refuses the production ref, reads local status internally, creates six short-lived synthetic Auth identities with in-memory passwords, provisions 2 companies with 2 BUs and 2 branches each, and exercises positive controls plus foreign-company/customer, unassigned BU/branch, forged owner-only assignment, viewer, revoked-role and anonymous cases. Its output excludes credentials and emails.
+- Verification for this continuation: local runner syntax PASS; migration filename/SQL-sanity/strict-dependency/object-order checks all 0 findings; 23 migration-checker unit tests PASS; `npm run check` PASS (TypeScript, 19 test files/81 tests, Vite build). Known main-bundle warning remains 3,150.13 kB minified / 882.09 kB gzip. The actual authenticated test run is still PENDING and must not be reported as PASS until its JSON summary is captured.
+- Production Supabase, Toqeer Builder, `main` and Vercel production remain unchanged.

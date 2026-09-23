@@ -157,3 +157,12 @@ All these are acceptance tests to execute, not results.
 - **Root cause:** A later dynamic `pg_get_functiondef` text patch was non-idempotent against the exact secure final function definition restored earlier for clean-replay completeness.
 - **Fix:** Treat only the explicitly verified secure final markers as a no-op. Otherwise retain the original transformation and mismatch exception. Add regression snippets/test so the final-state guard cannot be removed silently.
 - **Acceptance:** Fresh replay applies `20260914225847` and the entire remaining chain; catalog definition still contains company/BU scope and invoice-owner resolution; authenticated cross-tenant/forged-invoice calls are denied without mutation.
+
+## Phase 2B replay closure and next security gate — 2026-09-23
+
+| ID / severity | Status and evidence | Remaining requirement |
+|---|---|---|
+| MIG-15 / P0 | **RESOLVED for clean replay.** At exact SHA `f6b3f4da1f7e29528e1ca9b4fca086e22e285f92`, fresh local initialization applied `20260914225847` and every later migration through `20260921204530`, then passed local service health checks. | Keep the fail-closed regression contract; run authenticated forged-invoice/RPC behavior tests before release. |
+| DB-01 / P0 | **VERIFIED WORKING locally.** Complete clean migration replay passed on Windows Docker/Supabase CLI 2.117.0. | Hosted-production history remains intentionally unchanged; parity and deployment planning are separate gates. |
+| TEST-03 / P0 | **PENDING, environment now available.** No JWT-backed tenant/BU/branch/RPC call was part of `supabase start`. | Run `scripts/phase2b_local_security_tests.mjs` on the local stack, record every expected/actual result, then expand failures and high-risk RPC coverage. |
+| TEST-04 / P1 | Prepared local runner has a strict loopback `localhost:54321` guard, creates six Auth identities through the local Auth Admin API, provisions 2 companies × 2 BUs × 2 branches, keeps generated passwords in memory and prints no secrets/emails. `node --check` passes. | Actual execution is not yet a PASS. Confirm positive controls, foreign-company denial, same-company unassigned BU/branch denial, owner-only RPC denial, viewer denial, revoked membership denial and anonymous-grant denial. |

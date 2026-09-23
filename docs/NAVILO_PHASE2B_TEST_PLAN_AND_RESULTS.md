@@ -58,3 +58,16 @@ Prepared `scripts/phase2b_negative_tests.mjs` rejects the production ref even if
 ## Confirmed root cause and limitations
 
 Duplicate timestamps came from separate committed files: `20260910133500_fix_first_kanta_before_second_kanta.sql` was introduced by `2cd1abb`, while `20260910133500_gate_pass_controlled_reopen_for_correction.sql` came from `a9c5d9c`. Likewise `20260913081500_enforce_branch_read_write_isolation_on_operational_tables.sql` came from `22f05f9` and `20260913081500_enforce_navilo_language_pairs.sql` from `fc12d4c`. Empty `20260916051517_scope_master_uniqueness_by_company.sql` was committed in `73934ee`, alongside a later nonempty file `20260916051519_...`. This explains the repository filename collision/placeholder pattern; it does **not** prove which SQL ran live or establish a safe final numbering scheme. Actual migration playback and authorization behavior remain blocked.
+
+## Executed clean replay and local Auth test preparation — 2026-09-23
+
+The earlier blocked/duplicate state above is historical. After explicit dependency restoration and version reconciliation, the user ran a genuinely fresh local initialization at SHA `f6b3f4da1f7e29528e1ca9b4fca086e22e285f92`. Every migration applied through repository latest `20260921204530`, containers started and local REST/Function health checks passed. Clean migration replay is therefore **PASS**. Production history was not edited and no hosted project was used.
+
+| Test | Expected | Actual | Status |
+|---|---|---|---|
+| Fresh repository migration replay | Entire ordered chain applies to empty local DB | Applied first through latest migration; local setup started and health checks completed | PASS |
+| Optional seed | Seed synthetic fixtures | `supabase/seed.sql` absent | NOT RUN / not a replay failure |
+| Authenticated negative matrix | JWT-backed expected/actual evidence | No identities or fixtures existed during start | PENDING |
+| Local runner syntax | Valid Node script without external package dependency | `node --check scripts/phase2b_local_security_tests.mjs` exit 0 | PASS |
+
+The local runner obtains the local API/publishable/secret values by invoking `supabase status -o env` itself and never prints them. It hard-refuses any hostname other than `localhost`/`127.0.0.1` on port `54321`, generates six synthetic Auth identities through the Auth Admin API, retains passwords only in process memory, and prints sanitized expected/actual evidence. It provisions two companies, two business units and two branches per company; tests foreign-company/customer access, unassigned same-company BU/branch switching, forged owner-only assignment, viewer post denial, revoked access, owner positive control and anonymous helper denial. This subset does not certify all 103 functions.
