@@ -238,7 +238,7 @@ export default function WorkOrderList() {
     },
     {
       key: "status",
-      label: "Status / حالت",
+      label: "Status",
       render: (r) => <StatusBadge status={r.status} />,
     },
     {
@@ -270,8 +270,8 @@ export default function WorkOrderList() {
   return (
     <div>
       <PageHeader
-        title="Work Orders / ورک آرڈرز"
-        subtitle="Manage production orders / پیداواری آرڈرز منظم کریں"
+        title="Work Orders"
+        subtitle="Manage production orders"
         action={
           <button
             type="button"
@@ -294,7 +294,7 @@ export default function WorkOrderList() {
 
       <Modal
         open={modalOpen}
-        title="New Work Order / نیا ورک آرڈر"
+        title="New Work Order"
         onClose={() => {
           if (!saving) {
             setModalOpen(false);
@@ -304,7 +304,7 @@ export default function WorkOrderList() {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="label">Order Number / آرڈر نمبر</label>
+            <label className="label">Order Number</label>
             <input
               className="input bg-slate-50"
               value={form.order_no}
@@ -313,7 +313,7 @@ export default function WorkOrderList() {
           </div>
 
           <div>
-            <label className="label">Product (Finished Good) / تیار شدہ مصنوعات</label>
+            <label className="label">Product (Finished Good)</label>
             <SearchableSelect
               className="input"
               required
@@ -332,7 +332,7 @@ export default function WorkOrderList() {
           </div>
 
           <div>
-            <label className="label">Production Quantity / پیداواری مقدار</label>
+            <label className="label">Production Quantity</label>
             <input
               className="input"
               type="number"
@@ -346,7 +346,7 @@ export default function WorkOrderList() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Warehouse / ویئرہاؤس</label>
+              <label className="label">Warehouse</label>
               <SearchableSelect
                 className="input"
                 required
@@ -375,7 +375,7 @@ export default function WorkOrderList() {
             </div>
 
             <div>
-              <label className="label">Godown / گودام</label>
+              <label className="label">Godown</label>
               <SearchableSelect
                 className="input"
                 required
@@ -396,7 +396,7 @@ export default function WorkOrderList() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Start Date / آغاز تاریخ</label>
+              <label className="label">Start Date</label>
               <input
                 className="input"
                 type="date"
@@ -408,7 +408,7 @@ export default function WorkOrderList() {
             </div>
 
             <div>
-              <label className="label">Planned End Date / متوقع اختتامی تاریخ</label>
+              <label className="label">Planned End Date</label>
               <input
                 className="input"
                 type="date"
@@ -429,7 +429,7 @@ export default function WorkOrderList() {
                 setForm(EMPTY_FORM);
               }}
               className="btn-secondary"
-            >Cancel / منسوخ کریں</button>
+            >Cancel</button>
 
             <button
               type="submit"
