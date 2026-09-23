@@ -264,3 +264,12 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - Runner stopped before assertion 1 on `PGRST204`, because its shared master payload included nonexistent `warehouses.user_id`.
 - Read-only production catalog plus repository DDL confirm warehouses/godowns are company-scoped without `user_id`. This is a harness bug; adding a database column would be incorrect.
 - Runner now omits explicit owner ID from the shared master payload. Authenticated defaults still populate legacy required owner fields where present. Rerun Phase 3 locally; result remains 0 assertions/PENDING until then.
+
+## Phase 3 third Windows run — shared trigger row-contract repair — 2026-09-23
+
+- Exact tested SHA: `0e119a5477493a32f3d66b511ea094734f646bba`. Fixture provisioning completed; result was 0/5 areas passed.
+- Purchase, sales and role/tenant areas shared the same `NEW.invoice_no` trigger failure. Manual journal exposed `NEW.source_id`; returns were blocked by failed posting prerequisites. Treat this as two trigger defects plus one dependency, not five independent workflow bugs.
+- Read-only production comparison confirmed `sales_orders`/`purchase_orders.order_no`, `journal_entries.source_document_id` and `stock_movements.source_id`. It also confirmed production already has safer `apply_document_discount_total` and `navilo_link_posting_traceability` definitions. No production write occurred.
+- Development migration `20260923183710_harden_polymorphic_trigger_row_contracts.sql` fixes all three shared functions, including the still-latent transaction-link branch risk, without adding fake columns or weakening constraints. Direct execution remains revoked from public/anon/authenticated and `search_path` remains pinned.
+- Post-change gates: SQL sanity 0 findings; 26 migration-checker tests PASS; TypeScript PASS; 19 files/81 tests PASS; Vite build PASS with the existing 3,150.13 kB main-chunk warning.
+- **Next exact action:** pull the new development commit in `C:\NAVILO-latest`, run `npx supabase migration up --local`, then rerun `node .\scripts\phase3_local_business_uat.mjs`. Do not run `db push`, link production, or claim Phase 3 PASS until the JSON evidence passes.

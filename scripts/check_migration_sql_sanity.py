@@ -114,6 +114,16 @@ REQUIRED_SNIPPETS = {
         "references public.chart_of_accounts(id);",
         "notify pgrst, 'reload schema';",
     ),
+    "20260923183710_harden_polymorphic_trigger_row_contracts.sql": (
+        "v_row jsonb := to_jsonb(NEW);",
+        "v_no := coalesce(v_row ->> 'order_no', '');",
+        "v_no := coalesce(v_row ->> 'invoice_no', '');",
+        "if TG_TABLE_NAME = 'journal_entries' then",
+        "elsif TG_TABLE_NAME = 'stock_movements' then",
+        "revoke all on function public.apply_document_discount_total() from public, anon, authenticated;",
+        "revoke all on function public.navilo_link_posting_traceability() from public, anon, authenticated;",
+        "revoke all on function public.sync_commercial_transaction_link() from public, anon, authenticated;",
+    ),
 }
 
 

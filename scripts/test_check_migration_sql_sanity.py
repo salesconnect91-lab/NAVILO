@@ -140,6 +140,18 @@ class MigrationSqlSanityTests(unittest.TestCase):
                 any("missing required legacy foundation" in finding for finding in findings)
             )
 
+    def test_polymorphic_trigger_patch_requires_row_shape_guards(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            filename = "20260923183710_harden_polymorphic_trigger_row_contracts.sql"
+            (directory / filename).write_text(
+                "create or replace function public.apply_document_discount_total() returns trigger language plpgsql as $$ begin return new; end $$;"
+            )
+            findings = inspect(directory)
+            self.assertTrue(
+                any("missing required legacy foundation" in finding for finding in findings)
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
