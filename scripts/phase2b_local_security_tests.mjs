@@ -10,14 +10,26 @@ import { spawnSync } from "node:child_process";
 const productionRef = "ijdaosaqpbgnqojudjbj";
 
 function readLocalStatus() {
-  const executable = process.platform === "win32" ? "npx.cmd" : "npx";
-  const result = spawnSync(executable, ["supabase", "status", "-o", "env"], {
+  const isWindows = process.platform === "win32";
+  const executable = isWindows
+    ? (process.env.ComSpec ?? "C:\\Windows\\System32\\cmd.exe")
+    : "npx";
+  const args = isWindows
+    ? ["/d", "/s", "/c", "npx supabase status -o env"]
+    : ["supabase", "status", "-o", "env"];
+  const result = spawnSync(executable, args, {
     cwd: process.cwd(),
     encoding: "utf8",
     shell: false,
   });
+  if (result.error) {
+    throw new Error(`Unable to launch the local Supabase CLI (${result.error.code ?? "process error"}).`);
+  }
   if (result.status !== 0) {
-    throw new Error("Local Supabase is not running. Start it from this repository first.");
+    const notRunning = /supabase start is not running/i.test(result.stderr ?? "");
+    throw new Error(notRunning
+      ? "Local Supabase is not running. Start it from this repository first."
+      : `Local Supabase status failed with exit ${result.status}. Run npx supabase status in this repository for diagnostics.`);
   }
   const values = {};
   for (const line of result.stdout.split(/\r?\n/)) {

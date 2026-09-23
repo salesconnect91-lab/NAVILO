@@ -206,3 +206,11 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - The Windows `shell:true` invocation was replaced with direct `npx.cmd` execution, removing the Node DEP0190 warning. Future HTTP failures include only sanitized database code/message; secrets and emails remain excluded.
 - Existing orphan synthetic users are confined to the disposable local Auth database. A new run uses unique synthetic emails, so no manual cleanup or local reset is required before rerunning.
 - Actual authorization matrix remains PENDING. Production/main/Vercel/Toqeer remain unchanged.
+
+## Phase 2B second runner attempt — Windows CLI launcher repair (2026-09-23)
+
+- User pulled exact SHA `ee1f8623aa458bdb980b7cbf02d96f7e91fcb317`. The runner stopped in `readLocalStatus()` before creating any new fixture or running any authorization assertion.
+- The preceding local stack had completed successfully and the failure followed the change from `shell:true` to direct `npx.cmd`; this is a Windows Node process-launch compatibility issue, not database evidence.
+- Development now uses the Windows command interpreter from `ComSpec` with a fixed `npx supabase status -o env` command and `shell:false`. No user-controlled argument is concatenated. Non-Windows remains direct `npx`.
+- Diagnostics now distinguish a launch error, the CLI's exact stopped-stack marker, and other nonzero status without printing local keys or raw stderr.
+- Actual authenticated matrix remains PENDING. Production/main/Vercel/Toqeer remain unchanged.
