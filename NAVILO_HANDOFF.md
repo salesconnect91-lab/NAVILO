@@ -229,3 +229,14 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - It stopped before assertions when a service-role customer insert invoked `tenant_stamp_company_user()` and correctly rejected the missing authenticated company context with `P0001`.
 - Development does not disable the tenant trigger. The synthetic Platform Owner now signs in, selects company A/B through `set_current_company(uuid)`, and inserts each customer through authenticated REST, allowing normal RLS and tenant stamping to execute.
 - Previous partial fixtures remain isolated synthetic local data; no reset is required. Actual authorization matrix remains PENDING. Production/main/Vercel/Toqeer remain unchanged.
+
+## Phase 2B targeted local security matrix completed — 2026-09-23
+
+- Exact tested development SHA: `f4ddc905ed11fb78d217d4cb08f16ccdc4bd932a`.
+- Environment: unlinked local Supabase only; production ref explicitly refused; synthetic data only.
+- Fixture: 2 companies × 2 BUs × 2 branches; owner, accounts, sales, viewer, revoked and tenant-B Auth identities.
+- Result: **41 total / 41 PASS / 0 FAIL**. Own-company/report and owner positive controls passed. Foreign company/customer rows, forged company/module access, unassigned same-company BU/branch, owner-only forged assignment, viewer post, revoked access and anonymous helper cases all matched expected denial/zero/false outcomes.
+- Persistent sanitized evidence: `docs/NAVILO_PHASE2B_LOCAL_SECURITY_RESULTS.md`. Windows also has `C:\NAVILO-latest\phase2b-local-security-results.json`; it contains no credentials or row IDs.
+- Migration replay was already PASS through `20260921204530`. Static gates remain 0 empty/duplicate/misversioned/SQL/dependency/order findings; 23 migration-checker tests, TypeScript, 19 files/81 application tests and Vite build passed on the same runner code before this execution. Known large bundle warning remains.
+- Phase 2B targeted migration/authentication/isolation gate is complete. Residual risk: this is not dynamic execution of every 103 privileged function and not business-domain UAT for valid invoices, purchases, journals, stock, payments, returns, reversals or reset operations.
+- Production database, `main`, Vercel production and Toqeer Builder remained unchanged.

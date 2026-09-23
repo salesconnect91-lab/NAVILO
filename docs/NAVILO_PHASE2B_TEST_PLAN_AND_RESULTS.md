@@ -81,3 +81,9 @@ The following run at `ee1f8623aa458bdb980b7cbf02d96f7e91fcb317` exposed that dir
 At `029437349f5c24dbb78e7c6a7a1622d41f53b85c`, launcher, Auth profiles, companies and BUs succeeded. The company-membership synchronization trigger had already created each default-BU membership, so the runner's plain duplicate insert failed with `23505` on `(business_unit_id,user_id)`. The repaired fixture performs an idempotent upsert on that exact constraint. No authorization expected/actual result was produced by this attempt.
 
 At `db06c7197449b708d8100d126b93fe9266bbdfed`, all provisioning stages through module configuration succeeded. The first customer insert used service role without an active authenticated company and was rejected by `tenant_stamp_company_user()` with `P0001`. The repaired flow signs in the synthetic owner, selects A and B through the public authenticated company-switch RPC, and inserts each customer through authenticated REST. RLS and tenant triggers remain active. No authorization assertion result was produced by the failed attempt.
+
+## Final targeted execution — PASS
+
+Exact SHA `f4ddc905ed11fb78d217d4cb08f16ccdc4bd932a` completed the full prepared runner: **41 passed, 0 failed**. Positive controls proved valid own-company/report access for accounts, sales, viewer and tenant-B plus valid owner identity. Foreign tenant rows and helper calls failed closed; unassigned BU/branch switches and forged owner-only assignments were denied; viewer post, revoked membership and anonymous helper access were denied. See [the complete expected/actual matrix](NAVILO_PHASE2B_LOCAL_SECURITY_RESULTS.md).
+
+This closes the prepared targeted Phase 2B migration and authenticated-isolation test gate. It does not convert the 103-function static matrix into 103 dynamic passes: functions needing valid accounting/inventory/document state stay explicitly unverified until domain UAT/regression tests.
