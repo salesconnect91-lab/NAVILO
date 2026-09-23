@@ -222,3 +222,10 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - Exact cause: `trg_sync_default_business_unit_membership` runs after each company-membership insert and already upserts the default-BU membership. The fixture then tried to insert the identical unique pair.
 - Development now upserts on `(business_unit_id,user_id)`, matching the database trigger's conflict target and explicitly preserving the intended role/active state.
 - Partial fixtures from failed attempts remain synthetic and local only. Each rerun uses new identities/company codes, so reset is unnecessary. Actual authorization matrix remains PENDING; production/main/Vercel/Toqeer remain unchanged.
+
+## Phase 2B fourth runner attempt — authenticated customer fixture context (2026-09-23)
+
+- User pulled exact SHA `db06c7197449b708d8100d126b93fe9266bbdfed`. Provisioning passed local CLI/Auth/profile/company/BU/branch/membership/module stages.
+- It stopped before assertions when a service-role customer insert invoked `tenant_stamp_company_user()` and correctly rejected the missing authenticated company context with `P0001`.
+- Development does not disable the tenant trigger. The synthetic Platform Owner now signs in, selects company A/B through `set_current_company(uuid)`, and inserts each customer through authenticated REST, allowing normal RLS and tenant stamping to execute.
+- Previous partial fixtures remain isolated synthetic local data; no reset is required. Actual authorization matrix remains PENDING. Production/main/Vercel/Toqeer remain unchanged.

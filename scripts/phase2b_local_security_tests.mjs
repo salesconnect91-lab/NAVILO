@@ -142,6 +142,15 @@ async function asUser(local, token, path, options = {}) {
   return requestJson(local.url, path, local.publicKey, token, options);
 }
 
+async function userInsert(local, token, table, rows) {
+  const result = await asUser(local, token, `/rest/v1/${table}`, {
+    method: "POST",
+    body: rows,
+    prefer: "return=minimal",
+  });
+  requireOk(result, `authenticated insert ${table}`);
+}
+
 function rowQuery(table, id) {
   return `/rest/v1/${table}?select=id&id=eq.${encodeURIComponent(id)}`;
 }
@@ -266,10 +275,18 @@ async function provision(local) {
 
   const customerA = randomUUID();
   const customerB = randomUUID();
-  await serviceInsert(local, "customers", [
-    { id: customerA, user_id: identities.accountsA.id, company_id: companyA, name: "PHASE2B Customer A" },
-    { id: customerB, user_id: identities.tenantB.id, company_id: companyB, name: "PHASE2B Customer B" },
-  ]);
+  const ownerToken = await signIn(local, identities.owner);
+  for (const [company, customer, name] of [
+    [companyA, customerA, "PHASE2B Customer A"],
+    [companyB, customerB, "PHASE2B Customer B"],
+  ]) {
+    const selected = await asUser(local, ownerToken, rpcPath("set_current_company"), {
+      method: "POST",
+      body: { p_company_id: company },
+    });
+    requireOk(selected, "select synthetic company for customer fixture");
+    await userInsert(local, ownerToken, "customers", [{ id: customer, company_id: company, name }]);
+  }
 
   return {
     identities, companyA, companyB, businessUnitA1, businessUnitA2, businessUnitB1, businessUnitB2,
