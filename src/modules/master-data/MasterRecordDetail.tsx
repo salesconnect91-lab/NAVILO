@@ -7,9 +7,9 @@ type Entity = "item" | "customer" | "supplier";
 type RecordRow = Record<string, unknown>;
 
 const CONFIG: Record<Entity, { table: string; listRoute: string; title: string }> = {
-  item: { table: "items", listRoute: "/master-data", title: "Item Detail / آئٹم تفصیل" },
-  customer: { table: "customers", listRoute: "/master-data/customers", title: "Customer Detail / کسٹمر تفصیل" },
-  supplier: { table: "suppliers", listRoute: "/master-data/suppliers", title: "Supplier Detail / سپلائر تفصیل" },
+  item: { table: "items", listRoute: "/master-data", title: "Item Detail" },
+  customer: { table: "customers", listRoute: "/master-data/customers", title: "Customer Detail" },
+  supplier: { table: "suppliers", listRoute: "/master-data/suppliers", title: "Supplier Detail" },
 };
 
 const value = (v: unknown) => String(v ?? "").trim();
