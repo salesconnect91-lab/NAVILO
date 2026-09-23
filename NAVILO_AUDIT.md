@@ -8,6 +8,8 @@ The next real Windows replay applied 0001/0002 and exposed a separate migration 
 
 The subsequent replay applied 0001–0004, then 0005 failed because the exported bootstrap omitted legacy journal/payment columns that 0005 and 0007 consume. Read-only live column order/constraints, frontend types and later migrations corroborate the exact journal, journal-line party, and sales payment/account fields. Migration 0004 now restores them after COA creation. Replay beyond 0005 remains unverified.
 
+The next replay applied 0001–0024 and exposed another omitted legacy column: 0025 defines the `items.warehouse_id` restrictive FK without creating the column. Read-only live catalog confirms the nullable UUID and exact FK. Migration 0002 now restores the column within the warehouse foundation; replay beyond 0025 is not yet verified.
+
 All nine duplicate timestamp groups were reconciled to the exact distinct versions recorded live, and three zero-byte placeholders with known non-empty/live counterparts were removed. The filename checker now passes with 0 duplicate IDs and 0 empty files. Full clean replay is still **NOT VERIFIED**: at least nine referenced foundations remain absent, and the multi-service foundation is only a marker while live history holds substantial DDL. See [the dependency audit](docs/NAVILO_PHASE2B_MIGRATION_DEPENDENCY_AUDIT.md). Production/main/deployment were unchanged.
 
 ## Phase 2B local alternative — 2026-09-22

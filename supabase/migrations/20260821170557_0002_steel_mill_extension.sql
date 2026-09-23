@@ -150,6 +150,11 @@ CREATE TABLE IF NOT EXISTS transporters (
   created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+-- The legacy item master linked an item to its default warehouse before the
+-- migration export. Migration 0025 installs the restrictive foreign key.
+ALTER TABLE public.items
+  ADD COLUMN IF NOT EXISTS warehouse_id uuid;
+
 -- The tables are exposed through public, so enable RLS at creation.  Migration
 -- 0020 installs the authenticated policies before application use.
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;

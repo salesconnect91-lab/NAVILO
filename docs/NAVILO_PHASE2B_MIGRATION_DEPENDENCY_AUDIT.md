@@ -103,3 +103,13 @@ posting migrations require the same fields. Migration 0004 now restores these
 columns after `chart_of_accounts` exists and before 0005/0007 consume them.
 Foreign keys match the read-only live catalog. No production row or schema was
 changed. The SQL sanity contract now fails if this legacy foundation regresses.
+
+## Windows replay continuation — migration 0025
+
+After the accounting-column repair, the actual fresh replay applied migrations
+0001 through 0024. Migration 0025 then failed while adding
+`items_warehouse_id_fkey` because `items.warehouse_id` did not exist. The
+read-only live catalog confirms a nullable UUID column and a restrictive FK to
+`warehouses(id)`; 0025 already defines that FK. Migration 0002 now restores only
+the missing column alongside the legacy warehouse foundation, leaving 0025 to
+apply the constraint. A regression contract checks the chronological provider.

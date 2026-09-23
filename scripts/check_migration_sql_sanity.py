@@ -8,6 +8,9 @@ import argparse
 FORBIDDEN_TOKENS = ("PKRPKR",)
 
 REQUIRED_SNIPPETS = {
+    "20260821170557_0002_steel_mill_extension.sql": (
+        "ALTER TABLE public.items\n  ADD COLUMN IF NOT EXISTS warehouse_id uuid",
+    ),
     "20260824220000_0004_coa_foundation.sql": (
         "ALTER TABLE public.journal_entries\n  ADD COLUMN IF NOT EXISTS payment_mode",
         "ADD COLUMN IF NOT EXISTS payment_mode text DEFAULT 'Cash'",

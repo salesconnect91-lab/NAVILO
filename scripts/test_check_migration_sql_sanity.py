@@ -26,6 +26,14 @@ class MigrationSqlSanityTests(unittest.TestCase):
             )
             self.assertGreater(len(inspect(directory)), 0)
 
+    def test_missing_item_warehouse_foundation_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "20260821170557_0002_steel_mill_extension.sql").write_text(
+                "create table warehouses(id uuid);"
+            )
+            self.assertGreater(len(inspect(directory)), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
