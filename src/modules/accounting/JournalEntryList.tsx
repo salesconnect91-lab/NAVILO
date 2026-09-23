@@ -265,7 +265,7 @@ const TEMPLATE_ROWS = [
     "2026-08-26",
     "Payment to Amjad Khan",
     "",
-    "Account / اکاؤنٹs Payable / واجبات",
+    "Accounts Payable",
     "Amjad Khan",
     "0",
     "5000",
@@ -707,7 +707,7 @@ export default function JournalEntryList() {
         throw new Error(
           `Missing required columns: ${missingHeaders.join(
             ", "
-          )}. Account / اکاؤنٹ Code is optional. / اکاؤنٹ کوڈ اختیاری ہے۔`
+          )}. AccountCode is optional.`
         );
       }
 
@@ -1439,9 +1439,9 @@ export default function JournalEntryList() {
             !group.balanced
           ) {
             errors.push(
-              `Not balanced. Debit / ڈیبٹ ${group.totalDebit.toFixed(
+              `Not balanced. Debit${group.totalDebit.toFixed(
                 2
-              )} must equal Credit / کریڈٹ ${group.totalCredit.toFixed(
+              )} must equal Credit${group.totalCredit.toFixed(
                 2
               )}.`
             );
@@ -1472,7 +1472,7 @@ export default function JournalEntryList() {
                 !account
               ) {
                 errors.push(
-                  `Row ${row.rowNumber}: Account / اکاؤنٹ code "${row.accountCode}" was not found.`
+                  `Row ${row.rowNumber}: Accountcode "${row.accountCode}" was not found.`
                 );
 
                 continue;
@@ -1545,27 +1545,27 @@ export default function JournalEntryList() {
                     0
                   ) {
                     errors.push(
-                      `Row ${row.rowNumber}: Account / اکاؤنٹ "${row.accountName}" was found, but it could not be matched to Account / اکاؤنٹ Head "${row.accountHead}".`
+                      `Row ${row.rowNumber}: Account"${row.accountName}" was found, but it could not be matched to AccountHead "${row.accountHead}".`
                     );
 
                     continue;
                   } else {
                     errors.push(
-                      `Row ${row.rowNumber}: Multiple "${row.accountName}" accounts exist under "${row.accountHead}". Please provide Account / اکاؤنٹ Code.`
+                      `Row ${row.rowNumber}: Multiple "${row.accountName}" accounts exist under "${row.accountHead}". Please provide AccountCode.`
                     );
 
                     continue;
                   }
                 } else {
                   errors.push(
-                    `Row ${row.rowNumber}: Multiple accounts named "${row.accountName}" exist. Account / اکاؤنٹ Head or Account / اکاؤنٹ Code is required.`
+                    `Row ${row.rowNumber}: Multiple accounts named "${row.accountName}" exist. AccountHead or AccountCode is required.`
                   );
 
                   continue;
                 }
               } else {
                 errors.push(
-                  `Row ${row.rowNumber}: Account / اکاؤنٹ "${row.accountName}" was not found in Chart of Account / اکاؤنٹs.`
+                  `Row ${row.rowNumber}: Account"${row.accountName}" was not found in Chart of Accounts.`
                 );
 
                 continue;
@@ -1578,7 +1578,7 @@ export default function JournalEntryList() {
               !account
             ) {
               errors.push(
-                `Row ${row.rowNumber}: Account / اکاؤنٹ Name is required.`
+                `Row ${row.rowNumber}: AccountName is required.`
               );
 
               continue;
@@ -1617,7 +1617,7 @@ export default function JournalEntryList() {
                   enteredHead
               ) {
                 errors.push(
-                  `Row ${row.rowNumber}: Account / اکاؤنٹ "${account.name}" does not belong to Account / اکاؤنٹ Head "${row.accountHead}".`
+                  `Row ${row.rowNumber}: Account"${account.name}" does not belong to AccountHead "${row.accountHead}".`
                 );
               }
             }
@@ -1660,7 +1660,7 @@ export default function JournalEntryList() {
               row.credit > 0
             ) {
               errors.push(
-                `Row ${row.rowNumber}: Debit / ڈیبٹ and Credit / کریڈٹ cannot both contain values.`
+                `Row ${row.rowNumber}: Debitand Creditcannot both contain values.`
               );
             }
 
@@ -1669,7 +1669,7 @@ export default function JournalEntryList() {
               row.credit <= 0
             ) {
               errors.push(
-                `Row ${row.rowNumber}: Enter either Debit / ڈیبٹ or Credit / کریڈٹ.`
+                `Row ${row.rowNumber}: Enter either Debitor Credit.`
               );
             }
           }
@@ -2295,9 +2295,9 @@ export default function JournalEntryList() {
             ) >= 0.01
           ) {
             throw new Error(
-              `${entry.entry_no}: Not balanced. Debit / ڈیبٹ ${debit.toFixed(
+              `${entry.entry_no}: Not balanced. Debit${debit.toFixed(
                 2
-              )} != Credit / کریڈٹ ${credit.toFixed(
+              )} != Credit${credit.toFixed(
                 2
               )}.`
             );
@@ -2523,13 +2523,13 @@ export default function JournalEntryList() {
       const printWindow = window.open("", "_blank", "width=950,height=1000");
       if (!printWindow) throw new Error("Please allow pop-ups in your browser to print the voucher.");
       printWindow.document.open();
-      printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${safe(entry.entry_no)} - Journal Voucher / جرنل واؤچر</title><style>
+      printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${safe(entry.entry_no)} - Journal Voucher</title><style>
       *{box-sizing:border-box}body{margin:0;padding:28px;background:#f3f4f6;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:13px}.sheet{max-width:820px;margin:0 auto;background:#fff;padding:38px 42px;border:1px solid #e5e7eb}.toolbar{max-width:820px;margin:0 auto 14px;text-align:right}.toolbar button{border:0;border-radius:7px;padding:10px 16px;background:#111827;color:#fff;font-weight:700;cursor:pointer}.header{display:flex;justify-content:space-between;gap:30px;border-bottom:2px solid #111827;padding-bottom:20px}.brand{font-size:25px;font-weight:800}.sub{margin-top:5px;color:#6b7280;font-size:12px}.title{text-align:right;font-size:21px;font-weight:800;text-transform:uppercase;letter-spacing:1px}.voucher-no{margin-top:6px;color:#4b5563;font-size:12px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:18px 34px;margin:28px 0}.label{color:#6b7280;font-size: 12px;text-transform:uppercase;letter-spacing:.7px;font-weight:700}.value{margin-top:5px;font-size:14px;font-weight:700}.status{display:inline-block;margin-top:6px;padding:4px 9px;border-radius:999px;font-size: 12px;font-weight:800;text-transform:uppercase;border:1px solid #d1d5db}table{width:100%;border-collapse:collapse;margin-top:18px}th{padding:10px 9px;background:#f3f4f6;border-bottom:1px solid #d1d5db;text-align:left;font-size: 12px;text-transform:uppercase;letter-spacing:.5px}td{padding:11px 9px;border-bottom:1px solid #e5e7eb}.center{text-align:center;width:48px}.right{text-align:right}.total td{background:#f9fafb;font-weight:800}.description{margin-top:25px;padding:15px;border:1px solid #e5e7eb;background:#fafafa}.footer{margin-top:58px;display:flex;justify-content:space-between;gap:40px;color:#6b7280;font-size:11px}.signature{width:190px;text-align:center;border-top:1px solid #9ca3af;padding-top:8px}@media print{body{background:#fff;padding:0}.sheet{max-width:none;border:0;padding:18px}.toolbar{display:none}@page{size:A4;margin:10mm}}
       </style></head><body><div class="toolbar"><button onclick="window.print()">🖨 Print Voucher</button></div><div class="sheet">
-      <div class="header"><div><div class="brand">NAVILO</div><div class="sub">Account / اکاؤنٹing Journal Voucher / جرنل واؤچر / اکاؤنٹنگ جرنل واؤچر / اکاؤنٹنگ جرنل واؤچر</div></div><div><div class="title">Journal Voucher / جرنل واؤچر / جرنل واؤچر</div><div class="voucher-no">Voucher No: / واؤچر نمبر: / واؤچر نمبر:<strong>${safe(entry.entry_no)}</strong></div></div></div>
-      <div class="meta"><div><div class="label">Entry Date / اندراج تاریخ / اندراج تاریخ</div><div class="value">${safe(formatDate(entry.entry_date))}</div></div><div><div class="label">Status / حالت</div><div class="status">${safe(entry.status)}</div></div><div><div class="label">Payment Mode / ادائیگی طریقہ / ادائیگی طریقہ</div><div class="value">${safe((entry as any).payment_mode || "General")}</div></div><div><div class="label">Party / پارٹی / پارٹی</div><div class="value">${safe((entry as any).party_name || "—")}</div></div></div>
-      <div class="label">Journal Lines / جرنل لائنز / جرنل لائنز</div><table><thead><tr><th class="center">#</th><th>Account / اکاؤنٹ / اکاؤنٹ</th><th class="right">Debit / ڈیبٹ / ڈیبٹ</th><th class="right">Credit / کریڈٹ / کریڈٹ</th></tr></thead><tbody>${lineRows}</tbody><tfoot><tr class="total"><td colspan="2">TOTAL / کل / کل</td><td class="right">${money(totalDebit)}</td><td class="right">${money(totalCredit)}</td></tr></tfoot></table>
-      <div class="description"><div class="label">Description / تفصیل / تفصیل</div><div style="margin-top:7px">${safe(entry.description || "—")}</div></div><div class="footer"><div><strong>NAVILO</strong><br/>Official accounting record. Keep this voucher for your records. / سرکاری اکاؤنٹنگ ریکارڈ، یہ واؤچر اپنے ریکارڈ کیلئے محفوظ رکھیں۔ / سرکاری اکاؤنٹنگ ریکارڈ، یہ واؤچر اپنے ریکارڈ کیلئے محفوظ رکھیں۔</div><div class="signature">Authorized Signature / مجاز دستخط / مجاز دستخط</div></div></div></body></html>`);
+      <div class="header"><div><div class="brand">NAVILO</div><div class="sub">Accounting Journal Voucher</div></div><div><div class="title">Journal Voucher</div><div class="voucher-no">Voucher No:::<strong>${safe(entry.entry_no)}</strong></div></div></div>
+      <div class="meta"><div><div class="label">Entry Date</div><div class="value">${safe(formatDate(entry.entry_date))}</div></div><div><div class="label">Status</div><div class="status">${safe(entry.status)}</div></div><div><div class="label">Payment Mode</div><div class="value">${safe((entry as any).payment_mode || "General")}</div></div><div><div class="label">Party</div><div class="value">${safe((entry as any).party_name || "—")}</div></div></div>
+      <div class="label">Journal Lines</div><table><thead><tr><th class="center">#</th><th>Account</th><th class="right">Debit</th><th class="right">Credit</th></tr></thead><tbody>${lineRows}</tbody><tfoot><tr class="total"><td colspan="2">TOTAL</td><td class="right">${money(totalDebit)}</td><td class="right">${money(totalCredit)}</td></tr></tfoot></table>
+      <div class="description"><div class="label">Description</div><div style="margin-top:7px">${safe(entry.description || "—")}</div></div><div class="footer"><div><strong>NAVILO</strong><br/>Official accounting record. Keep this voucher for your records.</div><div class="signature">Authorized Signature</div></div></div></body></html>`);
       printWindow.document.close(); printWindow.focus(); setTimeout(() => printWindow.print(), 250);
     } catch (err: any) { setError(err?.message || "Failed to print journal voucher."); }
   }, []);
@@ -2546,7 +2546,7 @@ export default function JournalEntryList() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
 
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Journal Entries / جرنل اندراجات</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Journal Entries</h1>
 
           <p className="text-sm text-slate-500 mt-1">
             Manage journal entries,
@@ -2647,11 +2647,11 @@ export default function JournalEntryList() {
                     Entry #
                   </th>
 
-                  <th className="text-left py-3 px-4">Date / تاریخ</th>
+                  <th className="text-left py-3 px-4">Date</th>
 
-                  <th className="text-left py-3 px-4">Description / تفصیل / تفصیل</th>
+                  <th className="text-left py-3 px-4">Description</th>
 
-                  <th className="text-left py-3 px-4">Status / حالت</th>
+                  <th className="text-left py-3 px-4">Status</th>
 
                   <th className="text-right py-3 px-4">
                     Action
@@ -2717,7 +2717,7 @@ export default function JournalEntryList() {
                               void printJournalVoucher(entry);
                             }}
                             className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                            title="Print journal voucher / جرنل واؤچر پرنٹ کریں / جرنل واؤچر پرنٹ کریں"
+                            title="Print journal voucher"
                           >
                             🖨 Print
                           </button>
@@ -2803,7 +2803,7 @@ export default function JournalEntryList() {
 
               <div>
 
-                <label className="text-xs font-semibold">Entry Date / اندراج تاریخ / اندراج تاریخ</label>
+                <label className="text-xs font-semibold">Entry Date</label>
 
                 <input
                   className="mt-1 w-full border rounded p-2"
@@ -2825,7 +2825,7 @@ export default function JournalEntryList() {
 
               <div>
 
-                <label className="text-xs font-semibold">Description / تفصیل / تفصیل</label>
+                <label className="text-xs font-semibold">Description</label>
 
                 <textarea
                   className="mt-1 w-full border rounded p-2"
@@ -2853,7 +2853,7 @@ export default function JournalEntryList() {
                   }
                   disabled={creating}
                   className="px-4 py-2 border rounded"
-                >Cancel / منسوخ کریں</button>
+                >Cancel</button>
 
                 <button
                   type="submit"
@@ -3005,9 +3005,8 @@ export default function JournalEntryList() {
                     </h3>
 
                     <p className="text-xs text-slate-500 mt-1">
-                      Account / اکاؤنٹ Code is optional. / اکاؤنٹ کوڈ اختیاری ہے۔
-                      Account / اکاؤنٹ Head and
-                      Account / اکاؤنٹ Name are
+                      AccountCode is optional.AccountHead and
+                      AccountName are
                       separate columns.
                     </p>
 
@@ -3015,8 +3014,7 @@ export default function JournalEntryList() {
                       Example:
                       <strong>
                         {" "}
-                        Account / اکاؤنٹs Payable / واجبات
-                      </strong>
+                        Accounts Payable</strong>
                       {" → "}
                       <strong>
                         Amjad Khan
@@ -3304,23 +3302,23 @@ export default function JournalEntryList() {
                             Entry #
                           </th>
 
-                          <th className="px-3 py-3 text-left">Date / تاریخ</th>
+                          <th className="px-3 py-3 text-left">Date</th>
 
                           <th className="px-3 py-3 text-left">
-                            Account / اکاؤنٹ Head
+                            AccountHead
                           </th>
 
                           <th className="px-3 py-3 text-left">
-                            Account / اکاؤنٹ Name
+                            AccountName
                           </th>
 
                           <th className="px-3 py-3 text-left">
                             Code
                           </th>
 
-                          <th className="px-3 py-3 text-right">Debit / ڈیبٹ / ڈیبٹ</th>
+                          <th className="px-3 py-3 text-right">Debit</th>
 
-                          <th className="px-3 py-3 text-right">Credit / کریڈٹ / کریڈٹ</th>
+                          <th className="px-3 py-3 text-right">Credit</th>
 
                         </tr>
 
@@ -3449,17 +3447,17 @@ export default function JournalEntryList() {
                               Entry #
                             </th>
 
-                            <th className="px-4 py-3 text-left">Date / تاریخ</th>
+                            <th className="px-4 py-3 text-left">Date</th>
 
                             <th className="px-4 py-3 text-right">
                               Lines
                             </th>
 
-                            <th className="px-4 py-3 text-right">Debit / ڈیبٹ / ڈیبٹ</th>
+                            <th className="px-4 py-3 text-right">Debit</th>
 
-                            <th className="px-4 py-3 text-right">Credit / کریڈٹ / کریڈٹ</th>
+                            <th className="px-4 py-3 text-right">Credit</th>
 
-                            <th className="px-4 py-3 text-center">Status / حالت</th>
+                            <th className="px-4 py-3 text-center">Status</th>
 
                           </tr>
 
@@ -3617,10 +3615,7 @@ export default function JournalEntryList() {
                   Important:
                 </span>{" "}
 
-                Account / اکاؤنٹ Code is optional. / اکاؤنٹ کوڈ اختیاری ہے۔
-
-                Account / اکاؤنٹ Head and Account / اکاؤنٹ
-                Name are separate.
+                AccountCode is optional.AccountHead and AccountName are separate.
 
                 Posting is made to the
                 actual child/posting account.
@@ -3643,7 +3638,7 @@ export default function JournalEntryList() {
                     postingBulk
                   }
                   className="px-4 py-2 border bg-white rounded-lg text-sm font-semibold"
-                >Cancel / منسوخ کریں</button>
+                >Cancel</button>
 
                 {importStep ===
                   "validated" &&
