@@ -55,6 +55,24 @@ REQUIRED_SNIPPETS = {
         "RENAME TO post_sales_invoice_core",
         "create or replace function public.post_sales_invoice(p_order_id uuid)",
     ),
+    "20260906225648_secure_godown_transfer_with_approval_slip.sql": (
+        "alter table public.stock_movements add column if not exists approval_slip_path text",
+        "values('stock-transfer-approvals','stock-transfer-approvals'",
+        "create or replace function public.transfer_stock_controlled(",
+    ),
+    "20260906230719_require_stock_adjustment_approval_slip.sql": (
+        "values('stock-adjustment-approvals','stock-adjustment-approvals'",
+        "create function public.manual_stock_adjustment(",
+        "p_approval_slip_path text",
+    ),
+    "20260907074107_enable_controlled_cross_warehouse_stock_transfer.sql": (
+        "p_to_warehouse_id uuid default null",
+        "'warehouse_transfer'",
+    ),
+    "20260907074902_add_stock_transfer_numbers_v2.sql": (
+        "alter table public.stock_movements add column if not exists transfer_no text",
+        "create or replace function public.next_stock_transfer_no(",
+    ),
 }
 
 

@@ -1,5 +1,11 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Phase 2B Windows replay update — missing stock-approval foundations, 2026-09-23
+
+The next Windows replay passed all prior repairs and advanced through `20260913072000`, then failed in `20260913072054_correct_stock_approval_scope_and_validate_evidence.sql` because `stock_movements.approval_slip_path` did not exist. Read-only production catalog confirmed `approval_slip_path text NULL` and `transfer_no text NULL`. Read-only live migration history traced the complete missing chain—not just the column—to four versions: `20260906225648` controlled godown transfer/evidence bucket, `20260906230719` approved manual adjustment, `20260907074107` cross-warehouse transfer, and `20260907074902` transfer numbering. Their exact live SQL is now restored under the original versions on development. No production write occurred.
+
+Post-restoration gates: SQL sanity 0 findings; 20 migration-checker tests PASS; 0 duplicate IDs/0 empty files; strict dependency and explicit object-order checks PASS; typecheck PASS; 19 test files/81 tests PASS; build PASS with the known large-bundle warning.
+
 ## Phase 2B Windows replay update — sales core rename collision, 2026-09-23
 
 After both restored-function terminators were repaired, Windows replay advanced through `20260908174000_restore_unrecorded_post_sales_invoice_core.sql` and failed at statement 0 of `20260908174200_enforce_sales_post_business_unit_scope.sql`: that migration unconditionally renamed `post_sales_invoice(uuid)` to `post_sales_invoice_core`, but the immediately preceding reconciled live-history migration had already restored the core function. The wrapper migration is now replay-safe: rename only when the core is absent, then `CREATE OR REPLACE` the public wrapper. A full-chain scan of function renames found one other rename-to-existing-name case, and it was already correctly protected by `to_regprocedure()`.

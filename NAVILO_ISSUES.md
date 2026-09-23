@@ -1,5 +1,13 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## MIG-12 / P0 release gate — missing stock approval/transfer migration chain
+
+- **Evidence:** fresh replay advanced through `20260913072000`, then storage policy compilation in `20260913072054` failed with SQLSTATE 42703 on missing `stock_movements.approval_slip_path`.
+- **Root cause:** four live-applied foundational migrations were absent from the repository: `20260906225648`, `20260906230719`, `20260907074107`, and `20260907074902`. They create the nullable evidence/transfer-number columns, private storage buckets/policies, controlled adjustment/transfer RPCs, cross-warehouse behavior and numbering.
+- **Evidence boundary:** definitions and types were obtained through read-only production catalog/migration-history queries. No customer rows were copied and no hosted DDL/DML was executed.
+- **Fix:** restore the exact four live statements at their original versions and add regression contracts for the linked foundation; do not synthesize only the missing column.
+- **Acceptance:** static/version/dependency tests pass and fresh local replay proceeds through both stock-approval policy migrations and the complete remaining chain.
+
 ## MIG-11 / P0 release gate — sales posting core rename collision
 
 - **Evidence:** fresh replay applied `20260908174000_restore_unrecorded_post_sales_invoice_core.sql`, then `20260908174200_enforce_sales_post_business_unit_scope.sql` failed with SQLSTATE 42723 because `post_sales_invoice_core(uuid)` already existed.

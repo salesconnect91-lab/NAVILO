@@ -88,6 +88,14 @@ class MigrationSqlSanityTests(unittest.TestCase):
             )
             self.assertGreater(len(inspect(directory)), 0)
 
+    def test_stock_approval_foundation_must_be_complete(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "20260906225648_secure_godown_transfer_with_approval_slip.sql").write_text(
+                "alter table public.stock_movements add column if not exists approval_slip_path text;"
+            )
+            self.assertGreater(len(inspect(directory)), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

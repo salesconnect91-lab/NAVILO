@@ -1,5 +1,9 @@
 # NAVILO Phase 2B — Migration Dependency Audit
 
+## Windows replay continuation — controlled stock approval chain
+
+Replay reached `20260913072054` before failing on absent `stock_movements.approval_slip_path`. Read-only production catalog and migration history identify the complete missing provenance: `20260906225648_secure_godown_transfer_with_approval_slip`, `20260906230719_require_stock_adjustment_approval_slip`, `20260907074107_enable_controlled_cross_warehouse_stock_transfer`, and `20260907074902_add_stock_transfer_numbers_v2`. Exact live SQL is restored at those versions, providing both nullable columns plus buckets, policies and controlled RPC evolution before later policy consumers. Full local replay is still the acceptance gate.
+
 ## Windows replay continuation — sales-posting rename collision
 
 The restored sales core migration now applies, exposing an ordering assumption in the next wrapper migration: it tried to rename `post_sales_invoice(uuid)` to an already restored `post_sales_invoice_core(uuid)`. The wrapper now follows the same replay-safe pattern already used for return notes—rename only when the internal function is absent, then replace the public wrapper. Repository-wide function-rename review found no second unguarded rename-to-existing target.
