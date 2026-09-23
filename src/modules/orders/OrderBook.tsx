@@ -145,10 +145,10 @@ export default function OrderBook({ type }: { type: OrderType }) {
 
   const createOrder = async () => {
     setError(null);
-    if (!partyId) return setError(isSales ? "Select customer / گاہک منتخب کریں۔" : "Select supplier / سپلائر منتخب کریں۔");
-    if (isSales && !salespersonId) return setError("Select salesperson / سیلز پرسن منتخب کریں۔");
+    if (!partyId) return setError(isSales ? "Select customer" : "Select supplier");
+    if (isSales && !salespersonId) return setError("Select salesperson");
     const validLines = lines.filter((line) => line.item_id && num(line.qty) > 0);
-    if (!validLines.length) return setError("Add at least one valid item line / کم از کم ایک درست آئٹم لائن شامل کریں۔");
+    if (!validLines.length) return setError("Add at least one valid item line");
     if (validLines.some((line) => line.rate_status === "agreed" && num(line.rate) <= 0)) return setError("Agreed rate lines require a positive rate.");
 
     setSaving(true);
@@ -229,7 +229,7 @@ export default function OrderBook({ type }: { type: OrderType }) {
   return (
     <div id="order-book-report" className="professional-report space-y-4">
       <PageHeader
-        title={isSales ? "Sales Order Book / سیلز آرڈر بک" : "Purchase Order Book / پرچیز آرڈر بک"}
+        title={isSales ? "Sales Order Book" : "Purchase Order Book"}
         subtitle="Commitments only — no stock or accounting entry is posted from Order Book."
         action={<div className="flex flex-wrap gap-2"><OrderBookExportToolbar tableId="order-book-table" fileBase={isSales ? "sales-order-book" : "purchase-order-book"} /><OrderBookCustomerReport type={type} /><OrderBookQtyAdjustControl type={type} onChanged={() => void load()} /><OrderBookCancelControl type={type} onChanged={() => void load()} /><button type="button" className="btn-secondary" onClick={() => void load()}><RefreshCw className="h-4 w-4" />Refresh</button><button type="button" className="btn-primary" onClick={() => setCreateOpen(true)} disabled={!enabled}><Plus className="h-4 w-4" />New Order</button></div>}
       />
