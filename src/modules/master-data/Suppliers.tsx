@@ -259,7 +259,7 @@ export default function Suppliers() {
         }
       }
       await fetchRows();
-      alert(`${imported.length} suppliers imported successfully / کامیابی سے امپورٹ ہوگئے۔`);
+      alert(`${imported.length} suppliers imported successfully.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Import failed.");
     } finally {
@@ -285,13 +285,13 @@ export default function Suppliers() {
     <Modal open={modalOpen} title={editing ? "Edit Supplier" : "New Supplier"} onClose={() => setModalOpen(false)}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div><label className="label">English Name</label><input className="input" required value={form.name} onChange={(e) => { const name = e.target.value; setForm((f) => ({ ...f, name, name_urdu: urduTouched ? f.name_urdu : toUrduName(name) })); }} /></div>
-        <div data-language-code="ur"><div className="flex items-center justify-between"><label className="label">Urdu Name / اردو نام</label><button type="button" className="text-xs text-primary-600" onClick={() => { setUrduTouched(false); setForm((f) => ({ ...f, name_urdu: toUrduName(f.name) })); }}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.name_urdu} onChange={(e) => { setUrduTouched(true); setForm({ ...form, name_urdu: e.target.value }); }} placeholder="خودکار اردو نام" /></div>
-        <div><label className="label">Email / ای میل</label><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-        <div><label className="label">Phone / فون</label><input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-        <div><label className="label">Address / پتہ</label><textarea className="input" rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+        <div data-language-code="ur"><div className="flex items-center justify-between"><label className="label">Urdu Name</label><button type="button" className="text-xs text-primary-600" onClick={() => { setUrduTouched(false); setForm((f) => ({ ...f, name_urdu: toUrduName(f.name) })); }}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.name_urdu} onChange={(e) => { setUrduTouched(true); setForm({ ...form, name_urdu: e.target.value }); }} placeholder="خودکار اردو نام" /></div>
+        <div><label className="label">Email</label><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+        <div><label className="label">Phone</label><input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+        <div><label className="label">Address</label><textarea className="input" rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <div className="mb-3 text-sm font-semibold text-slate-800">Tax Identity / ٹیکس شناخت</div>
+          <div className="mb-3 text-sm font-semibold text-slate-800">Tax Identity</div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div><label className="label">Tax Status</label><SearchableSelect className="input" value={form.tax_registration_status} onChange={(e) => setForm({ ...form, tax_registration_status: e.target.value as "registered" | "unregistered" })}><option value="unregistered">Unregistered</option><option value="registered">Registered</option></SearchableSelect></div>
             <div><label className="label">STRN</label><input className="input" value={form.strn} onChange={(e) => setForm({ ...form, strn: e.target.value })} /></div>
@@ -302,7 +302,7 @@ export default function Suppliers() {
         </div>
 
         {!editing && canSetOpeningBalance && <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
-          <div className="mb-3"><div className="text-sm font-semibold text-blue-900">Opening Balance / اوپننگ بیلنس</div><div className="text-xs text-blue-700">Optional. Company Owner/Admin can enter the migrated opening balance here; 0 means no opening balance.</div></div>
+          <div className="mb-3"><div className="text-sm font-semibold text-blue-900">Opening Balance</div><div className="text-xs text-blue-700">Optional. Company Owner/Admin can enter the migrated opening balance here; 0 means no opening balance.</div></div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div><label className="label">Amount</label><input className="input" type="number" min="0" step="0.01" value={form.opening_amount} onChange={(e) => setForm({ ...form, opening_amount: e.target.value })} placeholder="0.00" /></div>
             <div><label className="label">Balance Side</label><SearchableSelect className="input" value={form.balance_side} onChange={(e) => setForm({ ...form, balance_side: e.target.value })}><option value="credit">Credit / Cr</option><option value="debit">Debit / Dr</option></SearchableSelect></div>
@@ -311,7 +311,7 @@ export default function Suppliers() {
           <div className="mt-2 text-xs text-blue-700">Supplier Credit = amount payable to supplier. Supplier Debit = supplier advance / debit balance.</div>
         </div>}
 
-        <div className="flex justify-end gap-3 pt-2"><button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel / منسوخ کریں</button><button type="submit" className="btn-primary">{editing ? "Save Changes" : "Create Supplier"}</button></div>
+        <div className="flex justify-end gap-3 pt-2"><button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button><button type="submit" className="btn-primary">{editing ? "Save Changes" : "Create Supplier"}</button></div>
       </form>
     </Modal>
 
