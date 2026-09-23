@@ -156,7 +156,7 @@ export default function WorkOrderDetail() {
 
     if (isLocked) {
       setError(
-        "Completed or closed work orders cannot be modified. / مکمل یا بند ورک آرڈر میں تبدیلی نہیں کی جا سکتی۔"
+        "Completed or closed work orders cannot be modified."
       );
       return;
     }
@@ -164,7 +164,7 @@ export default function WorkOrderDetail() {
     const qty = parseFloat(newLine.qty) || 0;
 
     if (qty <= 0) {
-      setError("Quantity must be greater than zero. / مقدار صفر سے زیادہ ہونی چاہیے۔");
+      setError("Quantity must be greater than zero.");
       return;
     }
 
@@ -194,7 +194,7 @@ export default function WorkOrderDetail() {
     if (isLocked) {
       setDeleteLineId(null);
       setError(
-        "Completed or closed work orders cannot be modified. / مکمل یا بند ورک آرڈر میں تبدیلی نہیں کی جا سکتی۔"
+        "Completed or closed work orders cannot be modified."
       );
       return;
     }
@@ -808,7 +808,7 @@ export default function WorkOrderDetail() {
           : `
               <tr>
                 <td colspan="3" class="center muted">
-                  No components / کوئی اجزاء نہیں
+                  No components
                 </td>
               </tr>
             `;
@@ -1101,17 +1101,17 @@ export default function WorkOrderDetail() {
 
     <div class="meta">
       <div class="meta-item">
-        <div class="label">Product / مصنوعات</div>
+        <div class="label">Product</div>
         <div class="value">${safe(order.item?.name || "—")}</div>
       </div>
 
       <div class="meta-item">
-        <div class="label">Quantity / مقدار</div>
+        <div class="label">Quantity</div>
         <div class="value">${safe(order.qty)}</div>
       </div>
 
       <div class="meta-item">
-        <div class="label">Start Date / آغاز</div>
+        <div class="label">Start Date</div>
         <div class="value">${
           order.start_date
             ? safe(formatDate(order.start_date))
@@ -1120,7 +1120,7 @@ export default function WorkOrderDetail() {
       </div>
 
       <div class="meta-item">
-        <div class="label">End Date / اختتام</div>
+        <div class="label">End Date</div>
         <div class="value">${
           order.end_date
             ? safe(formatDate(order.end_date))
@@ -1129,26 +1129,26 @@ export default function WorkOrderDetail() {
       </div>
 
       <div class="meta-item">
-        <div class="label">Status / حالت</div>
+        <div class="label">Status</div>
         <div class="value">${safe(prettyStatus(order.status))}</div>
       </div>
 
       <div class="meta-item">
-        <div class="label">Document Type / ڈاکومنٹ</div>
+        <div class="label">Document Type</div>
         <div class="value">${safe(title)}</div>
       </div>
     </div>
 
     <div class="section-title">
-      Bill of Materials (Components) / بل آف میٹریلز
+      Bill of Materials (Components)
     </div>
 
     <table>
       <thead>
         <tr>
           <th style="width:60px;text-align:center">#</th>
-          <th>Component / جز</th>
-          <th style="width:130px;text-align:right">Qty / مقدار</th>
+          <th>Component</th>
+          <th style="width:130px;text-align:right">Qty</th>
         </tr>
       </thead>
 
@@ -1162,7 +1162,7 @@ export default function WorkOrderDetail() {
         ? `
           <div class="locked">
             Production completed — this Work Order is read-only.
-            / پروڈکشن مکمل ہوچکی ہے، یہ ورک آرڈر صرف پڑھنے کیلئے ہے۔
+           
           </div>
         `
         : ""
@@ -1250,14 +1250,14 @@ export default function WorkOrderDetail() {
   if (loading) {
     return (
       <div className="card p-12 text-center text-slate-400">
-        Loading… / لوڈ ہو رہا ہے…
+        Loading…
       </div>
     );
   }
 
   if (!order) {
     return (
-      <ErrorBanner message="Work order not found. / ورک آرڈر نہیں ملا۔" />
+      <ErrorBanner message="Work order not found." />
     );
   }
 
@@ -1267,15 +1267,15 @@ export default function WorkOrderDetail() {
         to="/production"
         className="mb-4 inline-block text-sm text-primary-600 hover:text-primary-700"
       >
-        ← Back to Work Orders / ورک آرڈرز
+        ← Back to Work Orders
       </Link>
 
       <PageHeader
         title={order.order_no}
         subtitle={
           order.item
-            ? `Product / مصنوعات: ${order.item.name}`
-            : "No product assigned / کوئی مصنوعات منتخب نہیں"
+            ? `Product: ${order.item.name}`
+            : "No product assigned"
         }
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -1288,17 +1288,17 @@ export default function WorkOrderDetail() {
               title="Open professional print view. Choose Save as PDF in the print dialog."
             >
               <Printer className="h-4 w-4" />
-              Print / پرنٹ
+              Print
             </button>}
 
             {canPrintProduction && <button
               type="button"
               onClick={() => void handlePdf()}
               className="btn btn-secondary"
-              title="Download Work Order as PDF / ورک آرڈر PDF ڈاؤن لوڈ کریں"
+              title="Download Work Order as PDF"
             >
               <FileDown className="h-4 w-4" />
-              PDF / پی ڈی ایف
+              PDF
             </button>}
 
             {order.status === "planned" && canEditProduction && (
@@ -1309,7 +1309,7 @@ export default function WorkOrderDetail() {
                 }
                 className="btn-primary"
               >
-                Start Production / پروڈکشن شروع کریں
+                Start Production
               </button>
             )}
 
@@ -1321,7 +1321,7 @@ export default function WorkOrderDetail() {
                 }
                 className="btn-primary"
               >
-                Complete Production / پروڈکشن مکمل کریں
+                Complete Production
               </button>
             )}
 
@@ -1333,13 +1333,13 @@ export default function WorkOrderDetail() {
                 }
                 className="btn-secondary"
               >
-                Close Work Order / ورک آرڈر بند کریں
+                Close Work Order
               </button>
             )}
 
             {order.status === "closed" && (
               <span className="text-sm font-medium text-slate-500">
-                Work Order Closed / ورک آرڈر بند ہے
+                Work Order Closed
               </span>
             )}
 
@@ -1349,7 +1349,7 @@ export default function WorkOrderDetail() {
                 onClick={handleDeleteOrder}
                 className="btn-danger"
               >
-                Delete Order / آرڈر حذف کریں
+                Delete Order
               </button>
             )}
           </div>
@@ -1359,14 +1359,14 @@ export default function WorkOrderDetail() {
       {isLocked && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-600">
           <LockKeyhole className="h-4 w-4" />
-          Completed production is locked and read-only. / مکمل پروڈکشن لاک ہے اور صرف دیکھنے کیلئے ہے۔
+          Completed production is locked and read-only.
         </div>
       )}
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="card p-4">
           <div className="text-sm text-slate-500">
-            Product / مصنوعات
+            Product
           </div>
           <div className="mt-1 font-medium">
             {order.item?.name ?? "—"}
@@ -1375,14 +1375,14 @@ export default function WorkOrderDetail() {
 
         <div className="card p-4">
           <div className="text-sm text-slate-500">
-            Quantity / مقدار
+            Quantity
           </div>
           <div className="mt-1 font-medium">{order.qty}</div>
         </div>
 
         <div className="card p-4">
           <div className="text-sm text-slate-500">
-            Start / آغاز
+            Start
           </div>
           <div className="mt-1 font-medium">
             {order.start_date
@@ -1393,7 +1393,7 @@ export default function WorkOrderDetail() {
 
         <div className="card p-4">
           <div className="text-sm text-slate-500">
-            Status / حالت
+            Status
           </div>
           <div className="mt-1">
             <StatusBadge status={order.status} />
@@ -1406,30 +1406,30 @@ export default function WorkOrderDetail() {
       <div className="card mb-6 p-6">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="font-semibold text-slate-900">
-            Bill of Materials (Components) / بل آف میٹریلز (اجزاء)
+            Bill of Materials (Components)
           </h3>
 
           {isLocked && (
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
-              Read Only / صرف دیکھیں
+              Read Only
             </span>
           )}
         </div>
 
         {lines.length === 0 ? (
           <div className="py-4 text-sm text-slate-400">
-            No components yet. / ابھی کوئی جز شامل نہیں۔
+            No components yet.
           </div>
         ) : (
           <table className="mb-4 w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200">
                 <th className="py-2 text-left font-medium text-slate-600">
-                  Component / جز
+                  Component
                 </th>
 
                 <th className="py-2 text-right font-medium text-slate-600">
-                  Qty / مقدار
+                  Qty
                 </th>
 
                 {!isLocked && canEditProduction && <th />}
@@ -1456,7 +1456,7 @@ export default function WorkOrderDetail() {
                         }
                         className="text-sm text-error-600 hover:text-error-700"
                       >
-                        Remove / ہٹائیں
+                        Remove
                       </button>
                     </td>
                   )}
@@ -1473,7 +1473,7 @@ export default function WorkOrderDetail() {
           >
             <div className="min-w-[200px] flex-1">
               <label className="label">
-                Add Component / جز شامل کریں
+                Add Component
               </label>
 
               <SearchableSelect
@@ -1501,7 +1501,7 @@ export default function WorkOrderDetail() {
 
             <div>
               <label className="label">
-                Qty / مقدار
+                Qty
               </label>
 
               <input
@@ -1521,7 +1521,7 @@ export default function WorkOrderDetail() {
             </div>
 
             <button type="submit" className="btn-primary">
-              Add Component / جز شامل کریں
+              Add Component
             </button>
           </form>
         )}
@@ -1529,8 +1529,8 @@ export default function WorkOrderDetail() {
 
       <ConfirmModal
         open={!!deleteLineId && !isLocked}
-        title="Remove Component / جز ہٹائیں"
-        message="Remove this component from the bill of materials? / کیا یہ جز بل آف میٹریلز سے ہٹانا ہے؟"
+        title="Remove Component"
+        message="Remove this component from the bill of materials?"
         onConfirm={handleDeleteLine}
         onCancel={() => setDeleteLineId(null)}
       />
