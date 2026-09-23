@@ -46,8 +46,15 @@ begin
 end
 $block$;
 
--- Make the reporting view obey the caller's table policies.
-alter view public.customer_invoice_aging set (security_invoker = true);
+-- Make the legacy reporting view obey the caller's table policies when present.
+-- Fresh installs may not create this compatibility view.
+do $block$
+begin
+  if to_regclass('public.customer_invoice_aging') is not null then
+    alter view public.customer_invoice_aging set (security_invoker = true);
+  end if;
+end
+$block$;
 
 -- Harden all privileged functions against search-path injection and anonymous calls.
 do $block$
