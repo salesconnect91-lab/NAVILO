@@ -67,11 +67,4 @@
 html[data-density="comfortable"] .erp-shell main{font-size:14px;line-height:1.55}
 html[data-density="comfortable"] .erp-shell main table td{padding:11px 12px!important}
 html[data-density="comfortable"] .erp-shell main table th{padding:10px 12px!important}
-html[data-theme="dark"] .erp-shell{background:#0b1120;color:#e2e8f0}
-html[data-theme="dark"] .navilo-topbar{background:rgba(15,23,42,.96)!important;border-color:#334155!important;color:#e2e8f0}
-html[data-theme="dark"] .navilo-topbar .text-slate-950,html[data-theme="dark"] .navilo-topbar .text-slate-800{color:#f8fafc!important}
-html[data-theme="dark"] .navilo-topbar button{border-color:#334155!important;background:#111827!important;color:#cbd5e1!important}
-html[data-theme="dark"] .erp-shell main{color:#e2e8f0}
 
-/* Dark mode is intentionally limited to the application chrome for now.
-   Content pages stay light until each module has verified dark-theme tokens. */
