@@ -139,3 +139,12 @@ All these are acceptance tests to execute, not results.
 - **Fix:** Restore the exact evidenced migration as `supabase/migrations/20260906223502_control_manual_inventory_adjustments.sql`; require all columns, permission assertion and RPC markers in the SQL sanity gate.
 - **Acceptance:** On a genuinely fresh local database, the migration applies before all consumers; the complete repository chain finishes; catalog assertions confirm the five columns; authenticated inventory tests prove tenant/BU/branch scope and denied forged/revoked-role calls.
 - **Dependencies:** Windows Docker/Supabase CLI replay, then synthetic authenticated fixtures. Production migration history must remain unchanged.
+
+## MIG-14 — Branch-isolation migrations exported under wrong versions
+
+- **Status:** Confirmed bug; development filename reconciliation prepared; fresh replay pending.
+- **Severity:** Critical release blocker.
+- **Evidence:** Fresh replay at `0622440bdbc63a1e2131844b03d9e123235e37b7` failed with `42703` while indexing `consolidated_purchase_invoice_charges.operating_location_id`. The local column provider sorted later as `20260913103500`. Read-only live history records the same SQL bodies under versions `20260913073121`, `20260913073519`, and `20260913081611`; local bodies match their live MD5 values after ignoring the repository trailing newline.
+- **Root cause:** Three correct historical SQL bodies were committed with incorrect timestamps, reversing provider/consumer execution order on a fresh database.
+- **Fix:** Rename to exact live identities: `20260913073121_complete_transaction_branch_isolation_v2.sql`, `20260913073519_enforce_operating_location_write_scope_globally.sql`, and `20260913081611_index_branch_scoped_foreign_keys.sql`. Add a filename regression gate rejecting the three disproved identities.
+- **Acceptance:** Fresh replay applies the branch column provider, global write scope, and indexes in order; the complete repository chain finishes; authenticated branch-negative tests pass. Production history remains unchanged.

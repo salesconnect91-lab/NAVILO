@@ -201,3 +201,30 @@ reported 0 empty files and 0 duplicate IDs; strict dependency and explicit
 object-order checks both reported 0 errors; 19 migration-checker unit tests
 passed; and `npm run check` passed typecheck, 19 application test files / 81
 tests, and Vite build. The known 3,150.13 kB primary bundle warning remains.
+
+## Windows replay continuation — branch-isolation timestamp inversion
+
+The next Windows replay at `0622440bdbc63a1e2131844b03d9e123235e37b7`
+applied the restored stock source foundation and continued through
+`20260913080500`. It then failed in the locally named branch-index migration
+with `42703` because `consolidated_purchase_invoice_charges` did not yet have
+`operating_location_id`.
+
+The repository already contained the provider, but under timestamp
+`20260913103500`, after the index consumer at `20260913082000`. Read-only live
+history proved this was filename drift, not missing or invented SQL. After
+removing each repository trailing newline, the three local bodies have the
+exact live MD5 and length for:
+
+| Exact live version | Migration | Role |
+|---|---|---|
+| `20260913073121` | `complete_transaction_branch_isolation_v2` | Adds/backfills child operating-location columns, triggers, RLS and indexes |
+| `20260913073519` | `enforce_operating_location_write_scope_globally` | Enforces active-location write scope |
+| `20260913081611` | `index_branch_scoped_foreign_keys` | Adds child operating-location indexes |
+
+The development filenames now use those exact live identities, restoring
+provider-before-consumer order without changing SQL. The version checker also
+rejects the three disproved filenames. Post-reconciliation static evidence is
+0 empty files, 0 duplicate IDs, 0 known misversioned files, 0 SQL-sanity
+findings, 0 strict-dependency errors and 0 explicit object-order errors; all 22
+migration-checker unit tests pass. Full PostgreSQL replay remains unverified.

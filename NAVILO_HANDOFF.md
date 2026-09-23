@@ -169,3 +169,12 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - Restored that exact historical migration on development, including its related `reason`, `remarks`, `unit_cost`, `source_type`, `source_id` columns and controlled adjustment RPC. Added a regression contract for the whole foundation, not just the observed column.
 - Verification actually run after the repair: SQL sanity `0` findings; migration versions `0` empty/`0` duplicate IDs; strict dependency `0` errors; explicit object-order `0` errors; migration checker unit suite `19/19` PASS; `npm run check` PASS (typecheck, 19 test files/81 tests, Vite build). Existing primary bundle warning remains: 3,150.13 kB minified / 882.09 kB gzip.
 - Production/main/Vercel/Toqeer Builder remained unchanged. Full replay remains **NOT PASS** until the user pulls the resulting commit and a genuinely fresh `npx supabase start --debug` finishes.
+
+## Phase 2B Windows replay checkpoint — branch migration order (2026-09-23)
+
+- Replay at remote SHA `0622440bdbc63a1e2131844b03d9e123235e37b7` applied the restored stock source migration and advanced through `20260913080500`.
+- It failed in `20260913082000_index_branch_scoped_foreign_keys.sql` with `42703: consolidated_purchase_invoice_charges.operating_location_id does not exist`.
+- Read-only live history proved exact versions `20260913073121` (complete branch isolation v2), `20260913073519` (global operating-location write scope), and `20260913081611` (branch FK indexes). Local SQL bodies matched live MD5 values after removing the single trailing newline; only filenames/order were wrong.
+- Development now uses those exact live identities and rejects the three disproved filenames. Static gates: 0 empty, 0 duplicate, 0 misversioned, 0 SQL-sanity findings, 0 strict-dependency errors, 0 explicit object-order errors; 22 migration-checker unit tests PASS.
+- Full application gate rerun after reconciliation: `npm run check` PASS — TypeScript typecheck, 19 test files/81 tests, and Vite build. Known primary bundle warning remains 3,150.13 kB minified / 882.09 kB gzip.
+- No production/main/Vercel/Toqeer mutation occurred. Fresh Windows replay is still required; authenticated synthetic tenant/BU/branch/RPC tests remain pending.
