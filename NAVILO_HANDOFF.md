@@ -2,6 +2,10 @@
 
 ## Latest stop point — reconciled after Windows/VS Code continuation
 
+Development reconciliation commit: `72af57202a0acca9ad57685295fc90607b4dfffc`
+(`work/dashboard-en-ur-20260921`). This commit contains the migration/object-
+order closure and verified report updates described below.
+
 The user's continuation was verified before further edits. Development moved
 from `fac95ed2772c10df3ee795f78c04cb50b25f7323` to
 `14b3f5e48da4e7a1e43df636ffa9ad941b1eeb4d` through 120 commits. A clean
