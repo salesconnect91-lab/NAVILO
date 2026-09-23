@@ -165,3 +165,9 @@ Official FBR STGO 01/2026 states specified registered persons must integrate dig
 ## Release gates and remaining coverage
 
 Local typecheck/test/build **passed**. Every other gate in `docs/NAVILO_UNIFIED_RELEASE_GATE.md` remains open: branch/live migration parity, privileged-function review, authenticated cross-tenant/BU/branch tests, full AMK UAT, print/export evidence, isolated migration rehearsal, backup and isolated restore, performance budget, exact production alias verification. No production deployment, migration or data mutation was attempted. See `NAVILO_ISSUES.md` and `NAVILO_HANDOFF.md`.
+
+## Phase 2B Windows replay: stock movement traceability foundation — 2026-09-23
+
+Fresh Windows replay at development SHA `86b452b274d89ffea21d756b9f202b09607a0c35` applied through `20260913072000` and then failed in `20260913072054_correct_stock_approval_scope_and_validate_evidence.sql` because `stock_movements.source_type` did not exist (`42703`). This proves the preceding controlled-transfer approval restoration executed, but the full replay still is **NOT PASS**.
+
+Read-only production catalog evidence confirms nullable `source_type text` and `source_id uuid`. Read-only production migration history identifies the omitted original provider as `20260906223502_control_manual_inventory_adjustments`; it creates `reason`, `remarks`, `unit_cost`, `source_type`, and `source_id` together and installs the controlled adjustment RPC. That exact historical foundation is now restored on the development branch before all consumers. No production write or customer-data copy occurred. Static/unit/application gates passed after the repair; a new genuinely fresh Windows replay is still required.

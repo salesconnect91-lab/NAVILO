@@ -160,3 +160,12 @@ For full visual and live AMK UAT, arrange a normal non-owner AMK test account vi
 ## Audit commit
 
 The audit commit is the newest commit that adds these three files on `work/dashboard-en-ur-20260921`. Resolve its exact SHA with `git log -1 --format=%H` before resuming; this document deliberately does not claim a self-referential commit SHA.
+
+## Phase 2B Windows replay checkpoint — stock source context (2026-09-23)
+
+- User replayed exact remote development SHA `86b452b274d89ffea21d756b9f202b09607a0c35` on a fresh local Supabase stack.
+- The restored approval-slip/transfer chain applied. Replay reached `20260913072054_correct_stock_approval_scope_and_validate_evidence.sql`, then failed with `42703: column sm.source_type does not exist`.
+- Read-only production queries confirmed `stock_movements.source_type text` and `source_id uuid`, both nullable, and traced their exact provider to live migration `20260906223502_control_manual_inventory_adjustments`.
+- Restored that exact historical migration on development, including its related `reason`, `remarks`, `unit_cost`, `source_type`, `source_id` columns and controlled adjustment RPC. Added a regression contract for the whole foundation, not just the observed column.
+- Verification actually run after the repair: SQL sanity `0` findings; migration versions `0` empty/`0` duplicate IDs; strict dependency `0` errors; explicit object-order `0` errors; migration checker unit suite `19/19` PASS; `npm run check` PASS (typecheck, 19 test files/81 tests, Vite build). Existing primary bundle warning remains: 3,150.13 kB minified / 882.09 kB gzip.
+- Production/main/Vercel/Toqeer Builder remained unchanged. Full replay remains **NOT PASS** until the user pulls the resulting commit and a genuinely fresh `npx supabase start --debug` finishes.

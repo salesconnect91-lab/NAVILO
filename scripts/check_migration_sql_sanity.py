@@ -55,6 +55,16 @@ REQUIRED_SNIPPETS = {
         "RENAME TO post_sales_invoice_core",
         "create or replace function public.post_sales_invoice(p_order_id uuid)",
     ),
+    "20260906223502_control_manual_inventory_adjustments.sql": (
+        "add column if not exists reason text",
+        "add column if not exists remarks text",
+        "add column if not exists unit_cost numeric",
+        "add column if not exists source_type text",
+        "add column if not exists source_id uuid",
+        "create or replace function public.apply_stock_movement(",
+        "perform public.assert_module_permission('inventory','edit')",
+        "'manual_adjustment'",
+    ),
     "20260906225648_secure_godown_transfer_with_approval_slip.sql": (
         "alter table public.stock_movements add column if not exists approval_slip_path text",
         "values('stock-transfer-approvals','stock-transfer-approvals'",

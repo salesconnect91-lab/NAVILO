@@ -129,3 +129,13 @@ No issue below implies an unrun workflow passed. Severity is based on potential 
 - Language: English default; single means exactly one pack; bilingual exactly two; UI, report, invoice, print/PDF and CSV/XLSX.
 
 All these are acceptance tests to execute, not results.
+
+## MIG-13 — Missing stock-movement traceability foundation blocks fresh replay
+
+- **Status:** Confirmed bug; development repair prepared; fresh replay pending.
+- **Severity:** Critical release blocker.
+- **Evidence:** Windows fresh replay at `86b452b274d89ffea21d756b9f202b09607a0c35` failed in `20260913072054_correct_stock_approval_scope_and_validate_evidence.sql` with `42703: column sm.source_type does not exist`. Repository consumers existed before any local column creator. Read-only production history identifies exact omitted migration `20260906223502_control_manual_inventory_adjustments`; production catalog confirms nullable `source_type text` and `source_id uuid`.
+- **Root cause:** Historical production migration existed but was absent from the repository export. The omitted migration provides five related columns (`reason`, `remarks`, `unit_cost`, `source_type`, `source_id`) plus the controlled adjustment RPC.
+- **Fix:** Restore the exact evidenced migration as `supabase/migrations/20260906223502_control_manual_inventory_adjustments.sql`; require all columns, permission assertion and RPC markers in the SQL sanity gate.
+- **Acceptance:** On a genuinely fresh local database, the migration applies before all consumers; the complete repository chain finishes; catalog assertions confirm the five columns; authenticated inventory tests prove tenant/BU/branch scope and denied forged/revoked-role calls.
+- **Dependencies:** Windows Docker/Supabase CLI replay, then synthetic authenticated fixtures. Production migration history must remain unchanged.

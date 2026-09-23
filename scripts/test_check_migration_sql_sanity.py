@@ -96,6 +96,17 @@ class MigrationSqlSanityTests(unittest.TestCase):
             )
             self.assertGreater(len(inspect(directory)), 0)
 
+    def test_stock_movement_traceability_foundation_must_be_complete(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "20260906223502_control_manual_inventory_adjustments.sql").write_text(
+                "alter table public.stock_movements add column if not exists source_type text;"
+            )
+            findings = inspect(directory)
+            self.assertTrue(
+                any("missing required legacy foundation" in finding for finding in findings)
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

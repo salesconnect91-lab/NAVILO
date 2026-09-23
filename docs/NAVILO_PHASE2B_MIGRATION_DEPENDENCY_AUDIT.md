@@ -173,3 +173,31 @@ foundations and 77 ACL/ALTER-before-local-creator candidates. Those 77 are
 triage candidates, not automatically confirmed defects; some are conditional
 or depend on live-only migrations. Batch reconciliation is required before the
 next replay is treated as a final attempt.
+
+## Windows replay continuation — omitted stock movement source foundation
+
+The replay at development SHA `86b452b274d89ffea21d756b9f202b09607a0c35`
+successfully applied through `20260913072000`, including the restored stock
+approval/transfer migrations, then failed while migration `20260913072054`
+compiled a storage policy referencing `stock_movements.source_type`. PostgreSQL
+reported `42703` because the fresh table had no such column.
+
+Repository-wide search found consumers from September 6 onward but no local
+column provider. Read-only production history identifies the exact omitted
+provider as `20260906223502_control_manual_inventory_adjustments`. Its first
+statement creates the related `reason`, `remarks`, `unit_cost`, `source_type`
+and `source_id` columns and installs the permission-checked adjustment RPC.
+Read-only catalog evidence confirms nullable `source_type text` and
+`source_id uuid`. The exact historical migration has therefore been restored
+before its consumers, and the SQL sanity contract now rejects an incomplete
+version of this five-column/RPC foundation.
+
+This is a repository export/history reconciliation only. Production was not
+changed and no production rows were copied. Static checks cannot prove the
+remaining chain; another genuinely fresh Windows replay is required.
+
+Post-repair evidence: SQL sanity reported 0 findings; migration version check
+reported 0 empty files and 0 duplicate IDs; strict dependency and explicit
+object-order checks both reported 0 errors; 19 migration-checker unit tests
+passed; and `npm run check` passed typecheck, 19 application test files / 81
+tests, and Vite build. The known 3,150.13 kB primary bundle warning remains.
