@@ -2017,7 +2017,7 @@ export default function JournalEntryDetail() {
 
   if (!entry) {
     return (
-      <ErrorBanner message="Journal entry not found. / جرنل اندراج نہیں ملا۔" />
+      <ErrorBanner message="Journal entry not found." />
     );
   }
 
@@ -2235,15 +2235,15 @@ export default function JournalEntryDetail() {
               <table className="w-full text-sm min-w-[900px]">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                    <th className="text-left py-3 px-4 font-semibold">Account / اکاؤنٹ</th>
+                    <th className="text-left py-3 px-4 font-semibold">Account</th>
 
                     <th className="text-left py-3 px-4 font-semibold">
                       Name / Party
                     </th>
 
-                    <th className="text-right py-3 px-4 font-semibold">Debit / ڈیبٹ</th>
+                    <th className="text-right py-3 px-4 font-semibold">Debit</th>
 
-                    <th className="text-right py-3 px-4 font-semibold">Credit / کریڈٹ</th>
+                    <th className="text-right py-3 px-4 font-semibold">Credit</th>
 
                     {!isPosted && (
                       <th className="w-24 text-right py-3 px-4 font-semibold">
@@ -2449,15 +2449,15 @@ export default function JournalEntryDetail() {
                 <table className="w-full min-w-[1150px] text-sm">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="text-left px-4 py-3 font-semibold text-slate-600 w-[34%]">Account / اکاؤنٹ</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 w-[34%]">Account</th>
 
                       <th className="text-left px-4 py-3 font-semibold text-slate-600 w-[26%]">
                         Name / Party
                       </th>
 
-                      <th className="text-right px-4 py-3 font-semibold text-slate-600 w-[14%]">Debit / ڈیبٹ</th>
+                      <th className="text-right px-4 py-3 font-semibold text-slate-600 w-[14%]">Debit</th>
 
-                      <th className="text-right px-4 py-3 font-semibold text-slate-600 w-[14%]">Credit / کریڈٹ</th>
+                      <th className="text-right px-4 py-3 font-semibold text-slate-600 w-[14%]">Credit</th>
 
                       <th className="text-center px-4 py-3 font-semibold text-slate-600 w-[12%]">
                         Action
@@ -2638,7 +2638,7 @@ export default function JournalEntryDetail() {
                                     importing
                                   }
                                   className="px-2 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded"
-                                  title="Duplicate row / قطار نقل کریں"
+                                  title="Duplicate row"
                                 >
                                   Copy
                                 </button>
@@ -2656,7 +2656,7 @@ export default function JournalEntryDetail() {
                                     importing
                                   }
                                   className="px-2 py-1 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded"
-                                  title="Remove row / قطار ہٹائیں"
+                                  title="Remove row"
                                 >
                                   Remove
                                 </button>
@@ -2798,8 +2798,8 @@ export default function JournalEntryDetail() {
         open={
           !!deleteLineId
         }
-        title="Remove Line / لائن ہٹائیں"
-        message="Are you sure you want to remove this journal line? / کیا یہ جرنل لائن ہٹانی ہے؟"
+        title="Remove Line"
+        message="Are you sure you want to remove this journal line?"
         onConfirm={
           handleDeleteLine
         }
@@ -2814,11 +2814,11 @@ export default function JournalEntryDetail() {
             A new posted journal will be created with Debit and Credit reversed. The original journal will remain locked for audit history.
           </div>
           <div>
-            <label className="label">Reversal Date / واپسی کی تاریخ</label>
+            <label className="label">Reversal Date</label>
             <input className="input" type="date" value={reversalDate} onChange={(event) => setReversalDate(event.target.value)} />
           </div>
           <div>
-            <label className="label">Mandatory Reason / لازمی وجہ</label>
+            <label className="label">Mandatory Reason</label>
             <textarea className="input" rows={3} value={reversalReason} onChange={(event) => setReversalReason(event.target.value)} placeholder="Explain why this posted journal must be reversed" />
           </div>
           <div className="flex justify-end gap-2">
@@ -2832,8 +2832,8 @@ export default function JournalEntryDetail() {
         open={
           deleteEntryOpen
         }
-        title="Delete Journal Entry / جرنل اندراج حذف کریں"
-        message="Are you sure you want to delete this draft journal entry and all of its lines? / کیا یہ ڈرافٹ جرنل اور اس کی تمام لائنیں حذف کرنی ہیں؟"
+        title="Delete Journal Entry"
+        message="Are you sure you want to delete this draft journal entry and all of its lines?"
         onConfirm={
           handleDeleteEntry
         }
