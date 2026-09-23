@@ -250,3 +250,10 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - Added SQL-sanity regression guards and one checker test. Local code gates: 0 migration version/sanity/dependency/order findings; 24 checker tests PASS; TypeScript PASS; 19 files/81 Vitest tests PASS; Vite build PASS with existing large-bundle warning.
 - **Still pending:** apply the new migration on the already-running Windows loopback stack and run the Phase 3 matrix. Do not report business UAT PASS until its JSON shows the exact totals and evidence.
 - Safe resume: use only `C:\NAVILO-latest`, branch `work/dashboard-en-ur-20260921`; pull fast-forward; run the local migration command and Phase 3 runner provided with the Phase 3 checkpoint. Do not link the repo to production and do not use `db push` against any hosted project.
+
+## Phase 3 first Windows run and party-account repair — 2026-09-23
+
+- User pulled exact remote SHA `5a17460df05de4f400309b633c3de3b35e3c0fa9` and `npx supabase migration up --local` successfully applied `20260923180627`; local database reported up to date.
+- Phase 3 runner stopped during fixture setup before assertion 1: `PGRST204`, missing `customers.account_id`. Result is **0 assertions executed**, not a business-test failure/pass.
+- Root cause: clean repository foundation never creates `customers.account_id` or `suppliers.account_id`, although later accounting RPCs and frontend code require them. Read-only production catalog confirms both nullable UUID columns and exact foreign keys to `chart_of_accounts(id)`.
+- Prepared `20260923182230_restore_customer_supplier_account_foundation.sql` plus SQL-sanity regression coverage. Next safe action is local-only `migration up --local`, followed by the same Phase 3 runner. Production, `main`, Vercel and hosted projects stay unchanged.

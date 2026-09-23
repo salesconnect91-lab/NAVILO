@@ -128,6 +128,18 @@ class MigrationSqlSanityTests(unittest.TestCase):
                 any("missing required legacy foundation" in finding for finding in findings)
             )
 
+    def test_party_account_foundation_requires_both_columns_and_foreign_keys(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            filename = "20260923182230_restore_customer_supplier_account_foundation.sql"
+            (directory / filename).write_text(
+                "alter table public.customers add column if not exists account_id uuid;"
+            )
+            findings = inspect(directory)
+            self.assertTrue(
+                any("missing required legacy foundation" in finding for finding in findings)
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

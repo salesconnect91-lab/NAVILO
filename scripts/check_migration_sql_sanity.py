@@ -106,6 +106,14 @@ REQUIRED_SNIPPETS = {
         "revoke all on function public.post_journal_entry(uuid) from public, anon;",
         "grant execute on function public.post_journal_entry(uuid) to authenticated, service_role;",
     ),
+    "20260923182230_restore_customer_supplier_account_foundation.sql": (
+        "alter table public.customers\n  add column if not exists account_id uuid;",
+        "alter table public.suppliers\n  add column if not exists account_id uuid;",
+        "add constraint customers_account_id_fkey",
+        "add constraint suppliers_account_id_fkey",
+        "references public.chart_of_accounts(id);",
+        "notify pgrst, 'reload schema';",
+    ),
 }
 
 

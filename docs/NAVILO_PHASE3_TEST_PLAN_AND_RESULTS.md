@@ -55,3 +55,11 @@ Independent areas continue after a failed positive workflow so one execution ret
 | Phase 3 expected/actual matrix | Requires Windows local stack | PENDING |
 
 No Phase 3 database assertion is reported as passing until the generated JSON is captured. Production, `main`, Vercel and both hosted Supabase projects remain unchanged.
+
+## First Windows execution — missing party account foundation
+
+At exact development SHA `5a17460df05de4f400309b633c3de3b35e3c0fa9`, local migration `20260923180627` applied successfully and the local history reported up to date. The runner then stopped during fixture setup before its first assertion: PostgREST returned `PGRST204` because `customers.account_id` did not exist in the local schema cache.
+
+This is a confirmed repository foundation defect, not a failed business assertion. Later receipt, payment, journal, opening-balance and UI code all require `customers.account_id` and `suppliers.account_id`, but no repository migration creates either column. Read-only production catalog evidence confirms both as nullable UUID columns with named foreign keys to `public.chart_of_accounts(id)` and no delete action. Their ordinal position immediately after the original table columns establishes that they belong to the missing pre-versioned baseline rather than a new feature.
+
+Development migration `20260923182230_restore_customer_supplier_account_foundation.sql` restores both exact columns and constraints idempotently, then reloads the PostgREST schema. The Phase 3 business matrix remains **0 assertions executed / PENDING** until the repaired local rerun.
