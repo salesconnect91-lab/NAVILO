@@ -1,5 +1,11 @@
 # NAVILO audit handoff — 2026-09-22
 
+## Latest stop point — Windows replay MIG-10, 2026-09-23
+
+The replay after the discount-delimiter repair advanced to the restored `post_sales_invoice_core(uuid)` migration, then stopped at the following `revoke` because the `$function$` closing tag lacked `;`. Batch scan found and repaired this file plus the later restored return-note function with the same defect. A regression check is included. Full replay is not yet PASS. Production, `main`, Vercel and hosted data remain unchanged.
+
+Verification after both terminator repairs: SQL sanity 0 findings; 18 migration-checker tests PASS; version/dependency/object-order checks PASS; typecheck PASS; 19 test files/81 tests PASS; Vite build PASS with the existing large-bundle warning. Windows fresh replay remains the next acceptance step.
+
 ## Latest stop point — Windows replay MIG-09, 2026-09-23
 
 After pulling `577e1f7b8e41e359a1a83b19451f395615ba0fc8`, Windows fresh replay successfully passed the previously repaired print-language migration and advanced through `20260906225113`. It then failed in `20260906232419_commercial_invoice_discounts_accounting.sql` because `discount_amount_for()` used invalid `AS $` / `$;` delimiters. The next development commit corrects them to `$$`, adds a repository-wide sanity rule and records the result. Production, `main`, Vercel and hosted data remain unchanged. Pull the new SHA and rerun only after the pushed verification summary is reviewed.

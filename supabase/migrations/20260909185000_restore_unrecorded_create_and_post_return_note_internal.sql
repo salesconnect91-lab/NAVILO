@@ -144,7 +144,6 @@ begin
   end if;
   return jsonb_build_object('success',true,'note_id',v_note,'note_no',v_no,'journal_entry_id',v_journal,'subtotal',round(v_sub,2),'tax_total',round(v_tax,2),'cost_total',round(v_cost,2),'total',v_total,'settlement_mode',v_payment_mode);
 end;
-$function$
+$function$;
 
 revoke all on function public.create_and_post_return_note_internal(text,uuid,date,text,jsonb) from public, anon;
-

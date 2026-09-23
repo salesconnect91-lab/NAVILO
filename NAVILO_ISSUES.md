@@ -1,5 +1,13 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## MIG-10 / P0 release gate — missing semicolons after restored function bodies
+
+- **Evidence:** Windows replay reached the restored `post_sales_invoice_core(uuid)` definition and failed when PostgreSQL encountered the following `revoke`; the body ended with `$function$` instead of `$function$;`.
+- **Batch scope:** repository-wide scan found two instances: `20260908174000_restore_unrecorded_post_sales_invoice_core.sql` and `20260909185000_restore_unrecorded_create_and_post_return_note_internal.sql`.
+- **Root cause/impact:** live function definitions were restored as migration text without SQL statement terminators, blocking clean installation and all later isolation tests.
+- **Fix/test:** add only the two required semicolons; add a checker and unit test for a dollar-quoted body immediately followed by another SQL statement without `;`.
+- **Acceptance:** static gates pass and a genuine fresh local replay completes both migrations and the remaining chain.
+
 ## MIG-09 / P0 release gate — malformed discount helper delimiter
 
 - **Evidence:** Windows fresh replay after commit `577e1f7b8e41e359a1a83b19451f395615ba0fc8` advanced through `20260906225113`, then migration `20260906232419_commercial_invoice_discounts_accounting.sql` failed at statement 10 with SQLSTATE 42601 on `AS $`.

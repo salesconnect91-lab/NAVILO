@@ -15,6 +15,11 @@ MALFORMED_SINGLE_DOLLAR_OPEN = re.compile(
     r"\bas\s+\$(?!\$|[A-Za-z_][A-Za-z0-9_]*\$)", re.IGNORECASE
 )
 MALFORMED_SINGLE_DOLLAR_CLOSE = re.compile(r"^\s*\$;\s*$", re.MULTILINE)
+UNTERMINATED_DOLLAR_BODY_BEFORE_SQL = re.compile(
+    r"^\s*(?:\$\$|\$[A-Za-z_][A-Za-z0-9_]*\$)\s*$\n"
+    r"\s*(?=(?:revoke|grant|alter|create|drop|comment)\b)",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 REQUIRED_SNIPPETS = {
     "20260821170557_0002_steel_mill_extension.sql": (
@@ -67,6 +72,12 @@ def inspect(directory: Path) -> list[str]:
             line = text.count("\n", 0, marker.start()) + 1
             findings.append(
                 f"{path.name}:{line}: contains a malformed single-dollar function delimiter"
+            )
+        unterminated = UNTERMINATED_DOLLAR_BODY_BEFORE_SQL.search(text)
+        if unterminated:
+            line = text.count("\n", 0, unterminated.start()) + 1
+            findings.append(
+                f"{path.name}:{line}: dollar-quoted body is missing its statement semicolon"
             )
     for filename, snippets in REQUIRED_SNIPPETS.items():
         path = directory / filename

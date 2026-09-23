@@ -36,6 +36,18 @@ class MigrationSqlSanityTests(unittest.TestCase):
             findings = inspect(directory)
             self.assertTrue(any("single-dollar" in finding for finding in findings))
 
+    def test_dollar_body_without_statement_semicolon_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "20260923000001_bad.sql").write_text(
+                "create function public.bad() returns int language sql as $fn$\n"
+                "select 1;\n"
+                "$fn$\n"
+                "revoke all on function public.bad() from public;"
+            )
+            findings = inspect(directory)
+            self.assertTrue(any("missing its statement semicolon" in finding for finding in findings))
+
     def test_incomplete_legacy_column_provider_is_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)

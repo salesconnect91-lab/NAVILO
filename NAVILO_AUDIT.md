@@ -1,5 +1,11 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Phase 2B Windows replay update — missing function terminators, 2026-09-23
+
+The next Windows replay reached `20260908174000_restore_unrecorded_post_sales_invoice_core.sql` and PostgreSQL stopped at the `revoke` following `post_sales_invoice_core(uuid)`. The function body closed with `$function$` but lacked the required statement semicolon. A repository-wide scan found the same defect in the later `20260909185000_restore_unrecorded_create_and_post_return_note_internal.sql`. Both exact terminators are repaired together and the sanity checker now rejects this pattern. Full replay remains unverified.
+
+Post-repair gates: SQL sanity 0 findings; 18 migration-checker tests PASS; migration filenames, strict dependency and object-order checks PASS; typecheck PASS; 19 test files/81 tests PASS; build PASS with the known large-bundle warning.
+
 ## Phase 2B Windows replay update — discount delimiter, 2026-09-23
 
 After the MIG-08 repair, Windows fresh replay advanced from `20260904165202` through `20260906225113` and then failed in `20260906232419_commercial_invoice_discounts_accounting.sql` with SQLSTATE 42601. `discount_amount_for()` used invalid single-dollar delimiters (`AS $` / `$;`) instead of PostgreSQL dollar quoting (`AS $$` / `$$;`). A repository-wide scan found this as the only occurrence of that exact malformed delimiter pattern. The development repair corrects both delimiters and turns the pattern into a regression failure. Full fresh replay is still required; syntax-pattern coverage is not a substitute for PostgreSQL execution.

@@ -1,5 +1,9 @@
 # NAVILO Phase 2B — Migration Dependency Audit
 
+## Windows replay continuation — restored function terminators
+
+PostgreSQL reached the restored sales-posting function and failed at its following `revoke` because `$function$` lacked a terminating semicolon. Batch scan found the identical defect in the later restored return-note function. Both are corrected to `$function$;`, with a repository sanity guard. This fixes the evidenced syntax form only; complete replay remains the acceptance gate.
+
 ## Windows replay continuation — discount helper delimiter
 
 The replay after MIG-08 advanced through `20260906225113`, proving the prior repair, then failed in `20260906232419_commercial_invoice_discounts_accounting.sql`. `discount_amount_for()` contained invalid `AS $` / `$;` delimiters. A scan across every repository migration found no other occurrence of this exact single-dollar pattern. The repair uses `$$` and adds a regression check, but only a complete fresh PostgreSQL replay can establish full syntactic and dependency validity.
