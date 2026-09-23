@@ -6,10 +6,11 @@
 
 import { randomBytes, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
-const productionRef = "ijdaosaqpbgnqojudjbj";
+export const productionRef = "ijdaosaqpbgnqojudjbj";
 
-function readLocalStatus() {
+export function readLocalStatus() {
   const isWindows = process.platform === "win32";
   const executable = isWindows
     ? (process.env.ComSpec ?? "C:\\Windows\\System32\\cmd.exe")
@@ -51,7 +52,7 @@ function readLocalStatus() {
   return { url: parsed.origin, publicKey, secretKey };
 }
 
-async function requestJson(url, path, apiKey, bearer, options = {}) {
+export async function requestJson(url, path, apiKey, bearer, options = {}) {
   const response = await fetch(`${url}${path}`, {
     method: options.method ?? "GET",
     headers: {
@@ -70,7 +71,7 @@ async function requestJson(url, path, apiKey, bearer, options = {}) {
   return { ok: response.ok, status: response.status, data };
 }
 
-function requireOk(result, operation) {
+export function requireOk(result, operation) {
   if (!result.ok) {
     const code = typeof result.data === "object" && result.data ? result.data.code : null;
     const rawMessage = typeof result.data === "object" && result.data
@@ -101,7 +102,7 @@ async function createIdentity(local, label, runId) {
   return { id: user.id, email: user.email, password };
 }
 
-async function serviceInsert(local, table, rows) {
+export async function serviceInsert(local, table, rows) {
   const result = await requestJson(local.url, `/rest/v1/${table}`, local.secretKey, local.secretKey, {
     method: "POST",
     body: rows,
@@ -110,7 +111,7 @@ async function serviceInsert(local, table, rows) {
   return requireOk(result, `insert ${table}`);
 }
 
-async function serviceUpsert(local, table, rows, onConflict) {
+export async function serviceUpsert(local, table, rows, onConflict) {
   const conflict = onConflict ? `?on_conflict=${encodeURIComponent(onConflict)}` : "";
   const result = await requestJson(local.url, `/rest/v1/${table}${conflict}`, local.secretKey, local.secretKey, {
     method: "POST",
@@ -120,12 +121,12 @@ async function serviceUpsert(local, table, rows, onConflict) {
   return requireOk(result, `upsert ${table}`);
 }
 
-async function serviceSelect(local, table, query) {
+export async function serviceSelect(local, table, query) {
   const result = await requestJson(local.url, `/rest/v1/${table}?${query}`, local.secretKey, local.secretKey);
   return requireOk(result, `select ${table}`);
 }
 
-async function signIn(local, identity) {
+export async function signIn(local, identity) {
   const result = await requestJson(
     local.url,
     "/auth/v1/token?grant_type=password",
@@ -138,11 +139,11 @@ async function signIn(local, identity) {
   return session.access_token;
 }
 
-async function asUser(local, token, path, options = {}) {
+export async function asUser(local, token, path, options = {}) {
   return requestJson(local.url, path, local.publicKey, token, options);
 }
 
-async function userInsert(local, token, table, rows) {
+export async function userInsert(local, token, table, rows) {
   const result = await asUser(local, token, `/rest/v1/${table}`, {
     method: "POST",
     body: rows,
@@ -151,11 +152,11 @@ async function userInsert(local, token, table, rows) {
   requireOk(result, `authenticated insert ${table}`);
 }
 
-function rowQuery(table, id) {
+export function rowQuery(table, id) {
   return `/rest/v1/${table}?select=id&id=eq.${encodeURIComponent(id)}`;
 }
 
-function rpcPath(name) {
+export function rpcPath(name) {
   return `/rest/v1/rpc/${name}`;
 }
 
@@ -167,7 +168,7 @@ function record(role, test, expected, result, pass, successValue) {
   evidence.push({ role, test, expected, actual, pass: Boolean(pass) });
 }
 
-async function provision(local) {
+export async function provision(local) {
   const runId = `${Date.now()}-${randomBytes(3).toString("hex")}`;
   const labels = ["owner", "accountsA", "salesA", "viewerA", "revokedA", "tenantB"];
   const identities = {};
@@ -361,15 +362,20 @@ async function runTests(local, fixture) {
   record("anonymous", "authenticated-only helper grant", "DENIED", result, !result.ok);
 }
 
-const local = readLocalStatus();
-const fixture = await provision(local);
-await runTests(local, fixture);
-const failed = evidence.filter((item) => !item.pass);
-console.log(JSON.stringify({
-  environment: "local-only",
-  production_ref_refused: productionRef,
-  synthetic_topology: { companies: 2, business_units_per_company: 2, branches_per_company: 2, authenticated_identities: 6 },
-  summary: { total: evidence.length, passed: evidence.length - failed.length, failed: failed.length },
-  evidence,
-}, null, 2));
-if (failed.length) process.exitCode = 1;
+const invokedDirectly = process.argv[1]
+  && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
+  const local = readLocalStatus();
+  const fixture = await provision(local);
+  await runTests(local, fixture);
+  const failed = evidence.filter((item) => !item.pass);
+  console.log(JSON.stringify({
+    environment: "local-only",
+    production_ref_refused: productionRef,
+    synthetic_topology: { companies: 2, business_units_per_company: 2, branches_per_company: 2, authenticated_identities: 6 },
+    summary: { total: evidence.length, passed: evidence.length - failed.length, failed: failed.length },
+    evidence,
+  }, null, 2));
+  if (failed.length) process.exitCode = 1;
+}

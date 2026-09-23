@@ -188,6 +188,14 @@ The missing optional `supabase/seed.sql` warning and Windows Analytics TCP warni
 
 Post-change verification also passed: migration filename, SQL-sanity, strict-dependency and explicit object-order checks all reported zero findings; 23 migration-checker unit tests passed; `npm run check` passed TypeScript, 19 test files/81 tests and the Vite build. The known 3,150.13 kB primary bundle warning remains a performance issue, not a failed build.
 
+## Phase 3 business-UAT preparation and accounting catalog drift — 2026-09-23
+
+Phase 2B is closed for its measured scope: clean local replay plus 41/41 targeted authenticated isolation assertions. The next release gate is valid-document business UAT, not UI redesign or production deployment.
+
+Read-only live catalog comparison confirmed that clean repository replay did not reproduce three current tenant-aware accounting RPC definitions: `initialize_default_coa()`, `post_journal_entry(uuid)` and `reverse_manual_journal_entry(uuid,date,text)`. Live definitions enforce authenticated/current-company context, and the posting/reversal functions include current-BU and accounting permission controls. The historical live migration versions that supplied the final definitions are absent from the repository. Development migration `20260923180627_restore_live_core_accounting_rpcs.sql` restores the exact evidenced definitions and ACLs without changing production history.
+
+A loopback-only synthetic runner now covers purchase, sales, stock, AR/AP payments, journals, returns, reversals, posted immutability, period close and wrong-role/cross-tenant denials. Pre-execution gates pass: 0 migration version/sanity/dependency/order findings, 24 checker tests, TypeScript, 19 files/81 application tests and production build. The actual new migration and business matrix are **PENDING Windows local execution** and are not claimed PASS. See `docs/NAVILO_PHASE3_TEST_PLAN_AND_RESULTS.md`.
+
 ## Phase 2B local fixture runner: profile compatibility repair — 2026-09-23
 
 The first execution of the local-only runner at SHA `885e2cee36cdb838ed7ac6c07ec5da83a6577149` passed its local endpoint/key discovery and created the six synthetic Auth identities, then stopped before company/data creation with HTTP 400 on the first `user_profiles` insert. Static schema trace confirms the exact cause: `20260828150000_0005_professional_erp_foundation.sql` created both `id` and a separate `user_id uuid not null`; the later `20260902160000_complete_accounting_controls.sql` used `create table if not exists`, so it did not replace that existing layout. The fixture supplied `id` but omitted required `user_id`.

@@ -240,3 +240,13 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - Migration replay was already PASS through `20260921204530`. Static gates remain 0 empty/duplicate/misversioned/SQL/dependency/order findings; 23 migration-checker tests, TypeScript, 19 files/81 application tests and Vite build passed on the same runner code before this execution. Known large bundle warning remains.
 - Phase 2B targeted migration/authentication/isolation gate is complete. Residual risk: this is not dynamic execution of every 103 privileged function and not business-domain UAT for valid invoices, purchases, journals, stock, payments, returns, reversals or reset operations.
 - Production database, `main`, Vercel production and Toqeer Builder remained unchanged.
+
+## Phase 3 prepared checkpoint — 2026-09-23
+
+- Baseline before Phase 3 work: development remote `57a0dab635f4a72452633409c3c49961b544932f`; Phase 2B result 41/41 PASS.
+- Added `scripts/phase3_local_business_uat.mjs`, which reuses the Phase 2B synthetic topology and refuses every non-loopback endpoint. It tests valid and invalid purchase/sales/stock/AR/AP/journal/return/reversal/period workflows while printing sanitized evidence only.
+- Made `scripts/phase2b_local_security_tests.mjs` safely importable; direct Phase 2B behavior is preserved.
+- Read-only production catalog evidence exposed replay/catalog drift in three core accounting RPCs. Added `supabase/migrations/20260923180627_restore_live_core_accounting_rpcs.sql` with exact evidenced definitions and explicit ACLs. Production migration history and data were not changed.
+- Added SQL-sanity regression guards and one checker test. Local code gates: 0 migration version/sanity/dependency/order findings; 24 checker tests PASS; TypeScript PASS; 19 files/81 Vitest tests PASS; Vite build PASS with existing large-bundle warning.
+- **Still pending:** apply the new migration on the already-running Windows loopback stack and run the Phase 3 matrix. Do not report business UAT PASS until its JSON shows the exact totals and evidence.
+- Safe resume: use only `C:\NAVILO-latest`, branch `work/dashboard-en-ur-20260921`; pull fast-forward; run the local migration command and Phase 3 runner provided with the Phase 3 checkpoint. Do not link the repo to production and do not use `db push` against any hosted project.

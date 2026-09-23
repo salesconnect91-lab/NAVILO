@@ -91,6 +91,21 @@ REQUIRED_SNIPPETS = {
         "if v_new=v_def then raise exception 'post_sales_invoice_core patch pattern did not match'; end if;",
         "if v_new<>v_def then execute v_new; end if;",
     ),
+    "20260923180627_restore_live_core_accounting_rpcs.sql": (
+        "CREATE OR REPLACE FUNCTION public.initialize_default_coa()",
+        "uid uuid := public.legacy_data_user_id();",
+        "cid uuid := public.current_company_id();",
+        "PERFORM public.assert_module_permission('accounting', 'create');",
+        "CREATE OR REPLACE FUNCTION public.post_journal_entry(p_entry_id uuid)",
+        "PERFORM public.assert_module_permission('accounting', 'post');",
+        "AND je.user_id = public.legacy_data_user_id()",
+        "AND je.business_unit_id = public.current_business_unit_id()",
+        "CREATE OR REPLACE FUNCTION public.reverse_manual_journal_entry",
+        "perform public.assert_module_permission('accounting','post');",
+        "and business_unit_id=v_unit for update",
+        "revoke all on function public.post_journal_entry(uuid) from public, anon;",
+        "grant execute on function public.post_journal_entry(uuid) to authenticated, service_role;",
+    ),
 }
 
 

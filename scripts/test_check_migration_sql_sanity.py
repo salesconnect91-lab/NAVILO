@@ -116,6 +116,18 @@ class MigrationSqlSanityTests(unittest.TestCase):
             )
             self.assertGreater(len(inspect(directory)), 0)
 
+    def test_restored_core_accounting_rpcs_must_retain_tenant_guards(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            filename = "20260923180627_restore_live_core_accounting_rpcs.sql"
+            (directory / filename).write_text(
+                "CREATE OR REPLACE FUNCTION public.post_journal_entry(p_entry_id uuid) returns jsonb language sql as $$ select '{}'::jsonb $$;"
+            )
+            findings = inspect(directory)
+            self.assertTrue(
+                any("missing required legacy foundation" in finding for finding in findings)
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
