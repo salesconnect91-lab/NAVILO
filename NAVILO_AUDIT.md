@@ -1,5 +1,9 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Phase 2B full-chain preflight correction — 2026-09-23
+
+After replay reached 0026, a redundant ACL block failed because `apply_stock_movement` is created in 0027; 0027 already secures it, so the premature ACL was removed. A complete static function-order pass found 77 ACL/ALTER-before-local-creator candidates plus the nine known missing table foundations. These are triage candidates, not 77 confirmed defects. Further Windows looping is paused until batch reconciliation is complete.
+
 ## Phase 2B migration dependency update — 2026-09-23
 
 The Windows failure at migration 0007 is a **confirmed repository bootstrap defect**. Git history, current migrations and read-only production history contain no recorded creator for `godowns`/`warehouses`; the initial repository already assumed these hosted tables existed. An evidence-based minimal foundation for `categories`, `uom`, `warehouses`, `godowns` and `transporters` was added to migration 0002, before first use. No production data or final tenant state was copied.

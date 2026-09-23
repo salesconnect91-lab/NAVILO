@@ -42,6 +42,14 @@ class MigrationSqlSanityTests(unittest.TestCase):
             )
             self.assertGreater(len(inspect(directory)), 0)
 
+    def test_function_acl_before_creator_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "20260831010000_0026_harden_stock_engine.sql").write_text(
+                "revoke all on function public.apply_stock_movement(uuid,uuid,uuid,text,numeric,text) from public;"
+            )
+            self.assertTrue(any("ACL precedes" in finding for finding in inspect(directory)))
+
 
 if __name__ == "__main__":
     unittest.main()

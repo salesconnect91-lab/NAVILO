@@ -1,5 +1,9 @@
 # NAVILO audit handoff — 2026-09-22
 
+## Latest stop point — batch reconciliation required
+
+At development commit `20b9e313487b733ff6b99dcd16c52efd7bd99d5d`, Windows fresh replay applied 0001–0025 and entered 0026, then failed because ACL statements referenced `apply_stock_movement` before its 0027 creator. 0027 already creates and secures the function, so the next commit removes only the premature redundant ACL and adds regression coverage. A full static function-order pass found 77 candidates and the dependency audit still has nine missing table foundations. Do not ask the Windows operator to repeat one-error-at-a-time indefinitely; reconcile the remaining candidates/live-only migrations in a batch, then request one clean replay. Production/main remain unchanged.
+
 ## Latest continuation — migration dependency audit, 2026-09-23
 
 Started from development commit `70ccb704fb67fc38d5d6956107cea3a1f0268b61`. The Windows host had already proved a fresh local start fails at migration 0007 because `public.godowns` is absent. This continuation traced the gap across all Git refs and read-only live history, repaired the evidenced early master baseline in migration 0002, reconciled the nine duplicate version groups to their live versions, removed three empty superseded placeholders, and added dependency/filename regression checks. Read [the dependency audit](docs/NAVILO_PHASE2B_MIGRATION_DEPENDENCY_AUDIT.md) before continuing.

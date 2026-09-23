@@ -27,6 +27,14 @@ REQUIRED_SNIPPETS = {
         "ADD COLUMN IF NOT EXISTS payment_mode text NOT NULL DEFAULT 'Credit'",
         "ADD COLUMN IF NOT EXISTS payment_account_id uuid",
     ),
+    "20260831010000_0026_harden_stock_engine.sql": (
+        "apply_stock_movement is created and secured by the next migration (0027)",
+    ),
+    "20260831011500_0027_preserve_stock_return_types.sql": (
+        "create or replace function public.apply_stock_movement(",
+        "revoke all on function public.apply_stock_movement(",
+        "grant execute on function public.apply_stock_movement(",
+    ),
 }
 
 
@@ -45,6 +53,9 @@ def inspect(directory: Path) -> list[str]:
         for snippet in snippets:
             if snippet not in text:
                 findings.append(f"{filename}: missing required legacy foundation: {snippet}")
+    early_acl = directory / "20260831010000_0026_harden_stock_engine.sql"
+    if early_acl.exists() and "revoke all on function public.apply_stock_movement(" in early_acl.read_text(errors="replace"):
+        findings.append(f"{early_acl.name}: ACL precedes apply_stock_movement creator in 0027")
     return findings
 
 

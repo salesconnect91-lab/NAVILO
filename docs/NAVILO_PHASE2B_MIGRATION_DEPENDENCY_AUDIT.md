@@ -124,3 +124,14 @@ and restrictive foreign keys to `warehouses`/`godowns`. No later repository
 migration creates those constraints. Migration 0002 now restores the nullable
 location columns and exact FKs; 0026 remains responsible for NOT NULL and stock
 integrity. Regression checks cover both tables.
+
+## Full-chain static pass after 0026 ACL failure
+
+Replay then failed because 0026 revoked `apply_stock_movement` before 0027
+creates it. Migration 0027 already applies the same PUBLIC/anon revokes and
+authenticated grant, so only the premature 0026 ACL block was removed. A full
+repository static pass was then run: it found the nine documented missing table
+foundations and 77 ACL/ALTER-before-local-creator candidates. Those 77 are
+triage candidates, not automatically confirmed defects; some are conditional
+or depend on live-only migrations. Batch reconciliation is required before the
+next replay is treated as a final attempt.

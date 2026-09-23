@@ -1,5 +1,12 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## Full-chain preflight after repeated replay failures
+
+| ID / priority | Evidence | Fix / acceptance |
+|---|---|---|
+| MIG-08 / P0 confirmed | 0026 references `apply_stock_movement` before 0027 creates it; 0027 already contains identical least-privilege ACL. | Remove only premature 0026 ACL; 0026/0027 must apply sequentially and final grants remain authenticated-only. |
+| MIG-09 / P0 release gate | Full static pass found 77 ACL/ALTER-before-local-creator candidates and nine missing table foundations. Candidates are not all confirmed defects. | Reconcile each with live history/conditional SQL, recover reviewed foundations, then run one uninterrupted clean reset with zero unexplained strict findings. |
+
 ## Phase 2B migration dependency result — 2026-09-23
 
 | ID / priority | Evidence / root cause | Required fix | Acceptance test |
