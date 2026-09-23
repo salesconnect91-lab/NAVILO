@@ -10,10 +10,11 @@ import { spawnSync } from "node:child_process";
 const productionRef = "ijdaosaqpbgnqojudjbj";
 
 function readLocalStatus() {
-  const result = spawnSync("npx", ["supabase", "status", "-o", "env"], {
+  const executable = process.platform === "win32" ? "npx.cmd" : "npx";
+  const result = spawnSync(executable, ["supabase", "status", "-o", "env"], {
     cwd: process.cwd(),
     encoding: "utf8",
-    shell: process.platform === "win32",
+    shell: false,
   });
   if (result.status !== 0) {
     throw new Error("Local Supabase is not running. Start it from this repository first.");
@@ -58,7 +59,17 @@ async function requestJson(url, path, apiKey, bearer, options = {}) {
 }
 
 function requireOk(result, operation) {
-  if (!result.ok) throw new Error(`${operation} failed with HTTP ${result.status}.`);
+  if (!result.ok) {
+    const code = typeof result.data === "object" && result.data ? result.data.code : null;
+    const rawMessage = typeof result.data === "object" && result.data
+      ? result.data.message
+      : null;
+    const message = typeof rawMessage === "string"
+      ? rawMessage.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[synthetic-email-redacted]")
+      : null;
+    const detail = [code, message].filter(Boolean).join(": ");
+    throw new Error(`${operation} failed with HTTP ${result.status}${detail ? ` (${detail})` : ""}.`);
+  }
   return result.data;
 }
 
@@ -143,6 +154,7 @@ async function provision(local) {
 
   await serviceInsert(local, "user_profiles", [{
     id: identities.owner.id,
+    user_id: identities.owner.id,
     role: "admin",
     is_active: true,
     platform_role: "super_admin",
@@ -188,6 +200,7 @@ async function provision(local) {
     ["tenantB", "sales", companyB, businessUnitB1, branchB1],
   ].map(([label, role, company, unit, branch]) => ({
     id: identities[label].id,
+    user_id: identities[label].id,
     role,
     is_active: true,
     platform_role: "user",

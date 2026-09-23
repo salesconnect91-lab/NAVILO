@@ -197,3 +197,12 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - Added `scripts/phase2b_local_security_tests.mjs`. It accepts only `localhost:54321`, explicitly refuses the production ref, reads local status internally, creates six short-lived synthetic Auth identities with in-memory passwords, provisions 2 companies with 2 BUs and 2 branches each, and exercises positive controls plus foreign-company/customer, unassigned BU/branch, forged owner-only assignment, viewer, revoked-role and anonymous cases. Its output excludes credentials and emails.
 - Verification for this continuation: local runner syntax PASS; migration filename/SQL-sanity/strict-dependency/object-order checks all 0 findings; 23 migration-checker unit tests PASS; `npm run check` PASS (TypeScript, 19 test files/81 tests, Vite build). Known main-bundle warning remains 3,150.13 kB minified / 882.09 kB gzip. The actual authenticated test run is still PENDING and must not be reported as PASS until its JSON summary is captured.
 - Production Supabase, Toqeer Builder, `main` and Vercel production remain unchanged.
+
+## Phase 2B first authenticated-run attempt — profile insert repair (2026-09-23)
+
+- User pulled exact SHA `885e2cee36cdb838ed7ac6c07ec5da83a6577149` and executed the local-only runner against the already-running clean local stack.
+- Local guard/status and Auth Admin creation succeeded. The runner created six synthetic local Auth identities, then stopped on the first `user_profiles` insert with HTTP 400; it did not reach companies, BUs, branches or negative authorization calls.
+- Root cause is exact schema inheritance: migration `0005` created required `user_profiles.user_id`; later `create table if not exists` did not remove it. The fixture omitted that column. Development now sets `user_id` equal to the same Auth UUID as `id` for owner and all tenant profiles.
+- The Windows `shell:true` invocation was replaced with direct `npx.cmd` execution, removing the Node DEP0190 warning. Future HTTP failures include only sanitized database code/message; secrets and emails remain excluded.
+- Existing orphan synthetic users are confined to the disposable local Auth database. A new run uses unique synthetic emails, so no manual cleanup or local reset is required before rerunning.
+- Actual authorization matrix remains PENDING. Production/main/Vercel/Toqeer remain unchanged.
