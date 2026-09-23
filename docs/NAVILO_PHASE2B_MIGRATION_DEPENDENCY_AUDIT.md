@@ -1,5 +1,9 @@
 # NAVILO Phase 2B — Migration Dependency Audit
 
+## Windows replay continuation — sales-posting rename collision
+
+The restored sales core migration now applies, exposing an ordering assumption in the next wrapper migration: it tried to rename `post_sales_invoice(uuid)` to an already restored `post_sales_invoice_core(uuid)`. The wrapper now follows the same replay-safe pattern already used for return notes—rename only when the internal function is absent, then replace the public wrapper. Repository-wide function-rename review found no second unguarded rename-to-existing target.
+
 ## Windows replay continuation — restored function terminators
 
 PostgreSQL reached the restored sales-posting function and failed at its following `revoke` because `$function$` lacked a terminating semicolon. Batch scan found the identical defect in the later restored return-note function. Both are corrected to `$function$;`, with a repository sanity guard. This fixes the evidenced syntax form only; complete replay remains the acceptance gate.

@@ -1,6 +1,12 @@
-alter function public.post_sales_invoice(uuid) rename to post_sales_invoice_core;
+DO $$
+BEGIN
+  IF to_regprocedure('public.post_sales_invoice_core(uuid)') IS NULL THEN
+    ALTER FUNCTION public.post_sales_invoice(uuid)
+      RENAME TO post_sales_invoice_core;
+  END IF;
+END $$;
 
-create function public.post_sales_invoice(p_order_id uuid)
+create or replace function public.post_sales_invoice(p_order_id uuid)
 returns jsonb
 language plpgsql
 security definer

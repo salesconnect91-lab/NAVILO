@@ -1,5 +1,11 @@
 # NAVILO audit handoff — 2026-09-22
 
+## Latest stop point — Windows replay MIG-11, 2026-09-23
+
+Windows replay passed the repaired delimiter and terminator migrations and reached `20260908174200_enforce_sales_post_business_unit_scope.sql`. It failed because the prior reconciled migration had already restored `post_sales_invoice_core(uuid)`, while this migration unconditionally tried to rename the public function to the same name. The development repair conditionally renames only if core is absent and replaces the public wrapper safely. The only other function-rename case is already guarded. Full replay remains pending; production, `main`, Vercel and hosted data are unchanged.
+
+Verification after the replay-safe wrapper repair: SQL sanity 0 findings; 19 migration-checker tests PASS; version/dependency/object-order checks PASS; typecheck PASS; 19 test files/81 tests PASS; Vite build PASS with the known bundle warning. Windows fresh replay remains the next gate.
+
 ## Latest stop point — Windows replay MIG-10, 2026-09-23
 
 The replay after the discount-delimiter repair advanced to the restored `post_sales_invoice_core(uuid)` migration, then stopped at the following `revoke` because the `$function$` closing tag lacked `;`. Batch scan found and repaired this file plus the later restored return-note function with the same defect. A regression check is included. Full replay is not yet PASS. Production, `main`, Vercel and hosted data remain unchanged.

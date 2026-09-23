@@ -49,6 +49,12 @@ REQUIRED_SNIPPETS = {
         "revoke all on function public.apply_stock_movement(",
         "grant execute on function public.apply_stock_movement(",
     ),
+    "20260908174200_enforce_sales_post_business_unit_scope.sql": (
+        "IF to_regprocedure('public.post_sales_invoice_core(uuid)') IS NULL THEN",
+        "ALTER FUNCTION public.post_sales_invoice(uuid)",
+        "RENAME TO post_sales_invoice_core",
+        "create or replace function public.post_sales_invoice(p_order_id uuid)",
+    ),
 }
 
 

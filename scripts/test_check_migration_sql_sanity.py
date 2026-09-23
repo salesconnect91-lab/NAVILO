@@ -80,6 +80,14 @@ class MigrationSqlSanityTests(unittest.TestCase):
             )
             self.assertTrue(any("ACL precedes" in finding for finding in inspect(directory)))
 
+    def test_sales_core_wrapper_must_be_replay_safe(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "20260908174200_enforce_sales_post_business_unit_scope.sql").write_text(
+                "alter function public.post_sales_invoice(uuid) rename to post_sales_invoice_core;"
+            )
+            self.assertGreater(len(inspect(directory)), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

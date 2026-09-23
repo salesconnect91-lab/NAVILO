@@ -1,5 +1,11 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Phase 2B Windows replay update — sales core rename collision, 2026-09-23
+
+After both restored-function terminators were repaired, Windows replay advanced through `20260908174000_restore_unrecorded_post_sales_invoice_core.sql` and failed at statement 0 of `20260908174200_enforce_sales_post_business_unit_scope.sql`: that migration unconditionally renamed `post_sales_invoice(uuid)` to `post_sales_invoice_core`, but the immediately preceding reconciled live-history migration had already restored the core function. The wrapper migration is now replay-safe: rename only when the core is absent, then `CREATE OR REPLACE` the public wrapper. A full-chain scan of function renames found one other rename-to-existing-name case, and it was already correctly protected by `to_regprocedure()`.
+
+Post-repair gates: SQL sanity 0 findings; 19 migration-checker tests PASS; migration filename/dependency/object-order checks PASS; typecheck PASS; 19 test files/81 tests PASS; build PASS with the existing large-bundle warning.
+
 ## Phase 2B Windows replay update — missing function terminators, 2026-09-23
 
 The next Windows replay reached `20260908174000_restore_unrecorded_post_sales_invoice_core.sql` and PostgreSQL stopped at the `revoke` following `post_sales_invoice_core(uuid)`. The function body closed with `$function$` but lacked the required statement semicolon. A repository-wide scan found the same defect in the later `20260909185000_restore_unrecorded_create_and_post_return_note_internal.sql`. Both exact terminators are repaired together and the sanity checker now rejects this pattern. Full replay remains unverified.

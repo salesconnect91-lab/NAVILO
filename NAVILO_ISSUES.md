@@ -1,5 +1,13 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## MIG-11 / P0 release gate — sales posting core rename collision
+
+- **Evidence:** fresh replay applied `20260908174000_restore_unrecorded_post_sales_invoice_core.sql`, then `20260908174200_enforce_sales_post_business_unit_scope.sql` failed with SQLSTATE 42723 because `post_sales_invoice_core(uuid)` already existed.
+- **Root cause:** reconciliation restored the live-only core definition before a historical wrapper migration whose original assumption was that only `post_sales_invoice(uuid)` existed.
+- **Batch review:** all repository `ALTER FUNCTION ... RENAME TO` statements were checked. The return-note rename has an existing `to_regprocedure()` guard; this sales rename was the only unguarded collision.
+- **Fix:** guard the rename when the core is absent and use `CREATE OR REPLACE` for the public permission/BU-scoped wrapper. Preserve existing core implementation and later ACL hardening.
+- **Acceptance:** regression contract passes and fresh replay proceeds beyond `20260908174200` through the complete chain.
+
 ## MIG-10 / P0 release gate — missing semicolons after restored function bodies
 
 - **Evidence:** Windows replay reached the restored `post_sales_invoice_core(uuid)` definition and failed when PostgreSQL encountered the following `revoke`; the body ended with `$function$` instead of `$function$;`.
