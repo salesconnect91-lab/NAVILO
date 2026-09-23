@@ -309,12 +309,12 @@ export default function ProfitLoss() {
 
         <header className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Profit & Loss Statement / نفع و نقصان</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Profit & Loss Statement</h1>
             <p className="mt-1 text-sm text-slate-500">For the period {formatReportDate(fromDate)} to {formatReportDate(toDate)}</p>
             <p className="mt-1 text-xs text-slate-400">Year-end closing journals are excluded from P&L presentation.</p>
           </div>
           <button type="button" onClick={() => void fetchPL()} disabled={loading} className="no-print flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh / تازہ کریں
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </button>
         </header>
 
@@ -347,14 +347,14 @@ export default function ProfitLoss() {
             </div>
 
             <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <StatementSection title="Operating Revenue / آپریٹنگ آمدنی" section={data.operatingRevenue} tone="income" />
-              <StatementSection title="Less: Cost of Sales / فروخت کی لاگت" section={data.costOfSales} tone="expense" />
+              <StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" />
+              <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" />
               <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} />
-              <StatementSection title="Operating Expenses / آپریٹنگ اخراجات" section={data.operatingExpenses} tone="expense" />
+              <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" />
               <ResultRow label="Operating Profit / (Loss)" amount={metrics.operatingProfit} />
-              {(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income / دیگر آمدنی" section={data.otherIncome} tone="income" />}
-              {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses / دیگر اخراجات" section={data.otherExpenses} tone="expense" />}
-              <ResultRow label="Net Profit / (Loss) / خالص نفع یا نقصان" amount={metrics.netProfit} prominent />
+              {(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income" section={data.otherIncome} tone="income" />}
+              {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses" section={data.otherExpenses} tone="expense" />}
+              <ResultRow label="Net Profit / (Loss)" amount={metrics.netProfit} prominent />
               <div className="grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-3" data-report-total>
                 <div><span className="block text-xs text-slate-500">Total Income</span><span className="font-mono font-bold text-emerald-700">{formatCurrency(metrics.totalIncome)}</span></div>
                 <div><span className="block text-xs text-slate-500">Total Expenses</span><span className="font-mono font-bold text-rose-700">{formatCurrency(metrics.totalExpenses)}</span></div>
