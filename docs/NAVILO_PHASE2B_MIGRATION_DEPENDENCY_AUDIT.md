@@ -228,3 +228,24 @@ rejects the three disproved filenames. Post-reconciliation static evidence is
 0 empty files, 0 duplicate IDs, 0 known misversioned files, 0 SQL-sanity
 findings, 0 strict-dependency errors and 0 explicit object-order errors; all 22
 migration-checker unit tests pass. Full PostgreSQL replay remains unverified.
+
+## Windows replay continuation — already-hardened sales core
+
+Replay at `1f0a957a8b0eaff573b37468e3f80e4e02b77a47` confirmed the reconciled
+branch-isolation migrations apply in their live order. It advanced through
+`20260914212031`, then migration `20260914225847` raised `P0001` because its
+dynamic `pg_get_functiondef` replacement made no change.
+
+This was not evidence that the required security behavior was absent. The
+earlier exact core restoration already contains all intended final markers:
+invoice selection is scoped to active company and business unit, `v_user_id`
+is derived from the locked invoice row, and a missing invoice owner is rejected.
+The later patch was written only for a pre-hardening body and was not
+idempotent against the final definition.
+
+Development now accepts a no-op only when all four explicit final-state markers
+are present. Otherwise the original transformation runs and still raises if its
+known legacy pattern does not match. A regression contract protects both the
+final-state validation and the fail-closed unknown-pattern path. Static gates
+remain clean and 23 migration-checker tests pass; only another full fresh replay
+can prove the remaining chain.

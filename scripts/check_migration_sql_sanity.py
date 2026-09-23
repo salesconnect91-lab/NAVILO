@@ -83,6 +83,14 @@ REQUIRED_SNIPPETS = {
         "alter table public.stock_movements add column if not exists transfer_no text",
         "create or replace function public.next_stock_transfer_no(",
     ),
+    "20260914225847_restore_sales_post_tenant_user_resolution.sql": (
+        "position('v_user_id := v_order.user_id;' in v_def)>0",
+        "position('Invoice owner context is missing.' in v_def)>0",
+        "position('company_id = public.current_company_id()' in v_def)>0",
+        "position('business_unit_id = public.current_business_unit_id()' in v_def)>0",
+        "if v_new=v_def then raise exception 'post_sales_invoice_core patch pattern did not match'; end if;",
+        "if v_new<>v_def then execute v_new; end if;",
+    ),
 }
 
 

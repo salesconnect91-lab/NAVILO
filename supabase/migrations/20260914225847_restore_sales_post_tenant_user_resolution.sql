@@ -3,10 +3,17 @@ declare v_def text; v_new text;
 begin
  if to_regprocedure('public.post_sales_invoice_core(uuid)') is null then raise exception 'post_sales_invoice_core(uuid) is required before tenant user resolution hardening'; end if;
  select pg_get_functiondef('public.post_sales_invoice_core(uuid)'::regprocedure) into v_def;
- v_new:=replace(v_def,'v_user_id uuid := public.legacy_data_user_id();','v_user_id uuid;');
- v_new:=regexp_replace(v_new,'if v_user_id is null then.*?if not found then\s+raise exception ''Sales invoice not found or access denied\.'';\s+end if;',E'select *\n  into v_order\n  from public.sales_orders\n  where id = p_order_id\n    and company_id = public.current_company_id()\n    and business_unit_id = public.current_business_unit_id()\n  for update;\n\n  if not found then\n    raise exception ''Sales invoice not found or access denied.'';\n  end if;\n\n  v_user_id := v_order.user_id;\n  if v_user_id is null then\n    raise exception ''Invoice owner context is missing.'';\n  end if;','s');
- if v_new=v_def then raise exception 'post_sales_invoice_core patch pattern did not match'; end if;
- execute v_new;
+ if position('v_user_id := v_order.user_id;' in v_def)>0
+    and position('Invoice owner context is missing.' in v_def)>0
+    and position('company_id = public.current_company_id()' in v_def)>0
+    and position('business_unit_id = public.current_business_unit_id()' in v_def)>0 then
+   v_new:=v_def;
+ else
+   v_new:=replace(v_def,'v_user_id uuid := public.legacy_data_user_id();','v_user_id uuid;');
+   v_new:=regexp_replace(v_new,'if v_user_id is null then.*?if not found then\s+raise exception ''Sales invoice not found or access denied\.'';\s+end if;',E'select *\n  into v_order\n  from public.sales_orders\n  where id = p_order_id\n    and company_id = public.current_company_id()\n    and business_unit_id = public.current_business_unit_id()\n  for update;\n\n  if not found then\n    raise exception ''Sales invoice not found or access denied.'';\n  end if;\n\n  v_user_id := v_order.user_id;\n  if v_user_id is null then\n    raise exception ''Invoice owner context is missing.'';\n  end if;','s');
+   if v_new=v_def then raise exception 'post_sales_invoice_core patch pattern did not match'; end if;
+ end if;
+ if v_new<>v_def then execute v_new; end if;
 end $$;
 
 create or replace function public.post_sales_invoice(p_order_id uuid)

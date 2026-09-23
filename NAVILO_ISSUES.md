@@ -148,3 +148,12 @@ All these are acceptance tests to execute, not results.
 - **Root cause:** Three correct historical SQL bodies were committed with incorrect timestamps, reversing provider/consumer execution order on a fresh database.
 - **Fix:** Rename to exact live identities: `20260913073121_complete_transaction_branch_isolation_v2.sql`, `20260913073519_enforce_operating_location_write_scope_globally.sql`, and `20260913081611_index_branch_scoped_foreign_keys.sql`. Add a filename regression gate rejecting the three disproved identities.
 - **Acceptance:** Fresh replay applies the branch column provider, global write scope, and indexes in order; the complete repository chain finishes; authenticated branch-negative tests pass. Production history remains unchanged.
+
+## MIG-15 — Sales-core hardening migration rejects an already-hardened function
+
+- **Status:** Confirmed replay compatibility bug; development repair prepared; fresh replay pending.
+- **Severity:** Critical release blocker.
+- **Evidence:** Fresh replay at `1f0a957a8b0eaff573b37468e3f80e4e02b77a47` advanced through `20260914212031` and failed in `20260914225847_restore_sales_post_tenant_user_resolution.sql` with SQLSTATE `P0001`. The restored `post_sales_invoice_core(uuid)` already has company/BU scoping, derives `v_user_id` from the locked invoice row, and rejects missing owner context, so the transformation correctly produced no text change but the migration raised unconditionally.
+- **Root cause:** A later dynamic `pg_get_functiondef` text patch was non-idempotent against the exact secure final function definition restored earlier for clean-replay completeness.
+- **Fix:** Treat only the explicitly verified secure final markers as a no-op. Otherwise retain the original transformation and mismatch exception. Add regression snippets/test so the final-state guard cannot be removed silently.
+- **Acceptance:** Fresh replay applies `20260914225847` and the entire remaining chain; catalog definition still contains company/BU scope and invoice-owner resolution; authenticated cross-tenant/forged-invoice calls are denied without mutation.

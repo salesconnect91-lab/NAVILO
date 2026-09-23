@@ -107,6 +107,15 @@ class MigrationSqlSanityTests(unittest.TestCase):
                 any("missing required legacy foundation" in finding for finding in findings)
             )
 
+    def test_sales_core_dynamic_patch_must_accept_verified_final_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            filename = "20260914225847_restore_sales_post_tenant_user_resolution.sql"
+            (directory / filename).write_text(
+                "select pg_get_functiondef('public.post_sales_invoice_core(uuid)'::regprocedure);"
+            )
+            self.assertGreater(len(inspect(directory)), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

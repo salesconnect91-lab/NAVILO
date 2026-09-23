@@ -178,3 +178,12 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - Development now uses those exact live identities and rejects the three disproved filenames. Static gates: 0 empty, 0 duplicate, 0 misversioned, 0 SQL-sanity findings, 0 strict-dependency errors, 0 explicit object-order errors; 22 migration-checker unit tests PASS.
 - Full application gate rerun after reconciliation: `npm run check` PASS — TypeScript typecheck, 19 test files/81 tests, and Vite build. Known primary bundle warning remains 3,150.13 kB minified / 882.09 kB gzip.
 - No production/main/Vercel/Toqeer mutation occurred. Fresh Windows replay is still required; authenticated synthetic tenant/BU/branch/RPC tests remain pending.
+
+## Phase 2B Windows replay checkpoint — sales-core idempotency (2026-09-23)
+
+- Replay at remote SHA `1f0a957a8b0eaff573b37468e3f80e4e02b77a47` proved the branch-column provider, write-scope and index migrations execute in correct order and advanced through `20260914212031`.
+- It failed at `20260914225847_restore_sales_post_tenant_user_resolution.sql` with `P0001: post_sales_invoice_core patch pattern did not match`.
+- The earlier restored core is already in the intended secure final state. Development now no-ops only when company/BU scoping, invoice-row owner resolution and missing-owner rejection are all present; unknown definitions still fail instead of being silently accepted.
+- Static gates: 0 empty, duplicate or misversioned files; 0 SQL-sanity, strict-dependency or object-order findings; 23 migration-checker tests PASS. Full application gate and fresh PostgreSQL replay remain required after this change.
+- Full application gate rerun: `npm run check` PASS — TypeScript, 19 test files/81 tests and Vite build. Known primary bundle warning remains 3,150.13 kB minified / 882.09 kB gzip.
+- Production/main/Vercel/Toqeer remain unchanged. After the next fresh replay, continue to synthetic authenticated company/BU/branch/RPC negative tests before UI redesign implementation.
