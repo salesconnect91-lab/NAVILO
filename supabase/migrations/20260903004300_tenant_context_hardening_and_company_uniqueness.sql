@@ -280,7 +280,14 @@ $$;
 do $$
 declare r record; v_has_user boolean;
 begin
-  for r in select table_name from public.tenant_table_modules loop
+  for r in
+    select m.table_name
+    from public.tenant_table_modules m
+    join information_schema.tables t
+      on t.table_schema='public'
+     and t.table_name=m.table_name
+     and t.table_type='BASE TABLE'
+  loop
     select exists(select 1 from information_schema.columns c where c.table_schema='public' and c.table_name=r.table_name and c.column_name='user_id') into v_has_user;
     execute format('drop trigger if exists tenant_context_stamp on public.%I', r.table_name);
     if v_has_user then
