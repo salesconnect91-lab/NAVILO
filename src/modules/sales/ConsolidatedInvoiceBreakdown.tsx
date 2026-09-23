@@ -195,7 +195,7 @@ export default function ConsolidatedInvoiceBreakdown({
             <div style="font-size: 12px;padding:8px 0">
               <strong>Date:</strong> ${invoice.sales_order?.order_date || ""}
               &nbsp;&nbsp;
-              <strong>Hawala / حوالہ:</strong> ${invoice.reference_name || "—"}
+              <strong>Hawala:</strong> ${invoice.reference_name || "—"}
               &nbsp;&nbsp;
               <strong>Reference:</strong> ${invoice.reference_no || "—"}
             </div>
@@ -204,7 +204,7 @@ export default function ConsolidatedInvoiceBreakdown({
               <thead>
                 <tr>
                   <th>SKU</th>
-                  <th>Item / آئٹم</th>
+                  <th>Item</th>
                   <th style="text-align:right">Qty</th>
                   <th style="text-align:right">Rate</th>
                   <th style="text-align:right">Amount</th>
@@ -231,7 +231,7 @@ export default function ConsolidatedInvoiceBreakdown({
               invoicePayments.length
                 ? `
                 <div style="margin-top:8px;font-size:11px">
-                  <strong>Payments / وصولیاں:</strong>
+                  <strong>Payments:</strong>
                   ${invoicePayments
                     .map(
                       (payment) =>
@@ -275,31 +275,31 @@ export default function ConsolidatedInvoiceBreakdown({
         </style>
       </head>
       <body>
-        <h1>Consolidated Invoice / مجموعی بل</h1>
+        <h1>Consolidated Invoice</h1>
         <div class="sub">${consolidationNo}</div>
 
         <div style="font-size:12px">
-          <strong>Main Customer / مرکزی کسٹمر:</strong> ${customerName}<br/>
-          <strong>Date / تاریخ:</strong> ${consolidationDate}
+          <strong>Main Customer:</strong> ${customerName}<br/>
+          <strong>Date:</strong> ${consolidationDate}
         </div>
 
         ${detailedHtml()}
 
         <div class="summary">
           <div>
-            <span>Previous Balance / سابقہ بیلنس</span>
+            <span>Previous Balance</span>
             <strong>${money(previousBalance)}</strong>
           </div>
           <div>
-            <span>Current Bills / موجودہ بل</span>
+            <span>Current Bills</span>
             <strong>${money(billsTotal)}</strong>
           </div>
           <div>
-            <span>Received / وصول شدہ</span>
+            <span>Received</span>
             <strong>${money(receivedAmount)}</strong>
           </div>
           <div class="closing">
-            <span>Closing Balance / بقایا بیلنس</span>
+            <span>Closing Balance</span>
             <strong>${money(closingBalance)}</strong>
           </div>
         </div>
@@ -400,7 +400,7 @@ export default function ConsolidatedInvoiceBreakdown({
       <div className="flex flex-wrap justify-end gap-2">
         <button type="button" className="btn" onClick={printDetailed}>
           <Printer className="h-4 w-4" />
-          Detailed Print / تفصیلی پرنٹ
+          Detailed Print
         </button>
 
         <button type="button" className="btn" onClick={downloadPdf}>
@@ -427,7 +427,7 @@ export default function ConsolidatedInvoiceBreakdown({
                   {invoice.sales_order?.order_no}
                 </div>
                 <div className="text-xs text-slate-500">
-                  {invoice.sales_order?.order_date} • Hawala / حوالہ:{" "}
+                  {invoice.sales_order?.order_date} • Hawala:{" "}
                   <strong>{invoice.reference_name || "—"}</strong>
                 </div>
               </div>
@@ -442,7 +442,7 @@ export default function ConsolidatedInvoiceBreakdown({
                 <thead>
                   <tr className="border-b text-left text-slate-500">
                     <th className="px-4 py-2">SKU</th>
-                    <th className="px-4 py-2">Item / آئٹم</th>
+                    <th className="px-4 py-2">Item</th>
                     <th className="px-4 py-2 text-right">Qty</th>
                     <th className="px-4 py-2 text-right">Rate</th>
                     <th className="px-4 py-2 text-right">Amount</th>
@@ -476,7 +476,7 @@ export default function ConsolidatedInvoiceBreakdown({
             {invoicePayments.length > 0 && (
               <div className="border-t bg-emerald-50/50 px-4 py-3 text-xs">
                 <div className="mb-2 font-semibold">
-                  Payments / وصولیاں
+                  Payments
                 </div>
 
                 {invoicePayments.map((payment) => (
@@ -501,22 +501,22 @@ export default function ConsolidatedInvoiceBreakdown({
 
       <div className="ml-auto max-w-md rounded-xl border bg-white p-4 text-sm">
         <div className="flex justify-between py-2">
-          <span>Previous Balance / سابقہ بیلنس</span>
+          <span>Previous Balance</span>
           <strong>{money(previousBalance)}</strong>
         </div>
 
         <div className="flex justify-between border-t py-2">
-          <span>Current Bills / موجودہ بل</span>
+          <span>Current Bills</span>
           <strong>{money(billsTotal)}</strong>
         </div>
 
         <div className="flex justify-between border-t py-2 text-emerald-700">
-          <span>Received / وصول شدہ</span>
+          <span>Received</span>
           <strong>- {money(receivedAmount)}</strong>
         </div>
 
         <div className="flex justify-between border-t-2 border-slate-900 pt-3 text-base font-bold">
-          <span>Closing Balance / بقایا بیلنس</span>
+          <span>Closing Balance</span>
           <strong>{money(closingBalance)}</strong>
         </div>
       </div>
