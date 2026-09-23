@@ -268,17 +268,17 @@ export default function Suppliers() {
   };
 
   const columns: Column<SupplierRow>[] = [
-    { key: "name", label: "Name / نام", render: (r) => <div data-business-data><div data-language-code="en" className="font-medium text-slate-900">{r.name}</div><div data-language-code="ur" dir="rtl" className="text-sm text-slate-500">{r.name_urdu ?? "—"}</div></div> },
+    { key: "name", label: "Name", render: (r) => <div data-business-data><div data-language-code="en" className="font-semibold text-slate-900">{r.name}</div><div data-language-code="ur" dir="rtl" className="text-sm text-slate-500">{r.name_urdu ?? "—"}</div></div> },
     { key: "tax", label: "Tax Registration", render: (r) => <div><div className="font-medium capitalize">{r.tax_registration_status ?? "unregistered"}</div><div className="text-xs text-slate-500">{r.strn ? `STRN ${r.strn}` : r.ntn ? `NTN ${r.ntn}` : "—"}</div></div> },
-    { key: "email", label: "Email / ای میل", render: (r) => r.email ?? "—" },
-    { key: "phone", label: "Phone / فون", render: (r) => r.phone ?? "—" },
-    { key: "address", label: "Address / پتہ", render: (r) => r.address ?? "—" },
-    { key: "status", label: "Status / حیثیت", render: (r) => <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${r.is_active === false ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-700"}`}>{r.is_active === false ? "Inactive" : "Active"}</span> },
-    { key: "actions", label: "", className: "text-right", render: (r) => <div className="flex justify-end gap-2"><button onClick={() => openEdit(r)} className="text-primary-600 text-sm font-medium">Edit / ترمیم</button><button onClick={() => setDeleteId(r.id)} className={`${r.is_active === false ? "text-emerald-600" : "text-amber-600"} text-sm font-medium`}>{r.is_active === false ? "Activate" : "Deactivate"}</button></div> },
+    { key: "email", label: "Email", render: (r) => r.email ?? "—" },
+    { key: "phone", label: "Phone", render: (r) => r.phone ?? "—" },
+    { key: "address", label: "Address", render: (r) => r.address ?? "—" },
+    { key: "status", label: "Status", render: (r) => <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${r.is_active === false ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-700"}`}>{r.is_active === false ? "Inactive" : "Active"}</span> },
+    { key: "actions", label: "", className: "text-right", render: (r) => <div className="flex justify-end gap-2"><button onClick={() => openEdit(r)} className="text-primary-600 text-sm font-medium">Edit</button><button onClick={() => setDeleteId(r.id)} className={`${r.is_active === false ? "text-emerald-600" : "text-amber-600"} text-sm font-medium`}>{r.is_active === false ? "Activate" : "Deactivate"}</button></div> },
   ];
 
   return <div>
-    <PageHeader title="Suppliers / سپلائرز" subtitle="Vendor accounts / سپلائر اکاؤنٹس" action={<div className="flex flex-wrap items-center gap-2"><button onClick={downloadTemplate} className="btn-secondary">Template / ٹیمپلیٹ</button><label className={`btn-secondary cursor-pointer ${importing ? "opacity-50" : ""}`}>{importing ? "Importing..." : "Import Excel / ایکسل امپورٹ"}<input type="file" accept=".xlsx,.xls,.csv" disabled={importing} onChange={handleImport} className="hidden" /></label><button onClick={exportExcel} className="btn-secondary">Export Excel / ایکسل ایکسپورٹ</button><button onClick={() => window.print()} className="btn-secondary">Print / پرنٹ</button><button onClick={openCreate} className="btn-primary">+ New Supplier</button></div>} />
+    <PageHeader title="Suppliers" subtitle="Vendor accounts" action={<div className="flex flex-wrap items-center gap-2"><button onClick={downloadTemplate} className="btn-secondary">Template</button><label className={`btn-secondary cursor-pointer ${importing ? "opacity-50" : ""}`}>{importing ? "Importing..." : "Import Excel"}<input type="file" accept=".xlsx,.xls,.csv" disabled={importing} onChange={handleImport} className="hidden" /></label><button onClick={exportExcel} className="btn-secondary">Export Excel</button><button onClick={() => window.print()} className="btn-secondary">Print</button><button onClick={openCreate} className="btn-primary">+ New Supplier</button></div>} />
     {error && <ErrorBanner message={error} />}
     <DataTable columns={columns} rows={rows} loading={loading} emptyMessage="No suppliers yet." />
 
