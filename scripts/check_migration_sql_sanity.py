@@ -146,6 +146,21 @@ REQUIRED_SNIPPETS = {
         "grant execute on function public.apply_inventory_cost_in(uuid, numeric, numeric, numeric)",
         "notify pgrst, 'reload schema';",
     ),
+    "20260923193415_restore_sales_charge_cost_and_journal_tenant_scope.sql": (
+        "alter table public.sales_order_charges",
+        "add column if not exists charge_type text not null default 'recovery'",
+        "add column if not exists cost_amount numeric(14,2) not null default 0",
+        "add column if not exists cost_account_id uuid",
+        "constraint sales_order_charges_charge_type_check",
+        "check (charge_type in ('recovery', 'cost'))",
+        "pg_get_function_identity_arguments(p.oid) = 'p_entry_id uuid'",
+        "AND je.operating_location_id = public.current_operating_location_id()",
+        "post_journal_entry tenant-owner patch pattern did not match",
+        "revoke all on function public.post_journal_entry(uuid) from public, anon;",
+        "grant execute on function public.post_journal_entry(uuid)",
+        "to authenticated, service_role;",
+        "notify pgrst, 'reload schema';",
+    ),
 }
 
 

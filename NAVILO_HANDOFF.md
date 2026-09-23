@@ -292,3 +292,14 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - Prepared `20260923190959_restore_consolidated_descriptions_and_bu_inventory_cost.sql`. It restores exact columns and intended tenant-aware costing, retains permission checks/pinned search paths, revokes public/anon/authenticated direct execution and grants service role.
 - Pre-commit gates: migration versions, SQL sanity, dependency and object-order checks all 0 findings; **28 checker tests PASS**; runner syntax PASS; TypeScript PASS; **19 test files / 81 tests PASS**; Vite production build PASS. The known 3,150.13 kB main bundle warning remains.
 - Safe resume: use only `C:\NAVILO-latest`, pull the next development SHA, run `npx supabase migration up --local`, then rerun Phase 3. Never use `db push`, link production, merge main or deploy.
+
+## Phase 3 sixth Windows run and prepared repair — 2026-09-23
+
+- Exact tested SHA: `9f295b38f26c150e3fc10afe052d870cdfa4c310`; environment local-only, production ref refused, synthetic data only.
+- Result: **32 total / 27 PASS / 5 FAIL**. Purchase posting, stock, balanced AP journal, snapshots, duplicate atomicity and posted immutability now pass. Existing isolation, permissions, manual accounting/reversal and period gates remain passing.
+- Independent root 1: `pay_supplier` reaches `post_journal_entry`, which returns `Journal entry not found`. The journal is company-owned/stamped, but the post lookup combines tenant boundaries with a legacy-owner equality unsuitable for an accounts-role caller. Payment status and reversal failures are dependent.
+- Independent root 2: sales posting reaches `sales_order_charges.cost_account_id`, absent from clean replay. Read-only production catalog confirms `charge_type`, `cost_amount` and `cost_account_id` plus the charge-type check. Returns is dependent on sales posting.
+- Prepared migration `20260923193415_restore_sales_charge_cost_and_journal_tenant_scope.sql`: restores evidenced fields/constraint; scopes journal lookup to current company, BU and active branch; derives owner from the locked row; retains accounting permission, pinned search path and authenticated/service-role ACL.
+- Runner negative assertions now require the correct outstanding-limit and already-reversed errors, preventing unrelated denials/PGRST signature errors from being counted as business-control passes.
+- Post-change gates: migration version/sanity/dependency/object-order checks 0 findings; **29 checker tests PASS**; runner syntax PASS; TypeScript PASS; **19 files / 81 application tests PASS**; Vite production build PASS with the existing 3,150.13 kB main-bundle warning.
+- Production Supabase, `main`, Vercel and hosted data remain unchanged. Local migration execution and complete matrix rerun are pending.

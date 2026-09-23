@@ -95,3 +95,15 @@ At exact SHA `2499db182d168f224af9037114ea54f8d4452f43`, local migrations were u
 The purchase error is a chain inconsistency: `20260905013001_restore_business_unit_inventory_uniqueness.sql` drops old user/item uniqueness and installs unique company/BU/item scope, but the replayed writer still conflicts on `(user_id,item_id)`. Read-only production catalog confirms the intended final reader/writer filters company and BU and conflicts on `(company_id,business_unit_id,item_id)`.
 
 Read-only production catalog/history also confirms nullable descriptions on both consolidated line tables. Development migration `20260923190959_restore_consolidated_descriptions_and_bu_inventory_cost.sql` restores those columns and the evidenced tenant-aware functions. It preserves module permission checks, pinned `public,pg_temp` search paths and service-role-only direct execution. Static checks, 28 migration-checker tests, TypeScript, 19 files/81 tests and the production build pass; the existing bundle-size warning remains. Actual local migration and business rerun remain pending.
+
+## Sixth Windows execution — purchase verified; payment and sales-cost gaps
+
+At exact SHA `9f295b38f26c150e3fc10afe052d870cdfa4c310`, the expanded matrix returned **27/32 PASS**. Purchase posting now passed end to end through stock increase, balanced AP journal, snapshots, duplicate protection and posted immutability. This proves the consolidated-description and BU inventory-cost repair locally.
+
+Supplier payment failed inside the nested journal post with `P0001: Journal entry not found`, so AP status remained unpaid. The later reversal request lacked the unavailable journal ID; PostgREST therefore reported only the two supplied argument names. That is dependency evidence, not a separate reversal signature defect. The journal poster's header lookup mixes valid company/BU scope with a redundant legacy-owner equality. The repair locks by current company, BU and active branch, selects the stored row owner into `v_user_id`, then retains all existing downstream owner/account/line checks.
+
+Sales advanced to `sales_order_charges.cost_account_id`, proving the preceding description repair. Clean replay is missing the cost fields consumed by posting and charge-maintenance functions. Read-only production catalog confirms `charge_type text not null default 'recovery'`, `cost_amount numeric(14,2) not null default 0`, nullable `cost_account_id` with chart-of-accounts FK and a `recovery|cost` check.
+
+Migration `20260923193415_restore_sales_charge_cost_and_journal_tenant_scope.sql` prepares both repairs. The runner now validates the reason for negative outcomes so an unrelated permission, lookup or PostgREST error cannot satisfy the overpayment or duplicate-reversal assertions. Local application and matrix execution remain pending.
+
+Post-change gates: zero migration version, SQL-sanity, dependency or object-order findings; 29 migration-checker tests; Node runner syntax; TypeScript; 19 files/81 application tests; and production build all pass. The known main-bundle warning remains.

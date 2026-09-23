@@ -301,7 +301,8 @@ async function testPurchase(local, fixture, tokens, business) {
     p_purchase_order_id: purchase.orderId,
     p_amount: 400,
   });
-  record("accounts-payable", "supplier overpayment is rejected", "denied", responseActual(overpay), !overpay.ok);
+  const overpayActual = responseActual(overpay);
+  record("accounts-payable", "supplier overpayment is rejected", "denied for outstanding-limit violation", overpayActual, !overpay.ok && overpayActual.includes("exceeds Purchase Invoice outstanding balance"));
 
   const reverse = await rpc(local, tokens.accountsA, "reverse_payment_voucher", {
     p_journal_entry_id: supplierPayment.data?.journal_entry_id,
@@ -319,7 +320,8 @@ async function testPurchase(local, fixture, tokens, business) {
     p_reversal_date: today,
     p_reason: "Must fail duplicate reversal",
   });
-  record("accounting", "duplicate supplier-payment reversal rejected", "denied", responseActual(reverseTwice), !reverseTwice.ok);
+  const reverseTwiceActual = responseActual(reverseTwice);
+  record("accounting", "duplicate supplier-payment reversal rejected", "denied as already reversed", reverseTwiceActual, !reverseTwice.ok && reverseTwiceActual.includes("already been reversed"));
 
   return purchase;
 }
@@ -381,7 +383,8 @@ async function testSales(local, fixture, tokens, business) {
     p_allocations: [{ sales_order_id: sale.orderId, amount: 300 }],
     p_amount: 300,
   });
-  record("accounts-receivable", "customer over-allocation is rejected", "denied", responseActual(overpay), !overpay.ok);
+  const overpayActual = responseActual(overpay);
+  record("accounts-receivable", "customer over-allocation is rejected", "denied for outstanding-limit violation", overpayActual, !overpay.ok && overpayActual.includes("exceeds outstanding balance"));
 
   const reverse = await rpc(local, tokens.accountsA, "reverse_payment_voucher", {
     p_journal_entry_id: receipt.data?.journal_entry_id,
