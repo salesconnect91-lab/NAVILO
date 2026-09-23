@@ -1,0 +1,28 @@
+create or replace function public.replace_purchase_order_consolidated_invoices(p_order_id uuid, p_consolidated_invoice_ids uuid[] default array[]::uuid[])
+returns jsonb language plpgsql security definer set search_path='public','pg_temp' as $$
+declare
+ v_actor uuid:=auth.uid(); v_company uuid:=public.current_company_id(); v_unit uuid:=public.current_business_unit_id(); v_location uuid:=public.current_operating_location_id();
+ v_order public.purchase_orders%rowtype; v_ids uuid[]:=coalesce(p_consolidated_invoice_ids,array[]::uuid[]); v_count int:=0; v_direct_charge_total numeric:=0; v_direct_charge_tax numeric:=0;
+begin
+ perform public.assert_module_permission('purchase','edit');
+ if v_actor is null or v_company is null or v_unit is null or v_location is null then raise exception 'Authentication, active company, business unit and branch are required.'; end if;
+ select * into v_order from public.purchase_orders where id=p_order_id and company_id=v_company and business_unit_id=v_unit and operating_location_id=v_location for update;
+ if not found then raise exception 'Main Purchase Invoice not found in the active company, business unit and branch.'; end if;
+ if v_order.status<>'draft' then raise exception 'Only draft Main Purchase Invoices can change Consolidated links.'; end if;
+ if exists(select 1 from unnest(v_ids)x(id) left join public.consolidated_purchase_invoices h on h.id=x.id where h.id is null or h.company_id<>v_company or h.business_unit_id<>v_unit or h.operating_location_id<>v_location or h.status<>'posted' or h.supplier_id is distinct from v_order.supplier_id or h.invoice_type is distinct from v_order.invoice_type) then raise exception 'Invalid Consolidated Purchase selection. It must be posted and match the active company, business unit, branch, supplier and invoice type.'; end if;
+ if exists(select 1 from public.purchase_order_consolidated_invoices l join unnest(v_ids)x(id) on x.id=l.consolidated_invoice_id where l.company_id=v_company and l.business_unit_id=v_unit and l.operating_location_id=v_location and l.purchase_order_id<>p_order_id) then raise exception 'One or more Consolidated Purchase Invoices are already used in another Main Purchase Invoice.'; end if;
+ delete from public.purchase_order_lines where order_id=p_order_id and company_id=v_company and business_unit_id=v_unit and operating_location_id=v_location and source_consolidated_purchase_invoice_id is not null;
+ delete from public.purchase_order_consolidated_invoices where purchase_order_id=p_order_id and company_id=v_company and business_unit_id=v_unit and operating_location_id=v_location;
+ insert into public.purchase_order_consolidated_invoices(user_id,company_id,business_unit_id,operating_location_id,purchase_order_id,consolidated_invoice_id) select v_actor,v_company,v_unit,v_location,p_order_id,x.id from(select distinct id from unnest(v_ids)u(id))x;
+ get diagnostics v_count=row_count;
+ insert into public.purchase_order_lines(user_id,company_id,business_unit_id,operating_location_id,order_id,item_id,qty,unit_cost,line_total,godown_id,tax_percent,source_consolidated_purchase_invoice_id)
+ select v_actor,v_company,v_unit,v_location,p_order_id,l.item_id,l.qty,l.unit_cost,l.line_total,l.godown_id,case when h.invoice_type='Tax Invoice' then l.tax_percent else 0 end,h.id from public.consolidated_purchase_invoice_lines l join public.consolidated_purchase_invoices h on h.id=l.invoice_id join unnest(v_ids)x(id) on x.id=h.id where l.company_id=v_company and l.business_unit_id=v_unit and l.operating_location_id=v_location and h.company_id=v_company and h.business_unit_id=v_unit and h.operating_location_id=v_location;
+ if exists(select 1 from public.purchase_order_charges c where c.order_id=p_order_id and c.company_id=v_company and c.business_unit_id=v_unit) then
+  select coalesce(sum(amount),0),coalesce(sum(case when v_order.invoice_type='Tax Invoice' then amount*tax_percent/100 else 0 end),0) into v_direct_charge_total,v_direct_charge_tax from public.purchase_order_charges where order_id=p_order_id and company_id=v_company and business_unit_id=v_unit;
+ else
+  v_direct_charge_total:=coalesce(v_order.loading_charge,0)+coalesce(v_order.unloading_charge,0)+coalesce(v_order.cutting_charge,0)+coalesce(v_order.transport_charge,0)+coalesce(v_order.labour_charge,0)+coalesce(v_order.handling_charge,0)+coalesce(v_order.other_charge,0);
+  v_direct_charge_tax:=case when v_order.invoice_type='Tax Invoice' then v_direct_charge_total*coalesce(v_order.tax_percent,0)/100 else 0 end;
+ end if;
+ update public.purchase_orders set total=(select coalesce(sum(pol.line_total+case when v_order.invoice_type='Tax Invoice' then pol.line_total*pol.tax_percent/100 else 0 end),0) from public.purchase_order_lines pol where pol.order_id=p_order_id and pol.company_id=v_company and pol.business_unit_id=v_unit and pol.operating_location_id=v_location)+coalesce((select sum(h.charges_total+case when v_order.invoice_type='Tax Invoice' then h.charge_tax else 0 end) from public.consolidated_purchase_invoices h join public.purchase_order_consolidated_invoices l on l.consolidated_invoice_id=h.id where l.purchase_order_id=p_order_id and l.company_id=v_company and l.business_unit_id=v_unit and l.operating_location_id=v_location),0)+v_direct_charge_total+v_direct_charge_tax,updated_at=now() where id=p_order_id and company_id=v_company and business_unit_id=v_unit and operating_location_id=v_location;
+ return jsonb_build_object('success',true,'purchase_order_id',p_order_id,'linked_count',v_count);
+end;$$;
