@@ -45,8 +45,8 @@ export default function CuttingOrderDetail() {
     navigate("/cutting");
   };
 
-  if (loading) return <div className="card p-12 text-center text-slate-400">Loading… / لوڈ ہو رہا ہے…</div>;
-  if (!order) return <ErrorBanner message="Cutting order not found. / کٹنگ آرڈر نہیں ملا۔" />;
+  if (loading) return <div className="card p-12 text-center text-slate-400">Loading……</div>;
+  if (!order) return <ErrorBanner message="Cutting order not found." />;
 
   const statusOptions: CuttingStatus[] = ["pending", "in_progress", "completed", "closed"];
 
@@ -61,29 +61,29 @@ export default function CuttingOrderDetail() {
             <SearchableSelect className="input w-auto" value={order.status} onChange={(e) => handleStatusChange(e.target.value as CuttingStatus)}>
               {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
             </SearchableSelect>
-            <button onClick={() => setConfirmDelete(true)} className="btn-danger">Delete / حذف کریں</button>
+            <button onClick={() => setConfirmDelete(true)} className="btn-danger">Delete</button>
           </div>
         }
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="card p-4"><div className="text-sm text-slate-500">Date / تاریخ</div><div className="font-medium mt-1">{formatDate(order.created_at)}</div></div>
-        <div className="card p-4"><div className="text-sm text-slate-500">Status / حالت</div><div className="mt-1"><StatusBadge status={order.status} /></div></div>
-        <div className="card p-4"><div className="text-sm text-slate-500">Item / آئٹم</div><div className="font-medium mt-1">{order.item?.name ?? "—"}</div></div>
-        <div className="card p-4"><div className="text-sm text-slate-500">Cut Length / کٹ لمبائی</div><div className="font-medium mt-1">{order.cut_length ?? "—"}</div></div>
+        <div className="card p-4"><div className="text-sm text-slate-500">Date</div><div className="font-medium mt-1">{formatDate(order.created_at)}</div></div>
+        <div className="card p-4"><div className="text-sm text-slate-500">Status</div><div className="mt-1"><StatusBadge status={order.status} /></div></div>
+        <div className="card p-4"><div className="text-sm text-slate-500">Item</div><div className="font-medium mt-1">{order.item?.name ?? "—"}</div></div>
+        <div className="card p-4"><div className="text-sm text-slate-500">Cut Length</div><div className="font-medium mt-1">{order.cut_length ?? "—"}</div></div>
       </div>
 
       {error && <ErrorBanner message={error} />}
 
       <div className="card p-6">
-        <h3 className="font-semibold text-slate-900 mb-4">Order Details / آرڈر تفصیل</h3>
+        <h3 className="font-semibold text-slate-900 mb-4">Order Details</h3>
         <div className="grid grid-cols-2 gap-4 text-sm">
-          <div><span className="text-slate-500">Quantity (kg): / مقدار:</span> <span className="font-medium">{order.qty}</span></div>
-          <div><span className="text-slate-500">Loading Qty: / لوڈنگ مقدار:</span> <span className="font-medium">{order.loading_qty}</span></div>
+          <div><span className="text-slate-500">Quantity (kg)::</span> <span className="font-medium">{order.qty}</span></div>
+          <div><span className="text-slate-500">Loading Qty::</span> <span className="font-medium">{order.loading_qty}</span></div>
         </div>
       </div>
 
-      <ConfirmModal open={confirmDelete} title="Delete Cutting Order / کٹنگ آرڈر حذف کریں" message="Delete this cutting order permanently? / کیا یہ کٹنگ آرڈر مستقل حذف کرنا ہے؟" onConfirm={handleDelete} onCancel={() => setConfirmDelete(false)} />
+      <ConfirmModal open={confirmDelete} title="Delete Cutting Order" message="Delete this cutting order permanently?" onConfirm={handleDelete} onCancel={() => setConfirmDelete(false)} />
     </div>
   );
 }
