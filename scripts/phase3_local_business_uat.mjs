@@ -113,7 +113,14 @@ async function journalBalance(local, entryId) {
 }
 
 async function setupBusinessFixture(local, fixture, tokens) {
+  // Phase 3 must exercise each role inside the same explicit workspace context
+  // that the UI establishes after login. Previously only the owner selected the
+  // company/BU/branch, so accountsA payment RPCs could post under a different
+  // session workspace and post_journal_entry correctly rejected the new journal.
   await selectContext(local, tokens.owner, fixture.companyA, fixture.businessUnitA1, fixture.branchA1);
+  await selectContext(local, tokens.accountsA, fixture.companyA, fixture.businessUnitA1, fixture.branchA1);
+  await selectContext(local, tokens.salesA, fixture.companyA, fixture.businessUnitA1, fixture.branchA1);
+  await selectContext(local, tokens.viewerA, fixture.companyA, fixture.businessUnitA1, fixture.branchA1);
 
   const initialize = await rpc(local, tokens.owner, "initialize_default_coa", {});
   requireOk(initialize, "initialize default chart of accounts");
