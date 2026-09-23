@@ -21,7 +21,7 @@ vi.mock("@/lib/supabase", () => ({
         maybeSingle: async () => ({ data: mockCompany.data, error: null }),
       }),
     }),
-    auth: { getUser: async () => ({ data: { user: null }, error: null }) },
+    auth: { getUser: async () => ({ data: { user: { id: "test-user" } }, error: null }) },
   },
 }));
 
