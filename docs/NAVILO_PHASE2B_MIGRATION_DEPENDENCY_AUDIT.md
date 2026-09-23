@@ -3,6 +3,24 @@
 Date: 2026-09-23  
 Baseline: `70ccb704fb67fc38d5d6956107cea3a1f0268b61` on `work/dashboard-en-ur-20260921`
 
+## Latest branch verification — 2026-09-23
+
+Windows/VS Code work advanced the development branch by 120 commits to
+`14b3f5e48da4e7a1e43df636ffa9ad941b1eeb4d`. This work was preserved and
+independently checked before adding anything. On that exact head, the original
+filename and SQL-sanity gates passed, while strict manifest checking retained
+two apparent gaps and the expanded explicit-object scan found 33 order issues.
+The optional guarded `accounts` compatibility table was removed from the
+required manifest; Charge Master was a real pre-consumer gap.
+
+The dependency closure added the early Charge Master and sales-consolidation
+providers, exact missing live migrations, two exact `pg_get_functiondef`
+providers for routines with no recorded creator, and the missing creator body
+inside the existing print-language migration. Static closure is now 0 known
+missing foundations and 0 explicit table/view/function DDL order findings.
+Dynamic SQL remains outside the lexical check, so only a fresh reset can close
+the runtime gate. Replay PASS is not claimed here.
+
 ## Result and root cause
 
 The Windows fresh-start failure is a confirmed source-order defect. Migration

@@ -25,9 +25,16 @@ class MigrationDependencyAuditTests(unittest.TestCase):
                 "create table godowns(); create table transporters();",
             )
             errors, resolved, missing = audit(directory)
-            self.assertEqual(errors, [])
+            for table in ("categories", "uom", "warehouses", "godowns", "transporters"):
+                self.assertFalse(any(item.startswith(f"{table}:") for item in errors))
             self.assertEqual(len([item for item in resolved if "20260821170557_0002.sql" in item]), 5)
-            self.assertGreater(len(missing), 0)
+            self.assertEqual(missing, [])
+
+    def test_repository_has_no_known_missing_foundations(self):
+        repository_migrations = Path(__file__).resolve().parents[1] / "supabase" / "migrations"
+        errors, _, missing = audit(repository_migrations)
+        self.assertEqual(errors, [])
+        self.assertEqual(missing, [])
 
     def test_out_of_order_foundation_is_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -1,5 +1,43 @@
 # NAVILO audit handoff — 2026-09-22
 
+## Latest stop point — reconciled after Windows/VS Code continuation
+
+The user's continuation was verified before further edits. Development moved
+from `fac95ed2772c10df3ee795f78c04cb50b25f7323` to
+`14b3f5e48da4e7a1e43df636ffa9ad941b1eeb4d` through 120 commits. A clean
+worktree at that head was used; all user changes were preserved. Production,
+Toqeer Builder, `main` and Vercel were not changed.
+
+At `14b3f5e…`, filename and SQL-sanity checks passed, but strict dependency
+checking still reported Charge Master out of order, and a new full explicit
+object-order scan reported 33 findings. Two apparent `accounts` findings were
+false positives because both statements are inside guarded `to_regclass()`
+blocks and fresh installations intentionally omit that legacy compatibility
+table. The remaining findings were reconciled with exact read-only live
+migration/function provenance plus one pre-tenant sales-consolidation provider.
+
+Files prepared on top of the latest branch: 17 migration files, exact Urdu
+backfill creator in the existing print-language migration,
+`scripts/check_migration_object_order.py`, its tests, and updated dependency
+checks/reports. Current executed evidence:
+
+- migration versions: PASS, 0 duplicate IDs / 0 empty files;
+- strict dependency manifest: PASS, 13/13 ordered / 0 unresolved;
+- SQL sanity: PASS, 0 findings;
+- explicit object order: PASS, 0 findings;
+- migration checker tests: PASS, 15/15;
+- `npm run check`: PASS, typecheck + 19 files/81 tests + build;
+- bundle warning remains 3,150.13 kB minified / 882.09 kB gzip;
+- local full reset: NOT RUN in this executor;
+- authenticated cross-tenant/RPC tests: NOT RUN / blocked by reset.
+
+Safe resume after this checkpoint is committed: on Windows use only the clean
+Git clone `C:\NAVILO-latest`, pull the exact development commit, confirm a clean
+`git status`, then run one unlinked `npx supabase db reset --debug`. Do not use
+`C:\NAVILO-work-dashboard-en-ur-20260921`, do not link to a hosted project, and
+do not edit production migration history. Preserve the complete output. The
+final commit SHA is recorded in the response after the branch update.
+
 ## Latest stop point — batch reconciliation required
 
 At development commit `20b9e313487b733ff6b99dcd16c52efd7bd99d5d`, Windows fresh replay applied 0001–0025 and entered 0026, then failed because ACL statements referenced `apply_stock_movement` before its 0027 creator. 0027 already creates and secures the function, so the next commit removes only the premature redundant ACL and adds regression coverage. A full static function-order pass found 77 candidates and the dependency audit still has nine missing table foundations. Do not ask the Windows operator to repeat one-error-at-a-time indefinitely; reconcile the remaining candidates/live-only migrations in a batch, then request one clean replay. Production/main remain unchanged.

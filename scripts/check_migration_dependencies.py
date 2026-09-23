@@ -31,13 +31,6 @@ REPAIRED = (
     Dependency("warehouses", "20260830083000_0007_harden_sales_godown_posting.sql"),
     Dependency("godowns", "20260830083000_0007_harden_sales_godown_posting.sql"),
     Dependency("transporters", "20260830233000_0020_secure_master_data.sql"),
-)
-
-# Confirmed by repository-wide search and read-only production migration-history
-# comparison on 2026-09-23.  These are release-blocking debt, not an allow-list
-# that makes a clean replay acceptable.
-KNOWN_MISSING = (
-    Dependency("accounts", "20260902123000_live_schema_compatibility.sql"),
     Dependency("charge_master", "20260902090000_0046_hawala_aware_sales_posting.sql"),
     Dependency("companies", "20260904173000_saas_production_hardening.sql"),
     Dependency("operating_locations", "20260905161000_branch_workspace_foundation.sql"),
@@ -47,6 +40,13 @@ KNOWN_MISSING = (
     Dependency("gate_pass_loading_instructions", "20260910013000_gate_pass_bilingual_loading_instruction_master.sql"),
     Dependency("company_language_entitlements", "20260915183000_priority1_posted_immutability_rpc_acl_rls_hardening.sql"),
 )
+
+# Confirmed by repository-wide search and read-only production migration-history
+# comparison on 2026-09-23.  These are release-blocking debt, not an allow-list
+# that makes a clean replay acceptable.
+# `accounts` is an optional, guarded compatibility source for hosted legacy
+# invoices and is intentionally not created by a fresh NAVILO installation.
+KNOWN_MISSING: tuple[Dependency, ...] = ()
 
 
 def _create_pattern(table: str) -> re.Pattern[str]:

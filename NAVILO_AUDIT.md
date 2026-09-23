@@ -1,5 +1,40 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Phase 2B latest-branch reconciliation — 2026-09-23
+
+The development branch was re-read after the Windows/VS Code continuation.
+Remote head had advanced from `fac95ed2772c10df3ee795f78c04cb50b25f7323`
+to `14b3f5e48da4e7a1e43df636ffa9ad941b1eeb4d`, 120 commits ahead. Those
+changes were preserved and used as the new baseline; none were overwritten.
+The commits restore a large part of the unrecorded hosted schema and contain
+multiple source-order corrections discovered during local replay.
+
+Fresh static verification of that exact head still found two manifest gaps and
+33 explicit object-order findings. `accounts` was confirmed not to be a gap:
+its only uses are protected by `to_regclass()` and it is intentionally optional
+on fresh installations. The actual remaining gaps were an early Charge Master
+provider, sales-consolidation/entity-translation foundations, and privileged
+function creators referenced by later ACL migrations.
+
+Development-only reconciliation adds 17 migration files: 15 exact live-history
+or live-function definitions, the evidence-based early Charge Master provider,
+and the pre-tenant sales-consolidation provider. It also restores the exact
+`backfill_company_urdu_names` creator inside the existing print-language
+migration and adds a general object-order regression checker. No production
+row was copied and no hosted schema/history was changed.
+
+Current measured static result: 0 duplicate IDs, 0 empty SQL files, 0 SQL
+corruption findings, 13/13 required manifest foundations ordered, 0 known
+missing foundations and 0 explicit relation/function DDL-before-creator
+findings. Migration-checker tests pass 15/15. `npm run check` passes typecheck,
+19 test files/81 tests and Vite build; the existing 3,150.13 kB minified /
+882.09 kB gzip primary-chunk warning remains.
+
+Status remains **IMPLEMENTED BUT UNVERIFIED** until one genuinely fresh,
+unlinked Windows `npx supabase db reset --debug` completes. Authenticated
+synthetic tenant/RPC tests remain blocked behind that result. Production,
+Toqeer Builder, `main` and Vercel were unchanged.
+
 ## Phase 2B full-chain preflight correction — 2026-09-23
 
 After replay reached 0026, a redundant ACL block failed because `apply_stock_movement` is created in 0027; 0027 already secures it, so the premature ACL was removed. A complete static function-order pass found 77 ACL/ALTER-before-local-creator candidates plus the nine known missing table foundations. These are triage candidates, not 77 confirmed defects. Further Windows looping is paused until batch reconciliation is complete.

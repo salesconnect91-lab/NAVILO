@@ -1,5 +1,13 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## Phase 2B latest checkpoint — 2026-09-23
+
+| ID / priority | Evidence | Current status / acceptance |
+|---|---|---|
+| MIG-03 / P0 release gate | Latest remote head was 120 commits ahead and preserved. It reduced earlier dependency gaps substantially, but a fresh full-chain scan still found two manifest gaps and 33 explicit object-order findings. Development reconciliation now reports 0/0. | **IMPLEMENTED BUT UNVERIFIED.** One fresh unlinked reset must complete; static checks cannot prove dynamic SQL/runtime behavior. |
+| MIG-09 / P0 release gate | New `check_migration_object_order.py` covers explicit ALTER/policy/trigger/index/table grants and function ACL/ALTER ordering. It reports 0 findings after reconciliation; 3 regression tests pass. | Static acceptance PASS. Runtime acceptance is the clean reset. |
+| TEST-03 / P0 | No synthetic authenticated tenant/BU/branch/RPC calls were executed in this environment. | After reset PASS, provision only synthetic identities/data and execute positive controls plus forged-ID/revoked-role negative cases. |
+
 ## Full-chain preflight after repeated replay failures
 
 | ID / priority | Evidence | Fix / acceptance |
