@@ -3,9 +3,14 @@
 
 from pathlib import Path
 import argparse
+import re
 
 
 FORBIDDEN_TOKENS = ("PKRPKR",)
+PATCH_MARKER_STATEMENT = re.compile(
+    r"^[+-](?:create|alter|drop|grant|revoke|do|insert|update|delete|comment)\b",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 REQUIRED_SNIPPETS = {
     "20260821170557_0002_steel_mill_extension.sql": (
@@ -45,6 +50,12 @@ def inspect(directory: Path) -> list[str]:
         for token in FORBIDDEN_TOKENS:
             if token in text:
                 findings.append(f"{path.name}: contains export-corruption token {token}")
+        marker = PATCH_MARKER_STATEMENT.search(text)
+        if marker:
+            line = text.count("\n", 0, marker.start()) + 1
+            findings.append(
+                f"{path.name}:{line}: contains a stray diff marker before a SQL statement"
+            )
     for filename, snippets in REQUIRED_SNIPPETS.items():
         path = directory / filename
         if not path.exists():

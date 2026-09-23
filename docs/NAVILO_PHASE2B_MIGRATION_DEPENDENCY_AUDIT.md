@@ -1,5 +1,9 @@
 # NAVILO Phase 2B — Migration Dependency Audit
 
+## Windows replay continuation — print-language syntax marker
+
+At development SHA `08e53252043e77cedae6e0fd670702b72265807e`, a fresh local start applied through `20260904151609` and failed in `20260904165202_restore_print_language_foundation.sql` on a literal `+create`. This was an accidental diff marker, not a missing schema dependency. The development repair removes only the marker and expands the SQL sanity checker so a leading patch marker before a SQL statement is rejected. The rest of the chain is still unverified pending a fresh Windows replay.
+
 Date: 2026-09-23  
 Baseline: `70ccb704fb67fc38d5d6956107cea3a1f0268b61` on `work/dashboard-en-ur-20260921`
 

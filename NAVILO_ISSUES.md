@@ -1,5 +1,13 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## MIG-08 / P0 release gate — stray diff marker in print-language migration
+
+- **Evidence:** Windows fresh local start at `08e53252043e77cedae6e0fd670702b72265807e` applied through `20260904151609` and failed at statement 3 of `20260904165202_restore_print_language_foundation.sql` with SQLSTATE 42601 at `+create or replace function public.backfill_company_urdu_names()`.
+- **Root cause:** an accidental patch marker was committed as SQL; the prior sanity checker only detected the known `PKRPKR` corruption token and required snippets.
+- **Impact/severity:** P0 migration/release gate; clean installations cannot pass this migration. No production impact was observed because no hosted migration was applied.
+- **Fix:** remove only the leading `+`; make `scripts/check_migration_sql_sanity.py` reject diff markers before SQL statement keywords; add a unit regression test.
+- **Acceptance:** checker/unit suite passes, then a genuinely fresh Windows local Supabase start applies this migration and the full remaining chain without error. Until then, replay status is **PARTIAL**, not PASS.
+
 ## Phase 2B latest checkpoint — 2026-09-23
 
 | ID / priority | Evidence | Current status / acceptance |

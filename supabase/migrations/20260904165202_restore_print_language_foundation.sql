@@ -8,7 +8,7 @@ alter table public.company_settings
 alter table public.company_settings
   add constraint company_settings_print_language_check
   check (print_language in ('english','urdu','both'));
-+create or replace function public.backfill_company_urdu_names()
+create or replace function public.backfill_company_urdu_names()
 returns jsonb
 language plpgsql
 security definer

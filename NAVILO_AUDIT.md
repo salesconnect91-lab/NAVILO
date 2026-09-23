@@ -1,5 +1,11 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Phase 2B Windows replay update — 2026-09-23
+
+Fresh local Supabase startup at development SHA `08e53252043e77cedae6e0fd670702b72265807e` applied migrations through `20260904151609`, then failed in `20260904165202_restore_print_language_foundation.sql` with SQLSTATE 42601. The exact root cause was a committed diff marker (`+create`) before `backfill_company_urdu_names()`. The development-only repair removes that marker and adds a general regression check for patch markers before SQL statements. Full replay remains **not PASS** until Windows reruns the fresh local start. Production, `main`, Vercel and hosted data remain unchanged.
+
+Post-repair local verification: SQL sanity 0 findings; migration filenames 0 empty/0 duplicate IDs; strict dependency 0 unresolved foundations; explicit object-order 0 findings; 16 migration-checker unit tests PASS; `npm run check` PASS (typecheck, 19 test files/81 tests, Vite build). The existing 3,150.13 kB minified/882.09 kB gzip primary-chunk warning remains.
+
 ## Phase 2B latest-branch reconciliation — 2026-09-23
 
 The development branch was re-read after the Windows/VS Code continuation.

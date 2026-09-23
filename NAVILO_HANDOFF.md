@@ -1,5 +1,11 @@
 # NAVILO audit handoff — 2026-09-22
 
+## Latest stop point — Windows replay MIG-08, 2026-09-23
+
+Windows pulled exact development SHA `08e53252043e77cedae6e0fd670702b72265807e`. Fresh `npx supabase start --debug` applied migrations through `20260904151609`, then `20260904165202_restore_print_language_foundation.sql` failed with SQLSTATE 42601 because line 11 began `+create`. The next development commit removes that one accidental marker and adds a general SQL-sanity regression test. Full replay remains unverified; pull the new SHA and rerun local start. No production database, `main`, Vercel deployment or hosted customer data was changed.
+
+Repair verification in the executor: SQL sanity 0 findings; migration filenames 0 empty/0 duplicate IDs; strict dependency 13/13 ordered with 0 unresolved; explicit object-order 0 findings; 16 migration-checker unit tests PASS; `npm run check` PASS with typecheck, 19 test files/81 tests and build. Build retains the known 3,150.13 kB minified/882.09 kB gzip chunk warning. No Docker/Supabase replay ran in the executor, so Windows fresh replay remains the next gate.
+
 ## Latest stop point — reconciled after Windows/VS Code continuation
 
 Development reconciliation commit: `72af57202a0acca9ad57685295fc90607b4dfffc`

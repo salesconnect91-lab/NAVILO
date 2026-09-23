@@ -18,6 +18,15 @@ class MigrationSqlSanityTests(unittest.TestCase):
             (directory / "20260923000001_bad.sql").write_text("DO PKRPKR BEGIN NULL; END PKRPKR;")
             self.assertEqual(len(inspect(directory)), 1)
 
+    def test_diff_marker_before_sql_statement_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "20260923000001_bad.sql").write_text(
+                "+create or replace function public.bad() returns void language sql as $$ select $$;"
+            )
+            findings = inspect(directory)
+            self.assertTrue(any("stray diff marker" in finding for finding in findings))
+
     def test_incomplete_legacy_column_provider_is_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
