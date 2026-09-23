@@ -73,24 +73,5 @@ html[data-theme="dark"] .navilo-topbar .text-slate-950,html[data-theme="dark"] .
 html[data-theme="dark"] .navilo-topbar button{border-color:#334155!important;background:#111827!important;color:#cbd5e1!important}
 html[data-theme="dark"] .erp-shell main{color:#e2e8f0}
 
-
-/* Dark-theme parity for application content. Keep print output light and isolated. */
-html[data-theme="dark"] .erp-shell main .bg-white:not(.navilo-live-preview):not(.navilo-print-output):not(.navilo-generic-report){background-color:#0f172a!important}
-html[data-theme="dark"] .erp-shell main .bg-slate-50:not(.navilo-live-preview):not(.navilo-print-output):not(.navilo-generic-report){background-color:#111827!important}
-html[data-theme="dark"] .erp-shell main .border-slate-100{border-color:#1e293b!important}
-html[data-theme="dark"] .erp-shell main .border-slate-200,html[data-theme="dark"] .erp-shell main .border-slate-300{border-color:#334155!important}
-html[data-theme="dark"] .erp-shell main .text-slate-950,html[data-theme="dark"] .erp-shell main .text-slate-900,html[data-theme="dark"] .erp-shell main .text-slate-800{color:#f8fafc!important}
-html[data-theme="dark"] .erp-shell main .text-slate-700,html[data-theme="dark"] .erp-shell main .text-slate-600{color:#cbd5e1!important}
-html[data-theme="dark"] .erp-shell main .text-slate-500,html[data-theme="dark"] .erp-shell main .text-slate-400{color:#94a3b8!important}
-html[data-theme="dark"] .erp-shell main input:not([type="checkbox"]):not([type="radio"]),html[data-theme="dark"] .erp-shell main select,html[data-theme="dark"] .erp-shell main textarea{background:#0f172a!important;border-color:#334155!important;color:#f8fafc!important}
-html[data-theme="dark"] .erp-shell main input::placeholder,html[data-theme="dark"] .erp-shell main textarea::placeholder{color:#64748b!important}
-html[data-theme="dark"] .erp-shell main table th,html[data-theme="dark"] .erp-shell main .data-table th{background:#111827!important;color:#cbd5e1!important;border-color:#334155!important}
-html[data-theme="dark"] .erp-shell main table td,html[data-theme="dark"] .erp-shell main .data-table td{border-color:#1e293b!important}
-html[data-theme="dark"] .erp-shell main .shadow-sm,html[data-theme="dark"] .erp-shell main .shadow-md{box-shadow:0 1px 2px rgba(0,0,0,.22)!important}
-html[data-theme="dark"] .erp-shell main .bg-amber-50{background-color:rgba(120,53,15,.22)!important}
-html[data-theme="dark"] .erp-shell main .bg-blue-50{background-color:rgba(30,64,175,.18)!important}
-html[data-theme="dark"] .erp-shell main .bg-emerald-50{background-color:rgba(6,78,59,.20)!important}
-html[data-theme="dark"] .erp-shell main .bg-red-50{background-color:rgba(127,29,29,.20)!important}
-html[data-theme="dark"] .erp-shell main .recharts-cartesian-axis-tick-value{fill:#94a3b8}
-html[data-theme="dark"] .erp-shell main .recharts-legend-item-text{color:#cbd5e1!important}
-html[data-theme="dark"] .erp-shell main .recharts-default-tooltip{background:#0f172a!important;border-color:#334155!important;color:#f8fafc!important}
+/* Dark mode is intentionally limited to the application chrome for now.
+   Content pages stay light until each module has verified dark-theme tokens. */
