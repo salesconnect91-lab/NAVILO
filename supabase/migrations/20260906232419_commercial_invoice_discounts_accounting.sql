@@ -51,9 +51,9 @@ grant execute on function public.upsert_commercial_invoice_discount(text,text,te
 
 
 create or replace function public.discount_amount_for(p_type text,p_no text)
-returns numeric language sql stable security definer set search_path='public','pg_temp' as $
+returns numeric language sql stable security definer set search_path='public','pg_temp' as $$
  select coalesce((select discount_amount from public.commercial_invoice_discounts where company_id=public.current_company_id() and business_unit_id=public.current_business_unit_id() and document_type=p_type and document_no=p_no limit 1),0)::numeric
-$;
+$$;
 revoke all on function public.discount_amount_for(text,text) from public,anon,authenticated;
 
 create or replace function public.apply_document_discount_total()

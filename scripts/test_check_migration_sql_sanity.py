@@ -27,6 +27,15 @@ class MigrationSqlSanityTests(unittest.TestCase):
             findings = inspect(directory)
             self.assertTrue(any("stray diff marker" in finding for finding in findings))
 
+    def test_single_dollar_function_delimiter_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "20260923000001_bad.sql").write_text(
+                "create function public.bad() returns int language sql as $ select 1 $;"
+            )
+            findings = inspect(directory)
+            self.assertTrue(any("single-dollar" in finding for finding in findings))
+
     def test_incomplete_legacy_column_provider_is_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)

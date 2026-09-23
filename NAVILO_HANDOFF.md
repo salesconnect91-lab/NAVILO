@@ -1,5 +1,11 @@
 # NAVILO audit handoff — 2026-09-22
 
+## Latest stop point — Windows replay MIG-09, 2026-09-23
+
+After pulling `577e1f7b8e41e359a1a83b19451f395615ba0fc8`, Windows fresh replay successfully passed the previously repaired print-language migration and advanced through `20260906225113`. It then failed in `20260906232419_commercial_invoice_discounts_accounting.sql` because `discount_amount_for()` used invalid `AS $` / `$;` delimiters. The next development commit corrects them to `$$`, adds a repository-wide sanity rule and records the result. Production, `main`, Vercel and hosted data remain unchanged. Pull the new SHA and rerun only after the pushed verification summary is reviewed.
+
+Verification after repair: repository-wide malformed-delimiter scan 0 findings; SQL sanity 0 findings; 17 migration-checker tests PASS; migration versions 0 duplicate IDs/0 empty files; strict dependency/object-order checks PASS; typecheck PASS; 19 test files/81 tests PASS; build PASS with the existing 3,150.13 kB minified/882.09 kB gzip warning. Full Docker replay is still not PASS until Windows completes it.
+
 ## Latest stop point — Windows replay MIG-08, 2026-09-23
 
 Windows pulled exact development SHA `08e53252043e77cedae6e0fd670702b72265807e`. Fresh `npx supabase start --debug` applied migrations through `20260904151609`, then `20260904165202_restore_print_language_foundation.sql` failed with SQLSTATE 42601 because line 11 began `+create`. The next development commit removes that one accidental marker and adds a general SQL-sanity regression test. Full replay remains unverified; pull the new SHA and rerun local start. No production database, `main`, Vercel deployment or hosted customer data was changed.

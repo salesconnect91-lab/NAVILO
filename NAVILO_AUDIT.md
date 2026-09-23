@@ -1,5 +1,11 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Phase 2B Windows replay update — discount delimiter, 2026-09-23
+
+After the MIG-08 repair, Windows fresh replay advanced from `20260904165202` through `20260906225113` and then failed in `20260906232419_commercial_invoice_discounts_accounting.sql` with SQLSTATE 42601. `discount_amount_for()` used invalid single-dollar delimiters (`AS $` / `$;`) instead of PostgreSQL dollar quoting (`AS $$` / `$$;`). A repository-wide scan found this as the only occurrence of that exact malformed delimiter pattern. The development repair corrects both delimiters and turns the pattern into a regression failure. Full fresh replay is still required; syntax-pattern coverage is not a substitute for PostgreSQL execution.
+
+Post-repair verification: SQL sanity 0 findings; 17 migration-checker tests PASS; 0 duplicate IDs/0 empty files; strict dependency and object-order checks PASS; `npm run check` PASS (typecheck, 19 files/81 tests, build). The known large primary bundle warning remains.
+
 ## Phase 2B Windows replay update — 2026-09-23
 
 Fresh local Supabase startup at development SHA `08e53252043e77cedae6e0fd670702b72265807e` applied migrations through `20260904151609`, then failed in `20260904165202_restore_print_language_foundation.sql` with SQLSTATE 42601. The exact root cause was a committed diff marker (`+create`) before `backfill_company_urdu_names()`. The development-only repair removes that marker and adds a general regression check for patch markers before SQL statements. Full replay remains **not PASS** until Windows reruns the fresh local start. Production, `main`, Vercel and hosted data remain unchanged.

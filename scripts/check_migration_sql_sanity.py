@@ -11,6 +11,10 @@ PATCH_MARKER_STATEMENT = re.compile(
     r"^[+-](?:create|alter|drop|grant|revoke|do|insert|update|delete|comment)\b",
     re.IGNORECASE | re.MULTILINE,
 )
+MALFORMED_SINGLE_DOLLAR_OPEN = re.compile(
+    r"\bas\s+\$(?!\$|[A-Za-z_][A-Za-z0-9_]*\$)", re.IGNORECASE
+)
+MALFORMED_SINGLE_DOLLAR_CLOSE = re.compile(r"^\s*\$;\s*$", re.MULTILINE)
 
 REQUIRED_SNIPPETS = {
     "20260821170557_0002_steel_mill_extension.sql": (
@@ -55,6 +59,14 @@ def inspect(directory: Path) -> list[str]:
             line = text.count("\n", 0, marker.start()) + 1
             findings.append(
                 f"{path.name}:{line}: contains a stray diff marker before a SQL statement"
+            )
+        malformed_open = MALFORMED_SINGLE_DOLLAR_OPEN.search(text)
+        malformed_close = MALFORMED_SINGLE_DOLLAR_CLOSE.search(text)
+        if malformed_open or malformed_close:
+            marker = malformed_open or malformed_close
+            line = text.count("\n", 0, marker.start()) + 1
+            findings.append(
+                f"{path.name}:{line}: contains a malformed single-dollar function delimiter"
             )
     for filename, snippets in REQUIRED_SNIPPETS.items():
         path = directory / filename

@@ -1,5 +1,13 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## MIG-09 / P0 release gate — malformed discount helper delimiter
+
+- **Evidence:** Windows fresh replay after commit `577e1f7b8e41e359a1a83b19451f395615ba0fc8` advanced through `20260906225113`, then migration `20260906232419_commercial_invoice_discounts_accounting.sql` failed at statement 10 with SQLSTATE 42601 on `AS $`.
+- **Root cause:** `discount_amount_for()` was committed with single-dollar opening/closing delimiters. PostgreSQL requires paired `$$` or matching named tags. A prior commit message claimed a delimiter fix but its commit was empty; the SQL body remained unchanged.
+- **Impact/severity:** P0 migration/recovery gate; fresh environments cannot reach later schema or authenticated isolation tests.
+- **Fix/evidence:** replace only `AS $` / `$;` with `AS $$` / `$$;`; scan all migrations for the same malformed form; extend SQL sanity checks and unit coverage.
+- **Acceptance:** static checks pass and Windows fresh local replay completes the entire chain. Until that actual replay finishes, migration status remains **PARTIAL**.
+
 ## MIG-08 / P0 release gate — stray diff marker in print-language migration
 
 - **Evidence:** Windows fresh local start at `08e53252043e77cedae6e0fd670702b72265807e` applied through `20260904151609` and failed at statement 3 of `20260904165202_restore_print_language_foundation.sql` with SQLSTATE 42601 at `+create or replace function public.backfill_company_urdu_names()`.

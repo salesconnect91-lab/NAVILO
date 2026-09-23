@@ -1,5 +1,9 @@
 # NAVILO Phase 2B — Migration Dependency Audit
 
+## Windows replay continuation — discount helper delimiter
+
+The replay after MIG-08 advanced through `20260906225113`, proving the prior repair, then failed in `20260906232419_commercial_invoice_discounts_accounting.sql`. `discount_amount_for()` contained invalid `AS $` / `$;` delimiters. A scan across every repository migration found no other occurrence of this exact single-dollar pattern. The repair uses `$$` and adds a regression check, but only a complete fresh PostgreSQL replay can establish full syntactic and dependency validity.
+
 ## Windows replay continuation — print-language syntax marker
 
 At development SHA `08e53252043e77cedae6e0fd670702b72265807e`, a fresh local start applied through `20260904151609` and failed in `20260904165202_restore_print_language_foundation.sql` on a literal `+create`. This was an accidental diff marker, not a missing schema dependency. The development repair removes only the marker and expands the SQL sanity checker so a leading patch marker before a SQL statement is rejected. The rest of the chain is still unverified pending a fresh Windows replay.
