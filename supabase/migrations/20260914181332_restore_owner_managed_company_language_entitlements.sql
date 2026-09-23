@@ -1,0 +1,7 @@
+create table if not exists public.company_language_entitlements (
+ company_id uuid not null references public.companies(id) on delete cascade, language_code text not null, enabled boolean not null default true, is_verified boolean not null default false, updated_by uuid null, updated_at timestamptz not null default now(), primary key(company_id,language_code), constraint company_language_entitlements_code_check check(language_code in ('en','ur','ar','hi','bn','fa','tr','fr','es','de','pt','ru','zh','id','ms')));
+alter table public.company_language_entitlements enable row level security;
+create or replace function public.get_current_company_enabled_languages() returns table(language_code text,is_verified boolean) language sql stable security definer set search_path=public as $$ select e.language_code,e.is_verified from public.company_language_entitlements e where e.company_id=public.current_company_id() and e.enabled=true and e.is_verified=true order by case e.language_code when 'en' then 0 else 1 end,e.language_code $$;
+revoke all on function public.get_current_company_enabled_languages() from public;
+grant execute on function public.get_current_company_enabled_languages() to authenticated;
+insert into public.company_language_entitlements(company_id,language_code,enabled,is_verified) select c.id,l.code,true,true from public.companies c cross join (values ('en'),('ur'),('ar')) l(code) where c.status='active' on conflict(company_id,language_code) do update set enabled=excluded.enabled,is_verified=excluded.is_verified,updated_at=now();
