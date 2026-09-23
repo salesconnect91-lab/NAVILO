@@ -79,3 +79,14 @@ After pulling this commit on Windows, run `npx supabase db reset --debug` agains
 the unlinked local stack and preserve the first failure. Do not reuse hosted
 projects, remove foreign keys, or invent substitute tables. A complete replay
 must not be reported PASS until a genuinely fresh database finishes.
+
+## Windows replay continuation — migration 0003
+
+The first actual replay after the foundation repair successfully applied 0001
+and 0002, then failed in 0003 with `syntax error at or near "PKRPKR"`. The file
+contained two `DO PKRPKR BEGIN ... END PKRPKR;` blocks from initial commit
+`7b4c4f1`. Read-only production migration history records the same corrupted
+text, confirming historical export/import corruption rather than a local edit.
+PostgreSQL dollar quoting was restored to `DO $$ ... END $$;` in both blocks.
+`scripts/check_migration_sql_sanity.py` and two tests now prevent that token from
+returning. This repair does not prove later migrations replay successfully.

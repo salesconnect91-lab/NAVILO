@@ -7,6 +7,7 @@
 | MIG-02 / P0 confirmed | 0007 references `public.godowns`; no `godowns`/`warehouses` creator existed in any Git ref or recorded live migration. | Minimal evidenced legacy master foundation added to 0002 on development only. | Dependency ordering checker passes; a clean local replay advances beyond 0007 without 42P01. |
 | MIG-03 / P0 release gate | Creators remain absent for `accounts`, `charge_master`, `companies`, multi-service core, language/order-book/loading/entitlement tables. Local multi-service migration is comments only. | Recover exact live DDL, review functions/policies/data updates, add chronologically, and rehearse locally. Never rewrite production history. | Strict dependency check and a genuinely fresh `supabase db reset` both pass. |
 | MIG-01 / P0 partially resolved | Live history maps duplicate filenames to distinct versions; three empty placeholders have matching non-empty changes/live versions. | Filenames reconciled and empty superseded placeholders removed. | Filename checker exits 0 (current PASS); this does not establish replay PASS. |
+| MIG-04 / P0 confirmed | Actual Windows replay applied 0001/0002 then 0003 failed on `DO PKRPKR`; initial Git commit and read-only live history contain the same corrupted token. | Restore PostgreSQL `$$` delimiters in both 0003 blocks and reject the token in regression checks. | SQL sanity checker passes and fresh replay applies 0003; later replay remains separately gated. |
 
 Exact mappings and provenance: [migration dependency audit](docs/NAVILO_PHASE2B_MIGRATION_DEPENDENCY_AUDIT.md).
 
