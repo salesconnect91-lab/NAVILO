@@ -22,14 +22,15 @@ function sanitize(mode:LanguageMode,primary?:string|null,secondary?:string|null)
 }
 
 async function loadLanguage():Promise<RuntimeLanguage>{
-  const [company,userResult]=await Promise.all([
-    supabase.from("company_settings").select("screen_language_mode,screen_primary_language,screen_secondary_language,document_language_mode,document_primary_language,document_secondary_language").maybeSingle(),
-    supabase.auth.getUser(),
-  ]);
+  const userResult=await supabase.auth.getUser();
+  const user=userResult.data.user;
+  // company_settings is tenant-protected. Before authentication the login page
+  // must stay on the safe English default instead of querying it as anon.
+  if(!user)return ENGLISH_ONLY;
+  const company=await supabase.from("company_settings").select("screen_language_mode,screen_primary_language,screen_secondary_language,document_language_mode,document_primary_language,document_secondary_language").maybeSingle();
   if(company.error)throw company.error;
   let screen=sanitize((company.data?.screen_language_mode||"single") as LanguageMode,company.data?.screen_primary_language,company.data?.screen_secondary_language);
   const document=sanitize((company.data?.document_language_mode||"single") as LanguageMode,company.data?.document_primary_language,company.data?.document_secondary_language);
-  const user=userResult.data.user;
   if(user){
     const pref=await supabase.from("user_language_preferences").select("use_company_default,screen_language_mode,primary_language,secondary_language").eq("user_id",user.id).maybeSingle();
     if(!pref.error&&pref.data&&pref.data.use_company_default===false){
