@@ -35,7 +35,7 @@ Docker/Supabase CLI runtime, and later foundational DDL remains absent.
 | `warehouses`, `godowns` | `20260830083000_0007_harden_sales_godown_posting.sql` | Repaired in 0002; ordering PASS |
 | `accounts` | `20260902123000_live_schema_compatibility.sql` | Creator missing |
 | `charge_master` | `20260902090000_0046_hawala_aware_sales_posting.sql` | Creator missing |
-| `companies` | local `20260904173000_saas_production_hardening.sql`; live creation `20260902214504 platform_owner_company_access_core` | Creator missing locally |
+| `companies` | local `20260904173000_saas_production_hardening.sql`; live creation `20260902214504 platform_owner_company_access_core` | Restored locally from exact read-only live migration history at `20260902214504_platform_owner_company_access_core.sql`; clean replay still pending |
 | multi-service core: `operating_locations`, approvals and related accounting tables | local `20260905140000_multi_service_core_accounting_foundation.sql` is comments only; live `20260905103638` has 28,008-character DDL | DDL missing locally |
 | consolidated purchase foundation | live `20260904112720 purchase_consolidated_invoice_workflow` has 21,361-character DDL | Live-only divergence |
 | `user_language_preferences` | first local use `20260909082000...`; live creation `20260906161422` | Creator missing locally |
