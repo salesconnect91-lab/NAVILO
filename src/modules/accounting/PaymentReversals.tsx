@@ -41,7 +41,7 @@ export default function PaymentReversals(){
 
   if(loading)return <LoadingState/>;
   return <div className="space-y-4">
-    <PageHeader title="Payment Voucher Reversals / ادائیگی واپسی" subtitle="Reverse a posted customer receipt or supplier payment through a separate audited journal. Original vouchers are never edited or deleted." action={<div className="flex items-center gap-2"><span data-navilo-standard-tools-host className="contents" /></div>}/>
+    <PageHeader title="Payment Voucher Reversals" subtitle="Reverse a posted customer receipt or supplier payment through a separate audited journal. Original vouchers are never edited or deleted." action={<div className="flex items-center gap-2"><span data-navilo-standard-tools-host className="contents" /></div>}/>
     {error&&<ErrorBanner message={error}/>}<div className="card flex flex-wrap items-center gap-2 p-4" data-no-print data-no-export><input className="input min-w-64 flex-1" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search voucher, party, method..."/><SearchableSelect className="input w-auto" value={kind} onChange={e=>setKind(e.target.value as any)}><option value="all">All payments</option><option value="Customer Receipt">Customer Receipts</option><option value="Supplier Payment">Supplier Payments</option></SearchableSelect><button className="btn btn-secondary" onClick={()=>void load()}><RefreshCw size={15}/>Refresh</button></div>
 
     <section className="card overflow-hidden" data-report-content data-navilo-customizable="true">
