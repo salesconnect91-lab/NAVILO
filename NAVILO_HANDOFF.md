@@ -12,6 +12,8 @@ Verification in this checkout: `python3 scripts/check_migration_versions.py` PAS
 
 Windows then ran `npx supabase start --debug` from an unlinked fresh clone at commit `81e640784d6a1f17e3697c0b3bd6ac43a502b2ee`. Migrations 0001 and repaired 0002 applied; 0003 failed at statement 3 with SQLSTATE 42601 on `DO PKRPKR BEGIN`. Git history and read-only live history confirmed the token. The next development commit restores both blocks to `DO $$ ... END $$;` and adds a two-test SQL corruption guard. No hosted mutation occurred. Pull that commit and rerun local start; do not claim replay PASS until the full chain finishes.
 
+At commit `94f014ce6c1c57914312465c8fff1dacb4e0aeda`, Windows replay applied 0001 through 0004 and then 0005 failed with SQLSTATE 42703 on `journal_entries.payment_mode` inside `sales_invoice_financials`. Read-only production catalog, frontend types and later posting SQL confirmed omitted pre-history columns on `journal_entries`, `journal_lines` and `sales_orders`. The following development commit restores those exact fields in 0004 and extends the SQL sanity contract. Production remained read-only/unchanged.
+
 ## Latest continuation: local isolation feasibility — 2026-09-22
 
 Started from clean development SHA `016bda83d84748c8aaf1d6311843c2ff0c08bec3`. User verified Toqeer Builder's separate organization has existing Free project `salesconnect91-lab’s Project` (`ap-southeast-2`, 27 MB database, 1 MAU); neither it nor NAVILO production may be paused, deleted, reset or used for tests. No paid resources. This continuation only updates reports; no cloud SQL, project operations, source fix, migration apply, main merge or deployment.

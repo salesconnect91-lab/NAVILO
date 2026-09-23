@@ -90,3 +90,16 @@ text, confirming historical export/import corruption rather than a local edit.
 PostgreSQL dollar quoting was restored to `DO $$ ... END $$;` in both blocks.
 `scripts/check_migration_sql_sanity.py` and two tests now prevent that token from
 returning. This repair does not prove later migrations replay successfully.
+
+## Windows replay continuation — migration 0005
+
+After the 0003 repair, Windows replay applied migrations 0001 through 0004 and
+then failed while 0005 created `sales_invoice_financials`: column
+`journal_entries.payment_mode` did not exist. Repository history contains no
+creator, while the read-only production catalog shows legacy journal metadata
+at ordinals 8–14, legacy journal-line party columns at ordinals 8–10, and sales
+payment/account columns before later tenant fields. Frontend types and later
+posting migrations require the same fields. Migration 0004 now restores these
+columns after `chart_of_accounts` exists and before 0005/0007 consume them.
+Foreign keys match the read-only live catalog. No production row or schema was
+changed. The SQL sanity contract now fails if this legacy foundation regresses.

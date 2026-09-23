@@ -6,6 +6,8 @@ The Windows failure at migration 0007 is a **confirmed repository bootstrap defe
 
 The next real Windows replay applied 0001/0002 and exposed a separate migration 0003 syntax corruption: two PostgreSQL dollar-quoted blocks had `$$` stored as `PKRPKR`. Initial Git commit and read-only live migration history both contain that token. Development 0003 now restores `DO $$ ... END $$;`, with a regression checker. Replay beyond 0003 is not yet verified.
 
+The subsequent replay applied 0001–0004, then 0005 failed because the exported bootstrap omitted legacy journal/payment columns that 0005 and 0007 consume. Read-only live column order/constraints, frontend types and later migrations corroborate the exact journal, journal-line party, and sales payment/account fields. Migration 0004 now restores them after COA creation. Replay beyond 0005 remains unverified.
+
 All nine duplicate timestamp groups were reconciled to the exact distinct versions recorded live, and three zero-byte placeholders with known non-empty/live counterparts were removed. The filename checker now passes with 0 duplicate IDs and 0 empty files. Full clean replay is still **NOT VERIFIED**: at least nine referenced foundations remain absent, and the multi-service foundation is only a marker while live history holds substantial DDL. See [the dependency audit](docs/NAVILO_PHASE2B_MIGRATION_DEPENDENCY_AUDIT.md). Production/main/deployment were unchanged.
 
 ## Phase 2B local alternative — 2026-09-22
