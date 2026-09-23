@@ -49,10 +49,12 @@ return jsonb_build_object('success',true,'discount_amount',round(coalesce(p_amou
 end $$;
 grant execute on function public.upsert_commercial_invoice_discount(text,text,text,numeric,numeric) to authenticated;
 
-create or replace function public.post_sales_discount_adjustment() returns trigger language plpgsql security definer set search_path='public','pg_temp' as $$
-begin return NEW; end $$;
-create or replace function public.post_purchase_discount_adjustment() returns trigger language plpgsql security definer set search_path='public','pg_temp' as $$
-begin return NEW; end $$;
+
+create or replace function public.discount_amount_for(p_type text,p_no text)
+returns numeric language sql stable security definer set search_path='public','pg_temp' as $
+ select coalesce((select discount_amount from public.commercial_invoice_discounts where company_id=public.current_company_id() and business_unit_id=public.current_business_unit_id() and document_type=p_type and document_no=p_no limit 1),0)::numeric
+$;
+revoke all on function public.discount_amount_for(text,text) from public,anon,authenticated;
 
 create or replace function public.apply_document_discount_total()
 returns trigger language plpgsql security definer set search_path='public','pg_temp' as $$
@@ -67,3 +69,12 @@ begin
  end if;
  NEW.total:=greatest(round(coalesce(NEW.total,0)-v_own-v_linked,2),0); return NEW;
 end $$;
+
+drop trigger if exists trg_sales_order_discount_total on public.sales_orders;
+create trigger trg_sales_order_discount_total before insert or update of total,status on public.sales_orders for each row execute function public.apply_document_discount_total('sales_main');
+drop trigger if exists trg_consolidated_sales_discount_total on public.consolidated_sales_invoices;
+create trigger trg_consolidated_sales_discount_total before insert or update of total,status on public.consolidated_sales_invoices for each row execute function public.apply_document_discount_total('sales_consolidated');
+drop trigger if exists trg_purchase_order_discount_total on public.purchase_orders;
+create trigger trg_purchase_order_discount_total before insert or update of total,status on public.purchase_orders for each row execute function public.apply_document_discount_total('purchase_main');
+drop trigger if exists trg_consolidated_purchase_discount_total on public.consolidated_purchase_invoices;
+create trigger trg_consolidated_purchase_discount_total before insert or update of total,status on public.consolidated_purchase_invoices for each row execute function public.apply_document_discount_total('purchase_consolidated');
