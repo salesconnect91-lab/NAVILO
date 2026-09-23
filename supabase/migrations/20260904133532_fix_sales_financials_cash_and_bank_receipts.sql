@@ -1,3 +1,5 @@
+drop view if exists public.sales_invoice_financials;
+
 create or replace view public.sales_invoice_financials
 with (security_invoker = true)
 as
