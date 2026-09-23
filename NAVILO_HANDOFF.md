@@ -1,5 +1,15 @@
 # NAVILO audit handoff — 2026-09-22
 
+## Latest continuation — migration dependency audit, 2026-09-23
+
+Started from development commit `70ccb704fb67fc38d5d6956107cea3a1f0268b61`. The Windows host had already proved a fresh local start fails at migration 0007 because `public.godowns` is absent. This continuation traced the gap across all Git refs and read-only live history, repaired the evidenced early master baseline in migration 0002, reconciled the nine duplicate version groups to their live versions, removed three empty superseded placeholders, and added dependency/filename regression checks. Read [the dependency audit](docs/NAVILO_PHASE2B_MIGRATION_DEPENDENCY_AUDIT.md) before continuing.
+
+Clean replay is **not PASS**. This executor has no Docker/Supabase CLI runtime, and the strict static audit still finds nine referenced foundations absent. Recover and review the original live DDL before further schema patches; do not guess tables, remove constraints, or edit production migration history. Production was queried only read-only for schema/history provenance; no customer rows were copied. NAVILO production, Toqeer Builder, `main` and Vercel were unchanged. Authenticated negative tests remain blocked until local bootstrap completes.
+
+After pulling the final development commit, the Windows diagnostic is `npx supabase db reset --debug`; preserve the first failure. Exact commands/results and final SHA are in the final response.
+
+Verification in this checkout: `python3 scripts/check_migration_versions.py` PASS (0 empty, 0 duplicate IDs); normal dependency audit PASS (0 repaired-contract errors, 9 explicitly known unresolved foundations); strict dependency gate exit 1 as expected for those 9 blockers; five Python checker tests PASS; `git diff --check` PASS. The first `npm run check` attempt could not find `tsc` because dependencies were absent. After `npm ci --ignore-scripts --no-audit --no-fund` installed 330 packages, `npm run check` PASS: typecheck, 19 test files / 81 tests, and Vite build. Build retains the 3,150.13 kB minified / 882.09 kB gzip primary-chunk warning. No Supabase replay was executed here.
+
 ## Latest continuation: local isolation feasibility — 2026-09-22
 
 Started from clean development SHA `016bda83d84748c8aaf1d6311843c2ff0c08bec3`. User verified Toqeer Builder's separate organization has existing Free project `salesconnect91-lab’s Project` (`ap-southeast-2`, 27 MB database, 1 MAU); neither it nor NAVILO production may be paused, deleted, reset or used for tests. No paid resources. This continuation only updates reports; no cloud SQL, project operations, source fix, migration apply, main merge or deployment.

@@ -1,0 +1,81 @@
+# NAVILO Phase 2B — Migration Dependency Audit
+
+Date: 2026-09-23  
+Baseline: `70ccb704fb67fc38d5d6956107cea3a1f0268b61` on `work/dashboard-en-ur-20260921`
+
+## Result and root cause
+
+The Windows fresh-start failure is a confirmed source-order defect. Migration
+`20260830083000_0007_harden_sales_godown_posting.sql` references
+`public.godowns`, but the repository contained no creator for `godowns` or its
+parent `warehouses`. This is not a Docker/CLI problem.
+
+No deleted creator was found: all-ref `git log -G/-S` searches returned nothing,
+and initial commit `7b4c4f1` already contained the Godown/Warehouse UI and later
+hardening migrations without the foundational DDL. Read-only production
+migration history also has no recorded creator for these two tables. The
+supported root cause is an incomplete migration export from a database where
+the legacy master tables already existed.
+
+Development migration 0002 now creates the earliest evidenced shape of
+`categories`, `uom`, `warehouses`, `godowns` and `transporters`, before their
+first consumers. Columns, defaults and `godowns.warehouse_id` were corroborated
+from original UI/types, later constraint migrations and the read-only live
+catalog. It does not copy production data or manufacture later tenant/language
+state. Later migrations remain authoritative for that hardening.
+
+Fresh replay is still **NOT VERIFIED / release-blocked**. This executor has no
+Docker/Supabase CLI runtime, and later foundational DDL remains absent.
+
+## Full known dependency chain
+
+| Foundation | First local consumer / provenance | Status |
+|---|---|---|
+| `categories`, `uom`, `transporters` | `20260830233000_0020_secure_master_data.sql` | Repaired in 0002; ordering PASS |
+| `warehouses`, `godowns` | `20260830083000_0007_harden_sales_godown_posting.sql` | Repaired in 0002; ordering PASS |
+| `accounts` | `20260902123000_live_schema_compatibility.sql` | Creator missing |
+| `charge_master` | `20260902090000_0046_hawala_aware_sales_posting.sql` | Creator missing |
+| `companies` | local `20260904173000_saas_production_hardening.sql`; live creation `20260902214504 platform_owner_company_access_core` | Creator missing locally |
+| multi-service core: `operating_locations`, approvals and related accounting tables | local `20260905140000_multi_service_core_accounting_foundation.sql` is comments only; live `20260905103638` has 28,008-character DDL | DDL missing locally |
+| consolidated purchase foundation | live `20260904112720 purchase_consolidated_invoice_workflow` has 21,361-character DDL | Live-only divergence |
+| `user_language_preferences` | first local use `20260909082000...`; live creation `20260906161422` | Creator missing locally |
+| `order_book_headers`/commitments | first local use `20260909082000...`; live creation `20260907111147` | Creator missing locally |
+| `gate_pass_loading_instructions` | first local use `20260910013000...`; live creation `20260909214800` | Creator missing locally |
+| `company_language_entitlements` | first local use `20260915183000...`; live creation `20260914181332` | Creator missing locally |
+
+The live statements are provenance, not automatically safe patches: some
+contain functions, policies and data updates. Recover them verbatim, review
+dependencies and rehearse locally. Never edit production migration history.
+
+## Duplicate IDs and empty files
+
+Live history supplies distinct versions for all files involved in the nine
+duplicate local timestamps. SQL bodies were not changed; filenames now use:
+
+| Migration | Live version |
+|---|---:|
+| gate pass controlled reopen | `20260910103629` |
+| first-kanta tare guard | `20260910111643` |
+| journal location scope / write scope / numbering / fiscal close | `20260912191153`, `20260912191841`, `20260912192112`, `20260912192616` |
+| company resource limits / anonymous definer revoke | `20260912203828`, `20260912205333` |
+| language pairs / audit immutability / stock storage / number uniqueness | `20260913050702`, `20260913071342`, `20260913071528`, `20260913071713` |
+| stock approval scope / branch isolation / parent lookup | `20260913072054`, `20260913072243`, `20260913075847` |
+| permission helper / legacy owner helper / zero-discount guards | `20260913080206`, `20260913080248`, `20260913080418` |
+
+Three zero-byte placeholders were removed because the matching non-empty change
+and live version are known: scope-master uniqueness `20260916051608`, Urdu
+backfill permission `20260916052758`, and owner onboarding/billing
+`20260917063002`.
+
+## Regression evidence and next step
+
+`scripts/check_migration_versions.py` now reports 0 duplicate IDs and 0 empty
+files. `scripts/check_migration_dependencies.py` verifies the five repaired
+foundations and preserves nine known missing table foundations as explicit
+debt. Normal mode detects regressions to the repaired contract; `--strict`
+remains a failing release gate until all foundations are recovered.
+
+After pulling this commit on Windows, run `npx supabase db reset --debug` against
+the unlinked local stack and preserve the first failure. Do not reuse hosted
+projects, remove foreign keys, or invent substitute tables. A complete replay
+must not be reported PASS until a genuinely fresh database finishes.

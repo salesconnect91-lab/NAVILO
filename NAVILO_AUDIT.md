@@ -1,5 +1,11 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Phase 2B migration dependency update — 2026-09-23
+
+The Windows failure at migration 0007 is a **confirmed repository bootstrap defect**. Git history, current migrations and read-only production history contain no recorded creator for `godowns`/`warehouses`; the initial repository already assumed these hosted tables existed. An evidence-based minimal foundation for `categories`, `uom`, `warehouses`, `godowns` and `transporters` was added to migration 0002, before first use. No production data or final tenant state was copied.
+
+All nine duplicate timestamp groups were reconciled to the exact distinct versions recorded live, and three zero-byte placeholders with known non-empty/live counterparts were removed. The filename checker now passes with 0 duplicate IDs and 0 empty files. Full clean replay is still **NOT VERIFIED**: at least nine referenced foundations remain absent, and the multi-service foundation is only a marker while live history holds substantial DDL. See [the dependency audit](docs/NAVILO_PHASE2B_MIGRATION_DEPENDENCY_AUDIT.md). Production/main/deployment were unchanged.
+
 ## Phase 2B local alternative — 2026-09-22
 
 User independently verified Toqeer Builder's separate organization contains an existing Free project `salesconnect91-lab’s Project` in `ap-southeast-2` (27 MB database; 1 MAU). Neither it nor NAVILO production is a test environment; no pause/delete/reset or paid hosted project is authorized. [Local feasibility and test sequence](docs/NAVILO_PHASE2B_LOCAL_ISOLATION_FEASIBILITY.md) records prerequisites and limits. This executor has Node/Python but no Docker/Podman, Supabase CLI or local PostgreSQL. A fresh checker run still reports 9 duplicate migration IDs and 3 empty SQL files; checker unit tests (2) and harness syntax passed. **No local migration replay or authenticated tenant/RPC probe ran.** The existing hosted-only negative-test harness must gain a loopback-only local mode before use. User's Windows host requires read-only prerequisite check `wsl --status` as the first manual action; Windows runtime status is unknown.

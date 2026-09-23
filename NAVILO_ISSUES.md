@@ -1,5 +1,15 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## Phase 2B migration dependency result — 2026-09-23
+
+| ID / priority | Evidence / root cause | Required fix | Acceptance test |
+|---|---|---|---|
+| MIG-02 / P0 confirmed | 0007 references `public.godowns`; no `godowns`/`warehouses` creator existed in any Git ref or recorded live migration. | Minimal evidenced legacy master foundation added to 0002 on development only. | Dependency ordering checker passes; a clean local replay advances beyond 0007 without 42P01. |
+| MIG-03 / P0 release gate | Creators remain absent for `accounts`, `charge_master`, `companies`, multi-service core, language/order-book/loading/entitlement tables. Local multi-service migration is comments only. | Recover exact live DDL, review functions/policies/data updates, add chronologically, and rehearse locally. Never rewrite production history. | Strict dependency check and a genuinely fresh `supabase db reset` both pass. |
+| MIG-01 / P0 partially resolved | Live history maps duplicate filenames to distinct versions; three empty placeholders have matching non-empty changes/live versions. | Filenames reconciled and empty superseded placeholders removed. | Filename checker exits 0 (current PASS); this does not establish replay PASS. |
+
+Exact mappings and provenance: [migration dependency audit](docs/NAVILO_PHASE2B_MIGRATION_DEPENDENCY_AUDIT.md).
+
 ## Local isolation path — Phase 2B
 
 | ID / priority | Evidence / root cause | Required fix or dependency | Acceptance test |
