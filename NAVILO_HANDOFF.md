@@ -214,3 +214,11 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - Development now uses the Windows command interpreter from `ComSpec` with a fixed `npx supabase status -o env` command and `shell:false`. No user-controlled argument is concatenated. Non-Windows remains direct `npx`.
 - Diagnostics now distinguish a launch error, the CLI's exact stopped-stack marker, and other nonzero status without printing local keys or raw stderr.
 - Actual authenticated matrix remains PENDING. Production/main/Vercel/Toqeer remain unchanged.
+
+## Phase 2B third runner attempt — default-BU trigger reconciliation (2026-09-23)
+
+- User pulled exact SHA `029437349f5c24dbb78e7c6a7a1622d41f53b85c`. Local CLI discovery, Auth user/profile creation, companies, default/second BUs and company memberships progressed successfully.
+- Provisioning stopped before assertions with HTTP 409 / SQLSTATE `23505` on `business_unit_memberships_business_unit_id_user_id_key`.
+- Exact cause: `trg_sync_default_business_unit_membership` runs after each company-membership insert and already upserts the default-BU membership. The fixture then tried to insert the identical unique pair.
+- Development now upserts on `(business_unit_id,user_id)`, matching the database trigger's conflict target and explicitly preserving the intended role/active state.
+- Partial fixtures from failed attempts remain synthetic and local only. Each rerun uses new identities/company codes, so reset is unnecessary. Actual authorization matrix remains PENDING; production/main/Vercel/Toqeer remain unchanged.

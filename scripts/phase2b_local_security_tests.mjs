@@ -240,9 +240,14 @@ async function provision(local) {
     [companyA, businessUnitA1, branchA1, "revokedA", "viewer", false],
     [companyB, businessUnitB1, branchB1, "tenantB", "sales", true],
   ];
-  await serviceInsert(local, "business_unit_memberships", memberships.map(([company, unit, , label, role, active]) => ({
-    company_id: company, business_unit_id: unit, user_id: identities[label].id, role, is_active: active,
-  })));
+  await serviceUpsert(
+    local,
+    "business_unit_memberships",
+    memberships.map(([company, unit, , label, role, active]) => ({
+      company_id: company, business_unit_id: unit, user_id: identities[label].id, role, is_active: active,
+    })),
+    "business_unit_id,user_id",
+  );
   await serviceInsert(local, "operating_location_memberships", memberships.map(([company, unit, branch, label, role, active]) => ({
     company_id: company, business_unit_id: unit, operating_location_id: branch,
     user_id: identities[label].id, role, is_active: active,
