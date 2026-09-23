@@ -1,3 +1,4 @@
+alter table public.sales_orders add column if not exists salesperson_id uuid;
 alter table public.sales_orders drop constraint if exists sales_orders_salesperson_id_fkey;
 alter table public.sales_orders add constraint sales_orders_salesperson_id_fkey foreign key (salesperson_id) references public.employees(id) on delete set null;
 alter table public.order_book_headers add column if not exists salesperson_id uuid references public.employees(id) on delete set null;
