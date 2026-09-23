@@ -138,7 +138,6 @@ async function setupBusinessFixture(local, fixture, tokens) {
   const godownId = randomUUID();
   const itemId = randomUUID();
   const master = {
-    user_id: fixture.identities.owner.id,
     company_id: fixture.companyA,
   };
   const transaction = {

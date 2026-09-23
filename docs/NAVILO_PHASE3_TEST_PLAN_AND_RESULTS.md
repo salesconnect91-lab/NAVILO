@@ -63,3 +63,9 @@ At exact development SHA `5a17460df05de4f400309b633c3de3b35e3c0fa9`, local migra
 This is a confirmed repository foundation defect, not a failed business assertion. Later receipt, payment, journal, opening-balance and UI code all require `customers.account_id` and `suppliers.account_id`, but no repository migration creates either column. Read-only production catalog evidence confirms both as nullable UUID columns with named foreign keys to `public.chart_of_accounts(id)` and no delete action. Their ordinal position immediately after the original table columns establishes that they belong to the missing pre-versioned baseline rather than a new feature.
 
 Development migration `20260923182230_restore_customer_supplier_account_foundation.sql` restores both exact columns and constraints idempotently, then reloads the PostgREST schema. The Phase 3 business matrix remains **0 assertions executed / PENDING** until the repaired local rerun.
+
+## Second Windows execution — master fixture shape repair
+
+At exact SHA `5b9335260e33901fad6e87c92e8de3939f043912`, the party-account foundation migration applied successfully and PostgREST accepted the customer AR link. Fixture setup then stopped before assertion 1 with `PGRST204` because the shared master payload supplied `user_id` to `warehouses`.
+
+Read-only production catalog and the repository table foundation agree that `warehouses` and `godowns` are company-scoped and have no `user_id`. This is a test-runner defect, not a missing database column. The runner no longer supplies `user_id` in the shared master payload. Legacy local tables that retain a required owner column populate it through their authenticated `auth.uid()` default; explicit `company_id` and the normal tenant trigger remain active. No schema migration was added for this error. Business assertions remain **0 executed / PENDING**.

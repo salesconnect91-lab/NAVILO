@@ -257,3 +257,10 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - Phase 3 runner stopped during fixture setup before assertion 1: `PGRST204`, missing `customers.account_id`. Result is **0 assertions executed**, not a business-test failure/pass.
 - Root cause: clean repository foundation never creates `customers.account_id` or `suppliers.account_id`, although later accounting RPCs and frontend code require them. Read-only production catalog confirms both nullable UUID columns and exact foreign keys to `chart_of_accounts(id)`.
 - Prepared `20260923182230_restore_customer_supplier_account_foundation.sql` plus SQL-sanity regression coverage. Next safe action is local-only `migration up --local`, followed by the same Phase 3 runner. Production, `main`, Vercel and hosted projects stay unchanged.
+
+## Phase 3 second Windows run — warehouse fixture repair — 2026-09-23
+
+- User pulled exact SHA `5b9335260e33901fad6e87c92e8de3939f043912`; `20260923182230` applied locally and the customer AR-link step succeeded.
+- Runner stopped before assertion 1 on `PGRST204`, because its shared master payload included nonexistent `warehouses.user_id`.
+- Read-only production catalog plus repository DDL confirm warehouses/godowns are company-scoped without `user_id`. This is a harness bug; adding a database column would be incorrect.
+- Runner now omits explicit owner ID from the shared master payload. Authenticated defaults still populate legacy required owner fields where present. Rerun Phase 3 locally; result remains 0 assertions/PENDING until then.
