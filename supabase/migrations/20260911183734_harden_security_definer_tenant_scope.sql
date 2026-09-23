@@ -25,11 +25,13 @@ BEGIN
   n := replace(v, 'where id=p_reconciliation_id and user_id=v_user and status=''draft'';', 'where id=p_reconciliation_id and user_id=v_user and company_id=public.current_company_id() and business_unit_id=public.current_business_unit_id() and status=''draft'';');
   IF n=v THEN NULL; END IF; EXECUTE n;
 
-  SELECT pg_get_functiondef('public.post_general_cash_bank_transaction(date,text,uuid,uuid,numeric,text,text,text)'::regprocedure) INTO v;
-  n := regexp_replace(v, 'where id = p_counter_account_id\s+and user_id = v_user_id;', 'where id = p_counter_account_id and user_id = v_user_id and company_id = public.current_company_id();', 'i');
-  IF n=v THEN NULL; END IF; v:=n;
-  n := regexp_replace(v, 'where id = p_cash_bank_account_id\s+and user_id = v_user_id;', 'where id = p_cash_bank_account_id and user_id = v_user_id and company_id = public.current_company_id();', 'i');
-  IF n=v THEN NULL; END IF; EXECUTE n;
+  IF to_regprocedure('public.post_general_cash_bank_transaction(date,text,uuid,uuid,numeric,text,text,text)') IS NOT NULL THEN
+    SELECT pg_get_functiondef('public.post_general_cash_bank_transaction(date,text,uuid,uuid,numeric,text,text,text)'::regprocedure) INTO v;
+    n := regexp_replace(v, 'where id = p_counter_account_id\\s+and user_id = v_user_id;', 'where id = p_counter_account_id and user_id = v_user_id and company_id = public.current_company_id();', 'i');
+    v:=n;
+    n := regexp_replace(v, 'where id = p_cash_bank_account_id\\s+and user_id = v_user_id;', 'where id = p_cash_bank_account_id and user_id = v_user_id and company_id = public.current_company_id();', 'i');
+    IF n<>v THEN EXECUTE n; END IF;
+  END IF;
 
   SELECT pg_get_functiondef('public.get_available_hawala_invoices(uuid,uuid)'::regprocedure) INTO v;
   n := replace(v, 'on l.hawala_invoice_id=h.id and l.user_id=v_user and l.company_id=v_company', 'on l.hawala_invoice_id=h.id and l.user_id=v_user and l.company_id=v_company and l.business_unit_id=public.current_business_unit_id()');
