@@ -53,3 +53,17 @@ create or replace function public.post_sales_discount_adjustment() returns trigg
 begin return NEW; end $$;
 create or replace function public.post_purchase_discount_adjustment() returns trigger language plpgsql security definer set search_path='public','pg_temp' as $$
 begin return NEW; end $$;
+
+create or replace function public.apply_document_discount_total()
+returns trigger language plpgsql security definer set search_path='public','pg_temp' as $$
+declare v_own numeric:=0; v_linked numeric:=0; v_type text:=TG_ARGV[0]; v_no text;
+begin
+ v_no:=case when TG_TABLE_NAME in ('sales_orders','purchase_orders') then coalesce(NEW.order_no,'') else coalesce(NEW.invoice_no,'') end;
+ select coalesce(discount_amount,0) into v_own from public.commercial_invoice_discounts where company_id=NEW.company_id and business_unit_id=NEW.business_unit_id and document_type=v_type and document_no=v_no limit 1;
+ if NEW.status='posted' and TG_TABLE_NAME='sales_orders' then
+   select coalesce(sum(d.discount_amount),0) into v_linked from public.sales_order_hawala_invoices l join public.consolidated_sales_invoices h on h.id=l.hawala_invoice_id join public.commercial_invoice_discounts d on d.company_id=NEW.company_id and d.business_unit_id=NEW.business_unit_id and d.document_type='sales_consolidated' and d.document_no=h.invoice_no where l.sales_order_id=NEW.id and l.company_id=NEW.company_id and l.business_unit_id=NEW.business_unit_id;
+ elsif NEW.status='posted' and TG_TABLE_NAME='purchase_orders' then
+   select coalesce(sum(d.discount_amount),0) into v_linked from public.purchase_order_consolidated_invoices l join public.consolidated_purchase_invoices h on h.id=l.consolidated_invoice_id join public.commercial_invoice_discounts d on d.company_id=NEW.company_id and d.business_unit_id=NEW.business_unit_id and d.document_type='purchase_consolidated' and d.document_no=h.invoice_no where l.purchase_order_id=NEW.id and l.company_id=NEW.company_id and l.business_unit_id=NEW.business_unit_id;
+ end if;
+ NEW.total:=greatest(round(coalesce(NEW.total,0)-v_own-v_linked,2),0); return NEW;
+end $$;
