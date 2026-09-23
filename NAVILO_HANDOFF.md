@@ -273,3 +273,12 @@ The audit commit is the newest commit that adds these three files on `work/dashb
 - Development migration `20260923183710_harden_polymorphic_trigger_row_contracts.sql` fixes all three shared functions, including the still-latent transaction-link branch risk, without adding fake columns or weakening constraints. Direct execution remains revoked from public/anon/authenticated and `search_path` remains pinned.
 - Post-change gates: SQL sanity 0 findings; 26 migration-checker tests PASS; TypeScript PASS; 19 files/81 tests PASS; Vite build PASS with the existing 3,150.13 kB main-chunk warning.
 - **Next exact action:** pull the new development commit in `C:\NAVILO-latest`, run `npx supabase migration up --local`, then rerun `node .\scripts\phase3_local_business_uat.mjs`. Do not run `db push`, link production, or claim Phase 3 PASS until the JSON evidence passes.
+
+## Phase 3 fourth Windows run — 16/19 pass — 2026-09-23
+
+- Exact tested SHA `01e0dd105582f0e63e127ba2a34f187cb918165e`; `20260923183710` applied and local history was up to date.
+- Result: 19 total / 16 PASS / 3 FAIL. The two prior polymorphic trigger errors are resolved. Security/permission denials, manual accounting, reversal/immutability and closed-period controls passed.
+- Independent failures: clean schema lacks the live/UI-required line `description` column, and AFTER-status name snapshots collide with posted-line immutability. Returns were not independently defective; their source postings failed.
+- Prepared `20260923185524_restore_line_descriptions_and_prelock_snapshots.sql`: exact nullable description columns plus BEFORE status-transition snapshot triggers. Posted-line locks are not weakened. Runner adds descriptions and two snapshot assertions.
+- Post-change gates: migration version/sanity/dependency/order checks 0 findings; 27 checker tests PASS; TypeScript PASS; 19 files/81 tests PASS; Vite build PASS with the existing 3,150.13 kB bundle warning.
+- Production Supabase, `main`, Vercel and hosted projects remain unchanged. Apply/rerun locally before claiming sales, purchase, stock, AR/AP or returns PASS.

@@ -205,6 +205,7 @@ async function createPurchase(local, fixture, tokens, business, suffix, qty = 10
     unit_cost: unitCost,
     line_total: qty * unitCost,
     tax_percent: 0,
+    description: "Synthetic purchase line",
   }]);
   return { orderId, lineId, orderNo, qty, unitCost, total: qty * unitCost };
 }
@@ -236,6 +237,7 @@ async function createSale(local, fixture, tokens, business, suffix, qty = 4, uni
     unit_price: unitPrice,
     line_total: qty * unitPrice,
     tax_percent: 0,
+    description: "Synthetic sales line",
   }]);
   return { orderId, lineId, orderNo, qty, unitPrice, total: qty * unitPrice };
 }
@@ -248,6 +250,9 @@ async function testPurchase(local, fixture, tokens, business) {
 
   const state = await documentState(local, "purchase_orders", purchase.orderId);
   record("purchase", "posted totals and AP outstanding", "posted,total=500,outstanding=500", `${state.status},${state.total},${state.outstanding_amount}`, state.status === "posted" && near(state.total, 500) && near(state.outstanding_amount, 500));
+
+  const lineSnapshot = await selectOne(local, "purchase_order_lines", `select=description,item_name_snapshot,item_unit_snapshot,godown_name_snapshot&id=eq.${purchase.lineId}`, "purchase line snapshot");
+  record("purchase", "posted purchase preserves line names", "description and item/unit/godown snapshots populated", `${lineSnapshot.description},${lineSnapshot.item_name_snapshot},${lineSnapshot.item_unit_snapshot},${lineSnapshot.godown_name_snapshot}`, lineSnapshot.description === "Synthetic purchase line" && Boolean(lineSnapshot.item_name_snapshot) && Boolean(lineSnapshot.item_unit_snapshot) && Boolean(lineSnapshot.godown_name_snapshot));
 
   const stock = await stockQuantity(local, fixture, business.itemId, business.godownId);
   record("inventory", "purchase increases branch stock", "quantity=10", `quantity=${stock}`, near(stock, 10));
@@ -327,6 +332,8 @@ async function testSales(local, fixture, tokens, business) {
 
   const state = await documentState(local, "sales_orders", sale.orderId);
   record("sales", "sales total and AR outstanding", "posted,total=400,outstanding=400", `${state.status},${state.total},${state.outstanding_amount}`, state.status === "posted" && near(state.total, 400) && near(state.outstanding_amount, 400));
+  const lineSnapshot = await selectOne(local, "sales_order_lines", `select=description,item_name_snapshot,item_unit_snapshot,godown_name_snapshot&id=eq.${sale.lineId}`, "sales line snapshot");
+  record("sales", "posted sale preserves line names", "description and item/unit/godown snapshots populated", `${lineSnapshot.description},${lineSnapshot.item_name_snapshot},${lineSnapshot.item_unit_snapshot},${lineSnapshot.godown_name_snapshot}`, lineSnapshot.description === "Synthetic sales line" && Boolean(lineSnapshot.item_name_snapshot) && Boolean(lineSnapshot.item_unit_snapshot) && Boolean(lineSnapshot.godown_name_snapshot));
   const stock = await stockQuantity(local, fixture, business.itemId, business.godownId);
   record("inventory", "sales posting decreases branch stock", "quantity=6", `quantity=${stock}`, near(stock, 6));
 

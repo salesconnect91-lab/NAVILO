@@ -152,6 +152,18 @@ class MigrationSqlSanityTests(unittest.TestCase):
                 any("missing required legacy foundation" in finding for finding in findings)
             )
 
+    def test_line_description_and_snapshot_order_repair_is_complete(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            filename = "20260923185524_restore_line_descriptions_and_prelock_snapshots.sql"
+            (directory / filename).write_text(
+                "alter table public.sales_order_lines add column if not exists description text;"
+            )
+            findings = inspect(directory)
+            self.assertTrue(
+                any("missing required legacy foundation" in finding for finding in findings)
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

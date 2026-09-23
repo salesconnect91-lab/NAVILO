@@ -124,6 +124,13 @@ REQUIRED_SNIPPETS = {
         "revoke all on function public.navilo_link_posting_traceability() from public, anon, authenticated;",
         "revoke all on function public.sync_commercial_transaction_link() from public, anon, authenticated;",
     ),
+    "20260923185524_restore_line_descriptions_and_prelock_snapshots.sql": (
+        "alter table public.sales_order_lines\n  add column if not exists description text;",
+        "alter table public.purchase_order_lines\n  add column if not exists description text;",
+        "create trigger sales_order_line_capture_name_snapshots\nbefore insert or update of status on public.sales_orders",
+        "create trigger purchase_order_line_capture_name_snapshots\nbefore insert or update of status on public.purchase_orders",
+        "notify pgrst, 'reload schema';",
+    ),
 }
 
 
