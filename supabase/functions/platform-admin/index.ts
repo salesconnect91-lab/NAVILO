@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
 import { checkOnboardingLookups } from "./onboardingPreflight.ts";
+import { onboardingModules } from "./onboardingModules.ts";
 
 const HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -54,7 +55,7 @@ Deno.serve(async (request) => {
       const branchName = String(body.branch_name || "Head Office").trim();
       const branchCode = String(body.branch_code || "HO").trim().toUpperCase();
       const status = body.status === "active" ? "active" : "trial";
-      const modules: string[] = Array.isArray(body.modules) ? [...new Set<string>(body.modules.map(String))] : [];
+      const businessType = String(body.business_unit_type || "custom");
       if (!name || !code || !ownerEmail || !planId || !unitName || !unitCode || !branchName || !branchCode) {
         return json({ error: "Company, owner, plan, business unit and branch details are required." }, 400);
       }
@@ -68,6 +69,9 @@ Deno.serve(async (request) => {
       const preflight = checkOnboardingLookups(codeLookup, nameLookup, planLookup);
       if (!preflight.ok) return json({ error: preflight.error }, preflight.status);
       const plan = planLookup.data!;
+      let modules: string[];
+      try { modules = onboardingModules(body.modules, plan.module_defaults, businessType); }
+      catch (error) { return json({ error: error instanceof Error ? error.message : "Invalid modules" }, 400); }
 
       const startsAt = new Date();
       const requestedExpiry = body.expires_at ? new Date(String(body.expires_at)) : null;
@@ -88,7 +92,7 @@ Deno.serve(async (request) => {
         companyId = createdCompany.id;
 
         const { data: unit, error: unitError } = await admin.from("business_units").insert({
-          company_id: companyId, name: unitName, code: unitCode, unit_type: String(body.business_unit_type || "steel"), is_default: true,
+          company_id: companyId, name: unitName, code: unitCode, unit_type: businessType, is_default: true,
         }).select("id").single();
         if (unitError || !unit) throw unitError || new Error("Business unit creation failed");
         const { data: branch, error: branchError } = await admin.from("operating_locations").insert({
@@ -108,7 +112,8 @@ Deno.serve(async (request) => {
           admin.from("business_unit_memberships").insert({ company_id:companyId,business_unit_id:unit.id,user_id:userId,role:"company_owner",is_active:true }),
           admin.from("operating_location_memberships").insert({ company_id:companyId,business_unit_id:unit.id,operating_location_id:branch.id,user_id:userId,role:"company_owner",is_active:true }),
           admin.from("company_subscriptions").insert({ company_id:companyId,plan_id:planId,billing_cycle:plan.billing_cycle,status,starts_at:startsAt.toISOString(),expires_at:expiresAt.toISOString(),amount:Number(plan.price||0),currency_code:plan.currency_code||"USD",created_by:actor.id,notes:"Created through Platform Owner onboarding" }),
-          admin.from("company_modules").insert((modules.length ? modules : (plan.module_defaults || [])).map((module_key:string)=>({company_id:companyId,module_key,enabled:true,updated_by:actor.id}))),
+          admin.from("company_modules").insert(modules.map(module_key=>({company_id:companyId,module_key,enabled:true,updated_by:actor.id}))),
+          admin.from("business_unit_modules").insert(modules.map(module_key=>({company_id:companyId,business_unit_id:unit.id,module_key,enabled:true}))),
         ]);
         const writeError = writes.find(result => result.error)?.error;
         if (writeError) throw writeError;
