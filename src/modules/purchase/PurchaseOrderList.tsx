@@ -266,8 +266,8 @@ export default function PurchaseOrderList() {
             {canCreate && <button onClick={() => navigate("/purchase/new")} className="btn-primary">+ Main Purchase Invoice</button>}
             <span data-navilo-standard-tools-host className="contents" />
 
-            {canCreate && <button type="button" onClick={downloadTemplate} className="hidden">Download Template</button>}
-            {canCreate && <button type="button" onClick={() => fileInputRef.current?.click()} disabled={importing} className="hidden">{importing ? "Uploading..." : "Bulk Upload (CSV)"}</button>}
+            {canCreate && <button type="button" onClick={downloadTemplate} className="btn-secondary">Download Template</button>}
+            {canCreate && <button type="button" onClick={() => fileInputRef.current?.click()} disabled={importing} className="btn-secondary">{importing ? "Uploading..." : "Bulk Upload (CSV)"}</button>}
           </div>
         )}
       />

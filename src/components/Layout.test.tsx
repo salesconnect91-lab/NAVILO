@@ -39,4 +39,9 @@ describe("collapsed navigation", () => {
     expect(screen.getByRole("link", { name: "Customers" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Collapse navigation" })).toBeTruthy();
   });
+
+  it("names the sales invoice editor instead of showing a generic ERP title", () => {
+    render(<MemoryRouter initialEntries={["/sales/new"]}><Layout><div>Invoice editor</div></Layout></MemoryRouter>);
+    expect(screen.getByText("New Sales Invoice")).toBeTruthy();
+  });
 });

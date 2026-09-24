@@ -44,6 +44,7 @@ const navigation:NavNode[]=[
   {key:"owner",to:"/owner",label:"Owner Control / مالک کنٹرول",icon:Lucide.ShieldCheck,ownerOnly:true},
   {key:"settings",label:"Settings / سیٹنگز",icon:Lucide.Settings,module:"settings",children:[
     {key:"company-settings",to:"/settings",label:"Company / کمپنی",end:true,module:"settings"},
+    {key:"import-center",to:"/settings/imports",label:"Import Center / امپورٹ سینٹر",module:"settings"},
     {key:"access-settings",to:"/settings/access",label:"Users & Branches / یوزرز اور برانچز",module:"settings",accessAdminOnly:true},
     {key:"licence-settings",to:"/settings/licence",label:"Licence & Billing / لائسنس",module:"settings",accessAdminOnly:true},
     {key:"approval-settings",to:"/settings/approvals",label:"Approval Workflows / منظوری کے مراحل",module:"settings",accessAdminOnly:true},
@@ -71,7 +72,14 @@ function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],
   return{...n,children};
 }
 function flatten(nodes:NavNode[]):NavNode[]{return nodes.flatMap(n=>[n,...(n.children?flatten(n.children):[])])}
-function title(pathname:string){const candidates=flatten(navigation).filter(n=>n.to&&(pathname===n.to||(!n.end&&n.to!=="/"&&pathname.startsWith(`${n.to}/`))));return shellLabel(candidates.sort((a,b)=>(b.to?.length??0)-(a.to?.length??0))[0]?.label??"ERP");}
+function title(pathname:string){
+  if(pathname==="/sales/new")return"New Sales Invoice";
+  if(/^\/sales\/[^/]+\/edit$/.test(pathname))return"Edit Sales Invoice";
+  if(/^\/sales\/[^/]+$/.test(pathname)&&!["/sales/report","/sales/charges","/sales/consolidated","/sales/order-book","/sales/workflow"].includes(pathname))return"Sales Invoice";
+  if(pathname==="/purchase/new")return"New Purchase Invoice";
+  if(/^\/purchase\/[^/]+\/edit$/.test(pathname))return"Edit Purchase Invoice";
+  const candidates=flatten(navigation).filter(n=>n.to&&(pathname===n.to||(!n.end&&n.to!=="/"&&pathname.startsWith(`${n.to}/`))));return shellLabel(candidates.sort((a,b)=>(b.to?.length??0)-(a.to?.length??0))[0]?.label??"ERP");
+}
 
 export default function Layout({children}:{children:ReactNode}){
   const{user,signOut,isPlatformOwner,activeCompany,activeBusinessUnit}=useAuth();

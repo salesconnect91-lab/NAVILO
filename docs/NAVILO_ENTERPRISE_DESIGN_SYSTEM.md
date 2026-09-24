@@ -2,6 +2,14 @@
 
 This is a code-based proposal. No authenticated four-viewport screenshot review has been completed for this version. Do not label visual appearance, accessibility, print/PDF or theme coverage as verified.
 
+## Report and import screen implementation checkpoint
+
+- Generic `/reports` pages now place Date Range, From/To, Posted basis, Column grouping and available record filters on one compact scrollable row. `Customise` and `Save As` stay at the right and remain reachable after hiding filters. The centered report header sits above a compact Refresh/Print/Email/Export/Insights toolbar. Print and export obey report permissions; Email remains disabled until a delivery gateway exists. Posted basis is a disabled label because selectable cash/accrual reporting has not been implemented.
+- Save As stores a named filter view only in the current browser, keyed by user, company, business unit and report path. Column visibility/density and print orientation use the existing report customizer. Browser storage is not cross-device or centrally backed up.
+- Settings → Import Center has four white grid cards and centered green icons: Bank Data, Customers, Suppliers and Invoices. Customer/supplier import and eligible draft invoice imports lead to existing role-gated workflows. Bank statement import is explicitly unavailable; do not represent a link to reconciliation as an importer.
+- Keep entry and editing forms free of generic Print/Export/Import. Show document preview/print where an actual document exists and export/print on report/list surfaces where useful. The generic report export toolbar replaces duplicate global controls; purchase draft import/template actions remain visible at their actual list route.
+- The supplied screenshots evidence the *previous* invoice, order booking and cash counter layouts. They do not prove how this new build renders. Complete the viewport and authenticated UAT gate below before claiming a visual match.
+
 ## Structure and navigation
 
 - Shell: one compact 64 px top bar, 252 px expanded sidebar, 68 px desktop icon rail. At widths below `lg`, a full-width labelled drawer replaces the icon rail. Persist desktop collapse preference without applying it to the mobile drawer.

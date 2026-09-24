@@ -1,5 +1,16 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## Report design and contextual actions — 2026-09-24
+
+| ID / priority | Evidence and current state | Remaining acceptance |
+|---|---|---|
+| UX-ACT-01 / P1 | `src/components/UniversalDataTools.tsx` previously injected Print/Export/Import on operational pages and hid native imports through DOM scanning. Development restricts global controls to reports and two consolidated invoice paths; `src/modules/purchase/PurchaseOrderList.tsx` exposes existing template/upload. Focused regression proves Cash Counter/Sales list have no injected toolbar. | Authenticated smoke test actual report/list/document permissions and invoice editor preview/print across viewports. |
+| UX-REP-01 / P1 | `src/modules/reports/Reports.tsx`, `src/components/reports/ReportSurface.tsx`, `src/naviloProfessionalReports.css`: compact filters, action hierarchy, grouped results, scoped browser-only saved filter view and centered utilities implemented. Duplicate column labels are tracked by index and label. | Browser visual inspection at 1440, 1280, 768 and 390 widths; verify report filter, row/header, grouped CSV/Excel and print/PDF output with synthetic company. No exact QuickBooks match claimed. |
+| IMP-BANK-01 / P2 | `src/modules/settings/ImportCenter.tsx` shows Bank Data unavailable: `src/modules/accounting/BankReconciliation.tsx` has no bank statement file import. | Specify CSV/OFX schema, deduplication, tenant-bound staging and reconciliation preview; test synthetic duplicate/invalid import before enabling card. |
+| REP-EMAIL-01 / P2 | Generic report Email is visibly disabled; no authorized outbound delivery workflow verified. | Build gateway, recipients/consent, permission audit and delivery/error records; test only with an isolated mailbox. |
+| REP-METHOD-01 / P1 correctness | Generic reports currently derive posted figures. Accounting Method displays disabled Posted basis to avoid a false selectable cash/accrual claim. | Define each financial report's basis, implement cash/accrual postings and reconciliation, then test differences with partial receipts/payments before activating control. |
+| REP-SAVE-01 / P2 | Save As in `Reports.tsx` persists one named filter view in per-browser localStorage, keyed by user/company/BU/path, not a server-side cross-device saved report. | If commercial scope requires persistent shared views: tenant RLS, ownership/share permission and import/export of saved definitions, plus cross-tenant negative tests. |
+
 ## 2026-09-24 shared-table update
 
 | ID / priority | Evidence | Remaining acceptance |

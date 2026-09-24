@@ -1,5 +1,11 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Report and import layout checkpoint — 2026-09-24
+
+The user's supplied screenshots show baseline sales invoice, order book and cash counter pages with crowded navigation, inconsistent action placement and dense forms. Static code review found `UniversalDataTools` applied a generic output/import toolbar to operational entry routes and suppressed native list import controls. Development changes scope those injected tools to appropriate report surfaces, add a compact report filter/action/metadata layout and a permission-aware Import Center. Generic reports expose real Print and Excel/CSV export where authorized, and explicitly disable Email and cash/accrual switching (no gateway or cash-basis engine verified). Bank statement import remains MISSING; Save As is browser-local only. Design specification and four-viewport acceptance: `docs/NAVILO_ENTERPRISE_DESIGN_SYSTEM.md`. Actual authenticated post-change visuals and print/PDF behavior are **IMPLEMENTED BUT UNVERIFIED**; no screenshots of the new build or production changes are claimed.
+
+Local `npm run check` after these changes: TypeScript PASS, 24/24 test files and 93/93 tests PASS, Vite build PASS. Primary JS chunk 1,029.19 kB / 318.39 kB gzip and the >500 kB warning persists. No fresh local Supabase/Docker UAT or authenticated browser verification was performed in this checkpoint.
+
 ## Shared table checkpoint — 2026-09-24
 
 `src/components/DataTable.tsx` forced an English/Urdu loading string even when only one language was selected, and allowed every data column to be hidden through preferences, leaving reports without a meaningful data field. Development now uses an English source loading status for the existing language runtime, restores one visible column from old all-hidden preferences and prevents hiding the final data column. The shared table remains horizontally scrollable, with print width reset. `src/components/DataTable.test.tsx` exercises the loading string, column control and persisted all-hidden recovery. Local TypeScript, **21 files/86 tests** and Vite build pass; first JS chunk **1,028.44 kB / 318.08 kB gzip** with warning. Translation quality for a selected non-English language, export/print parity and visual behavior remain **UNVERIFIED**.
