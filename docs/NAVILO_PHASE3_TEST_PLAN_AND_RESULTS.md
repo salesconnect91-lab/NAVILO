@@ -1,5 +1,9 @@
 # Phase 3 local business UAT — plan and evidence
 
+## Measured latest local outcome — user evidence from 2026-09-23 20:39 UTC
+
+The user's Windows PowerShell output records **48/48 PASS**, covering purchases, sales, AR/AP payments and reversals, stock, credit/debit returns, journal/period controls and tested tenant/role denials. [Complete expected/actual matrix](NAVILO_PHASE3_LOCAL_BUSINESS_RESULTS.md). The output did not include the exact Git SHA and predates subsequent UI/language work. Older 27/32 and pending migration entries below remain as historical investigations, not the current measured outcome for that local run. Fresh clean replay and suite execution on the newest branch remain open.
+
 Date: 2026-09-23
 
 Environment boundary: unlinked loopback Supabase only; synthetic data only

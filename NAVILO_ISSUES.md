@@ -1,5 +1,17 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## Current priorities — 2026-09-24 (supersedes older Phase 3 status rows)
+
+| ID / priority | Evidence and impact | Acceptance / next action |
+|---|---|---|
+| P3-EVID / P1 | User's local-only synthetic output contains **48/48 PASS**; captured output omits exact Git SHA. Full expected/actual result is preserved in `docs/NAVILO_PHASE3_LOCAL_BUSINESS_RESULTS.md`. Later UI/language commits were not included in that run. | On an available isolated local stack, record exact `git rev-parse HEAD`, fresh replay, 48-case result, and a clean rerun of 41 targeted isolation assertions. |
+| UI-LANG-01 / P1 | Latest head's application suite initially **80/81**: `src/components/GlobalLanguageRuntime.test.ts` did not mock `user_language_preferences.eq`, so settings load fell back to English. | Mock both settings and preference query; `npm run check` must pass. Prepared and verified here: **81/81 PASS**, build PASS. Recheck authenticated UI/print screens manually. |
+| UI-VIS-01 / P1 | Shell/dashboard and language/print edits after the 48-case local run lack four-viewport authenticated and print/PDF evidence. Dark mode and density were disabled/removed during iteration. | Visually verify desktop/laptop/tablet/mobile, keyboard navigation, single/bilingual language, invoice/report print/PDF and export parity; file measured regressions before release. |
+| RELEASE-REPLAY / P0 | No fresh full PostgreSQL migration replay of the **current** branch is evidenced. Static migration checks pass but cannot prove runtime SQL. | Fresh disposable local database replay, capture CLI completion, then rerun synthetic business/security suites; do not touch hosted production. |
+| PERF-01 / P1 | Current Vite main JS chunk is 3,147.04 kB minified / 874.38 kB gzip. | Split high-cost routes/libraries and measure loading on target devices. |
+
+The legacy `PAY-01`, `TEST-11`, `MIG-21` and other earlier Phase 3 failure rows below describe historical runs. Treat their current outcome as locally resolved only for the recorded 48-case suite; avoid deleting investigation history or claiming full AMK acceptance.
+
 ## MIG-12 / P0 release gate — missing stock approval/transfer migration chain
 
 - **Evidence:** fresh replay advanced through `20260913072000`, then storage policy compilation in `20260913072054` failed with SQLSTATE 42703 on missing `stock_movements.approval_slip_path`.

@@ -16,9 +16,10 @@ const mockCompany = vi.hoisted(() => ({
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
-    from: () => ({
+    from: (table: string) => ({
       select: () => ({
-        maybeSingle: async () => ({ data: mockCompany.data, error: null }),
+        maybeSingle: async () => ({ data: table === "company_settings" ? mockCompany.data : null, error: null }),
+        eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
       }),
     }),
     auth: { getUser: async () => ({ data: { user: { id: "test-user" } }, error: null }) },
