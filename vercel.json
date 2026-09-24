@@ -1,4 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "work/fiscal-manufacturing-rehearsal-20260924": false
+    }
+  },
   "rewrites": [
     { "source": "/((?!assets/|navilo-logo\\.svg|favicon\\.svg).*)", "destination": "/index.html" }
   ],
