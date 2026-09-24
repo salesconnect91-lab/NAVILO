@@ -117,7 +117,7 @@ Deno.serve(async (request) => {
         userId = createdUser.user.id;
 
         const { error: profileError } = await admin.from("user_profiles").upsert({
-          id:userId,role:"admin",is_active:true,full_name:ownerName||name,email:ownerEmail,
+          id:userId,user_id:userId,role:"admin",is_active:true,full_name:ownerName||name,email:ownerEmail,
           platform_role:"user",last_company_id:companyId,last_business_unit_id:unit.id,updated_at:new Date().toISOString(),
         },{onConflict:"id"});
         if (profileError) throw profileError;
