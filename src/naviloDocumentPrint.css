@@ -155,3 +155,46 @@
   .navilo-print-output nav,
   .navilo-print-output aside { display:none!important; }
 }
+
+
+/* 2026-09-24 NAVILO-wide print hygiene.
+   All dedicated documents follow the same principle as reports: print the
+   business document, never the application chrome or interactive controls. */
+.navilo-live-preview :is(.print-document,.print-page,.gp-doc) :is(button,input,select,textarea,nav,aside,[role="search"],[data-print-ui],[data-no-print],.no-print,.page-actions,.filter-bar,.filter-toolbar,.table-toolbar,.search-bar,.search-box),
+.navilo-print-output :is(.print-document,.print-page,.gp-doc) :is(button,input,select,textarea,nav,aside,[role="search"],[data-print-ui],[data-no-print],.no-print,.page-actions,.filter-bar,.filter-toolbar,.table-toolbar,.search-bar,.search-box) {
+  display:none!important;
+}
+.navilo-live-preview :is(.print-document,.print-page,.gp-doc) table,
+.navilo-print-output :is(.print-document,.print-page,.gp-doc) table {
+  max-width:100%!important;
+}
+.navilo-live-preview :is(.print-document,.print-page,.gp-doc) tr,
+.navilo-print-output :is(.print-document,.print-page,.gp-doc) tr {
+  break-inside:avoid!important;
+  page-break-inside:avoid!important;
+}
+.navilo-live-preview :is(.print-document,.print-page,.gp-doc) thead,
+.navilo-print-output :is(.print-document,.print-page,.gp-doc) thead {
+  display:table-header-group!important;
+}
+.navilo-live-preview :is(.print-document,.print-page,.gp-doc) tfoot,
+.navilo-print-output :is(.print-document,.print-page,.gp-doc) tfoot {
+  display:table-footer-group!important;
+}
+.navilo-live-preview :is(.print-document,.print-page,.gp-doc) :is(.invoice-num,.invoice-amount-col,.tabular-nums,.text-right),
+.navilo-print-output :is(.print-document,.print-page,.gp-doc) :is(.invoice-num,.invoice-amount-col,.tabular-nums,.text-right) {
+  white-space:nowrap!important;
+  font-variant-numeric:tabular-nums!important;
+}
+@media print {
+  body:has(.navilo-print-output) > *:not([data-navilo-print-preview]) {
+    visibility:hidden!important;
+  }
+  .navilo-print-output,
+  .navilo-print-output * {
+    visibility:visible!important;
+  }
+  .navilo-print-output {
+    overflow:visible!important;
+  }
+}
