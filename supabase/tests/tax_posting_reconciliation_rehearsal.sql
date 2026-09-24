@@ -49,6 +49,8 @@ begin
   values(v_company,v_unit,v_location,v_user,'company_owner',true);
   update public.user_profiles set last_company_id=v_company,last_business_unit_id=v_unit where id=v_user;
   perform set_config('request.jwt.claim.sub',v_user::text,true);
+  insert into public.company_settings(user_id,company_id,company_name,strn)
+  values(v_user,v_company,'Tax posting rehearsal','REHEARSAL-STRN');
   perform public.initialize_default_coa();
 
   insert into public.warehouses(company_id,name)
@@ -57,12 +59,12 @@ begin
   values(v_company,'Tax rehearsal godown',v_warehouse) returning id into v_godown;
   insert into public.items(user_id,company_id,sku,name,cost,price,warehouse_id)
   values(v_user,v_company,'TAX-'||v_code,'Tax rehearsal item',0,100,v_warehouse) returning id into v_item;
-  insert into public.suppliers(user_id,company_id,name,account_id)
-  select v_user,v_company,'Tax rehearsal supplier',account_id
+  insert into public.suppliers(user_id,company_id,name,account_id,tax_registration_status,strn)
+  select v_user,v_company,'Tax rehearsal supplier',account_id,'registered','REHEARSAL-SUPPLIER'
     from public.account_mappings where company_id=v_company and mapping_key='accounts_payable'
   returning id into v_supplier;
-  insert into public.customers(user_id,company_id,name,account_id)
-  select v_user,v_company,'Tax rehearsal customer',account_id
+  insert into public.customers(user_id,company_id,name,account_id,tax_registration_status,strn)
+  select v_user,v_company,'Tax rehearsal customer',account_id,'registered','REHEARSAL-CUSTOMER'
     from public.account_mappings where company_id=v_company and mapping_key='accounts_receivable'
   returning id into v_customer;
   if v_supplier is null or v_customer is null then raise exception 'Default accounting mappings missing'; end if;
@@ -88,10 +90,12 @@ begin
       v_expected_total := case when v_kind='sales' and v_taxed then 110.7 else 100+v_rate end;
       if v_kind='purchase' then
         insert into public.purchase_orders(user_id,company_id,business_unit_id,order_no,supplier_id,
-          order_date,status,invoice_type,tax_percent)
+          order_date,status,invoice_type,tax_percent,supplier_invoice_no,supplier_invoice_date)
         values(v_user,v_company,v_unit,'TP-P-'||v_code||case when v_taxed then '-T' else '-N' end,
           v_supplier,current_date+case when v_taxed then 1 else 0 end,'draft',
-          case when v_taxed then 'Tax Invoice' else 'Purchase Invoice' end,v_rate)
+          case when v_taxed then 'Tax Invoice' else 'Purchase Invoice' end,v_rate,
+          'SRC-'||v_code||case when v_taxed then '-T' else '-N' end,
+          current_date+case when v_taxed then 1 else 0 end)
         returning id into v_order;
         insert into public.purchase_order_lines(user_id,company_id,business_unit_id,order_id,item_id,
           godown_id,qty,unit_cost,line_total,tax_percent)
