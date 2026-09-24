@@ -14,6 +14,12 @@ begin
   values (v_user,'authenticated','tax-transition-'||v_code||'@navilo.test',now(),now());
   insert into public.companies(name,code,status)
   values ('Tax transition rehearsal',v_code,'trial') returning id into v_company;
+  insert into public.user_profiles(id,user_id,email,role,platform_role,is_active)
+  values (v_user,v_user,'tax-transition-'||v_code||'@navilo.test','admin','user',true);
+  insert into public.company_memberships(company_id,user_id,role,is_active)
+  values (v_company,v_user,'company_owner',true);
+  update public.user_profiles set last_company_id=v_company where id=v_user;
+  perform set_config('request.jwt.claim.sub',v_user::text,true);
   insert into public.company_tax_events(company_id,effective_from,tax_mode)
   values (v_company,current_date,'non_tax');
   insert into public.company_tax_events(company_id,effective_from,tax_mode,authority_code)
