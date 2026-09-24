@@ -133,6 +133,7 @@ export default function Reports(){
   <section className="no-print flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5 xl:flex-row xl:items-end">
     <div className="min-w-0 flex-1 overflow-x-auto" data-report-filters><div className="flex min-w-max items-end gap-2">
       {showDateControls&&<>
+       {dailyStockReport&&<button type="button" className="btn h-9 self-end whitespace-nowrap" onClick={()=>{const d=new Date().toISOString().slice(0,10);setFrom(d);setTo(d);setRange("custom")}}>Today</button>}
       <label className="block w-32 text-[11px] font-semibold text-slate-600">Date range<select className="input mt-1 w-full" value={range} onChange={e=>changeRange(e.target.value)}><option value="all">All dates</option><option value="this-month">This month</option><option value="last-month">Last month</option><option value="custom">Custom</option></select></label>
       <label className="block w-36 text-[11px] font-semibold text-slate-600">From<input className="input mt-1 w-full" aria-label="From date" type="date" value={from} onChange={e=>{setFrom(e.target.value);setRange("custom")}}/></label>
       <label className="block w-36 text-[11px] font-semibold text-slate-600">To<input className="input mt-1 w-full" aria-label="To date" type="date" value={to} onChange={e=>{setTo(e.target.value);setRange("custom")}}/></label>
