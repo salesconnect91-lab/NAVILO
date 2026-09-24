@@ -1,5 +1,11 @@
 # NAVILO audit handoff — 2026-09-22
 
+## 2026-09-24 next design checkpoint
+
+- Development shell correction in `src/components/Layout.tsx`: persisted desktop icon-rail preference no longer strips mobile drawer labels and nested destinations; collapsed major-domain click expands the rail; Escape and close controls, visible focus and accessible names were added. Offscreen mobile drawer is hidden from keyboard traversal. Two focused interactions in `src/components/Layout.test.tsx` cover nested links, Escape focus and desktop rail expansion. Design/acceptance proposal: `docs/NAVILO_ENTERPRISE_DESIGN_SYSTEM.md`.
+- Local `npm run check`: TypeScript PASS; 20 Vitest files/83 tests PASS; Vite build PASS; main JS 1,028.44 kB (318.07 kB gzip) still exceeds warning threshold. Local runner reused dependency directory with identical lockfile; user PC has its own successful `npm.cmd ci` evidence. No authenticated browser view or print proof, Docker replay, production DB, main or Vercel change in this checkpoint.
+- Next: authenticated four-viewport navigation/layout/print check, then shared components/forms/tables adjustments from observed failures. On the other PC later, repeat fresh isolated migration and local security/business test suites. Triage npm advisories without forced dependency changes.
+
 ## 2026-09-24 checkpoint — second PC and frontend performance
 
 - User's second Windows computer: clean development checkout `f72b99c5e68dd1b99626167f22414f6ae4d2bde9`. PowerShell execution policy blocked `npm.ps1`, so `npm.cmd ci` and `npm.cmd run check` were used without changing policy. `npm ci` installed 329 packages and reported eight untriaged advisories (5 moderate, 2 high, 1 critical). TypeScript, 19/19 test files (81/81 tests) and Vite build passed; main chunk 3,147.04 kB/874.38 kB gzip.

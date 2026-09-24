@@ -1,5 +1,11 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## 2026-09-24 navigation update
+
+| ID / priority | Evidence | Remaining acceptance |
+|---|---|---|
+| DES-01 / P1 | `src/components/Layout.tsx` used persisted `collapsed` for desktop and mobile, hiding mobile labels/submenus. Development fix isolates mobile disclosure and makes collapsed group activation expand the rail; typecheck, 83 tests including two new interaction cases, and build pass. | Authenticated mobile/desktop browser verification of submenu selection, menu focus/return and screen-reader interaction; inspect all four viewports and print surfaces per `docs/NAVILO_ENTERPRISE_DESIGN_SYSTEM.md`. |
+
 ## 2026-09-24 frontend checkpoint
 
 | ID / severity | Evidence and status | Remaining acceptance |

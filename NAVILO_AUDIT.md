@@ -1,5 +1,9 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Navigation checkpoint — 2026-09-24
+
+Code inspection of `src/components/Layout.tsx` found that a persisted collapsed desktop sidebar also hid mobile labels and nested links. The development shell now keeps mobile labels/submenus visible, expands the icon rail when a domain is activated, labels controls, supports Escape to close the mobile drawer and hides offscreen mobile navigation from keyboard traversal. Two focused interaction regressions in `src/components/Layout.test.tsx` verify nested mobile links/Escape focus return and desktop rail expansion. TypeScript, 20 files/83 tests and Vite build pass locally. Authenticated viewport, full focus order and visual confirmation remain **BLOCKED/PENDING**; the shared design proposal and acceptance matrix are in `docs/NAVILO_ENTERPRISE_DESIGN_SYSTEM.md`.
+
 ## Frontend loading checkpoint — 2026-09-24
 
 The user's second Windows PC cloned development SHA `f72b99c5e68dd1b99626167f22414f6ae4d2bde9` cleanly. Its `npm.cmd ci` installed 329 packages and reported eight dependency advisories (five moderate, two high, one critical); advisories have **not** been individually triaged and no forced upgrade was run. Windows `npm.cmd run check` passed TypeScript, 19 files/81 Vitest cases and Vite build. The main JS chunk measured 3,147.04 kB (874.38 kB gzip). The user deferred Docker work to their other computer.
