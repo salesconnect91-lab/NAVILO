@@ -8,6 +8,10 @@ begin
   select base_currency_code into v_base
     from public.companies where id=new.company_id for update;
   if v_base is null then raise exception 'Company does not exist'; end if;
+  if tg_op='INSERT' then
+    new.base_currency:=v_base;
+    return new;
+  end if;
   if new.base_currency is distinct from v_base then
     update public.companies set base_currency_code=new.base_currency
       where id=new.company_id;
