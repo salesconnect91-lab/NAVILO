@@ -91,5 +91,6 @@ export default function SteelStockControl() {
 }
 
 function ReportTable({ headers, children }: { headers: string[]; children: React.ReactNode }) {
-  return <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full text-xs"><thead className="sticky top-0 z-10 bg-slate-50"><tr>{headers.map((h) => <th key={h} className="whitespace-nowrap border-b border-slate-200 p-2.5 text-left text-[10px] font-black uppercase tracking-wide text-slate-600">{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div></div>;
+  const hasRows = Array.isArray(children) ? children.some(Boolean) : Boolean(children);
+  return <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full text-xs"><thead className="sticky top-0 z-10 bg-slate-50"><tr>{headers.map((h) => <th key={h} className="whitespace-nowrap border-b border-slate-200 p-2.5 text-left text-[10px] font-black uppercase tracking-wide text-slate-600">{h}</th>)}</tr></thead><tbody>{hasRows ? children : <tr><td colSpan={headers.length} className="p-10 text-center text-sm font-bold text-slate-500">No data for the current filters.</td></tr>}</tbody></table></div></div>;
 }
