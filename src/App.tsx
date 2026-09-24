@@ -2,7 +2,7 @@ import { lazy, Suspense, type ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { FeatureAccessProvider, FeaturePathGuard, useFeatureAccess } from "@/auth/FeatureAccess";
-import { canPerformModule, canViewModule, type ModuleAction, type ModuleKey } from "@/auth/permissions";
+import { canPerformModule, type ModuleAction, type ModuleKey } from "@/auth/permissions";
 import type { FeatureAction } from "@/config/featureRegistry";
 import Login from "@/auth/Login";
 import ResetPassword from "@/auth/ResetPassword";
@@ -50,7 +50,9 @@ function moduleLicensed(companyModules:string[]|undefined,module:ModuleKey){retu
 
 function ModuleOnly({ module, children }: { module: ModuleKey; children: ReactNode }) {
   const { isPlatformOwner, activeCompany, activeBusinessUnit } = useAuth();
-  const roleAllowed = canViewModule(activeBusinessUnit?.membership_role ?? activeCompany?.membership_role, module, isPlatformOwner);
+  const role = activeBusinessUnit?.membership_role ?? activeCompany?.membership_role;
+  const permissions = activeBusinessUnit?.permissions ?? activeCompany?.permissions;
+  const roleAllowed = canPerformModule(role, module, "view", permissions, isPlatformOwner);
   const companyAllowed = moduleLicensed(activeCompany?.enabled_modules,module);
   const unitAllowed = !activeBusinessUnit || activeBusinessUnit.enabled_modules.includes(module);
   return roleAllowed && companyAllowed && unitAllowed ? <>{children}</> : <Navigate to="/" replace />;
