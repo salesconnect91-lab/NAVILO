@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, Navigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthContext";
@@ -15,29 +15,33 @@ const FeatureAccessContext=createContext<FeatureAccessContextValue|undefined>(un
 
 export function FeatureAccessProvider({children}:{children:ReactNode}){
   const { isPlatformOwner, activeCompany, activeBusinessUnit }=useAuth();
-  const [loading,setLoading]=useState(false);
-  const [companyEntitlements,setCompanyEntitlements]=useState<Map<string,Entitlement>>(new Map());
-  const [unitEntitlements,setUnitEntitlements]=useState<Map<string,Entitlement>>(new Map());
+  const scope=`${activeCompany?.company_id??""}:${activeBusinessUnit?.business_unit_id??""}`;
+  const requestId=useRef(0);
+  const [rules,setRules]=useState<{scope:string;company:Map<string,Entitlement>;unit:Map<string,Entitlement>;valid:boolean}|null>(null);
+  const loading=!isPlatformOwner&&(!rules||rules.scope!==scope);
 
   const refresh=useCallback(async()=>{
     const companyId=activeCompany?.company_id;
-    if(!companyId||isPlatformOwner){setCompanyEntitlements(new Map());setUnitEntitlements(new Map());return;}
-    setLoading(true);
+    const currentRequest=++requestId.current;
+    if(!companyId||isPlatformOwner){setRules(null);return;}
+    setRules(null);
     const [companyResult,unitResult]=await Promise.all([
       supabase.from("company_feature_entitlements").select("feature_key,enabled,action_overrides").eq("company_id",companyId),
       activeBusinessUnit?.business_unit_id
-        ? supabase.from("business_unit_feature_entitlements").select("feature_key,enabled,action_overrides").eq("business_unit_id",activeBusinessUnit.business_unit_id)
+        ? supabase.from("business_unit_feature_entitlements").select("feature_key,enabled,action_overrides").eq("company_id",companyId).eq("business_unit_id",activeBusinessUnit.business_unit_id)
         : Promise.resolve({data:[],error:null} as {data:Entitlement[];error:null}),
     ]);
-    if(!companyResult.error) setCompanyEntitlements(new Map(((companyResult.data??[]) as Entitlement[]).map(x=>[x.feature_key,x])));
-    if(!unitResult.error) setUnitEntitlements(new Map(((unitResult.data??[]) as Entitlement[]).map(x=>[x.feature_key,x])));
-    setLoading(false);
-  },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,isPlatformOwner]);
+    if(currentRequest!==requestId.current)return;
+    setRules({scope,valid:!companyResult.error&&!unitResult.error,
+      company:new Map(((companyResult.data??[]) as Entitlement[]).map(x=>[x.feature_key,x])),
+      unit:new Map(((unitResult.data??[]) as Entitlement[]).map(x=>[x.feature_key,x]))});
+  },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,isPlatformOwner,scope]);
 
   useEffect(()=>{void refresh()},[refresh]);
 
   const isFeatureEnabled=useCallback((featureKey:string,action:FeatureAction="view")=>{
     if(isPlatformOwner)return true;
+    if(!activeCompany||!rules?.valid||rules.scope!==scope)return false;
     const feature=FEATURE_BY_KEY.get(featureKey);
     if(!feature)return false;
     if(!feature.actions.includes(action))return false;
@@ -46,14 +50,14 @@ export function FeatureAccessProvider({children}:{children:ReactNode}){
       if(activeCompany?.enabled_modules&&!activeCompany.enabled_modules.includes(feature.module))return false;
       if(activeBusinessUnit&&!activeBusinessUnit.enabled_modules.includes(feature.module))return false;
     }
-    const companyRule=companyEntitlements.get(featureKey);
+    const companyRule=rules.company.get(featureKey);
     if((companyRule?.enabled??feature.defaultEnabled??true)===false)return false;
     if(companyRule?.action_overrides&&companyRule.action_overrides[action]===false)return false;
-    const unitRule=unitEntitlements.get(featureKey);
+    const unitRule=rules.unit.get(featureKey);
     if(unitRule?.enabled===false)return false;
     if(unitRule?.action_overrides&&unitRule.action_overrides[action]===false)return false;
     return true;
-  },[activeBusinessUnit,activeCompany?.enabled_modules,companyEntitlements,isPlatformOwner,unitEntitlements]);
+  },[activeBusinessUnit,activeCompany,isPlatformOwner,rules,scope]);
 
   const value=useMemo(()=>({loading,refresh,isFeatureEnabled}),[loading,refresh,isFeatureEnabled]);
   return <FeatureAccessContext.Provider value={value}>{children}</FeatureAccessContext.Provider>;
