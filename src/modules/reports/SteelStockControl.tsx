@@ -34,9 +34,9 @@ export default function SteelStockControl() {
   }, [fromDate, toDate, asOfDate]);
   useEffect(() => { void load(); }, [load]);
 
-  const categories = useMemo(() => Array.from(new Set(stock.map((r) => String(r.category_name || "").trim()).filter(Boolean))).sort(), [stock]);
-  const groups = useMemo(() => Array.from(new Set(stock.map(steelGroup))).sort(), [stock]);
-  const godowns = useMemo(() => Array.from(new Set(stock.map((r) => r.godown || "Unassigned"))).sort(), [stock]);
+  const categories = useMemo<string[]>(() => Array.from(new Set(stock.map((r) => String(r.category_name || "").trim()).filter((x): x is string => Boolean(x)))).sort((a, b) => a.localeCompare(b)), [stock]);
+  const groups = useMemo<string[]>(() => Array.from(new Set(stock.map((r) => itemGroup(r)))).sort((a, b) => a.localeCompare(b)), [stock]);
+  const godowns = useMemo<string[]>(() => Array.from(new Set(stock.map((r) => String(r.godown || "Unassigned")))).sort((a, b) => a.localeCompare(b)), [stock]);
   const matches = useCallback((r: Row) => { const q = search.trim().toLowerCase(); const text = [r.item_name, r.sku, r.grade, r.size, r.category_name, r.sub_category, r.godown, itemGroup(r)].filter(Boolean).join(" ").toLowerCase(); return (!q || text.includes(q)) && (category === "all" || String(r.category_name || "").trim() === category) && (group === "all" || itemGroup(r) === group); }, [search, category, group]);
   const filteredStock = useMemo(() => stock.filter((r) => matches(r) && (godown === "all" || (r.godown || "Unassigned") === godown)), [stock, matches, godown]);
   const filteredPeriod = useMemo(() => period.filter(matches), [period, matches]);
