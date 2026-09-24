@@ -1375,10 +1375,15 @@ export default function WorkOrderDetail() {
 
         <div className="card p-4">
           <div className="text-sm text-slate-500">
-            Quantity
+            Planned Quantity
           </div>
           <div className="mt-1 font-medium">{order.qty}</div>
         </div>
+
+        {order.accepted_qty != null && <div className="card p-4">
+          <div className="text-sm text-slate-500">QC Accepted Output</div>
+          <div className="mt-1 font-medium">{order.accepted_qty}</div>
+        </div>}
 
         <div className="card p-4">
           <div className="text-sm text-slate-500">

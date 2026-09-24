@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
 import { checkOnboardingLookups } from "./onboardingPreflight.ts";
-import { onboardingModules } from "./onboardingModules.ts";
+import { onboardingFiscalSettings, onboardingModules } from "./onboardingModules.ts";
 
 const HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -70,7 +70,11 @@ Deno.serve(async (request) => {
       if (!preflight.ok) return json({ error: preflight.error }, preflight.status);
       const plan = planLookup.data!;
       let modules: string[];
-      try { modules = onboardingModules(body.modules, plan.module_defaults, businessType); }
+      let fiscalSettings: ReturnType<typeof onboardingFiscalSettings>;
+      try {
+        modules = onboardingModules(body.modules, plan.module_defaults, businessType);
+        fiscalSettings = onboardingFiscalSettings(body.base_currency_code, body.tax_mode, body.tax_effective_from, body.tax_authority_code);
+      }
       catch (error) { return json({ error: error instanceof Error ? error.message : "Invalid modules" }, 400); }
 
       const startsAt = new Date();
@@ -86,7 +90,7 @@ Deno.serve(async (request) => {
           address: body.address || null, notes: body.notes || null, created_by: actor.id,
           subscription_expires_at: expiresAt.toISOString(), max_users: Number(plan.max_users || 10),
           max_business_units: Number(plan.max_business_units || 1), max_branches: Number(plan.max_branches || 1),
-          max_godowns: Number(plan.max_godowns || 1),
+          max_godowns: Number(plan.max_godowns || 1), base_currency_code: fiscalSettings.base_currency_code,
         }).select("id").single();
         if (companyError || !createdCompany) throw companyError || new Error("Company creation failed");
         companyId = createdCompany.id;
@@ -114,6 +118,8 @@ Deno.serve(async (request) => {
           admin.from("company_subscriptions").insert({ company_id:companyId,plan_id:planId,billing_cycle:plan.billing_cycle,status,starts_at:startsAt.toISOString(),expires_at:expiresAt.toISOString(),amount:Number(plan.price||0),currency_code:plan.currency_code||"USD",created_by:actor.id,notes:"Created through Platform Owner onboarding" }),
           admin.from("company_modules").insert(modules.map(module_key=>({company_id:companyId,module_key,enabled:true,updated_by:actor.id}))),
           admin.from("business_unit_modules").insert(modules.map(module_key=>({company_id:companyId,business_unit_id:unit.id,module_key,enabled:true}))),
+          admin.from("company_tax_events").insert({company_id:companyId,tax_mode:fiscalSettings.tax_mode,
+            effective_from:fiscalSettings.tax_effective_from,authority_code:fiscalSettings.authority_code,created_by:actor.id}),
         ]);
         const writeError = writes.find(result => result.error)?.error;
         if (writeError) throw writeError;
