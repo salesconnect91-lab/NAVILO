@@ -126,6 +126,8 @@ export default function App() {
       <Route path="/accounting/*" element={<ModuleOnly module="accounting"><Accounting /></ModuleOnly>} />
       <Route path="/reports/steel-stock" element={<ModuleOnly module="reports"><ReportSurface><SteelStockControl /></ReportSurface></ModuleOnly>} />
       <Route path="/reports/supplier-aging" element={<ModuleOnly module="reports"><ReportSurface><SupplierAgingReport /></ReportSurface></ModuleOnly>} />
+      <Route path="/reports/daily-stock-trading" element={<ReportSurface><Reports /></ReportSurface>} />
+      <Route path="/reports/trading-margin" element={<ReportSurface><Reports /></ReportSurface>} />
       <Route path="/reports/*" element={<ModuleOnly module="reports"><ReportSurface><Reports /></ReportSurface></ModuleOnly>} />
       <Route path="/settings/*" element={<ModuleOnly module="settings"><Settings /></ModuleOnly>} />
       <Route path="*" element={<Navigate to="/" replace />} />
