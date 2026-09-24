@@ -95,9 +95,15 @@ Deno.serve(async (request) => {
         if (companyError || !createdCompany) throw companyError || new Error("Company creation failed");
         companyId = createdCompany.id;
 
-        const { data: unit, error: unitError } = await admin.from("business_units").insert({
-          company_id: companyId, name: unitName, code: unitCode, unit_type: businessType, is_default: true,
-        }).select("id").single();
+        const { data: defaultUnit, error: defaultUnitError } = await admin.from("business_units")
+          .select("id").eq("company_id", companyId).eq("is_default", true).maybeSingle();
+        if (defaultUnitError) throw defaultUnitError;
+        const { data: unit, error: unitError } = defaultUnit
+          ? await admin.from("business_units").update({ name: unitName, code: unitCode, unit_type: businessType })
+              .eq("id", defaultUnit.id).eq("company_id", companyId).select("id").single()
+          : await admin.from("business_units").insert({
+              company_id: companyId, name: unitName, code: unitCode, unit_type: businessType, is_default: true,
+            }).select("id").single();
         if (unitError || !unit) throw unitError || new Error("Business unit creation failed");
         const { data: branch, error: branchError } = await admin.from("operating_locations").insert({
           company_id: companyId, business_unit_id: unit.id, name: branchName, code: branchCode, location_type: "branch", is_active: true,
@@ -110,10 +116,18 @@ Deno.serve(async (request) => {
         if (userError || !createdUser.user) throw userError || new Error("Owner login creation failed");
         userId = createdUser.user.id;
 
+        const { error: profileError } = await admin.from("user_profiles").upsert({
+          id:userId,role:"admin",is_active:true,full_name:ownerName||name,email:ownerEmail,
+          platform_role:"user",last_company_id:companyId,last_business_unit_id:unit.id,updated_at:new Date().toISOString(),
+        },{onConflict:"id"});
+        if (profileError) throw profileError;
+        // Company membership creates the default business unit membership in
+        // the database trigger; creating it again would violate its unique key.
+        const { error: membershipError } = await admin.from("company_memberships").insert({
+          company_id:companyId,user_id:userId,role:"company_owner",is_active:true,permissions:{},invited_by:actor.id,
+        });
+        if (membershipError) throw membershipError;
         const writes = await Promise.all([
-          admin.from("user_profiles").upsert({ id:userId,role:"admin",is_active:true,full_name:ownerName||name,email:ownerEmail,platform_role:"user",last_company_id:companyId,last_business_unit_id:unit.id,updated_at:new Date().toISOString() },{onConflict:"id"}),
-          admin.from("company_memberships").insert({ company_id:companyId,user_id:userId,role:"company_owner",is_active:true,permissions:{},invited_by:actor.id }),
-          admin.from("business_unit_memberships").insert({ company_id:companyId,business_unit_id:unit.id,user_id:userId,role:"company_owner",is_active:true }),
           admin.from("operating_location_memberships").insert({ company_id:companyId,business_unit_id:unit.id,operating_location_id:branch.id,user_id:userId,role:"company_owner",is_active:true }),
           admin.from("company_subscriptions").insert({ company_id:companyId,plan_id:planId,billing_cycle:plan.billing_cycle,status,starts_at:startsAt.toISOString(),expires_at:expiresAt.toISOString(),amount:Number(plan.price||0),currency_code:plan.currency_code||"USD",created_by:actor.id,notes:"Created through Platform Owner onboarding" }),
           admin.from("company_modules").insert(modules.map(module_key=>({company_id:companyId,module_key,enabled:true,updated_by:actor.id}))),
