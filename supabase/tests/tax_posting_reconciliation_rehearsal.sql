@@ -91,7 +91,8 @@ begin
     foreach v_taxed in array array[false,true] loop
       v_rate := case when v_taxed then 7 else 0 end;
       v_expected_vat := case when v_kind='sales' and v_taxed then 7.7 else v_rate end;
-      v_expected_total := case when v_kind='sales' and v_taxed then 110.7 else 100+v_rate end;
+      v_expected_total := 100 + v_expected_vat +
+        case when v_kind='sales' and v_taxed then 10 else 0 end;
       if v_kind='purchase' then
         insert into public.purchase_orders(user_id,company_id,business_unit_id,order_no,supplier_id,
           order_date,status,invoice_type,tax_percent,supplier_invoice_no,supplier_invoice_date)
