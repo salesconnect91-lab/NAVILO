@@ -103,6 +103,7 @@ export default function Reports(){
  const parties=useMemo(()=>masterParties.length?masterParties:unique(data,def.partyKey),[data,def.partyKey,masterParties]),items=useMemo(()=>unique(data,def.itemKey),[data,def.itemKey]),statuses=useMemo(()=>unique(data,def.statusKey),[data,def.statusKey]);
  const rows=useMemo(()=>data.filter(r=>{if(def.dateKey&&!def.rpc){const d=String(r[def.dateKey]??"").slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false}if(party&&def.partyKey&&String(r[def.partyKey]??"")!==party)return false;if(item&&def.itemKey&&String(r[def.itemKey]??"")!==item)return false;if(category&&supportsCategory&&itemCategoryIds[String(r.item_id??"")]!==category)return false;if(status&&def.statusKey&&String(r[def.statusKey]??"")!==status)return false;const s=q.trim().toLowerCase();return !s||JSON.stringify(r).toLowerCase().includes(s)}),[data,def,q,from,to,party,item,category,status,supportsCategory,itemCategoryIds]);
  const inventoryCategoryMode=supportsCategory&&inventoryView==="categories";
+  const marginReport=loc.pathname==="/reports/trading-margin";
  const categorySummary=useMemo(()=>{
   if(!inventoryCategoryMode)return[] as any[];
   const map=new Map<string,any>();
@@ -124,7 +125,7 @@ export default function Reports(){
  const tradingGodowns=useMemo(()=>{if(!trading)return[] as any[];const m=new Map<string,any>();rows.forEach(r=>{const k=String(r.godown||"Main"),x=m.get(k)||{name:k,opening:0,inQty:0,outQty:0,closing:0};x.opening+=n(r.opening_qty);x.inQty+=n(r.purchase_qty)+n(r.other_in_qty);x.outQty+=n(r.sales_qty)+n(r.other_out_qty);x.closing+=n(r.closing_qty);m.set(k,x)});return Array.from(m.values()).sort((a,b)=>a.name.localeCompare(b.name))},[trading,rows]);
  const showDates=Boolean(def.dateKey||def.period);
  const showDateControls=showDates;
- const groupOptions=[def.partyKey&&{key:def.partyKey,label:"Party"},supportsCategory&&{key:"__category",label:"Category"},def.itemKey&&{key:def.itemKey,label:"Item"},def.statusKey&&{key:def.statusKey,label:"Status"}].filter((x):x is {key:string;label:string}=>Boolean(x));
+ const groupOptions=[def.partyKey&&{key:def.partyKey,label:"Party"},supportsCategory&&!marginReport&&{key:"__category",label:"Category"},def.itemKey&&!marginReport&&{key:def.itemKey,label:"Item"},def.statusKey&&{key:def.statusKey,label:"Status"}].filter((x):x is {key:string;label:string}=>Boolean(x));
  const groups=useMemo(()=>{if(!groupBy)return[{name:"",items:rows}];const grouped=new Map<string,typeof rows>();rows.forEach(row=>{const name=groupBy==="__category"?(categoryNames[itemCategoryIds[String(row.item_id??"")]]??"Unspecified"):(String(row[groupBy]??"Unspecified")||"Unspecified");const items=grouped.get(name)||[];items.push(row);grouped.set(name,items)});return Array.from(grouped,([name,items])=>({name,items})).sort((a,b)=>a.name.localeCompare(b.name))},[rows,groupBy,categoryNames,itemCategoryIds]);
  const exportReport=(kind:"excel"|"csv")=>{const root=document.querySelector<HTMLElement>(".navilo-report-source");if(!root)return;const filename=loc.pathname.replace(/^\//,"").replace(/\W+/g,"-")||"report";if(kind==="excel")exportDomReportToExcel(filename,root,def.title);else exportDomReportToCSV(filename,root,def.title);setExportOpen(false)};
  return <div className="space-y-3 pb-12" data-generic-report>
