@@ -112,3 +112,85 @@
 .navilo-live-preview .print-header,.navilo-print-output .print-header{border-bottom-color:var(--navilo-print-blue)!important}.navilo-live-preview .invoice-items-head,.navilo-print-output .invoice-items-head{background:linear-gradient(180deg,var(--navilo-print-navy-2),var(--navilo-print-navy))!important;color:#fff!important}.navilo-live-preview .invoice-items-head>div,.navilo-print-output .invoice-items-head>div{color:#fff!important;border-right-color:rgba(255,255,255,.28)!important;border-bottom-color:var(--navilo-print-navy)!important}.navilo-live-preview .invoice-items-row:nth-child(odd)>div,.navilo-print-output .invoice-items-row:nth-child(odd)>div{background:#f8fbff!important}.navilo-live-preview .print-grand-total,.navilo-print-output .print-grand-total{color:var(--navilo-print-ink)!important;background:var(--navilo-print-soft-blue)!important;padding:2mm!important;border:0!important;border-radius:2mm!important}
 .navilo-landscape .navilo-report-brand-header{grid-template-columns:55mm 1fr 70mm!important}.navilo-landscape .navilo-report-logo{width:48mm!important}.navilo-landscape .navilo-generic-report table{font-size:7.2pt!important}
 @media print{html,body{background:#fff!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.navilo-print-output,.navilo-print-output *{visibility:visible!important}.navilo-print-output{position:static!important;margin:0!important;padding:0!important;background:#fff!important}.navilo-print-output.navilo-portrait{width:190mm!important;max-width:190mm!important}.navilo-print-output.navilo-landscape{width:277mm!important;max-width:277mm!important}.navilo-print-output button,.navilo-print-output .no-print,.navilo-print-output [data-no-print],.navilo-print-output nav,.navilo-print-output aside{display:none!important}}
+
+
+/* 2026-09-24: global ERP report print-fit standard.
+   Screen layouts stay rich; printed reports use the printable business data only. */
+.navilo-live-preview .navilo-generic-report [data-report-filters],
+.navilo-print-output .navilo-generic-report [data-report-filters],
+.navilo-live-preview .navilo-generic-report [data-print-ui],
+.navilo-print-output .navilo-generic-report [data-print-ui] {
+  display:none!important;
+}
+.navilo-live-preview .navilo-generic-report .navilo-report-header,
+.navilo-print-output .navilo-generic-report .navilo-report-header {
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(42mm,.62fr)!important;
+  gap:5mm!important;
+  align-items:start!important;
+  margin:0 0 4mm!important;
+  padding:0 0 3mm!important;
+  border-bottom:1px solid #94a3b8!important;
+  break-inside:avoid!important;
+}
+.navilo-live-preview .navilo-generic-report .navilo-report-identity,
+.navilo-print-output .navilo-generic-report .navilo-report-identity {min-width:0!important}
+.navilo-live-preview .navilo-generic-report .navilo-report-header .navilo-report-logo,
+.navilo-print-output .navilo-generic-report .navilo-report-header .navilo-report-logo {
+  width:auto!important;height:9mm!important;max-width:30mm!important;margin:0 0 1mm!important;
+}
+.navilo-live-preview .navilo-generic-report .navilo-report-header .navilo-report-company-name,
+.navilo-print-output .navilo-generic-report .navilo-report-header .navilo-report-company-name {
+  font-size:10.5pt!important;line-height:1.15!important;font-weight:800!important;
+}
+.navilo-live-preview .navilo-generic-report .navilo-report-business-unit,
+.navilo-print-output .navilo-generic-report .navilo-report-business-unit {
+  margin-top:.5mm!important;font-size:6.7pt!important;color:#475569!important;
+}
+.navilo-live-preview .navilo-generic-report .navilo-report-header .navilo-report-meta,
+.navilo-print-output .navilo-generic-report .navilo-report-header .navilo-report-meta {
+  justify-self:end!important;width:auto!important;max-width:70mm!important;text-align:right!important;
+}
+.navilo-live-preview .navilo-generic-report .navilo-report-title,
+.navilo-print-output .navilo-generic-report .navilo-report-title {
+  margin:0!important;font-size:11pt!important;line-height:1.1!important;font-weight:800!important;
+}
+.navilo-live-preview .navilo-generic-report .navilo-report-subtitle,
+.navilo-print-output .navilo-generic-report .navilo-report-subtitle,
+.navilo-live-preview .navilo-generic-report .navilo-report-date,
+.navilo-print-output .navilo-generic-report .navilo-report-date {
+  margin-top:.7mm!important;font-size:6.4pt!important;color:#64748b!important;
+}
+.navilo-live-preview .navilo-generic-report table,
+.navilo-print-output .navilo-generic-report table {
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  table-layout:auto!important;border-collapse:collapse!important;
+  font-size:6.7pt!important;line-height:1.15!important;
+}
+.navilo-live-preview .navilo-generic-report th,
+.navilo-print-output .navilo-generic-report th {
+  padding:1.25mm 1.15mm!important;font-size:6.2pt!important;line-height:1.1!important;
+  white-space:normal!important;overflow-wrap:normal!important;word-break:normal!important;
+}
+.navilo-live-preview .navilo-generic-report td,
+.navilo-print-output .navilo-generic-report td {
+  padding:1.35mm 1.15mm!important;font-size:6.5pt!important;line-height:1.15!important;
+  overflow-wrap:normal!important;word-break:normal!important;hyphens:none!important;
+}
+.navilo-live-preview .navilo-generic-report td.text-right,
+.navilo-print-output .navilo-generic-report td.text-right,
+.navilo-live-preview .navilo-generic-report td.tabular-nums,
+.navilo-print-output .navilo-generic-report td.tabular-nums {white-space:nowrap!important}
+.navilo-live-preview.navilo-landscape .navilo-generic-report,
+.navilo-print-output.navilo-landscape .navilo-generic-report {font-size:6.7pt!important}
+.navilo-live-preview.navilo-landscape .navilo-generic-report table,
+.navilo-print-output.navilo-landscape .navilo-generic-report table {font-size:6.35pt!important}
+.navilo-live-preview.navilo-landscape .navilo-generic-report th,
+.navilo-print-output.navilo-landscape .navilo-generic-report th {font-size:5.9pt!important;padding:1.15mm .9mm!important}
+.navilo-live-preview.navilo-landscape .navilo-generic-report td,
+.navilo-print-output.navilo-landscape .navilo-generic-report td {font-size:6.15pt!important;padding:1.2mm .9mm!important}
+.navilo-live-preview .navilo-generic-report .navilo-report-footer,
+.navilo-print-output .navilo-generic-report .navilo-report-footer {
+  margin-top:4mm!important;padding-top:1.5mm!important;border-top:1px solid #cbd5e1!important;
+  font-size:6pt!important;color:#64748b!important;
+}
