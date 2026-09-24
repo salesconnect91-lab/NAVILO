@@ -1,5 +1,11 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Frontend loading checkpoint — 2026-09-24
+
+The user's second Windows PC cloned development SHA `f72b99c5e68dd1b99626167f22414f6ae4d2bde9` cleanly. Its `npm.cmd ci` installed 329 packages and reported eight dependency advisories (five moderate, two high, one critical); advisories have **not** been individually triaged and no forced upgrade was run. Windows `npm.cmd run check` passed TypeScript, 19 files/81 Vitest cases and Vite build. The main JS chunk measured 3,147.04 kB (874.38 kB gzip). The user deferred Docker work to their other computer.
+
+Development now lazy-loads the existing module routes in `src/App.tsx` with a workspace loading state. A local build using the identical lockfile measures the main JS chunk at **1,026.70 kB (317.80 kB gzip)**, down 2,120.34 kB minified (556.58 kB gzip) from the Windows baseline. Local TypeScript, 19 files/81 tests and Vite build pass; the 500 kB chunk warning remains. Route navigation on authenticated browsers and four viewport design/print checks are **not yet verified**. This change only concerns the development branch; it does not establish release readiness.
+
 ## Current checkpoint — 2026-09-24
 
 Development branch reviewed at `9365b631f0cb2cd8d0c84af35c79166d6ebe2ce2`, 90 commits after the earlier `31a43b4ce82894f6332186b4dedb2aa39ff5c30b` baseline. The user's captured Windows output dated 2026-09-23 20:39 UTC records **48/48 PASS** for the isolated synthetic Phase 3 business matrix: posted sales/purchase, stock, AR/AP receipts/payments and reversals, returns, journal balance/immutability, tenant/role denials and period controls. The output omits the exact Git SHA. [Full expected/actual evidence](docs/NAVILO_PHASE3_LOCAL_BUSINESS_RESULTS.md). This supersedes earlier pending/failed Phase 3 snapshots *for that tested local run*; later UI and language commits have not received a fresh database run.

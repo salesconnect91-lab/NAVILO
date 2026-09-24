@@ -1,5 +1,12 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## 2026-09-24 frontend checkpoint
+
+| ID / severity | Evidence and status | Remaining acceptance |
+|---|---|---|
+| PERF-01 / P1 | `src/App.tsx` module routes now load on demand. Same lockfile: primary JS 3,147.04 → 1,026.70 kB (gzip 874.38 → 317.80 kB). TypeScript, 81 tests and build pass locally. The >500 kB warning remains. | Measure authenticated first load and route switching on desktop/mobile; inspect remaining eager shell imports and large Dashboard/Accounting/PDF chunks before claiming performance resolved. |
+| DEP-01 / P1 triage | Second Windows PC's `npm.cmd ci` reports 8 advisories (5 moderate, 2 high, 1 critical); specific packages and reachable impact have not been inspected. | Capture `npm.cmd audit --json` or readable summary, assess production vs dev exposure, patch with tested nonbreaking changes where possible; do not blindly run `audit fix --force`. |
+
 ## Current priorities — 2026-09-24 (supersedes older Phase 3 status rows)
 
 | ID / priority | Evidence and impact | Acceptance / next action |

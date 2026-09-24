@@ -1,5 +1,12 @@
 # NAVILO audit handoff — 2026-09-22
 
+## 2026-09-24 checkpoint — second PC and frontend performance
+
+- User's second Windows computer: clean development checkout `f72b99c5e68dd1b99626167f22414f6ae4d2bde9`. PowerShell execution policy blocked `npm.ps1`, so `npm.cmd ci` and `npm.cmd run check` were used without changing policy. `npm ci` installed 329 packages and reported eight untriaged advisories (5 moderate, 2 high, 1 critical). TypeScript, 19/19 test files (81/81 tests) and Vite build passed; main chunk 3,147.04 kB/874.38 kB gzip.
+- The user will use their first Windows PC for Docker/local Supabase later. No database replay or authenticated UI/print walkthrough was executed on the second PC.
+- Development edit: `src/App.tsx` lazy-loads existing module routes with a `Suspense` loading state. Local dependencies were reused only after confirming identical `package-lock.json` SHA-256 in the earlier checkout. `npm run check` passed TypeScript, 81/81 tests and Vite build; main chunk 1,026.70 kB/317.80 kB gzip. Chunk warning remains. No migration, hosted DB, main branch or Vercel deployment changed.
+- Next: pull the new development SHA on the user's PC, inspect the eight advisories without automatic forced upgrades, run authenticated route/navigation and desktop/tablet/mobile/print verification, then repeat fresh isolated local migration and security/business suites on the first Windows PC. Keep UI appearance and backend acceptance explicitly unverified until actually tested.
+
 ## CURRENT RESUME POINT — 2026-09-24
 
 - Repository: `salesconnect91-lab/NAVILO`; development branch: `work/dashboard-en-ur-20260921`. Reviewed remote parent: `9365b631f0cb2cd8d0c84af35c79166d6ebe2ce2`; use the actual newer commit SHA reported at the end of this checkpoint as the next baseline. The earlier `31a43b4…` snapshot is 90 commits behind this reviewed parent.
