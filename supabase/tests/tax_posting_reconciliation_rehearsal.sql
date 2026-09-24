@@ -17,6 +17,8 @@ declare
   v_vat_account uuid;
   v_party_account uuid;
   v_revenue_account uuid;
+  v_cogs_account uuid;
+  v_cogs numeric;
   v_expected_vat numeric;
   v_expected_total numeric;
   v_total numeric;
@@ -70,6 +72,8 @@ begin
   if v_supplier is null or v_customer is null then raise exception 'Default accounting mappings missing'; end if;
   select account_id into v_revenue_account from public.account_mappings
     where company_id=v_company and mapping_key='sales_revenue';
+  select account_id into v_cogs_account from public.account_mappings
+    where company_id=v_company and mapping_key='cogs';
   insert into public.charge_master(user_id,company_id,charge_key,charge_name,
     applies_to,tax_applicable,revenue_account_id,is_active)
   values(v_user,v_company,'tax-rehearsal-'||v_code,'Tax rehearsal charge',
@@ -137,6 +141,14 @@ begin
         into v_vat from public.journal_lines where entry_id=v_entry and account_id=v_vat_account;
       select coalesce(sum(case when v_kind='purchase' then credit else debit end),0)
         into v_total from public.journal_lines where entry_id=v_entry and account_id=v_party_account;
+      if v_kind='sales' then
+        select coalesce(sum(debit),0) into v_cogs from public.journal_lines
+          where entry_id=v_entry and account_id=v_cogs_account;
+        if v_cogs<>100 or public.get_inventory_avg_cost(v_item)<>100 then
+          raise exception 'Sales posting lost weighted-average COGS: journal %, average %',
+            v_cogs,public.get_inventory_avg_cost(v_item);
+        end if;
+      end if;
       if v_entry is null or v_vat<>v_expected_vat or
          (v_result->>'tax_total' is not null and (v_result->>'tax_total')::numeric<>v_expected_vat) or
          (v_kind='purchase' and (v_result->>'grand_total')::numeric<>v_expected_total) or
