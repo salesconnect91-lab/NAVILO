@@ -1,4 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
+import { fixedTaxRateOn } from "@/lib/effectiveTaxRate";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, FileCheck2, Plus, Printer, RefreshCw, Save, Search, Trash2, X } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -55,6 +56,16 @@ export default function ConsolidatedInvoices() {
   const [saving, setSaving] = useState(false);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (loading || Boolean(editingId)) return;
+    let cancelled = false;
+    void fixedTaxRateOn(invoiceDate, "sales").then(rate => {
+      if (cancelled) return;
+      setConfiguredTaxRate(rate); setRows(rows=>rows.map(row=>({...row,tax_percent: invoiceType === "Tax Invoice" ? rate || "0" : "0"}))); setCharges(charges=>charges.map(charge=>({...charge,tax_percent:invoiceType==="Tax Invoice"&&chargeMaster.find(master=>master.charge_key===charge.charge_key)?.tax_applicable?rate||"0":"0"})));
+    }).catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : String(err)); });
+    return () => { cancelled = true; };
+  }, [invoiceDate, loading, editingId, invoiceType,chargeMaster]);
   const [success, setSuccess] = useState("");
 
   const editingInvoice = useMemo(() => invoices.find((row) => row.id === editingId) || null, [invoices, editingId]);

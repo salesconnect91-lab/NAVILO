@@ -1,4 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
+import { fixedTaxRateOn } from "@/lib/effectiveTaxRate";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Eye, Plus, Printer, Save, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -42,6 +43,16 @@ export default function MainPurchaseInvoiceV2() {
     const loadedGodowns=(godownRes.data??[]) as Godown[]; const tax=taxRes.data?String(Number(taxRes.data.rate)||0):null;
     setSuppliers((supplierRes.data??[]) as Supplier[]); setItems((itemRes.data??[]) as Item[]); setGodowns(loadedGodowns); setOrderNo(String(orderNoRes.data??"")); setConfiguredTaxRate(tax); setConfiguredCharges((chargeRes.data??[]) as ConfiguredCharge[]); setAllConsolidated((consolidatedRes.data??[]) as ConsolidatedOption[]); setCompanyPrint((companyRes.data||{}) as CompanyPrintSettings); setRows([emptyLine("0",loadedGodowns[0]?.id||"")]);
   } catch(e:any){setError(e?.message||"Failed to load Main Purchase Invoice.");} finally{setLoading(false);} },[]); useEffect(()=>{void loadBase();},[loadBase]);
+  useEffect(() => {
+    if (loading) return;
+    let cancelled=false;
+    void fixedTaxRateOn(orderDate,"purchase").then(rate=>{
+      if(cancelled)return;
+      setConfiguredTaxRate(rate);
+      setRows(rows=>rows.map(row=>({...row,tax_percent:invoiceType==="Tax Invoice"?rate||"0":"0"}))); setCharges(charges=>charges.map(charge=>({...charge,tax_percent:invoiceType==="Tax Invoice"&&configuredCharges.find(master=>master.charge_key===charge.charge_key)?.tax_applicable?rate||"0":"0"})));
+    }).catch(err=>{if(!cancelled)setError(err instanceof Error?err.message:String(err));});
+    return ()=>{cancelled=true;};
+  },[orderDate,loading,invoiceType,configuredCharges]);
 
   useEffect(()=>{ if(!supplierId){setSupplierSnapshot(null);return;} void(async()=>{setSnapshotLoading(true); const [ordersRes,paymentsRes]=await Promise.all([supabase.from("purchase_orders").select("outstanding_amount,status").eq("supplier_id",supplierId).eq("status","posted"),supabase.from("purchase_payment_allocations").select("allocation_date,amount,created_at").eq("supplier_id",supplierId).order("allocation_date",{ascending:false}).order("created_at",{ascending:false})]); setSnapshotLoading(false); if(ordersRes.error||paymentsRes.error)return; const payments=paymentsRes.data??[]; const key=new Date().toISOString().slice(0,10); setSupplierSnapshot({currentOutstanding:(ordersRes.data??[]).reduce((s:number,r:any)=>s+Math.max(0,Number(r.outstanding_amount)||0),0),lastPaymentDate:payments[0]?.allocation_date?String(payments[0].allocation_date):null,lastPaymentAmount:Number(payments[0]?.amount)||0,paidToday:payments.reduce((s:number,r:any)=>String(r.allocation_date).slice(0,10)===key?s+(Number(r.amount)||0):s,0)});})(); },[supplierId]);
 

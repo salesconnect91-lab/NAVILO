@@ -3,18 +3,23 @@ begin;
 do $$
 declare
   v_company uuid;
+  v_user uuid := gen_random_uuid();
   v_code text := 'T' || substr(replace(gen_random_uuid()::text,'-',''),1,12);
   v_table text;
   v_date_column text;
   v_non_tax_type text;
   v_rejected boolean;
 begin
+  insert into auth.users(id,role,email,created_at,updated_at)
+  values (v_user,'authenticated','tax-transition-'||v_code||'@navilo.test',now(),now());
   insert into public.companies(name,code,status)
   values ('Tax transition rehearsal',v_code,'trial') returning id into v_company;
   insert into public.company_tax_events(company_id,effective_from,tax_mode)
   values (v_company,current_date,'non_tax');
   insert into public.company_tax_events(company_id,effective_from,tax_mode,authority_code)
   values (v_company,current_date+1,'tax_registered','REHEARSAL');
+  insert into public.tax_rates(user_id,company_id,name,rate,applies_to,is_fixed,is_active,effective_from)
+  values (v_user,v_company,'Tax rehearsal '||v_code,17.5,'both',true,true,current_date+1);
 
   if (select e.tax_mode from public.company_tax_events e where e.company_id=v_company
       and e.effective_from<=current_date order by e.effective_from desc limit 1)<>'non_tax' then

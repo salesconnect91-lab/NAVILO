@@ -1,4 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
+import { fixedTaxRateOn } from "@/lib/effectiveTaxRate";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Eye, FileCheck2, Plus, Printer, Save, Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -143,6 +144,17 @@ export default function SalesInvoiceCreate() {
   const [isLocked, setIsLocked] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [baseLoaded, setBaseLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!baseLoaded || isEditing) return;
+    let cancelled = false;
+    void fixedTaxRateOn(invoiceDate, "sales").then(rate => {
+      if (cancelled) return;
+      setConfiguredTaxRate(rate); setRows(rows=>rows.map(row=>({...row,tax_percent: invoiceType === "Tax Invoice" ? rate || "0" : "0"}))); setCharges(charges=>charges.map(charge=>({...charge,tax_percent:invoiceType==="Tax Invoice"&&chargeMaster.find(master=>master.charge_key===charge.charge_key)?.tax_applicable?rate||"0":"0"})));
+    }).catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : String(err)); });
+    return () => { cancelled = true; };
+  }, [invoiceDate, baseLoaded, isEditing, invoiceType,chargeMaster]);
 
   const taxPercent = invoiceType === "Tax Invoice" ? Number(configuredTaxRate || 0) : 0;
 
@@ -249,6 +261,7 @@ export default function SalesInvoiceCreate() {
         setError(null);
         await loadBaseData();
         await loadEditingInvoice();
+        setBaseLoaded(true);
       } catch (e: any) {
         setError(e?.message || "Failed to load sales invoice.");
       }

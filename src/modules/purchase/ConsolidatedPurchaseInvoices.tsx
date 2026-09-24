@@ -1,4 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
+import { fixedTaxRateOn } from "@/lib/effectiveTaxRate";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Plus, RefreshCw, Search } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -89,6 +90,16 @@ export default function ConsolidatedPurchaseInvoices() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (loading || editingId) return;
+    let cancelled=false;
+    void fixedTaxRateOn(invoiceDate,"purchase").then(rate=>{
+      if(cancelled)return;
+      setTaxPercent(rate||"0");setTaxConfigured(rate!==null);
+      setRows(rows=>rows.map(row=>({...row,tax_percent:invoiceType==="Tax Invoice"?rate||"0":"0"})));
+    }).catch(err=>{if(!cancelled)setError(err instanceof Error?err.message:String(err));});
+    return ()=>{cancelled=true;};
+  },[invoiceDate,loading,editingId,invoiceType]);
   const [success, setSuccess] = useState<string | null>(null);
 
   const load = useCallback(async () => {

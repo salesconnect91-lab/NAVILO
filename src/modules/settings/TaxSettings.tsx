@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { ErrorBanner } from "@/components/ui";
 import { getJurisdictionProfile } from "@/lib/jurisdictionConfig";
 
-type Tax = { id?: string; name: string; rate: string; applies_to: "sales" | "purchase" | "both"; is_fixed: boolean; is_active: boolean };
+type Tax = { id?: string; name: string; rate: string; applies_to: "sales" | "purchase" | "both"; is_fixed: boolean; is_active: boolean; effective_from: string | null; effective_to: string | null };
 
 export default function TaxSettings() {
   const [taxes, setTaxes] = useState<Tax[]>([]);
@@ -32,9 +32,10 @@ export default function TaxSettings() {
     setError(null);
     try {
       for (const tax of taxes) {
-        const payload = { name: tax.name.trim(), rate: Number(tax.rate) || 0, applies_to: tax.applies_to, is_fixed: tax.is_fixed, is_active: tax.is_active };
+        const payload = { name: tax.name.trim(), rate: Number(tax.rate) || 0, applies_to: tax.applies_to, is_fixed: tax.is_fixed, is_active: tax.is_active, effective_from: tax.effective_from || null, effective_to: tax.effective_to || null };
         if (!payload.name) throw new Error(`${jurisdiction.taxLabel} name is required.`);
         if (payload.rate < 0 || payload.rate > 100) throw new Error("Tax rate must be between 0 and 100.");
+        if (payload.effective_from && payload.effective_to && payload.effective_to < payload.effective_from) throw new Error("Effective To must be on or after Effective From.");
         const result = tax.id ? await supabase.from("tax_rates").update(payload).eq("id", tax.id) : await supabase.from("tax_rates").insert(payload);
         if (result.error) throw result.error;
       }
@@ -57,10 +58,12 @@ export default function TaxSettings() {
     {error && <ErrorBanner message={error} />}
     {saved && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">Saved successfully</div>}
     <section className="rounded-lg border bg-white p-4">
-      <div className="mb-3 flex items-center justify-between"><div><h2 className="font-semibold">{jurisdiction.taxLabel} Rates</h2><p className="text-[12px] text-slate-400">Fixed rates cannot be overridden on invoices; authorized users can maintain changeable rates when local law changes.</p></div><button className="btn-secondary" onClick={() => setTaxes([...taxes, { name: `New ${jurisdiction.taxLabel}`, rate: "0", applies_to: "both", is_fixed: false, is_active: true }])}><Plus className="h-3.5 w-3.5" /> Add</button></div>
-      <div className="space-y-2">{taxes.map((tax, index) => <div key={tax.id ?? index} className="grid grid-cols-1 gap-2 rounded border p-3 md:grid-cols-[2fr_1fr_1.5fr_1fr_1fr_auto]">
+      <div className="mb-3 flex items-center justify-between"><div><h2 className="font-semibold">{jurisdiction.taxLabel} Rates</h2><p className="text-[12px] text-slate-400">Add a new rate with an Effective From date when the rate changes. Existing invoice rates stay saved on the document.</p></div><button className="btn-secondary" onClick={() => setTaxes([...taxes, { name: `New ${jurisdiction.taxLabel}`, rate: "0", applies_to: "both", is_fixed: false, is_active: true, effective_from: new Date().toISOString().slice(0,10), effective_to: null }])}><Plus className="h-3.5 w-3.5" /> Add</button></div>
+      <div className="space-y-2">{taxes.map((tax, index) => <div key={tax.id ?? index} className="grid grid-cols-1 gap-2 rounded border p-3 md:grid-cols-4 xl:grid-cols-[2fr_1fr_1fr_1fr_1.5fr_1fr_1fr_auto]">
         <input className="input" value={tax.name} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, name: event.target.value } : row))} />
         <input className="input" type="number" min="0" max="100" step="0.01" value={tax.rate} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, rate: event.target.value } : row))} />
+        <label className="text-xs">Effective From<input className="input" type="date" value={tax.effective_from || ""} onChange={(event) => setTaxes(taxes.map((row,i) => i === index ? { ...row, effective_from: event.target.value || null } : row))} /></label>
+        <label className="text-xs">Effective To<input className="input" type="date" value={tax.effective_to || ""} onChange={(event) => setTaxes(taxes.map((row,i) => i === index ? { ...row, effective_to: event.target.value || null } : row))} /></label>
         <SearchableSelect className="input" value={tax.applies_to} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, applies_to: event.target.value as Tax["applies_to"] } : row))}><option value="sales">Sales</option><option value="purchase">Purchase</option><option value="both">Both</option></SearchableSelect>
         <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={tax.is_fixed} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, is_fixed: event.target.checked } : row))} /> Fixed</label>
         <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={tax.is_active} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, is_active: event.target.checked } : row))} /> Active</label>
