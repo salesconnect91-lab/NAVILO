@@ -44,7 +44,7 @@ const defs:Record<string,Def>={
 };
 function unique(rows:any[],key?:string){return key?Array.from(new Set(rows.map(r=>String(r[key]??"")).filter(Boolean))).sort():[]}
 function show(v:any,k?:Kind){if(v===null||v===undefined||v==="")return"—";if(k==="money")return formatCurrency(n(v));if(k==="percent")return `${n(v).toFixed(2)}%`;if(k==="number")return n(v).toLocaleString();if(k==="date")return formatDate(String(v));return String(v)}
-type SavedReportView={name:string;filters:{q:string;from:string;to:string;party:string;item:string;category:string;status:string;groupBy:string;range:string;inventoryView?:string}};
+type SavedReportView={name:string;filters:{q:string;from:string;to:string;party:string;item:string;category:string;status:string;groupBy:string;range:string;inventoryView?:string;godown?:string}};
 function localDate(date:Date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`}
 export default function Reports(){
  const loc=useLocation();const def=defs[loc.pathname]??defs["/reports/sales-margin"];
@@ -59,8 +59,8 @@ export default function Reports(){
  useEffect(()=>{reset()},[loc.pathname]);
  useEffect(()=>{try{const raw=localStorage.getItem(viewKey),parsed=raw?JSON.parse(raw):null;setSavedView(parsed&&typeof parsed.name==="string"&&parsed.filters&&typeof parsed.filters.q==="string"?parsed as SavedReportView:null)}catch{setSavedView(null)}},[viewKey]);
  const changeRange=(value:string)=>{setRange(value);if(value==="custom")return;if(value==="all"){setFrom("");setTo("");return}const now=new Date(),first=value==="last-month"?new Date(now.getFullYear(),now.getMonth()-1,1):new Date(now.getFullYear(),now.getMonth(),1),last=value==="last-month"?new Date(now.getFullYear(),now.getMonth(),0):now;setFrom(localDate(first));setTo(localDate(last))};
- const saveView=()=>{const name=viewName.trim();if(!name)return;const next:SavedReportView={name,filters:{q,from,to,party,item,category,status,groupBy,range,inventoryView}};try{localStorage.setItem(viewKey,JSON.stringify(next));setSavedView(next);setSaveOpen(false)}catch{setSaveOpen(false)}};
- const restoreView=()=>{if(!savedView)return;const f=savedView.filters;setQ(f.q??"");setFrom(f.from??"");setTo(f.to??"");setParty(f.party??"");setItem(f.item??"");setCategory(f.category??"");setStatus(f.status??"");setGroupBy(f.groupBy??"");setRange(f.range??"all");setInventoryView(f.inventoryView==="categories"?"categories":"items")};
+ const saveView=()=>{const name=viewName.trim();if(!name)return;const next:SavedReportView={name,filters:{q,from,to,party,item,category,status,groupBy,range,inventoryView,godown}};try{localStorage.setItem(viewKey,JSON.stringify(next));setSavedView(next);setSaveOpen(false)}catch{setSaveOpen(false)}};
+ const restoreView=()=>{if(!savedView)return;const f=savedView.filters;setQ(f.q??"");setFrom(f.from??"");setTo(f.to??"");setParty(f.party??"");setItem(f.item??"");setCategory(f.category??"");setStatus(f.status??"");setGroupBy(f.groupBy??"");setRange(f.range??"all");setInventoryView(f.inventoryView==="categories"?"categories":"items");setGodown(f.godown??"")};
  const load=useCallback(async()=>{
   setLoading(true);setError(null);
   let r:any;
