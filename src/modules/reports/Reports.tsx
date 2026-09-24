@@ -1,6 +1,6 @@
 import { useCallback,useEffect,useMemo,useState } from "react";
 import { useLocation } from "react-router-dom";
-import { BarChart3,Download,Mail,Printer,RefreshCw,RotateCcw,Save,Settings2,Sparkles } from "lucide-react";
+import { BarChart3,Download,Mail,Printer,RefreshCw,RotateCcw,Save,Settings2,Sparkles,Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner,formatCurrency,formatDate } from "@/components/ui";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -62,6 +62,7 @@ export default function Reports(){
  const changeRange=(value:string)=>{setRange(value);if(value==="custom")return;if(value==="all"){setFrom("");setTo("");return}const now=new Date(),first=value==="last-month"?new Date(now.getFullYear(),now.getMonth()-1,1):new Date(now.getFullYear(),now.getMonth(),1),last=value==="last-month"?new Date(now.getFullYear(),now.getMonth(),0):now;setFrom(localDate(first));setTo(localDate(last))};
  const saveView=()=>{const name=viewName.trim();if(!name)return;const next:SavedReportView={name,filters:{q,from,to,party,item,category,status,groupBy,range,inventoryView,godown}};try{localStorage.setItem(viewKey,JSON.stringify(next));setSavedView(next);setSaveOpen(false)}catch{setSaveOpen(false)}};
  const restoreView=()=>{if(!savedView)return;const f=savedView.filters;setQ(f.q??"");setFrom(f.from??"");setTo(f.to??"");setParty(f.party??"");setItem(f.item??"");setCategory(f.category??"");setStatus(f.status??"");setGroupBy(f.groupBy??"");setRange(f.range??"all");setInventoryView(f.inventoryView==="categories"?"categories":"items");setGodown(f.godown??"")};
+ const deleteSavedView=()=>{try{localStorage.removeItem(viewKey)}finally{setSavedView(null);setViewName("");setSaveOpen(false)}};
  const load=useCallback(async()=>{
   setLoading(true);setError(null);
   let r:any;
@@ -152,7 +153,7 @@ export default function Reports(){
       <button type="button" onClick={reset} aria-label="Reset filters" className="mb-0.5 inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold text-slate-600 hover:bg-slate-200"><RotateCcw className="h-3.5 w-3.5"/>Reset</button>
     </div></div>
     <div className="flex shrink-0 items-center justify-end gap-2 pb-0.5" data-no-export data-no-print>
-      {savedView&&<button type="button" onClick={restoreView} title="Restore locally saved view" className="max-w-36 truncate text-xs font-semibold text-slate-600 hover:text-blue-700">{savedView.name}</button>}
+      {savedView&&<div className="flex items-center gap-1"><button type="button" onClick={restoreView} title="Restore locally saved view" className="max-w-36 truncate text-xs font-semibold text-slate-600 hover:text-blue-700">{savedView.name}</button><button type="button" onClick={deleteSavedView} title="Delete saved view" aria-label={`Delete saved view ${savedView.name}`} className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5"/></button></div>}
       <button type="button" data-navilo-keep-local-action="true" onClick={()=>window.dispatchEvent(new Event("navilo:report-customize"))} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100"><Settings2 className="h-3.5 w-3.5"/>Customise</button>
       <div className="relative"><button type="button" onClick={()=>{setViewName(savedView?.name??"");setSaveOpen(v=>!v)}} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700"><Save className="h-3.5 w-3.5"/>Save As</button>
       {saveOpen&&<form onSubmit={e=>{e.preventDefault();saveView()}} className="absolute right-0 top-10 z-20 w-64 rounded-lg border border-slate-200 bg-white p-3 shadow-xl"><label className="text-xs font-semibold text-slate-700">View name<input autoFocus className="input mt-1" maxLength={60} value={viewName} onChange={e=>setViewName(e.target.value)} required/></label><p className="mt-2 text-[11px] text-slate-500">Saved on this browser for your user, company and business unit.</p><button type="submit" className="btn-primary mt-3 w-full">Save view</button></form>}</div>
