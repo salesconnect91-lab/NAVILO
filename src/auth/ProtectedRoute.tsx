@@ -6,7 +6,7 @@ import { hasPermission, type ModuleKey } from "@/auth/permissions";
 function moduleForPath(pathname:string):ModuleKey|null{
   if(pathname.startsWith("/owner"))return null;
   if(pathname==="/")return "dashboard";
-  if(pathname.startsWith("/sales/report"))return "reports";
+  if(pathname.startsWith("/sales/report")||pathname.startsWith("/sales/person-ledger"))return "reports";
   if(pathname.startsWith("/sales/charges"))return "master";
   if(pathname.startsWith("/sales"))return "sales";
   if(pathname.startsWith("/purchase"))return "purchase";
