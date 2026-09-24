@@ -41,23 +41,23 @@ const defs:Record<string,Def>={
 };
 function unique(rows:any[],key?:string){return key?Array.from(new Set(rows.map(r=>String(r[key]??"")).filter(Boolean))).sort():[]}
 function show(v:any,k?:Kind){if(v===null||v===undefined||v==="")return"—";if(k==="money")return formatCurrency(n(v));if(k==="percent")return `${n(v).toFixed(2)}%`;if(k==="number")return n(v).toLocaleString();if(k==="date")return formatDate(String(v));return String(v)}
-type SavedReportView={name:string;filters:{q:string;from:string;to:string;party:string;item:string;status:string;groupBy:string;range:string}};
+type SavedReportView={name:string;filters:{q:string;from:string;to:string;party:string;item:string;category:string;status:string;groupBy:string;range:string}};
 function localDate(date:Date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`}
 export default function Reports(){
  const loc=useLocation();const def=defs[loc.pathname]??defs["/reports/sales-margin"];
  const{user,isPlatformOwner,activeCompany,activeBusinessUnit}=useAuth();
  const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role,permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
  const canPrint=isPlatformOwner||hasPermission(role,"reports","print",permissions,false),canExport=isPlatformOwner||hasPermission(role,"reports","export",permissions,false);
- const[data,setData]=useState<any[]>([]),[masterParties,setMasterParties]=useState<string[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(null);
- const[q,setQ]=useState(""),[from,setFrom]=useState(""),[to,setTo]=useState(""),[party,setParty]=useState(""),[item,setItem]=useState(""),[status,setStatus]=useState("");
+ const[data,setData]=useState<any[]>([]),[masterParties,setMasterParties]=useState<string[]>([]),[categoryOptions,setCategoryOptions]=useState<{id:string;name:string}[]>([]),[itemCategoryIds,setItemCategoryIds]=useState<Record<string,string>>({}),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(null);
+ const[q,setQ]=useState(""),[from,setFrom]=useState(""),[to,setTo]=useState(""),[party,setParty]=useState(""),[item,setItem]=useState(""),[category,setCategory]=useState(""),[status,setStatus]=useState("");
  const[range,setRange]=useState("all"),[groupBy,setGroupBy]=useState(""),[insightsOpen,setInsightsOpen]=useState(false),[saveOpen,setSaveOpen]=useState(false),[viewName,setViewName]=useState(""),[savedView,setSavedView]=useState<SavedReportView|null>(null),[exportOpen,setExportOpen]=useState(false);
  const viewKey=`navilo:report-view:${user?.id??"no-user"}:${activeCompany?.company_id??"no-company"}:${activeBusinessUnit?.business_unit_id??"no-unit"}:${loc.pathname}`;
- const reset=()=>{setQ("");setFrom("");setTo("");setParty("");setItem("");setStatus("");setRange("all");setGroupBy("")};
+ const reset=()=>{setQ("");setFrom("");setTo("");setParty("");setItem("");setCategory("");setStatus("");setRange("all");setGroupBy("")};
  useEffect(()=>{reset()},[loc.pathname]);
  useEffect(()=>{try{const raw=localStorage.getItem(viewKey),parsed=raw?JSON.parse(raw):null;setSavedView(parsed&&typeof parsed.name==="string"&&parsed.filters&&typeof parsed.filters.q==="string"?parsed as SavedReportView:null)}catch{setSavedView(null)}},[viewKey]);
  const changeRange=(value:string)=>{setRange(value);if(value==="custom")return;if(value==="all"){setFrom("");setTo("");return}const now=new Date(),first=value==="last-month"?new Date(now.getFullYear(),now.getMonth()-1,1):new Date(now.getFullYear(),now.getMonth(),1),last=value==="last-month"?new Date(now.getFullYear(),now.getMonth(),0):now;setFrom(localDate(first));setTo(localDate(last))};
- const saveView=()=>{const name=viewName.trim();if(!name)return;const next:SavedReportView={name,filters:{q,from,to,party,item,status,groupBy,range}};try{localStorage.setItem(viewKey,JSON.stringify(next));setSavedView(next);setSaveOpen(false)}catch{setSaveOpen(false)}};
- const restoreView=()=>{if(!savedView)return;const f=savedView.filters;setQ(f.q??"");setFrom(f.from??"");setTo(f.to??"");setParty(f.party??"");setItem(f.item??"");setStatus(f.status??"");setGroupBy(f.groupBy??"");setRange(f.range??"all")};
+ const saveView=()=>{const name=viewName.trim();if(!name)return;const next:SavedReportView={name,filters:{q,from,to,party,item,category,status,groupBy,range}};try{localStorage.setItem(viewKey,JSON.stringify(next));setSavedView(next);setSaveOpen(false)}catch{setSaveOpen(false)}};
+ const restoreView=()=>{if(!savedView)return;const f=savedView.filters;setQ(f.q??"");setFrom(f.from??"");setTo(f.to??"");setParty(f.party??"");setItem(f.item??"");setCategory(f.category??"");setStatus(f.status??"");setGroupBy(f.groupBy??"");setRange(f.range??"all")};
  const load=useCallback(async()=>{
   setLoading(true);setError(null);
   let r:any;
@@ -79,11 +79,29 @@ export default function Reports(){
   void loadMasterParties();
   return()=>{cancelled=true};
  },[def.partyKey]);
+ const supportsCategory=["/reports/stock-valuation","/reports/inventory-aging","/reports/inventory-turnover","/reports/stock-exceptions"].includes(loc.pathname);
+ useEffect(()=>{
+  let cancelled=false;
+  const loadCategories=async()=>{
+   if(!supportsCategory){setCategoryOptions([]);setItemCategoryIds({});return;}
+   const [cats,itemRows]=await Promise.all([
+    supabase.from("categories").select("id,name").order("name"),
+    supabase.from("items").select("id,category_id")
+   ]);
+   if(cancelled)return;
+   if(cats.error||itemRows.error){setCategoryOptions([]);setItemCategoryIds({});return;}
+   setCategoryOptions((cats.data??[]).map((x:any)=>({id:String(x.id),name:String(x.name??"Unspecified")})));
+   setItemCategoryIds(Object.fromEntries((itemRows.data??[]).map((x:any)=>[String(x.id),String(x.category_id??"")])));
+  };
+  void loadCategories();
+  return()=>{cancelled=true};
+ },[supportsCategory,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
+ const categoryNames=useMemo(()=>Object.fromEntries(categoryOptions.map(x=>[x.id,x.name])),[categoryOptions]);
  const parties=useMemo(()=>masterParties.length?masterParties:unique(data,def.partyKey),[data,def.partyKey,masterParties]),items=useMemo(()=>unique(data,def.itemKey),[data,def.itemKey]),statuses=useMemo(()=>unique(data,def.statusKey),[data,def.statusKey]);
- const rows=useMemo(()=>data.filter(r=>{if(def.dateKey&&!def.rpc){const d=String(r[def.dateKey]??"").slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false}if(party&&def.partyKey&&String(r[def.partyKey]??"")!==party)return false;if(item&&def.itemKey&&String(r[def.itemKey]??"")!==item)return false;if(status&&def.statusKey&&String(r[def.statusKey]??"")!==status)return false;const s=q.trim().toLowerCase();return !s||JSON.stringify(r).toLowerCase().includes(s)}),[data,def,q,from,to,party,item,status]);
+ const rows=useMemo(()=>data.filter(r=>{if(def.dateKey&&!def.rpc){const d=String(r[def.dateKey]??"").slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false}if(party&&def.partyKey&&String(r[def.partyKey]??"")!==party)return false;if(item&&def.itemKey&&String(r[def.itemKey]??"")!==item)return false;if(category&&supportsCategory&&itemCategoryIds[String(r.item_id??"")]!==category)return false;if(status&&def.statusKey&&String(r[def.statusKey]??"")!==status)return false;const s=q.trim().toLowerCase();return !s||JSON.stringify(r).toLowerCase().includes(s)}),[data,def,q,from,to,party,item,category,status,supportsCategory,itemCategoryIds]);
  const showDates=Boolean(def.dateKey||def.period);
- const groupOptions=[def.partyKey&&{key:def.partyKey,label:"Party"},def.itemKey&&{key:def.itemKey,label:"Item"},def.statusKey&&{key:def.statusKey,label:"Status"}].filter((x):x is {key:string;label:string}=>Boolean(x));
- const groups=useMemo(()=>{if(!groupBy)return[{name:"",items:rows}];const grouped=new Map<string,typeof rows>();rows.forEach(row=>{const name=String(row[groupBy]??"Unspecified")||"Unspecified";const items=grouped.get(name)||[];items.push(row);grouped.set(name,items)});return Array.from(grouped,([name,items])=>({name,items})).sort((a,b)=>a.name.localeCompare(b.name))},[rows,groupBy]);
+ const groupOptions=[def.partyKey&&{key:def.partyKey,label:"Party"},supportsCategory&&{key:"__category",label:"Category"},def.itemKey&&{key:def.itemKey,label:"Item"},def.statusKey&&{key:def.statusKey,label:"Status"}].filter((x):x is {key:string;label:string}=>Boolean(x));
+ const groups=useMemo(()=>{if(!groupBy)return[{name:"",items:rows}];const grouped=new Map<string,typeof rows>();rows.forEach(row=>{const name=groupBy==="__category"?(categoryNames[itemCategoryIds[String(row.item_id??"")]]??"Unspecified"):(String(row[groupBy]??"Unspecified")||"Unspecified");const items=grouped.get(name)||[];items.push(row);grouped.set(name,items)});return Array.from(grouped,([name,items])=>({name,items})).sort((a,b)=>a.name.localeCompare(b.name))},[rows,groupBy,categoryNames,itemCategoryIds]);
  const exportReport=(kind:"excel"|"csv")=>{const root=document.querySelector<HTMLElement>(".navilo-report-source");if(!root)return;const filename=loc.pathname.replace(/^\//,"").replace(/\W+/g,"-")||"report";if(kind==="excel")exportDomReportToExcel(filename,root,def.title);else exportDomReportToCSV(filename,root,def.title);setExportOpen(false)};
  return <div className="space-y-3 pb-12" data-generic-report>
   <section className="no-print flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5 xl:flex-row xl:items-end">
@@ -95,7 +113,7 @@ export default function Reports(){
       <label className="block w-32 text-[11px] font-semibold text-slate-600">Column grouping<select className="input mt-1 w-full" aria-label="Column grouping" value={groupBy} onChange={e=>setGroupBy(e.target.value)}><option value="">None</option>{groupOptions.map(option=><option key={option.key} value={option.key}>{option.label}</option>)}</select></label>
       <label className="block w-40 text-[11px] font-semibold text-slate-600">Search<input className="input mt-1 w-full" aria-label="Search report" placeholder="Search records" value={q} onChange={e=>setQ(e.target.value)}/></label>
       {def.partyKey&&<label className="block w-36 text-[11px] font-semibold text-slate-600">Party<select className="input mt-1 w-full" value={party} onChange={e=>setParty(e.target.value)}><option value="">All parties</option>{parties.map(x=><option key={x}>{x}</option>)}</select></label>}
-      {def.itemKey&&<label className="block w-36 text-[11px] font-semibold text-slate-600">Item<select className="input mt-1 w-full" value={item} onChange={e=>setItem(e.target.value)}><option value="">All items</option>{items.map(x=><option key={x}>{x}</option>)}</select></label>}
+      {supportsCategory&&<label className="block w-36 text-[11px] font-semibold text-slate-600">Category<select className="input mt-1 w-full" aria-label="Category" value={category} onChange={e=>setCategory(e.target.value)}><option value="">All categories</option>{categoryOptions.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>}{def.itemKey&&<label className="block w-36 text-[11px] font-semibold text-slate-600">Item<select className="input mt-1 w-full" value={item} onChange={e=>setItem(e.target.value)}><option value="">All items</option>{items.map(x=><option key={x}>{x}</option>)}</select></label>}
       {def.statusKey&&<label className="block w-32 text-[11px] font-semibold text-slate-600">Status<select className="input mt-1 w-full" value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{statuses.map(x=><option key={x}>{x}</option>)}</select></label>}
       <button type="button" onClick={reset} aria-label="Reset filters" className="mb-0.5 inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold text-slate-600 hover:bg-slate-200"><RotateCcw className="h-3.5 w-3.5"/>Reset</button>
     </div></div>
