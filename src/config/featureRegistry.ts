@@ -86,6 +86,8 @@ export const FEATURE_REGISTRY: FeatureDefinition[] = [
   { key:"supplier-performance-report", module:"reports", label:"Supplier Performance", category:"report", route:"/reports/supplier-performance", actions:report, sortOrder:1130 },
   { key:"purchase-price-variance-report", module:"reports", label:"Purchase Price Variance", category:"report", route:"/reports/purchase-price-variance", actions:report, sortOrder:1140 },
   { key:"stock-valuation-report", module:"reports", label:"Stock Valuation", category:"report", route:"/reports/stock-valuation", actions:report, sortOrder:1150 },
+  { key:"daily-stock-trading-report", module:"reports", label:"Daily Stock & Trading Summary", category:"report", route:"/reports/daily-stock-trading", actions:report, sortOrder:1151 },
+  { key:"trading-margin-report", module:"reports", label:"Purchase vs Sales Rate & Margin", category:"report", route:"/reports/trading-margin", actions:report, sortOrder:1152 },
   { key:"inventory-aging-report", module:"reports", label:"Inventory Aging", category:"report", route:"/reports/inventory-aging", actions:report, sortOrder:1160 },
   { key:"inventory-turnover-report", module:"reports", label:"Inventory Turnover", category:"report", route:"/reports/inventory-turnover", actions:report, sortOrder:1170 },
   { key:"stock-exceptions-report", module:"reports", label:"Stock Exceptions", category:"report", route:"/reports/stock-exceptions", actions:report, sortOrder:1180 },
