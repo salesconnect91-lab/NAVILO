@@ -1,5 +1,9 @@
 # NAVILO evidence-based audit — 2026-09-22
 
+## Shared table checkpoint — 2026-09-24
+
+`src/components/DataTable.tsx` forced an English/Urdu loading string even when only one language was selected, and allowed every data column to be hidden through preferences, leaving reports without a meaningful data field. Development now uses an English source loading status for the existing language runtime, restores one visible column from old all-hidden preferences and prevents hiding the final data column. The shared table remains horizontally scrollable, with print width reset. `src/components/DataTable.test.tsx` exercises the loading string, column control and persisted all-hidden recovery. Local TypeScript, **21 files/86 tests** and Vite build pass; first JS chunk **1,028.44 kB / 318.08 kB gzip** with warning. Translation quality for a selected non-English language, export/print parity and visual behavior remain **UNVERIFIED**.
+
 ## Navigation checkpoint — 2026-09-24
 
 Code inspection of `src/components/Layout.tsx` found that a persisted collapsed desktop sidebar also hid mobile labels and nested links. The development shell now keeps mobile labels/submenus visible, expands the icon rail when a domain is activated, labels controls, supports Escape to close the mobile drawer and hides offscreen mobile navigation from keyboard traversal. Two focused interaction regressions in `src/components/Layout.test.tsx` verify nested mobile links/Escape focus return and desktop rail expansion. TypeScript, 20 files/83 tests and Vite build pass locally. Authenticated viewport, full focus order and visual confirmation remain **BLOCKED/PENDING**; the shared design proposal and acceptance matrix are in `docs/NAVILO_ENTERPRISE_DESIGN_SYSTEM.md`.

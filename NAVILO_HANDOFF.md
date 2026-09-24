@@ -1,5 +1,11 @@
 # NAVILO audit handoff — 2026-09-22
 
+## 2026-09-24 shared table checkpoint
+
+- Development changes: `src/components/DataTable.tsx` removes forced bilingual loading, announces loading/empty statuses, preserves a scrollable mobile table, marks customization as a dialog and ensures at least one data column stays visible even with saved all-hidden preferences. `src/components/DataTable.test.tsx` adds three focused regressions.
+- Local `npm run check`: TypeScript PASS; 21 files/86 Vitest tests PASS; Vite build PASS with primary chunk 1,028.44 kB/318.08 kB gzip and existing warning. Lockfile-matched local dependencies reused. No Docker/local DB or authenticated browser/print checks were run; production Supabase, main and Vercel unchanged.
+- Next: verify selected-language loading text and print/export order in an authenticated browser, inspect dark/light/density scope separately, triage npm advisories, then run fresh local migration/authenticated suites on the user's Docker PC.
+
 ## 2026-09-24 next design checkpoint
 
 - Development shell correction in `src/components/Layout.tsx`: persisted desktop icon-rail preference no longer strips mobile drawer labels and nested destinations; collapsed major-domain click expands the rail; Escape and close controls, visible focus and accessible names were added. Offscreen mobile drawer is hidden from keyboard traversal. Two focused interactions in `src/components/Layout.test.tsx` cover nested links, Escape focus and desktop rail expansion. Design/acceptance proposal: `docs/NAVILO_ENTERPRISE_DESIGN_SYSTEM.md`.

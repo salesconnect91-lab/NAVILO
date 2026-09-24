@@ -17,7 +17,7 @@ This is a code-based proposal. No authenticated four-viewport screenshot review 
 | Color | Slate 950 sidebar, white surfaces, slate 50 canvas, blue 600 primary action; semantic emerald/amber/rose for status, never color alone. Require readable text in dark/light surfaces before offering additional themes. | Buttons, badges, alerts, charts |
 | Spacing | 4/8/12/16/24 px scale; clear grouping between filters, actions, cards and tables. Compact density may tighten rows but must preserve usable click targets. | Forms, tables, dialogs |
 | Forms | Visible label, field hint, validation next to input, disabled/pending state and searchable entity selector. Do not show account codes where business name is sufficient. | Master data, invoice editor, posting dialogs |
-| Tables | Sticky or repeated headers for long lists, numeric alignment, horizontal scroll on small screens, clear empty/error/loading states; CSV/print columns follow on-screen order. | Ledgers, reports, sales/purchase, inventory |
+| Tables | Sticky or repeated headers for long lists, numeric alignment, horizontal scroll on small screens, clear empty/error/loading states and at least one visible data column; CSV/print columns follow on-screen order. | Ledgers, reports, sales/purchase, inventory |
 | Document print | Isolate from navigation; align logo/identity and totals, keep invoice/line breaks readable and selected document language exact. | Invoices, statements, PDF, reports |
 
 ## Module-specific exceptions

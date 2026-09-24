@@ -1,5 +1,12 @@
 # NAVILO prioritized issue register — 2026-09-22
 
+## 2026-09-24 shared-table update
+
+| ID / priority | Evidence | Remaining acceptance |
+|---|---|---|
+| LANG-UI-01 / P1 | Shared `src/components/DataTable.tsx` hardcoded `Loading… / لوڈ ہو رہا ہے…` for all users. Development switches to an English source status; targeted test verifies no forced bilingual text. | Authenticated English, Urdu, Arabic and selected bilingual output across loading/empty/error, report, print and export; do not claim end-to-end language isolation from this component fix. |
+| REP-COL-01 / P1 | Shared table preferences allowed every data field to be hidden, including restored saved state. Development `restoredHiddenKeys()` and `toggleColumn()` retain at least one data column; 3 targeted component assertions pass. | Inspect actual reports with custom columns, CSV, print/PDF and responsive table width to verify header/data/export order. |
+
 ## 2026-09-24 navigation update
 
 | ID / priority | Evidence | Remaining acceptance |
