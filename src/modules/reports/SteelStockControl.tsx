@@ -16,7 +16,8 @@ const pct = (v: unknown) => `${n(v).toLocaleString(undefined, { maximumFractionD
 const dateText = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const today = () => dateText(new Date());
 const monthStart = () => { const d = new Date(); d.setDate(1); return dateText(d); };
-const itemGroup = (r: Row) => String(r.sub_category || r.category_name || "Unspecified").trim() || "Unspecified";
+const categoryName = (r: Row) => String(r.category_name || "Unspecified").trim() || "Unspecified";
+const itemGroup = (r: Row) => String(r.sub_category || "Unspecified").trim() || "Unspecified";
 
 export default function SteelStockControl() {
   const { activeCompany } = useAuth();
@@ -35,10 +36,10 @@ export default function SteelStockControl() {
   useEffect(() => { void load(); }, [load]);
 
   const sourceRows = useMemo(() => [...stock, ...period, ...history], [stock, period, history]);
-  const categories = useMemo<string[]>(() => Array.from(new Set(sourceRows.map((r) => String(r.category_name || "").trim()).filter((x): x is string => Boolean(x)))).sort((a, b) => a.localeCompare(b)), [sourceRows]);
-  const groups = useMemo<string[]>(() => Array.from(new Set(sourceRows.map((r) => itemGroup(r)))).sort((a, b) => a.localeCompare(b)), [sourceRows]);
+  const categories = useMemo<string[]>(() => Array.from(new Set(sourceRows.map(categoryName))).sort((a, b) => a.localeCompare(b)), [sourceRows]);
+  const groups = useMemo<string[]>(() => Array.from(new Set(sourceRows.map((r) => String(r.sub_category || "").trim()).filter((x): x is string => Boolean(x)))).sort((a, b) => a.localeCompare(b)), [sourceRows]);
   const godowns = useMemo<string[]>(() => Array.from(new Set([...stock, ...history].map((r) => String(r.godown || "Unassigned")))).sort((a, b) => a.localeCompare(b)), [stock, history]);
-  const matches = useCallback((r: Row) => { const q = search.trim().toLowerCase(); const text = [r.item_name, r.sku, r.grade, r.size, r.category_name, r.sub_category, r.godown, itemGroup(r)].filter(Boolean).join(" ").toLowerCase(); return (!q || text.includes(q)) && (category === "all" || String(r.category_name || "").trim() === category) && (group === "all" || itemGroup(r) === group); }, [search, category, group]);
+  const matches = useCallback((r: Row) => { const q = search.trim().toLowerCase(); const text = [r.item_name, r.sku, r.grade, r.size, r.category_name, r.sub_category, r.godown, itemGroup(r)].filter(Boolean).join(" ").toLowerCase(); return (!q || text.includes(q)) && (category === "all" || categoryName(r) === category) && (group === "all" || itemGroup(r) === group); }, [search, category, group]);
   const filteredStock = useMemo(() => stock.filter((r) => matches(r) && (godown === "all" || (r.godown || "Unassigned") === godown)), [stock, matches, godown]);
   const filteredPeriod = useMemo(() => period.filter(matches), [period, matches]);
   const filteredHistory = useMemo(() => history.filter((r) => matches(r) && (godown === "all" || (r.godown || "Unassigned") === godown)), [history, matches, godown]);
