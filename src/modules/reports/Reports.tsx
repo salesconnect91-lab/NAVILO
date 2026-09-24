@@ -113,7 +113,7 @@ export default function Reports(){
   const map=new Map<string,any>();
   rows.forEach(r=>{
    const categoryId=itemCategoryIds[String(r.item_id??"")]||categoryIdByName[String(r.category_name??"").trim().toLowerCase()]||"";
-   const name=categoryNames[categoryId]??String(r.category_name??"").trim()||"Unspecified";
+   const name=categoryNames[categoryId]??(String(r.category_name??"").trim()||"Unspecified");
    const x=map.get(name)??{name,itemIds:new Set<string>(),quantity:0,stock_value:0,current_qty:0,current_stock_value:0,qty_sold:0,cogs:0,exception_count:0,oldest_days:0,purchase_qty:0,purchase_value:0,sales_qty:0,sales_value:0,opening_qty:0,other_in_qty:0,other_out_qty:0,net_movement:0,closing_qty:0};
    x.itemIds.add(String(r.item_id??""));
    x.quantity+=n(r.quantity);x.stock_value+=n(r.stock_value);x.current_qty+=n(r.current_qty);x.current_stock_value+=n(r.current_stock_value);x.qty_sold+=n(r.qty_sold);x.cogs+=n(r.cogs);x.purchase_qty+=n(r.purchase_qty);x.purchase_value+=n(r.purchase_value);x.sales_qty+=n(r.sales_qty);x.sales_value+=n(r.sales_value);x.opening_qty+=n(r.opening_qty);x.other_in_qty+=n(r.other_in_qty);x.other_out_qty+=n(r.other_out_qty);x.net_movement+=n(r.net_movement);x.closing_qty+=n(r.closing_qty);
