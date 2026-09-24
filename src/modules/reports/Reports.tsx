@@ -101,11 +101,12 @@ export default function Reports(){
   return()=>{cancelled=true};
  },[supportsCategory,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
  const categoryNames=useMemo(()=>Object.fromEntries(categoryOptions.map(x=>[x.id,x.name])),[categoryOptions]);
+ const categoryIdByName=useMemo(()=>Object.fromEntries(categoryOptions.map(x=>[x.name.trim().toLowerCase(),x.id])),[categoryOptions]);
  const parties=useMemo(()=>masterParties.length?masterParties:unique(data,def.partyKey),[data,def.partyKey,masterParties]),items=useMemo(()=>unique(data,def.itemKey),[data,def.itemKey]),statuses=useMemo(()=>unique(data,def.statusKey),[data,def.statusKey]),godowns=useMemo(()=>loc.pathname==="/reports/daily-stock-trading"?unique(data,"godown"):[],[data,loc.pathname]);
  const rows=useMemo(()=>data.filter(r=>{if(def.dateKey&&!def.rpc){const d=String(r[def.dateKey]??"").slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false}if(party&&def.partyKey&&String(r[def.partyKey]??"")!==party)return false;if(item&&def.itemKey&&String(r[def.itemKey]??"")!==item)return false;if(category&&supportsCategory){const rowCategoryId=itemCategoryIds[String(r.item_id??"")]||categoryIdByName[String(r.category_name??"").trim().toLowerCase()]||"";if(rowCategoryId!==category)return false;}if(status&&def.statusKey&&String(r[def.statusKey]??"")!==status)return false;if(godown&&loc.pathname==="/reports/daily-stock-trading"&&String(r.godown??"")!==godown)return false;const s=q.trim().toLowerCase();return !s||JSON.stringify(r).toLowerCase().includes(s)}),[data,def,q,from,to,party,item,category,status,godown,supportsCategory,itemCategoryIds,categoryIdByName,loc.pathname]);
  const inventoryCategoryMode=supportsCategory&&inventoryView==="categories";
   const marginReport=loc.pathname==="/reports/trading-margin";
- const categoryIdByName=useMemo(()=>Object.fromEntries(categoryOptions.map(x=>[x.name.trim().toLowerCase(),x.id])),[categoryOptions]);
+
  const categorySummary=useMemo(()=>{
   if(!inventoryCategoryMode)return[] as any[];
   const map=new Map<string,any>();
