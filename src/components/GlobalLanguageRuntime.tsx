@@ -18,7 +18,8 @@ const RTL_LANGUAGES=new Set<RuntimeLanguageCode>(["ur","ar","fa"]);
 function sanitize(mode:LanguageMode,primary?:string|null,secondary?:string|null){
   const p:RuntimeLanguageCode=isSupportedRuntimeLanguage(primary)?primary:"en";
   const s:RuntimeLanguageCode|null=isSupportedRuntimeLanguage(secondary)&&secondary!==p?secondary:null;
-  return {mode:mode==="bilingual"&&s?"bilingual" as LanguageMode:"single" as LanguageMode,primary:p,secondary:s};
+  const bilingual=mode==="bilingual"&&s!==null;
+  return {mode:bilingual?"bilingual" as LanguageMode:"single" as LanguageMode,primary:p,secondary:bilingual?s:null};
 }
 
 async function loadLanguage():Promise<RuntimeLanguage>{

@@ -32,6 +32,7 @@ afterEach(() => {
   mockCompany.data.screen_language_mode = "single";
   mockCompany.data.screen_primary_language = "ur";
   mockCompany.data.screen_secondary_language = null;
+  document.documentElement.removeAttribute("data-secondary-language");
   vi.restoreAllMocks();
 });
 
@@ -75,6 +76,7 @@ describe("global screen translation and print isolation", () => {
     mockCompany.data.screen_language_mode = "bilingual";
     mockCompany.data.screen_primary_language = "en";
     mockCompany.data.screen_secondary_language = "ur";
+    document.documentElement.dataset.secondaryLanguage = "ur";
     document.body.innerHTML = `<h1>Company Settings / کمپنی سیٹنگز</h1>`;
 
     const { default: GlobalLanguageRuntime } = await import("./GlobalLanguageRuntime");
@@ -83,5 +85,16 @@ describe("global screen translation and print isolation", () => {
     await waitFor(() => {
       expect(document.querySelector("h1")?.textContent).toBe("Company Settings / کمپنی سیٹنگز");
     });
+  });
+
+  it("does not expose a configured secondary language in single-language mode", async () => {
+    mockCompany.data.screen_language_mode = "single";
+    mockCompany.data.screen_primary_language = "en";
+    mockCompany.data.screen_secondary_language = "ur";
+    const { default: GlobalLanguageRuntime } = await import("./GlobalLanguageRuntime");
+    render(createElement(GlobalLanguageRuntime));
+    await waitFor(() => expect(document.documentElement.dataset.secondaryLanguage).toBeUndefined());
+    expect(document.documentElement.dataset.languageMode).toBe("single");
+    expect(document.documentElement.dataset.secondaryLanguage).toBeUndefined();
   });
 });
