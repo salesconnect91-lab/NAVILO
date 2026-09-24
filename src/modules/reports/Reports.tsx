@@ -104,6 +104,7 @@ export default function Reports(){
  const rows=useMemo(()=>data.filter(r=>{if(def.dateKey&&!def.rpc){const d=String(r[def.dateKey]??"").slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false}if(party&&def.partyKey&&String(r[def.partyKey]??"")!==party)return false;if(item&&def.itemKey&&String(r[def.itemKey]??"")!==item)return false;if(category&&supportsCategory&&itemCategoryIds[String(r.item_id??"")]!==category)return false;if(status&&def.statusKey&&String(r[def.statusKey]??"")!==status)return false;if(godown&&loc.pathname==="/reports/daily-stock-trading"&&String(r.godown??"")!==godown)return false;const s=q.trim().toLowerCase();return !s||JSON.stringify(r).toLowerCase().includes(s)}),[data,def,q,from,to,party,item,category,status,godown,supportsCategory,itemCategoryIds,loc.pathname]);
  const inventoryCategoryMode=supportsCategory&&inventoryView==="categories";
   const marginReport=loc.pathname==="/reports/trading-margin";
+   const dailyStockReport=loc.pathname==="/reports/daily-stock-trading";
  const categorySummary=useMemo(()=>{
   if(!inventoryCategoryMode)return[] as any[];
   const map=new Map<string,any>();
