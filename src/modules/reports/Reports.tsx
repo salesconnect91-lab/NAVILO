@@ -51,11 +51,12 @@ export default function Reports(){
  const{user,isPlatformOwner,activeCompany,activeBusinessUnit}=useAuth();
  const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role,permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
  const canPrint=isPlatformOwner||hasPermission(role,"reports","print",permissions,false),canExport=isPlatformOwner||hasPermission(role,"reports","export",permissions,false);
+ const dailyStockReport=loc.pathname==="/reports/daily-stock-trading";
  const[data,setData]=useState<any[]>([]),[masterParties,setMasterParties]=useState<string[]>([]),[categoryOptions,setCategoryOptions]=useState<{id:string;name:string}[]>([]),[itemCategoryIds,setItemCategoryIds]=useState<Record<string,string>>({}),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(null);
  const[q,setQ]=useState(""),[from,setFrom]=useState(""),[to,setTo]=useState(""),[party,setParty]=useState(""),[item,setItem]=useState(""),[category,setCategory]=useState(""),[status,setStatus]=useState("");
  const[range,setRange]=useState("all"),[groupBy,setGroupBy]=useState(""),[inventoryView,setInventoryView]=useState<"items"|"categories">("items"),[godown,setGodown]=useState(""),[insightsOpen,setInsightsOpen]=useState(false),[saveOpen,setSaveOpen]=useState(false),[viewName,setViewName]=useState(""),[savedView,setSavedView]=useState<SavedReportView|null>(null),[exportOpen,setExportOpen]=useState(false);
  const viewKey=`navilo:report-view:${user?.id??"no-user"}:${activeCompany?.company_id??"no-company"}:${activeBusinessUnit?.business_unit_id??"no-unit"}:${loc.pathname}`;
- const reset=()=>{setQ("");setFrom("");setTo("");setParty("");setItem("");setCategory("");setStatus("");setGodown("");setRange("all");setGroupBy("");setInventoryView("items")};
+ const reset=()=>{setQ("");const d=dailyStockReport?localDate(new Date()):"";setFrom(d);setTo(d);setParty("");setItem("");setCategory("");setStatus("");setGodown("");setRange(dailyStockReport?"custom":"all");setGroupBy("");setInventoryView("items")};
  useEffect(()=>{reset()},[loc.pathname]);
  useEffect(()=>{try{const raw=localStorage.getItem(viewKey),parsed=raw?JSON.parse(raw):null;setSavedView(parsed&&typeof parsed.name==="string"&&parsed.filters&&typeof parsed.filters.q==="string"?parsed as SavedReportView:null)}catch{setSavedView(null)}},[viewKey]);
  const changeRange=(value:string)=>{setRange(value);if(value==="custom")return;if(value==="all"){setFrom("");setTo("");return}const now=new Date(),first=value==="last-month"?new Date(now.getFullYear(),now.getMonth()-1,1):new Date(now.getFullYear(),now.getMonth(),1),last=value==="last-month"?new Date(now.getFullYear(),now.getMonth(),0):now;setFrom(localDate(first));setTo(localDate(last))};
@@ -104,7 +105,6 @@ export default function Reports(){
  const rows=useMemo(()=>data.filter(r=>{if(def.dateKey&&!def.rpc){const d=String(r[def.dateKey]??"").slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false}if(party&&def.partyKey&&String(r[def.partyKey]??"")!==party)return false;if(item&&def.itemKey&&String(r[def.itemKey]??"")!==item)return false;if(category&&supportsCategory&&itemCategoryIds[String(r.item_id??"")]!==category)return false;if(status&&def.statusKey&&String(r[def.statusKey]??"")!==status)return false;if(godown&&loc.pathname==="/reports/daily-stock-trading"&&String(r.godown??"")!==godown)return false;const s=q.trim().toLowerCase();return !s||JSON.stringify(r).toLowerCase().includes(s)}),[data,def,q,from,to,party,item,category,status,godown,supportsCategory,itemCategoryIds,loc.pathname]);
  const inventoryCategoryMode=supportsCategory&&inventoryView==="categories";
   const marginReport=loc.pathname==="/reports/trading-margin";
-   const dailyStockReport=loc.pathname==="/reports/daily-stock-trading";
  const categorySummary=useMemo(()=>{
   if(!inventoryCategoryMode)return[] as any[];
   const map=new Map<string,any>();
@@ -126,7 +126,7 @@ export default function Reports(){
  const tradingGodowns=useMemo(()=>{if(!trading)return[] as any[];const m=new Map<string,any>();rows.forEach(r=>{const k=String(r.godown||"Main"),x=m.get(k)||{name:k,opening:0,inQty:0,outQty:0,closing:0};x.opening+=n(r.opening_qty);x.inQty+=n(r.purchase_qty)+n(r.other_in_qty);x.outQty+=n(r.sales_qty)+n(r.other_out_qty);x.closing+=n(r.closing_qty);m.set(k,x)});return Array.from(m.values()).sort((a,b)=>a.name.localeCompare(b.name))},[trading,rows]);
  const showDates=Boolean(def.dateKey||def.period);
  const showDateControls=showDates;
-  useEffect(()=>{if(dailyStockReport&&!from&&!to){const d=new Date().toISOString().slice(0,10);setFrom(d);setTo(d);setRange("custom")}},[dailyStockReport]);
+
  const groupOptions=[def.partyKey&&{key:def.partyKey,label:"Party"},supportsCategory&&!marginReport&&!dailyStockReport&&{key:"__category",label:"Category"},def.itemKey&&!marginReport&&!dailyStockReport&&{key:def.itemKey,label:"Item"},def.statusKey&&{key:def.statusKey,label:"Status"}].filter((x):x is {key:string;label:string}=>Boolean(x));
  const groups=useMemo(()=>{if(!groupBy)return[{name:"",items:rows}];const grouped=new Map<string,typeof rows>();rows.forEach(row=>{const name=groupBy==="__category"?(categoryNames[itemCategoryIds[String(row.item_id??"")]]??"Unspecified"):(String(row[groupBy]??"Unspecified")||"Unspecified");const items=grouped.get(name)||[];items.push(row);grouped.set(name,items)});return Array.from(grouped,([name,items])=>({name,items})).sort((a,b)=>a.name.localeCompare(b.name))},[rows,groupBy,categoryNames,itemCategoryIds]);
  const exportReport=(kind:"excel"|"csv")=>{const root=document.querySelector<HTMLElement>(".navilo-report-source");if(!root)return;const filename=loc.pathname.replace(/^\//,"").replace(/\W+/g,"-")||"report";if(kind==="excel")exportDomReportToExcel(filename,root,def.title);else exportDomReportToCSV(filename,root,def.title);setExportOpen(false)};
