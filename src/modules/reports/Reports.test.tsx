@@ -33,7 +33,8 @@ describe("generic report workspace", () => {
     expect(screen.getByRole("button", { name: "Print report" })).toBeTruthy();
     expect(screen.getByRole<HTMLButtonElement>("button", { name: "Email report unavailable" }).disabled).toBe(true);
     await waitFor(() => expect(screen.getByRole("columnheader", { name: "Customer" })).toBeTruthy());
-    fireEvent.change(screen.getByRole("combobox", { name: "Column grouping" }), { target: { value: "customer_name" } });
+    fireEvent.click(screen.getByRole("button", { name: "Column grouping" }));
+    fireEvent.click(screen.getByRole("option", { name: "Party" }));
     expect(screen.getByText("Party: Synthetic Customer (1)")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Export report" }));
     expect(screen.getByRole("button", { name: "Excel" })).toBeTruthy();
