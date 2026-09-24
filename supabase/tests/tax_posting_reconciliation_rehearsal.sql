@@ -51,10 +51,10 @@ begin
   perform set_config('request.jwt.claim.sub',v_user::text,true);
   perform public.initialize_default_coa();
 
-  insert into public.warehouses(user_id,company_id,name)
-  values(v_user,v_company,'Tax rehearsal warehouse') returning id into v_warehouse;
-  insert into public.godowns(user_id,company_id,name,warehouse_id)
-  values(v_user,v_company,'Tax rehearsal godown',v_warehouse) returning id into v_godown;
+  insert into public.warehouses(company_id,name)
+  values(v_company,'Tax rehearsal warehouse') returning id into v_warehouse;
+  insert into public.godowns(company_id,name,warehouse_id)
+  values(v_company,'Tax rehearsal godown',v_warehouse) returning id into v_godown;
   insert into public.items(user_id,company_id,sku,name,cost,price,warehouse_id)
   values(v_user,v_company,'TAX-'||v_code,'Tax rehearsal item',0,100,v_warehouse) returning id into v_item;
   insert into public.suppliers(user_id,company_id,name,account_id)
