@@ -136,13 +136,14 @@ export default function PrintLayout({
   voucherTitle, voucherNo, voucherDate, company, party, items, chargeBreakdown, itemsTotal, chargesTotal,
   taxAmount = 0, showTaxSummary = false, grandTotal, extraFields, hawalaDocuments = [], normalInvoiceTotal,
   documentNotice, documentNoticeUrdu, paymentSummary, bilingual,
-  signatureLabels = ["Authorized Signature / مجاز دستخط", "Customer Signature / گاہک دستخط"],
+  signatureLabels = ["Authorized Signature", "Customer Signature"],
   visibility: visibilityProp = {}, documentHeader, documentHeaderUrdu, documentFooter, documentFooterUrdu,
 }: PrintLayoutProps) {
   const language = documentLanguageState();
   const showEnglishText = language.primary === "en" || (language.mode === "bilingual" && language.secondary === "en");
   const showUrduText = language.primary === "ur" || (language.mode === "bilingual" && language.secondary === "ur");
   const effectiveBilingual = bilingual ?? (language.mode === "bilingual" && showEnglishText && showUrduText);
+  const docLabel = (english: string, urdu: string) => effectiveBilingual ? `${english} / ${urdu}` : showUrduText && !showEnglishText ? urdu : english;
 
   const isPurchase = voucherTitle.toLowerCase().includes("purchase");
   const isSales = !isPurchase && ["sales invoice", "tax invoice", "cash bill"].includes(voucherTitle.toLowerCase());
@@ -255,7 +256,7 @@ export default function PrintLayout({
       ? "24px minmax(165px,1.15fr) minmax(135px,0.95fr) 76px 88px 86px 104px"
       : "24px minmax(190px,1.2fr) minmax(150px,1fr) 80px 96px 112px",
   };
-  const partyLabel = isPurchase ? "Supplier / سپلائر" : "Bill To / گاہک";
+  const partyLabel = isPurchase ? docLabel("Supplier", "سپلائر") : docLabel("Bill To", "گاہک");
   const qrPayload = JSON.stringify({ company: company.name || "", taxId: cleanTaxId, documentType: voucherTitle, documentNo: voucherNo, documentDate: voucherDate, party: party.name, amount: n(grandTotal).toFixed(2), tax: n(taxAmount).toFixed(2) });
   const duplicateEnglishHeader = normalize(documentHeader) && normalize(documentHeader) === normalize(company.name);
   const visibleEnglishHeader = showEnglishText && documentHeader && !duplicateEnglishHeader ? documentHeader : null;
@@ -270,12 +271,12 @@ export default function PrintLayout({
         <div>
           {showCompanyName && company.name && (!showLogo || !company.logoUrl) && <h1 className="print-company-name">{company.name}</h1>}
           {showAddress && company.address && <p className="print-company-addr">{company.address}</p>}
-          {showPhoneEmail && (company.phone || company.email) && <p className="print-company-addr">{[company.phone ? `Phone / فون: ${company.phone}` : "", company.email || ""].filter(Boolean).join(" · ")}</p>}
-          {showTaxDetails && cleanTaxId && <p className="print-company-tax">NTN / STRN / ٹیکس نمبر: {cleanTaxId}</p>}
+          {showPhoneEmail && (company.phone || company.email) && <p className="print-company-addr">{[company.phone ? `${docLabel("Phone", "فون")}: ${company.phone}` : "", company.email || ""].filter(Boolean).join(" · ")}</p>}
+          {showTaxDetails && cleanTaxId && <p className="print-company-tax">${docLabel("NTN / STRN", "ٹیکس نمبر")}: {cleanTaxId}</p>}
         </div>
       </div>
       <div className="print-voucher-title-box" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
-        <div><h2 className="print-voucher-title">{voucherTitle}{effectiveBilingual ? ` / ${urduTitle(voucherTitle)}` : ""}</h2>{showQrCode && <div style={{ marginTop: 3, textAlign: "right", fontSize: 9, color: "#64748b" }}>Internal Document QR / دستاویزی QR</div>}</div>
+        <div><h2 className="print-voucher-title">{voucherTitle}{effectiveBilingual ? ` / ${urduTitle(voucherTitle)}` : ""}</h2>{showQrCode && <div style={{ marginTop: 3, textAlign: "right", fontSize: 9, color: "#64748b" }}>{docLabel("Internal Document QR", "دستاویزی QR")}</div>}</div>
         {showQrCode && <div style={{ background: "#fff", padding: 2, lineHeight: 0, breakInside: "avoid" }}><QRCodeSVG value={qrPayload} size={62} level="M" includeMargin={false} /></div>}
       </div>
     </div>
@@ -285,13 +286,13 @@ export default function PrintLayout({
 
     <div className="print-meta">
       <div className="print-meta-col">
-        <div className="print-meta-row"><span className="print-meta-label">{voucherTitle} No / بل نمبر:</span><span className="print-meta-value">{voucherNo}</span></div>
-        <div className="print-meta-row"><span className="print-meta-label">Date / تاریخ:</span><span className="print-meta-value">{formatDate(voucherDate)}</span></div>
+        <div className="print-meta-row"><span className="print-meta-label">{docLabel(`${voucherTitle} No`, "بل نمبر")}:</span><span className="print-meta-value">{voucherNo}</span></div>
+        <div className="print-meta-row"><span className="print-meta-label">{docLabel("Date", "تاریخ")}:</span><span className="print-meta-value">{formatDate(voucherDate)}</span></div>
         {extraFields?.map((field) => <div key={field.label} className="print-meta-row"><span className="print-meta-label">{field.label}:</span><span className="print-meta-value">{field.value}</span></div>)}
       </div>
       <div className="print-meta-col"><div className="print-party-box">
         <div className="print-party-label">{partyLabel}</div><div className="print-party-name">{party.name}</div>
-        {party.address && <div className="print-party-addr">{party.address}</div>}{party.phone && <div className="print-party-phone">Phone / فون: {party.phone}</div>}{party.email && <div className="print-party-email">{party.email}</div>}
+        {party.address && <div className="print-party-addr">{party.address}</div>}{party.phone && <div className="print-party-phone">{docLabel("Phone", "فون")}: {party.phone}</div>}{party.email && <div className="print-party-email">{party.email}</div>}
         {showTaxDetails && (party.strn || party.ntn || party.cnic) && <div className="print-party-tax" style={{ marginTop: 4, fontSize: 10, color: "#475569" }}>{[party.strn ? `STRN: ${party.strn}` : "", party.ntn ? `NTN: ${party.ntn}` : "", party.cnic ? `CNIC: ${party.cnic}` : ""].filter(Boolean).join(" · ")}</div>}
         {showTaxDetails && party.taxRegistrationStatus && <div style={{ marginTop: 2, fontSize: 9, color: "#64748b", textTransform: "capitalize" }}>Tax Status: {party.taxRegistrationStatus}</div>}
       </div></div>
@@ -299,7 +300,7 @@ export default function PrintLayout({
 
     <div className="invoice-items-wrap">
       <div className={`${itemGridClass} invoice-items-head`} style={itemGridStyle}>
-        <div>#</div><div>Item / آئٹم</div><div>Description / تفصیل</div><div className="invoice-num">Qty / مقدار</div><div className="invoice-num">Rate / ریٹ</div>{showTaxSummary && <div className="invoice-num">VAT / ٹیکس</div>}<div className="invoice-num invoice-amount-col">Amount / رقم</div>
+        <div>#</div><div>{docLabel("Item", "آئٹم")}</div><div>{docLabel("Description", "تفصیل")}</div><div className="invoice-num">{docLabel("Qty", "مقدار")}</div><div className="invoice-num">{docLabel("Rate", "ریٹ")}</div>{showTaxSummary && <div className="invoice-num">{docLabel("VAT", "ٹیکس")}</div>}<div className="invoice-num invoice-amount-col">{docLabel("Amount", "رقم")}</div>
       </div>
       {items.map((item, index) => {
         const baseAmount = n(item.qty) * n(item.unitPrice);
@@ -322,30 +323,30 @@ export default function PrintLayout({
     </div>}
 
     <div className="print-totals-section">
-      <div className="print-charges-side">{chargeBreakdown.length > 0 && <div className="print-charges-box"><div className="print-charges-title">Charges Breakdown / چارجز کی تفصیل</div>{chargeBreakdown.map((charge) => <div key={charge.label} className="print-charge-row"><span>{charge.label}</span><span>{formatCurrency(charge.amount)}</span></div>)}<div className="print-charge-row print-charge-total"><span>Charges Total / کل چارجز</span><span>{formatCurrency(chargesTotal)}</span></div>{showTaxSummary && chargeVat > 0 && <div className="print-charge-row"><span>Charges VAT / چارجز ٹیکس</span><span>{formatCurrency(chargeVat)}</span></div>}</div>}</div>
+      <div className="print-charges-side">{chargeBreakdown.length > 0 && <div className="print-charges-box"><div className="print-charges-title">{docLabel("Charges Breakdown", "چارجز کی تفصیل")}</div>{chargeBreakdown.map((charge) => <div key={charge.label} className="print-charge-row"><span>{charge.label}</span><span>{formatCurrency(charge.amount)}</span></div>)}<div className="print-charge-row print-charge-total"><span>{docLabel("Charges Total", "کل چارجز")}</span><span>{formatCurrency(chargesTotal)}</span></div>{showTaxSummary && chargeVat > 0 && <div className="print-charge-row"><span>{docLabel("Charges VAT", "چارجز ٹیکس")}</span><span>{formatCurrency(chargeVat)}</span></div>}</div>}</div>
       <div className="print-totals-side">
-        <div className="print-total-row"><span>Items Total / آئٹمز کل</span><span>{formatCurrency(itemsTotal)}</span></div><div className="print-total-row"><span>Charges Total / کل چارجز</span><span>{formatCurrency(chargesTotal)}</span></div>
-        {showTaxSummary && <><div className="print-total-row"><span>Items VAT / آئٹمز ٹیکس</span><span>{formatCurrency(itemVat)}</span></div>{chargeVat > 0 && <div className="print-total-row"><span>Charges VAT / چارجز ٹیکس</span><span>{formatCurrency(chargeVat)}</span></div>}<div className="print-total-row"><span>Total VAT / کل ٹیکس</span><span>{formatCurrency(taxAmount)}</span></div></>}
+        <div className="print-total-row"><span>{docLabel("Items Total", "آئٹمز کل")}</span><span>{formatCurrency(itemsTotal)}</span></div><div className="print-total-row"><span>{docLabel("Charges Total", "کل چارجز")}</span><span>{formatCurrency(chargesTotal)}</span></div>
+        {showTaxSummary && <><div className="print-total-row"><span>{docLabel("Items VAT", "آئٹمز ٹیکس")}</span><span>{formatCurrency(itemVat)}</span></div>{chargeVat > 0 && <div className="print-total-row"><span>{docLabel("Charges VAT", "چارجز ٹیکس")}</span><span>{formatCurrency(chargeVat)}</span></div>}<div className="print-total-row"><span>{docLabel("Total VAT", "کل ٹیکس")}</span><span>{formatCurrency(taxAmount)}</span></div></>}
         {inferredDiscount > 0.005 && <><div className="print-total-row print-before-discount"><span>Total Before Discount</span><span>{formatCurrency(beforeDiscount - consolidatedTotal)}</span></div><div className="print-total-row print-discount-row"><span>Discount</span><span>- {formatCurrency(inferredDiscount)}</span></div></>}
         {hawalaDocuments.length > 0 && <><div className="print-total-row"><span>Main Invoice Total</span><span>{formatCurrency(normalInvoiceTotal ?? Math.max(grandTotal - consolidatedTotal, 0))}</span></div><div className="print-total-row"><span>Consolidated Invoice Total</span><span>{formatCurrency(consolidatedTotal)}</span></div></>}
-        <div className="print-total-row print-grand-total"><span>Grand Total / کل رقم</span><span>{formatCurrency(grandTotal)}</span></div>
+        <div className="print-total-row print-grand-total"><span>{docLabel("Grand Total", "کل رقم")}</span><span>{formatCurrency(grandTotal)}</span></div>
       </div>
     </div>
 
     {effectivePayment && <div className="print-payment-summary" style={{ marginTop: 12, border: "1px solid #cbd5e1", padding: 10, breakInside: "avoid" }}>
-      <div style={{ fontWeight: 800, marginBottom: 7 }}>{isPurchase ? "Payment & Balance / ادائیگی اور بقایا" : "Receipt & Balance / وصولی اور بقایا"}</div>
+      <div style={{ fontWeight: 800, marginBottom: 7 }}>{isPurchase ? docLabel("Payment & Balance", "ادائیگی اور بقایا") : docLabel("Receipt & Balance", "وصولی اور بقایا")}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 7, fontSize: 10 }}>
-        <div>Previous Balance / سابقہ بقایا<br/><strong>{formatCurrency(effectivePayment.previousBalance || 0)}</strong></div>
-        <div>{isPurchase ? "Total Paid / کل ادائیگی" : "Total Received / کل وصولی"}<br/><strong>{formatCurrency(effectivePayment.totalReceived || 0)}</strong></div>
-        <div>{isPurchase ? "Today's Paid / آج کی ادائیگی" : "Today's Received / آج کی وصولی"}<br/><strong>{formatCurrency(effectivePayment.todayReceived || 0)}</strong></div>
-        <div>Outstanding / موجودہ بقایا<br/><strong>{formatCurrency(effectivePayment.currentOutstanding || 0)}</strong></div>
+        <div>{docLabel("Previous Balance", "سابقہ بقایا")}<br/><strong>{formatCurrency(effectivePayment.previousBalance || 0)}</strong></div>
+        <div>{isPurchase ? docLabel("Total Paid", "کل ادائیگی") : docLabel("Total Received", "کل وصولی")}<br/><strong>{formatCurrency(effectivePayment.totalReceived || 0)}</strong></div>
+        <div>{isPurchase ? docLabel("Today's Paid", "آج کی ادائیگی") : docLabel("Today's Received", "آج کی وصولی")}<br/><strong>{formatCurrency(effectivePayment.todayReceived || 0)}</strong></div>
+        <div>{docLabel("Outstanding", "موجودہ بقایا")}<br/><strong>{formatCurrency(effectivePayment.currentOutstanding || 0)}</strong></div>
       </div>
-      <div style={{ marginTop: 7, fontSize: 10 }}>{isPurchase ? "Last Payment / آخری ادائیگی" : "Last Receipt / آخری وصولی"}: <strong>{effectivePayment.lastPaymentDate ? formatDate(effectivePayment.lastPaymentDate) : "—"}</strong> · <strong>{formatCurrency(effectivePayment.lastPaymentAmount || 0)}</strong> · {effectivePayment.lastPaymentMode || "—"}</div>
+      <div style={{ marginTop: 7, fontSize: 10 }}>{isPurchase ? docLabel("Last Payment", "آخری ادائیگی") : docLabel("Last Receipt", "آخری وصولی")}: <strong>{effectivePayment.lastPaymentDate ? formatDate(effectivePayment.lastPaymentDate) : "—"}</strong> · <strong>{formatCurrency(effectivePayment.lastPaymentAmount || 0)}</strong> · {effectivePayment.lastPaymentMode || "—"}</div>
     </div>}
 
     {showSignatures && signatureLabels.length > 0 && <div className="print-signatures">{signatureLabels.map((label, index) => <div key={`${label}-${index}`} className="print-signature-block"><div className="print-signature-line"/><div className="print-signature-label">{label}</div></div>)}</div>}
     {showFooter && <div className="print-footer">{visibleEnglishFooter && <p>{visibleEnglishFooter}</p>}{visibleUrduFooter && <p>{visibleUrduFooter}</p>}{!visibleEnglishFooter && !visibleUrduFooter && <p>This is a computer-generated document.</p>}</div>}
-    {showPrintDatetime && <div style={{ marginTop: 7, textAlign: "right", fontSize: 10, color: "#94a3b8" }}>Printed / پرنٹ: {new Date().toLocaleString("en-PK")}</div>}
+    {showPrintDatetime && <div style={{ marginTop: 7, textAlign: "right", fontSize: 10, color: "#94a3b8" }}>{docLabel("Printed", "پرنٹ")}: {new Date().toLocaleString("en-PK")}</div>}
     {showPageNumbers && <div className="print-page-number" style={{ marginTop: 3, textAlign: "right", fontSize: 10, color: "#94a3b8" }}/>} 
   </div></div>;
 }

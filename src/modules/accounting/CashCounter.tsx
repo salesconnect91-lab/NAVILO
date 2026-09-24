@@ -736,8 +736,7 @@ export default function CashCounter() {
 
                 <div style="text-align:right">
                   <div class="title">
-                    Receipt / رسید
-                  </div>
+                    Receipt</div>
                   <div class="muted">
                     ${escapeHtml(
                       receipt.entry_no
@@ -776,8 +775,7 @@ export default function CashCounter() {
               <div class="grid">
                 <div>
                   <div class="label">
-                    Received From / وصول کنندہ سے
-                  </div>
+                    Received From</div>
                   <div class="value">
                     ${escapeHtml(
                       receipt.customer_name
@@ -787,8 +785,7 @@ export default function CashCounter() {
 
                 <div>
                   <div class="label">
-                    Payment Date / ادائیگی تاریخ
-                  </div>
+                    Payment Date</div>
                   <div class="value">
                     ${escapeHtml(
                       receipt.date
@@ -798,8 +795,7 @@ export default function CashCounter() {
 
                 <div>
                   <div class="label">
-                    Payment Method / ادائیگی طریقہ
-                  </div>
+                    Payment Method</div>
                   <div class="value">
                     ${escapeHtml(
                       receipt.payment_method
@@ -822,7 +818,7 @@ export default function CashCounter() {
               ${
                 visibility.show_previous_balance
                   ? `<div class="amount">
-                       <span>Previous Balance / سابقہ بیلنس</span>
+                       <span>Previous Balance</span>
                        <strong>Rs. ${money(receipt.balance_before ?? 0)}</strong>
                      </div>`
                   : ""
@@ -830,9 +826,7 @@ export default function CashCounter() {
 
               <div class="amount">
                 <span>
-                  Total Amount Received /
-                  کل وصول شدہ رقم
-                </span>
+                  Total Amount Received</span>
 
                 <strong>
                   Rs. ${money(
@@ -843,7 +837,7 @@ export default function CashCounter() {
               ${
                 visibility.show_closing_balance
                   ? `<div class="amount">
-                       <span>Closing Balance / بقایا بیلنس</span>
+                       <span>Closing Balance</span>
                        <strong>Rs. ${money(receipt.balance_after ?? 0)}</strong>
                      </div>`
                   : ""
@@ -857,8 +851,7 @@ export default function CashCounter() {
                     </th>
 
                     <th class="right">
-                      Amount / رقم
-                    </th>
+                      Amount</th>
                   </tr>
                 </thead>
 
@@ -1600,7 +1593,7 @@ export default function CashCounter() {
           }}
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
-          <RefreshCw className="h-4 w-4" />Refresh / تازہ کریں</button>
+          <RefreshCw className="h-4 w-4" />Refresh</button>
       </div>
 
       {error && (
@@ -1624,8 +1617,7 @@ export default function CashCounter() {
                 className="inline-flex items-center justify-center gap-2 rounded-md border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
               >
                 <Printer className="h-4 w-4" />
-                Print Receipt / رسید پرنٹ
-              </button>
+                Print Receipt</button>
 
               <button
                 type="button"
@@ -1636,8 +1628,7 @@ export default function CashCounter() {
                 }
                 className="btn-secondary"
               >
-                PDF Receipt / پی ڈی ایف رسید
-              </button>
+                PDF Receipt</button>
             </div>
           )}
         </div>
@@ -1653,8 +1644,7 @@ export default function CashCounter() {
               : "text-slate-600 hover:bg-slate-50"
           }`}
         >
-          Customer Receipt / کسٹمر وصولی
-        </button>
+          Customer Receipt</button>
 
         <button
           type="button"
@@ -1665,8 +1655,7 @@ export default function CashCounter() {
               : "text-slate-600 hover:bg-slate-50"
           }`}
         >
-          Supplier Payment / سپلائر ادائیگی
-        </button>
+          Supplier Payment</button>
 
         <button
           type="button"
@@ -1677,8 +1666,7 @@ export default function CashCounter() {
               : "text-slate-600 hover:bg-slate-50"
           }`}
         >
-          General Cash / Bank / عمومی کیش بینک
-        </button>
+          General Cash / Bank</button>
       </div>
 
       {counterMode !== "general" && (
@@ -1717,7 +1705,7 @@ export default function CashCounter() {
           <div className="space-y-5 p-5">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Payment Date / ادائیگی تاریخ</label>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Payment Date</label>
                 <input
                   type="date"
                   value={paymentDate}
@@ -1731,7 +1719,7 @@ export default function CashCounter() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Payment Method / ادائیگی طریقہ</label>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Payment Method</label>
                 <SearchableSelect
                   value={paymentMethod}
                   onChange={(e) =>
@@ -1741,16 +1729,16 @@ export default function CashCounter() {
                   }
                   className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500"
                 >
-                  <option>Cash / نقد</option>
-                  <option>Bank / بینک</option>
-                  <option>Cheque / چیک</option>
-                  <option>Online / آن لائن</option>
-                  <option>Other / دیگر</option>
+                  <option>Cash</option>
+                  <option>Bank</option>
+                  <option>Cheque</option>
+                  <option>Online</option>
+                  <option>Other</option>
                 </SearchableSelect>
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Payment Account / ادائیگی اکاؤنٹ</label>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Payment Account</label>
                 <SearchableSelect
                   value={paymentAccountId}
                   onChange={(e) =>
@@ -1779,7 +1767,7 @@ export default function CashCounter() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-600">Customer / گاہک</label>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600">Customer</label>
 
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
@@ -1808,7 +1796,7 @@ export default function CashCounter() {
                       setAllocation("");
                     }
                   }}
-                  placeholder="Type customer name or phone... / گاہک کا نام یا فون لکھیں..."
+                  placeholder="Type customer name or phone......"
                   className="h-11 w-full rounded-lg border border-slate-200 pl-10 pr-10 text-sm font-medium outline-none focus:border-emerald-500"
                 />
 
@@ -1847,7 +1835,7 @@ export default function CashCounter() {
                                 )}
                               </span>
 
-                              <span className="text-xs text-emerald-600">Select / منتخب کریں</span>
+                              <span className="text-xs text-emerald-600">Select</span>
                             </button>
                           )
                         )
@@ -2100,7 +2088,7 @@ export default function CashCounter() {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Reference / حوالہ</label>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Reference</label>
                 <input
                   value={reference}
                   onChange={(e) =>
@@ -2108,13 +2096,13 @@ export default function CashCounter() {
                       e.target.value
                     )
                   }
-                  placeholder="Receipt / cheque / reference / رسید، چیک یا حوالہ"
+                  placeholder="Receipt / cheque / reference"
                   className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Description / تفصیل</label>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Description</label>
                 <input
                   value={description}
                   onChange={(e) =>
@@ -2122,7 +2110,7 @@ export default function CashCounter() {
                       e.target.value
                     )
                   }
-                  placeholder="Optional / اختیاری"
+                  placeholder="Optional"
                   className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
                 />
               </div>
@@ -2138,7 +2126,7 @@ export default function CashCounter() {
                       e.target.value
                     )
                   }
-                  placeholder="Optional / اختیاری"
+                  placeholder="Optional"
                   className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
                 />
               </div>
@@ -2267,7 +2255,7 @@ export default function CashCounter() {
             <div className="flex items-start gap-2">
               <FileText className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
               <div className="text-xs leading-5 text-blue-900">
-                <strong>Cashier workflow / کیشیئر ورک فلو</strong>
+                <strong>Cashier workflow</strong>
                 <br />
                 Customer → Invoice / Advance →
                 Amount → Receive &amp; Post → Print Receipt.

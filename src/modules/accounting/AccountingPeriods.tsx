@@ -73,7 +73,7 @@ export default function AccountingPeriods() {
   return (
     <div className="navilo-closing-workflow space-y-4">
       <PageHeader
-        title="Accounting Periods / اکاؤنٹنگ پیریڈز"
+        title="Accounting Periods"
         subtitle="Close finalized months to prevent backdated accounting postings."
         action={
           <div className="flex items-center gap-2" data-no-print data-no-export>

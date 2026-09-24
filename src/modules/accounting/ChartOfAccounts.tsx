@@ -1289,7 +1289,7 @@ import SearchableSelect from "@/components/SearchableSelect";
                     Accounting Master
                   </div>
 
-                  <h1 className="text-2xl font-bold tracking-tight text-slate-950">Chart of Accounts / چارٹ آف اکاؤنٹس</h1>
+                  <h1 className="text-2xl font-bold tracking-tight text-slate-950">Chart of Accounts</h1>
 
                   <p className="mt-1 max-w-2xl text-sm text-slate-500">
                     Manage account hierarchy, posting controls and financial-statement classification.
@@ -1353,36 +1353,36 @@ import SearchableSelect from "@/components/SearchableSelect";
 
           <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard
-              label="Total accounts / کل اکاؤنٹس"
+              label="Total accounts"
               value={totalAccounts}
-              description="All accounts / تمام اکاؤنٹس"
+              description="All accounts"
               tone="slate"
               active={summaryFilter === "all"}
               onClick={() => applySummaryFilter("all")}
             />
 
             <SummaryCard
-              label="Active accounts / فعال اکاؤنٹس"
+              label="Active accounts"
               value={activeAccounts}
-              description="Available for use / استعمال کیلئے دستیاب"
+              description="Available for use"
               tone="emerald"
               active={summaryFilter === "active"}
               onClick={() => applySummaryFilter("active")}
             />
 
             <SummaryCard
-              label="Group accounts / گروپ اکاؤنٹس"
+              label="Group accounts"
               value={groupCount}
-              description="Parent / category accounts / بنیادی یا کیٹیگری اکاؤنٹس"
+              description="Parent / category accounts"
               tone="amber"
               active={summaryFilter === "group"}
               onClick={() => applySummaryFilter("group")}
             />
 
             <SummaryCard
-              label="Posting accounts / پوسٹنگ اکاؤنٹس"
+              label="Posting accounts"
               value={postingCount}
-              description="Used in journal entries / جرنل اندراجات میں استعمال"
+              description="Used in journal entries"
               tone="blue"
               active={summaryFilter === "posting"}
               onClick={() => applySummaryFilter("posting")}
@@ -1407,7 +1407,7 @@ import SearchableSelect from "@/components/SearchableSelect";
                           event.target.value
                         )
                       }
-                      placeholder="Search account name or code / اکاؤنٹ نام یا کوڈ تلاش کریں"
+                      placeholder="Search account name or code"
                       className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     />
                   </div>
@@ -1490,7 +1490,7 @@ import SearchableSelect from "@/components/SearchableSelect";
                       loadAccounts
                     }
                     className="h-9 rounded-md border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                  >Refresh / تازہ کریں</button>
+                  >Refresh</button>
                 </div>
               </div>
             </div>
@@ -1499,7 +1499,7 @@ import SearchableSelect from "@/components/SearchableSelect";
               <table className="w-full min-w-[1100px] border-collapse">
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-900">
-                    <th className="w-[39%] px-5 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">Account / اکاؤنٹ</th>
+                    <th className="w-[39%] px-5 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">Account</th>
 
                     <th className="w-[10%] px-4 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">
                       Code
@@ -1509,15 +1509,15 @@ import SearchableSelect from "@/components/SearchableSelect";
                       Type
                     </th>
 
-                    <th className="w-[15%] px-4 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">Detail type / تفصیلی قسم</th>
+                    <th className="w-[15%] px-4 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">Detail type</th>
 
                     <th className="w-[12%] px-4 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">
                       Statement
                     </th>
 
-                    <th className="w-[8%] px-4 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">Status / حالت</th>
+                    <th className="w-[8%] px-4 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">Status</th>
 
-                    <th className="w-[6%] px-4 py-3.5 text-right text-[12px] font-bold uppercase tracking-wider text-slate-200">Actions / کارروائیاں</th>
+                    <th className="w-[6%] px-4 py-3.5 text-right text-[12px] font-bold uppercase tracking-wider text-slate-200">Actions</th>
                   </tr>
                 </thead>
 
@@ -1680,13 +1680,13 @@ import SearchableSelect from "@/components/SearchableSelect";
 
                   <section>
                     <SectionTitle
-                      title="Basic information / بنیادی معلومات"
-                      description="Choose the main accounting classification. / بنیادی اکاؤنٹنگ درجہ بندی منتخب کریں۔"
+                      title="Basic information"
+                      description="Choose the main accounting classification."
                     />
 
                     <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                       <FormField
-                        label="Account type / اکاؤنٹ قسم"
+                        label="Account type"
                         required
                       >
                         <SearchableSelect
@@ -1723,7 +1723,7 @@ import SearchableSelect from "@/components/SearchableSelect";
                         </SearchableSelect>
                       </FormField>
 
-                      <FormField label="Financial statement / مالیاتی بیان">
+                      <FormField label="Financial statement">
                         <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700">
                           {
                             ACCOUNT_STATEMENTS[
@@ -1739,13 +1739,13 @@ import SearchableSelect from "@/components/SearchableSelect";
 
                   <section>
                     <SectionTitle
-                      title="Account details / اکاؤنٹ تفصیل"
-                      description="Account name and automatic account number. / اکاؤنٹ نام اور خودکار اکاؤنٹ نمبر۔"
+                      title="Account details"
+                      description="Account name and automatic account number."
                     />
 
                     <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                       <FormField
-                        label="Account name / اکاؤنٹ نام"
+                        label="Account name"
                         required
                       >
                         <input
@@ -1762,15 +1762,15 @@ import SearchableSelect from "@/components/SearchableSelect";
                                 .value
                             )
                           }
-                          placeholder="Enter account name / اکاؤنٹ نام درج کریں"
+                          placeholder="Enter account name"
                           className="form-input"
                           autoFocus
                         />
                       </FormField>
 
                       <FormField
-                        label="Account code / اکاؤنٹ کوڈ"
-                        hint="Automatically generated by the system. / سسٹم خودکار طور پر بنائے گا۔"
+                        label="Account code"
+                        hint="Automatically generated by the system."
                       >
                         <div className="flex h-10 items-center justify-between rounded-lg border border-blue-100 bg-blue-50 px-3">
                           <span className="font-mono text-sm font-semibold text-blue-700">
@@ -1787,8 +1787,8 @@ import SearchableSelect from "@/components/SearchableSelect";
 
                     <div className="mt-3">
                       <FormField
-                        label="Detail type / تفصیلی قسم"
-                        hint="This classification determines how the account is presented in reporting. / یہ درجہ بندی طے کرتی ہے کہ اکاؤنٹ رپورٹس میں کیسے دکھایا جائے گا۔"
+                        label="Detail type"
+                        hint="This classification determines how the account is presented in reporting."
                       >
                         <SearchableSelect
                           value={
@@ -1837,7 +1837,7 @@ import SearchableSelect from "@/components/SearchableSelect";
                   <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <InfoBox
-                        label="Account type / اکاؤنٹ قسم"
+                        label="Account type"
                         value={
                           ACCOUNT_TYPE_LABELS[
                             form.type
@@ -1846,7 +1846,7 @@ import SearchableSelect from "@/components/SearchableSelect";
                       />
 
                       <InfoBox
-                        label="Statement / اسٹیٹمنٹ"
+                        label="Statement"
                         value={
                           ACCOUNT_STATEMENTS[
                             form.type
@@ -1855,7 +1855,7 @@ import SearchableSelect from "@/components/SearchableSelect";
                       />
 
                       <InfoBox
-                        label="Detail classification / تفصیلی درجہ بندی"
+                        label="Detail classification"
                         value={
                           selectedDetail?.label ??
                           "Not selected"
@@ -1868,14 +1868,14 @@ import SearchableSelect from "@/components/SearchableSelect";
 
                   <section>
                     <SectionTitle
-                      title="Account hierarchy / اکاؤنٹ درجہ بندی"
-                      description="Select a group account if this should be a subaccount. / اگر یہ ذیلی اکاؤنٹ ہے تو گروپ اکاؤنٹ منتخب کریں۔"
+                      title="Account hierarchy"
+                      description="Select a group account if this should be a subaccount."
                     />
 
                     <div className="mt-3">
                       <FormField
-                        label="Parent account / بنیادی اکاؤنٹ"
-                        hint="Root account means this account has no parent. / روٹ اکاؤنٹ کا کوئی بنیادی اکاؤنٹ نہیں ہوتا۔"
+                        label="Parent account"
+                        hint="Root account means this account has no parent."
                       >
                         <SearchableSelect
                           value={
@@ -1993,8 +1993,8 @@ import SearchableSelect from "@/components/SearchableSelect";
 
                   <section>
                     <SectionTitle
-                      title="Posting settings / پوسٹنگ سیٹنگز"
-                      description="Control direct journal posting. / براہ راست جرنل پوسٹنگ کنٹرول کریں۔"
+                      title="Posting settings"
+                      description="Control direct journal posting."
                     />
 
                     <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -2067,14 +2067,14 @@ import SearchableSelect from "@/components/SearchableSelect";
 
                   <section>
                     <SectionTitle
-                      title="Accounting metadata / اکاؤنٹنگ میٹا ڈیٹا"
-                      description="Optional metadata for accounting modules. / اکاؤنٹنگ ماڈیولز کیلئے اختیاری معلومات۔"
+                      title="Accounting metadata"
+                      description="Optional metadata for accounting modules."
                     />
 
                     <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                       <FormField
-                        label="Account role / اکاؤنٹ کردار"
-                        hint="Only database-supported account roles are available. / صرف ڈیٹابیس میں دستیاب اکاؤنٹ کردار استعمال کیے جا سکتے ہیں۔"
+                        label="Account role"
+                        hint="Only database-supported account roles are available."
                       >
                         <SearchableSelect
                           value={
@@ -2119,8 +2119,8 @@ import SearchableSelect from "@/components/SearchableSelect";
                       </FormField>
 
                       <FormField
-                        label="Parent head / بنیادی ہیڈ"
-                        hint="Optional reporting label. / اختیاری رپورٹنگ لیبل۔"
+                        label="Parent head"
+                        hint="Optional reporting label."
                       >
                         <input
                           value={
@@ -2136,7 +2136,7 @@ import SearchableSelect from "@/components/SearchableSelect";
                                 .value
                             )
                           }
-                          placeholder="Optional / اختیاری"
+                          placeholder="Optional"
                           className="form-input"
                         />
                       </FormField>
@@ -2168,7 +2168,7 @@ import SearchableSelect from "@/components/SearchableSelect";
                   }
                   disabled={saving}
                   className="h-9 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >Cancel / منسوخ کریں</button>
+                >Cancel</button>
 
                 <button
                   type="button"
@@ -2613,7 +2613,7 @@ import SearchableSelect from "@/components/SearchableSelect";
                       account
                     )
                   }
-                  title="Add subaccount / ذیلی اکاؤنٹ شامل کریں"
+                  title="Add subaccount"
                   className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-blue-600 transition hover:border-blue-200 hover:bg-blue-50"
                 >
                   +
@@ -2627,7 +2627,7 @@ import SearchableSelect from "@/components/SearchableSelect";
                     account
                   )
                 }
-                title="Edit account / اکاؤنٹ تبدیل کریں"
+                title="Edit account"
                 className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-800"
               >
                 ✎
@@ -2640,7 +2640,7 @@ import SearchableSelect from "@/components/SearchableSelect";
                     account
                   )
                 }
-                title="Delete account / اکاؤنٹ حذف کریں"
+                title="Delete account"
                 className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-red-500 transition hover:border-red-200 hover:bg-red-50"
               >
                 ×

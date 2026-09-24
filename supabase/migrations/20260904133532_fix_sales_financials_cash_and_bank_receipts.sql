@@ -1,3 +1,5 @@
+drop view if exists public.sales_invoice_financials;
+
 create or replace view public.sales_invoice_financials
 with (security_invoker = true)
 as
@@ -78,12 +80,23 @@ select
     order by ipa.allocation_date desc, ipa.created_at desc, ipa.id desc
     limit 1
   ) as last_payment_date,
-  aging.due_date,
-  coalesce(aging.overdue_days, 0) as overdue_days,
-  coalesce(aging.days_outstanding, 0) as days_outstanding,
-  aging.aging_bucket,
-  aging.aging_status,
-  aging.payment_status
-from public.sales_orders so
-left join public.customer_invoice_aging aging
-  on aging.sales_order_id = so.id;
+  so.due_date,
+  case when coalesce(so.outstanding_amount,0) <= 0 or so.due_date is null then 0 else greatest(current_date-so.due_date,0) end as overdue_days,
+  greatest(current_date-so.order_date,0) as days_outstanding,
+  case
+    when coalesce(so.outstanding_amount,0) <= 0 then 'Paid'
+    when so.due_date is null then 'No Due Date'
+    when current_date <= so.due_date then 'Current'
+    when current_date-so.due_date between 1 and 30 then '1-30 Days'
+    when current_date-so.due_date between 31 and 60 then '31-60 Days'
+    when current_date-so.due_date between 61 and 90 then '61-90 Days'
+    else '90+ Days'
+  end as aging_bucket,
+  case
+    when coalesce(so.outstanding_amount,0) <= 0 then 'paid'
+    when so.due_date is not null and current_date > so.due_date then 'overdue'
+    when coalesce(so.paid_amount,0) > 0 then 'partial'
+    else 'open'
+  end as aging_status,
+  so.payment_status
+from public.sales_orders so;

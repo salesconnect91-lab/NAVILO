@@ -439,8 +439,8 @@ export default function Ledgers() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Ledgers & Party Statements / لیجرز اور پارٹی اسٹیٹمنٹس"
-        subtitle="View posted General Ledger entries and customer / supplier statements / پوسٹ شدہ جنرل لیجر اور گاہک یا سپلائر اسٹیٹمنٹ دیکھیں"
+        title="Ledgers & Party Statements"
+        subtitle="View posted General Ledger entries and customer / supplier statements"
         action={
           <div className="flex items-center gap-3 print:hidden">
             <button
@@ -474,8 +474,8 @@ export default function Ledgers() {
               value={viewMode}
               onChange={(e) => setViewMode(e.target.value as ViewMode)}
             >
-              <option value="general">General Ledger / جنرل لیجر</option>
-              <option value="party">Party Statement / پارٹی اسٹیٹمنٹ</option>
+              <option value="general">General Ledger</option>
+              <option value="party">Party Statement</option>
             </SearchableSelect>
           </div>
 
@@ -513,9 +513,9 @@ export default function Ledgers() {
                     handlePartyTypeChange(e.target.value as PartyFilterType)
                   }
                 >
-                  <option value="all">All Customers & Suppliers / تمام گاہک اور سپلائرز</option>
-                  <option value="customer">Customers / گاہک</option>
-                  <option value="supplier">Suppliers / سپلائرز</option>
+                  <option value="all">All Customers & Suppliers</option>
+                  <option value="customer">Customers</option>
+                  <option value="supplier">Suppliers</option>
                 </SearchableSelect>
               </div>
 
@@ -528,7 +528,7 @@ export default function Ledgers() {
                   <input
                     className="input text-sm pr-20"
                     type="text"
-                    placeholder="Type customer or supplier name... / گاہک یا سپلائر کا نام لکھیں..."
+                    placeholder="Type customer or supplier name..."
                     value={partySearch}
                     onChange={(e) => {
                       setPartySearch(e.target.value);
@@ -635,12 +635,12 @@ export default function Ledgers() {
             <table className="w-full text-sm min-w-[900px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                  <th className="text-left py-2.5 px-3 font-medium">Date / تاریخ</th>
-                  <th className="text-left py-2.5 px-3 font-medium">Account / اکاؤنٹ</th>
-                  <th className="text-left py-2.5 px-3 font-medium">Description / تفصیل</th>
-                  <th className="text-right py-2.5 px-3 font-medium">Debit / ڈیبٹ</th>
-                  <th className="text-right py-2.5 px-3 font-medium">Credit / کریڈٹ</th>
-                  <th className="text-right py-2.5 px-3 font-medium">Balance / بیلنس</th>
+                  <th className="text-left py-2.5 px-3 font-medium">Date</th>
+                  <th className="text-left py-2.5 px-3 font-medium">Account</th>
+                  <th className="text-left py-2.5 px-3 font-medium">Description</th>
+                  <th className="text-right py-2.5 px-3 font-medium">Debit</th>
+                  <th className="text-right py-2.5 px-3 font-medium">Credit</th>
+                  <th className="text-right py-2.5 px-3 font-medium">Balance</th>
                 </tr>
               </thead>
 
@@ -728,15 +728,15 @@ export default function Ledgers() {
             <table className="w-full text-sm min-w-[1050px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                  <th className="text-left py-2.5 px-3 font-medium">Date / تاریخ</th>
+                  <th className="text-left py-2.5 px-3 font-medium">Date</th>
                   <th className="text-left py-2.5 px-3 font-medium">
                     Party
                   </th>
-                  <th className="text-left py-2.5 px-3 font-medium">Reference / حوالہ</th>
-                  <th className="text-left py-2.5 px-3 font-medium">Description / تفصیل</th>
-                  <th className="text-right py-2.5 px-3 font-medium">Debit / ڈیبٹ</th>
-                  <th className="text-right py-2.5 px-3 font-medium">Credit / کریڈٹ</th>
-                  <th className="text-right py-2.5 px-3 font-medium">Balance / بیلنس</th>
+                  <th className="text-left py-2.5 px-3 font-medium">Reference</th>
+                  <th className="text-left py-2.5 px-3 font-medium">Description</th>
+                  <th className="text-right py-2.5 px-3 font-medium">Debit</th>
+                  <th className="text-right py-2.5 px-3 font-medium">Credit</th>
+                  <th className="text-right py-2.5 px-3 font-medium">Balance</th>
                 </tr>
               </thead>
 

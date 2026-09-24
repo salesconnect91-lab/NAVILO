@@ -117,16 +117,16 @@ export default function PaymentBalanceControls() {
   return (
     <section data-no-print data-no-export className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3">
-        <h3 className="text-sm font-bold text-slate-900">Slip Balance Show / Hide / سلپ بیلنس شو ہائیڈ</h3>
-        <p className="mt-1 text-xs text-slate-500">Applies to Customer Receipt and Supplier Payment print layouts only. / کسٹمر وصولی اور سپلائر ادائیگی</p>
+        <h3 className="text-sm font-bold text-slate-900">Slip Balance Show / Hide</h3>
+        <p className="mt-1 text-xs text-slate-500">Applies to Customer Receipt and Supplier Payment print layouts only.</p>
       </div>
 
       {error && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div>}
 
       <div className="grid gap-3 md:grid-cols-2">
         {([
-          ["show_previous_balance", "Previous Balance / سابقہ بیلنس"],
-          ["show_closing_balance", "Closing Balance / بقایا بیلنس"],
+          ["show_previous_balance", "Previous Balance"],
+          ["show_closing_balance", "Closing Balance"],
         ] as Array<[keyof VisibilityState, string]>).map(([key, label]) => {
           const enabled = visibility[key];
           return (

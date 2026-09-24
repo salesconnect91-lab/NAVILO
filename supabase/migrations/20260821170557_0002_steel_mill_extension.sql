@@ -100,6 +100,74 @@ ALTER TABLE furnace_yields ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_furnace_yields_user ON furnace_yields(user_id);
 
 -- ============================================================
+-- LEGACY MASTER-DATA FOUNDATION
+-- ============================================================
+--
+-- These five tables existed in the original hosted database before the
+-- checked-in migration chain was exported.  The initial repository commit
+-- already contained UI and later migrations that used them, but no CREATE
+-- TABLE statements.  Keep this baseline deliberately minimal: subsequent
+-- migrations add integrity constraints, tenant ownership, translations and
+-- final RLS policies.
+
+CREATE TABLE IF NOT EXISTS categories (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now()),
+  sub_category text,
+  description text
+);
+
+CREATE TABLE IF NOT EXISTS uom (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  symbol text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS warehouses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  location text,
+  created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS godowns (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  location text,
+  created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now()),
+  warehouse_id uuid REFERENCES warehouses(id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS transporters (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  vehicle_no text,
+  phone text,
+  created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- The legacy item master linked an item to its default warehouse before the
+-- migration export. Migration 0025 installs the restrictive foreign key.
+ALTER TABLE public.items
+  ADD COLUMN IF NOT EXISTS warehouse_id uuid;
+
+ALTER TABLE public.stock_movements
+  ADD COLUMN IF NOT EXISTS warehouse_id uuid REFERENCES public.warehouses(id) ON DELETE RESTRICT,
+  ADD COLUMN IF NOT EXISTS godown_id uuid REFERENCES public.godowns(id) ON DELETE RESTRICT;
+
+-- The tables are exposed through public, so enable RLS at creation.  Migration
+-- 0020 installs the authenticated policies before application use.
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE uom ENABLE ROW LEVEL SECURITY;
+ALTER TABLE warehouses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE godowns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transporters ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
 -- WAREHOUSE STOCK
 -- ============================================================
 
@@ -107,6 +175,8 @@ CREATE TABLE IF NOT EXISTS warehouse_stock (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
   item_id uuid REFERENCES items(id) ON DELETE SET NULL,
+  warehouse_id uuid REFERENCES warehouses(id) ON DELETE RESTRICT,
+  godown_id uuid REFERENCES godowns(id) ON DELETE RESTRICT,
   godown text NOT NULL DEFAULT 'Main',
   quantity numeric(12,2) NOT NULL DEFAULT 0,
   updated_at timestamptz NOT NULL DEFAULT now()

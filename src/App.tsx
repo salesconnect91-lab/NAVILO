@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { FeatureAccessProvider, FeaturePathGuard, useFeatureAccess } from "@/auth/FeatureAccess";
@@ -15,30 +15,30 @@ import GatePassSummaryPrintBridge from "@/components/GatePassSummaryPrintBridge"
 import GlobalModalManager from "@/components/GlobalModalManager";
 import DashboardGlobalSearch from "@/components/DashboardGlobalSearch";
 import ReportSurface from "@/components/reports/ReportSurface";
-import Dashboard from "@/modules/Dashboard";
-import MasterData from "@/modules/master-data/MasterData";
-import SalesInvoiceList from "@/modules/sales/SalesInvoiceList";
-import SalesInvoiceCreate from "@/modules/sales/SalesInvoiceCreate";
-import SalesInvoiceDetail from "@/modules/sales/SalesInvoiceDetail";
-import SalespersonReportHub from "@/modules/sales/SalespersonReportHub";
-import SalespersonLedger from "@/modules/sales/SalespersonLedger";
-import ChargeMaster from "@/modules/sales/ChargeMaster";
-import Purchase from "@/modules/purchase/Purchase";
-import Godown from "@/modules/master-data/Godown";
-import Production from "@/modules/production/Production";
-import Cutting from "@/modules/cutting/Cutting";
-import Accounting from "@/modules/accounting/Accounting";
-import CustomerInvoiceStatement from "@/modules/accounting/CustomerInvoiceStatement";
-import Settings from "@/modules/settings/Settings";
-import Reports from "@/modules/reports/Reports";
-import SteelStockControl from "@/modules/reports/SteelStockControl";
-import SupplierAgingReport from "@/modules/reports/SupplierAgingReport";
-import ConsolidatedInvoices from "@/modules/sales/ConsolidatedInvoices";
-import OrderBook from "@/modules/orders/OrderBook";
-import OwnerPanel from "@/modules/platform/OwnerPanel";
-import OpeningBalanceMigration from "@/modules/platform/OpeningBalanceMigration";
-import TransportWorkspace from "@/modules/transport/TransportWorkspace";
-import PreInvoiceWorkspace from "@/modules/commercial/PreInvoiceWorkspace";
+const Dashboard = lazy(() => import("@/modules/Dashboard"));
+const MasterData = lazy(() => import("@/modules/master-data/MasterData"));
+const SalesInvoiceList = lazy(() => import("@/modules/sales/SalesInvoiceList"));
+const SalesInvoiceCreate = lazy(() => import("@/modules/sales/SalesInvoiceCreate"));
+const SalesInvoiceDetail = lazy(() => import("@/modules/sales/SalesInvoiceDetail"));
+const SalespersonReportHub = lazy(() => import("@/modules/sales/SalespersonReportHub"));
+const SalespersonLedger = lazy(() => import("@/modules/sales/SalespersonLedger"));
+const ChargeMaster = lazy(() => import("@/modules/sales/ChargeMaster"));
+const Purchase = lazy(() => import("@/modules/purchase/Purchase"));
+const Godown = lazy(() => import("@/modules/master-data/Godown"));
+const Production = lazy(() => import("@/modules/production/Production"));
+const Cutting = lazy(() => import("@/modules/cutting/Cutting"));
+const Accounting = lazy(() => import("@/modules/accounting/Accounting"));
+const CustomerInvoiceStatement = lazy(() => import("@/modules/accounting/CustomerInvoiceStatement"));
+const Settings = lazy(() => import("@/modules/settings/Settings"));
+const Reports = lazy(() => import("@/modules/reports/Reports"));
+const SteelStockControl = lazy(() => import("@/modules/reports/SteelStockControl"));
+const SupplierAgingReport = lazy(() => import("@/modules/reports/SupplierAgingReport"));
+const ConsolidatedInvoices = lazy(() => import("@/modules/sales/ConsolidatedInvoices"));
+const OrderBook = lazy(() => import("@/modules/orders/OrderBook"));
+const OwnerPanel = lazy(() => import("@/modules/platform/OwnerPanel"));
+const OpeningBalanceMigration = lazy(() => import("@/modules/platform/OpeningBalanceMigration"));
+const TransportWorkspace = lazy(() => import("@/modules/transport/TransportWorkspace"));
+const PreInvoiceWorkspace = lazy(() => import("@/modules/commercial/PreInvoiceWorkspace"));
 
 function OwnerOnly({ children }: { children?: ReactNode }) {
   const { isPlatformOwner } = useAuth();
@@ -102,7 +102,7 @@ export default function App() {
   return <><GlobalExperience /><Routes>
     <Route path="/login" element={<Login />} />
     <Route path="/reset-password" element={<ResetPassword />} />
-    <Route path="/*" element={<ProtectedRoute><FeatureAccessProvider><><WorkspaceSwitchers /><FeaturePathGuard><Layout key={workspaceKey}><Routes>
+      <Route path="/*" element={<ProtectedRoute><FeatureAccessProvider><><WorkspaceSwitchers /><FeaturePathGuard><Layout key={workspaceKey}><Suspense fallback={<div role="status" className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">Loading workspace…</div>}><Routes>
       <Route path="/" element={<ModuleOnly module="dashboard"><DashboardHome /></ModuleOnly>} />
       <Route path="/owner" element={<OwnerOnly />} />
       <Route path="/owner/opening-balances" element={<OwnerOnly><OpeningBalanceMigration /></OwnerOnly>} />
@@ -129,6 +129,6 @@ export default function App() {
       <Route path="/reports/*" element={<ModuleOnly module="reports"><ReportSurface><Reports /></ReportSurface></ModuleOnly>} />
       <Route path="/settings/*" element={<ModuleOnly module="settings"><Settings /></ModuleOnly>} />
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes></Layout></FeaturePathGuard></></FeatureAccessProvider></ProtectedRoute>} />
+    </Routes></Suspense></Layout></FeaturePathGuard></></FeatureAccessProvider></ProtectedRoute>} />
   </Routes></>;
 }

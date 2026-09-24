@@ -637,7 +637,7 @@ export default function SalesInvoiceList() {
     },
     {
       key: "customer",
-      label: "Customer / گاہک",
+      label: "Customer",
       render: (r) => r.customer?.name ?? "—",
     },
     {
@@ -728,8 +728,8 @@ export default function SalesInvoiceList() {
       />
 
       <PageHeader
-        title="Sales Invoices / فروخت انوائسز"
-        subtitle="Manage customer invoices, payment status, balances & posting / گاہک انوائس، ادائیگی اور بقایا منظم کریں"
+        title="Sales Invoices"
+        subtitle="Manage customer invoices, payment status, balances and posting"
         action={
           <div className="flex flex-wrap items-center gap-3" data-navilo-standard-tools-host>
             <Link
@@ -760,7 +760,7 @@ export default function SalesInvoiceList() {
               to="/sales/consolidated"
               className="px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
             >
-              📚 Consolidated Bills / مجموعی بل
+              📚 Consolidated Bills
             </Link>
 
             {canCreateSales && <button
@@ -838,7 +838,7 @@ export default function SalesInvoiceList() {
 
       <Modal
         open={paymentModalOpen}
-        title="Receive Customer Payment / گاہک سے ادائیگی وصول کریں"
+        title="Receive Customer Payment"
         onClose={closeReceivePayment}
       >
         <form onSubmit={handleReceivePayment} className="space-y-5">
@@ -851,12 +851,12 @@ export default function SalesInvoiceList() {
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2 relative">
-                <label className="label">Customer / گاہک</label>
+                <label className="label">Customer</label>
 
                 <div className="relative">
                   <input
                     className="input pr-16"
-                    placeholder="Search customer... / گاہک تلاش کریں..."
+                    placeholder="Search customer..."
                     value={customerSearch}
                     onChange={(e) => {
                       setCustomerSearch(e.target.value);
@@ -897,7 +897,7 @@ export default function SalesInvoiceList() {
                           <div className="text-sm font-semibold text-slate-900">
                             {customer.name}
                           </div>
-                          <div className="text-[12px] text-slate-400">Customer / گاہک</div>
+                          <div className="text-[12px] text-slate-400">Customer</div>
                         </button>
                       ))
                     )}
@@ -912,7 +912,7 @@ export default function SalesInvoiceList() {
               </div>
 
               <div>
-                <label className="label">Payment Date / ادائیگی کی تاریخ</label>
+                <label className="label">Payment Date</label>
                 <input
                   type="date"
                   className="input"
@@ -924,23 +924,23 @@ export default function SalesInvoiceList() {
               </div>
 
               <div>
-                <label className="label">Payment Method / ادائیگی طریقہ</label>
+                <label className="label">Payment Method</label>
                 <SearchableSelect
                   className="input"
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
                   disabled={paymentSaving}
                 >
-                  <option value="Cash">Cash / نقد</option>
-                  <option value="Bank Transfer">Bank Transfer / بینک ٹرانسفر</option>
-                  <option value="Cheque">Cheque / چیک</option>
-                  <option value="Card">Card / کارڈ</option>
-                  <option value="Other">Other / دیگر</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="Card">Card</option>
+                  <option value="Other">Other</option>
                 </SearchableSelect>
               </div>
 
               <div>
-                <label className="label">Cash / Bank Account / نقد یا بینک اکاؤنٹ</label>
+                <label className="label">Cash / Bank Account</label>
                 <SearchableSelect
                   className="input"
                   value={paymentAccountId}
@@ -958,7 +958,7 @@ export default function SalesInvoiceList() {
               </div>
 
               <div>
-                <label className="label">Amount Received / وصول شدہ رقم</label>
+                <label className="label">Amount Received</label>
                 <input
                   type="number"
                   step="0.01"
@@ -973,34 +973,34 @@ export default function SalesInvoiceList() {
               </div>
 
               <div>
-                <label className="label">Reference No. / حوالہ نمبر</label>
+                <label className="label">Reference No.</label>
                 <input
                   className="input"
                   value={reference}
                   onChange={(e) => setReference(e.target.value)}
-                  placeholder="Cheque / bank / receipt reference / چیک، بینک یا رسید حوالہ"
+                  placeholder="Cheque / bank / receipt reference"
                   disabled={paymentSaving}
                 />
               </div>
 
               <div>
-                <label className="label">Description / تفصیل</label>
+                <label className="label">Description</label>
                 <input
                   className="input"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Payment description / ادائیگی کی تفصیل"
+                  placeholder="Payment description"
                   disabled={paymentSaving}
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="label">Notes / نوٹس</label>
+                <label className="label">Notes</label>
                 <textarea
                   className="input min-h-[80px]"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Optional internal notes... / اختیاری اندرونی نوٹس..."
+                  placeholder="Optional internal notes..."
                   disabled={paymentSaving}
                 />
               </div>
@@ -1022,7 +1022,7 @@ export default function SalesInvoiceList() {
                 <div className="flex flex-wrap gap-2">
                   <input
                     className="input text-sm w-56"
-                    placeholder="Search invoice... / انوائس تلاش کریں..."
+                    placeholder="Search invoice..."
                     value={invoiceSearch}
                     onChange={(e) => setInvoiceSearch(e.target.value)}
                     disabled={!selectedCustomerId || paymentSaving}
@@ -1057,7 +1057,7 @@ export default function SalesInvoiceList() {
               <table className="w-full text-sm min-w-[1000px]">
                 <thead className="sticky top-0 z-10 bg-slate-50">
                   <tr className="border-b border-slate-200 text-slate-600">
-                    <th className="py-2.5 px-3 text-center font-medium">Select / منتخب کریں</th>
+                    <th className="py-2.5 px-3 text-center font-medium">Select</th>
                     <th className="py-2.5 px-3 text-left font-medium">
                       Invoice #
                     </th>
@@ -1210,21 +1210,21 @@ export default function SalesInvoiceList() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="text-xs text-slate-500">Amount Received / وصول شدہ رقم</div>
+              <div className="text-xs text-slate-500">Amount Received</div>
               <div className="mt-1 font-bold text-slate-900">
                 {formatCurrency(toNumber(paymentAmount))}
               </div>
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="text-xs text-slate-500">Allocated / مختص شدہ</div>
+              <div className="text-xs text-slate-500">Allocated</div>
               <div className="mt-1 font-bold text-slate-900">
                 {formatCurrency(allocatedTotal)}
               </div>
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="text-xs text-slate-500">Unapplied / غیر مختص</div>
+              <div className="text-xs text-slate-500">Unapplied</div>
               <div
                 className={`mt-1 font-bold ${
                   Math.abs(allocationDifference) < 0.005
@@ -1237,7 +1237,7 @@ export default function SalesInvoiceList() {
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="text-xs text-slate-500">Invoices Selected / منتخب انوائسز</div>
+              <div className="text-xs text-slate-500">Invoices Selected</div>
               <div className="mt-1 font-bold text-slate-900">
                 {selectedInvoiceCount}
               </div>
@@ -1250,7 +1250,7 @@ export default function SalesInvoiceList() {
               onClick={closeReceivePayment}
               className="btn-secondary"
               disabled={paymentSaving}
-            >Close / بند کریں</button>
+            >Close</button>
 
             <button
               type="submit"

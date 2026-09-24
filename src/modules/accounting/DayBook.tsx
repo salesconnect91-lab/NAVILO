@@ -35,12 +35,12 @@ interface DayBookRow {
 }
 
 const exportColumns = [
-  { key: "entry_no", label: "Entry No / اندراج نمبر" },
-  { key: "entry_date", label: "Date / تاریخ" },
-  { key: "description", label: "Description / تفصیل" },
-  { key: "account", label: "Account / اکاؤنٹ" },
-  { key: "debit", label: "Debit / ڈیبٹ" },
-  { key: "credit", label: "Credit / کریڈٹ" },
+  { key: "entry_no", label: "Entry No" },
+  { key: "entry_date", label: "Date" },
+  { key: "description", label: "Description" },
+  { key: "account", label: "Account" },
+  { key: "debit", label: "Debit" },
+  { key: "credit", label: "Credit" },
 ];
 
 export default function DayBook() {
@@ -123,18 +123,18 @@ export default function DayBook() {
   const columns: Column<DayBookRow>[] = [
     {
       key: "entry_no",
-      label: "Entry No / اندراج نمبر",
+      label: "Entry No",
       render: (row) => (
         <button className="font-semibold text-primary-600 hover:underline" onClick={() => navigate(`/accounting/${row.entry_id}`)}>
           {row.entry_no}
         </button>
       ),
     },
-    { key: "entry_date", label: "Date / تاریخ", render: (row) => formatDate(row.entry_date) },
-    { key: "description", label: "Description / تفصیل" },
-    { key: "account", label: "Account / اکاؤنٹ", render: (row) => <span className="font-medium text-slate-700">{row.account}</span> },
-    { key: "debit", label: "Debit / ڈیبٹ", className: "text-right tabular-nums", render: (row) => row.debit > 0 ? formatCurrency(row.debit) : "—" },
-    { key: "credit", label: "Credit / کریڈٹ", className: "text-right tabular-nums", render: (row) => row.credit > 0 ? formatCurrency(row.credit) : "—" },
+    { key: "entry_date", label: "Date", render: (row) => formatDate(row.entry_date) },
+    { key: "description", label: "Description" },
+    { key: "account", label: "Account", render: (row) => <span className="font-medium text-slate-700">{row.account}</span> },
+    { key: "debit", label: "Debit", className: "text-right tabular-nums", render: (row) => row.debit > 0 ? formatCurrency(row.debit) : "—" },
+    { key: "credit", label: "Credit", className: "text-right tabular-nums", render: (row) => row.credit > 0 ? formatCurrency(row.credit) : "—" },
   ];
 
   const exportRows = rows as unknown as Record<string, unknown>[];
@@ -142,7 +142,7 @@ export default function DayBook() {
   return (
     <div>
       <PageHeader
-        title="Day Book / روزنامچہ"
+        title="Day Book"
         subtitle="Posted journal transactions only — draft and incomplete entries are excluded."
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -169,9 +169,9 @@ export default function DayBook() {
       {!loading && rows.length > 0 && (
         <div className="card mt-4 p-4">
           <div className="grid gap-4 text-sm sm:grid-cols-3">
-            <div><p className="text-slate-500">Total Debit / کل ڈیبٹ</p><p className="mt-1 text-lg font-bold tabular-nums">{formatCurrency(totals.debit)}</p></div>
-            <div><p className="text-slate-500">Total Credit / کل کریڈٹ</p><p className="mt-1 text-lg font-bold tabular-nums">{formatCurrency(totals.credit)}</p></div>
-            <div><p className="text-slate-500">Difference / فرق</p><p className={`mt-1 text-lg font-bold tabular-nums ${Math.abs(totals.difference) < 0.01 ? "text-emerald-600" : "text-red-600"}`}>{formatCurrency(totals.difference)}</p></div>
+            <div><p className="text-slate-500">Total Debit</p><p className="mt-1 text-lg font-bold tabular-nums">{formatCurrency(totals.debit)}</p></div>
+            <div><p className="text-slate-500">Total Credit</p><p className="mt-1 text-lg font-bold tabular-nums">{formatCurrency(totals.credit)}</p></div>
+            <div><p className="text-slate-500">Difference</p><p className={`mt-1 text-lg font-bold tabular-nums ${Math.abs(totals.difference) < 0.01 ? "text-emerald-600" : "text-red-600"}`}>{formatCurrency(totals.difference)}</p></div>
           </div>
         </div>
       )}

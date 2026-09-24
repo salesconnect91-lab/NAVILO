@@ -12,6 +12,20 @@ function storageKey(columns: { key: string }[]) {
   return `navilo:table-columns:${path}:${columns.map((column) => column.key).join("|")}`;
 }
 
+function restoredHiddenKeys(raw: string | null, configurable: { key: string }[]): Set<string> {
+  try {
+    const saved = JSON.parse(raw || "[]");
+    const keys = new Set(configurable.map((column) => column.key));
+    const hidden = new Set<string>(Array.isArray(saved) ? saved.map(String).filter((key) => keys.has(key)) : []);
+    // Older preferences may have hidden every column. A report must keep at
+    // least one data column visible on screen, in exports and in print.
+    if (configurable.length > 0 && configurable.every((column) => hidden.has(column.key))) hidden.delete(configurable[0].key);
+    return hidden;
+  } catch {
+    return new Set();
+  }
+}
+
 export default function DataTable<T extends { id: string }>({
   columns,
   rows,
@@ -31,23 +45,13 @@ export default function DataTable<T extends { id: string }>({
   const key = useMemo(() => storageKey(columns), [columns]);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(storageKey(columns)) || "[]");
-      return new Set(Array.isArray(saved) ? saved.map(String) : []);
-    } catch {
-      return new Set();
-    }
+    return restoredHiddenKeys(window.localStorage.getItem(storageKey(columns)), configurableColumns);
   });
   const [customizeOpen, setCustomizeOpen] = useState(false);
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(key) || "[]");
-      setHiddenKeys(new Set(Array.isArray(saved) ? saved.map(String) : []));
-    } catch {
-      setHiddenKeys(new Set());
-    }
-  }, [key]);
+    setHiddenKeys(restoredHiddenKeys(window.localStorage.getItem(key), configurableColumns));
+  }, [key, configurableColumns]);
 
   useEffect(() => {
     const openCustomizer = () => {
@@ -70,7 +74,10 @@ export default function DataTable<T extends { id: string }>({
   const toggleColumn = (columnKey: string) => {
     const next = new Set(hiddenKeys);
     if (next.has(columnKey)) next.delete(columnKey);
-    else next.add(columnKey);
+    else {
+      if (configurableColumns.filter((column) => !next.has(column.key)).length <= 1) return;
+      next.add(columnKey);
+    }
     persist(next);
   };
 
@@ -79,18 +86,18 @@ export default function DataTable<T extends { id: string }>({
   );
 
   if (loading) {
-    return <div className="card p-12 text-center text-slate-400">Loading… / لوڈ ہو رہا ہے…</div>;
+    return <div role="status" className="card p-12 text-center text-slate-600">Loading records…</div>;
   }
 
   if (rows.length === 0) {
-    return <div className="card p-12 text-center text-slate-400">{emptyMessage ?? "No records yet."}</div>;
+    return <div role="status" className="card p-12 text-center text-slate-600">{emptyMessage ?? "No records yet."}</div>;
   }
 
   return (
     <>
       <div ref={rootRef} className="card overflow-hidden" data-report-content data-navilo-data-table>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table aria-label="ERP records" className="w-full min-w-max text-sm print:min-w-0">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 {visibleColumns.map((col) => {
@@ -132,7 +139,7 @@ export default function DataTable<T extends { id: string }>({
       </div>
 
       {customizeOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/30 p-4" data-no-print data-no-export>
+        <div role="dialog" aria-modal="true" aria-label="Customize table columns" className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/30 p-4" data-no-print data-no-export>
           <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -148,6 +155,7 @@ export default function DataTable<T extends { id: string }>({
                   <input
                     type="checkbox"
                     checked={!hiddenKeys.has(column.key)}
+                    disabled={!hiddenKeys.has(column.key) && configurableColumns.filter((candidate) => !hiddenKeys.has(candidate.key)).length === 1}
                     onChange={() => toggleColumn(column.key)}
                   />
                   <span className="min-w-0 flex-1 text-slate-700">{column.label || column.key}</span>

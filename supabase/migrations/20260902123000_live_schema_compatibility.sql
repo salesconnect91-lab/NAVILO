@@ -29,18 +29,32 @@ revoke insert, update, delete, truncate, references, trigger on public.audit_log
 grant select on public.audit_logs to authenticated;
 
 -- `accounts` is retained only as a read-only compatibility source for old invoices.
-alter table public.accounts enable row level security;
-drop policy if exists "Authenticated users can insert accounts" on public.accounts;
-drop policy if exists "Enable insert for authenticated users only" on public.accounts;
-drop policy if exists "Authenticated users can read legacy accounts" on public.accounts;
-create policy "Authenticated users can read legacy accounts"
-  on public.accounts for select to authenticated using (true);
-revoke all on public.accounts from anon;
-revoke insert, update, delete, truncate, references, trigger on public.accounts from authenticated;
-grant select on public.accounts to authenticated;
+-- Fresh installs do not create this legacy table, so only harden it when it is present.
+do $block$
+begin
+  if to_regclass('public.accounts') is not null then
+    alter table public.accounts enable row level security;
+    drop policy if exists "Authenticated users can insert accounts" on public.accounts;
+    drop policy if exists "Enable insert for authenticated users only" on public.accounts;
+    drop policy if exists "Authenticated users can read legacy accounts" on public.accounts;
+    create policy "Authenticated users can read legacy accounts"
+      on public.accounts for select to authenticated using (true);
+    revoke all on public.accounts from anon;
+    revoke insert, update, delete, truncate, references, trigger on public.accounts from authenticated;
+    grant select on public.accounts to authenticated;
+  end if;
+end
+$block$;
 
--- Make the reporting view obey the caller's table policies.
-alter view public.customer_invoice_aging set (security_invoker = true);
+-- Make the legacy reporting view obey the caller's table policies when present.
+-- Fresh installs may not create this compatibility view.
+do $block$
+begin
+  if to_regclass('public.customer_invoice_aging') is not null then
+    alter view public.customer_invoice_aging set (security_invoker = true);
+  end if;
+end
+$block$;
 
 -- Harden all privileged functions against search-path injection and anonymous calls.
 do $block$

@@ -439,7 +439,7 @@ export default function BalanceSheet() {
 
         <header className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Balance Sheet / بیلنس شیٹ</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Balance Sheet</h1>
             <p className="mt-1 text-sm text-slate-500">Financial position from posted ledgers</p>
             <p className="mt-1 text-xs text-slate-400">As of {formatReportDate(asOfDate)}</p>
           </div>
@@ -452,7 +452,7 @@ export default function BalanceSheet() {
               className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-              Refresh / تازہ کریں
+              Refresh
             </button>
           </div>
         </header>
@@ -479,7 +479,7 @@ export default function BalanceSheet() {
                 onChange={(event) => setHideZeroBalances(event.target.checked)}
                 className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
-              <span className="text-sm font-medium text-slate-800">Hide zero-balance accounts / صفر بیلنس اکاؤنٹس چھپائیں</span>
+              <span className="text-sm font-medium text-slate-800">Hide zero-balance accounts</span>
             </label>
 
             <div className="text-left text-xs text-slate-500 lg:text-right">
@@ -525,9 +525,9 @@ export default function BalanceSheet() {
                   </tr>
                 </thead>
                 <tbody>
-                  <StatementRows title="Assets / اثاثے" groups={assetGroups} totalLabel="Total Assets" total={assets.total} />
-                  <StatementRows title="Liabilities / واجبات" groups={liabilityGroups} totalLabel="Total Liabilities" total={liabilities.total} />
-                  <StatementRows title="Equity / سرمایہ" groups={equityGroups} totalLabel="Total Equity" total={equity.total} />
+                  <StatementRows title="Assets" groups={assetGroups} totalLabel="Total Assets" total={assets.total} />
+                  <StatementRows title="Liabilities" groups={liabilityGroups} totalLabel="Total Liabilities" total={liabilities.total} />
+                  <StatementRows title="Equity" groups={equityGroups} totalLabel="Total Equity" total={equity.total} />
                   <tr data-report-total className="border-t-2 border-slate-900 bg-slate-50">
                     <td colSpan={2} className="px-4 py-3.5 text-sm font-bold text-slate-900">Total Liabilities & Equity</td>
                     <td className="px-4 py-3.5 text-right font-mono text-sm font-bold text-slate-900">

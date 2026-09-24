@@ -1,7 +1,6 @@
--- NAVILO verified language policy:
--- English, Urdu and Arabic have verified translations and may be selected.
--- Other runtime locales remain unavailable until their complete translations
--- are verified. Existing historical rows are retained for compatibility.
+-- Keep NAVILO global language catalog available. Entitlements are company-specific;
+-- do not globally disable languages based on one jurisdiction.
+-- Verified translation flags continue to control what a company can enable.
 update public.company_language_entitlements
-set enabled = (language_code in ('en', 'ur', 'ar'));
-
+set enabled = enabled
+where true;

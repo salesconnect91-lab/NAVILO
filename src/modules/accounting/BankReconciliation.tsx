@@ -85,7 +85,7 @@ export default function BankReconciliation() {
 
   if(loading)return <LoadingState/>;
   return <div>
-    <PageHeader title="Bank Reconciliation / بینک ریکنسیلی ایشن" subtitle="Match bank-ledger transactions with the bank statement and close only at zero difference."/>
+    <PageHeader title="Bank Reconciliation" subtitle="Match bank-ledger transactions with the bank statement and close only at zero difference."/>
     {error&&<ErrorBanner message={error}/>} {success&&<div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div>}
 
     {!active&&<div className="card mb-5 p-5" data-report-filters>

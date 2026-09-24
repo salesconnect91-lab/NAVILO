@@ -10,14 +10,26 @@ alter table public.charge_master
 alter table public.charge_master
   alter column company_id set default public.current_company_id();
 
-update public.charge_master cm
-set default_rate = cr.rate,
-    unit = cr.unit,
-    applies_to = cr.applies_to,
-    is_fixed = cr.is_fixed
-from public.charge_rate_settings cr
-where cr.company_id = cm.company_id
-  and cr.charge_key = cm.charge_key;
+do $block$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema='public'
+      and table_name='charge_rate_settings'
+      and column_name='company_id'
+  ) then
+    update public.charge_master cm
+    set default_rate = cr.rate,
+        unit = cr.unit,
+        applies_to = cr.applies_to,
+        is_fixed = cr.is_fixed
+    from public.charge_rate_settings cr
+    where cr.company_id = cm.company_id
+      and cr.charge_key = cm.charge_key;
+  end if;
+end
+$block$;
 
 alter table public.charge_master
   alter column company_id set not null;

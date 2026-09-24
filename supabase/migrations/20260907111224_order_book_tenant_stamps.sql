@@ -1,0 +1,3 @@
+drop trigger if exists tenant_context_stamp on public.order_book_headers; create trigger tenant_context_stamp before insert or update on public.order_book_headers for each row execute function public.tenant_stamp_company_user();
+drop trigger if exists tenant_context_stamp on public.order_book_commitments; create trigger tenant_context_stamp before insert or update on public.order_book_commitments for each row execute function public.tenant_stamp_company_user();
+drop trigger if exists tenant_context_stamp on public.order_book_fulfillments; create trigger tenant_context_stamp before insert or update on public.order_book_fulfillments for each row execute function public.tenant_stamp_company_user();

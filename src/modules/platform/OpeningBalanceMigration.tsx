@@ -189,7 +189,7 @@ export default function OpeningBalanceMigration() {
         <div>
           <Link to="/owner" className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-blue-600"><ArrowLeft size={14}/> Owner Control</Link>
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-600"><ShieldCheck size={16}/> Platform Owner Only</div>
-          <h1 className="mt-1 text-xl font-bold text-slate-900">Opening Party Balances / اوپننگ پارٹی بیلنس</h1>
+          <h1 className="mt-1 text-xl font-bold text-slate-900">Opening Party Balances</h1>
           <p className="mt-1 text-sm text-slate-500">Selected company: <b>{activeCompany?.company_name ?? "No company selected"}</b>. New names are created automatically with English + Urdu and balances are posted through AR/AP and Opening Balance Equity.</p>
         </div>
         <button type="button" className="btn" onClick={downloadTemplate}><Download size={16}/> Download Excel Template</button>

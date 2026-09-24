@@ -66,13 +66,13 @@ export default function CuttingOrderList() {
 
   const columns: Column<CuttingOrder>[] = [
     { key: "order_no", label: "Order #", render: (r) => <span className="font-medium text-primary-600">{r.order_no}</span> },
-    { key: "customer", label: "Customer / گاہک", render: (r) => r.customer?.name ?? "—" },
-    { key: "item", label: "Item / آئٹم", render: (r) => r.item?.name ?? "—" },
-    { key: "cut_length", label: "Cut Length / کٹ لمبائی", render: (r) => r.cut_length ?? "—" },
-    { key: "qty", label: "Qty (kg) / مقدار" },
-    { key: "loading_qty", label: "Loading Qty / لوڈنگ مقدار" },
-    { key: "status", label: "Status / حالت", render: (r) => <StatusBadge status={r.status} /> },
-    { key: "created_at", label: "Date / تاریخ", render: (r) => formatDate(r.created_at) },
+    { key: "customer", label: "Customer", render: (r) => r.customer?.name ?? "—" },
+    { key: "item", label: "Item", render: (r) => r.item?.name ?? "—" },
+    { key: "cut_length", label: "Cut Length", render: (r) => r.cut_length ?? "—" },
+    { key: "qty", label: "Qty (kg)" },
+    { key: "loading_qty", label: "Loading Qty" },
+    { key: "status", label: "Status", render: (r) => <StatusBadge status={r.status} /> },
+    { key: "created_at", label: "Date", render: (r) => formatDate(r.created_at) },
     {
       key: "actions", label: "", className: "text-right",
       render: (r) => <button onClick={() => navigate(`/cutting/${r.id}`)} className="text-primary-600 hover:text-primary-700 text-sm font-medium">Open →</button>,
@@ -82,38 +82,38 @@ export default function CuttingOrderList() {
   return (
     <div>
       <PageHeader
-        title="Cutting & Loading / کٹنگ اور لوڈنگ"
-        subtitle="Manage cutting and loading work orders / کٹنگ اور لوڈنگ ورک آرڈرز منظم کریں"
+        title="Cutting & Loading"
+        subtitle="Manage cutting and loading work orders"
         action={<button onClick={() => void openCreate()} className="btn-primary">+ New Cutting Order</button>}
       />
       {error && <ErrorBanner message={error} />}
       <DataTable columns={columns} rows={rows} loading={loading} emptyMessage="No cutting orders yet." />
 
-      <Modal open={modalOpen} title="New Cutting Order / نیا کٹنگ آرڈر" onClose={() => setModalOpen(false)}>
+      <Modal open={modalOpen} title="New Cutting Order" onClose={() => setModalOpen(false)}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div><label className="label">Order Number / آرڈر نمبر</label><input className="input bg-slate-50 cursor-not-allowed" required readOnly tabIndex={-1} value={form.order_no} title="Order number is generated automatically" /></div>
+          <div><label className="label">Order Number</label><input className="input bg-slate-50 cursor-not-allowed" required readOnly tabIndex={-1} value={form.order_no} title="Order number is generated automatically" /></div>
           <div>
-            <label className="label">Customer / گاہک</label>
+            <label className="label">Customer</label>
             <SearchableSelect className="input" value={form.customer_id} onChange={(e) => setForm({ ...form, customer_id: e.target.value })}>
               <option value="">— Select customer —</option>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </SearchableSelect>
           </div>
           <div>
-            <label className="label">Item / آئٹم</label>
+            <label className="label">Item</label>
             <SearchableSelect className="input" value={form.item_id} onChange={(e) => setForm({ ...form, item_id: e.target.value })}>
               <option value="">— Select item —</option>
               {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
             </SearchableSelect>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="label">Cut Length / کٹ لمبائی</label><input className="input" value={form.cut_length} onChange={(e) => setForm({ ...form, cut_length: e.target.value })} placeholder="e.g. 12ft / مثال" /></div>
-            <div><label className="label">Qty (kg) / مقدار</label><input className="input" type="number" step="0.01" required value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} /></div>
+            <div><label className="label">Cut Length</label><input className="input" value={form.cut_length} onChange={(e) => setForm({ ...form, cut_length: e.target.value })} placeholder="e.g. 12ft" /></div>
+            <div><label className="label">Qty (kg)</label><input className="input" type="number" step="0.01" required value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} /></div>
           </div>
-          <div><label className="label">Loading Qty / لوڈنگ مقدار</label><input className="input" type="number" step="0.01" value={form.loading_qty} onChange={(e) => setForm({ ...form, loading_qty: e.target.value })} /></div>
+          <div><label className="label">Loading Qty</label><input className="input" type="number" step="0.01" value={form.loading_qty} onChange={(e) => setForm({ ...form, loading_qty: e.target.value })} /></div>
           <div className="flex gap-3 justify-end pt-2">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel / منسوخ کریں</button>
-            <button type="submit" className="btn-primary">Create & Open / بنائیں اور کھولیں</button>
+            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button>
+            <button type="submit" className="btn-primary">Create & Open</button>
           </div>
         </form>
       </Modal>

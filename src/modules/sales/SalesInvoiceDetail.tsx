@@ -324,16 +324,16 @@ export default function SalesInvoiceDetail() {
   }));
 
   const exportColumns = [
-    { key: "item", label: "Item / آئٹم" },
-    { key: "description", label: "Description / تفصیل" },
+    { key: "item", label: "Item" },
+    { key: "description", label: "Description" },
     { key: "hs_code", label: "HS Code" },
     { key: "uom", label: "UOM" },
-    { key: "grade", label: "Grade / گریڈ" },
-    { key: "size", label: "Size / سائز" },
+    { key: "grade", label: "Grade" },
+    { key: "size", label: "Size" },
     { key: "qty", label: "Qty" },
-    { key: "rate", label: "Rate / ریٹ" },
+    { key: "rate", label: "Rate" },
     ...(isTaxInvoice ? [{ key: "vat_percent", label: "VAT %" }, { key: "vat_amount", label: "VAT Amount" }] : []),
-    { key: "amount", label: "Amount / رقم" },
+    { key: "amount", label: "Amount" },
   ];
 
   if (loading) return <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">Loading invoice…</div>;
@@ -360,12 +360,12 @@ export default function SalesInvoiceDetail() {
         <div className="flex flex-wrap items-center gap-1.5">
           {!locked && canPost && (
             <button type="button" className="btn-primary" disabled={posting} onClick={() => void handlePost()}>
-              <ShieldCheck className="h-3.5 w-3.5" /> {posting ? "Posting…" : "Post Invoice / پوسٹ کریں"}
+              <ShieldCheck className="h-3.5 w-3.5" /> {posting ? "Posting…" : "Post Invoice"}
             </button>
           )}
           {!locked && canEdit && (
             <button type="button" className="btn-secondary" onClick={() => navigate(`/sales/${order.id}/edit`)}>
-              <Pencil className="h-3.5 w-3.5" /> Edit / ترمیم
+              <Pencil className="h-3.5 w-3.5" /> Edit
             </button>
           )}
           {canPrint && (
@@ -385,7 +385,7 @@ export default function SalesInvoiceDetail() {
           )}
           {!locked && canDelete && (
             <button type="button" className="btn-danger" onClick={() => setConfirmDelete(true)}>
-              <Trash2 className="h-3.5 w-3.5" /> Delete / حذف کریں
+              <Trash2 className="h-3.5 w-3.5" /> Delete
             </button>
           )}
         </div>
@@ -415,7 +415,7 @@ export default function SalesInvoiceDetail() {
         <div className="space-y-3">
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
             <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5">
-              <div><div className="text-[12px] font-semibold text-slate-800">Invoice Lines / بل کی تفصیل</div><div className="text-[11px] text-slate-400">{lines.length} line{lines.length === 1 ? "" : "s"}</div></div>
+              <div><div className="text-[12px] font-semibold text-slate-800">Invoice Lines</div><div className="text-[11px] text-slate-400">{lines.length} line{lines.length === 1 ? "" : "s"}</div></div>
               <div className="text-right"><div className="text-[11px] uppercase text-slate-400">Items Total</div><div className="text-[12px] font-semibold">{formatCurrency(itemsTotal)}</div></div>
             </div>
             <div className="overflow-x-auto">
@@ -430,7 +430,7 @@ export default function SalesInvoiceDetail() {
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 px-3 py-2.5"><div className="text-[12px] font-semibold">Dynamic Charges / چارجز</div><div className="text-[11px] text-slate-400">Canonical rows from Charge Master</div></div>
+            <div className="border-b border-slate-200 px-3 py-2.5"><div className="text-[12px] font-semibold">Dynamic Charges</div><div className="text-[11px] text-slate-400">Canonical rows from Charge Master</div></div>
             {!charges.length ? <div className="p-4 text-[12px] text-slate-400">No additional charges.</div> : <div className="divide-y divide-slate-100">{charges.map((charge) => <div key={charge.id} className="flex items-center justify-between gap-3 px-3 py-2.5"><div><div className="text-[12px] font-semibold">{charge.charge_label || charge.charge_key}</div><div className="text-[11px] text-slate-400">Qty {n(charge.quantity) || 1} · Rate {formatCurrency(n(charge.rate))}{isTaxInvoice && n(charge.tax_percent) > 0 ? ` · VAT ${n(charge.tax_percent)}%` : ""}</div></div><div className="font-semibold">{formatCurrency(n(charge.amount))}</div></div>)}</div>}
           </div>
         </div>
@@ -445,7 +445,7 @@ export default function SalesInvoiceDetail() {
           )}
 
           <section className="rounded-lg border border-slate-200 bg-white p-3 text-[12px]">
-            <div className="mb-2 font-semibold">Invoice Summary / خلاصہ</div>
+            <div className="mb-2 font-semibold">Invoice Summary</div>
             <SummaryRow label="Items Total" value={itemsTotal} />
             <SummaryRow label="Charges Total" value={chargesTotal} />
             {isTaxInvoice && <SummaryRow label="VAT" value={taxAmount} />}
@@ -454,7 +454,7 @@ export default function SalesInvoiceDetail() {
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-3 text-[12px]">
-            <div className="mb-2 font-semibold">Collection Position / وصولی</div>
+            <div className="mb-2 font-semibold">Collection Position</div>
             <div className="flex justify-between py-1"><span className="text-slate-500">Payment Status</span>{paymentBadge(order.payment_status)}</div>
             <div className="flex justify-between py-1"><span className="text-slate-500">Received</span><strong className="text-emerald-700">{formatCurrency(paidAmount)}</strong></div>
             <div className="flex justify-between py-1"><span className="text-slate-500">Balance Due</span><strong className="text-rose-700">{formatCurrency(outstanding)}</strong></div>
@@ -462,7 +462,7 @@ export default function SalesInvoiceDetail() {
         </aside>
       </section>
 
-      <ConfirmModal open={confirmDelete} title="Delete Invoice / انوائس حذف کریں" message="Delete this draft sales invoice permanently?" onConfirm={() => void handleDelete()} onCancel={() => setConfirmDelete(false)} />
+      <ConfirmModal open={confirmDelete} title="Delete Invoice" message="Delete this draft sales invoice permanently?" onConfirm={() => void handleDelete()} onCancel={() => setConfirmDelete(false)} />
 
       {showPrint && (
         <div id="sales-invoice-print-root" data-print-root className="hidden print:block">
@@ -517,15 +517,15 @@ export default function SalesInvoiceDetail() {
               currentOutstanding: n(financial.outstanding_amount),
             } : undefined}
             extraFields={[
-              { label: "Status / حیثیت", value: String(order.status).toUpperCase() },
-              { label: "Settlement / ادائیگی", value: "Receipts recorded separately" },
-              ...((order.salesperson_name_snapshot || order.sales_person) ? [{ label: "Sales Person / سیلز مین", value: order.salesperson_name_snapshot || order.sales_person || "" }] : []),
+              { label: "Status", value: String(order.status).toUpperCase() },
+              { label: "Settlement", value: "Receipts recorded separately" },
+              ...((order.salesperson_name_snapshot || order.sales_person) ? [{ label: "Sales Person", value: order.salesperson_name_snapshot || order.sales_person || "" }] : []),
               ...(order.fbr_invoice_no ? [{ label: "FBR Invoice No.", value: order.fbr_invoice_no }] : []),
             ]}
             signatureLabels={[
-              companyPrint.prepared_by_label || "Prepared By / تیار کردہ",
-              companyPrint.checked_by_label || "Checked By / جانچ کردہ",
-              companyPrint.approved_by_label || "Approved By / منظور کردہ",
+              companyPrint.prepared_by_label || "Prepared By",
+              companyPrint.checked_by_label || "Checked By",
+              companyPrint.approved_by_label || "Approved By",
             ]}
             visibility={{
               showCompanyName: visibility.show_company_name,

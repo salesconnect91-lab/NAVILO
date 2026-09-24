@@ -123,7 +123,7 @@ export default function AccountMappingSetup() {
   return (
     <div>
       <PageHeader
-        title="Account Mapping Setup / اکاؤنٹ میپنگ"
+        title="Account Mapping Setup"
         subtitle="Choose the exact posting account used by each accounting transaction."
         action={
           <div className="flex items-center gap-2" data-navilo-standard-tools-host>

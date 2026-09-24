@@ -1,6 +1,30 @@
 -- MetalForge OS — COA Foundation
 -- Safe, additive migration for the existing chart_of_accounts / journal_lines design.
 
+-- The hosted legacy schema already had these accounting/document columns before
+-- migration history was exported.  Migration 0005 reads journal payment metadata
+-- and migration 0007 posts against these sales/journal fields, so a clean database
+-- must restore them after chart_of_accounts exists and before those consumers run.
+ALTER TABLE public.journal_entries
+  ADD COLUMN IF NOT EXISTS payment_mode text DEFAULT 'Cash',
+  ADD COLUMN IF NOT EXISTS party_name text,
+  ADD COLUMN IF NOT EXISTS received_by text,
+  ADD COLUMN IF NOT EXISTS trans_type text DEFAULT 'General',
+  ADD COLUMN IF NOT EXISTS balance_before numeric,
+  ADD COLUMN IF NOT EXISTS payment_amount numeric,
+  ADD COLUMN IF NOT EXISTS balance_after numeric;
+
+ALTER TABLE public.journal_lines
+  ADD COLUMN IF NOT EXISTS party_name text,
+  ADD COLUMN IF NOT EXISTS party_type text,
+  ADD COLUMN IF NOT EXISTS party_id uuid;
+
+ALTER TABLE public.sales_orders
+  ADD COLUMN IF NOT EXISTS customer_account_id uuid REFERENCES public.chart_of_accounts(id),
+  ADD COLUMN IF NOT EXISTS sales_person_account_id uuid REFERENCES public.chart_of_accounts(id),
+  ADD COLUMN IF NOT EXISTS payment_mode text NOT NULL DEFAULT 'Credit',
+  ADD COLUMN IF NOT EXISTS payment_account_id uuid REFERENCES public.chart_of_accounts(id) ON DELETE SET NULL;
+
 ALTER TABLE public.chart_of_accounts
   ADD COLUMN IF NOT EXISTS parent_id uuid REFERENCES public.chart_of_accounts(id) ON DELETE RESTRICT,
   ADD COLUMN IF NOT EXISTS is_group boolean NOT NULL DEFAULT false,

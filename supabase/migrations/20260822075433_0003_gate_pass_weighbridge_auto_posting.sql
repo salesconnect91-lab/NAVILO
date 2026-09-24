@@ -50,12 +50,12 @@ ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS unloading_charge numeric(12,2)
 ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS labour_charge numeric(12,2) NOT NULL DEFAULT 0;
 ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS handling_charge numeric(12,2) NOT NULL DEFAULT 0;
 
-DO PKRPKR BEGIN
+DO $$ BEGIN
   ALTER TABLE sales_orders DROP CONSTRAINT IF EXISTS sales_orders_status_check;
   ALTER TABLE sales_orders ADD CONSTRAINT sales_orders_status_check
     CHECK (status IN ('draft','confirmed','shipped','closed','posted'));
 EXCEPTION WHEN OTHERS THEN NULL;
-END PKRPKR;
+END $$;
 
 -- ============================================================
 -- MODIFY purchase_orders: add charge columns + posted status
@@ -69,12 +69,12 @@ ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS labour_charge numeric(12,2)
 ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS handling_charge numeric(12,2) NOT NULL DEFAULT 0;
 ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS other_charge numeric(12,2) NOT NULL DEFAULT 0;
 
-DO PKRPKR BEGIN
+DO $$ BEGIN
   ALTER TABLE purchase_orders DROP CONSTRAINT IF EXISTS purchase_orders_status_check;
   ALTER TABLE purchase_orders ADD CONSTRAINT purchase_orders_status_check
     CHECK (status IN ('draft','confirmed','received','closed','posted'));
 EXCEPTION WHEN OTHERS THEN NULL;
-END PKRPKR;
+END $$;
 
 -- ============================================================
 -- MODIFY stock_movements: add godown column

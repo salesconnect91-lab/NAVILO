@@ -164,16 +164,16 @@ export default function CompanySettings() {
   if(loading)return <div className="flex min-h-[300px] items-center justify-center"><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Loading settings...</div>;
 
   return <div>
-    <PageHeader title="Company Settings / کمپنی سیٹنگز" subtitle="Company profile, country jurisdiction, global language, print and master-data tools"/>
+    <PageHeader title="Company Settings" subtitle="Company profile, country jurisdiction, global language, print and master-data tools"/>
     {error&&<div className="mt-4"><ErrorBanner message={error}/></div>}
-    {saved&&<div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">Settings saved and applied successfully / سیٹنگز محفوظ اور لاگو ہوگئیں۔</div>}
+    {saved&&<div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">Settings saved and applied successfully</div>}
     {notice&&<div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-700">{notice}</div>}
     <form onSubmit={handleSubmit} className="mt-4 max-w-5xl space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <h2 className="font-bold">Company Branding / کمپنی برانڈنگ</h2>
+        <h2 className="font-bold">Company Branding</h2>
         <div className="mt-3 flex flex-wrap items-center gap-4">
-          <div className="flex h-24 w-36 items-center justify-center overflow-hidden rounded-lg border border-dashed bg-white">{logoUrl?<img src={logoUrl} alt="Company logo" className="max-h-20 max-w-[130px] object-contain"/>:<span className="text-xs text-slate-400">No Logo / کوئی لوگو نہیں</span>}</div>
-          <div className="flex gap-2"><label className="btn btn-secondary cursor-pointer">{uploadingLogo?<Loader2 className="h-4 w-4 animate-spin"/>:<ImagePlus className="h-4 w-4"/>}{logoUrl?"Change Logo / لوگو تبدیل کریں":"Upload Logo / لوگو اپ لوڈ کریں"}<input type="file" className="hidden" accept="image/png,image/jpeg,image/webp,image/svg+xml" disabled={uploadingLogo} onChange={e=>{void handleLogoUpload(e.target.files?.[0]||null);e.currentTarget.value="";}}/></label>{logoUrl&&<button type="button" className="btn btn-danger" onClick={()=>void handleRemoveLogo()}><Trash2 className="h-4 w-4"/>Remove Logo / لوگو ہٹائیں</button>}</div>
+          <div className="flex h-24 w-36 items-center justify-center overflow-hidden rounded-lg border border-dashed bg-white">{logoUrl?<img src={logoUrl} alt="Company logo" className="max-h-20 max-w-[130px] object-contain"/>:<span className="text-xs text-slate-400">No Logo</span>}</div>
+          <div className="flex gap-2"><label className="btn btn-secondary cursor-pointer">{uploadingLogo?<Loader2 className="h-4 w-4 animate-spin"/>:<ImagePlus className="h-4 w-4"/>}{logoUrl?"Change Logo":"Upload Logo"}<input type="file" className="hidden" accept="image/png,image/jpeg,image/webp,image/svg+xml" disabled={uploadingLogo} onChange={e=>{void handleLogoUpload(e.target.files?.[0]||null);e.currentTarget.value="";}}/></label>{logoUrl&&<button type="button" className="btn btn-danger" onClick={()=>void handleRemoveLogo()}><Trash2 className="h-4 w-4"/>Remove Logo</button>}</div>
         </div>
       </section>
 
@@ -182,7 +182,7 @@ export default function CompanySettings() {
         <p className="mt-1 text-xs text-amber-800">Select the company's legal country. NAVILO uses it for statutory tax terminology, authority labels, currency defaults and country-specific reports.</p>
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           <Field label="Country / Jurisdiction"><SearchableSelect className="input w-full" value={countryCode} onChange={e=>changeCountry(e.target.value)}><option value="">Select country...</option>{JURISDICTIONS.map(j=><option key={j.code} value={j.code}>{j.name}</option>)}</SearchableSelect></Field>
-          <Field label="Active statutory profile"><div className="rounded-lg border bg-white px-3 py-2 text-sm"><div className="font-semibold">{countryCode?jurisdiction.name:"Not selected"}</div>{countryCode&&<div className="mt-1 text-xs text-slate-600">{jurisdiction.taxRegisterLabel} · {jurisdiction.authorityLabel} · {jurisdiction.taxIdLabels.join(" / ")} · {jurisdiction.currency}</div>}</div></Field>
+          <Field label="Active statutory profile"><div className="rounded-lg border bg-white px-3 py-2 text-sm"><div className="font-semibold">{countryCode?jurisdiction.name:"Not selected"}</div>{countryCode&&<div className="mt-1 text-xs text-slate-600">{jurisdiction.taxRegisterLabel} · {jurisdiction.authorityLabel} · {jurisdiction.taxIdLabels.join("")} · {jurisdiction.currency}</div>}</div></Field>
         </div>
         <button type="button" onClick={()=>void applyJurisdiction()} disabled={jurisdictionSaving||saving} className="btn btn-primary mt-3">{jurisdictionSaving?<Loader2 className="h-4 w-4 animate-spin"/>:<Globe2 className="h-4 w-4"/>}Apply Country & Jurisdiction</button>
       </section>
@@ -199,18 +199,18 @@ export default function CompanySettings() {
 
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><div className="font-bold">Company language settings are authoritative across the ERP.</div><div className="mt-1 text-xs">Single Language shows one selected language. Bilingual allows any two different supported languages. Screen language and official document/print language remain separate. Business data, amounts and document numbers are never automatically translated.</div><button type="button" onClick={()=>void saveLanguages()} disabled={languageSaving||saving} className="btn btn-primary mt-3">{languageSaving?<Loader2 className="h-4 w-4 animate-spin"/>:<Languages className="h-4 w-4"/>}Apply Language Settings</button></div>
 
-      <section className="rounded-xl border border-slate-200 p-4"><h2 className="font-bold">Old Master Urdu Backfill / پرانے ریکارڈ کی اردو</h2><p className="mt-1 text-xs text-slate-500">Existing manually edited Urdu is never overwritten.</p><button type="button" className="btn btn-secondary mt-3" disabled={backfilling} onClick={()=>void backfillUrdu()}>{backfilling?<Loader2 className="h-4 w-4 animate-spin"/>:<Languages className="h-4 w-4"/>}Fill Missing Urdu Names</button></section>
+      <section className="rounded-xl border border-slate-200 p-4"><h2 className="font-bold">Old Master Urdu Backfill</h2><p className="mt-1 text-xs text-slate-500">Existing manually edited Urdu is never overwritten.</p><button type="button" className="btn btn-secondary mt-3" disabled={backfilling} onClick={()=>void backfillUrdu()}>{backfilling?<Loader2 className="h-4 w-4 animate-spin"/>:<Languages className="h-4 w-4"/>}Fill Missing Urdu Names</button></section>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Field label="Company Name / کمپنی کا نام"><input className="input w-full" value={name} onChange={e=>setName(e.target.value)} required/></Field>
-        <Field label="Default Currency / بنیادی کرنسی"><input className="input w-full" value={currency} onChange={e=>setCurrency(e.target.value)} required/></Field>
-        <Field label="Phone / فون"><input className="input w-full" value={phone} onChange={e=>setPhone(e.target.value)}/></Field>
-        <Field label="Email / ای میل"><input type="email" className="input w-full" value={email} onChange={e=>setEmail(e.target.value)}/></Field>
-        <Field label="Website / ویب سائٹ"><input className="input w-full" value={website} onChange={e=>setWebsite(e.target.value)}/></Field>
+        <Field label="Company Name"><input className="input w-full" value={name} onChange={e=>setName(e.target.value)} required/></Field>
+        <Field label="Default Currency"><input className="input w-full" value={currency} onChange={e=>setCurrency(e.target.value)} required/></Field>
+        <Field label="Phone"><input className="input w-full" value={phone} onChange={e=>setPhone(e.target.value)}/></Field>
+        <Field label="Email"><input type="email" className="input w-full" value={email} onChange={e=>setEmail(e.target.value)}/></Field>
+        <Field label="Website"><input className="input w-full" value={website} onChange={e=>setWebsite(e.target.value)}/></Field>
         <Field label={countryCode==="PK"?"NTN":"Tax ID / Registration No."}><input className="input w-full" value={ntn} onChange={e=>setNtn(e.target.value)}/></Field>
         <Field label={countryCode==="PK"?"STRN":"Secondary Tax Registration"}><input className="input w-full" value={strn} onChange={e=>setStrn(e.target.value)}/></Field>
       </div>
-      <Field label="Address / پتہ"><textarea className="input w-full" rows={3} value={address} onChange={e=>setAddress(e.target.value)}/></Field>
+      <Field label="Address"><textarea className="input w-full" rows={3} value={address} onChange={e=>setAddress(e.target.value)}/></Field>
       <div className="flex justify-end border-t pt-4"><button type="submit" disabled={saving||languageSaving||jurisdictionSaving} className="btn btn-primary">{saving?<Loader2 className="h-4 w-4 animate-spin"/>:<Save className="h-4 w-4"/>}Save Company Settings</button></div>
     </form>
   </div>;

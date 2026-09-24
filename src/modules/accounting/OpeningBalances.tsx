@@ -191,7 +191,7 @@ export default function OpeningBalances() {
 
     <div className="overflow-hidden rounded-xl border bg-white shadow-sm" data-report-content>
       <div className="flex items-center justify-between border-b bg-slate-50 px-4 py-3">
-        <div><div className="navilo-report-title font-bold text-slate-800">Opening Balances / اوپننگ بیلنس</div><div className="text-xs text-slate-500">Opening date: {openingDate} · Revenue and expense accounts are intentionally excluded.</div></div>
+        <div><div className="navilo-report-title font-bold text-slate-800">Opening Balances</div><div className="text-xs text-slate-500">Opening date: {openingDate} · Revenue and expense accounts are intentionally excluded.</div></div>
         <button type="button" className="btn-secondary" data-no-print data-no-export disabled={Boolean(existing)} onClick={() => setRows((x) => [...x, row()])}><Plus className="h-4 w-4"/> Add Line</button>
       </div>
       <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-sm"><thead className="bg-white text-xs uppercase text-slate-500"><tr><th className="px-3 py-3 text-left">Account</th><th className="px-3 py-3 text-left">Party</th><th className="px-3 py-3 text-right">Debit</th><th className="px-3 py-3 text-right">Credit</th><th className="px-3 py-3 text-right" data-no-print data-no-export>Action</th></tr></thead><tbody className="divide-y">{rows.map((item) => {

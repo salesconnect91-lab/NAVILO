@@ -1,5 +1,6 @@
 alter table public.purchase_orders add column if not exists due_date date;
 
+drop view if exists public.supplier_invoice_aging cascade;
 create or replace view public.supplier_invoice_aging as
 select
   po.id as purchase_order_id,
@@ -35,6 +36,7 @@ where po.supplier_id is not null and po.status='posted';
 
 grant select on public.supplier_invoice_aging to authenticated;
 
+drop view if exists public.customer_invoice_aging cascade;
 create or replace view public.customer_invoice_aging as
 select
   so.id as sales_order_id,

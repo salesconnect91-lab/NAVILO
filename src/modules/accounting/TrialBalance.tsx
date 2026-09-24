@@ -396,7 +396,7 @@ export default function TrialBalance() {
         )}
         <header className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Trial Balance / ٹرائل بیلنس</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Trial Balance</h1>
             <p className="mt-1 text-sm text-slate-500">
               Opening, period movement and closing balances from posted ledgers
             </p>
@@ -412,7 +412,7 @@ export default function TrialBalance() {
               disabled={loading}
               className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />Refresh / تازہ کریں</button>
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />Refresh</button>
             <button
               type="button"
               onClick={handleExportExcel}
@@ -425,14 +425,14 @@ export default function TrialBalance() {
               onClick={() => void handlePdf()}
               className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              PDF / پی ڈی ایف
+              PDF
             </button>
             <button
               type="button"
               onClick={() => window.print()}
               className="flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900"
             >
-              <Printer className="h-4 w-4" />Print / پرنٹ</button>
+              <Printer className="h-4 w-4" />Print</button>
           </div>
         </header>
 
@@ -540,7 +540,7 @@ export default function TrialBalance() {
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           {loading ? (
-            <div className="p-16 text-center text-slate-400">Loading Trial Balance... / ٹرائل بیلنس لوڈ ہو رہا ہے...</div>
+            <div className="p-16 text-center text-slate-400">Loading Trial Balance...</div>
           ) : rows.length === 0 ? (
             <div className="p-16 text-center text-slate-400">
               No posted transactions found for the selected period.
@@ -550,12 +550,12 @@ export default function TrialBalance() {
               <table className="w-full min-w-[1250px] text-xs">
                 <thead>
                   <tr className="border-b border-slate-300 bg-slate-900 text-white">
-                    <th rowSpan={2} className="px-3 py-3 text-left font-semibold">Code / کوڈ</th>
-                    <th rowSpan={2} className="px-3 py-3 text-left font-semibold">Account Name / اکاؤنٹ نام</th>
-                    <th rowSpan={2} className="px-3 py-3 text-left font-semibold">Type / قسم</th>
-                    <th colSpan={2} className="border-l border-slate-700 px-3 py-2 text-center font-semibold">Opening Balance / ابتدائی بیلنس</th>
-                    <th colSpan={2} className="border-l border-slate-700 px-3 py-2 text-center font-semibold">Period Movement / مدت کی حرکت</th>
-                    <th colSpan={2} className="border-l border-slate-700 px-3 py-2 text-center font-semibold">Closing Balance / اختتامی بیلنس</th>
+                    <th rowSpan={2} className="px-3 py-3 text-left font-semibold">Code</th>
+                    <th rowSpan={2} className="px-3 py-3 text-left font-semibold">Account Name</th>
+                    <th rowSpan={2} className="px-3 py-3 text-left font-semibold">Type</th>
+                    <th colSpan={2} className="border-l border-slate-700 px-3 py-2 text-center font-semibold">Opening Balance</th>
+                    <th colSpan={2} className="border-l border-slate-700 px-3 py-2 text-center font-semibold">Period Movement</th>
+                    <th colSpan={2} className="border-l border-slate-700 px-3 py-2 text-center font-semibold">Closing Balance</th>
                   </tr>
                   <tr className="border-b border-slate-300 bg-slate-800 text-slate-200">
                     {['Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit'].map((label, index) => (
@@ -582,7 +582,7 @@ export default function TrialBalance() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-slate-900 bg-slate-100 font-bold text-slate-900">
-                    <td colSpan={3} className="px-3 py-3 text-sm uppercase">Total / کل</td>
+                    <td colSpan={3} className="px-3 py-3 text-sm uppercase">Total</td>
                     <td className="border-l border-slate-300 px-3 py-3 text-right font-mono">{formatCurrency(totals.openingDebit)}</td>
                     <td className="px-3 py-3 text-right font-mono">{formatCurrency(totals.openingCredit)}</td>
                     <td className="border-l border-slate-300 px-3 py-3 text-right font-mono">{formatCurrency(totals.periodDebit)}</td>
@@ -599,7 +599,7 @@ export default function TrialBalance() {
         {!loading && (
           <div className={`flex flex-col items-start justify-between gap-3 rounded-xl border-2 p-4 sm:flex-row sm:items-center ${isBalanced ? "border-emerald-300 bg-emerald-50" : "border-rose-300 bg-rose-50"}`}>
             <div>
-              <span className="block font-bold text-slate-900">Trial Balance Control Check / ٹرائل بیلنس کنٹرول چیک</span>
+              <span className="block font-bold text-slate-900">Trial Balance Control Check</span>
               <span className="text-xs text-slate-500">
                 Opening difference {formatCurrency(openingDifference)} · Period difference {formatCurrency(periodDifference)}
               </span>

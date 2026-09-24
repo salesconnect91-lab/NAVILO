@@ -103,6 +103,10 @@ export default function JurisdictionRuntime() {
     };
 
     const refresh = async () => {
+      // Jurisdiction settings are tenant-protected; do not query them from the
+      // public login page. Defaults remain in effect until a session exists.
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) return;
       const { data, error } = await supabase.from("company_settings").select("country_code,currency").maybeSingle();
       if (error || !data) return;
       const profile = getJurisdictionProfile(data.country_code);

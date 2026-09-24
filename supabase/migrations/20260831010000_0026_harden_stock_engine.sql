@@ -242,18 +242,7 @@ grant execute on function public.transfer_stock_v2(
   uuid, uuid, uuid, uuid, numeric, text
 ) to authenticated;
 
--- apply_stock_movement should also only be callable by authenticated users.
-
-revoke all on function public.apply_stock_movement(
-  uuid, uuid, uuid, text, numeric, text
-) from public;
-
-revoke all on function public.apply_stock_movement(
-  uuid, uuid, uuid, text, numeric, text
-) from anon;
-
-grant execute on function public.apply_stock_movement(
-  uuid, uuid, uuid, text, numeric, text
-) to authenticated;
+-- apply_stock_movement is created and secured by the next migration (0027).
+-- ACL statements cannot precede a routine on a genuinely fresh database.
 
 commit;

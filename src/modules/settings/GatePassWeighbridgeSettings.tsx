@@ -55,8 +55,8 @@ export default function GatePassWeighbridgeSettings() {
 
   const save = async () => {
     setError(null); setSuccess(null);
-    if (config.fixed_tolerance_kg < 0 || config.fixed_tolerance_kg > 1000) return setError("Fixed tolerance must be between 0 and 1000 kg. / مقررہ فرق 0 سے 1000 کلوگرام کے درمیان ہونا چاہیے۔");
-    if (config.percentage_tolerance < 0 || config.percentage_tolerance > 10) return setError("Percentage tolerance must be between 0% and 10%. / فیصدی فرق 0٪ سے 10٪ کے درمیان ہونا چاہیے۔");
+    if (config.fixed_tolerance_kg < 0 || config.fixed_tolerance_kg > 1000) return setError("Fixed tolerance must be between 0 and 1000 kg.0 1000 ");
+    if (config.percentage_tolerance < 0 || config.percentage_tolerance > 10) return setError("Percentage tolerance must be between 0% and 10%.010");
     setSaving(true);
     const { error } = await supabase.rpc("save_gate_pass_weighbridge_settings", {
       p_mode: config.tolerance_mode,
@@ -65,14 +65,14 @@ export default function GatePassWeighbridgeSettings() {
     });
     setSaving(false);
     if (error) setError(error.message);
-    else setSuccess("Gate Pass / Weighbridge tolerance settings saved successfully. / گیٹ پاس اور کانٹا وزن کی قابلِ قبول حد کامیابی سے محفوظ ہوگئی۔");
+    else setSuccess("Gate Pass / Weighbridge tolerance settings saved successfully.");
   };
 
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Gate Pass / Weighbridge Settings / گیٹ پاس و کانٹا سیٹنگز"
-        subtitle="Set the allowed difference between loaded quantity and weighbridge net weight. / لوڈ شدہ مقدار اور کانٹا کے خالص وزن کے درمیان قابلِ قبول فرق مقرر کریں۔"
+        title="Gate Pass / Weighbridge Settings"
+        subtitle="Set the allowed difference between loaded quantity and weighbridge net weight."
       />
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -80,40 +80,40 @@ export default function GatePassWeighbridgeSettings() {
 
       <div className="rounded-xl border bg-white p-5 shadow-sm">
         <div className="mb-4">
-          <h2 className="text-base font-bold text-slate-900">Weight Reconciliation Tolerance / وزن کے فرق کی قابلِ قبول حد</h2>
-          <p className="mt-1 text-sm text-slate-500">This rule is checked at the 2nd Kanta and again before the Final Gate Pass. / یہ اصول دوسرے کانٹے پر اور فائنل گیٹ پاس بنانے سے پہلے دوبارہ چیک ہوتا ہے۔</p>
+          <h2 className="text-base font-bold text-slate-900">Weight Reconciliation Tolerance</h2>
+          <p className="mt-1 text-sm text-slate-500">This rule is checked at the 2nd Kanta and again before the Final Gate Pass.</p>
         </div>
 
-        {loading ? <div className="py-8 text-sm text-slate-500">Loading settings… / سیٹنگز لوڈ ہو رہی ہیں…</div> : <div className="space-y-5">
+        {loading ? <div className="py-8 text-sm text-slate-500">Loading settings……</div> : <div className="space-y-5">
           <div>
-            <label className="label">Tolerance Rule / قابلِ قبول فرق کا اصول</label>
+            <label className="label">Tolerance Rule</label>
             <select className="input max-w-xl" value={config.tolerance_mode} onChange={e => setConfig(v => ({ ...v, tolerance_mode: e.target.value as Mode }))}>
-              <option value="greater_of_both">Greater of Fixed or Percentage / مقررہ یا فیصدی فرق میں سے جو زیادہ ہو</option>
-              <option value="fixed_only">Fixed Kg Only / صرف مقررہ کلوگرام</option>
-              <option value="percentage_only">Percentage Only / صرف فیصد</option>
+              <option value="greater_of_both">Greater of Fixed or Percentage</option>
+              <option value="fixed_only">Fixed Kg Only</option>
+              <option value="percentage_only">Percentage Only</option>
             </select>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="label">Fixed Tolerance (kg) / مقررہ فرق (کلوگرام)</label>
+              <label className="label">Fixed Tolerance (kg)</label>
               <input type="number" min="0" max="1000" step="0.1" className="input" value={config.fixed_tolerance_kg} onChange={e => setConfig(v => ({ ...v, fixed_tolerance_kg: Number(e.target.value) }))} />
-              <p className="mt-1 text-xs text-slate-500">Example: 1 means ±1 kg is allowed. / مثال: 1 کا مطلب ±1 کلوگرام فرق کی اجازت ہے۔</p>
+              <p className="mt-1 text-xs text-slate-500">Example: 1 means ±1 kg is allowed.: 1 ±1 </p>
             </div>
             <div>
-              <label className="label">Percentage Tolerance (%) / فیصدی فرق (%)</label>
+              <label className="label">Percentage Tolerance (%)%)</label>
               <input type="number" min="0" max="10" step="0.01" className="input" value={config.percentage_tolerance} onChange={e => setConfig(v => ({ ...v, percentage_tolerance: Number(e.target.value) }))} />
-              <p className="mt-1 text-xs text-slate-500">Example: 0.5 means ±0.5% is allowed. / مثال: 0.5 کا مطلب ±0.5٪ فرق کی اجازت ہے۔</p>
+              <p className="mt-1 text-xs text-slate-500">Example: 0.5 means ±0.5% is allowed.: 0.5 ±0.5</p>
             </div>
           </div>
 
           <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-            <div className="font-bold">Live Example / عملی مثال</div>
-            <div className="mt-1">For Net Material = {exampleNet.toLocaleString()} kg, the current rule allows approximately ±{exampleAllowed.toFixed(2)} kg difference. / اگر خالص مال {exampleNet.toLocaleString()} کلوگرام ہو تو موجودہ اصول تقریباً ±{exampleAllowed.toFixed(2)} کلوگرام فرق کی اجازت دیتا ہے۔</div>
+            <div className="font-bold">Live Example</div>
+            <div className="mt-1">For Net Material = {exampleNet.toLocaleString()} kg, the current rule allows approximately ±{exampleAllowed.toFixed(2)} kg difference.{exampleNet.toLocaleString()} ±{exampleAllowed.toFixed(2)} </div>
           </div>
 
           <div className="flex justify-end">
-            <button type="button" className="btn btn-primary" disabled={saving} onClick={() => void save()}>{saving ? "Saving… / محفوظ ہو رہا ہے…" : "Save Settings / سیٹنگز محفوظ کریں"}</button>
+            <button type="button" className="btn btn-primary" disabled={saving} onClick={() => void save()}>{saving ? "Saving……" : "Save Settings"}</button>
           </div>
         </div>}
       </div>

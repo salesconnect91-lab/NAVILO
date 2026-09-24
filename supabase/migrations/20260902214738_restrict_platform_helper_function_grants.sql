@@ -1,0 +1,10 @@
+revoke execute on function public.is_platform_owner() from public, anon;
+revoke execute on function public.has_company_access(uuid) from public, anon;
+revoke execute on function public.current_company_id() from public, anon;
+revoke execute on function public.has_module_permission(uuid,text,text) from public, anon;
+revoke execute on function public.get_my_access_context() from public, anon;
+grant execute on function public.is_platform_owner() to authenticated;
+grant execute on function public.has_company_access(uuid) to authenticated;
+grant execute on function public.current_company_id() to authenticated;
+grant execute on function public.has_module_permission(uuid,text,text) to authenticated;
+grant execute on function public.get_my_access_context() to authenticated;

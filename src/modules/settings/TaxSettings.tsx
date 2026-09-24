@@ -41,7 +41,7 @@ export default function TaxSettings() {
       setSaved(true); setTimeout(() => setSaved(false), 2500); await load();
     } catch (saveError: unknown) {
       const message = saveError instanceof Error ? saveError.message : typeof saveError === "object" && saveError !== null && "message" in saveError ? String(saveError.message) : "Save failed.";
-      setError(`Save failed / محفوظ نہیں ہوسکا: ${message}`);
+      setError(`Save failed: ${message}`);
     }
   };
 
@@ -55,18 +55,18 @@ export default function TaxSettings() {
     <div className="rounded-xl border bg-white p-5"><h1 className="text-xl font-bold">{jurisdiction.taxLabel} Settings</h1><p className="mt-1 text-xs text-slate-500">{jurisdiction.name} statutory profile · {jurisdiction.authorityLabel}. Configure company {jurisdiction.taxLabel} rates for sales and purchases. Rates stay configurable because statutory rates may change.</p></div>
     {!countryCode&&<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">Select Country / Jurisdiction in Company Settings first. NAVILO will then use the correct statutory terminology and defaults.</div>}
     {error && <ErrorBanner message={error} />}
-    {saved && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">Saved successfully / کامیابی سے محفوظ ہوگیا۔</div>}
+    {saved && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">Saved successfully</div>}
     <section className="rounded-lg border bg-white p-4">
-      <div className="mb-3 flex items-center justify-between"><div><h2 className="font-semibold">{jurisdiction.taxLabel} Rates</h2><p className="text-[12px] text-slate-400">Fixed rates cannot be overridden on invoices; authorized users can maintain changeable rates when local law changes.</p></div><button className="btn-secondary" onClick={() => setTaxes([...taxes, { name: `New ${jurisdiction.taxLabel}`, rate: "0", applies_to: "both", is_fixed: false, is_active: true }])}><Plus className="h-3.5 w-3.5" /> Add / شامل کریں</button></div>
+      <div className="mb-3 flex items-center justify-between"><div><h2 className="font-semibold">{jurisdiction.taxLabel} Rates</h2><p className="text-[12px] text-slate-400">Fixed rates cannot be overridden on invoices; authorized users can maintain changeable rates when local law changes.</p></div><button className="btn-secondary" onClick={() => setTaxes([...taxes, { name: `New ${jurisdiction.taxLabel}`, rate: "0", applies_to: "both", is_fixed: false, is_active: true }])}><Plus className="h-3.5 w-3.5" /> Add</button></div>
       <div className="space-y-2">{taxes.map((tax, index) => <div key={tax.id ?? index} className="grid grid-cols-1 gap-2 rounded border p-3 md:grid-cols-[2fr_1fr_1.5fr_1fr_1fr_auto]">
         <input className="input" value={tax.name} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, name: event.target.value } : row))} />
         <input className="input" type="number" min="0" max="100" step="0.01" value={tax.rate} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, rate: event.target.value } : row))} />
-        <SearchableSelect className="input" value={tax.applies_to} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, applies_to: event.target.value as Tax["applies_to"] } : row))}><option value="sales">Sales / فروخت</option><option value="purchase">Purchase / خریداری</option><option value="both">Both / دونوں</option></SearchableSelect>
+        <SearchableSelect className="input" value={tax.applies_to} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, applies_to: event.target.value as Tax["applies_to"] } : row))}><option value="sales">Sales</option><option value="purchase">Purchase</option><option value="both">Both</option></SearchableSelect>
         <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={tax.is_fixed} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, is_fixed: event.target.checked } : row))} /> Fixed</label>
         <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={tax.is_active} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, is_active: event.target.checked } : row))} /> Active</label>
         <button type="button" className="rounded border p-2 text-rose-600" onClick={() => void remove(tax, index)} title="Delete tax"><Trash2 className="h-4 w-4" /></button>
       </div>)}</div>
     </section>
-    <div className="flex justify-end"><button className="btn-primary" onClick={() => void save()}><Save className="h-3.5 w-3.5" /> Save Settings / محفوظ کریں</button></div>
+    <div className="flex justify-end"><button className="btn-primary" onClick={() => void save()}><Save className="h-3.5 w-3.5" /> Save Settings</button></div>
   </div>;
 }

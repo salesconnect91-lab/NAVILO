@@ -198,13 +198,13 @@ export default function PaymentVoucherHistory({
 
       const title =
         mode === "customer"
-          ? "Receipt / وصولی"
-          : "Payment / ادائیگی";
+          ? "Receipt"
+          : "Payment";
 
       const amountLabel =
         mode === "customer"
-          ? "Amount Received / وصول شدہ رقم"
-          : "Amount Paid / ادا شدہ رقم";
+          ? "Amount Received"
+          : "Amount Paid";
 
       const companyName =
         company?.company_name ||
@@ -246,8 +246,8 @@ body{font-family:Arial,sans-serif;margin:36px;color:#0f172a}
   <div>
     <div class="label">${
       mode === "customer"
-        ? "Received From / وصول کنندہ"
-        : "Paid To / ادا کیا گیا"
+        ? "Received From"
+        : "Paid To"
     }</div>
     <div class="value">${escapeHtml(
       detail.party_name || "—"
@@ -255,14 +255,14 @@ body{font-family:Arial,sans-serif;margin:36px;color:#0f172a}
   </div>
 
   <div>
-    <div class="label">Date / تاریخ</div>
+    <div class="label">Date</div>
     <div class="value">${escapeHtml(
       detail.entry_date
     )}</div>
   </div>
 
   <div>
-    <div class="label">Payment Method / ادائیگی طریقہ</div>
+    <div class="label">Payment Method</div>
     <div class="value">${escapeHtml(
       detail.payment_mode || "—"
     )}</div>
@@ -279,7 +279,7 @@ body{font-family:Arial,sans-serif;margin:36px;color:#0f172a}
 ${
   visibility.show_previous_balance
     ? `<div class="amount">
-         <span>Previous Balance / سابقہ بیلنس</span>
+         <span>Previous Balance</span>
          <strong>Rs. ${money(
            Number(detail.balance_before || 0)
          )}</strong>
@@ -295,7 +295,7 @@ ${
 ${
   visibility.show_closing_balance
     ? `<div class="amount">
-         <span>Closing Balance / بقایا بیلنس</span>
+         <span>Closing Balance</span>
          <strong>Rs. ${money(
            Number(detail.balance_after || 0)
          )}</strong>
@@ -306,7 +306,7 @@ ${
 ${
   detail.description
     ? `<div class="note">
-         <strong>Description / تفصیل:</strong>
+         <strong>Description:</strong>
          ${escapeHtml(detail.description)}
        </div>`
     : ""
@@ -478,12 +478,11 @@ ${
         <div>
           <h3 className="font-bold text-slate-900">
             {mode === "customer"
-              ? "Posted Customer Receipt History / پوسٹ شدہ کسٹمر رسیدیں"
-              : "Posted Supplier Payment History / پوسٹ شدہ سپلائر ادائیگیاں"}
+              ? "Posted Customer Receipt History"
+              : "Posted Supplier Payment History"}
           </h3>
           <p className="mt-1 text-xs text-slate-500">
-            Reprint or download previously posted vouchers / پرانی پوسٹ شدہ سلپ دوبارہ نکالیں
-          </p>
+            Reprint or download previously posted vouchers</p>
         </div>
 
         <button

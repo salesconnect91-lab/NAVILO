@@ -12,18 +12,18 @@ type FinalGatePass = {
 };
 
 const CORRECTION_REASONS = [
-  { value: "Wrong Tare Weight", label: "Wrong Tare Weight / خالی گاڑی کا وزن غلط" },
-  { value: "Wrong Gross Weight", label: "Wrong Gross Weight / بھری گاڑی کا وزن غلط" },
-  { value: "Wrong Material", label: "Wrong Material / مال کی تفصیل غلط" },
-  { value: "Wrong Quantity", label: "Wrong Quantity / مقدار غلط" },
-  { value: "Wrong Warehouse or Godown", label: "Wrong Warehouse / Godown / ویئرہاؤس یا گودام غلط" },
-  { value: "Wrong Customer", label: "Wrong Customer / گاہک غلط" },
-  { value: "Wrong Vehicle or Driver", label: "Wrong Vehicle / Driver / گاڑی یا ڈرائیور غلط" },
-  { value: "Loading Entry Correction", label: "Loading Entry Correction / لوڈنگ اندراج کی تصحیح" },
-  { value: "Kanta Entry Correction", label: "Weighbridge Entry Correction / کانٹا اندراج کی تصحیح" },
-  { value: "Data Entry Mistake", label: "Data Entry Mistake / ڈیٹا اندراج کی غلطی" },
-  { value: "Customer Request", label: "Customer Request / گاہک کی درخواست" },
-  { value: "Other", label: "Other / دیگر" },
+  { value: "Wrong Tare Weight", label: "Wrong Tare Weight" },
+  { value: "Wrong Gross Weight", label: "Wrong Gross Weight" },
+  { value: "Wrong Material", label: "Wrong Material" },
+  { value: "Wrong Quantity", label: "Wrong Quantity" },
+  { value: "Wrong Warehouse or Godown", label: "Wrong Warehouse / Godown" },
+  { value: "Wrong Customer", label: "Wrong Customer" },
+  { value: "Wrong Vehicle or Driver", label: "Wrong Vehicle / Driver" },
+  { value: "Loading Entry Correction", label: "Loading Entry Correction" },
+  { value: "Kanta Entry Correction", label: "Weighbridge Entry Correction" },
+  { value: "Data Entry Mistake", label: "Data Entry Mistake" },
+  { value: "Customer Request", label: "Customer Request" },
+  { value: "Other", label: "Other" },
 ];
 
 export default function LoadingUnloading() {
@@ -87,9 +87,9 @@ export default function LoadingUnloading() {
 
   const reopen = async () => {
     setMessage(null);
-    if (!selectedId) return setMessage("Please select a Final Gate Pass. / براہِ کرم فائنل گیٹ پاس منتخب کریں۔");
-    if (!reason) return setMessage("Please select a correction reason. / براہِ کرم تصحیح کی وجہ منتخب کریں۔");
-    if (reason === "Other" && !remarks.trim()) return setMessage("Remarks are required for Other. / 'دیگر' کی صورت میں تفصیل لکھنا ضروری ہے۔");
+    if (!selectedId) return setMessage("Please select a Final Gate Pass.");
+    if (!reason) return setMessage("Please select a correction reason.");
+    if (reason === "Other" && !remarks.trim()) return setMessage("Remarks are required for Other.");
 
     const auditReason = remarks.trim() ? `${reason} — Remarks: ${remarks.trim()}` : reason;
 
@@ -101,7 +101,7 @@ export default function LoadingUnloading() {
     setBusy(false);
     if (error) return setMessage(error.message);
 
-    setMessage("Gate Pass reopened for correction. Token, 1st Kanta, Loading and 2nd Kanta can now be edited. / گیٹ پاس تصحیح کے لیے دوبارہ کھول دیا گیا ہے۔ اب ٹوکن، پہلا کانٹا، لوڈنگ اور دوسرا کانٹا درست کیے جا سکتے ہیں۔");
+    setMessage("Gate Pass reopened for correction. Token, 1st Kanta, Loading and 2nd Kanta can now be edited.");
     setTimeout(() => window.location.reload(), 700);
   };
 
@@ -125,17 +125,17 @@ export default function LoadingUnloading() {
 
       <div className="w-full min-w-0 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-4 shadow-sm" data-no-print>
         <div className="mb-3">
-          <div className="font-semibold text-amber-950">Final GP Correction / فائنل گیٹ پاس کی تصحیح</div>
+          <div className="font-semibold text-amber-950">Final GP Correction</div>
           <div className="text-xs text-amber-700">
-            A finalized Gate Pass cannot be edited directly. Select a reason and reopen it for controlled correction. / حتمی گیٹ پاس میں براہِ راست ترمیم نہیں کی جا سکتی۔ وجہ منتخب کریں اور مجاز تصحیح کے لیے اسے دوبارہ کھولیں۔
+            A finalized Gate Pass cannot be edited directly. Select a reason and reopen it for controlled correction.
           </div>
         </div>
 
         <div className="grid w-full min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="min-w-0">
-            <label className="label">Final Gate Pass / فائنل گیٹ پاس</label>
+            <label className="label">Final Gate Pass</label>
             <select className="input w-full min-w-0" value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
-              <option value="">Select Final Gate Pass / فائنل گیٹ پاس منتخب کریں</option>
+              <option value="">Select Final Gate Pass</option>
               {finalized.map((g) => (
                 <option key={g.id} value={g.id}>{g.pass_no} · {g.customer_name || "—"} · {g.vehicle_no || "—"} · {g.pass_date}</option>
               ))}
@@ -143,21 +143,21 @@ export default function LoadingUnloading() {
           </div>
 
           <div className="min-w-0">
-            <label className="label">Correction Reason / تصحیح کی وجہ</label>
+            <label className="label">Correction Reason</label>
             <select className="input w-full min-w-0" value={reason} onChange={(e) => setReason(e.target.value)}>
-              <option value="">Select a reason / وجہ منتخب کریں</option>
+              <option value="">Select a reason</option>
               {CORRECTION_REASONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
           </div>
 
           <div className="min-w-0">
-            <label className="label">Remarks / تفصیل</label>
-            <input className="input w-full min-w-0" placeholder="Add remarks (optional) / اضافی تفصیل لکھیں" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+            <label className="label">Remarks</label>
+            <input className="input w-full min-w-0" placeholder="Add remarks (optional)" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
           </div>
 
           <div className="flex min-w-0 items-end">
             <button type="button" className="btn btn-primary w-full whitespace-normal text-center leading-tight" disabled={busy} onClick={() => void reopen()}>
-              {busy ? "Reopening... / دوبارہ کھولا جا رہا ہے..." : "↻ Reopen for Correction / تصحیح کے لیے دوبارہ کھولیں"}
+              {busy ? "Reopening..." : "↻ Reopen for Correction"}
             </button>
           </div>
         </div>
@@ -167,7 +167,7 @@ export default function LoadingUnloading() {
       <div className="flex w-full justify-end" data-no-print>
         <button type="button" onClick={printSummary} className="btn btn-primary inline-flex items-center gap-2">
           <Printer className="h-4 w-4" />
-          <span>Print / PDF / پرنٹ</span>
+          <span>Print / PDF</span>
         </button>
       </div>
 
@@ -176,10 +176,10 @@ export default function LoadingUnloading() {
       </div>
 
       <div className="flex w-full flex-wrap gap-4 rounded-xl border bg-white px-4 py-3 text-xs text-slate-600" data-no-print>
-        <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-slate-300" />Not Started / شروع نہیں ہوا</span>
-        <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-blue-500" />Current Action / موجودہ مرحلہ</span>
-        <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-green-600" />Completed / مکمل</span>
-        <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-blue-700" />Finalized / حتمی</span>
+        <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-slate-300" />Not Started</span>
+        <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-blue-500" />Current Action</span>
+        <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-green-600" />Completed</span>
+        <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-blue-700" />Finalized</span>
       </div>
     </div>
   );
