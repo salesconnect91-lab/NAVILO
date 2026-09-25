@@ -99,7 +99,7 @@ export default function UniversalDataTools(){
   const[open,setOpen]=useState(false),[importOpen,setImportOpen]=useState(false),[standardHost,setStandardHost]=useState<HTMLElement|null>(null),[hasTemplate,setHasTemplate]=useState(false),[hasUpload,setHasUpload]=useState(false),[hasCustomizableTable,setHasCustomizableTable]=useState(false),[hasLocalDocumentOutput,setHasLocalDocumentOutput]=useState(false);
   const ref=useRef<HTMLDivElement|null>(null);
   const genericReport=pathname==="/reports"||(pathname.startsWith("/reports/")&&!(["/reports/steel-stock","/reports/supplier-aging"].includes(pathname)));
-  const reportMode=isReportPath(pathname),masterMode=pathname.startsWith("/master-data")||pathname==="/godown/master"||pathname==="/sales/charges",standardPath=!genericReport&&(reportMode||masterMode||pathname==="/sales/consolidated"||pathname==="/purchase/consolidated"),invoiceEditor=isInvoiceEditorPath(pathname),customizable=reportMode||hasCustomizableTable;
+  const reportMode=isReportPath(pathname),masterMode=pathname.startsWith("/master-data")||pathname==="/godown/master"||pathname==="/sales/charges",standardPath=!genericReport&&(reportMode||masterMode||pathname.startsWith("/sales")||pathname.startsWith("/purchase")),invoiceEditor=isInvoiceEditorPath(pathname),customizable=reportMode||hasCustomizableTable;
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role,module=moduleForPath(pathname),permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
   const canCreate=isPlatformOwner||hasPermission(role,module,"create",permissions,false),canExport=isPlatformOwner||hasPermission(role,module,"export",permissions,false),canPrint=isPlatformOwner||hasPermission(role,module,"print",permissions,false);
 
