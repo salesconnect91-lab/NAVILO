@@ -95,8 +95,8 @@ function isDocumentOutputAction(el:HTMLElement){
 function findLocalAction(predicate:(label:string)=>boolean){const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return null;return Array.from(main.querySelectorAll<HTMLElement>("button,a,[role='button']")).find(el=>!el.closest("[data-navilo-global-data-tools]")&&!isDocumentOutputAction(el)&&predicate(labelOf(el)))??null}
 
 export default function UniversalDataTools(){
-  const{pathname}=useLocation(),navigate=useNavigate(),{activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
-  const[open,setOpen]=useState(false),[importOpen,setImportOpen]=useState(false),[standardHost,setStandardHost]=useState<HTMLElement|null>(null),[hasTemplate,setHasTemplate]=useState(false),[hasUpload,setHasUpload]=useState(false),[hasCustomizableTable,setHasCustomizableTable]=useState(false),[hasLocalDocumentOutput,setHasLocalDocumentOutput]=useState(false);
+  const{pathname}=useLocation(),{activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
+  const[open,setOpen]=useState(false),[standardHost,setStandardHost]=useState<HTMLElement|null>(null),[hasCustomizableTable,setHasCustomizableTable]=useState(false),[hasLocalDocumentOutput,setHasLocalDocumentOutput]=useState(false);
   const ref=useRef<HTMLDivElement|null>(null);
   const genericReport=pathname==="/reports"||(pathname.startsWith("/reports/")&&!(["/reports/steel-stock","/reports/supplier-aging"].includes(pathname)));
   const reportMode=isReportPath(pathname),masterMode=pathname.startsWith("/master-data")||pathname==="/godown/master"||pathname==="/sales/charges",standardPath=!genericReport&&(reportMode||masterMode||pathname.startsWith("/sales")||pathname.startsWith("/purchase")),invoiceEditor=isInvoiceEditorPath(pathname),customizable=reportMode||hasCustomizableTable;
@@ -131,16 +131,14 @@ export default function UniversalDataTools(){
     const observer=new MutationObserver(()=>{if(attach())observer.disconnect()});observer.observe(document.body,{childList:true,subtree:true});
     return()=>{observer.disconnect();setStandardHost(null)};
   },[standardPath,pathname]);
-  useEffect(()=>{if(!open&&!importOpen)return;const close=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node)){setOpen(false);setImportOpen(false)}};document.addEventListener("mousedown",close);return()=>document.removeEventListener("mousedown",close)},[open,importOpen]);
+  useEffect(()=>{if(!open)return;const close=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node))setOpen(false)};document.addEventListener("mousedown",close);return()=>document.removeEventListener("mousedown",close)},[open]);
 
   const exp=(t:"excel"|"csv"|"word")=>{if(!canExport)return;const root=currentExportRoot();if(!root)return;const title=currentPageTitle(),file=cleanTitle(title);if(t==="excel")exportDomReportToExcel(file,root,title);if(t==="csv")exportDomReportToCSV(file,root,title);if(t==="word")exportDomReportToWord(file,root,title);setOpen(false)};
   const print=()=>{if(canPrint){setOpen(false);triggerPrint(reportSelector())}};
-  const runTemplate=()=>{findLocalAction(isTemplateAction)?.click();setImportOpen(false)};
-  const runUpload=()=>{findLocalAction(isUploadAction)?.click();setImportOpen(false)};
   const base=(reportMode||masterMode)?"navilo-report-tool":"inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-[12px] font-bold text-slate-700 shadow-sm hover:bg-slate-50";
   const toolbar=(reportMode||masterMode)?<div className="navilo-report-toolbar" ref={ref} data-no-print data-no-export data-navilo-global-data-tools>
     {!invoiceEditor&&customizable&&<button type="button" onClick={()=>window.dispatchEvent(new Event("navilo:report-customize"))} className={base}><Settings2 className="h-4 w-4"/><span>Customize</span></button>}}
-    {!invoiceEditor&&canExport&&<div className="relative"><button type="button" onClick={()=>{setOpen(v=>!v);setImportOpen(false)}} className={base}><Download className="h-4 w-4"/><span className="hidden xl:inline">Export</span></button>{open&&<div className="absolute right-0 top-10 z-[70] w-48 rounded-lg border bg-white py-1 shadow-xl"><button type="button" onClick={()=>exp("excel")} className="flex w-full gap-2 px-3 py-2 text-xs"><Sheet className="h-4 w-4"/>Excel (.xlsx)</button><button type="button" onClick={()=>exp("csv")} className="flex w-full gap-2 px-3 py-2 text-xs"><Table2 className="h-4 w-4"/>CSV (.csv)</button><button type="button" onClick={()=>exp("word")} className="flex w-full gap-2 px-3 py-2 text-xs"><FileText className="h-4 w-4"/>Word (.doc)</button></div>}</div>}
+    {!invoiceEditor&&canExport&&<div className="relative"><button type="button" onClick={()=>setOpen(v=>!v)} className={base}><Download className="h-4 w-4"/><span className="hidden xl:inline">Export</span></button>{open&&<div className="absolute right-0 top-10 z-[70] w-48 rounded-lg border bg-white py-1 shadow-xl"><button type="button" onClick={()=>exp("excel")} className="flex w-full gap-2 px-3 py-2 text-xs"><Sheet className="h-4 w-4"/>Excel (.xlsx)</button><button type="button" onClick={()=>exp("csv")} className="flex w-full gap-2 px-3 py-2 text-xs"><Table2 className="h-4 w-4"/>CSV (.csv)</button><button type="button" onClick={()=>exp("word")} className="flex w-full gap-2 px-3 py-2 text-xs"><FileText className="h-4 w-4"/>Word (.doc)</button></div>}</div>}
     {!invoiceEditor&&canPrint&&!hasLocalDocumentOutput&&<button type="button" data-print-selector={reportSelector()} onClick={print} className={base}><Printer className="h-4 w-4"/><span className="hidden xl:inline">Print / PDF</span></button>}
   </div>:null;
   if(!standardPath)return null;
