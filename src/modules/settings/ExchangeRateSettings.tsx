@@ -77,7 +77,7 @@ export default function ExchangeRateSettings() {
   return <section className="mt-5 max-w-5xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
     <h2 className="font-bold text-slate-900">Company exchange rates</h2>
     <p className="mt-1 text-sm text-slate-600">Accounting base: <strong>{base || "Loading…"}</strong>. Rate means one unit of foreign currency in {base || "company base currency"}. Rates apply from their effective date; earlier journal snapshots stay unchanged.</p>
-    <p className="mt-1 text-xs text-amber-800">Foreign-currency invoice and journal posting stays unavailable until the ledger, party balances and reversal flows support conversion.</p>
+    <p className="mt-1 text-xs text-amber-800">Foreign-currency invoices and settlements still require their own conversion workflow. Manual foreign journals use a dedicated, base-currency posting path.</p>
     {error && <p role="alert" className="mt-3 text-sm text-rose-700">{error}</p>}
     {notice && <p role="status" className="mt-3 text-sm text-emerald-700">{notice}</p>}
     <form onSubmit={save} className="mt-4 grid gap-3 md:grid-cols-5">
