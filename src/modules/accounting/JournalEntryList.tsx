@@ -2685,7 +2685,7 @@ export default function JournalEntryList() {
         ) : (
           <div className="overflow-x-auto">
 
-            <table className="w-full text-sm">
+            <div data-report-content data-navilo-customizable="true" className="contents"><table className="w-full text-sm">
 
               <thead>
                 <tr className="border-b bg-slate-50 text-slate-600">
@@ -2778,7 +2778,7 @@ export default function JournalEntryList() {
 
               </tbody>
 
-            </table>
+            </table></div>
 
           </div>
         )}
