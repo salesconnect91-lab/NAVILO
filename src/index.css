@@ -7115,3 +7115,35 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
  [data-navilo-master-standard="true"] thead th{background:#f1f5f9!important;color:#0f172a!important;border-bottom:1px solid #94a3b8!important}
  [data-navilo-master-standard="true"] tbody td{color:#0f172a!important;border-bottom:1px solid #e2e8f0!important}
 }
+
+
+/* NEUS ROUTE STANDARD — NAVILO A-TO-Z */
+#navilo-main-content[data-neus-route]{max-width:1600px;margin-inline:auto}
+#navilo-main-content[data-neus-route] .navilo-page-header,
+#navilo-main-content[data-neus-route] [data-report-header]{margin-bottom:12px}
+#navilo-main-content[data-neus-route] .card,
+#navilo-main-content[data-neus-route] .rounded-xl.border.bg-white{border-color:#e2e8f0;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+#navilo-main-content[data-neus-route] table{border-collapse:separate;border-spacing:0}
+#navilo-main-content[data-neus-route] thead th{background:#f8fafc;color:#475569;font-size:11px;font-weight:700;letter-spacing:.035em;text-transform:uppercase;white-space:nowrap}
+#navilo-main-content[data-neus-route] tbody tr{transition:background-color .12s ease}
+#navilo-main-content[data-neus-route] tbody tr:hover{background:#f8fafc}
+#navilo-main-content[data-neus-route] .btn-primary,
+#navilo-main-content[data-neus-route] .btn-secondary,
+#navilo-main-content[data-neus-route] .navilo-report-tool{min-height:38px}
+#navilo-main-content[data-neus-route] input:not([type="checkbox"]):not([type="radio"]),
+#navilo-main-content[data-neus-route] select{min-height:38px}
+.neus-route-search{position:relative;z-index:2}
+@media(max-width:767px){
+ #navilo-main-content[data-neus-route]{padding-inline:0}
+ #navilo-main-content[data-neus-route]>.neus-route-search{margin-inline:0}
+ #navilo-main-content[data-neus-route] .navilo-report-toolbar{max-width:100%;overflow-x:auto;flex-wrap:nowrap}
+ #navilo-main-content[data-neus-route] .navilo-report-tool{flex:0 0 auto}
+}
+@media print{
+ .neus-route-search{display:none!important}
+ #navilo-main-content[data-neus-route]{max-width:none!important;margin:0!important;padding:0!important}
+ #navilo-main-content[data-neus-route] [data-no-print]{display:none!important}
+ #navilo-main-content[data-neus-route] table{width:100%!important}
+ #navilo-main-content[data-neus-route] thead{display:table-header-group}
+ #navilo-main-content[data-neus-route] tr{break-inside:avoid}
+}
