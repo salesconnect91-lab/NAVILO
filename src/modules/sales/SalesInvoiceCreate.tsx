@@ -522,7 +522,7 @@ export default function SalesInvoiceCreate() {
   }));
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-navilo-commercial-standard="true">
       <section className="flex flex-col gap-3 border-b border-slate-200 pb-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <button type="button" onClick={() => navigate("/sales")} className="mb-1 inline-flex items-center gap-1 text-[12px] font-medium text-slate-500 hover:text-blue-700">
