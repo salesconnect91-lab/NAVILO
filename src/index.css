@@ -7018,3 +7018,33 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
  [data-navilo-document-editor="true"] .overflow-x-auto{-webkit-overflow-scrolling:touch}
  [data-navilo-document-editor="true"] table{font-size:.75rem}
 }
+
+/* NAVILO ENTERPRISE INVOICE EDITOR 2026 */
+.navilo-invoice-editor{max-width:1440px!important}
+.navilo-invoice-editor .navilo-page-header{padding:0 2px 12px}
+.navilo-invoice-meta{box-shadow:0 1px 3px rgba(15,23,42,.05)!important}
+.navilo-invoice-meta .label{margin-bottom:5px;display:block}
+.navilo-invoice-meta .input{height:40px;min-height:40px}
+.navilo-invoice-lines{box-shadow:0 1px 3px rgba(15,23,42,.05)!important}
+.navilo-invoice-lines-table{table-layout:fixed}
+.navilo-invoice-lines-table th:nth-child(1){width:22%}
+.navilo-invoice-lines-table th:nth-child(2){width:22%}
+.navilo-invoice-lines-table th:nth-child(3){width:17%}
+.navilo-invoice-lines-table th:nth-child(4){width:11%}
+.navilo-invoice-lines-table th:nth-child(5){width:12%}
+.navilo-invoice-lines-table th:last-child{width:4%}
+.navilo-invoice-lines-table .input{width:100%;min-width:0;height:38px;min-height:38px}
+.navilo-invoice-lines-table td{padding-top:8px!important;padding-bottom:8px!important}
+.navilo-invoice-charges{box-shadow:0 1px 3px rgba(15,23,42,.04)!important}
+.navilo-invoice-totals{box-shadow:0 1px 3px rgba(15,23,42,.05)!important}
+.navilo-invoice-totals .input{height:38px;min-height:38px}
+@media(min-width:1024px){
+ .navilo-invoice-editor{padding-inline:4px}
+ .navilo-invoice-meta{padding:16px 18px!important}
+}
+@media(max-width:767px){
+ .navilo-invoice-editor{gap:12px}
+ .navilo-invoice-meta{padding:12px!important}
+ .navilo-invoice-lines>div:first-child{align-items:flex-start;gap:10px}
+ .navilo-invoice-totals{max-width:none}
+}
