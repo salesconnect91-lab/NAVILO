@@ -227,7 +227,7 @@ export default function OrderBook({ type }: { type: OrderType }) {
   if (loading) return <div className="flex min-h-[320px] items-center justify-center text-sm text-slate-500"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Loading Order Book…</div>;
 
   return (
-    <div id="order-book-report" className="navilo-sales-neus professional-report space-y-4" data-navilo-report-standard="true">
+    <div id="order-book-report" className={`${isSales ? "navilo-sales-neus" : "navilo-purchase-neus"} professional-report space-y-4`} data-navilo-report-standard="true">
       <PageHeader
         title={isSales ? "Sales Order Book" : "Purchase Order Book"}
         subtitle="Commitments only — no stock or accounting entry is posted from Order Book."
