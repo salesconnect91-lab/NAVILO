@@ -263,13 +263,7 @@ export default function ChargeMaster() {
     finally { setSaving(false); if (fileRef.current) fileRef.current.value = ""; }
   };
 
-  const actions = <div className="flex flex-wrap gap-2">
-    <button className="btn-secondary" onClick={downloadTemplate}><Download size={16} />Template</button>
-    {canCreate && <button className="btn-secondary" disabled={saving} onClick={() => fileRef.current?.click()}><Upload size={16} />Import</button>}
-    <input ref={fileRef} hidden type="file" accept=".xlsx,.xls,.csv" onChange={importExcel} />
-    <button className="btn-secondary" onClick={exportExcel}><FileSpreadsheet size={16} />Excel</button>
-    {canCreate && <button className="btn-primary" onClick={startAdd}><Plus size={16} />Add Charge</button>}
-  </div>;
+  const actions = <div className="flex flex-wrap gap-2"><span className="contents" data-navilo-standard-tools-host />{canCreate && <button className="btn-primary" onClick={startAdd}><Plus size={16} />Add Charge</button>}</div>;
 
   return <div className="space-y-5" data-navilo-master-standard="true">
     <PageHeader title="Charge Master" subtitle="Central Sales/Purchase charges: Fixed, Qty, Kg, Ton, %, Manual and Piece with accounting, tax and landed-cost rules." action={actions} />
