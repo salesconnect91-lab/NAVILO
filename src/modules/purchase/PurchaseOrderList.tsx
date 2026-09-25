@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Papa from "papaparse";
 import { supabase } from "@/lib/supabase";
 import { PurchaseOrder } from "@/types";
 import DataTable, { Column } from "@/components/DataTable";
@@ -36,8 +35,7 @@ export default function PurchaseOrderList() {
   const { activeCompany, isPlatformOwner } = useAuth();
   const canCreate = canPerformModule(activeCompany?.membership_role, "purchase", "create", activeCompany?.permissions, isPlatformOwner);
   const canDelete = canPerformModule(activeCompany?.membership_role, "purchase", "delete", activeCompany?.permissions, isPlatformOwner);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [rows, setRows] = useState<PurchaseOrder[]>([]);
+    const [rows, setRows] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -240,34 +238,9 @@ export default function PurchaseOrderList() {
     { key: "actions", label: "Actions", className: "text-right", render: (r) => {
       const isDraft = String(r.status ?? "").toLowerCase() === "draft";
       return <div className="flex justify-end gap-2">
-        <button onClick={() => navigate(`/purchase/${r.id}`)} className="text-primary-600 hover:text-primary-700 text-sm font-medium">{isDraft ? "Edit" : "View"}</button>
-        {isDraft && canDelete && <button onClick={() => void deleteDraft(r)} className="text-rose-600 hover:text-rose-700 text-sm font-medium">Delete</button>}
-      </div>;
-    } },
-  ];
-
-  return (
-    <div>
-      <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleImport} />
-
-      <PageHeader
-        title="Purchase Invoices"
-        subtitle="Manage supplier invoices, payment status, balances & posting"
-        action={(
-          <div className="flex flex-wrap items-center gap-2">
-            {canCreate && (
-              <button
-                onClick={() => navigate("/purchase/consolidated")}
-                className="px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-              >
-                📚 Consolidated Purchase
-              </button>
             )}
             {canCreate && <button onClick={() => navigate("/purchase/new")} className="btn-primary">+ Main Purchase Invoice</button>}
             <span data-navilo-standard-tools-host className="contents" />
-
-            {canCreate && <button type="button" onClick={downloadTemplate} className="btn-secondary">Download Template</button>}
-            {canCreate && <button type="button" onClick={() => fileInputRef.current?.click()} disabled={importing} className="btn-secondary">{importing ? "Uploading..." : "Bulk Upload (CSV)"}</button>}
           </div>
         )}
       />
