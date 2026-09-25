@@ -6989,3 +6989,32 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
  #navilo-main-content[data-navilo-standard="true"] .overflow-x-auto{-webkit-overflow-scrolling:touch;scrollbar-width:thin}
  .navilo-report-toolbar{width:100%;justify-content:flex-start;overflow-x:auto;padding-bottom:2px}
 }
+
+/* NAVILO ENTERPRISE WORKSPACE STANDARD 2026 */
+#navilo-main-content[data-navilo-standard="true"]{background:#f6f8fb}
+#navilo-main-content[data-navilo-standard="true"]>div{width:100%;max-width:1480px;margin-inline:auto}
+.navilo-page-header{background:transparent}
+.navilo-page-actions{flex-shrink:0}
+.navilo-report-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}
+.navilo-report-tool{display:inline-flex;height:2.5rem;align-items:center;gap:.45rem;border:1px solid #d7dee8;border-radius:.625rem;background:#fff;padding:0 .8rem;font-size:.75rem;font-weight:700;color:#334155;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.navilo-report-tool:hover{background:#f8fafc;border-color:#cbd5e1}
+[data-navilo-master-standard="true"] .card,
+[data-navilo-commercial-standard="true"] .card,
+[data-navilo-document-editor="true"] section{border-color:#dfe5ec;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+[data-navilo-document-editor="true"]{max-width:1480px;margin-inline:auto}
+[data-navilo-document-editor="true"] section:not(.navilo-page-header){border-radius:.875rem}
+[data-navilo-document-editor="true"] .input,
+[data-navilo-commercial-standard="true"] .input{min-height:2.5rem;border-color:#cfd8e3}
+@media(max-width:640px){
+ #navilo-main-content[data-navilo-standard="true"]{padding:12px}
+ .navilo-page-header{gap:.75rem;padding-bottom:.875rem}
+ .navilo-page-title{font-size:1.25rem!important;line-height:1.3}
+ .navilo-page-subtitle{font-size:.75rem!important;line-height:1.45}
+ .navilo-page-actions{width:100%}
+ .navilo-page-actions>.btn-primary,.navilo-page-actions>.btn-secondary{min-height:2.5rem}
+ .navilo-report-toolbar{width:100%;gap:.375rem}
+ .navilo-report-tool{height:2.375rem;padding-inline:.65rem}
+ [data-navilo-document-editor="true"] section{min-width:0}
+ [data-navilo-document-editor="true"] .overflow-x-auto{-webkit-overflow-scrolling:touch}
+ [data-navilo-document-editor="true"] table{font-size:.75rem}
+}
