@@ -15,9 +15,9 @@ describe("contextual output actions", () => {
     expect(screen.getByRole("button", { name: "Print receipt" }).style.display).not.toBe("none");
   });
 
-  it("preserves local invoice-list import actions", () => {
-    render(<MemoryRouter initialEntries={["/sales"]}><main id="navilo-main-content"><button type="button">Bulk Upload (CSV)</button></main><UniversalDataTools /></MemoryRouter>);
-    expect(document.querySelector("[data-navilo-global-data-tools]")).toBeNull();
-    expect(screen.getByRole("button", { name: "Bulk Upload (CSV)" }).style.display).not.toBe("none");
+  it("centralizes invoice-list outputs and suppresses duplicate local import actions", async () => {
+    render(<MemoryRouter initialEntries={["/sales"]}><main id="navilo-main-content"><span data-navilo-standard-tools-host /><div data-report-content data-navilo-customizable="true"><button type="button">Bulk Upload (CSV)</button></div></main><UniversalDataTools /></MemoryRouter>);
+    expect(document.querySelector("[data-navilo-global-data-tools]")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Bulk Upload (CSV)", hidden: true }).style.display).toBe("none");
   });
 });
