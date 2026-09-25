@@ -7,6 +7,7 @@ import { hasPermission, roleLabel, type ModuleKey, type PermissionMatrix } from 
 import { FEATURE_BY_KEY } from "@/config/featureRegistry";
 import { usePlatformBranding } from "@/lib/platformBranding";
 import UniversalDataTools from "@/components/UniversalDataTools";
+import NeusRouteSurface from "@/components/NeusRouteSurface";
 
 type NavNode={key:string;label:string;to?:string;end?:boolean;module?:ModuleKey;ownerOnly?:boolean;accessAdminOnly?:boolean;steelOnly?:boolean;icon?:Lucide.LucideIcon;children?:NavNode[]};
 
@@ -120,7 +121,7 @@ export default function Layout({children}:{children:ReactNode}){
     </aside>
     <div className={`min-h-screen transition-all ${offset}`}>
       <header className="navilo-topbar sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="flex min-h-16 items-center gap-3 px-4 py-2 lg:px-5"><button ref={mobileMenuButton} type="button" aria-label="Open navigation" aria-controls="navilo-sidebar" aria-expanded={mobileOpen} onClick={()=>setMobileOpen(true)} className="rounded-md p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 lg:hidden"><Lucide.Menu/></button><button type="button" aria-label={collapsed?"Expand navigation":"Collapse navigation"} aria-controls="navilo-sidebar" aria-expanded={!collapsed} onClick={()=>setCollapsed(v=>!v)} className="hidden h-9 w-9 items-center justify-center rounded-md border focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 lg:flex"><Lucide.PanelLeftClose className={`h-4 w-4 ${collapsed?"rotate-180":""}`}/></button>{location.pathname!=="/"&&<button onClick={()=>navigate(-1)} className="hidden h-9 items-center gap-1 rounded-md border border-blue-300 bg-blue-50 px-3 text-[13px] font-black text-blue-800 sm:inline-flex"><Lucide.ArrowLeft className="h-4 w-4"/>Back</button>}<div className="min-w-0 flex-1"><div className="truncate text-[16px] font-black text-slate-950">{pageTitle}</div></div><UniversalDataTools/><div className="hidden text-right lg:block"><div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{location.pathname.startsWith("/owner")?"Platform Workspace":"Active Company"}</div><div className="max-w-[220px] truncate text-[12px] font-black text-slate-800">{location.pathname.startsWith("/owner")?(branding.show_branding&&branding.erp_name?`${branding.erp_name} Platform`:"Owner Platform"):activeCompany?.company_name??"No company selected"}</div></div></div></header>
-      <main id="navilo-main-content" className="px-3 py-4 sm:px-4 lg:px-5">{children}</main>
+      <main id="navilo-main-content" data-neus-route={location.pathname} className="px-3 py-4 sm:px-4 lg:px-5"><NeusRouteSurface/>{children}</main>
     </div>
   </div>;
 }
