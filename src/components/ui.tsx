@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
-  return <div className="mb-6 flex items-start justify-between gap-4"><div><h1 className="text-2xl font-bold text-slate-900">{title}</h1>{subtitle && <p className="mt-1 text-slate-500">{subtitle}</p>}</div>{action}</div>;
+  return <header className="navilo-page-header mb-5 flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0"><h1 className="navilo-page-title text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">{title}</h1>{subtitle && <p className="navilo-page-subtitle mt-1 max-w-3xl text-sm text-slate-500">{subtitle}</p>}</div>{action&&<div className="navilo-page-actions flex flex-wrap items-center gap-2" data-no-print>{action}</div>}</header>;
 }
 
 export function StatusBadge({ status }: { status: string }) {
