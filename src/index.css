@@ -7147,3 +7147,17 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
  #navilo-main-content[data-neus-route] thead{display:table-header-group}
  #navilo-main-content[data-neus-route] tr{break-inside:avoid}
 }
+
+
+/* NEUS MASTER DATA — PROFESSIONAL ROW ACTIONS */
+[data-navilo-master-standard="true"] td[data-no-export] button,
+[data-navilo-master-standard="true"] td[data-no-print] button{
+  min-height:30px;border:1px solid #e2e8f0;border-radius:7px;background:#fff;padding:5px 9px;
+  font-size:11px;font-weight:700;line-height:1;color:#334155;transition:background-color .12s,border-color .12s;
+}
+[data-navilo-master-standard="true"] td[data-no-export] button:hover,
+[data-navilo-master-standard="true"] td[data-no-print] button:hover{background:#f8fafc;border-color:#cbd5e1}
+[data-navilo-master-standard="true"] td[data-no-export] button.text-red-600,
+[data-navilo-master-standard="true"] td[data-no-print] button.text-red-600{color:#b91c1c;border-color:#fecaca;background:#fff7f7}
+[data-navilo-master-standard="true"] td[data-no-export] button.text-primary-600,
+[data-navilo-master-standard="true"] td[data-no-print] button.text-primary-600{color:#1d4ed8;border-color:#bfdbfe;background:#f8fbff}
