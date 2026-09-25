@@ -19,6 +19,12 @@ begin
   loop
     v_oid := to_regprocedure(v_sig);
     if v_oid is null then
+      -- A fresh checkout does not include the historical live-only company
+      -- deletion RPC. Keep that operation unavailable until its own guarded
+      -- implementation is restored; reset/preview still need this migration.
+      if v_sig = 'public.platform_delete_company(uuid,uuid)' then
+        continue;
+      end if;
       raise exception 'Required platform maintenance function is missing: %', v_sig;
     end if;
 
@@ -39,22 +45,22 @@ begin
     end if;
 
     execute v_new;
+    if v_sig = 'public.platform_delete_company(uuid,uuid)' then
+      execute 'revoke all on function public.platform_delete_company(uuid,uuid) from public, anon, authenticated';
+      execute 'grant execute on function public.platform_delete_company(uuid,uuid) to service_role';
+    end if;
   end loop;
 end
 $migration$;
 
 -- Defense in depth: these SECURITY DEFINER RPCs must never be callable by
 -- browser roles. The backend secret key maps to service_role.
-revoke all on function public.platform_delete_company(uuid,uuid) from public, anon, authenticated;
 revoke all on function public.platform_preview_company_transaction_reset(uuid) from public, anon, authenticated;
 revoke all on function public.platform_reset_company_transactions(uuid,uuid) from public, anon, authenticated;
 
-grant execute on function public.platform_delete_company(uuid,uuid) to service_role;
 grant execute on function public.platform_preview_company_transaction_reset(uuid) to service_role;
 grant execute on function public.platform_reset_company_transactions(uuid,uuid) to service_role;
 
-comment on function public.platform_delete_company(uuid,uuid) is
-  'Platform-owner company deletion. Backend-only: EXECUTE restricted to service_role; caller authorization is enforced by platform-admin Edge Function.';
 comment on function public.platform_preview_company_transaction_reset(uuid) is
   'Backend-only reset preview. EXECUTE restricted to service_role; caller authorization is enforced by platform-admin Edge Function.';
 comment on function public.platform_reset_company_transactions(uuid,uuid) is

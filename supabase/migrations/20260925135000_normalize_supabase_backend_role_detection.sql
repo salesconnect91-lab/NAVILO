@@ -59,9 +59,17 @@ end
 $migration$;
 
 -- Keep destructive maintenance RPCs backend-only.
-revoke all on function public.platform_delete_company(uuid,uuid) from public, anon, authenticated;
+do $migration$
+begin
+  -- This RPC exists on some live schemas, but its defining migration is not
+  -- present in the fresh local migration chain. Never create it implicitly.
+  if to_regprocedure('public.platform_delete_company(uuid,uuid)') is not null then
+    execute 'revoke all on function public.platform_delete_company(uuid,uuid) from public, anon, authenticated';
+    execute 'grant execute on function public.platform_delete_company(uuid,uuid) to service_role';
+  end if;
+end
+$migration$;
 revoke all on function public.platform_preview_company_transaction_reset(uuid) from public, anon, authenticated;
 revoke all on function public.platform_reset_company_transactions(uuid,uuid) from public, anon, authenticated;
-grant execute on function public.platform_delete_company(uuid,uuid) to service_role;
 grant execute on function public.platform_preview_company_transaction_reset(uuid) to service_role;
 grant execute on function public.platform_reset_company_transactions(uuid,uuid) to service_role;
