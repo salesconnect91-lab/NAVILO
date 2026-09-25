@@ -694,7 +694,7 @@ export default function SalesInvoiceList() {
         </div>
       </div>
 
-      <section data-report-content className="space-y-4">
+      <section data-report-content data-navilo-customizable="true" className="space-y-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <h2 className="navilo-report-title text-lg font-bold text-slate-900">Sales Invoices</h2>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
