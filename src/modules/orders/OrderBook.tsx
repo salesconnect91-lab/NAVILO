@@ -251,7 +251,7 @@ export default function OrderBook({ type }: { type: OrderType }) {
         <div className="flex flex-wrap gap-2">{(["all", "open", "rate_pending", "completed"] as const).map((value) => <button key={value} type="button" className={filter === value ? "btn-primary" : "btn-secondary"} onClick={() => setFilter(value)}>{value.replace("_", " ")}</button>)}</div>
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <section data-report-content data-navilo-customizable="true" data-navilo-print-surface className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <div className="overflow-x-auto">
           <table id="order-book-table" className="w-full min-w-[1050px] text-sm">
             <thead className="bg-slate-50"><tr className="border-b border-slate-200"><th className="p-3 text-left">Order</th><th className="p-3 text-left">Date</th><th className="p-3 text-left">Party</th>{isSales && <th className="p-3 text-left">Salesperson</th>}<th className="p-3 text-left">Item</th><th className="p-3 text-right">Ordered</th><th className="p-3 text-right">Fulfilled</th><th className="p-3 text-right">Balance</th><th className="p-3 text-right">Rate</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">Action</th></tr></thead>
