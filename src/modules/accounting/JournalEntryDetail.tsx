@@ -141,6 +141,7 @@ export default function JournalEntryDetail() {
 
   const [entry, setEntry] =
     useState<JournalEntry | null>(null);
+  const [companyBaseCurrency, setCompanyBaseCurrency] = useState("");
 
   const [lines, setLines] =
     useState<JournalLine[]>([]);
@@ -214,6 +215,11 @@ export default function JournalEntryDetail() {
       setEntry(
         data as JournalEntry | null
       );
+      if (data?.company_id) {
+        const { data: company } = await supabase.from("companies")
+          .select("base_currency_code").eq("id", data.company_id).maybeSingle();
+        setCompanyBaseCurrency(company?.base_currency_code || "");
+      }
 
       const { data: linkedReversal, error: reversalError } = await supabase
         .from("journal_entries")
@@ -550,6 +556,12 @@ export default function JournalEntryDetail() {
 
   const totalCredit =
     existingCredit + draftCredit;
+
+  const journalDisplayCurrency = entry?.currency_code && companyBaseCurrency
+    ? (entry.status === "posted" ? companyBaseCurrency : entry.currency_code) : "";
+  const formatJournalAmount = (amount: number) => journalDisplayCurrency && journalDisplayCurrency !== "PKR"
+    ? `${journalDisplayCurrency} ${Number(amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : formatCurrency(amount);
 
   const difference =
     totalDebit - totalCredit;
@@ -1772,9 +1784,9 @@ export default function JournalEntryDetail() {
 
       if (!balanced) {
         setError(
-          `Journal is not balanced. Debit ${formatCurrency(
+          `Journal is not balanced. Debit ${formatJournalAmount(
             totalDebit
-          )} must equal Credit ${formatCurrency(
+          )} must equal Credit ${formatJournalAmount(
             totalCredit
           )}.`
         );
@@ -1853,7 +1865,8 @@ export default function JournalEntryDetail() {
           error,
         } =
           await supabase.rpc(
-            "post_journal_entry",
+            companyBaseCurrency && entry.currency_code && entry.currency_code !== companyBaseCurrency
+              ? "post_foreign_manual_journal" : "post_journal_entry",
             {
               p_entry_id:
                 entry.id,
@@ -1884,7 +1897,7 @@ export default function JournalEntryDetail() {
         ]);
 
         setSuccess(
-          "Journal entry posted successfully. General Ledger and Party Ledger were created through the database posting transaction."
+          "Journal entry posted successfully. General Ledger and Party Ledger were created in company base currency."
         );
       } catch (err: any) {
         setError(
@@ -2023,6 +2036,7 @@ export default function JournalEntryDetail() {
 
   const isPosted =
     entry.status === "posted";
+  const isForeignJournal = Boolean(companyBaseCurrency && entry.currency_code && entry.currency_code !== companyBaseCurrency);
 
   const isManualJournal =
     !entry.reversal_of_entry_id &&
@@ -2148,6 +2162,13 @@ export default function JournalEntryDetail() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {entry.currency_code && companyBaseCurrency && (
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Currency</div>
+            <div className="mt-1 font-semibold text-slate-800">{entry.currency_code} · base {companyBaseCurrency}</div>
+            {isForeignJournal && <div className="mt-1 text-xs text-slate-600">1 {entry.currency_code} = {entry.exchange_rate} {companyBaseCurrency}. {isPosted ? "Posted amounts below are in base currency; original amounts appear on each line." : "Enter draft line amounts in the journal currency."}</div>}
+          </div>
+        )}
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
             Posting Date
@@ -2166,7 +2187,7 @@ export default function JournalEntryDetail() {
           </div>
 
           <div className="font-semibold text-slate-800 mt-1">
-            {formatCurrency(
+            {formatJournalAmount(
               totalDebit
             )}
           </div>
@@ -2178,7 +2199,7 @@ export default function JournalEntryDetail() {
           </div>
 
           <div className="font-semibold text-slate-800 mt-1">
-            {formatCurrency(
+            {formatJournalAmount(
               totalCredit
             )}
           </div>
@@ -2204,7 +2225,7 @@ export default function JournalEntryDetail() {
           {!balanced && (
             <div className="text-xs text-rose-500 mt-1">
               Difference:{" "}
-              {formatCurrency(
+              {formatJournalAmount(
                 Math.abs(
                   difference
                 )
@@ -2309,24 +2330,26 @@ export default function JournalEntryDetail() {
                             {Number(
                               line.debit
                             ) > 0
-                              ? formatCurrency(
+                              ? formatJournalAmount(
                                   Number(
                                     line.debit
                                   )
                                 )
                               : "—"}
+                            {isForeignJournal && isPosted && Number(line.source_debit) > 0 && <div className="text-[11px] text-slate-500">Original: {Number(line.source_debit).toFixed(2)} {entry.currency_code}</div>}
                           </td>
 
                           <td className="py-3.5 px-4 text-right text-slate-700 font-mono">
                             {Number(
                               line.credit
                             ) > 0
-                              ? formatCurrency(
+                              ? formatJournalAmount(
                                   Number(
                                     line.credit
                                   )
                                 )
                               : "—"}
+                            {isForeignJournal && isPosted && Number(line.source_credit) > 0 && <div className="text-[11px] text-slate-500">Original: {Number(line.source_credit).toFixed(2)} {entry.currency_code}</div>}
                           </td>
 
                           {!isPosted && (
@@ -2678,13 +2701,13 @@ export default function JournalEntryDetail() {
                       </td>
 
                       <td className="px-4 py-3 text-right font-mono font-bold">
-                        {formatCurrency(
+                        {formatJournalAmount(
                           draftDebit
                         )}
                       </td>
 
                       <td className="px-4 py-3 text-right font-mono font-bold">
-                        {formatCurrency(
+                        {formatJournalAmount(
                           draftCredit
                         )}
                       </td>
@@ -2738,13 +2761,13 @@ export default function JournalEntryDetail() {
                   </td>
 
                   <td className="py-4 px-4 text-right font-mono font-bold text-slate-900">
-                    {formatCurrency(
+                    {formatJournalAmount(
                       totalDebit
                     )}
                   </td>
 
                   <td className="py-4 px-4 text-right font-mono font-bold text-slate-900">
-                    {formatCurrency(
+                    {formatJournalAmount(
                       totalCredit
                     )}
                   </td>
@@ -2780,7 +2803,7 @@ export default function JournalEntryDetail() {
                   ) > 0.001 && (
                     <span className="ml-2 font-semibold">
                       Difference:{" "}
-                      {formatCurrency(
+                      {formatJournalAmount(
                         Math.abs(
                           difference
                         )

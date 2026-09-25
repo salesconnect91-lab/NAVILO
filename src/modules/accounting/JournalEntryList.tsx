@@ -432,7 +432,35 @@ export default function JournalEntryList() {
           .toISOString()
           .split("T")[0],
       description: "",
+      currency_code: "",
     });
+  const [baseCurrency, setBaseCurrency] = useState("");
+  const [activeCompanyId, setActiveCompanyId] = useState("");
+  const [availableCurrencies, setAvailableCurrencies] = useState<{ code: string; name: string }[]>([]);
+
+  useEffect(() => {
+    const loadCurrency = async () => {
+      const { data: companyId, error: contextError } = await supabase.rpc("current_company_id");
+      if (contextError || !companyId) return;
+      const [company, currencies] = await Promise.all([
+        supabase.from("companies").select("base_currency_code").eq("id", String(companyId)).single(),
+        supabase.from("currency_master").select("code,name").eq("is_active", true).order("code"),
+      ]);
+      if (company.error || currencies.error) return;
+      setActiveCompanyId(String(companyId));
+      setBaseCurrency(company.data.base_currency_code);
+      setAvailableCurrencies(currencies.data || []);
+    };
+    void loadCurrency();
+    const reload = () => {
+      setAvailableCurrencies([]);
+      setBaseCurrency("");
+      setForm(current => ({ ...current, currency_code: "" }));
+      void loadCurrency();
+    };
+    window.addEventListener("navilo-workspace-changed", reload);
+    return () => window.removeEventListener("navilo-workspace-changed", reload);
+  }, []);
 
   const [creating, setCreating] =
     useState(false);
@@ -541,6 +569,14 @@ export default function JournalEntryList() {
 
     try {
       setCreating(true);
+      const selectedCurrency = form.currency_code || baseCurrency;
+      if (baseCurrency && selectedCurrency !== baseCurrency) {
+        const { data: effectiveRate, error: rateError } = await supabase.rpc("company_exchange_rate_on", {
+          p_company_id: activeCompanyId, p_currency_code: selectedCurrency, p_on: form.entry_date,
+        });
+        if (rateError) throw rateError;
+        if (effectiveRate == null) throw new Error(`No ${selectedCurrency} exchange rate exists for ${form.entry_date}. Record it in Company Settings first.`);
+      }
 
       const {
         data,
@@ -558,6 +594,7 @@ export default function JournalEntryList() {
             form.description.trim(),
 
           status: "draft",
+          ...(baseCurrency && selectedCurrency !== baseCurrency ? { currency_code: selectedCurrency } : {}),
         })
         .select()
         .single();
@@ -2501,7 +2538,9 @@ export default function JournalEntryList() {
 
       const { data: lines, error: linesError } = await supabase
         .from("journal_lines")
-        .select(`id, account, debit, credit, account_id, coa:chart_of_accounts(code,name)`)
+        .select(baseCurrency
+          ? `id, account, debit, credit, source_debit, source_credit, account_id, coa:chart_of_accounts(code,name)`
+          : `id, account, debit, credit, account_id, coa:chart_of_accounts(code,name)`)
         .eq("entry_id", entry.id)
         .order("id", { ascending: true });
 
@@ -2512,12 +2551,16 @@ export default function JournalEntryList() {
         .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
       const money = (value: unknown) => Number(value ?? 0).toLocaleString("en-SA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const foreign = Boolean(baseCurrency && entry.currency_code && entry.currency_code !== baseCurrency);
+      const postedCurrency = entry.status === "posted" ? baseCurrency : entry.currency_code;
       const totalDebit = (lines ?? []).reduce((sum: number, line: any) => sum + Number(line.debit ?? 0), 0);
       const totalCredit = (lines ?? []).reduce((sum: number, line: any) => sum + Number(line.credit ?? 0), 0);
       const lineRows = (lines ?? []).map((line: any, index: number) => {
         const coa = Array.isArray(line.coa) ? line.coa[0] : line.coa;
         const accountName = coa?.code && coa?.name ? `${coa.name}` : line.account || line.account_id || "—";
-        return `<tr><td class="center">${index + 1}</td><td>${safe(accountName)}</td><td class="right">${money(line.debit)}</td><td class="right">${money(line.credit)}</td></tr>`;
+        const source = foreign && entry.status === "posted" && (Number(line.source_debit) > 0 || Number(line.source_credit) > 0)
+          ? `<div class="sub">Original ${safe(entry.currency_code)}: ${money(line.source_debit)} / ${money(line.source_credit)}</div>` : "";
+        return `<tr><td class="center">${index + 1}</td><td>${safe(accountName)}${source}</td><td class="right">${money(line.debit)}</td><td class="right">${money(line.credit)}</td></tr>`;
       }).join("");
 
       const printWindow = window.open("", "_blank", "width=950,height=1000");
@@ -2528,11 +2571,11 @@ export default function JournalEntryList() {
       </style></head><body><div class="toolbar"><button onclick="window.print()">🖨 Print Voucher</button></div><div class="sheet">
       <div class="header"><div><div class="brand">NAVILO</div><div class="sub">Accounting Journal Voucher</div></div><div><div class="title">Journal Voucher</div><div class="voucher-no">Voucher No:::<strong>${safe(entry.entry_no)}</strong></div></div></div>
       <div class="meta"><div><div class="label">Entry Date</div><div class="value">${safe(formatDate(entry.entry_date))}</div></div><div><div class="label">Status</div><div class="status">${safe(entry.status)}</div></div><div><div class="label">Payment Mode</div><div class="value">${safe((entry as any).payment_mode || "General")}</div></div><div><div class="label">Party</div><div class="value">${safe((entry as any).party_name || "—")}</div></div></div>
-      <div class="label">Journal Lines</div><table><thead><tr><th class="center">#</th><th>Account</th><th class="right">Debit</th><th class="right">Credit</th></tr></thead><tbody>${lineRows}</tbody><tfoot><tr class="total"><td colspan="2">TOTAL</td><td class="right">${money(totalDebit)}</td><td class="right">${money(totalCredit)}</td></tr></tfoot></table>
+      <div class="label">Journal Lines · ${safe(postedCurrency || "")} ${foreign ? `· 1 ${safe(entry.currency_code)} = ${safe(entry.exchange_rate)} ${safe(baseCurrency)}` : ""}</div><table><thead><tr><th class="center">#</th><th>Account</th><th class="right">Debit</th><th class="right">Credit</th></tr></thead><tbody>${lineRows}</tbody><tfoot><tr class="total"><td colspan="2">TOTAL</td><td class="right">${money(totalDebit)}</td><td class="right">${money(totalCredit)}</td></tr></tfoot></table>
       <div class="description"><div class="label">Description</div><div style="margin-top:7px">${safe(entry.description || "—")}</div></div><div class="footer"><div><strong>NAVILO</strong><br/>Official accounting record. Keep this voucher for your records.</div><div class="signature">Authorized Signature</div></div></div></body></html>`);
       printWindow.document.close(); printWindow.focus(); setTimeout(() => printWindow.print(), 250);
     } catch (err: any) { setError(err?.message || "Failed to print journal voucher."); }
-  }, []);
+  }, [baseCurrency]);
 
   /* =======================================================
      UI
@@ -2585,6 +2628,7 @@ export default function JournalEntryList() {
                     .split("T")[0],
 
                 description: "",
+                currency_code: "",
               });
 
               setError(null);
@@ -2820,6 +2864,21 @@ export default function JournalEntryList() {
                     })
                   }
                 />
+
+              </div>
+
+              <div>
+
+                {baseCurrency && availableCurrencies.length > 0 && (
+                  <label className="block text-xs font-semibold">
+                    Journal currency (company base: {baseCurrency})
+                    <select className="mt-1 w-full border rounded p-2" value={form.currency_code || baseCurrency}
+                      onChange={event => setForm(current => ({ ...current, currency_code: event.target.value }))}>
+                      {availableCurrencies.map(currency => <option key={currency.code} value={currency.code}>{currency.code} · {currency.name}</option>)}
+                    </select>
+                    <span className="mt-1 block font-normal text-slate-500">Foreign entries use the rate effective on the entry date. Enter line amounts in the selected currency.</span>
+                  </label>
+                )}
 
               </div>
 
