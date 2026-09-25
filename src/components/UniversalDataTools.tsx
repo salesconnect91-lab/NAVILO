@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Download, FileText, Printer, Settings2, Sheet, Table2, Upload } from "lucide-react";
+import { Download, FileText, Printer, Settings2, Sheet, Table2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission, type ModuleKey } from "@/auth/permissions";
@@ -139,9 +139,7 @@ export default function UniversalDataTools(){
   const runUpload=()=>{findLocalAction(isUploadAction)?.click();setImportOpen(false)};
   const base=(reportMode||masterMode)?"navilo-report-tool":"inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-[12px] font-bold text-slate-700 shadow-sm hover:bg-slate-50";
   const toolbar=(reportMode||masterMode)?<div className="navilo-report-toolbar" ref={ref} data-no-print data-no-export data-navilo-global-data-tools>
-    {!invoiceEditor&&customizable&&<button type="button" onClick={()=>window.dispatchEvent(new Event("navilo:report-customize"))} className={base}><Settings2 className="h-4 w-4"/><span>Customize</span></button>}
-    {!invoiceEditor&&canCreate&&masterMode&&<button type="button" onClick={()=>navigate("/settings/imports")} className={base}><Upload className="h-4 w-4"/><span>Import Center</span></button>}
-    {!invoiceEditor&&!masterMode&&canCreate&&(hasTemplate||hasUpload)&&<div className="relative"><button type="button" onClick={()=>{setImportOpen(v=>!v);setOpen(false)}} className={base}><Upload className="h-4 w-4"/><span>Import</span></button>{importOpen&&<div className="absolute right-0 top-10 z-[75] w-52 rounded-lg border bg-white py-1 shadow-xl">{hasTemplate&&<button type="button" onClick={runTemplate} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50"><FileText className="h-4 w-4"/>Download Template</button>}{hasUpload&&<button type="button" onClick={runUpload} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50"><Upload className="h-4 w-4"/>Choose File / Upload</button>}</div>}</div>}
+    {!invoiceEditor&&customizable&&<button type="button" onClick={()=>window.dispatchEvent(new Event("navilo:report-customize"))} className={base}><Settings2 className="h-4 w-4"/><span>Customize</span></button>}}
     {!invoiceEditor&&canExport&&<div className="relative"><button type="button" onClick={()=>{setOpen(v=>!v);setImportOpen(false)}} className={base}><Download className="h-4 w-4"/><span className="hidden xl:inline">Export</span></button>{open&&<div className="absolute right-0 top-10 z-[70] w-48 rounded-lg border bg-white py-1 shadow-xl"><button type="button" onClick={()=>exp("excel")} className="flex w-full gap-2 px-3 py-2 text-xs"><Sheet className="h-4 w-4"/>Excel (.xlsx)</button><button type="button" onClick={()=>exp("csv")} className="flex w-full gap-2 px-3 py-2 text-xs"><Table2 className="h-4 w-4"/>CSV (.csv)</button><button type="button" onClick={()=>exp("word")} className="flex w-full gap-2 px-3 py-2 text-xs"><FileText className="h-4 w-4"/>Word (.doc)</button></div>}</div>}
     {!invoiceEditor&&canPrint&&!hasLocalDocumentOutput&&<button type="button" data-print-selector={reportSelector()} onClick={print} className={base}><Printer className="h-4 w-4"/><span className="hidden xl:inline">Print / PDF</span></button>}
   </div>:null;
