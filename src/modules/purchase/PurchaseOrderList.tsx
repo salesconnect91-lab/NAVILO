@@ -98,61 +98,41 @@ export default function PurchaseOrderList() {
     { key: "actions", label: "Actions", className: "text-right", render: (r) => {
       const isDraft = String(r.status ?? "").toLowerCase() === "draft";
       return <div className="flex justify-end gap-2">
-            )}
-            {canCreate && <button onClick={() => navigate("/purchase/new")} className="btn-primary">+ Main Purchase Invoice</button>}
-            <span data-navilo-standard-tools-host className="contents" />
-          </div>
-        )}
+        <button className="btn-secondary text-xs" onClick={() => navigate(`/purchase/${r.id}`)}>Open</button>
+        {isDraft && canDelete && <button className="btn-danger text-xs" onClick={() => void deleteDraft(r)}>Delete</button>}
+      </div>;
+    }},
+  ];
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="Purchase Invoices"
+        subtitle="Manage supplier invoices, payment status, balances & posting"
+        action={<div className="flex flex-wrap items-center gap-2">
+          {canCreate && <button onClick={() => navigate("/purchase/new")} className="btn-primary">+ Main Purchase Invoice</button>}
+          <span data-navilo-standard-tools-host className="contents" />
+        </div>}
       />
 
       <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-3 md:grid-cols-[minmax(0,1fr)_180px_180px]" data-no-export data-no-print>
-        <input
-          className="input"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search invoice, supplier or status…"
-        />
+        <input className="input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search invoice, supplier or status…" />
         <select className="input" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-          <option value="all">All Types</option>
-          <option value="without-tax">Without Tax</option>
-          <option value="with-tax">With Tax</option>
+          <option value="all">All Types</option><option value="without-tax">Without Tax</option><option value="with-tax">With Tax</option>
         </select>
         <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="all">All Posting Statuses</option>
-          <option value="draft">Draft</option>
-          <option value="posted">Posted</option>
-          <option value="cancelled">Cancelled</option>
+          <option value="all">All Posting Statuses</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option>
         </select>
       </div>
 
       {error && <ErrorBanner message={error} />}
       <div data-report-content data-navilo-customizable="true" className="rounded-xl border border-slate-200 bg-white p-3">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="navilo-report-title text-base font-bold text-slate-900">Purchase Invoices</h2>
-            {(search || typeFilter !== "all" || statusFilter !== "all") && (
-              <p className="text-xs text-slate-500">
-                Active filters: {search ? `Search “${search}” ` : ""}{typeFilter !== "all" ? `• ${typeFilter === "with-tax" ? "With Tax" : "Without Tax"} ` : ""}{statusFilter !== "all" ? `• ${statusFilter}` : ""}
-              </p>
-            )}
-          </div>
-        </div>
-
+        <div className="mb-3 flex items-center justify-between gap-3"><div><h2 className="navilo-report-title text-base font-bold text-slate-900">Purchase Invoices</h2>{(search || typeFilter !== "all" || statusFilter !== "all") && <p className="text-xs text-slate-500">Active filters: {search ? `Search “${search}” ` : ""}{typeFilter !== "all" ? `• ${typeFilter === "with-tax" ? "With Tax" : "Without Tax"} ` : ""}{statusFilter !== "all" ? `• ${statusFilter}` : ""}</p>}</div></div>
         <div className="mb-3 grid gap-3 md:grid-cols-3" data-no-export>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
-            <div className="text-xs text-slate-500">Visible Invoices</div>
-            <div className="mt-2 text-sm font-bold text-slate-900">{filteredRows.length}</div>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
-            <div className="text-xs text-slate-500">Purchase Total</div>
-            <div className="mt-2 text-sm font-bold text-slate-900">{formatCurrency(visiblePurchaseTotal)}</div>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
-            <div className="text-xs text-slate-500">Posted Purchase Total</div>
-            <div className="mt-2 text-sm font-bold text-slate-900">{formatCurrency(visiblePostedTotal)}</div>
-          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3"><div className="text-xs text-slate-500">Visible Invoices</div><div className="mt-2 text-sm font-bold text-slate-900">{filteredRows.length}</div></div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3"><div className="text-xs text-slate-500">Purchase Total</div><div className="mt-2 text-sm font-bold text-slate-900">{formatCurrency(visiblePurchaseTotal)}</div></div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3"><div className="text-xs text-slate-500">Posted Purchase Total</div><div className="mt-2 text-sm font-bold text-slate-900">{formatCurrency(visiblePostedTotal)}</div></div>
         </div>
-
         <DataTable columns={columns} rows={filteredRows} loading={loading} emptyMessage="No Main Purchase Invoices found." />
       </div>
     </div>
