@@ -6895,3 +6895,57 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
     width: 100%;
   }
 }
+
+/* NAVILO MASTER DATA STANDARD 2026 */
+#navilo-main-content:has([data-navilo-master-standard="true"]) {
+  background: #f6f8fb;
+}
+[data-navilo-master-standard="true"] {
+  width: 100%;
+  max-width: 1480px;
+  margin-inline: auto;
+}
+[data-navilo-master-standard="true"] > * {
+  min-width: 0;
+}
+[data-navilo-master-standard="true"] h1 {
+  color: #101828;
+  letter-spacing: -0.025em;
+}
+[data-navilo-master-standard="true"] table {
+  min-width: 720px;
+}
+[data-navilo-master-standard="true"] table th {
+  white-space: nowrap;
+}
+[data-navilo-master-standard="true"] table td {
+  vertical-align: middle;
+}
+[data-navilo-master-standard="true"] .overflow-x-auto {
+  scrollbar-width: thin;
+}
+@media (max-width: 640px) {
+  #navilo-main-content:has([data-navilo-master-standard="true"]) {
+    padding: 12px;
+  }
+  [data-navilo-master-standard="true"] {
+    gap: 12px;
+  }
+  [data-navilo-master-standard="true"] > div:first-child {
+    align-items: flex-start;
+  }
+  [data-navilo-master-standard="true"] h1 {
+    font-size: 20px !important;
+    line-height: 1.25 !important;
+  }
+  [data-navilo-master-standard="true"] p {
+    line-height: 1.45;
+  }
+  [data-navilo-master-standard="true"] .btn-primary,
+  [data-navilo-master-standard="true"] .btn-secondary {
+    min-height: 40px;
+  }
+  [data-navilo-master-standard="true"] table {
+    font-size: 12px !important;
+  }
+}
