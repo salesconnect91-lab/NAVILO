@@ -1,7 +1,7 @@
 import SearchableSelect from "@/components/SearchableSelect";
-import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import { Download, FileSpreadsheet, Pencil, Plus, Power, Save, Trash2, Upload, X } from "lucide-react";
+import { Download, FileSpreadsheet, Pencil, Plus, Power, Save, Search, Trash2, Upload, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toUrduName } from "@/lib/urdu";
 import { ErrorBanner, Modal, PageHeader } from "@/components/ui";
@@ -193,7 +193,7 @@ export default function ChargeMaster() {
   const unitLabel = (unit: ChargeUnit) => UNIT_OPTIONS.find((option) => option.value === unit)?.label || unit;
 
   const exportExcel = () => {
-    const sheet = XLSX.utils.json_to_sheet(charges.map((charge) => ({
+    const sheet = XLSX.utils.json_to_sheet(visibleCharges.map((charge) => ({
       "Charge Name": charge.charge_name,
       "Urdu Name": charge.charge_name_urdu ?? "",
       Type: charge.charge_type,
@@ -263,11 +263,15 @@ export default function ChargeMaster() {
     finally { setSaving(false); if (fileRef.current) fileRef.current.value = ""; }
   };
 
+  const [search, setSearch] = useState("");
+  const visibleCharges = useMemo(() => { const q = search.trim().toLowerCase(); if (!q) return charges; return charges.filter((x) => [x.charge_name, x.charge_name_urdu, x.charge_key, x.charge_type, x.unit, x.applies_to, x.purchase_treatment, accountLabel(x.revenue_account_id), accountLabel(x.cost_account_id), x.is_active ? "active" : "inactive"].some((v) => String(v ?? "").toLowerCase().includes(q))); }, [charges, search, accounts]);
+
   const actions = <div className="flex flex-wrap gap-2"><span className="contents" data-navilo-standard-tools-host />{canCreate && <button className="btn-primary" onClick={startAdd}><Plus size={16} />Add Charge</button>}</div>;
 
   return <div className="space-y-5" data-navilo-master-standard="true">
     <PageHeader title="Charge Master" subtitle="Central Sales/Purchase charges: Fixed, Qty, Kg, Ton, %, Manual and Piece with accounting, tax and landed-cost rules." action={actions} />
     {error && <ErrorBanner message={error} />}
+    <div className="navilo-master-filterbar flex items-center gap-2 px-3 py-2" data-report-filters data-no-print data-no-export><Search className="h-4 w-4 text-slate-400" /><input className="w-full bg-transparent outline-none" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search charge, basis, account, treatment or status..." />{search && <button type="button" className="text-xs font-semibold text-primary-600" onClick={() => setSearch("")}>Clear</button>}</div>
     <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="overflow-x-auto rounded-xl border bg-white"><table className="w-full text-sm"><thead className="bg-slate-50"><tr><th className="p-3 text-left">Charge</th><th className="p-3 text-right">Urdu Name</th><th className="p-3">Basis / Rate</th><th className="p-3">Applies To</th><th className="p-3">Purchase Treatment</th><th className="p-3">Revenue COA</th><th className="p-3">Cost COA</th><th className="p-3">Tax</th><th className="p-3">Status</th><th /></tr></thead><tbody>{loading ? <tr><td colSpan={10} className="p-6 text-center">Loading...</td></tr> : charges.map((charge) => <tr key={charge.id} className="border-t"><td className="p-3"><div className="font-medium">{charge.charge_name}</div><div className="text-xs text-slate-400">{charge.charge_key} · {charge.charge_type}</div></td><td dir="rtl" className="p-3 text-right">{charge.charge_name_urdu || "—"}</td><td className="p-3 whitespace-nowrap"><div>{unitLabel(charge.unit)}</div><div className="text-xs text-slate-500">{charge.unit === "manual" ? "Entered on document" : `Rate ${Number(charge.default_rate || 0).toLocaleString()}${charge.is_fixed ? " · Locked" : ""}`}</div></td><td className="p-3 capitalize">{charge.applies_to}</td><td className="p-3">{charge.applies_to === "sales" ? "—" : charge.purchase_treatment === "expense" ? "Expense" : "Landed Cost / Inventory"}</td><td className="p-3">{accountLabel(charge.revenue_account_id)}</td><td className="p-3">{accountLabel(charge.cost_account_id)}</td><td className="p-3">{charge.tax_applicable ? "Yes" : "No"}</td><td className="p-3">{charge.is_active ? "Active" : "Inactive"}</td><td className="p-3"><div className="flex justify-end gap-2">{canEdit && <button onClick={() => startEdit(charge)} className="rounded border p-2"><Pencil size={15} /></button>}{canEdit && <button onClick={() => void toggle(charge)} className="rounded border p-2"><Power size={15} /></button>}{canDelete && <button onClick={() => void remove(charge)} className="rounded border p-2 text-red-600"><Trash2 size={15} /></button>}</div></td></tr>)}</tbody></table></div>
 
     <Modal open={open} title={editingId ? "Edit Charge" : "Add Charge"} onClose={() => !saving && setOpen(false)}>
