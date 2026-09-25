@@ -73,7 +73,7 @@ export default function Categories(){
      </div>}
    </div>
 
-   <section data-report-content className="space-y-3 rounded-xl bg-white print:shadow-none">
+   <section data-report-content data-navilo-customizable="true" className="space-y-3 rounded-xl bg-white print:shadow-none">
      <div className="border-b border-slate-200 px-4 py-4">
        <div className="navilo-report-title text-xl font-bold text-slate-900">Categories Master</div>
        <div className="mt-1 text-xs text-slate-500">{shown.length} categor{shown.length===1?"y":"ies"}{showUrdu?` • ${translationFilter==="all"?"All translations":translationFilter==="available"?"Urdu available":"Urdu missing"}`:""} • {descriptionFilter==="all"?"All descriptions":descriptionFilter==="available"?"With description":"Without description"}</div>
