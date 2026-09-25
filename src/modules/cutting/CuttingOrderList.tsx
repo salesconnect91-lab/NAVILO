@@ -87,7 +87,7 @@ export default function CuttingOrderList() {
         action={<button onClick={() => void openCreate()} className="btn-primary">+ New Cutting Order</button>}
       />
       {error && <ErrorBanner message={error} />}
-      <DataTable columns={columns} rows={rows} loading={loading} emptyMessage="No cutting orders yet." />
+      <div data-report-content data-navilo-customizable="true" className="contents"><DataTable columns={columns} rows={rows} loading={loading} emptyMessage="No cutting orders yet." /></div>
 
       <Modal open={modalOpen} title="New Cutting Order" onClose={() => setModalOpen(false)}>
         <form onSubmit={handleSubmit} className="space-y-4">
