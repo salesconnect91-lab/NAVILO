@@ -288,8 +288,8 @@ export default function Customers() {
     { key: "actions", label: "", className: "text-right", render: (r) => <div className="flex justify-end gap-2"><button onClick={() => openEdit(r)} className="text-primary-600 text-sm font-medium">Edit</button><button onClick={() => setDeleteId(r.id)} className={`${r.is_active === false ? "text-emerald-600" : "text-amber-600"} text-sm font-medium`}>{r.is_active === false ? "Activate" : "Deactivate"}</button></div> },
   ];
 
-  return <div>
-    <PageHeader title="Customers" subtitle="Customer accounts" action={<div className="flex flex-wrap items-center gap-2"><button onClick={downloadTemplate} className="btn-secondary">Template</button><label className={`btn-secondary cursor-pointer ${importing ? "opacity-50" : ""}`}>{importing ? "Importing..." : "Import Excel"}<input type="file" accept=".xlsx,.xls,.csv" disabled={importing} onChange={handleImport} className="hidden" /></label><button onClick={exportExcel} className="btn-secondary">Export Excel</button><button onClick={() => window.print()} className="btn-secondary">Print</button><button onClick={openCreate} className="btn-primary">+ New Customer</button></div>} />
+  return <div className="space-y-4" data-navilo-master-standard="true">
+    <PageHeader title="Customers" subtitle="Customer accounts" action={<div className="flex flex-wrap items-center gap-2"><button onClick={openCreate} className="btn-primary">+ New Customer</button></div>} />
     {error && <ErrorBanner message={error} />}
     <DataTable columns={columns} rows={rows} loading={loading} emptyMessage="No customers yet." />
 
