@@ -29,19 +29,13 @@ begin
     end if;
 
     v_def := pg_get_functiondef(v_oid);
-    v_new := replace(
-      v_def,
-      E'  if coalesce(current_setting(''request.jwt.claim.role'', true),'''') <> ''service_role'' then\n    raise exception ''Service role required'';\n  end if;\n',
-      ''
-    );
-    v_new := replace(
-      v_new,
-      E'  if coalesce(current_setting(''request.jwt.claim.role'',true),'''')<>''service_role'' then raise exception ''Service role required''; end if;\n',
-      ''
-    );
+    -- PostgreSQL preserves the function body with varying whitespace and
+    -- dollar-quote formatting. Change only the setting read by the existing
+    -- service_role guard, leaving the guard and its error in place.
+    v_new := replace(v_def, '''request.jwt.claim.role''', '''role''');
 
     if v_new = v_def then
-      raise exception 'Expected legacy service-role JWT guard was not found in %', v_sig;
+      raise exception 'Expected legacy service-role setting was not found in %', v_sig;
     end if;
 
     execute v_new;

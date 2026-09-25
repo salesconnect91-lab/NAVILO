@@ -1,24 +1,6 @@
--- Normalize backend-role detection for both legacy JWT service_role keys and
--- modern Supabase sb_secret_* keys. PostgREST exposes the impersonated database
--- role through the standard "role" setting; JWT claims are not guaranteed for
--- the modern non-JWT secret key format.
-
-create or replace function public.navilo_request_role()
-returns text
-language sql
-stable
-security invoker
-set search_path to 'public','pg_temp'
-as $$
-  select coalesce(
-    nullif(current_setting('role', true), ''),
-    nullif(current_setting('request.jwt.claim.role', true), ''),
-    ''
-  )
-$$;
-
-revoke all on function public.navilo_request_role() from public, anon;
-grant execute on function public.navilo_request_role() to authenticated, service_role;
+-- PostgREST sets the impersonated database role for both legacy JWT keys and
+-- modern sb_secret_* keys. The JWT claim is absent for secret keys, so use
+-- the database role for existing authorization checks.
 
 do $migration$
 declare
@@ -44,14 +26,11 @@ begin
       )
   loop
     v_def := pg_get_functiondef(v_oid);
-    v_new := regexp_replace(
-      v_def,
-      $pattern$coalesce[[:space:]]*\([[:space:]]*current_setting[[:space:]]*\([[:space:]]*'request\.jwt\.claim\.role'[[:space:]]*,[[:space:]]*true[[:space:]]*\)[[:space:]]*,[[:space:]]*''[[:space:]]*\)$pattern$,
-      'public.navilo_request_role()',
-      'gi'
-    );
+    -- Retain each existing authorization predicate and change its setting
+    -- source. Exact regexes against pg_get_functiondef() are format fragile.
+    v_new := replace(v_def, '''request.jwt.claim.role''', '''role''');
     if v_new = v_def then
-      raise exception 'Legacy request.jwt.claim.role check was not found in %', v_name;
+      raise exception 'Legacy request.jwt.claim.role setting was not found in %', v_name;
     end if;
     execute v_new;
   end loop;
