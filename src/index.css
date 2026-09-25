@@ -7161,3 +7161,24 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
 [data-navilo-master-standard="true"] td[data-no-print] button.text-red-600{color:#b91c1c;border-color:#fecaca;background:#fff7f7}
 [data-navilo-master-standard="true"] td[data-no-export] button.text-primary-600,
 [data-navilo-master-standard="true"] td[data-no-print] button.text-primary-600{color:#1d4ed8;border-color:#bfdbfe;background:#f8fbff}
+
+
+/* NEUS SALES — ENTERPRISE ROUTE LAYER */
+.navilo-sales-neus{max-width:1500px;margin-inline:auto}
+.navilo-sales-neus [data-report-content],
+.navilo-sales-neus [data-navilo-print-surface]{border-color:#e2e8f0;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+.navilo-sales-neus table thead th{height:40px;background:#f8fafc;color:#475569;font-size:11px;font-weight:700;letter-spacing:.035em;text-transform:uppercase}
+.navilo-sales-neus table tbody td{vertical-align:middle}
+.navilo-sales-neus .btn-primary,.navilo-sales-neus .btn-secondary{min-height:36px}
+.navilo-invoice-detail{max-width:1500px}
+@media(max-width:767px){
+ .navilo-sales-neus{max-width:none}
+ .navilo-sales-neus .overflow-x-auto{overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+ .navilo-sales-neus table{font-size:12px}
+}
+@media print{
+ .navilo-sales-neus [data-no-print],.navilo-sales-neus button{display:none!important}
+ .navilo-sales-neus [data-report-content],.navilo-sales-neus [data-navilo-print-surface]{box-shadow:none!important;border:0!important}
+ .navilo-sales-neus .overflow-x-auto{overflow:visible!important}
+ .navilo-sales-neus table{width:100%!important;min-width:0!important}
+}
