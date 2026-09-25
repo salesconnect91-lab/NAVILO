@@ -291,7 +291,7 @@ export default function Customers() {
   return <div className="space-y-4" data-navilo-master-standard="true">
     <PageHeader title="Customers" subtitle="Customer accounts" action={<div className="flex flex-wrap items-center gap-2"><button onClick={openCreate} className="btn-primary">+ New Customer</button></div>} />
     {error && <ErrorBanner message={error} />}
-    <DataTable columns={columns} rows={rows} loading={loading} emptyMessage="No customers yet." />
+    <div data-report-content data-navilo-customizable="true" className="contents"><DataTable columns={columns} rows={rows} loading={loading} emptyMessage="No customers yet." /></div>
 
     <Modal open={modalOpen} title={editing ? "Edit Customer" : "New Customer"} onClose={() => setModalOpen(false)}>
       <form onSubmit={handleSubmit} className="space-y-4">
