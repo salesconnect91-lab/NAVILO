@@ -56,12 +56,22 @@ function salesInvoiceDetailRoot(){
   const invoiceLines=headings.find(el=>normalize(el.textContent||"").startsWith("invoice lines"));
   return invoiceLines?.closest<HTMLElement>("section.grid")||invoiceLines?.closest<HTMLElement>("section")||invoiceLines?.closest<HTMLElement>(".rounded-lg")||null;
 }
-function reportRoot(){return document.querySelector<HTMLElement>("[data-report-content]")||document.querySelector<HTMLElement>(".professional-report")||document.querySelector<HTMLElement>("#order-book-report")||salesInvoiceDetailRoot()||consolidatedPurchaseRoot()||consolidatedSalesRoot()||chartOfAccountsRoot()||journalDetailRoot()||journalListRoot()||document.querySelector<HTMLElement>("#navilo-main-content")}
+function masterDataRoot(){
+  const path=window.location.pathname;
+  if(!(path.startsWith("/master-data")||path==="/godown/master"||path==="/sales/charges"))return null;
+  const main=document.querySelector<HTMLElement>("#navilo-main-content");
+  if(!main)return null;
+  const marked=main.querySelector<HTMLElement>("[data-report-content],[data-navilo-customizable='true']");
+  if(marked)return marked.closest<HTMLElement>("[data-navilo-print-surface],.navilo-master-data-grid,.rounded-xl.border.bg-white,.card")||marked;
+  const table=main.querySelector<HTMLElement>("table");
+  return table?.closest<HTMLElement>("[data-navilo-print-surface],.rounded-xl.border.bg-white,.card")||table?.parentElement||null;
+}
+function reportRoot(){return document.querySelector<HTMLElement>("[data-report-content]")||document.querySelector<HTMLElement>(".professional-report")||document.querySelector<HTMLElement>("#order-book-report")||salesInvoiceDetailRoot()||consolidatedPurchaseRoot()||consolidatedSalesRoot()||chartOfAccountsRoot()||journalDetailRoot()||journalListRoot()||masterDataRoot()||document.querySelector<HTMLElement>("#navilo-main-content")}
 function reportSelector(){
   if(document.querySelector("[data-report-content]"))return"[data-report-content]";
   if(document.querySelector(".professional-report"))return".professional-report";
   if(document.querySelector("#order-book-report"))return"#order-book-report";
-  const generatedRoot=salesInvoiceDetailRoot()||consolidatedPurchaseRoot()||consolidatedSalesRoot()||chartOfAccountsRoot()||journalDetailRoot()||journalListRoot();
+  const generatedRoot=salesInvoiceDetailRoot()||consolidatedPurchaseRoot()||consolidatedSalesRoot()||chartOfAccountsRoot()||journalDetailRoot()||journalListRoot()||masterDataRoot();
   if(generatedRoot){
     document.querySelectorAll<HTMLElement>("[data-navilo-generated-print-root]").forEach(el=>delete el.dataset.naviloGeneratedPrintRoot);
     generatedRoot.dataset.naviloGeneratedPrintRoot="true";
