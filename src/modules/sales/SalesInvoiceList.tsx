@@ -640,31 +640,15 @@ export default function SalesInvoiceList() {
   ];
 
   return (
-    <div>
+    <div data-navilo-commercial-standard="true">
 
       <PageHeader
         title="Sales Invoices"
         subtitle="Customer invoices, receivables and posting"
         action={
           <div className="flex flex-wrap items-center gap-2" data-navilo-standard-tools-host>
-            <Link
-              to="/sales/report"
-              className="px-3 py-2 text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-1.5"
-            >
-              Salesperson Report
-            </Link>
-
-            {canReceivePayment && <button onClick={() => openReceivePayment()} className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">Receive Payment</button>}
-
-
-            <Link
-              to="/sales/consolidated"
-              className="px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-            >
-              Consolidated Invoices
-            </Link>
-
-            {canCreateSales && <button
+{canReceivePayment && <button onClick={() => openReceivePayment()} className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">Receive Payment</button>}
+{canCreateSales && <button
               onClick={() => navigate("/sales/new")}
               className="btn-primary"
             >
