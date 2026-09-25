@@ -3,7 +3,7 @@ begin;
 do $$
 declare
   v_pkr uuid; v_eur uuid; v_code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
-  v_table text; v_rejected boolean; v_currency text; v_rate numeric;
+  v_table text; v_rejected boolean; v_currency text; v_rate numeric; v_legacy_id integer;
 begin
   insert into public.companies(name,code,status)
   values('PKR invoice rehearsal','PB'||v_code,'active') returning id into v_pkr;
@@ -54,12 +54,12 @@ begin
     -- A legacy posted row whose snapshot was null before this migration must
     -- remain null on later updates; the migration does not backfill it.
     execute format('alter table pg_temp.%I disable trigger zz_guard_invoice_base_currency',v_table);
-    execute format('insert into pg_temp.%I(company_id,status) values ($1,''posted'')',v_table)
-      using v_pkr;
+    execute format('insert into pg_temp.%I(company_id,status) values ($1,''posted'') returning id',v_table)
+      into v_legacy_id using v_pkr;
     execute format('alter table pg_temp.%I enable trigger zz_guard_invoice_base_currency',v_table);
-    execute format('update pg_temp.%I set status=''posted'' where id=3',v_table);
-    execute format('select currency_code,exchange_rate from pg_temp.%I where id=3',v_table)
-      into v_currency,v_rate;
+    execute format('update pg_temp.%I set status=''posted'' where id=$1',v_table) using v_legacy_id;
+    execute format('select currency_code,exchange_rate from pg_temp.%I where id=$1',v_table)
+      into v_currency,v_rate using v_legacy_id;
     if v_currency is not null or v_rate is not null then
       raise exception '% rewrote legacy posted history',v_table;
     end if;
