@@ -104,7 +104,7 @@ export default function Items(){
   const clearFilters=()=>{setTypeFilter("all");setCategoryFilter("all")};
 
   const visible=(key:ColumnKey)=>columns[key]&&(key!=="urdu"||showUrdu);
-  return <div className="space-y-4" data-navilo-master-standard="true">
+  return <div className="space-y-4" data-navilo-master-standard="true" data-neus-native-customizer>
     <div className="flex flex-wrap items-start justify-between gap-3" data-no-print data-no-export>
       <div><h1 className="flex items-center gap-2 text-2xl font-bold"><Package className="h-6 w-6"/>Items</h1><p className="text-sm text-slate-500">Item, UOM and statutory HS/PCT identity used by Sales and Purchase invoices.</p></div>
       <div className="flex flex-wrap gap-2">
