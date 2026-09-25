@@ -16,6 +16,28 @@ begin
     (company_id,foreign_currency_code,base_currency_code,effective_on,rate,source)
   values(v_eur,'USD','EUR',current_date,0.91,'rehearsal');
 
+  -- The production helper intentionally requires active tenant access. This
+  -- synthetic trigger rehearsal runs as direct local SQL, so emulate the
+  -- exact effective-rate lookup in a temp shadow helper only for this
+  -- transaction. Production function remains unchanged.
+  create temporary table fx_rehearsal_context(company_id uuid primary key);
+  insert into fx_rehearsal_context values(v_eur);
+  execute $sql$
+    create or replace function pg_temp.company_exchange_rate_on_local(
+      p_company_id uuid,p_currency_code text,p_on date
+    ) returns numeric language sql stable as $
+      select case when p_currency_code=c.base_currency_code then 1::numeric
+        else (select r.rate from public.company_exchange_rates r
+              where r.company_id=c.id
+                and r.base_currency_code=c.base_currency_code
+                and r.foreign_currency_code=p_currency_code
+                and r.effective_on<=p_on
+              order by r.effective_on desc,r.recorded_at desc,r.id desc limit 1)
+        end
+      from public.companies c where c.id=p_company_id
+    $
+  $sql$;
+
   foreach v_table in array array[
     'sales_orders','purchase_orders',
     'consolidated_sales_invoices','consolidated_purchase_invoices'
