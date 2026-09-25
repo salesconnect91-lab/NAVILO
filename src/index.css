@@ -6960,3 +6960,32 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
  [data-navilo-commercial-standard="true"] section{padding:14px}
  [data-navilo-commercial-standard="true"] .btn-primary,[data-navilo-commercial-standard="true"] .btn-secondary{min-height:40px}
 }
+
+/* NAVILO ENTERPRISE WORKSPACE 2026 */
+#navilo-main-content[data-navilo-standard="true"]{background:#f6f8fb}
+#navilo-main-content[data-navilo-standard="true"]>div{width:100%;max-width:1480px;margin-inline:auto}
+#navilo-main-content[data-navilo-standard="true"] h1{color:#0f172a;letter-spacing:-.025em}
+#navilo-main-content[data-navilo-standard="true"] .card,
+#navilo-main-content[data-navilo-standard="true"] section.rounded-xl,
+#navilo-main-content[data-navilo-standard="true"] section.rounded-lg{border-color:#e2e8f0;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+#navilo-main-content[data-navilo-standard="true"] thead{color:#475569;text-transform:none}
+#navilo-main-content[data-navilo-standard="true"] tbody tr{transition:background-color .15s ease}
+#navilo-main-content[data-navilo-standard="true"] tbody tr:hover{background:#f8fafc}
+#navilo-main-content[data-navilo-standard="true"] .btn-primary,
+#navilo-main-content[data-navilo-standard="true"] .btn-secondary,
+#navilo-main-content[data-navilo-standard="true"] .btn{min-height:38px;border-radius:9px;font-weight:650}
+#navilo-main-content[data-navilo-standard="true"] .input{min-height:40px;border-color:#cbd5e1;border-radius:9px;background-color:#fff}
+#navilo-main-content[data-navilo-standard="true"] .input:focus{border-color:#64748b;box-shadow:0 0 0 3px rgba(100,116,139,.12)}
+.navilo-report-toolbar{gap:6px!important}
+@media(max-width:640px){
+ #navilo-main-content[data-navilo-standard="true"]{padding:12px!important}
+ #navilo-main-content[data-navilo-standard="true"]>div{gap:12px}
+ #navilo-main-content[data-navilo-standard="true"] h1{font-size:20px!important;line-height:1.25!important}
+ #navilo-main-content[data-navilo-standard="true"] p{line-height:1.45}
+ #navilo-main-content[data-navilo-standard="true"] .btn-primary,
+ #navilo-main-content[data-navilo-standard="true"] .btn-secondary,
+ #navilo-main-content[data-navilo-standard="true"] .btn{min-height:40px}
+ #navilo-main-content[data-navilo-standard="true"] table{font-size:12px}
+ #navilo-main-content[data-navilo-standard="true"] .overflow-x-auto{-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+ .navilo-report-toolbar{width:100%;justify-content:flex-start;overflow-x:auto;padding-bottom:2px}
+}
