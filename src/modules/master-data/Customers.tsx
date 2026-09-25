@@ -1,5 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toUrduName } from "@/lib/urdu";
 import * as XLSX from "xlsx";
@@ -7,6 +7,7 @@ import { Customer } from "@/types";
 import DataTable, { Column } from "@/components/DataTable";
 import { PageHeader, Modal, ErrorBanner, ConfirmModal } from "@/components/ui";
 import { useAuth } from "@/auth/AuthContext";
+import { Search } from "lucide-react";
 
 type CustomerRow = Customer & {
   name_urdu?: string | null;
@@ -45,6 +46,7 @@ export default function Customers() {
   const [importing, setImporting] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [urduTouched, setUrduTouched] = useState(false);
+  const [search, setSearch] = useState("");
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
@@ -278,6 +280,8 @@ export default function Customers() {
     }
   };
 
+  const filteredRows = useMemo(() => { const q = search.trim().toLowerCase(); if (!q) return rows; return rows.filter((r) => [r.name, r.name_urdu, r.email, r.phone, r.address, r.ntn, r.strn, r.cnic, r.tax_registration_status].some((v) => String(v ?? "").toLowerCase().includes(q))); }, [rows, search]);
+
   const columns: Column<CustomerRow>[] = [
     { key: "name", label: "Name", render: (r) => <div data-business-data><div data-language-code="en" className="font-semibold text-slate-900">{r.name}</div><div data-language-code="ur" dir="rtl" className="text-sm text-slate-500">{r.name_urdu ?? "—"}</div></div> },
     { key: "tax", label: "Tax Registration", render: (r) => <div><div className="font-medium capitalize">{r.tax_registration_status ?? "unregistered"}</div><div className="text-xs text-slate-500">{r.strn ? `STRN ${r.strn}` : r.ntn ? `NTN ${r.ntn}` : "—"}</div></div> },
@@ -291,7 +295,8 @@ export default function Customers() {
   return <div className="space-y-4" data-navilo-master-standard="true">
     <PageHeader title="Customers" subtitle="Customer accounts" action={<div className="flex flex-wrap items-center gap-2"><button onClick={openCreate} className="btn-primary">+ New Customer</button></div>} />
     {error && <ErrorBanner message={error} />}
-    <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable columns={columns} rows={rows} loading={loading} emptyMessage="No customers yet." /></div>
+    <div className="navilo-master-filterbar flex items-center gap-2 px-3 py-2" data-report-filters data-no-print data-no-export><Search className="h-4 w-4 text-slate-400" /><input className="w-full bg-transparent outline-none" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customer, phone, email, tax ID or address..." />{search && <button type="button" className="text-xs font-semibold text-primary-600" onClick={() => setSearch("")}>Clear</button>}</div>
+    <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable columns={columns} rows={filteredRows} loading={loading} emptyMessage="No customers yet." /></div>
 
     <Modal open={modalOpen} title={editing ? "Edit Customer" : "New Customer"} onClose={() => setModalOpen(false)}>
       <form onSubmit={handleSubmit} className="space-y-4">
