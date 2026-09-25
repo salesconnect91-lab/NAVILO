@@ -84,6 +84,7 @@ Deno.serve(async (request) => {
         : new Date(startsAt.getTime() + (status === "trial" ? Number(plan.trial_days || 14) : (plan.billing_cycle === "yearly" ? 365 : 30)) * 86400000);
       let companyId = "";
       let userId = "";
+      let createdNewUser = false;
       try {
         const { data: createdCompany, error: companyError } = await admin.from("companies").insert({
           name, code, status, contact_email: ownerEmail, contact_phone: body.contact_phone || null,
@@ -110,17 +111,44 @@ Deno.serve(async (request) => {
         }).select("id").single();
         if (branchError || !branch) throw branchError || new Error("Branch creation failed");
 
-        const { data: createdUser, error: userError } = await admin.auth.admin.createUser({
-          email: ownerEmail, password, email_confirm: true, user_metadata: { full_name: ownerName || name },
-        });
-        if (userError || !createdUser.user) throw userError || new Error("Owner login creation failed");
-        userId = createdUser.user.id;
+        // Reuse an existing Auth login when the owner email is already registered.
+        // This supports one person owning multiple NAVILO companies and, critically,
+        // never downgrades an existing Platform Owner profile or overwrites its password.
+        let ownerUser = null;
+        for (let page = 1; !ownerUser; page += 1) {
+          const { data: listed, error: listError } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+          if (listError) throw listError;
+          ownerUser = listed.users.find(user => String(user.email || "").toLowerCase() === ownerEmail) || null;
+          if (ownerUser || listed.users.length < 1000) break;
+        }
 
-        const { error: profileError } = await admin.from("user_profiles").upsert({
-          id:userId,user_id:userId,role:"admin",is_active:true,full_name:ownerName||name,email:ownerEmail,
-          platform_role:"user",last_company_id:companyId,last_business_unit_id:unit.id,updated_at:new Date().toISOString(),
-        },{onConflict:"id"});
-        if (profileError) throw profileError;
+        if (ownerUser) {
+          userId = ownerUser.id;
+        } else {
+          const { data: createdUser, error: userError } = await admin.auth.admin.createUser({
+            email: ownerEmail, password, email_confirm: true, user_metadata: { full_name: ownerName || name },
+          });
+          if (userError || !createdUser.user) throw userError || new Error("Owner login creation failed");
+          userId = createdUser.user.id;
+          createdNewUser = true;
+        }
+
+        const { data: existingProfile, error: existingProfileError } = await admin.from("user_profiles")
+          .select("id,is_active").eq("id", userId).maybeSingle();
+        if (existingProfileError) throw existingProfileError;
+        if (existingProfile && !existingProfile.is_active) throw new Error("Existing owner login is inactive");
+
+        const profileWrite = existingProfile
+          ? await admin.from("user_profiles").update({
+              last_company_id: companyId,
+              last_business_unit_id: unit.id,
+              updated_at: new Date().toISOString(),
+            }).eq("id", userId)
+          : await admin.from("user_profiles").insert({
+              id:userId,user_id:userId,role:"admin",is_active:true,full_name:ownerName||name,email:ownerEmail,
+              platform_role:"user",last_company_id:companyId,last_business_unit_id:unit.id,updated_at:new Date().toISOString(),
+            });
+        if (profileWrite.error) throw profileWrite.error;
         // Company membership creates the default business unit membership in
         // the database trigger; creating it again would violate its unique key.
         const { error: membershipError } = await admin.from("company_memberships").insert({
@@ -144,7 +172,7 @@ Deno.serve(async (request) => {
         if (writeError) throw writeError;
         return json({ company_id:companyId,user_id:userId,business_unit_id:unit.id,branch_id:branch.id,status,expires_at:expiresAt.toISOString() }, 201);
       } catch (error) {
-        if (userId) await admin.auth.admin.deleteUser(userId);
+        if (createdNewUser && userId) await admin.auth.admin.deleteUser(userId);
         if (companyId) await admin.from("companies").delete().eq("id", companyId);
         return json({ error:error instanceof Error ? error.message : "Onboarding failed and was rolled back." }, 400);
       }
