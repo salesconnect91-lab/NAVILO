@@ -18,7 +18,6 @@ import {
   formatCurrency,
   formatDate,
 } from "@/components/ui";
-import Papa from "papaparse";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
 
@@ -94,7 +93,6 @@ export default function SalesInvoiceList() {
   const { activeCompany, isPlatformOwner } = useAuth();
   const canCreateSales = canPerformModule(activeCompany?.membership_role, "sales", "create", activeCompany?.permissions, isPlatformOwner);
   const canReceivePayment = canPerformModule(activeCompany?.membership_role, "accounting", "post", activeCompany?.permissions, isPlatformOwner);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [rows, setRows] = useState<SalesInvoiceRow[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -102,7 +100,6 @@ export default function SalesInvoiceList() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
 
   const [listSearch, setListSearch] = useState("");
   const [postingFilter, setPostingFilter] = useState("all");
@@ -553,80 +550,6 @@ export default function SalesInvoiceList() {
     }
   };
 
-  const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    setError(null);
-
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        try {
-          const parsedData = results.data as any[];
-
-          const formattedRows = parsedData.map((row) => ({
-            order_no: row.order_no,
-            customer_id: row.customer_id,
-            sales_person: row.sales_person || null,
-            order_date: row.order_date,
-            due_date: row.due_date || null,
-            status: row.status || "draft",
-            total: parseFloat(row.total) || 0,
-            paid_amount: 0,
-            outstanding_amount: parseFloat(row.total) || 0,
-            payment_status: "unpaid",
-          }));
-
-          const { error: insertError } = await supabase
-            .from("sales_orders")
-            .insert(formattedRows);
-
-          if (insertError) throw insertError;
-
-          alert(`Successfully uploaded ${formattedRows.length} invoices!`);
-          fetchRows();
-        } catch (err: any) {
-          setError(
-            err.message || "Failed to insert bulk data into database"
-          );
-        } finally {
-          setUploading(false);
-          if (event.target) event.target.value = "";
-        }
-      },
-      error: (err: any) => {
-        setError(err.message || "Failed to parse CSV file");
-        setUploading(false);
-        if (event.target) event.target.value = "";
-      },
-    });
-  };
-
-  const downloadTemplate = () => {
-    const csvContent =
-      "order_no,customer_id,sales_person,order_date,due_date,status,total\n" +
-      "INV-0001,customer_uuid_here,John Doe,2026-06-01,2026-07-01,draft,1500.00";
-
-    const blob = new Blob([csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.setAttribute("href", url);
-    link.setAttribute("download", "sales_invoice_template.csv");
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
   const columns: Column<SalesInvoiceRow>[] = [
     {
       key: "order_no",
@@ -719,55 +642,34 @@ export default function SalesInvoiceList() {
 
   return (
     <div>
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileUpload}
-        accept=".csv"
-        className="hidden"
-      />
 
       <PageHeader
         title="Sales Invoices"
-        subtitle="Manage customer invoices, payment status, balances and posting"
+        subtitle="Customer invoices, receivables and posting"
         action={
-          <div className="flex flex-wrap items-center gap-3" data-navilo-standard-tools-host>
+          <div className="flex flex-wrap items-center gap-2" data-navilo-standard-tools-host>
             <Link
               to="/sales/report"
               className="px-3 py-2 text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-1.5"
             >
-              📈 Sales Person Report
+              Salesperson Report
             </Link>
 
-            {canReceivePayment && <button onClick={() => openReceivePayment()} className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">💵 Receive Payment</button>}
+            {canReceivePayment && <button onClick={() => openReceivePayment()} className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">Receive Payment</button>}
 
-            <button
-              onClick={downloadTemplate}
-              className="px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
-            >
-              📥 Download Template
-            </button>
-
-            {canCreateSales && <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="px-4 py-2 text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              {uploading ? "Uploading..." : "📁 Bulk Upload (CSV)"}
-            </button>}
 
             <Link
               to="/sales/consolidated"
               className="px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
             >
-              📚 Consolidated Bills
+              Consolidated Invoices
             </Link>
 
             {canCreateSales && <button
               onClick={() => navigate("/sales/new")}
               className="btn-primary"
             >
-              + Create Sales Invoice
+              New Invoice
             </button>}
           </div>
         }
