@@ -52,13 +52,12 @@ export default function Categories(){
  const importExcel=async(e:ChangeEvent<HTMLInputElement>)=>{const file=e.target.files?.[0];e.target.value="";if(!file)return;setSaving(true);setError(null);try{const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});const sheet=wb.Sheets[wb.SheetNames[0]];const raw=XLSX.utils.sheet_to_json<Record<string,unknown>>(sheet,{defval:""});const existing=new Set(rows.map(r=>norm(r.name)));const seen=new Set<string>();const payload:{name:string;name_urdu:string|null;description:string|null}[]=[];const errors:string[]=[];raw.forEach((r,i)=>{const name=clean(r["Category Name"]??r["Name"]??r["name"]),name_urdu=showUrdu?clean(r["Urdu Name"]??r["name_urdu"]):"",description=clean(r["Description"]??r["description"]);if(!name){if(Object.values(r).some(v=>clean(v)))errors.push(`Row ${i+2}: Category Name is required.`);return}const key=norm(name);if(existing.has(key)||seen.has(key)){errors.push(`Row ${i+2}: Duplicate category "${name}".`);return}seen.add(key);payload.push({name,name_urdu:showUrdu?(name_urdu||toUrduName(name)||null):null,description:description||null})});if(errors.length)throw new Error(errors.slice(0,6).join(" "));if(!payload.length)throw new Error("No valid category rows found in the file.");const{error}=await supabase.from("categories").insert(payload);if(error)throw error;window.dispatchEvent(new Event("navilo-master-data-changed"));await fetchCategories();setImportOpen(false)}catch(x){setError(x instanceof Error?x.message:"Category import failed.")}finally{setSaving(false)}};
  const clearFilters=()=>{setTranslationFilter("all");setDescriptionFilter("all")};
 
- return <div className="space-y-4">
+ return <div className="space-y-4" data-navilo-master-standard="true">
    <div className="flex flex-wrap items-start justify-between gap-3" data-no-print data-no-export>
      <div><h1 className="text-2xl font-bold">Categories</h1><p className="text-sm text-slate-500">Central item categories used across NAVILO.</p></div>
      <div className="flex flex-wrap gap-2">
        <span className="contents" data-navilo-standard-toolbar-host/>
        <button type="button" className="btn-secondary" onClick={()=>setFiltersOpen(v=>!v)}><Filter className="h-4 w-4"/>Filters{activeFilterCount?` (${activeFilterCount})`:""}</button>
-       <button type="button" className="btn-secondary" onClick={()=>setImportOpen(true)}><Upload className="h-4 w-4"/>Import</button>
        <button type="button" className="btn-primary" onClick={openCreate}><Plus className="h-4 w-4"/>Add Category</button>
      </div>
    </div>
