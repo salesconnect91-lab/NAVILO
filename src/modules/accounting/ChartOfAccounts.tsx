@@ -1496,7 +1496,7 @@ import SearchableSelect from "@/components/SearchableSelect";
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px] border-collapse">
+              <div data-report-content data-navilo-customizable="true" className="contents"><table className="w-full min-w-[1100px] border-collapse">
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-900">
                     <th className="w-[39%] px-5 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">Account</th>
@@ -1602,7 +1602,7 @@ import SearchableSelect from "@/components/SearchableSelect";
                     )
                   )}
                 </tbody>
-              </table>
+              </table></div>
             </div>
 
             {!loading && (
