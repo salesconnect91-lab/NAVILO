@@ -30,7 +30,9 @@ begin
     -- source. Exact regexes against pg_get_functiondef() are format fragile.
     v_new := replace(v_def, '''request.jwt.claim.role''', '''role''');
     if v_new = v_def then
-      raise exception 'Legacy request.jwt.claim.role setting was not found in %', v_name;
+      -- Several functions on a fresh install already call auth.role().
+      -- Leave those existing guards intact instead of failing the replay.
+      continue;
     end if;
     execute v_new;
   end loop;
