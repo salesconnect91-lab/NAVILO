@@ -7182,3 +7182,23 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
  .navilo-sales-neus .overflow-x-auto{overflow:visible!important}
  .navilo-sales-neus table{width:100%!important;min-width:0!important}
 }
+
+
+/* NEUS PURCHASE — ENTERPRISE ROUTE LAYER */
+.navilo-purchase-neus{max-width:1500px;margin-inline:auto}
+.navilo-purchase-neus [data-report-content],
+.navilo-purchase-neus [data-navilo-print-surface]{border-color:#e2e8f0;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+.navilo-purchase-neus table thead th{height:40px;background:#f8fafc;color:#475569;font-size:11px;font-weight:700;letter-spacing:.035em;text-transform:uppercase}
+.navilo-purchase-neus table tbody td{vertical-align:middle}
+.navilo-purchase-neus .btn-primary,.navilo-purchase-neus .btn-secondary{min-height:36px}
+@media(max-width:767px){
+ .navilo-purchase-neus{max-width:none}
+ .navilo-purchase-neus .overflow-x-auto{overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+ .navilo-purchase-neus table{font-size:12px}
+}
+@media print{
+ .navilo-purchase-neus [data-no-print],.navilo-purchase-neus button{display:none!important}
+ .navilo-purchase-neus [data-report-content],.navilo-purchase-neus [data-navilo-print-surface]{box-shadow:none!important;border:0!important}
+ .navilo-purchase-neus .overflow-x-auto{overflow:visible!important}
+ .navilo-purchase-neus table{width:100%!important;min-width:0!important}
+}
