@@ -105,7 +105,7 @@ export default function PurchaseOrderList() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="navilo-purchase-neus space-y-4" data-navilo-commercial-standard="true">
       <PageHeader
         title="Purchase Invoices"
         subtitle="Manage supplier invoices, payment status, balances & posting"
