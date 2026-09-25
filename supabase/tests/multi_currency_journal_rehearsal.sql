@@ -77,14 +77,25 @@ begin
   end if;
   insert into public.journal_lines(user_id,company_id,entry_id,account,account_id,debit,credit)
   select v_user,v_company,v_entry,name,id,0,100 from public.chart_of_accounts where id=v_account;
-  update public.journal_entries set status='posted' where id=v_entry;
   v_failed:=false;
   begin
-    update public.journal_entries set exchange_rate=0.95 where id=v_entry;
+    update public.journal_entries set status='posted' where id=v_entry;
   exception when others then v_failed:=true; end;
-  if not v_failed then raise exception 'Posted exchange rate was mutable'; end if;
+  if not v_failed then raise exception 'Foreign journal posted into an unconverted ledger'; end if;
   select exchange_rate into v_rate from public.journal_entries where id=v_entry;
-  if v_rate<>0.91 then raise exception 'Posted exchange rate lost its snapshot'; end if;
+  if v_rate<>0.91 or (select status from public.journal_entries where id=v_entry)<>'draft' then
+    raise exception 'Rejected foreign posting changed the draft snapshot';
+  end if;
+  insert into public.journal_lines(user_id,company_id,entry_id,account,account_id,debit,credit)
+  select v_user,v_company,v_base_entry,name,id,100,0 from public.chart_of_accounts where id=v_account;
+  insert into public.journal_lines(user_id,company_id,entry_id,account,account_id,debit,credit)
+  select v_user,v_company,v_base_entry,name,id,0,100 from public.chart_of_accounts where id=v_account;
+  update public.journal_entries set status='posted' where id=v_base_entry;
+  v_failed:=false;
+  begin
+    update public.journal_entries set exchange_rate=0.95 where id=v_base_entry;
+  exception when others then v_failed:=true; end;
+  if not v_failed then raise exception 'Posted base journal exchange rate was mutable'; end if;
   v_failed:=false;
   begin
     insert into public.journal_entries(user_id,company_id,business_unit_id,operating_location_id,
@@ -92,6 +103,6 @@ begin
     values(v_user,v_company,v_unit,v_location,'FX-MISSING-'||v_code,current_date,'draft','GBP');
   exception when others then v_failed:=true; end;
   if not v_failed then raise exception 'Missing FX rate did not fail closed'; end if;
-  raise notice 'PASS: company base, dated tenant FX, base amounts and immutable rate snapshots';
+  raise notice 'PASS: company base, dated tenant FX, immutable snapshots and unsafe posting blocked';
 end $$;
 rollback;

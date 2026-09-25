@@ -12,6 +12,7 @@ import {
   type NaviloLanguage,
 } from "@/lib/languageConfig";
 import { useCompanyLanguages } from "@/hooks/useCompanyLanguages";
+import ExchangeRateSettings from "./ExchangeRateSettings";
 
 export default function CompanySettings() {
   const {languages:enabledLanguages,enabledCodes,loading:languageEntitlementsLoading}=useCompanyLanguages();
@@ -203,7 +204,7 @@ export default function CompanySettings() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Company Name"><input className="input w-full" value={name} onChange={e=>setName(e.target.value)} required/></Field>
-        <Field label="Default Currency"><input className="input w-full" value={currency} onChange={e=>setCurrency(e.target.value)} required/></Field>
+        <Field label="Statutory display currency (accounting base shown below)"><input className="input w-full" value={currency} onChange={e=>setCurrency(e.target.value)} required/></Field>
         <Field label="Phone"><input className="input w-full" value={phone} onChange={e=>setPhone(e.target.value)}/></Field>
         <Field label="Email"><input type="email" className="input w-full" value={email} onChange={e=>setEmail(e.target.value)}/></Field>
         <Field label="Website"><input className="input w-full" value={website} onChange={e=>setWebsite(e.target.value)}/></Field>
@@ -213,6 +214,7 @@ export default function CompanySettings() {
       <Field label="Address"><textarea className="input w-full" rows={3} value={address} onChange={e=>setAddress(e.target.value)}/></Field>
       <div className="flex justify-end border-t pt-4"><button type="submit" disabled={saving||languageSaving||jurisdictionSaving} className="btn btn-primary">{saving?<Loader2 className="h-4 w-4 animate-spin"/>:<Save className="h-4 w-4"/>}Save Company Settings</button></div>
     </form>
+    <ExchangeRateSettings />
   </div>;
 }
 
