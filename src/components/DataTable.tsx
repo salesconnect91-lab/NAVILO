@@ -48,6 +48,8 @@ export default function DataTable<T extends { id: string }>({
     return restoredHiddenKeys(window.localStorage.getItem(storageKey(columns)), configurableColumns);
   });
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   useEffect(() => {
     setHiddenKeys(restoredHiddenKeys(window.localStorage.getItem(key), configurableColumns));
@@ -81,9 +83,15 @@ export default function DataTable<T extends { id: string }>({
     persist(next);
   };
 
+  useEffect(() => { setPage(1); }, [rows.length, pageSize]);
+
   const visibleColumns = columns.filter(
     (column) => column.key === "actions" || column.key === "action" || !hiddenKeys.has(column.key)
   );
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pagedRows = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   if (loading) {
     return <div role="status" className="card p-12 text-center text-slate-600">Loading records…</div>;
@@ -116,7 +124,7 @@ export default function DataTable<T extends { id: string }>({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((row) => (
+              {pagedRows.map((row) => (
                 <tr key={row.id} className="hover:bg-slate-50 transition-colors">
                   {visibleColumns.map((col) => {
                     const actionColumn = col.key === "actions" || col.key === "action";
@@ -136,12 +144,13 @@ export default function DataTable<T extends { id: string }>({
             </tbody>
           </table>
         </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3" data-no-print data-no-export><div className="text-xs text-slate-500">Showing {(safePage-1)*pageSize+1}–{Math.min(safePage*pageSize,rows.length)} of {rows.length}</div><div className="flex items-center gap-2"><select className="input h-8 min-h-8 w-auto py-0 text-xs" value={pageSize} onChange={(e)=>setPageSize(Number(e.target.value))}><option value={25}>25 / page</option><option value={50}>50 / page</option><option value={100}>100 / page</option></select><button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage<=1} onClick={()=>setPage(p=>Math.max(1,p-1))}>Previous</button><span className="text-xs font-semibold text-slate-600">{safePage} / {totalPages}</span><button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage>=totalPages} onClick={()=>setPage(p=>Math.min(totalPages,p+1))}>Next</button></div></div>
       </div>
 
       {customizeOpen && (
         <div role="dialog" aria-modal="true" aria-label="Customize table columns" className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/30 p-4" data-no-print data-no-export>
-          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
+          <div className="flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Customize Columns</h3>
                 <p className="mt-1 text-xs text-slate-500">Choose which columns appear on screen, print and export.</p>
@@ -149,7 +158,7 @@ export default function DataTable<T extends { id: string }>({
               <button type="button" className="btn-secondary" onClick={() => setCustomizeOpen(false)}>Close</button>
             </div>
 
-            <div className="mt-4 max-h-[50vh] space-y-1 overflow-auto rounded-lg border border-slate-200 p-2">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-5 py-3"><span className="text-xs font-semibold text-slate-500">{configurableColumns.filter((column)=>!hiddenKeys.has(column.key)).length} selected</span><div className="flex gap-2"><button type="button" className="btn-secondary" onClick={()=>persist(new Set())}>Select All</button><button type="button" className="btn-secondary" onClick={()=>{const keep=configurableColumns[0]?.key;persist(new Set(configurableColumns.filter(c=>c.key!==keep).map(c=>c.key)))}}>Clear All</button></div></div><div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-5">
               {configurableColumns.map((column) => (
                 <label key={column.key} className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-slate-50">
                   <input
@@ -163,8 +172,8 @@ export default function DataTable<T extends { id: string }>({
               ))}
             </div>
 
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <button type="button" className="btn-secondary" onClick={() => persist(new Set())}>Show All</button>
+            <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-white p-5">
+              <button type="button" className="btn-secondary" onClick={() => { try { window.localStorage.removeItem(key); } catch {} persist(new Set()); }}>Reset Default</button>
               <button type="button" className="btn-primary" onClick={() => setCustomizeOpen(false)}>Done</button>
             </div>
           </div>
