@@ -90,7 +90,7 @@ Deno.serve(async (request) => {
           address: body.address || null, notes: body.notes || null, created_by: actor.id,
           subscription_expires_at: expiresAt.toISOString(), max_users: Number(plan.max_users || 10),
           max_business_units: Number(plan.max_business_units || 1), max_branches: Number(plan.max_branches || 1),
-          max_godowns: Number(plan.max_godowns || 1), base_currency_code: fiscalSettings.base_currency_code,
+          max_godowns: Number(plan.max_godowns || 1),
         }).select("id").single();
         if (companyError || !createdCompany) throw companyError || new Error("Company creation failed");
         companyId = createdCompany.id;
@@ -128,6 +128,11 @@ Deno.serve(async (request) => {
         });
         if (membershipError) throw membershipError;
         const writes = await Promise.all([
+          admin.from("company_accounting_policies").update({
+            base_currency: fiscalSettings.base_currency_code,
+            updated_by: actor.id,
+            updated_at: new Date().toISOString(),
+          }).eq("company_id", companyId),
           admin.from("operating_location_memberships").insert({ company_id:companyId,business_unit_id:unit.id,operating_location_id:branch.id,user_id:userId,role:"company_owner",is_active:true }),
           admin.from("company_subscriptions").insert({ company_id:companyId,plan_id:planId,billing_cycle:plan.billing_cycle,status,starts_at:startsAt.toISOString(),expires_at:expiresAt.toISOString(),amount:Number(plan.price||0),currency_code:plan.currency_code||"USD",created_by:actor.id,notes:"Created through Platform Owner onboarding" }),
           admin.from("company_modules").insert(modules.map(module_key=>({company_id:companyId,module_key,enabled:true,updated_by:actor.id}))),
