@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Download, FileText, Printer, Settings2, Sheet, Table2 } from "lucide-react";
+import { Download, FileText, Printer, RefreshCw, Settings2, Sheet, Table2 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission, type ModuleKey } from "@/auth/permissions";
@@ -150,6 +150,7 @@ export default function UniversalDataTools(){
     {!invoiceEditor&&customizable&&<button type="button" onClick={()=>window.dispatchEvent(new Event("navilo:report-customize"))} className={base}><Settings2 className="h-4 w-4"/><span>Customize</span></button>}
     {!invoiceEditor&&canExport&&<div className="relative"><button type="button" onClick={()=>setOpen(v=>!v)} className={base}><Download className="h-4 w-4"/><span className="hidden xl:inline">Export</span></button>{open&&<div className="absolute right-0 top-10 z-[70] w-48 rounded-lg border bg-white py-1 shadow-xl"><button type="button" onClick={()=>exp("excel")} className="flex w-full gap-2 px-3 py-2 text-xs"><Sheet className="h-4 w-4"/>Excel (.xlsx)</button><button type="button" onClick={()=>exp("csv")} className="flex w-full gap-2 px-3 py-2 text-xs"><Table2 className="h-4 w-4"/>CSV (.csv)</button><button type="button" onClick={()=>exp("word")} className="flex w-full gap-2 px-3 py-2 text-xs"><FileText className="h-4 w-4"/>Word (.doc)</button></div>}</div>}
     {!invoiceEditor&&canPrint&&!hasLocalDocumentOutput&&<button type="button" data-print-selector={reportSelector()} onClick={print} className={base}><Printer className="h-4 w-4"/><span className="hidden xl:inline">Print / PDF</span></button>}
+    {masterMode&&<button type="button" onClick={()=>window.location.reload()} className={base} title="Refresh master data"><RefreshCw className="h-4 w-4"/><span className="hidden xl:inline">Refresh</span></button>}
   </div>;
   if(!standardPath)return null;
   return standardHost?createPortal(<><ConsolidatedInvoiceTools/>{toolbar}</>,standardHost):null;
