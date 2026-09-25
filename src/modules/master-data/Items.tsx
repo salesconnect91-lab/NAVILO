@@ -127,7 +127,7 @@ const imp=async(e:ChangeEvent<HTMLInputElement>)=>{const f=e.target.files?.[0];e
       </div>}
     </div>
 
-    <section data-report-content className="space-y-3 rounded-xl bg-white print:shadow-none">
+    <section data-report-content data-navilo-customizable="true" className="space-y-3 rounded-xl bg-white print:shadow-none">
       <div className="border-b border-slate-200 px-4 py-4">
         <div className="navilo-report-title text-xl font-bold text-slate-900">Items Master</div>
         <div className="mt-1 text-xs text-slate-500">{shown.length} item(s) • {typeFilter==="all"?"All types":typeFilter} • {categoryFilter==="all"?"All categories":cat(categoryFilter)?.name||"Selected category"}</div>
