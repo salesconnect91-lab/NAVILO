@@ -5,7 +5,7 @@ declare
   v_user uuid:=gen_random_uuid(); v_company uuid; v_unit uuid; v_location uuid;
   v_entry uuid; v_cash uuid; v_ar uuid; v_customer uuid; v_reversal uuid; v_result jsonb;
   v_code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
-  v_debit numeric; v_credit numeric; v_source numeric; v_base numeric; v_failed boolean;
+  v_debit numeric; v_credit numeric; v_source numeric; v_base numeric; v_failed boolean; v_error text;
 begin
   insert into auth.users(id,role,email,created_at,updated_at)
   values(v_user,'authenticated','fx-post-'||v_code||'@navilo.test',now(),now());
@@ -61,6 +61,24 @@ begin
   if exists(select 1 from public.ledgers where journal_entry_id=v_entry) then
     raise exception 'Rejected foreign posting left ledger rows';
   end if;
+  -- Even correctly converted lines cannot be marked posted directly: the
+  -- general ledger must already contain one matching row per journal line.
+  update public.journal_lines set source_debit=debit,source_credit=credit,
+    debit=base_debit,credit=base_credit where entry_id=v_entry;
+  v_failed:=false;
+  begin
+    update public.journal_entries set status='posted' where id=v_entry;
+  exception when others then
+    v_failed:=true;
+    get stacked diagnostics v_error=message_text;
+  end;
+  if not v_failed or v_error not like 'Foreign journal requires matching base-currency ledger rows%'
+     or (select status from public.journal_entries where id=v_entry)<>'draft'
+     or exists(select 1 from public.ledgers where journal_entry_id=v_entry) then
+    raise exception 'Direct status update bypassed the foreign ledger posting RPC';
+  end if;
+  update public.journal_lines set debit=source_debit,credit=source_credit,
+    source_debit=null,source_credit=null where entry_id=v_entry;
   v_result:=public.post_foreign_manual_journal(v_entry);
   if (v_result->>'status')<>'posted' then raise exception 'Foreign manual post failed'; end if;
   select coalesce(sum(debit),0),coalesce(sum(credit),0)
@@ -94,6 +112,6 @@ begin
   if v_debit<>0 or v_credit<>91 then
     raise exception 'Customer subledger reversal must negate 91 EUR';
   end if;
-  raise notice 'PASS: 100 USD posts as 91 EUR in GL and customer ledger; reversal negates 91 EUR';
+  raise notice 'PASS: bypass blocked; 100 USD posts as 91 EUR in GL and customer ledger; reversal negates 91 EUR';
 end $$;
 rollback;
