@@ -6949,3 +6949,14 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
     font-size: 12px !important;
   }
 }
+
+/* NAVILO COMMERCIAL WORKFLOW STANDARD 2026 */
+[data-navilo-commercial-standard="true"]{width:100%;max-width:1480px;margin-inline:auto}
+[data-navilo-commercial-standard="true"]>div{min-width:0}
+[data-navilo-commercial-standard="true"] section{border-color:#e2e8f0;border-radius:14px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+@media (max-width:640px){
+ [data-navilo-commercial-standard="true"]{gap:12px}
+ [data-navilo-commercial-standard="true"] .grid.grid-cols-2>div{padding:12px}
+ [data-navilo-commercial-standard="true"] section{padding:14px}
+ [data-navilo-commercial-standard="true"] .btn-primary,[data-navilo-commercial-standard="true"] .btn-secondary{min-height:40px}
+}
