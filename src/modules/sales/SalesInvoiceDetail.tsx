@@ -340,7 +340,7 @@ export default function SalesInvoiceDetail() {
   if (!order) return <ErrorBanner message="Invoice not found." />;
 
   return (
-    <div className="space-y-3">
+    <div className="navilo-sales-neus navilo-invoice-detail space-y-3" data-navilo-commercial-standard="true" data-navilo-document-editor="true">
       <section className="flex flex-col gap-3 border-b border-slate-200 pb-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <Link to="/sales" className="mb-1 inline-flex items-center gap-1 text-[12px] font-medium text-slate-500 hover:text-blue-700">
