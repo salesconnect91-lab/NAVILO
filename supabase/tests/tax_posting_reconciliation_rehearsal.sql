@@ -24,6 +24,8 @@ declare
   v_total numeric;
   v_vat numeric;
   v_rate numeric;
+  v_invoice_currency text;
+  v_invoice_rate numeric;
   v_code text := substr(replace(gen_random_uuid()::text,'-',''),1,12);
   v_kind text;
   v_taxed boolean;
@@ -137,6 +139,14 @@ begin
         select id into v_entry from public.journal_entries
         where company_id=v_company and entry_no=case when v_kind='purchase' then 'PUR-' else '' end||
           'TP-'||case when v_kind='purchase' then 'P-' else 'S-' end||v_code||case when v_taxed then '-T' else '-N' end;
+      end if;
+      execute format('select currency_code,exchange_rate from public.%I where id=$1',
+        case when v_kind='purchase' then 'purchase_orders' else 'sales_orders' end)
+        into v_invoice_currency,v_invoice_rate using v_order;
+      if v_invoice_currency<>'PKR' or v_invoice_rate<>1 or
+         not exists(select 1 from public.journal_entries where id=v_entry
+           and currency_code='PKR' and exchange_rate=1) then
+        raise exception '% taxed=% invoice/journal base currency snapshot mismatch',v_kind,v_taxed;
       end if;
       select coalesce(sum(case when v_kind='purchase' then debit else credit end),0)
         into v_vat from public.journal_lines where entry_id=v_entry and account_id=v_vat_account;
