@@ -126,7 +126,7 @@ export default function PurchaseOrderList() {
       </div>
 
       {error && <ErrorBanner message={error} />}
-      <div data-report-content data-navilo-customizable="true" className="rounded-xl border border-slate-200 bg-white p-3">
+      <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white p-3">
         <div className="mb-3 flex items-center justify-between gap-3"><div><h2 className="navilo-report-title text-base font-bold text-slate-900">Purchase Invoices</h2>{(search || typeFilter !== "all" || statusFilter !== "all") && <p className="text-xs text-slate-500">Active filters: {search ? `Search “${search}” ` : ""}{typeFilter !== "all" ? `• ${typeFilter === "with-tax" ? "With Tax" : "Without Tax"} ` : ""}{statusFilter !== "all" ? `• ${statusFilter}` : ""}</p>}</div></div>
         <div className="mb-3 grid gap-3 md:grid-cols-3" data-no-export>
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3"><div className="text-xs text-slate-500">Visible Invoices</div><div className="mt-2 text-sm font-bold text-slate-900">{filteredRows.length}</div></div>
