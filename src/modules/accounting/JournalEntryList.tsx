@@ -2538,28 +2538,31 @@ export default function JournalEntryList() {
 
       const { data: lines, error: linesError } = await supabase
         .from("journal_lines")
-        .select(baseCurrency
-          ? `id, account, debit, credit, source_debit, source_credit, account_id, coa:chart_of_accounts(code,name)`
-          : `id, account, debit, credit, account_id, coa:chart_of_accounts(code,name)`)
+        .select(`id, account, debit, credit, account_id, coa:chart_of_accounts(code,name)`)
         .eq("entry_id", entry.id)
         .order("id", { ascending: true });
 
       if (linesError) throw new Error(linesError.message);
+      const foreign = Boolean(baseCurrency && entry.currency_code && entry.currency_code !== baseCurrency);
+      const { data: sourceLines } = foreign && entry.status === "posted"
+        ? await supabase.from("journal_lines").select("id,source_debit,source_credit").eq("entry_id", entry.id)
+        : { data: null };
+      const sourceById = new Map((sourceLines || []).map(line => [line.id, line]));
 
       const safe = (value: unknown) => String(value ?? "")
         .replace(/&/g, "&amp;").replace(/</g, "&lt;")
         .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
       const money = (value: unknown) => Number(value ?? 0).toLocaleString("en-SA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      const foreign = Boolean(baseCurrency && entry.currency_code && entry.currency_code !== baseCurrency);
       const postedCurrency = entry.status === "posted" ? baseCurrency : entry.currency_code;
       const totalDebit = (lines ?? []).reduce((sum: number, line: any) => sum + Number(line.debit ?? 0), 0);
       const totalCredit = (lines ?? []).reduce((sum: number, line: any) => sum + Number(line.credit ?? 0), 0);
       const lineRows = (lines ?? []).map((line: any, index: number) => {
         const coa = Array.isArray(line.coa) ? line.coa[0] : line.coa;
         const accountName = coa?.code && coa?.name ? `${coa.name}` : line.account || line.account_id || "—";
-        const source = foreign && entry.status === "posted" && (Number(line.source_debit) > 0 || Number(line.source_credit) > 0)
-          ? `<div class="sub">Original ${safe(entry.currency_code)}: ${money(line.source_debit)} / ${money(line.source_credit)}</div>` : "";
+        const original = sourceById.get(line.id);
+        const source = foreign && entry.status === "posted" && original && (Number(original.source_debit) > 0 || Number(original.source_credit) > 0)
+          ? `<div class="sub">Original ${safe(entry.currency_code)}: ${money(original.source_debit)} / ${money(original.source_credit)}</div>` : "";
         return `<tr><td class="center">${index + 1}</td><td>${safe(accountName)}${source}</td><td class="right">${money(line.debit)}</td><td class="right">${money(line.credit)}</td></tr>`;
       }).join("");
 
