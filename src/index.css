@@ -7089,3 +7089,29 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
  [data-navilo-master-standard="true"] tr{break-inside:avoid}
  [data-navilo-master-standard="true"] th:last-child:has(+ *),[data-navilo-master-standard="true"] td:last-child{ }
 }
+
+
+/* NEUS MASTER DATA — FINAL CONSISTENCY LAYER */
+[data-navilo-master-standard="true"]>.rounded-xl.border.bg-white,
+[data-navilo-master-standard="true"]>.overflow-x-auto.rounded-xl.border.bg-white,
+[data-navilo-master-standard="true"] [data-report-content]{border-color:#e2e8f0!important;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+[data-navilo-master-standard="true"] .navilo-report-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+[data-navilo-master-standard="true"] td:last-child button{white-space:nowrap}
+@media(max-width:767px){
+ [data-navilo-master-standard="true"]>div:first-child{padding:14px!important;border-radius:12px}
+ [data-navilo-master-standard="true"] h1{font-size:20px!important;line-height:1.25!important}
+ [data-navilo-master-standard="true"] .navilo-report-toolbar{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}
+ [data-navilo-master-standard="true"] .navilo-report-tool{flex:0 0 auto}
+ [data-navilo-master-standard="true"] [data-report-content]>.overflow-x-auto,
+ [data-navilo-master-standard="true"]>.overflow-x-auto{border-radius:12px}
+}
+@media print{
+ [data-navilo-master-standard="true"] table th:last-child,
+ [data-navilo-master-standard="true"] table td:last-child{display:none!important}
+ [data-navilo-master-standard="true"] [data-report-filters],
+ [data-navilo-master-standard="true"] input,
+ [data-navilo-master-standard="true"] select{display:none!important}
+ [data-navilo-master-standard="true"] table{table-layout:auto!important}
+ [data-navilo-master-standard="true"] thead th{background:#f1f5f9!important;color:#0f172a!important;border-bottom:1px solid #94a3b8!important}
+ [data-navilo-master-standard="true"] tbody td{color:#0f172a!important;border-bottom:1px solid #e2e8f0!important}
+}
