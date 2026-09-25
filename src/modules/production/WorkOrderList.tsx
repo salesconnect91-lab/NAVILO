@@ -285,12 +285,12 @@ export default function WorkOrderList() {
 
       {error && <ErrorBanner message={error} />}
 
-      <DataTable
+      <div data-report-content data-navilo-customizable="true" className="contents"><DataTable
         columns={columns}
         rows={rows}
         loading={loading}
         emptyMessage="No work orders yet."
-      />
+      /></div>
 
       <Modal
         open={modalOpen}
