@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+export interface BulkAction<T> { key: string; label: string; onClick: (rows: T[]) => void | Promise<void>; danger?: boolean; disabled?: boolean; }
+
 export interface Column<T> {
   key: string;
   label: string;
@@ -62,8 +64,8 @@ function readPrefs<T>(columns: Column<T>[]): ViewPrefs {
 }
 
 export default function DataTable<T extends { id: string }>({
-  columns, rows, loading, emptyMessage, onSelectionChange,
-}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; onSelectionChange?: (rows: T[]) => void }) {
+  columns, rows, loading, emptyMessage, onSelectionChange, bulkActions = [],
+}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; onSelectionChange?: (rows: T[]) => void; bulkActions?: BulkAction<T>[] }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const configurableColumns = useMemo(() => columns.filter(c => c.key !== "actions" && c.key !== "action"), [columns]);
   const key = useMemo(() => storageKey(columns), [columns]);
@@ -150,6 +152,7 @@ export default function DataTable<T extends { id: string }>({
   const pagedRows = sortedRows.slice((safePage - 1) * prefs.pageSize, safePage * prefs.pageSize);
   const allPageSelected = pagedRows.length > 0 && pagedRows.every(row => selected.has(row.id));
   const rowPad = prefs.density === "compact" ? "py-1.5" : prefs.density === "spacious" ? "py-4" : "py-3";
+  const selectedRows = useMemo(() => rows.filter(row => selected.has(row.id)), [rows, selected]);
 
   const reorder = (from: string, to: string) => {
     if (from === to) return;
@@ -186,6 +189,13 @@ export default function DataTable<T extends { id: string }>({
 
   return <>
     <div ref={rootRef} className="card overflow-hidden" data-report-content data-navilo-data-table data-neus-grid="true" data-navilo-selected-count={selected.size}>
+      {selectedRows.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2" data-no-print data-no-export data-navilo-bulk-actions>
+        <span className="text-xs font-semibold text-slate-700">{selectedRows.length} selected</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {bulkActions.map(action => <button key={action.key} type="button" disabled={action.disabled} className={action.danger ? "btn-secondary text-red-600" : "btn-secondary"} onClick={()=>void action.onClick(selectedRows)}>{action.label}</button>)}
+          <button type="button" className="btn-secondary" onClick={()=>setSelected(new Set())}>Clear selection</button>
+        </div>
+      </div>}
       <div className="max-h-[65vh] overflow-auto">
         <table aria-label="ERP records" className="w-full min-w-max text-sm print:min-w-0">
           <thead className="sticky top-0 z-20">
