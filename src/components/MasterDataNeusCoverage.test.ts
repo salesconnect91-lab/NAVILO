@@ -34,6 +34,7 @@ describe("Master Data NEUS real coverage", () => {
       "Compact", "Comfortable", "Spacious", "25,50,100,250",
       "First", "Previous", "Next", "Last", "data-no-print", "data-no-export",
       "multi-column sort", "role=\"separator\"", "data-navilo-bulk-actions", "bulkActions",
+      "preferenceScope", "Move ${column.label} left", "Move ${column.label} right",
     ]) expect(source).toContain(contract);
   });
 
