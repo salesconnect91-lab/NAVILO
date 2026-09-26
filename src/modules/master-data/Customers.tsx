@@ -7,6 +7,7 @@ import { Customer } from "@/types";
 import DataTable, { Column } from "@/components/DataTable";
 import { PageHeader, Modal, ErrorBanner, ConfirmModal } from "@/components/ui";
 import { useAuth } from "@/auth/AuthContext";
+import { useModulePermissions } from "@/auth/useModulePermissions";
 import { Search } from "lucide-react";
 
 type CustomerRow = Customer & {
@@ -33,6 +34,7 @@ const EMPTY = {
 };
 
 export default function Customers() {
+  const { canCreate, canEdit } = useModulePermissions("master");
   const { isPlatformOwner, activeCompany } = useAuth();
   const role = activeCompany?.membership_role ?? "";
   const canSetOpeningBalance = isPlatformOwner || role === "company_owner" || role === "admin";
@@ -289,11 +291,11 @@ export default function Customers() {
     { key: "phone", label: "Phone", render: (r) => r.phone ?? "—" },
     { key: "address", label: "Address", render: (r) => r.address ?? "—" },
     { key: "status", label: "Status", render: (r) => <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${r.is_active === false ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-700"}`}>{r.is_active === false ? "Inactive" : "Active"}</span> },
-    { key: "actions", label: "", className: "text-right", render: (r) => <div className="flex justify-end gap-2"><button onClick={() => openEdit(r)} className="text-primary-600 text-sm font-medium">Edit</button><button onClick={() => setDeleteId(r.id)} className={`${r.is_active === false ? "text-emerald-600" : "text-amber-600"} text-sm font-medium`}>{r.is_active === false ? "Activate" : "Deactivate"}</button></div> },
+    { key: "actions", label: "", className: "text-right", render: (r) => <div className="flex justify-end gap-2">{canEdit&&<><button onClick={() => openEdit(r)} className="text-primary-600 text-sm font-medium">Edit</button><button onClick={() => setDeleteId(r.id)} className={`${r.is_active === false ? "text-emerald-600" : "text-amber-600"} text-sm font-medium`}>{r.is_active === false ? "Activate" : "Deactivate"}</button></>}{!canEdit&&<span className="text-slate-400">—</span>}</div> },
   ];
 
   return <div className="space-y-4" data-navilo-master-standard="true">
-    <PageHeader title="Customers" subtitle="Customer accounts" action={<div className="flex flex-wrap items-center gap-2"><button onClick={openCreate} className="btn-primary">+ New Customer</button></div>} />
+    <PageHeader title="Customers" subtitle="Customer accounts" action={<div className="flex flex-wrap items-center gap-2">{canCreate&&<button onClick={openCreate} className="btn-primary">+ New Customer</button>}</div>} />
     {error && <ErrorBanner message={error} />}
     <div className="navilo-master-filterbar flex items-center gap-2 px-3 py-2" data-report-filters data-no-print data-no-export><Search className="h-4 w-4 text-slate-400" /><input className="w-full bg-transparent outline-none" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customer, phone, email, tax ID or address..." />{search && <button type="button" className="text-xs font-semibold text-primary-600" onClick={() => setSearch("")}>Clear</button>}</div>
     <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable columns={columns} rows={filteredRows} loading={loading} emptyMessage="No customers yet." /></div>
