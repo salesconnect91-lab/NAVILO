@@ -104,6 +104,14 @@ describe("Master Data NEUS real coverage", () => {
     }
   });
 
+  it("keeps the shared NEUS grid readable on narrow mobile screens", () => {
+    const source = fs.readFileSync(path.join(src, "components/DataTable.tsx"), "utf8");
+    expect(source).toContain("mobilePrimaryKey");
+    expect(source).toContain("hidden sm:table-cell");
+    expect(source).toContain("table-fixed");
+    expect(source).toContain("sm:table-auto");
+  });
+
   it("marks every Master Data screen with an explicit print surface", () => {
     for (const file of listScreens) {
       const source = fs.readFileSync(path.join(src, file), "utf8");
