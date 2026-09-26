@@ -92,7 +92,7 @@ export default function DataTable<T extends { id: string }>({
     setHiddenKeys(restoredHiddenKeys(window.localStorage.getItem(key), configurableColumns));
     setPrefs(readPrefs(columns, key));
     try { setSavedViews(JSON.parse(window.localStorage.getItem(viewsKey(columns, key)) || "{}")); } catch { setSavedViews({}); }
-  }, [key, configurableColumns, columns]);
+  }, [key, configurableColumns]);
 
   useEffect(() => {
     const openCustomizer = () => {
