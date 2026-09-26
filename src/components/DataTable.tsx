@@ -91,6 +91,7 @@ export default function DataTable<T extends { id: string }>({
   useEffect(() => {
     setHiddenKeys(restoredHiddenKeys(window.localStorage.getItem(key), configurableColumns));
     setPrefs(readPrefs(columns, key));
+    try { setSavedViews(JSON.parse(window.localStorage.getItem(viewsKey(columns, key)) || "{}")); } catch { setSavedViews({}); }
   }, [key, configurableColumns, columns]);
 
   useEffect(() => {
