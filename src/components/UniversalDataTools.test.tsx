@@ -18,6 +18,11 @@ describe("contextual output actions", () => {
   it("centralizes invoice-list outputs and suppresses duplicate local import actions", async () => {
     render(<MemoryRouter initialEntries={["/sales"]}><main id="navilo-main-content"><span data-navilo-standard-tools-host /><div data-report-content data-navilo-customizable="true"><button type="button">Bulk Upload (CSV)</button></div></main><UniversalDataTools /></MemoryRouter>);
     expect(document.querySelector("[data-navilo-global-data-tools]")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Bulk Upload (CSV)", hidden: true }).style.display).toBe("none");
+    const duplicateImport = document.querySelector<HTMLButtonElement>(
+      '[data-navilo-duplicate-global-action="true"]'
+    );
+    expect(duplicateImport).not.toBeNull();
+    expect(duplicateImport?.textContent).toContain("Bulk Upload (CSV)");
+    expect(duplicateImport?.style.display).toBe("none");
   });
 });
