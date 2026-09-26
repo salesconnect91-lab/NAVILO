@@ -37,9 +37,9 @@ export default function Items(){
   const[typeFilter,setTypeFilter]=useState("all"),[categoryFilter,setCategoryFilter]=useState("all");
   const[filtersOpen,setFiltersOpen]=useState(false),[customizeOpen,setCustomizeOpen]=useState(false);
   const[columns,setColumns]=useState<Record<ColumnKey,boolean>>(()=>{try{return{...DEFAULT_COLUMNS,...JSON.parse(localStorage.getItem("navilo-items-columns")||"{}")}}catch{return DEFAULT_COLUMNS}});
-  const[error,setError]=useState(""),[saving,setSaving]=useState(false),[languageVersion,setLanguageVersion]=useState(0),[nameManual,setNameManual]=useState(false);
+  const[error,setError]=useState(""),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[languageVersion,setLanguageVersion]=useState(0),[nameManual,setNameManual]=useState(false);
 
-  const load=async()=>{const[i,c,u]=await Promise.all([supabase.from("items").select("id,sku,name,name_urdu,type,grade,size,unit,hs_code,cost,price,category_id").order("name"),supabase.from("categories").select("id,name,name_urdu").order("name"),supabase.from("uom").select("id,name,name_urdu,symbol").order("name")]);if(i.error||c.error||u.error)setError(i.error?.message||c.error?.message||u.error?.message||"Load failed");else{setItems((i.data??[]) as Item[]);setCategories((c.data??[]) as Category[]);setUoms((u.data??[]) as Uom[])}};
+  const load=async()=>{setLoading(true);const[i,c,u]=await Promise.all([supabase.from("items").select("id,sku,name,name_urdu,type,grade,size,unit,hs_code,cost,price,category_id").order("name"),supabase.from("categories").select("id,name,name_urdu").order("name"),supabase.from("uom").select("id,name,name_urdu,symbol").order("name")]);if(i.error||c.error||u.error)setError(i.error?.message||c.error?.message||u.error?.message||"Load failed");else{setItems((i.data??[]) as Item[]);setCategories((c.data??[]) as Category[]);setUoms((u.data??[]) as Uom[])}setLoading(false)};
   useEffect(()=>{void load()},[]);
   useEffect(()=>{const h=()=>setLanguageVersion(v=>v+1);window.addEventListener("navilo-language-changed",h);window.addEventListener("navilo:language-changed",h);return()=>{window.removeEventListener("navilo-language-changed",h);window.removeEventListener("navilo:language-changed",h)}},[]);
 
@@ -130,7 +130,7 @@ export default function Items(){
         <div className="mt-1 text-xs text-slate-500">{shown.length} item(s) • {typeFilter==="all"?"All types":typeFilter} • {categoryFilter==="all"?"All categories":cat(categoryFilter)?.name||"Selected category"}</div>
         {search&&<div className="mt-1 text-xs text-slate-500">Search: {search}</div>}
       </div>
-      <DataTable<Item> rows={shown} emptyMessage="No items found." columns={[
+      <DataTable<Item> loading={loading} rows={shown} emptyMessage="No items found." columns={[
         {key:"sku",label:"SKU"},
         {key:"name",label:"Item"},
         ...(showUrdu?[{key:"name_urdu",label:"Urdu Name",render:(x:Item)=><span dir="rtl">{x.name_urdu||"—"}</span>}]:[]),
