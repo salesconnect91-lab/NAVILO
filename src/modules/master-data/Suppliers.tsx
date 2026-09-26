@@ -32,6 +32,8 @@ const EMPTY = {
   opening_date: new Date().toISOString().slice(0, 10),
 };
 
+const urduEnabled=()=>{const root=document.documentElement;return root.dataset.primaryLanguage==="ur"||(root.dataset.languageMode==="bilingual"&&root.dataset.secondaryLanguage==="ur")};
+
 export default function Suppliers() {
   const { canCreate, canEdit } = useModulePermissions("master");
   const { isPlatformOwner, activeCompany } = useAuth();
@@ -48,6 +50,8 @@ export default function Suppliers() {
   const [form, setForm] = useState(EMPTY);
   const [urduTouched, setUrduTouched] = useState(false);
   const [search, setSearch] = useState("");
+  const [showUrdu, setShowUrdu] = useState(urduEnabled);
+  useEffect(()=>{const sync=()=>setShowUrdu(urduEnabled());const observer=new MutationObserver(sync);observer.observe(document.documentElement,{attributes:true,attributeFilter:["data-primary-language","data-secondary-language","data-language-mode"]});window.addEventListener("navilo-language-changed",sync);window.addEventListener("navilo:language-changed",sync);return()=>{observer.disconnect();window.removeEventListener("navilo-language-changed",sync);window.removeEventListener("navilo:language-changed",sync)}},[]);
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
@@ -99,7 +103,7 @@ export default function Suppliers() {
 
     const payload = {
       name: form.name.trim(),
-      name_urdu: form.name_urdu.trim() || toUrduName(form.name),
+      name_urdu: showUrdu ? (form.name_urdu.trim() || toUrduName(form.name)) : (editing?.name_urdu ?? null),
       email: form.email.trim() || null,
       phone: form.phone.trim() || null,
       address: form.address.trim() || null,
@@ -250,7 +254,7 @@ export default function Suppliers() {
         });
         if (error) throw error;
         const created = Array.isArray(data) ? data[0] : data;
-        const urdu = n["urdu name"] || n["name urdu"] || toUrduName(name);
+        const urdu = showUrdu ? (n["urdu name"] || n["name urdu"] || toUrduName(name)) : null;
         if (created?.id) {
           const { error: ue } = await supabase.from("suppliers").update({
             name_urdu: urdu,
@@ -271,10 +275,10 @@ export default function Suppliers() {
     }
   };
 
-  const filteredRows = useMemo(() => { const q = search.trim().toLowerCase(); if (!q) return rows; return rows.filter((r) => [r.name, r.name_urdu, r.email, r.phone, r.address, r.ntn, r.strn, r.cnic, r.tax_registration_status].some((v) => String(v ?? "").toLowerCase().includes(q))); }, [rows, search]);
+  const filteredRows = useMemo(() => { const q = search.trim().toLowerCase(); if (!q) return rows; return rows.filter((r) => [r.name, showUrdu ? r.name_urdu : null, r.email, r.phone, r.address, r.ntn, r.strn, r.cnic, r.tax_registration_status].some((v) => String(v ?? "").toLowerCase().includes(q))); }, [rows, search, showUrdu]);
 
   const columns: Column<SupplierRow>[] = [
-    { key: "name", label: "Name", render: (r) => <div data-business-data><div data-language-code="en" className="font-semibold text-slate-900">{r.name}</div><div data-language-code="ur" dir="rtl" className="text-sm text-slate-500">{r.name_urdu ?? "—"}</div></div> },
+    { key: "name", label: "Name", render: (r) => <div data-business-data><div data-language-code="en" className="font-semibold text-slate-900">{r.name}</div>{showUrdu&&<div data-language-code="ur" dir="rtl" className="text-sm text-slate-500">{r.name_urdu ?? "—"}</div>}</div> },
     { key: "tax", label: "Tax Registration", render: (r) => <div><div className="font-medium capitalize">{r.tax_registration_status ?? "unregistered"}</div><div className="text-xs text-slate-500">{r.strn ? `STRN ${r.strn}` : r.ntn ? `NTN ${r.ntn}` : "—"}</div></div> },
     { key: "email", label: "Email", render: (r) => r.email ?? "—" },
     { key: "phone", label: "Phone", render: (r) => r.phone ?? "—" },
@@ -292,7 +296,7 @@ export default function Suppliers() {
     <Modal open={modalOpen} title={editing ? "Edit Supplier" : "New Supplier"} onClose={() => setModalOpen(false)}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div><label className="label">English Name</label><input className="input" required value={form.name} onChange={(e) => { const name = e.target.value; setForm((f) => ({ ...f, name, name_urdu: urduTouched ? f.name_urdu : toUrduName(name) })); }} /></div>
-        <div data-language-code="ur"><div className="flex items-center justify-between"><label className="label">Urdu Name</label><button type="button" className="text-xs text-primary-600" onClick={() => { setUrduTouched(false); setForm((f) => ({ ...f, name_urdu: toUrduName(f.name) })); }}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.name_urdu} onChange={(e) => { setUrduTouched(true); setForm({ ...form, name_urdu: e.target.value }); }} placeholder="خودکار اردو نام" /></div>
+        {showUrdu&&<div data-language-code="ur"><div className="flex items-center justify-between"><label className="label">Urdu Name</label><button type="button" className="text-xs text-primary-600" onClick={() => { setUrduTouched(false); setForm((f) => ({ ...f, name_urdu: toUrduName(f.name) })); }}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.name_urdu} onChange={(e) => { setUrduTouched(true); setForm({ ...form, name_urdu: e.target.value }); }} placeholder="خودکار اردو نام" /></div>}
         <div><label className="label">Email</label><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
         <div><label className="label">Phone</label><input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
         <div><label className="label">Address</label><textarea className="input" rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
