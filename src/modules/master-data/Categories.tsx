@@ -79,7 +79,7 @@ export default function Categories(){
        <div className="mt-1 text-xs text-slate-500">{shown.length} categor{shown.length===1?"y":"ies"}{showUrdu?` • ${translationFilter==="all"?"All translations":translationFilter==="available"?"Urdu available":"Urdu missing"}`:""} • {descriptionFilter==="all"?"All descriptions":descriptionFilter==="available"?"With description":"Without description"}</div>
        {search&&<div className="mt-1 text-xs text-slate-500">Search: {search}</div>}
      </div>
-     <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50"><tr>
+     <div className="max-h-[65vh] overflow-auto"><table data-neus-grid="true" data-report-content data-navilo-customizable="true" className="w-full text-sm"><thead className="sticky top-0 z-20 bg-slate-50"><tr>
        {visible("name")&&<th className="p-3 text-left">Category Name</th>}{visible("urdu")&&<th className="p-3 text-right">Urdu Name</th>}{visible("description")&&<th className="p-3 text-left">Description</th>}{visible("created")&&<th className="p-3 text-left">Created At</th>}<th className="p-3" data-no-print data-no-export/>
      </tr></thead><tbody>
        {loading?<tr><td className="p-6 text-center text-slate-500" colSpan={visibleCount+1}>Loading categories...</td></tr>:shown.length?shown.map(r=><tr key={r.id} className="border-t">
