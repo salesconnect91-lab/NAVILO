@@ -44,7 +44,7 @@ export default function Items(){
   useEffect(()=>{const h=()=>setLanguageVersion(v=>v+1);window.addEventListener("navilo-language-changed",h);window.addEventListener("navilo:language-changed",h);return()=>{window.removeEventListener("navilo-language-changed",h);window.removeEventListener("navilo:language-changed",h)}},[]);
 
   const languageState=useMemo(()=>({mode:document.documentElement.dataset.languageMode||"single",primary:document.documentElement.dataset.primaryLanguage||"en"}),[languageVersion]);
-  const showUrdu=languageState.mode==="bilingual"||languageState.primary==="ur";
+  const showUrdu=languageState.primary==="ur"||(languageState.mode==="bilingual"&&document.documentElement.dataset.secondaryLanguage==="ur");
   const masterLabel=(english:string,secondary?:string|null,symbol?:string)=>{
     const en=symbol?`${english} (${symbol})`:english;
     const other=String(secondary||"").trim();
@@ -117,6 +117,7 @@ export default function Items(){
 
     <div className="space-y-3" data-no-print data-no-export>
       <label className="relative block min-w-0"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/><input className="h-10 w-full rounded-md border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search SKU, item, category, HS/PCT, UOM, size or grade..."/></label>
+      {activeFilterCount>0&&<div className="flex flex-wrap gap-2" data-report-filter-value data-report-filter-label="Active Filters">{typeFilter!=="all"&&<button type="button" className="rounded-full border bg-white px-3 py-1 text-xs font-medium" onClick={()=>setTypeFilter("all")}>Type: {typeFilter} ×</button>}{categoryFilter!=="all"&&<button type="button" className="rounded-full border bg-white px-3 py-1 text-xs font-medium" onClick={()=>setCategoryFilter("all")}>Category: {cat(categoryFilter)?.name||"Selected"} ×</button>}<button type="button" className="text-xs font-semibold text-primary-600" onClick={clearFilters}>Clear all</button></div>}
       {filtersOpen&&<div className="grid gap-3 rounded-xl border bg-white p-4 md:grid-cols-3">
         <div><label className="label">Type</label><SearchableSelect className="input" value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}><option value="all">All Types</option><option value="raw">Raw</option><option value="component">Component</option><option value="finished">Finished</option></SearchableSelect></div>
         <div><label className="label">Category</label><SearchableSelect className="input" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="all">All Categories</option>{categories.map(c=><option key={c.id} value={c.id}>{masterLabel(c.name,c.name_urdu)}</option>)}</SearchableSelect></div>
