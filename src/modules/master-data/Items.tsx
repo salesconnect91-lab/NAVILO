@@ -1,4 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
+import DataTable, { type Column } from "@/components/DataTable";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toUrduName } from "@/lib/urdu";
@@ -38,9 +39,7 @@ export default function Items(){
 
   const load=async()=>{const[i,c,u]=await Promise.all([supabase.from("items").select("id,sku,name,name_urdu,type,grade,size,unit,hs_code,cost,price,category_id").order("name"),supabase.from("categories").select("id,name,name_urdu").order("name"),supabase.from("uom").select("id,name,name_urdu,symbol").order("name")]);if(i.error||c.error||u.error)setError(i.error?.message||c.error?.message||u.error?.message||"Load failed");else{setItems((i.data??[]) as Item[]);setCategories((c.data??[]) as Category[]);setUoms((u.data??[]) as Uom[])}};
   useEffect(()=>{void load()},[]);
-  useEffect(()=>{const h=()=>setCustomizeOpen(true);window.addEventListener("navilo:report-customize",h);return()=>window.removeEventListener("navilo:report-customize",h)},[]);
   useEffect(()=>{const h=()=>setLanguageVersion(v=>v+1);window.addEventListener("navilo-language-changed",h);window.addEventListener("navilo:language-changed",h);return()=>{window.removeEventListener("navilo-language-changed",h);window.removeEventListener("navilo:language-changed",h)}},[]);
-  useEffect(()=>{localStorage.setItem("navilo-items-columns",JSON.stringify(columns))},[columns]);
 
   const languageState=useMemo(()=>({mode:document.documentElement.dataset.languageMode||"single",primary:document.documentElement.dataset.primaryLanguage||"en"}),[languageVersion]);
   const showUrdu=languageState.mode==="bilingual"||languageState.primary==="ur";
@@ -103,8 +102,7 @@ export default function Items(){
 
   const clearFilters=()=>{setTypeFilter("all");setCategoryFilter("all")};
 
-  const visible=(key:ColumnKey)=>columns[key]&&(key!=="urdu"||showUrdu);
-  return <div className="space-y-4" data-navilo-master-standard="true" data-neus-native-customizer>
+  return <div className="space-y-4" data-navilo-master-standard="true">
     <div className="flex flex-wrap items-start justify-between gap-3" data-no-print data-no-export>
       <div><h1 className="flex items-center gap-2 text-2xl font-bold"><Package className="h-6 w-6"/>Items</h1><p className="text-sm text-slate-500">Item, UOM and statutory HS/PCT identity used by Sales and Purchase invoices.</p></div>
       <div className="flex flex-wrap gap-2">
@@ -124,21 +122,28 @@ export default function Items(){
       </div>}
     </div>
 
-    <section data-report-content data-navilo-customizable="true" data-navilo-print-surface className="space-y-3 rounded-xl bg-white print:shadow-none">
+    <section data-report-content data-navilo-print-surface className="space-y-3 rounded-xl bg-white print:shadow-none">
       <div className="border-b border-slate-200 px-4 py-4">
         <div className="navilo-report-title text-xl font-bold text-slate-900">Items Master</div>
         <div className="mt-1 text-xs text-slate-500">{shown.length} item(s) • {typeFilter==="all"?"All types":typeFilter} • {categoryFilter==="all"?"All categories":cat(categoryFilter)?.name||"Selected category"}</div>
         {search&&<div className="mt-1 text-xs text-slate-500">Search: {search}</div>}
       </div>
-      <div className="max-h-[65vh] overflow-auto"><table data-neus-grid="true" data-report-content data-navilo-customizable="true" className="w-full text-sm"><thead className="sticky top-0 z-20 bg-slate-50"><tr>
-        {visible("sku")&&<th className="p-3 text-left">SKU</th>}{visible("item")&&<th className="p-3 text-left">Item</th>}{visible("urdu")&&<th className="p-3 text-right">Urdu Name</th>}{visible("type")&&<th className="p-3 text-left">Type</th>}{visible("category")&&<th className="p-3 text-left">Category</th>}{visible("hs")&&<th className="p-3 text-left">HS/PCT</th>}{visible("unit")&&<th className="p-3 text-left">UOM</th>}{visible("size")&&<th className="p-3 text-left">Size</th>}{visible("grade")&&<th className="p-3 text-left">Grade</th>}{visible("cost")&&<th className="p-3 text-right">Cost</th>}{visible("price")&&<th className="p-3 text-right">Sale Price</th>}<th className="p-3" data-no-print data-no-export/>
-      </tr></thead><tbody>{shown.map(x=><tr key={x.id} className="border-t">
-        {visible("sku")&&<td className="p-3">{x.sku}</td>}{visible("item")&&<td className="p-3 font-medium">{x.name}</td>}{visible("urdu")&&<td className="p-3 text-right" dir="rtl">{x.name_urdu||"—"}</td>}{visible("type")&&<td className="p-3 capitalize">{x.type||"—"}</td>}{visible("category")&&<td className="p-3">{cat(x.category_id)?.name||"—"}</td>}{visible("hs")&&<td className="p-3">{x.hs_code||"—"}</td>}{visible("unit")&&<td className="p-3">{x.unit||"—"}</td>}{visible("size")&&<td className="p-3">{x.size||"—"}</td>}{visible("grade")&&<td className="p-3">{x.grade||"—"}</td>}{visible("cost")&&<td className="p-3 text-right">{Number(x.cost||0).toLocaleString()}</td>}{visible("price")&&<td className="p-3 text-right">{Number(x.price||0).toLocaleString()}</td>}
-        <td className="p-3 text-right whitespace-nowrap" data-no-print data-no-export><button className="mr-3 text-primary-600" onClick={()=>editItem(x)}>Edit</button><button className="text-red-600" onClick={()=>void del(x)}>Delete</button></td>
-      </tr>)}</tbody><tfoot><tr className="border-t bg-slate-50 font-semibold"><td className="p-3" colSpan={Math.max(1,(Object.keys(columns) as ColumnKey[]).filter(visible).length-2)}>TOTAL / SUMMARY</td>{visible("cost")&&<td className="p-3 text-right">{totalCost.toLocaleString()}</td>}{visible("price")&&<td className="p-3 text-right">{totalPrice.toLocaleString()}</td>}<td data-no-print data-no-export/></tr></tfoot></table></div>
+      <DataTable<Item> rows={shown} emptyMessage="No items found." columns={[
+        {key:"sku",label:"SKU"},
+        {key:"name",label:"Item"},
+        ...(showUrdu?[{key:"name_urdu",label:"Urdu Name",render:(x:Item)=><span dir="rtl">{x.name_urdu||"—"}</span>}]:[]),
+        {key:"type",label:"Type",render:x=><span className="capitalize">{x.type||"—"}</span>},
+        {key:"category_id",label:"Category",render:x=>cat(x.category_id)?.name||"—"},
+        {key:"hs_code",label:"HS/PCT",render:x=>x.hs_code||"—"},
+        {key:"unit",label:"UOM",render:x=>x.unit||"—"},
+        {key:"size",label:"Size",render:x=>x.size||"—"},
+        {key:"grade",label:"Grade",render:x=>x.grade||"—"},
+        {key:"cost",label:"Cost",className:"text-right",render:x=>Number(x.cost||0).toLocaleString()},
+        {key:"price",label:"Sale Price",className:"text-right",render:x=>Number(x.price||0).toLocaleString()},
+        {key:"actions",label:"Actions",sortable:false,render:x=><div className="text-right whitespace-nowrap"><button className="mr-3 text-primary-600" onClick={()=>editItem(x)}>Edit</button><button className="text-red-600" onClick={()=>void del(x)}>Delete</button></div>}
+      ] satisfies Column<Item>[]} />
+      <div className="flex justify-end gap-8 border-t bg-slate-50 px-4 py-3 text-sm font-semibold"><span>Total Cost: {totalCost.toLocaleString()}</span><span>Total Sale Price: {totalPrice.toLocaleString()}</span></div>
     </section>
-
-    {customizeOpen&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 p-4" data-no-print data-no-export><div className="flex max-h-[88vh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-white shadow-xl"><div className="flex items-center justify-between border-b px-5 py-4"><div><h2 className="text-lg font-bold">Customize Items View</h2><p className="text-sm text-slate-500">Choose columns for screen, Print/PDF and Export.</p></div><button type="button" onClick={()=>setCustomizeOpen(false)}><X className="h-5 w-5"/></button></div><div className="flex items-center justify-between gap-2 border-b px-5 py-3"><span className="text-xs font-semibold text-slate-500">{(Object.keys(COLUMN_LABELS) as ColumnKey[]).filter(key=>key!=="urdu"||showUrdu).filter(key=>columns[key]).length} selected</span><div className="flex gap-2"><button type="button" className="btn-secondary" onClick={()=>setColumns(v=>Object.fromEntries((Object.keys(v) as ColumnKey[]).map(key=>[key,key==="urdu"?!showUrdu?false:true:true])) as Record<ColumnKey,boolean>)}>Select All</button><button type="button" className="btn-secondary" onClick={()=>setColumns(v=>Object.fromEntries((Object.keys(v) as ColumnKey[]).map(key=>[key,false])) as Record<ColumnKey,boolean>)}>Clear All</button></div></div><div className="min-h-0 flex-1 overflow-y-auto p-5"><div className="grid gap-2 sm:grid-cols-2">{(Object.keys(COLUMN_LABELS) as ColumnKey[]).filter(key=>key!=="urdu"||showUrdu).map(key=><label key={key} className="flex items-center gap-2 rounded-lg border px-3 py-3"><input type="checkbox" checked={columns[key]} onChange={e=>setColumns(v=>({...v,[key]:e.target.checked}))}/><span>{COLUMN_LABELS[key]}</span></label>)}</div></div><div className="flex justify-between border-t bg-white px-5 py-4"><button type="button" className="btn-secondary" onClick={()=>setColumns(DEFAULT_COLUMNS)}>Reset Default</button><button type="button" className="btn-primary" onClick={()=>setCustomizeOpen(false)}>Done</button></div></div></div>}
 
     {open&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 p-4" data-no-print data-no-export><form onSubmit={save} className="max-h-[90vh] w-full max-w-2xl space-y-3 overflow-visible rounded-xl bg-white p-6 shadow-xl"><h2 className="text-lg font-bold">{edit?"Edit Item":"Add Item"}</h2><div className="grid gap-3 sm:grid-cols-2">
       <div><label className="label">SKU</label><input className="input cursor-not-allowed bg-slate-100 text-slate-600" value={form.sku} readOnly tabIndex={-1}/></div>
