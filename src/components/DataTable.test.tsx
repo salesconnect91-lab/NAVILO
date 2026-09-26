@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+vi.mock("@/auth/AuthContext", () => ({
+  useAuth: () => ({ user: null, activeCompany: null, activeBusinessUnit: null }),
+}));
+
 import DataTable from "./DataTable";
 
 const columns = [{ key: "customer", label: "Customer" }, { key: "amount", label: "Amount" }];
