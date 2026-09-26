@@ -97,6 +97,13 @@ describe("Master Data NEUS real coverage", () => {
     }
   });
 
+  it("renders active chips on Master screens that expose non-search filters", () => {
+    for (const file of ["modules/master-data/Items.tsx","modules/master-data/Categories.tsx","modules/master-data/Employees.tsx"]) {
+      const source = fs.readFileSync(path.join(src, file), "utf8");
+      expect(source).toContain("data-report-filter-value");
+    }
+  });
+
   it("marks every Master Data screen with an explicit print surface", () => {
     for (const file of listScreens) {
       const source = fs.readFileSync(path.join(src, file), "utf8");
