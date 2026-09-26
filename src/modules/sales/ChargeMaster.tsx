@@ -157,7 +157,7 @@ export default function ChargeMaster() {
     const payload = {
       charge_key: key,
       charge_name: name,
-      charge_name_urdu: form.charge_name_urdu.trim() || toUrduName(name),
+      charge_name_urdu: showUrdu ? (form.charge_name_urdu.trim() || toUrduName(name)) : (charges.find((charge)=>charge.id===editingId)?.charge_name_urdu ?? null),
       charge_type: type,
       revenue_account_id: needsRevenue ? form.revenue_account_id : null,
       cost_account_id: needsCost || type === "cost" || type === "both" ? form.cost_account_id || null : null,
@@ -257,7 +257,7 @@ export default function ChargeMaster() {
         const rate = unit === "manual" ? 0 : Number(clean(row.Rate ?? row.default_rate) || 0);
         if (!Number.isFinite(rate) || rate < 0) return errors.push(`Row ${index + 2}: Rate must be zero or greater.`);
         seen.add(key);
-        payload.push({ charge_key: key, charge_name: name, charge_name_urdu: clean(row["Urdu Name"] ?? row.charge_name_urdu) || toUrduName(name), charge_type: type, revenue_account_id: needsRevenue ? revenue?.id ?? null : null, cost_account_id: needsCost ? cost?.id ?? null : null, tax_applicable: yes(row["Tax Applicable"] ?? row.tax_applicable), service_party_required: yes(row["Service Party Required"] ?? row.service_party_required), default_rate: rate, unit, applies_to: applies, purchase_treatment: applies === "sales" ? null : treatment, is_fixed: unit === "manual" ? false : yes(row["Lock Rate"] ?? row.is_fixed), is_active: yes(row.Active ?? row.is_active, true), description: clean(row.Description ?? row.description) || null, updated_at: new Date().toISOString() });
+        payload.push({ charge_key: key, charge_name: name, charge_name_urdu: showUrdu ? (clean(row["Urdu Name"] ?? row.charge_name_urdu) || toUrduName(name)) : null, charge_type: type, revenue_account_id: needsRevenue ? revenue?.id ?? null : null, cost_account_id: needsCost ? cost?.id ?? null : null, tax_applicable: yes(row["Tax Applicable"] ?? row.tax_applicable), service_party_required: yes(row["Service Party Required"] ?? row.service_party_required), default_rate: rate, unit, applies_to: applies, purchase_treatment: applies === "sales" ? null : treatment, is_fixed: unit === "manual" ? false : yes(row["Lock Rate"] ?? row.is_fixed), is_active: yes(row.Active ?? row.is_active, true), description: clean(row.Description ?? row.description) || null, updated_at: new Date().toISOString() });
       });
       if (errors.length) throw new Error(errors.slice(0, 8).join(" "));
       if (!payload.length) throw new Error("No valid charge rows found in the file.");
@@ -267,7 +267,7 @@ export default function ChargeMaster() {
   };
 
   const [search, setSearch] = useState("");
-  const visibleCharges = useMemo(() => { const q = search.trim().toLowerCase(); if (!q) return charges; return charges.filter((x) => [x.charge_name, x.charge_name_urdu, x.charge_key, x.charge_type, x.unit, x.applies_to, x.purchase_treatment, accountLabel(x.revenue_account_id), accountLabel(x.cost_account_id), x.is_active ? "active" : "inactive"].some((v) => String(v ?? "").toLowerCase().includes(q))); }, [charges, search, accounts]);
+  const visibleCharges = useMemo(() => { const q = search.trim().toLowerCase(); if (!q) return charges; return charges.filter((x) => [x.charge_name, showUrdu ? x.charge_name_urdu : null, x.charge_key, x.charge_type, x.unit, x.applies_to, x.purchase_treatment, accountLabel(x.revenue_account_id), accountLabel(x.cost_account_id), x.is_active ? "active" : "inactive"].some((v) => String(v ?? "").toLowerCase().includes(q))); }, [charges, search, accounts, showUrdu]);
 
   const actions = <div className="flex flex-wrap gap-2"><span className="contents" data-navilo-standard-tools-host />{canCreate && <button className="btn-primary" onClick={startAdd}><Plus size={16} />Add Charge</button>}</div>;
 
