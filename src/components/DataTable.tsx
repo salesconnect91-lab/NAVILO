@@ -27,8 +27,8 @@ function storageKey(columns: { key: string }[]) {
   const path = typeof window === "undefined" ? "unknown" : window.location.pathname;
   return `navilo:table-columns:${path}:${columns.map((column) => column.key).join("|")}`;
 }
-function prefsKey(columns: { key: string }[]) { return `${storageKey(columns)}:neus-v3`; }
-function viewsKey(columns: { key: string }[]) { return `${storageKey(columns)}:views-v3`; }
+function prefsKey(columns: { key: string }[], baseKey?: string) { return `${baseKey ?? storageKey(columns)}:neus-v4`; }
+function viewsKey(columns: { key: string }[], baseKey?: string) { return `${baseKey ?? storageKey(columns)}:views-v4`; }
 
 function restoredHiddenKeys(raw: string | null, configurable: { key: string }[]): Set<string> {
   try {
@@ -43,11 +43,11 @@ function restoredHiddenKeys(raw: string | null, configurable: { key: string }[])
 function defaultPrefs<T>(columns: Column<T>[]): ViewPrefs {
   return { order: columns.map(c => c.key), widths: {}, pins: {}, density: "comfortable", hidden: [], sort: null, sorts: [], pageSize: 25 };
 }
-function readPrefs<T>(columns: Column<T>[]): ViewPrefs {
+function readPrefs<T>(columns: Column<T>[], baseKey?: string): ViewPrefs {
   const fallback = defaultPrefs(columns);
   if (typeof window === "undefined") return fallback;
   try {
-    const raw = JSON.parse(window.localStorage.getItem(prefsKey(columns)) || "{}");
+    const raw = JSON.parse(window.localStorage.getItem(prefsKey(columns, baseKey)) || "{}");
     const valid = new Set(columns.map(c => c.key));
     const order = Array.isArray(raw.order) ? raw.order.map(String).filter((k: string) => valid.has(k)) : [];
     return {
@@ -64,27 +64,30 @@ function readPrefs<T>(columns: Column<T>[]): ViewPrefs {
 }
 
 export default function DataTable<T extends { id: string }>({
-  columns, rows, loading, emptyMessage, onSelectionChange, bulkActions = [],
-}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; onSelectionChange?: (rows: T[]) => void; bulkActions?: BulkAction<T>[] }) {
+  columns, rows, loading, emptyMessage, onSelectionChange, bulkActions = [], preferenceScope,
+}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; onSelectionChange?: (rows: T[]) => void; bulkActions?: BulkAction<T>[]; preferenceScope?: string }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const configurableColumns = useMemo(() => columns.filter(c => c.key !== "actions" && c.key !== "action"), [columns]);
-  const key = useMemo(() => storageKey(columns), [columns]);
+  const key = useMemo(() => {
+    const base = storageKey(columns);
+    return preferenceScope ? `${base}:scope:${preferenceScope}` : base;
+  }, [columns, preferenceScope]);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() =>
     typeof window === "undefined" ? new Set() : restoredHiddenKeys(window.localStorage.getItem(storageKey(columns)), configurableColumns)
   );
-  const [prefs, setPrefs] = useState<ViewPrefs>(() => readPrefs(columns));
+  const [prefs, setPrefs] = useState<ViewPrefs>(() => readPrefs(columns, key));
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [viewName, setViewName] = useState("");
   const [savedViews, setSavedViews] = useState<Record<string, ViewPrefs>>(() => {
-    try { return JSON.parse(window.localStorage.getItem(viewsKey(columns)) || "{}"); } catch { return {}; }
+    try { return JSON.parse(window.localStorage.getItem(viewsKey(columns, key)) || "{}"); } catch { return {}; }
   });
 
   useEffect(() => {
     setHiddenKeys(restoredHiddenKeys(window.localStorage.getItem(key), configurableColumns));
-    setPrefs(readPrefs(columns));
+    setPrefs(readPrefs(columns, key));
   }, [key, configurableColumns, columns]);
 
   useEffect(() => {
@@ -98,7 +101,7 @@ export default function DataTable<T extends { id: string }>({
 
   const savePrefs = (next: ViewPrefs) => {
     setPrefs(next);
-    try { window.localStorage.setItem(prefsKey(columns), JSON.stringify(next)); } catch {}
+    try { window.localStorage.setItem(prefsKey(columns, key), JSON.stringify(next)); } catch {}
   };
   const persistHidden = (next: Set<string>) => {
     setHiddenKeys(next);
@@ -164,7 +167,7 @@ export default function DataTable<T extends { id: string }>({
   const beginResize = (columnKey: string, startX: number, startWidth: number) => {
     const move = (event: MouseEvent) => setPrefs(current => {
       const next = { ...current, widths: { ...current.widths, [columnKey]: Math.max(90, startWidth + event.clientX - startX) } };
-      try { window.localStorage.setItem(prefsKey(columns), JSON.stringify(next)); } catch {}
+      try { window.localStorage.setItem(prefsKey(columns, key), JSON.stringify(next)); } catch {}
       return next;
     });
     const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
@@ -289,6 +292,10 @@ export default function DataTable<T extends { id: string }>({
         <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-5">
           {configurableColumns.map(column => <div key={column.key} draggable onDragStart={()=>setDragKey(column.key)} onDragOver={e=>e.preventDefault()} onDrop={()=>{if(dragKey)reorder(dragKey,column.key);setDragKey(null)}} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-slate-50">
             <span className="cursor-grab text-slate-400" aria-hidden="true">⋮⋮</span>
+            <div className="flex gap-1" data-no-print data-no-export>
+              <button type="button" className="btn-secondary h-7 px-2 text-xs" aria-label={`Move ${column.label} left`} disabled={prefs.order.indexOf(column.key)<=0} onClick={()=>{const i=prefs.order.indexOf(column.key);if(i>0)reorder(column.key,prefs.order[i-1])}}>←</button>
+              <button type="button" className="btn-secondary h-7 px-2 text-xs" aria-label={`Move ${column.label} right`} disabled={prefs.order.indexOf(column.key)<0||prefs.order.indexOf(column.key)>=prefs.order.length-1} onClick={()=>{const i=prefs.order.indexOf(column.key);if(i>=0&&i<prefs.order.length-1){const next=[...prefs.order];[next[i],next[i+1]]=[next[i+1],next[i]];savePrefs({...prefs,order:next})}}}>→</button>
+            </div>
             <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
               <input type="checkbox" aria-label={column.label || column.key} checked={!hiddenKeys.has(column.key)}
                 disabled={!hiddenKeys.has(column.key) && configurableColumns.filter(c=>!hiddenKeys.has(c.key)).length===1}
@@ -300,13 +307,13 @@ export default function DataTable<T extends { id: string }>({
           </div>)}
           <div className="mt-4 border-t border-slate-200 pt-4">
             <div className="flex gap-2"><input className="input flex-1" placeholder="Saved view name" value={viewName} onChange={e=>setViewName(e.target.value)}/>
-              <button type="button" className="btn-primary" onClick={()=>{const name=viewName.trim();if(!name)return;const snap={...prefs,hidden:[...hiddenKeys]};const next={...savedViews,[name]:snap};setSavedViews(next);try{window.localStorage.setItem(viewsKey(columns),JSON.stringify(next))}catch{}setViewName("")}}>Save View</button>
+              <button type="button" className="btn-primary" onClick={()=>{const name=viewName.trim();if(!name)return;const snap={...prefs,hidden:[...hiddenKeys]};const next={...savedViews,[name]:snap};setSavedViews(next);try{window.localStorage.setItem(viewsKey(columns, key),JSON.stringify(next))}catch{}setViewName("")}}>Save View</button>
             </div>
             {Object.keys(savedViews).length ? <div className="mt-2 flex flex-wrap gap-2">{Object.keys(savedViews).map(name=><button type="button" key={name} className="btn-secondary text-xs" onClick={()=>{const v=savedViews[name];savePrefs(v);persistHidden(restoredHiddenKeys(JSON.stringify(v.hidden),configurableColumns))}}>{name}</button>)}</div> : null}
           </div>
         </div>
         <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-white p-5">
-          <button type="button" className="btn-secondary" onClick={()=>{try{window.localStorage.removeItem(key);window.localStorage.removeItem(prefsKey(columns))}catch{}persistHidden(new Set());savePrefs(defaultPrefs(columns))}}>Reset Default</button>
+          <button type="button" className="btn-secondary" onClick={()=>{try{window.localStorage.removeItem(key);window.localStorage.removeItem(prefsKey(columns, key))}catch{}persistHidden(new Set());savePrefs(defaultPrefs(columns))}}>Reset Default</button>
           <button type="button" className="btn-primary" onClick={()=>setCustomizeOpen(false)}>Done</button>
         </div>
       </div>
