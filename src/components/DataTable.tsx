@@ -156,6 +156,12 @@ export default function DataTable<T extends { id: string }>({
   const allPageSelected = pagedRows.length > 0 && pagedRows.every(row => selected.has(row.id));
   const rowPad = prefs.density === "compact" ? "py-1.5" : prefs.density === "spacious" ? "py-4" : "py-3";
   const selectedRows = useMemo(() => rows.filter(row => selected.has(row.id)), [rows, selected]);
+  const exportColumns = visibleColumns.filter(col => col.key !== "actions" && col.key !== "action");
+  const exportCell = (col: Column<T>, row: T) => col.render ? col.render(row) : (row as Record<string,unknown>)[col.key] as React.ReactNode;
+  const exportTable = (scope: "filtered" | "selected", data: T[]) => <table data-navilo-export-table={scope} className="sr-only" aria-hidden="true">
+    <thead><tr>{exportColumns.map(col=><th key={col.key}>{col.label}</th>)}</tr></thead>
+    <tbody>{data.map(row=><tr key={row.id}>{exportColumns.map(col=><td key={col.key}>{exportCell(col,row)}</td>)}</tr>)}</tbody>
+  </table>;
 
   const reorder = (from: string, to: string) => {
     if (from === to) return;
@@ -256,6 +262,10 @@ export default function DataTable<T extends { id: string }>({
             </tr>)}
           </tbody>
         </table>
+      </div>
+      <div data-navilo-export-snapshots className="absolute -left-[10000px] top-0 h-px w-px overflow-hidden" aria-hidden="true">
+        {exportTable("filtered", sortedRows)}
+        {exportTable("selected", selectedRows)}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3" data-no-print data-no-export>
         <div className="text-xs text-slate-500">
