@@ -17,6 +17,7 @@ type ViewPrefs = {
   density: Density;
   hidden: string[];
   sort: { key: string; dir: "asc" | "desc" } | null;
+  sorts?: { key: string; dir: "asc" | "desc" }[];
   pageSize: number;
 };
 
@@ -38,7 +39,7 @@ function restoredHiddenKeys(raw: string | null, configurable: { key: string }[])
 }
 
 function defaultPrefs<T>(columns: Column<T>[]): ViewPrefs {
-  return { order: columns.map(c => c.key), widths: {}, pins: {}, density: "comfortable", hidden: [], sort: null, pageSize: 25 };
+  return { order: columns.map(c => c.key), widths: {}, pins: {}, density: "comfortable", hidden: [], sort: null, sorts: [], pageSize: 25 };
 }
 function readPrefs<T>(columns: Column<T>[]): ViewPrefs {
   const fallback = defaultPrefs(columns);
@@ -55,6 +56,7 @@ function readPrefs<T>(columns: Column<T>[]): ViewPrefs {
       density: ["compact","comfortable","spacious"].includes(raw.density) ? raw.density : "comfortable",
       pageSize: [25,50,100,250].includes(Number(raw.pageSize)) ? Number(raw.pageSize) : 25,
       sort: raw.sort && valid.has(raw.sort.key) ? raw.sort : null,
+      sorts: Array.isArray(raw.sorts) ? raw.sorts.filter((x: {key?: string; dir?: string}) => x && valid.has(String(x.key)) && (x.dir === "asc" || x.dir === "desc")) : (raw.sort && valid.has(raw.sort.key) ? [raw.sort] : []),
     };
   } catch { return fallback; }
 }
@@ -119,14 +121,20 @@ export default function DataTable<T extends { id: string }>({
   }, [columns, prefs.order]);
 
   const visibleColumns = orderedColumns.filter(c => c.key === "actions" || c.key === "action" || !hiddenKeys.has(c.key));
+  const activeSorts = prefs.sorts?.length ? prefs.sorts : prefs.sort ? [prefs.sort] : [];
   const sortedRows = useMemo(() => {
-    if (!prefs.sort) return rows;
-    const { key: sortKey, dir } = prefs.sort;
-    const d = dir === "asc" ? 1 : -1;
-    return [...rows].sort((a,b) => String((a as Record<string,unknown>)[sortKey] ?? "").localeCompare(
-      String((b as Record<string,unknown>)[sortKey] ?? ""), undefined, { numeric: true, sensitivity: "base" }
-    ) * d);
-  }, [rows, prefs.sort]);
+    if (!activeSorts.length) return rows;
+    return [...rows].sort((a,b) => {
+      for (const { key: sortKey, dir } of activeSorts) {
+        const d = dir === "asc" ? 1 : -1;
+        const result = String((a as Record<string,unknown>)[sortKey] ?? "").localeCompare(
+          String((b as Record<string,unknown>)[sortKey] ?? ""), undefined, { numeric: true, sensitivity: "base" }
+        ) * d;
+        if (result) return result;
+      }
+      return 0;
+    });
+  }, [rows, activeSorts]);
 
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / prefs.pageSize));
   const safePage = Math.min(page, totalPages);
@@ -188,11 +196,21 @@ export default function DataTable<T extends { id: string }>({
                   className={`relative select-none bg-slate-50 px-4 py-3 text-left font-medium text-slate-600 ${col.className ?? ""}`}>
                   <button type="button" className="inline-flex items-center gap-1 text-left"
                     disabled={action || col.sortable === false}
-                    onClick={() => !action && col.sortable !== false && savePrefs({ ...prefs, sort: prefs.sort?.key === col.key ? { key:col.key, dir:prefs.sort.dir === "asc" ? "desc" : "asc" } : { key:col.key, dir:"asc" } })}>
+                    title={!action ? "Click to sort; Shift+Click for multi-column sort" : undefined}
+                    onClick={(event) => {
+                      if (action || col.sortable === false) return;
+                      const current = activeSorts;
+                      const existing = current.find(x => x.key === col.key);
+                      const nextSpec = { key: col.key, dir: existing?.dir === "asc" ? "desc" as const : "asc" as const };
+                      const sorts = event.shiftKey ? [...current.filter(x => x.key !== col.key), nextSpec] : [nextSpec];
+                      savePrefs({ ...prefs, sort: sorts[0] ?? null, sorts });
+                    }}>
                     <span className={!action ? "cursor-grab" : ""}>{col.label}</span>
-                    {prefs.sort?.key === col.key ? <span aria-hidden="true">{prefs.sort.dir === "asc" ? "↑" : "↓"}</span> : null}
+                    {activeSorts.some(x=>x.key===col.key) ? <span aria-hidden="true">{activeSorts.find(x=>x.key===col.key)?.dir === "asc" ? "↑" : "↓"}{activeSorts.length>1 ? activeSorts.findIndex(x=>x.key===col.key)+1 : ""}</span> : null}
                   </button>
                   {!action ? <span aria-hidden="true" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-slate-300"
+                    role="separator" tabIndex={0} aria-label={`Resize ${col.label} column`}
+                    onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();const width=prefs.widths[col.key]||e.currentTarget.parentElement?.getBoundingClientRect().width||160;savePrefs({...prefs,widths:{...prefs.widths,[col.key]:Math.max(90,width+(e.key==="ArrowRight"?10:-10))}})}}
                     onMouseDown={e => { e.preventDefault(); beginResize(col.key,e.clientX,e.currentTarget.parentElement?.getBoundingClientRect().width || 160); }}/> : null}
                 </th>;
               })}
