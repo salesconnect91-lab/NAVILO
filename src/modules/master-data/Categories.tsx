@@ -1,5 +1,6 @@
 import SearchableSelect from "@/components/SearchableSelect";
 import DataTable, { type Column } from "@/components/DataTable";
+import { useModulePermissions } from "@/auth/useModulePermissions";
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { Download, Filter, Plus, Search, Upload, X } from "lucide-react";
@@ -18,6 +19,7 @@ const clean=(v:unknown)=>String(v??"").trim();
 const norm=(v:unknown)=>clean(v).toLowerCase();
 
 export default function Categories(){
+ const {canCreate,canEdit,canDelete}=useModulePermissions("master");
  const[rows,setRows]=useState<Category[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[languageVersion,setLanguageVersion]=useState(0);
  const[error,setError]=useState<string|null>(null),[modalOpen,setModalOpen]=useState(false),[editing,setEditing]=useState<Category|null>(null),[deleteId,setDeleteId]=useState<string|null>(null),[form,setForm]=useState<CategoryForm>(EMPTY_FORM);
  const[search,setSearch]=useState(""),[translationFilter,setTranslationFilter]=useState("all"),[descriptionFilter,setDescriptionFilter]=useState("all");
@@ -58,7 +60,7 @@ export default function Categories(){
      <div className="flex flex-wrap gap-2">
        <span className="contents" data-navilo-standard-toolbar-host/>
        <button type="button" className="btn-secondary" onClick={()=>setFiltersOpen(v=>!v)}><Filter className="h-4 w-4"/>Filters{activeFilterCount?` (${activeFilterCount})`:""}</button>
-       <button type="button" className="btn-primary" onClick={openCreate}><Plus className="h-4 w-4"/>Add Category</button>
+       {canCreate&&<button type="button" className="btn-primary" onClick={openCreate}><Plus className="h-4 w-4"/>Add Category</button>}
      </div>
    </div>
 
@@ -84,7 +86,7 @@ export default function Categories(){
        ...(showUrdu?[{key:"name_urdu",label:"Urdu Name",render:(r:Category)=><span dir="rtl">{r.name_urdu||"—"}</span>}]:[]),
        {key:"description",label:"Description",render:r=>r.description||"—"},
        {key:"created_at",label:"Created At",render:r=>new Date(r.created_at).toLocaleString()},
-       {key:"actions",label:"Actions",sortable:false,render:r=><div className="text-right whitespace-nowrap"><button type="button" onClick={()=>openEdit(r)} className="mr-3 text-primary-600">Edit</button><button type="button" onClick={()=>setDeleteId(r.id)} className="text-red-600">Delete</button></div>}
+       {key:"actions",label:"Actions",sortable:false,render:r=><div className="text-right whitespace-nowrap">{canEdit&&<button type="button" onClick={()=>openEdit(r)} className="mr-3 text-primary-600">Edit</button>}{canDelete&&<button type="button" onClick={()=>setDeleteId(r.id)} className="text-red-600">Delete</button>}{!canEdit&&!canDelete&&<span className="text-slate-400">—</span>}</div>}
      ] satisfies Column<Category>[]} />
    </section>
 
