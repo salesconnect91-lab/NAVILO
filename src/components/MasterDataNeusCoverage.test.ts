@@ -72,7 +72,7 @@ describe("Master Data NEUS real coverage", () => {
     expect(tools).toContain('Excel — Filtered');
     expect(tools).toContain('Excel — Selected');
     expect(tools).toContain('triggerPrint(reportSelector())');
-    expect(exports).toContain('[data-no-export],[hidden],.hidden');
+    expect(exports).toContain('[data-navilo-export-snapshots]');
   });
 
   it("keeps master row mutations permission-aware", () => {
