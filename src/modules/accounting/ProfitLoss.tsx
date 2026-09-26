@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -7,6 +7,7 @@ import {
   loadDocumentPrintSettings,
 } from "@/lib/documentPrintSettings";
 import { ErrorBanner, formatCurrency } from "@/components/ui";
+import { fetchAllPages, fetchByIdChunks } from "@/lib/fetchAllPages";
 
 type PLBucket =
   | "operatingRevenue"
@@ -155,31 +156,59 @@ export default function ProfitLoss() {
     setLoading(true);
     setError(null);
 
-    const [accountsRes, ledgerRes] = await Promise.all([
-      supabase.from("chart_of_accounts").select("id,code,name,type,parent_head,detail_type,is_group,allow_manual_entries,is_active"),
-      supabase.from("ledgers").select("account_id,journal_entry_id,entry_date,debit,credit").gte("entry_date", fromDate).lte("entry_date", toDate),
-    ]);
+    let accounts: AccountRow[] = [];
+    let rawLedger: LedgerRow[] = [];
 
-    if (accountsRes.error || ledgerRes.error) {
-      setError(accountsRes.error?.message ?? ledgerRes.error?.message ?? "Unable to load Profit & Loss statement.");
+    try {
+      [accounts, rawLedger] = await Promise.all([
+        fetchAllPages<AccountRow>((fromRow,toRow) =>
+          supabase
+            .from("chart_of_accounts")
+            .select("id,code,name,type,parent_head,detail_type,is_group,allow_manual_entries,is_active")
+            .order("id",{ascending:true})
+            .range(fromRow,toRow)
+        ),
+        fetchAllPages<LedgerRow>((fromRow,toRow) =>
+          supabase
+            .from("ledgers")
+            .select("account_id,journal_entry_id,entry_date,debit,credit")
+            .gte("entry_date",fromDate)
+            .lte("entry_date",toDate)
+            .order("entry_date",{ascending:true})
+            .order("journal_entry_id",{ascending:true})
+            .order("account_id",{ascending:true})
+            .range(fromRow,toRow)
+        ),
+      ]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load Profit & Loss statement.");
       setLoading(false);
       return;
     }
 
-    const accounts = (accountsRes.data ?? []) as AccountRow[];
-    const rawLedger = (ledgerRes.data ?? []) as LedgerRow[];
     const journalIds = Array.from(new Set(rawLedger.map((line) => line.journal_entry_id).filter(Boolean))) as string[];
 
     let closingJournalIds = new Set<string>();
     if (journalIds.length) {
-      const journalRes = await supabase.from("journal_entries").select("id,trans_type,fiscal_year_closure_id").in("id", journalIds);
-      if (journalRes.error) {
-        setError(journalRes.error.message);
+      let journalRows: JournalMeta[] = [];
+      try {
+        journalRows = await fetchByIdChunks<JournalMeta>(
+          journalIds,
+          (ids,fromRow,toRow) =>
+            supabase
+              .from("journal_entries")
+              .select("id,trans_type,fiscal_year_closure_id")
+              .in("id",ids)
+              .order("id",{ascending:true})
+              .range(fromRow,toRow)
+        );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to load journal metadata.");
         setLoading(false);
         return;
       }
       closingJournalIds = new Set(
-        ((journalRes.data ?? []) as JournalMeta[])
+        journalRows
           .filter((entry) => entry.trans_type === "Year End Closing" || Boolean(entry.fiscal_year_closure_id))
           .map((entry) => entry.id)
       );
@@ -327,7 +356,7 @@ export default function ProfitLoss() {
             <label className="flex h-10 cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3"><input type="checkbox" checked={hideZeroBalances} onChange={(e) => setHideZeroBalances(e.target.checked)} className="h-4 w-4" /><span className="text-sm font-medium text-slate-800">Hide zero-balance accounts</span></label>
             <div className="flex gap-2"><button type="button" onClick={setThisMonth} className="h-10 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">This Month</button><button type="button" onClick={setThisYear} className="h-10 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">This Year</button></div>
           </div>
-          {lastUpdated && <div className="mt-2 text-right text-[12px] text-slate-400">Posted operational ledger entries only · Updated {lastUpdated.toLocaleTimeString()}</div>}
+          {lastUpdated && <div className="mt-2 text-right text-[12px] text-slate-400">Posted operational ledger entries only ┬╖ Updated {lastUpdated.toLocaleTimeString()}</div>}
         </div>
 
         {loading ? (

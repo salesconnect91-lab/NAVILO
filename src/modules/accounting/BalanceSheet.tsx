@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -7,6 +7,7 @@ import {
   documentTaxText,
 } from "@/lib/documentPrintSettings";
 import { ErrorBanner, formatCurrency } from "@/components/ui";
+import { fetchAllPages, fetchByIdChunks } from "@/lib/fetchAllPages";
 
 interface BSItem {
   name: string;
@@ -182,24 +183,36 @@ export default function BalanceSheet() {
     setLoading(true);
     setError(null);
 
-    const [accountsRes, ledgerRes] = await Promise.all([
-      supabase
-        .from("chart_of_accounts")
-        .select("id, code, name, type, parent_head, detail_type, is_group, allow_manual_entries, is_active"),
-      supabase
-        .from("ledgers")
-        .select("account_id, entry_date, debit, credit")
-        .lte("entry_date", asOfDate),
-    ]);
+    let accountsRes: any[] = [];
+    let ledgerRes: any[] = [];
 
-    if (accountsRes.error || ledgerRes.error) {
-      setError(accountsRes.error?.message ?? ledgerRes.error?.message ?? "Unable to load balance sheet.");
+    try {
+      [accountsRes, ledgerRes] = await Promise.all([
+        fetchAllPages<any>((fromRow,toRow) =>
+          supabase
+            .from("chart_of_accounts")
+            .select("id, code, name, type, parent_head, detail_type, is_group, allow_manual_entries, is_active")
+            .order("id",{ascending:true})
+            .range(fromRow,toRow)
+        ),
+        fetchAllPages<any>((fromRow,toRow) =>
+          supabase
+            .from("ledgers")
+            .select("id, account_id, entry_date, debit, credit")
+            .lte("entry_date",asOfDate)
+            .order("entry_date",{ascending:true})
+            .order("id",{ascending:true})
+            .range(fromRow,toRow)
+        ),
+      ]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load balance sheet.");
       setLoading(false);
       return;
     }
 
-    const accounts = accountsRes.data ?? [];
-    const ledgerLines = ledgerRes.data ?? [];
+    const accounts = accountsRes;
+    const ledgerLines = ledgerRes;
 
     const accountMetaMap: Record<
       string,

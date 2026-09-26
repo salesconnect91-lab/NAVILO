@@ -1,5 +1,6 @@
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchAllPages, fetchByIdChunks } from "@/lib/fetchAllPages";
 import { supabase } from "@/lib/supabase";
 import {
   Ledger,
@@ -10,6 +11,7 @@ import {
   PartyType,
 } from "@/types";
 import {
+
   PageHeader,
   ErrorBanner,
   formatCurrency,
@@ -59,91 +61,84 @@ export default function Ledgers() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchMasterData = useCallback(async () => {
-    const [
-      accountsResult,
-      customersResult,
-      suppliersResult,
-    ] = await Promise.all([
-      supabase
-        .from("chart_of_accounts")
-        .select("*")
-        .order("code", { ascending: true }),
-      supabase
-        .from("customers")
-        .select("*")
-        .order("name", { ascending: true }),
-      supabase
-        .from("suppliers")
-        .select("*")
-        .order("name", { ascending: true }),
-    ]);
+    const [accountsResult, customersResult, suppliersResult] =
+      await Promise.all([
+        fetchAllPages<ChartOfAccount>((fromRow, toRow) =>
+          supabase
+            .from("chart_of_accounts")
+            .select("*")
+            .order("code", { ascending: true })
+            .order("id", { ascending: true })
+            .range(fromRow, toRow)
+        ),
+        fetchAllPages<Customer>((fromRow, toRow) =>
+          supabase
+            .from("customers")
+            .select("*")
+            .order("name", { ascending: true })
+            .order("id", { ascending: true })
+            .range(fromRow, toRow)
+        ),
+        fetchAllPages<Supplier>((fromRow, toRow) =>
+          supabase
+            .from("suppliers")
+            .select("*")
+            .order("name", { ascending: true })
+            .order("id", { ascending: true })
+            .range(fromRow, toRow)
+        ),
+      ]);
 
-    if (accountsResult.error) {
-      throw new Error(accountsResult.error.message);
-    }
-
-    if (customersResult.error) {
-      throw new Error(customersResult.error.message);
-    }
-
-    if (suppliersResult.error) {
-      throw new Error(suppliersResult.error.message);
-    }
-
-    setAccounts((accountsResult.data ?? []) as ChartOfAccount[]);
-    setCustomers((customersResult.data ?? []) as Customer[]);
-    setSuppliers((suppliersResult.data ?? []) as Supplier[]);
+    setAccounts(accountsResult);
+    setCustomers(customersResult);
+    setSuppliers(suppliersResult);
   }, []);
 
   const fetchGeneralLedger = useCallback(async () => {
-    let query = supabase
-      .from("ledgers")
-      .select("*, account:chart_of_accounts(*)")
-      .order("entry_date", { ascending: true })
-      .order("created_at", { ascending: true })
-      .order("id", { ascending: true });
+    const data = await fetchAllPages<LedgerRow>((fromRow, toRow) => {
+      let query = supabase
+        .from("ledgers")
+        .select("*, account:chart_of_accounts(*)")
+        .order("entry_date", { ascending: true })
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
 
-    if (selectedAccount) {
-      query = query.eq("account_id", selectedAccount);
-    }
+      if (selectedAccount) {
+        query = query.eq("account_id", selectedAccount);
+      }
 
-    const { data, error } = await query;
+      return query.range(fromRow, toRow);
+    });
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    setLedgerRows((data ?? []) as LedgerRow[]);
+    setLedgerRows(data);
   }, [selectedAccount]);
 
   const fetchPartyLedger = useCallback(async () => {
-    let query = supabase
-      .from("party_ledgers")
-      .select("*")
-      .order("entry_date", { ascending: true })
-      .order("created_at", { ascending: true })
-      .order("id", { ascending: true });
+    const data = await fetchAllPages<PartyLedgerRow>((fromRow, toRow) => {
+      let query = supabase
+        .from("party_ledgers")
+        .select("*")
+        .order("entry_date", { ascending: true })
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
 
-    if (selectedPartyKey) {
-      const [partyType, partyId] = selectedPartyKey.split(":") as [
-        PartyType,
-        string,
-      ];
+      if (selectedPartyKey) {
+        const [partyType, partyId] = selectedPartyKey.split(":") as [
+          PartyType,
+          string,
+        ];
 
-      query = query
-        .eq("party_type", partyType)
-        .eq("party_id", partyId);
-    } else if (partyFilterType !== "all") {
-      query = query.eq("party_type", partyFilterType);
-    }
+        query = query
+          .eq("party_type", partyType)
+          .eq("party_id", partyId);
+      } else if (partyFilterType !== "all") {
+        query = query.eq("party_type", partyFilterType);
+      }
 
-    const { data, error } = await query;
+      return query.range(fromRow, toRow);
+    });
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    setPartyRows((data ?? []) as PartyLedgerRow[]);
+    setPartyRows(data);
   }, [partyFilterType, selectedPartyKey]);
 
   useEffect(() => {
@@ -447,14 +442,14 @@ export default function Ledgers() {
               onClick={exportToExcel}
               className="px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
             >
-              📊 Export Excel
+              ≡ƒôè Export Excel
             </button>
 
             <button
               onClick={exportToPDF}
               className="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5"
             >
-              📥 Print / PDF
+              ≡ƒôÑ Print / PDF
             </button>
           </div>
         }
@@ -490,7 +485,7 @@ export default function Ledgers() {
                 value={selectedAccount}
                 onChange={(e) => setSelectedAccount(e.target.value)}
               >
-                <option value="">— All Accounts —</option>
+                <option value="">ΓÇö All Accounts ΓÇö</option>
 
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
@@ -597,7 +592,7 @@ export default function Ledgers() {
                   ? selectedAccountObj.name
                   : "General Ledger Statement"
                 : selectedParty
-                  ? `${selectedParty.name} — ${
+                  ? `${selectedParty.name} ΓÇö ${
                       selectedParty.type === "customer"
                         ? "Customer Statement"
                         : "Supplier Statement"
@@ -674,23 +669,23 @@ export default function Ledgers() {
                       </td>
 
                       <td className="py-2.5 px-3 font-medium text-slate-900">
-                        {row.account?.name || "—"}
+                        {row.account?.name || "ΓÇö"}
                       </td>
 
                       <td className="py-2.5 px-3 text-slate-700">
-                        {row.description ?? "—"}
+                        {row.description ?? "ΓÇö"}
                       </td>
 
                       <td className="py-2.5 px-3 text-right text-slate-700">
                         {Number(row.debit) > 0
                           ? formatCurrency(Number(row.debit))
-                          : "—"}
+                          : "ΓÇö"}
                       </td>
 
                       <td className="py-2.5 px-3 text-right text-slate-700">
                         {Number(row.credit) > 0
                           ? formatCurrency(Number(row.credit))
-                          : "—"}
+                          : "ΓÇö"}
                       </td>
 
                       <td className="py-2.5 px-3 text-right font-semibold text-slate-900">
@@ -771,7 +766,7 @@ export default function Ledgers() {
 
                       <td className="py-2.5 px-3">
                         <div className="font-medium text-slate-900">
-                          {row.party_name || "—"}
+                          {row.party_name || "ΓÇö"}
                         </div>
                         <div className="text-[12px] text-slate-400 capitalize">
                           {row.party_type}
@@ -779,23 +774,23 @@ export default function Ledgers() {
                       </td>
 
                       <td className="py-2.5 px-3 text-slate-600">
-                        {row.reference || "—"}
+                        {row.reference || "ΓÇö"}
                       </td>
 
                       <td className="py-2.5 px-3 text-slate-700">
-                        {row.description || "—"}
+                        {row.description || "ΓÇö"}
                       </td>
 
                       <td className="py-2.5 px-3 text-right text-slate-700">
                         {Number(row.debit) > 0
                           ? formatCurrency(Number(row.debit))
-                          : "—"}
+                          : "ΓÇö"}
                       </td>
 
                       <td className="py-2.5 px-3 text-right text-slate-700">
                         {Number(row.credit) > 0
                           ? formatCurrency(Number(row.credit))
-                          : "—"}
+                          : "ΓÇö"}
                       </td>
 
                       <td className="py-2.5 px-3 text-right font-semibold text-slate-900">

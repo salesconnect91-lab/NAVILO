@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, FilePlus2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import DataTable, { Column } from "@/components/DataTable";
 import { ErrorBanner, PageHeader, formatCurrency, formatDate } from "@/components/ui";
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
+import { fetchAllPages, fetchByIdChunks } from "@/lib/fetchAllPages";
 
 interface PostedEntry {
   id: string;
@@ -55,19 +56,18 @@ export default function DayBook() {
     setLoading(true);
     setError(null);
     try {
-      let query = supabase
-        .from("journal_entries")
-        .select("id, entry_no, entry_date, description, status")
-        .eq("status", "posted")
-        .order("entry_date", { ascending: false })
-        .order("entry_no", { ascending: false });
+      const postedEntries = await fetchAllPages<PostedEntry>((fromRow,toRow) => {
+        let query = supabase
+          .from("journal_entries")
+          .select("id, entry_no, entry_date, description, status")
+          .eq("status","posted")
+          .order("entry_date",{ascending:false})
+          .order("entry_no",{ascending:false})
+          .order("id",{ascending:false});
 
-      if (filterDate) query = query.eq("entry_date", filterDate);
-
-      const { data, error: entryError } = await query;
-      if (entryError) throw new Error(entryError.message);
-
-      const postedEntries = (data ?? []) as PostedEntry[];
+        if(filterDate) query=query.eq("entry_date",filterDate);
+        return query.range(fromRow,toRow);
+      });
       setEntries(postedEntries);
       const entryIds = postedEntries.map((entry) => entry.id);
 
@@ -76,13 +76,18 @@ export default function DayBook() {
         return;
       }
 
-      const { data: lineData, error: lineError } = await supabase
-        .from("journal_lines")
-        .select("id, entry_id, account, debit, credit, coa:chart_of_accounts(code,name)")
-        .in("entry_id", entryIds);
+      const lineData = await fetchByIdChunks<DayBookLine>(
+        entryIds,
+        (ids,fromRow,toRow) =>
+          supabase
+            .from("journal_lines")
+            .select("id, entry_id, account, debit, credit, coa:chart_of_accounts(code,name)")
+            .in("entry_id",ids)
+            .order("id",{ascending:true})
+            .range(fromRow,toRow) as any
+      );
 
-      if (lineError) throw new Error(lineError.message);
-      setLines((lineData ?? []) as unknown as DayBookLine[]);
+      setLines(lineData);
     } catch (err) {
       setEntries([]);
       setLines([]);
@@ -133,8 +138,8 @@ export default function DayBook() {
     { key: "entry_date", label: "Date", render: (row) => formatDate(row.entry_date) },
     { key: "description", label: "Description" },
     { key: "account", label: "Account", render: (row) => <span className="font-medium text-slate-700">{row.account}</span> },
-    { key: "debit", label: "Debit", className: "text-right tabular-nums", render: (row) => row.debit > 0 ? formatCurrency(row.debit) : "—" },
-    { key: "credit", label: "Credit", className: "text-right tabular-nums", render: (row) => row.credit > 0 ? formatCurrency(row.credit) : "—" },
+    { key: "debit", label: "Debit", className: "text-right tabular-nums", render: (row) => row.debit > 0 ? formatCurrency(row.debit) : "ΓÇö" },
+    { key: "credit", label: "Credit", className: "text-right tabular-nums", render: (row) => row.credit > 0 ? formatCurrency(row.credit) : "ΓÇö" },
   ];
 
   const exportRows = rows as unknown as Record<string, unknown>[];
@@ -143,7 +148,7 @@ export default function DayBook() {
     <div>
       <PageHeader
         title="Day Book"
-        subtitle="Posted journal transactions only — draft and incomplete entries are excluded."
+        subtitle="Posted journal transactions only ΓÇö draft and incomplete entries are excluded."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <button className="btn-primary" onClick={() => navigate("/accounting")}>

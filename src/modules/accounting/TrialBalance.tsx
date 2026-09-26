@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   loadDocumentPrintSettings,
@@ -8,6 +8,7 @@ import {
 import { ErrorBanner, formatCurrency } from "@/components/ui";
 import { FileSpreadsheet, Printer, RefreshCw } from "lucide-react";
 import { downloadAccountingReportPdf } from "@/lib/accountingReportPdf";
+import { fetchAllPages, fetchByIdChunks } from "@/lib/fetchAllPages";
 
 interface TrialBalanceRow {
   id: string;
@@ -95,31 +96,34 @@ export default function TrialBalance() {
     setLoading(true);
     setError(null);
 
-    const [accountsRes, ledgerRes] = await Promise.all([
-      supabase
-        .from("chart_of_accounts")
-        .select(
-          "id, code, name, type, is_group, allow_manual_entries, is_active"
-        )
-        .order("code"),
-      supabase
-        .from("ledgers")
-        .select("account_id, entry_date, debit, credit")
-        .lte("entry_date", toDate),
-    ]);
+    let accounts: any[] = [];
+    let ledgerLines: any[] = [];
 
-    if (accountsRes.error || ledgerRes.error) {
-      setError(
-        accountsRes.error?.message ??
-          ledgerRes.error?.message ??
-          "Unable to load Trial Balance."
-      );
+    try {
+      [accounts, ledgerLines] = await Promise.all([
+        fetchAllPages<any>((from, to) =>
+          supabase
+            .from("chart_of_accounts")
+            .select("id, code, name, type, is_group, allow_manual_entries, is_active")
+            .order("code", { ascending: true })
+            .order("id", { ascending: true })
+            .range(from, to)
+        ),
+        fetchAllPages<any>((from, to) =>
+          supabase
+            .from("ledgers")
+            .select("id, account_id, entry_date, debit, credit")
+            .lte("entry_date", toDate)
+            .order("entry_date", { ascending: true })
+            .order("id", { ascending: true })
+            .range(from, to)
+        ),
+      ]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load Trial Balance.");
       setLoading(false);
       return;
     }
-
-    const accounts = accountsRes.data ?? [];
-    const ledgerLines = ledgerRes.data ?? [];
     const movementMap = new Map<
       string,
       {
@@ -325,7 +329,7 @@ export default function TrialBalance() {
   };
 
   const amountCell = (amount: number) =>
-    Math.abs(amount) >= 0.005 ? formatCurrency(amount) : "—";
+    Math.abs(amount) >= 0.005 ? formatCurrency(amount) : "ΓÇö";
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-6 pb-12">
@@ -498,7 +502,7 @@ export default function TrialBalance() {
           </div>
           {lastUpdated && (
             <div className="mt-2 text-right text-[12px] text-slate-400">
-              Posted ledger entries only · Updated {lastUpdated.toLocaleTimeString()}
+              Posted ledger entries only ┬╖ Updated {lastUpdated.toLocaleTimeString()}
             </div>
           )}
         </div>
@@ -601,7 +605,7 @@ export default function TrialBalance() {
             <div>
               <span className="block font-bold text-slate-900">Trial Balance Control Check</span>
               <span className="text-xs text-slate-500">
-                Opening difference {formatCurrency(openingDifference)} · Period difference {formatCurrency(periodDifference)}
+                Opening difference {formatCurrency(openingDifference)} ┬╖ Period difference {formatCurrency(periodDifference)}
               </span>
             </div>
             <div className="text-left sm:text-right">
