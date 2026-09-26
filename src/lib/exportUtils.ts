@@ -28,6 +28,7 @@ function isActionHeader(label: string) { return /^(actions?|action|عمل|کار
 function isVisibleForExport(el: Element): boolean {
   const node = el as HTMLElement;
   if (node.closest("[data-no-export],[hidden],.hidden")) return false;
+  if (node.closest("[data-navilo-export-snapshots]") && !node.closest("[data-navilo-export-active]")) return false;
   if (!node.isConnected) return true;
   const style = window.getComputedStyle(node);
   if (style.display === "none" || style.visibility === "hidden") return false;
