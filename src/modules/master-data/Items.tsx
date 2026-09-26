@@ -1,5 +1,6 @@
 import SearchableSelect from "@/components/SearchableSelect";
 import DataTable, { type Column } from "@/components/DataTable";
+import { useModulePermissions } from "@/auth/useModulePermissions";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toUrduName } from "@/lib/urdu";
@@ -30,6 +31,7 @@ async function nextSku(t:ItemType){
 }
 
 export default function Items(){
+  const { canCreate, canEdit, canDelete } = useModulePermissions("master");
   const[items,setItems]=useState<Item[]>([]),[categories,setCategories]=useState<Category[]>([]),[uoms,setUoms]=useState<Uom[]>([]);
   const[form,setForm]=useState<ItemForm>(EMPTY),[edit,setEdit]=useState<Item|null>(null),[open,setOpen]=useState(false),[search,setSearch]=useState("");
   const[typeFilter,setTypeFilter]=useState("all"),[categoryFilter,setCategoryFilter]=useState("all");
@@ -107,7 +109,7 @@ export default function Items(){
       <div><h1 className="flex items-center gap-2 text-2xl font-bold"><Package className="h-6 w-6"/>Items</h1><p className="text-sm text-slate-500">Item, UOM and statutory HS/PCT identity used by Sales and Purchase invoices.</p></div>
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn-secondary" onClick={()=>setFiltersOpen(v=>!v)}><Filter className="h-4 w-4"/>Filters{activeFilterCount?` (${activeFilterCount})`:""}</button>
-        <button type="button" className="btn-primary" onClick={()=>void start()}><Plus className="h-4 w-4"/>Add Item</button>
+        {canCreate&&<button type="button" className="btn-primary" onClick={()=>void start()}><Plus className="h-4 w-4"/>Add Item</button>}
       </div>
     </div>
 
@@ -140,7 +142,7 @@ export default function Items(){
         {key:"grade",label:"Grade",render:x=>x.grade||"—"},
         {key:"cost",label:"Cost",className:"text-right",render:x=>Number(x.cost||0).toLocaleString()},
         {key:"price",label:"Sale Price",className:"text-right",render:x=>Number(x.price||0).toLocaleString()},
-        {key:"actions",label:"Actions",sortable:false,render:x=><div className="text-right whitespace-nowrap"><button className="mr-3 text-primary-600" onClick={()=>editItem(x)}>Edit</button><button className="text-red-600" onClick={()=>void del(x)}>Delete</button></div>}
+        {key:"actions",label:"Actions",sortable:false,render:x=><div className="text-right whitespace-nowrap">{canEdit&&<button className="mr-3 text-primary-600" onClick={()=>editItem(x)}>Edit</button>}{canDelete&&<button className="text-red-600" onClick={()=>void del(x)}>Delete</button>}{!canEdit&&!canDelete&&<span className="text-slate-400">—</span>}</div>}
       ] satisfies Column<Item>[]} />
       <div className="flex justify-end gap-8 border-t bg-slate-50 px-4 py-3 text-sm font-semibold"><span>Total Cost: {totalCost.toLocaleString()}</span><span>Total Sale Price: {totalPrice.toLocaleString()}</span></div>
     </section>
