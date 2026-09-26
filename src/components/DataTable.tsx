@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/auth/AuthContext";
 
 export interface BulkAction<T> { key: string; label: string; onClick: (rows: T[]) => void | Promise<void>; danger?: boolean; disabled?: boolean; }
 
@@ -66,12 +67,14 @@ function readPrefs<T>(columns: Column<T>[], baseKey?: string): ViewPrefs {
 export default function DataTable<T extends { id: string }>({
   columns, rows, loading, emptyMessage, onSelectionChange, bulkActions = [], preferenceScope,
 }: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; onSelectionChange?: (rows: T[]) => void; bulkActions?: BulkAction<T>[]; preferenceScope?: string }) {
+  const { user, activeCompany, activeBusinessUnit } = useAuth();
+  const resolvedPreferenceScope = preferenceScope ?? [user?.id, activeCompany?.company_id, activeBusinessUnit?.business_unit_id].filter(Boolean).join(":");
   const rootRef = useRef<HTMLDivElement | null>(null);
   const configurableColumns = useMemo(() => columns.filter(c => c.key !== "actions" && c.key !== "action"), [columns]);
   const key = useMemo(() => {
     const base = storageKey(columns);
-    return preferenceScope ? `${base}:scope:${preferenceScope}` : base;
-  }, [columns, preferenceScope]);
+    return resolvedPreferenceScope ? `${base}:scope:${resolvedPreferenceScope}` : base;
+  }, [columns, resolvedPreferenceScope]);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() =>
     typeof window === "undefined" ? new Set() : restoredHiddenKeys(window.localStorage.getItem(storageKey(columns)), configurableColumns)
   );
