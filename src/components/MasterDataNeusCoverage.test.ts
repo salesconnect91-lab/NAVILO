@@ -51,4 +51,33 @@ describe("Master Data NEUS real coverage", () => {
       expect(source.match(/>Import Center</g)?.length ?? 0).toBe(0);
     }
   });
+  it("locks accurate centralized export scopes and print isolation", () => {
+    const table = fs.readFileSync(path.join(src, "components/DataTable.tsx"), "utf8");
+    const tools = fs.readFileSync(path.join(src, "components/UniversalDataTools.tsx"), "utf8");
+    const exports = fs.readFileSync(path.join(src, "lib/exportUtils.ts"), "utf8");
+    expect(table).toContain('data-navilo-export-table={scope}');
+    expect(table).toContain('exportTable("filtered", sortedRows)');
+    expect(table).toContain('exportTable("selected", selectedRows)');
+    expect(tools).toContain('Excel — Current Page');
+    expect(tools).toContain('CSV — Current Page');
+    expect(tools).toContain('Excel — Filtered');
+    expect(tools).toContain('Excel — Selected');
+    expect(tools).toContain('triggerPrint(reportSelector())');
+    expect(exports).toContain('[data-no-export],[hidden],.hidden');
+  });
+
+  it("keeps master row mutations permission-aware", () => {
+    for (const file of listScreens) {
+      const source = fs.readFileSync(path.join(src, file), "utf8");
+      expect(source).toMatch(/can(Create|Edit|Delete)|canPerformModule|hasPermission/);
+    }
+  });
+
+  it("keeps explicit filter clearing on every master list", () => {
+    for (const file of listScreens) {
+      const source = fs.readFileSync(path.join(src, file), "utf8");
+      expect(source).toMatch(/Clear(?: Filters)?|resetFilter|clearFilter/i);
+    }
+  });
+
 });
