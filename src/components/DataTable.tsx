@@ -76,7 +76,7 @@ export default function DataTable<T extends { id: string }>({
     return resolvedPreferenceScope ? `${base}:scope:${resolvedPreferenceScope}` : base;
   }, [columns, resolvedPreferenceScope]);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() =>
-    typeof window === "undefined" ? new Set() : restoredHiddenKeys(window.localStorage.getItem(storageKey(columns)), configurableColumns)
+    typeof window === "undefined" ? new Set() : restoredHiddenKeys(window.localStorage.getItem(key), configurableColumns)
   );
   const [prefs, setPrefs] = useState<ViewPrefs>(() => readPrefs(columns, key));
   const [customizeOpen, setCustomizeOpen] = useState(false);
