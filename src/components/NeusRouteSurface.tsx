@@ -4,7 +4,11 @@ import { useLocation } from "react-router-dom";
 
 const NON_SEARCH_ROUTES=[/^\/sales\/(new|[^/]+\/edit)$/, /^\/purchase\/new$/, /^\/settings(?:\/|$)/, /^\/owner(?:\/|$)/];
 function isSearchableRoute(pathname:string){return !NON_SEARCH_ROUTES.some(rule=>rule.test(pathname))}
-function hasNativeSearch(root:HTMLElement|null){return Boolean(root?.querySelector('.navilo-master-filterbar input,input[type="search"],input[placeholder*="Search" i]'))}
+function hasNativeSearch(root:HTMLElement|null){
+ if(!root)return false;
+ return Array.from(root.querySelectorAll<HTMLElement>('.navilo-master-filterbar input,input[type="search"],input[placeholder*="Search" i]'))
+  .some(element=>!element.closest("[data-neus-search]"));
+}
 function searchableRows(root:HTMLElement){return Array.from(root.querySelectorAll<HTMLElement>('tbody tr,[data-neus-search-row]')).filter(node=>!node.closest('[data-no-export]'))}
 type GenericColumn={index:number;label:string};
 
