@@ -38,6 +38,15 @@ describe("Master Data NEUS real coverage", () => {
     ]) expect(source).toContain(contract);
   });
 
+  it("scopes persistent NEUS preferences to authenticated tenant context", () => {
+    const source = fs.readFileSync(path.join(src, "components/DataTable.tsx"), "utf8");
+    expect(source).toContain("useAuth()");
+    expect(source).toContain("user?.id");
+    expect(source).toContain("activeCompany?.company_id");
+    expect(source).toContain("activeBusinessUnit?.business_unit_id");
+    expect(source).toContain("resolvedPreferenceScope");
+  });
+
   it("does not leave always-visible Urdu columns in single-language master tables", () => {
     for (const file of ["modules/master-data/Items.tsx","modules/master-data/Categories.tsx","modules/master-data/Employees.tsx","modules/master-data/Warehouses.tsx","modules/master-data/Uom.tsx","modules/master-data/Transporters.tsx","modules/sales/ChargeMaster.tsx"]) {
       const source = fs.readFileSync(path.join(src, file), "utf8");
