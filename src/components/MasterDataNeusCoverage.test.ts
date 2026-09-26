@@ -2,23 +2,43 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-const root = path.resolve(process.cwd(), "src/modules/master-data");
+const src = path.resolve(process.cwd(), "src");
 const listScreens = [
-  "Customers.tsx","Suppliers.tsx","Godown.tsx","Categories.tsx","Employees.tsx",
-  "Items.tsx","Transporters.tsx","Uom.tsx","Warehouses.tsx",
+  "modules/master-data/Items.tsx",
+  "modules/master-data/Categories.tsx",
+  "modules/master-data/Customers.tsx",
+  "modules/master-data/Suppliers.tsx",
+  "modules/master-data/Employees.tsx",
+  "modules/master-data/Warehouses.tsx",
+  "modules/master-data/Godown.tsx",
+  "modules/master-data/Uom.tsx",
+  "modules/master-data/Transporters.tsx",
+  "modules/sales/ChargeMaster.tsx",
 ];
 
-describe("Master Data NEUS coverage", () => {
+describe("Master Data NEUS real coverage", () => {
   for (const file of listScreens) {
-    it(`${file} exposes search and a NEUS-capable grid`, () => {
-      const source = fs.readFileSync(path.join(root, file), "utf8");
+    it(`${file} uses the shared NEUS DataTable and search`, () => {
+      const source = fs.readFileSync(path.join(src, file), "utf8");
       expect(source).toMatch(/search/i);
-      expect(source).toMatch(/DataTable|data-neus-grid="true"|data-navilo-customizable="true"/);
+      expect(source).toMatch(/<DataTable(?:<|\s)/);
+      expect(source).not.toMatch(/navigate\(\s*["']\/dashboard["']/);
     });
   }
+
+  it("shared DataTable exposes the frozen core NEUS controls", () => {
+    const source = fs.readFileSync(path.join(src, "components/DataTable.tsx"), "utf8");
+    for (const contract of [
+      "Select all rows on page", "draggable", "beginResize", "Pin L", "Pin R",
+      "Select All", "Clear All", "Save View", "Reset Default",
+      "Compact", "Comfortable", "Spacious", "25,50,100,250",
+      "First", "Previous", "Next", "Last", "data-no-print", "data-no-export",
+    ]) expect(source).toContain(contract);
+  });
+
   it("does not duplicate centralized Import Center controls", () => {
     for (const file of listScreens) {
-      const source = fs.readFileSync(path.join(root, file), "utf8");
+      const source = fs.readFileSync(path.join(src, file), "utf8");
       expect(source.match(/>Import Center</g)?.length ?? 0).toBe(0);
     }
   });
