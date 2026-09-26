@@ -89,4 +89,19 @@ describe("Master Data NEUS real coverage", () => {
     }
   });
 
+  it("keeps Urdu persistence isolated to the active language configuration", () => {
+    for (const file of ["modules/master-data/Customers.tsx","modules/master-data/Suppliers.tsx","modules/master-data/Transporters.tsx","modules/sales/ChargeMaster.tsx"]) {
+      const source = fs.readFileSync(path.join(src, file), "utf8");
+      expect(source).toContain("showUrdu");
+      expect(source).toMatch(/showUrdu\s*\?/);
+    }
+  });
+
+  it("marks every Master Data screen with an explicit print surface", () => {
+    for (const file of listScreens) {
+      const source = fs.readFileSync(path.join(src, file), "utf8");
+      expect(source).toMatch(/data-navilo-print-surface|data-report-content/);
+    }
+  });
+
 });
