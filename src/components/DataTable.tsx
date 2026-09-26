@@ -115,7 +115,13 @@ export default function DataTable<T extends { id: string }>({
 
   useEffect(() => { setPage(1); setSelected(new Set()); }, [rows.length, prefs.pageSize]);
   useEffect(() => {
-    onSelectionChange?.(rows.filter(row => selected.has(row.id)));
+    const selectedRows = rows.filter(row => selected.has(row.id));
+    onSelectionChange?.(selectedRows);
+    if (!rootRef.current) return;
+    rootRef.current.dataset.naviloSelectedCount = String(selectedRows.length);
+    rootRef.current.dataset.naviloExportScope = selectedRows.length ? "selected" : "filtered";
+    const event = new CustomEvent("navilo:table-selection-changed", { detail: { selectedIds: selectedRows.map(row => row.id), selectedCount: selectedRows.length } });
+    window.dispatchEvent(event);
   }, [selected, rows, onSelectionChange]);
 
   const orderedColumns = useMemo(() => {
