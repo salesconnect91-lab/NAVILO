@@ -37,6 +37,13 @@ describe("Master Data NEUS real coverage", () => {
     ]) expect(source).toContain(contract);
   });
 
+  it("does not leave always-visible Urdu columns in single-language master tables", () => {
+    for (const file of ["modules/master-data/Items.tsx","modules/master-data/Categories.tsx","modules/master-data/Employees.tsx","modules/master-data/Warehouses.tsx","modules/master-data/Uom.tsx","modules/master-data/Transporters.tsx","modules/sales/ChargeMaster.tsx"]) {
+      const source = fs.readFileSync(path.join(src, file), "utf8");
+      expect(source).not.toMatch(/\{key:"(?:name_urdu|charge_name_urdu)",label:"Urdu Name",render:[^}]+showUrdu\?/);
+    }
+  });
+
   it("does not duplicate centralized Import Center controls", () => {
     for (const file of listScreens) {
       const source = fs.readFileSync(path.join(src, file), "utf8");
