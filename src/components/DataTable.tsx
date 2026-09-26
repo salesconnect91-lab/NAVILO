@@ -196,6 +196,8 @@ export default function DataTable<T extends { id: string }>({
     ? { position:"sticky", left:pinOffsets.left[key], zIndex:12, background:"white" }
     : prefs.pins[key] === "right"
       ? { position:"sticky", right:pinOffsets.right[key], zIndex:12, background:"white" } : {};
+  const mobilePrimaryKey = visibleColumns.find(c => c.key !== "actions" && c.key !== "action")?.key;
+  const mobileColumnClass = (key: string) => key === "actions" || key === "action" || key === mobilePrimaryKey ? "" : "hidden sm:table-cell";
 
   if (loading) return <div role="status" className="card p-12 text-center text-slate-600">Loading records…</div>;
   if (rows.length === 0) return <div role="status" className="card p-12 text-center text-slate-600">{emptyMessage ?? "No records yet."}</div>;
@@ -209,8 +211,8 @@ export default function DataTable<T extends { id: string }>({
           <button type="button" className="btn-secondary" onClick={()=>setSelected(new Set())}>Clear selection</button>
         </div>
       </div>}
-      <div className="max-h-[65vh] overflow-auto">
-        <table aria-label="ERP records" className="w-full min-w-max text-sm print:min-w-0">
+      <div className="max-h-[65vh] overflow-auto overscroll-x-contain">
+        <table aria-label="ERP records" className="w-full table-fixed text-sm sm:min-w-max sm:table-auto print:min-w-0">
           <thead className="sticky top-0 z-20">
             <tr className="border-b border-slate-200 bg-slate-50">
               <th aria-label="Select rows" className="sticky left-0 z-30 w-10 bg-slate-50 px-3" data-no-print data-no-export>
@@ -225,7 +227,7 @@ export default function DataTable<T extends { id: string }>({
                   onDrop={() => { if (dragKey) reorder(dragKey,col.key); setDragKey(null); }}
                   data-no-print={action || undefined} data-no-export={action || undefined}
                   style={{ width:prefs.widths[col.key], minWidth:prefs.widths[col.key], ...stickyStyle(col.key) }}
-                  className={`relative select-none bg-slate-50 px-4 py-3 text-left font-medium text-slate-600 ${col.className ?? ""}`}>
+                  className={`relative select-none bg-slate-50 px-4 py-3 text-left font-medium text-slate-600 ${mobileColumnClass(col.key)} ${col.className ?? ""}`}>
                   <button type="button" className="inline-flex items-center gap-1 text-left"
                     disabled={action || col.sortable === false}
                     title={!action ? "Click to sort; Shift+Click for multi-column sort" : undefined}
@@ -259,7 +261,7 @@ export default function DataTable<T extends { id: string }>({
                 const action = col.key === "actions" || col.key === "action";
                 return <td key={col.key} data-no-print={action || undefined} data-no-export={action || undefined}
                   style={{ width:prefs.widths[col.key], minWidth:prefs.widths[col.key], ...stickyStyle(col.key) }}
-                  className={`px-4 ${rowPad} text-slate-700 ${col.className ?? ""}`}>
+                  className={`px-4 ${rowPad} text-slate-700 ${mobileColumnClass(col.key)} ${col.className ?? ""}`}>
                   {col.render ? col.render(row) : (row as Record<string,unknown>)[col.key] as React.ReactNode}
                 </td>;
               })}
