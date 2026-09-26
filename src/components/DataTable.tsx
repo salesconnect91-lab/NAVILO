@@ -62,8 +62,8 @@ function readPrefs<T>(columns: Column<T>[]): ViewPrefs {
 }
 
 export default function DataTable<T extends { id: string }>({
-  columns, rows, loading, emptyMessage,
-}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string }) {
+  columns, rows, loading, emptyMessage, onSelectionChange,
+}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; onSelectionChange?: (rows: T[]) => void }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const configurableColumns = useMemo(() => columns.filter(c => c.key !== "actions" && c.key !== "action"), [columns]);
   const key = useMemo(() => storageKey(columns), [columns]);
@@ -114,6 +114,9 @@ export default function DataTable<T extends { id: string }>({
   };
 
   useEffect(() => { setPage(1); setSelected(new Set()); }, [rows.length, prefs.pageSize]);
+  useEffect(() => {
+    onSelectionChange?.(rows.filter(row => selected.has(row.id)));
+  }, [selected, rows, onSelectionChange]);
 
   const orderedColumns = useMemo(() => {
     const rank = new Map(prefs.order.map((k, i) => [k, i]));
@@ -176,7 +179,7 @@ export default function DataTable<T extends { id: string }>({
   if (rows.length === 0) return <div role="status" className="card p-12 text-center text-slate-600">{emptyMessage ?? "No records yet."}</div>;
 
   return <>
-    <div ref={rootRef} className="card overflow-hidden" data-report-content data-navilo-data-table data-neus-grid="true">
+    <div ref={rootRef} className="card overflow-hidden" data-report-content data-navilo-data-table data-neus-grid="true" data-navilo-selected-count={selected.size}>
       <div className="max-h-[65vh] overflow-auto">
         <table aria-label="ERP records" className="w-full min-w-max text-sm print:min-w-0">
           <thead className="sticky top-0 z-20">
