@@ -1,4 +1,6 @@
 import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export interface ExportColumn { key: string; label: string; }
 export type ExportMatrix = Array<Array<unknown>>;
@@ -68,6 +70,44 @@ export function flattenExportSheets(sheets: ExportSheet[]): ExportMatrix {
 export function exportPackageToExcel(filename: string, pack: ExportPackage): void { exportWorkbookToExcel(filename, pack.sheets); }
 export function exportPackageToCSV(filename: string, pack: ExportPackage): void { exportMatrixToCSV(filename, flattenExportSheets(pack.sheets)); }
 export function exportPackageToWord(filename: string, pack: ExportPackage): void { exportMatrixToWord(filename, flattenExportSheets(pack.sheets), pack.title); }
+export function exportPackageToPDF(filename: string, pack: ExportPackage): void {
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const margin = 32;
+  let y = 36;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.text(pack.title || "NAVILO Report", margin, y);
+  y += 18;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(`Exported: ${new Date().toLocaleString()}`, margin, y);
+  y += 16;
+
+  (pack.sheets.length ? pack.sheets : [{ name: "Data", rows: [["No data"]] }]).forEach((sheet, index) => {
+    const rows = sheet.rows.length ? sheet.rows : [["No data"]];
+    const head = rows.length > 1 ? [rows[0].map(value => String(value ?? ""))] : [];
+    const bodyRows = rows.length > 1 ? rows.slice(1) : rows;
+    const body = bodyRows.map(row => row.map(value => String(value ?? "")));
+    if (index && y > doc.internal.pageSize.getHeight() - 100) { doc.addPage(); y = 36; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(sheet.name || `Section ${index + 1}`, margin, y);
+    y += 6;
+    autoTable(doc, {
+      startY: y,
+      head,
+      body,
+      margin: { left: margin, right: margin },
+      theme: "grid",
+      styles: { font: "helvetica", fontSize: 7, cellPadding: 3, overflow: "linebreak" },
+      headStyles: { fontStyle: "bold" },
+      didDrawPage: data => { y = data.cursor?.y ?? y; },
+    });
+    const finalY = (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY;
+    y = (typeof finalY === "number" ? finalY : y) + 18;
+  });
+  doc.save(ensureExtension(filename, ".pdf"));
+}
 export function exportMatrixToWord(filename: string, matrix: ExportMatrix, title = "NAVILO Report"): void {
   const rows = matrix.length ? matrix : [[]];
   const table = rows.map((row, i) => `<tr>${row.map(value => i === 0 ? `<th>${escapeHtml(value)}</th>` : `<td>${escapeHtml(value)}</td>`).join("")}</tr>`).join("");
@@ -147,6 +187,7 @@ export function collectReportPackage(root: HTMLElement, title = document.title |
 export function exportDomReportToExcel(filename: string, root: HTMLElement, title?: string, options?: { includeTotals?: boolean; includeFilters?: boolean }) { exportPackageToExcel(filename, collectReportPackage(root, title, options)); }
 export function exportDomReportToCSV(filename: string, root: HTMLElement, title?: string, options?: { includeTotals?: boolean; includeFilters?: boolean }) { exportPackageToCSV(filename, collectReportPackage(root, title, options)); }
 export function exportDomReportToWord(filename: string, root: HTMLElement, title?: string, options?: { includeTotals?: boolean; includeFilters?: boolean }) { exportPackageToWord(filename, collectReportPackage(root, title, options)); }
+export function exportDomReportToPDF(filename: string, root: HTMLElement, title?: string, options?: { includeTotals?: boolean; includeFilters?: boolean }) { exportPackageToPDF(filename, collectReportPackage(root, title, options)); }
 
 export function triggerPrint(selector?: string): void {
   const target = selector ? document.querySelector<HTMLElement>(selector) : document.querySelector<HTMLElement>(".print-document") || document.querySelector<HTMLElement>("[data-print-root]") || document.querySelector<HTMLElement>(".print-report");
