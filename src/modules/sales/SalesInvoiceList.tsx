@@ -112,6 +112,7 @@ export default function SalesInvoiceList() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [invoiceSearch, setInvoiceSearch] = useState("");
+  const [invoiceSort, setInvoiceSort] = useState<"date_desc" | "date_asc" | "invoice_asc" | "balance_desc">("date_desc");
   const [invoiceSort, setInvoiceSort] = useState<"date_desc" | "date_asc" | "invoice_asc" | "balance_desc" | "balance_asc">("date_desc");
   const [openInvoices, setOpenInvoices] = useState<AgingInvoice[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
@@ -289,21 +290,18 @@ export default function SalesInvoiceList() {
 
   const filteredInvoices = useMemo(() => {
     const q = invoiceSearch.trim().toLowerCase();
-
-    if (!q) return openInvoices;
-
-    return openInvoices.filter((invoice) =>
-      [
-        invoice.invoice_no,
-        invoice.aging_status,
-        invoice.aging_bucket,
-        invoice.due_date || "",
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(q)
+    const filtered = !q ? [...openInvoices] : openInvoices.filter((invoice) =>
+      [invoice.invoice_no, invoice.aging_status, invoice.aging_bucket, invoice.due_date || ""]
+        .join(" ").toLowerCase().includes(q)
     );
-  }, [openInvoices, invoiceSearch]);
+    return filtered.sort((a, b) => {
+      if (invoiceSort === "invoice_asc") return String(a.invoice_no).localeCompare(String(b.invoice_no));
+      if (invoiceSort === "balance_desc") return toNumber(b.outstanding_amount) - toNumber(a.outstanding_amount);
+      const ad = new Date(a.invoice_date || 0).getTime();
+      const bd = new Date(b.invoice_date || 0).getTime();
+      return invoiceSort === "date_asc" ? ad - bd : bd - ad;
+    });
+  }, [openInvoices, invoiceSearch, invoiceSort]);
 
   const filteredRows = useMemo(() => {
     const q = listSearch.trim().toLowerCase();
@@ -1013,7 +1011,7 @@ export default function SalesInvoiceList() {
                           <td className="h-5 py-0 px-2">
                             {overdue ? (
                               <div>
-                                <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">
+                                <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-1.5 py-0 text-[10px] font-semibold text-rose-700">
                                   Overdue {invoice.overdue_days} days
                                 </span>
                                 <div className="text-[12px] text-slate-400 mt-1">
@@ -1021,7 +1019,7 @@ export default function SalesInvoiceList() {
                                 </div>
                               </div>
                             ) : (
-                              <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                              <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0 text-[10px] font-semibold text-emerald-700">
                                 Current
                               </span>
                             )}
