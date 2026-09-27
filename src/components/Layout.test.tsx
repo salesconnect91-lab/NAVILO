@@ -15,6 +15,9 @@ vi.mock("@/auth/AuthContext", () => ({
 }));
 vi.mock("@/auth/FeatureAccess", () => ({ useFeatureAccess: () => ({ isFeatureEnabled: () => true }) }));
 vi.mock("@/lib/platformBranding", () => ({ usePlatformBranding: () => ({ branding: { show_branding: false, show_in_sidebar: false } }) }));
+vi.mock("@/lib/supabase", () => ({
+  supabase: { from: () => ({ select: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }) },
+}));
 vi.mock("@/components/UniversalDataTools", () => ({ default: () => null }));
 
 beforeEach(() => localStorage.setItem("navilo-sidebar-collapsed", "true"));
