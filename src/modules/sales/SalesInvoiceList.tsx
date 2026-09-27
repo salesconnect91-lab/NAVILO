@@ -80,11 +80,20 @@ const paymentStatusBadge = (status?: string | null) => {
           ? "bg-violet-100 text-violet-700 border-violet-200"
           : "bg-rose-100 text-rose-700 border-rose-200";
 
+  const label =
+    normalized === "paid"
+      ? "Fully Received"
+      : normalized === "partial"
+        ? "Partially Received"
+        : normalized === "overpaid"
+          ? "Excess / Unapplied"
+          : "Not Received";
+
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold capitalize ${className}`}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${className}`}
     >
-      {normalized}
+      {label}
     </span>
   );
 };
@@ -622,7 +631,7 @@ export default function SalesInvoiceList() {
     },
     {
       key: "payment_status",
-      label: "Payment",
+      label: "Receipt Status",
       render: (r) => paymentStatusBadge(r.payment_status),
     },
     {
@@ -694,7 +703,7 @@ export default function SalesInvoiceList() {
       <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm" data-no-print data-no-export><div className="flex flex-wrap items-center gap-2">
         <input className="input min-w-[260px] flex-1" value={listSearch} onChange={(event) => setListSearch(event.target.value)} placeholder="Search invoice, customer or sales person..." />
         <SearchableSelect wrapperClassName="w-[220px]" className="input" value={postingFilter} onChange={(event) => setPostingFilter(event.target.value)}><option value="all">All posting statuses</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option></SearchableSelect>
-        <SearchableSelect wrapperClassName="w-[190px]" className="input" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value as "all" | PaymentStatus)}><option value="all">All payment statuses</option><option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Paid</option><option value="overpaid">Overpaid</option></SearchableSelect>
+        <SearchableSelect wrapperClassName="w-[190px]" className="input" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value as "all" | PaymentStatus)}><option value="all">All receipt statuses</option><option value="unpaid">Not Received</option><option value="partial">Partially Received</option><option value="paid">Fully Received</option></SearchableSelect>
         <label className="flex w-[155px] flex-col gap-1 text-[11px] font-semibold text-slate-600"><span>From Date</span><input type="date" className="input" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label>
         <label className="flex w-[155px] flex-col gap-1 text-[11px] font-semibold text-slate-600"><span>To Date</span><input type="date" className="input" value={toDate} onChange={(event) => setToDate(event.target.value)} /></label>
         {(listSearch || postingFilter !== "all" || paymentFilter !== "all" || fromDate || toDate) && <button type="button" className="btn-secondary inline-flex items-center gap-1.5 self-end" onClick={() => { setListSearch(""); setPostingFilter("all"); setPaymentFilter("all"); setFromDate(""); setToDate(""); }}><RotateCcw className="h-4 w-4"/>Clear</button>}
