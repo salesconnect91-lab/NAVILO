@@ -1,4 +1,3 @@
-import MasterActionButton from "@/components/MasterActionButton";
 import DataTable,{Column} from "@/components/DataTable";
 import { masterDeleteError } from "@/lib/masterDeleteError";
 import SearchableSelect from "@/components/SearchableSelect";
