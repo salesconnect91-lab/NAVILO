@@ -424,7 +424,7 @@ export default function ConsolidatedPurchaseInvoices() {
         {!locked && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">{editingId && currentInvoice?.status === "draft" && <button type="button" className="btn-danger" disabled={deleting} onClick={() => void deleteDraft(editingId, invoiceNo)}>{deleting ? "Deleting..." : "Delete Draft"}</button>}<button className="btn-primary" disabled={saving}>{saving ? "Saving..." : "Save Consolidated Purchase"}</button></div>}
       </form>}
 
-      {!showForm && <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white"><DataTable columns={listColumns} rows={filteredInvoices} loading={loading} emptyMessage="No Consolidated Purchase Invoices found." showSerialNumber /></div>}
+      {!showForm && <div data-report-content data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white"><DataTable columns={listColumns} rows={filteredInvoices} loading={loading} emptyMessage="No Consolidated Purchase Invoices found." showSerialNumber /></div>}
     </div>
 
     {showForm && editingId && <div id="consolidated-purchase-print-root" className="hidden print:block" data-print-root><PrintLayout
