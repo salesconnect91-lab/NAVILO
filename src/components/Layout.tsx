@@ -6,6 +6,7 @@ import { useFeatureAccess } from "@/auth/FeatureAccess";
 import { hasPermission, roleLabel, type ModuleKey, type PermissionMatrix } from "@/auth/permissions";
 import { FEATURE_BY_KEY } from "@/config/featureRegistry";
 import { usePlatformBranding } from "@/lib/platformBranding";
+import { supabase } from "@/lib/supabase";
 import UniversalDataTools from "@/components/UniversalDataTools";
 import NeusRouteSurface from "@/components/NeusRouteSurface";
 
@@ -94,6 +95,7 @@ export default function Layout({children}:{children:ReactNode}){
   const mods=activeBusinessUnit?.enabled_modules??[];
   const enabledModulesKey=mods.join("|");
   const[collapsed,setCollapsed]=useState(()=>localStorage.getItem("navilo-sidebar-collapsed")==="true"),[mobileOpen,setMobileOpen]=useState(false),[open,setOpen]=useState<Record<string,boolean>>({});
+  const[companySidebarBrand,setCompanySidebarBrand]=useState<{name:string;logoUrl:string}>({name:"",logoUrl:""});
   useEffect(()=>{localStorage.setItem("navilo-sidebar-collapsed",String(collapsed));},[collapsed]);
   useEffect(()=>{
     if(!mobileOpen)return;
@@ -104,7 +106,17 @@ export default function Layout({children}:{children:ReactNode}){
   useEffect(()=>{localStorage.setItem("navilo-theme","light");document.documentElement.dataset.theme="light";document.documentElement.classList.remove("dark");},[]);
   const visible=useMemo(()=>navigation.map(n=>filterNode(n,role,isPlatformOwner,mods,activeBusinessUnit?.business_unit_type,permissions,(key)=>isFeatureEnabled(key,"view"))).filter(Boolean) as NavNode[],[role,isPlatformOwner,enabledModulesKey,activeBusinessUnit?.business_unit_type,permissions,isFeatureEnabled]);
   const pageTitle=title(location.pathname);
+  const ownerWorkspace=location.pathname.startsWith("/owner");
   const showSidebarBrand=branding.show_branding&&branding.show_in_sidebar;
+  useEffect(()=>{
+    if(ownerWorkspace||!activeCompany?.company_id){setCompanySidebarBrand({name:"",logoUrl:""});return;}
+    let cancelled=false;
+    void supabase.from("company_settings").select("company_name,logo_url").maybeSingle().then(({data})=>{
+      if(cancelled)return;
+      setCompanySidebarBrand({name:String(data?.company_name||activeCompany.company_name||""),logoUrl:String(data?.logo_url||"")});
+    });
+    return()=>{cancelled=true;};
+  },[ownerWorkspace,activeCompany?.company_id,activeCompany?.company_name]);
   useEffect(()=>{document.title=branding.show_branding&&branding.erp_name?`${pageTitle} · ${branding.erp_name}`:pageTitle},[pageTitle,branding.show_branding,branding.erp_name]);
   const render=(n:NavNode,d=0):ReactNode=>{
     const active=matches(n,location.pathname),has=Boolean(n.children?.length),expanded=open[n.key]??active,Icon=n.icon;
@@ -116,7 +128,7 @@ export default function Layout({children}:{children:ReactNode}){
   return <div className="erp-shell min-h-screen bg-[#f6f7f9] text-slate-900">
     {mobileOpen&&<button type="button" aria-label="Close navigation" onClick={()=>setMobileOpen(false)} className="fixed inset-0 z-40 bg-slate-950/40 lg:hidden"/>}
     <aside id="navilo-sidebar" aria-label="Primary navigation" className={`navilo-sidebar fixed inset-y-0 left-0 z-50 flex w-[252px] flex-col border-r border-slate-800/80 bg-slate-950 text-slate-300 shadow-2xl shadow-slate-950/10 transition-all duration-200 ${side} ${mobileOpen?"translate-x-0":"invisible -translate-x-full lg:visible lg:translate-x-0"}`}>
-      <div className="flex h-16 items-center border-b border-white/10 px-3">{showSidebarBrand&&branding.logo_url?<img src={branding.logo_url} alt={branding.erp_name||"ERP"} className="h-11 w-11 rounded-xl object-contain"/>:<div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.05]"><Lucide.LayoutGrid className="h-5 w-5 text-slate-500"/></div>}<div className={`ml-2 min-w-0 ${collapsed?"lg:hidden":""}`}>{showSidebarBrand&&branding.erp_name?<><div className="truncate text-[14px] font-black text-white">{branding.erp_name}</div>{branding.show_tagline&&branding.tagline&&<div className="truncate text-[11px] text-slate-500">{branding.tagline}</div>}</>:<div className="text-[13px] font-bold text-slate-400">ERP Workspace</div>}</div><button type="button" aria-label="Close navigation" onClick={()=>setMobileOpen(false)} className="ml-auto rounded-md p-2 text-slate-300 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 lg:hidden"><Lucide.X className="h-5 w-5"/></button></div>
+      <div className="flex h-16 items-center border-b border-white/10 px-3">{showSidebarBrand&&branding.logo_url?<img src={branding.logo_url} alt={branding.erp_name||"ERP"} className="h-11 w-11 rounded-xl object-contain"/>:!ownerWorkspace&&companySidebarBrand.logoUrl?<img src={companySidebarBrand.logoUrl} alt={companySidebarBrand.name||activeCompany?.company_name||"Company"} className="h-11 w-11 rounded-xl bg-white object-contain p-0.5"/>:<div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.05]"><Lucide.LayoutGrid className="h-5 w-5 text-slate-500"/></div>}<div className={`ml-2 min-w-0 ${collapsed?"lg:hidden":""}`}>{showSidebarBrand&&branding.erp_name?<><div className="truncate text-[14px] font-black text-white">{branding.erp_name}</div>{branding.show_tagline&&branding.tagline&&<div className="truncate text-[11px] text-slate-500">{branding.tagline}</div>}</>:!ownerWorkspace?<><div className="truncate text-[14px] font-black text-white">{companySidebarBrand.name||activeCompany?.company_name||"Company Workspace"}</div><div className="truncate text-[11px] text-slate-500">Company Workspace</div></>:<div className="text-[13px] font-bold text-slate-400">ERP Workspace</div>}</div><button type="button" aria-label="Close navigation" onClick={()=>setMobileOpen(false)} className="ml-auto rounded-md p-2 text-slate-300 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 lg:hidden"><Lucide.X className="h-5 w-5"/></button></div>
       <nav aria-label="Modules" className="flex-1 overflow-y-auto px-2 py-3"><div className="space-y-1">{visible.map(n=>render(n))}</div></nav>
       <div className="border-t border-white/10 p-2"><div className={`mb-2 rounded-md bg-white/[0.03] px-2 py-2 ${collapsed?"lg:hidden":""}`}><div className="text-[11px] uppercase text-slate-600">Active Company</div><div className="truncate text-[12px] font-bold text-slate-300">{location.pathname.startsWith("/owner")?"Owner Workspace":activeCompany?.company_name??"No company"}</div><div className="text-[11px] text-slate-500">{user?.email??"Signed in"} · {isPlatformOwner?"Platform Owner":roleLabel(role)}</div></div><button type="button" aria-label="Sign out" onClick={async()=>{await signOut();navigate("/login")}} className="flex h-9 w-full items-center justify-center gap-2 rounded-md text-[12px] text-slate-300 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"><Lucide.LogOut className="h-4 w-4"/><span className={collapsed?"lg:hidden":""}>Sign out</span></button></div>
     </aside>
