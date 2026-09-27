@@ -109,7 +109,6 @@ function decorateGenericReport(clone: HTMLElement, context: PrintContext, report
   const printedAt = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date());
   const header = document.createElement("header"); header.className = "navilo-report-header";
   const identity = document.createElement("div"); identity.className = "navilo-report-identity";
-  if (context.showPlatformBranding && context.platformLogo) { const logo = document.createElement("img"); logo.src = context.platformLogo; logo.alt = context.platformName || "ERP"; logo.className = "navilo-report-logo"; identity.appendChild(logo); }
   identity.appendChild(createTextElement("div", "navilo-report-company-name", context.companyName || "ERP"));
   if (context.businessUnitName) identity.appendChild(createTextElement("div", "navilo-report-business-unit", context.businessUnitName));
   const meta = document.createElement("div"); meta.className = "navilo-report-meta";
@@ -118,8 +117,15 @@ function decorateGenericReport(clone: HTMLElement, context: PrintContext, report
   meta.appendChild(createTextElement("div", "navilo-report-date", `${filterTextForLanguage("Printed / پرنٹ وقت")}: ${printedAt}`));
   header.append(identity, meta);
   const footer = document.createElement("footer"); footer.className = "navilo-report-footer";
-  const left = context.showPlatformBranding && context.platformName ? context.platformName : context.companyName;
-  footer.appendChild(createTextElement("span", "", left || "ERP")); footer.appendChild(createTextElement("span", "navilo-page-number", filterTextForLanguage("Page / صفحہ")));
+  footer.appendChild(createTextElement("span", "", context.companyName || "ERP"));
+  if (context.showPlatformBranding) {
+    const brand = document.createElement("span"); brand.setAttribute("data-platform-print-branding", "true"); Object.assign(brand.style, { display: "inline-flex", alignItems: "center", gap: "5px" });
+    if (context.platformLogo) { const logo = document.createElement("img"); logo.src = context.platformLogo; logo.alt = ""; Object.assign(logo.style, { width: "16px", height: "16px", objectFit: "contain" }); brand.appendChild(logo); }
+    const name = context.platformName || "NAVILO";
+    brand.appendChild(createTextElement("span", "", `Powered by ${name}${context.platformTagline ? ` · ${context.platformTagline}` : ""}`));
+    footer.appendChild(brand);
+  }
+  footer.appendChild(createTextElement("span", "navilo-page-number", filterTextForLanguage("Page / صفحہ")));
   clone.prepend(header); clone.appendChild(footer);
 }
 
