@@ -20,9 +20,9 @@ const PROFESSIONAL_ERROR_COPY: Record<string,string> = {
 export function ErrorBanner({ message }: { message: string }) { const cleanMessage=PROFESSIONAL_ERROR_COPY[message]||message; return <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{cleanMessage}</div>; }
 export function LoadingState() { return <div className="card p-12 text-center text-slate-400">Loading…</div>; }
 
-export function ConfirmModal({open,title,message,onConfirm,onCancel}:{open:boolean;title:string;message:string;onConfirm:()=>void;onCancel:()=>void}) {
+export function ConfirmModal({open,title,message,onConfirm,onCancel,tone="danger"}:{open:boolean;title:string;message:string;onConfirm:()=>void;onCancel:()=>void;tone?:"danger"|"neutral"}) {
   if(!open)return null;
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onCancel}><div className="card mx-4 w-full max-w-sm p-6" onClick={e=>e.stopPropagation()}><h3 className="mb-2 text-lg font-semibold text-slate-900">{title}</h3><p className="mb-6 text-sm text-slate-500">{message}</p><div className="flex justify-end gap-3"><button onClick={onCancel} className="btn-secondary">Cancel / منسوخ کریں</button><button onClick={onConfirm} className="btn-danger">Confirm / تصدیق کریں</button></div></div></div>;
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onCancel}><div className="card mx-4 w-full max-w-sm p-6" onClick={e=>e.stopPropagation()}><h3 className="mb-2 text-lg font-semibold text-slate-900">{title}</h3><p className="mb-6 text-sm text-slate-500">{message}</p><div className="flex justify-end gap-3"><button onClick={onCancel} className="btn-secondary">Cancel / منسوخ کریں</button><button onClick={onConfirm} className={tone==="danger"?"btn-danger":"btn-primary"}>Confirm / تصدیق کریں</button></div></div></div>;
 }
 
 export function Modal({open,title,onClose,children,panelClassName=""}:{open:boolean;title:string;onClose:()=>void;children:React.ReactNode;panelClassName?:string}) {
