@@ -36,7 +36,8 @@ export default function Categories(){
  const showUrdu=languageState.mode==="bilingual"||languageState.primary==="ur";
 
  const shown=useMemo(()=>rows.filter(r=>{
-   const matchesSearch=!search||[r.name,showUrdu?r.name_urdu:null,r.description].some(v=>norm(v).includes(norm(search)));\n   const matchesStatus=statusFilter==="all"||(statusFilter==="active"?r.is_active:!r.is_active);
+   const matchesSearch=!search||[r.name,showUrdu?r.name_urdu:null,r.description].some(v=>norm(v).includes(norm(search)));
+   const matchesStatus=statusFilter==="all"||(statusFilter==="active"?r.is_active:!r.is_active);
    const matchesTranslation=!showUrdu||translationFilter==="all"||(translationFilter==="available"?Boolean(clean(r.name_urdu)):!clean(r.name_urdu));
    const matchesDescription=descriptionFilter==="all"||(descriptionFilter==="available"?Boolean(clean(r.description)):!clean(r.description));
    return matchesSearch&&matchesStatus&&matchesTranslation&&matchesDescription;
