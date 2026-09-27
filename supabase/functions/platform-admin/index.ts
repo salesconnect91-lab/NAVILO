@@ -56,7 +56,7 @@ Deno.serve(async (request) => {
       const branchCode = String(body.branch_code || "HO").trim().toUpperCase();
       const status = body.status === "active" ? "active" : "trial";
       const businessType = String(body.business_unit_type || "custom");
-      if (!name || !code || !ownerEmail || !planId || !unitName || !unitCode || !branchName || !branchCode) {
+      if (!name || !code || !ownerName || !ownerEmail || !planId || !unitName || !unitCode || !branchName || !branchCode) {
         return json({ error: "Company, owner, plan, business unit and branch details are required." }, 400);
       }
       if (password.length < 8) return json({ error: "Temporary password must be at least 8 characters." }, 400);
@@ -69,6 +69,7 @@ Deno.serve(async (request) => {
       const preflight = checkOnboardingLookups(codeLookup, nameLookup, planLookup);
       if (!preflight.ok) return json({ error: preflight.error }, preflight.status);
       const plan = planLookup.data!;
+      if (status === "trial" && Number(plan.trial_days || 0) <= 0) return json({ error: "Selected plan does not include a trial period." }, 400);
       let modules: string[];
       let fiscalSettings: ReturnType<typeof onboardingFiscalSettings>;
       try {
