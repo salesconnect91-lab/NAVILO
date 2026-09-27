@@ -91,7 +91,8 @@ export default function AccessManagementSettings(){
   if(!data)return <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error||"Access management could not be loaded."}</div>;
 
   return <div className="space-y-5">
-    <PageHeader title="Users & Branch Access" subtitle="Role preset + optional custom permissions + business unit / branch scope"/>
+    <PageHeader title="Users & Branch Access" subtitle="Manage company users, permissions, business units and branches within the licensed limits"/>
+    <div className="rounded-lg border border-blue-200 bg-blue-50/50 px-3 py-2 text-xs text-blue-800"><strong>Licence boundary:</strong> Company Owner/Admin can manage access and resources here, but user, business-unit, branch and godown limits are controlled by the NAVILO Platform Owner and cannot be increased from Company Settings.</div>
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}{message&&<div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Stat label="Users" value={`${activeUsers} / ${data.limits.max_users??"∞"}`}/><Stat label="Branches" value={`${activeBranches} / ${data.limits.max_branches??"∞"}`}/><Stat label="Business Units" value={`${data.units.filter(x=>x.is_active).length} / ${data.limits.max_business_units??"∞"}`}/><Stat label="Your Admin Role" value={roleLabel(data.actor_role)}/></div>
 
