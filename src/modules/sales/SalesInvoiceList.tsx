@@ -672,7 +672,8 @@ export default function SalesInvoiceList() {
         open={paymentModalOpen}
         title="Receive Customer Payment"
         onClose={closeReceivePayment}
-        panelClassName="!max-w-[1180px] !w-[calc(100vw-3rem)] !max-h-[94vh] !p-4"\n        closeOnBackdrop={false}
+        panelClassName="!max-w-[1180px] !w-[calc(100vw-3rem)] !max-h-[94vh] !p-4"
+        closeOnBackdrop={false}
       >
         <form onSubmit={handleReceivePayment} className="space-y-3">
           <div className="space-y-3">
@@ -1105,8 +1106,7 @@ export default function SalesInvoiceList() {
                 : `Receive & Post ${formatCurrency(allocatedTotal)}`}
             </button>
           </div>
-          </div>
-        </form>
+          </form>
       </Modal>
     </div>
   );
