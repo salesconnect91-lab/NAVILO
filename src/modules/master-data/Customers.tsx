@@ -1,6 +1,7 @@
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { masterDeleteError } from "@/lib/masterDeleteError";
 import { toUrduName } from "@/lib/urdu";
 import * as XLSX from "xlsx";
 import { Customer } from "@/types";
@@ -286,7 +287,7 @@ export default function Customers() {
   const hardDelete = async () => {
     if (!hardDeleteId) return;
     const { error } = await supabase.from("customers").delete().eq("id", hardDeleteId);
-    if (error) setError(masterDeleteError(error)); else { setHardDeleteId(null); await load(); }
+    if (error) setError(masterDeleteError(error)); else { setHardDeleteId(null); await fetchRows(); }
   };
   const columns: Column<CustomerRow>[] = [
     { key: "name", label: "Name", render: (r) => <div data-business-data><div data-language-code="en" className="font-semibold text-slate-900">{r.name}</div><div data-language-code="ur" dir="rtl" className="text-sm text-slate-500">{r.name_urdu ?? "—"}</div></div> },
