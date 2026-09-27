@@ -1,5 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
-import { FileText, Coins, Clock3, Users, RotateCcw } from "lucide-react";
+import { FileText, Coins, Clock3, Users, RotateCcw, Search } from "lucide-react";
 import {
   useCallback,
   useEffect,
