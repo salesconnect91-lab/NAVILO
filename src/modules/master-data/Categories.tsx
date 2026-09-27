@@ -3,12 +3,12 @@ import { masterDeleteError } from "@/lib/masterDeleteError";
 import SearchableSelect from "@/components/SearchableSelect";
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { Download, Filter, Plus, Search, Upload, X, Pencil, Trash2 } from "lucide-react";
+import { Download, Filter, Plus, Search, Upload, X, Pencil, Trash2, Power } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toUrduName } from "@/lib/urdu";
 import { ConfirmModal, ErrorBanner, Modal } from "@/components/ui";
 
-type Category={id:string;name:string;name_urdu:string|null;description:string|null;created_at:string};
+type Category={id:string;name:string;name_urdu:string|null;description:string|null;created_at:string;is_active:boolean};
 type CategoryForm={name:string;name_urdu:string;description:string};
 type ColumnKey="name"|"urdu"|"description"|"created";
 
@@ -25,7 +25,7 @@ export default function Categories(){
  const[filtersOpen,setFiltersOpen]=useState(false),[importOpen,setImportOpen]=useState(false),[customizeOpen,setCustomizeOpen]=useState(false);
  const[columns,setColumns]=useState<Record<ColumnKey,boolean>>(()=>{try{return{...DEFAULT_COLUMNS,...JSON.parse(localStorage.getItem("navilo-categories-columns")||"{}")}}catch{return DEFAULT_COLUMNS}});
 
- const fetchCategories=useCallback(async()=>{setLoading(true);const{data,error}=await supabase.from("categories").select("id,name,name_urdu,description,created_at").order("name");if(error){setError(error.message);setRows([])}else{setError(null);setRows((data??[]) as Category[])}setLoading(false)},[]);
+ const fetchCategories=useCallback(async()=>{setLoading(true);const{data,error}=await supabase.from("categories").select("id,name,name_urdu,description,created_at,is_active").order("name");if(error){setError(error.message);setRows([])}else{setError(null);setRows((data??[]) as Category[])}setLoading(false)},[]);
  useEffect(()=>{void fetchCategories()},[fetchCategories]);
  useEffect(()=>{localStorage.setItem("navilo-categories-columns",JSON.stringify(columns))},[columns]);
  useEffect(()=>{const h=()=>setCustomizeOpen(true);window.addEventListener("navilo:report-customize",h);return()=>window.removeEventListener("navilo:report-customize",h)},[]);
@@ -54,7 +54,8 @@ export default function Categories(){
  const importExcel=async(e:ChangeEvent<HTMLInputElement>)=>{const file=e.target.files?.[0];e.target.value="";if(!file)return;setSaving(true);setError(null);try{const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});const sheet=wb.Sheets[wb.SheetNames[0]];const raw=XLSX.utils.sheet_to_json<Record<string,unknown>>(sheet,{defval:""});const existing=new Set(rows.map(r=>norm(r.name)));const seen=new Set<string>();const payload:{name:string;name_urdu:string|null;description:string|null}[]=[];const errors:string[]=[];raw.forEach((r,i)=>{const name=clean(r["Category Name"]??r["Name"]??r["name"]),name_urdu=showUrdu?clean(r["Urdu Name"]??r["name_urdu"]):"",description=clean(r["Description"]??r["description"]);if(!name){if(Object.values(r).some(v=>clean(v)))errors.push(`Row ${i+2}: Category Name is required.`);return}const key=norm(name);if(existing.has(key)||seen.has(key)){errors.push(`Row ${i+2}: Duplicate category "${name}".`);return}seen.add(key);payload.push({name,name_urdu:showUrdu?(name_urdu||toUrduName(name)||null):null,description:description||null})});if(errors.length)throw new Error(errors.slice(0,6).join(" "));if(!payload.length)throw new Error("No valid category rows found in the file.");const{error}=await supabase.from("categories").insert(payload);if(error)throw error;window.dispatchEvent(new Event("navilo-master-data-changed"));await fetchCategories();setImportOpen(false)}catch(x){setError(x instanceof Error?x.message:"Category import failed.")}finally{setSaving(false)}};
  const clearFilters=()=>{setTranslationFilter("all");setDescriptionFilter("all")};
 
- const tableCols:Column<Category>[]=[{key:"name",label:"Category Name",render:r=><span className="font-semibold">{r.name}</span>},...(showUrdu?[{key:"urdu",label:"Urdu Name",render:(r:Category)=><span dir="rtl">{r.name_urdu||"—"}</span>} as Column<Category>]:[]),{key:"description",label:"Description",render:r=>r.description||"—"},{key:"created_at",label:"Created At",render:r=>new Date(r.created_at).toLocaleString()},{key:"actions",label:"Actions",className:"text-right",render:r=><div className="flex justify-end gap-2"><button type="button" onClick={()=>openEdit(r)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Pencil className="h-3.5 w-3.5"/>Edit</button><button type="button" onClick={()=>setDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600"><Trash2 className="h-3.5 w-3.5"/>Delete</button></div>}];
+ const toggleStatus=async(r:Category)=>{const{error}=await supabase.from("categories").update({is_active:!r.is_active}).eq("id",r.id);if(error)setError(error.message);else await fetchCategories()};
+ const tableCols:Column<Category>[]=[{key:"name",label:"Category Name",render:r=><span className="font-semibold">{r.name}</span>},...(showUrdu?[{key:"urdu",label:"Urdu Name",render:(r:Category)=><span dir="rtl">{r.name_urdu||"—"}</span>} as Column<Category>]:[]),{key:"description",label:"Description",render:r=>r.description||"—"},{key:"created_at",label:"Created At",render:r=>new Date(r.created_at).toLocaleString()},{key:"status",label:"Status",render:r=><span className={`rounded-full px-2 py-1 text-xs font-semibold ${r.is_active?"bg-emerald-50 text-emerald-700":"bg-slate-100 text-slate-600"}`}>{r.is_active?"Active":"Inactive"}</span>},{key:"actions",label:"Actions",className:"text-right",render:r=><div className="flex justify-end gap-2"><button type="button" onClick={()=>openEdit(r)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Pencil className="h-3.5 w-3.5"/>Edit</button><button type="button" onClick={()=>setDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600"><Power className="h-3.5 w-3.5"/>{r.is_active?"Deactivate":"Activate"}</button><button type="button" onClick={()=>setDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600"><Trash2 className="h-3.5 w-3.5"/>Delete</button></div>}];
  return <div className="space-y-4" data-navilo-master-standard="true">
    <div className="flex flex-wrap items-start justify-between gap-3" data-no-print data-no-export>
      <div><h1 className="text-2xl font-bold">Categories</h1><p className="text-sm text-slate-500">Central item categories used across NAVILO.</p></div>
