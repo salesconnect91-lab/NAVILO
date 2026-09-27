@@ -136,7 +136,7 @@ export default function PurchaseOrderList() {
   ];
 
   return (
-    <div className="navilo-purchase-neus space-y-3" data-navilo-commercial-standard="true">
+    <div className="navilo-purchase-neus min-w-0 max-w-full space-y-3" data-navilo-commercial-standard="true">
       <PageHeader
         title="Purchase Invoices"
         subtitle="Supplier invoices, payables and posting"
@@ -153,13 +153,13 @@ export default function PurchaseOrderList() {
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-violet-50 p-2 text-violet-600"><Truck className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Suppliers</div><div className="font-bold">{visibleSuppliers}</div></div></div>
       </div>
 
-      <div className="grid gap-2 rounded-xl border border-slate-200 bg-white p-3 lg:grid-cols-[minmax(260px,1fr)_150px_175px_175px_150px_150px_auto]" data-no-export data-no-print>
+      <div className="grid min-w-0 max-w-full grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(120px,150px)_minmax(145px,175px)_minmax(145px,175px)_minmax(135px,150px)_minmax(135px,150px)_auto]" data-no-export data-no-print>
         <input className="input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search invoice, supplier or status..." />
         <select className="input" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}><option value="all">All Types</option><option value="without-tax">Without Tax</option><option value="with-tax">With Tax</option></select>
         <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All posting statuses</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option></select>
         <select className="input" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}><option value="all">All payment statuses</option><option value="unpaid">Unpaid</option><option value="partial">Partially Paid</option><option value="paid">Paid</option></select>
-        <label className="text-[11px] font-semibold text-slate-600">From Date<input type="date" className="input mt-1" value={fromDate} onChange={(e) => setFromDate(e.target.value)}/></label>
-        <label className="text-[11px] font-semibold text-slate-600">To Date<input type="date" className="input mt-1" value={toDate} onChange={(e) => setToDate(e.target.value)}/></label>
+        <label className="min-w-0 text-[11px] font-semibold text-slate-600">From Date<input type="date" className="input mt-1 min-w-0 max-w-full" value={fromDate} onChange={(e) => setFromDate(e.target.value)}/></label>
+        <label className="min-w-0 text-[11px] font-semibold text-slate-600">To Date<input type="date" className="input mt-1 min-w-0 max-w-full" value={toDate} onChange={(e) => setToDate(e.target.value)}/></label>
         {(search || typeFilter !== "all" || statusFilter !== "all" || paymentFilter !== "all" || fromDate || toDate) && <button className="btn-secondary self-end" onClick={() => { setSearch(""); setTypeFilter("all"); setStatusFilter("all"); setPaymentFilter("all"); setFromDate(""); setToDate(""); }}><RotateCcw className="h-4 w-4"/>Clear</button>}
       </div>
 
