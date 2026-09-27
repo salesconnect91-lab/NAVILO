@@ -5,7 +5,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toUrduName } from "@/lib/urdu";
-import { Filter, Package, Plus, Search, X, Pencil, Trash2, Power } from "lucide-react";
+import { Package, Plus, Search, Pencil, Trash2, Power, CheckCircle2, XCircle, Layers3 } from "lucide-react";
 
 type ItemType = "raw" | "component" | "finished";
 type Item = { id:string; sku:string; name:string; name_urdu:string|null; type:string|null; grade:string|null; size:string|null; unit:string|null; hs_code:string|null; cost:number|null; price:number|null; category_id:string|null; is_active:boolean };
@@ -34,8 +34,8 @@ async function nextSku(t:ItemType){
 export default function Items(){
   const[items,setItems]=useState<Item[]>([]),[categories,setCategories]=useState<Category[]>([]),[uoms,setUoms]=useState<Uom[]>([]);
   const[form,setForm]=useState<ItemForm>(EMPTY),[edit,setEdit]=useState<Item|null>(null),[open,setOpen]=useState(false),[search,setSearch]=useState("");
-  const[typeFilter,setTypeFilter]=useState("all"),[categoryFilter,setCategoryFilter]=useState("all");
-  const[filtersOpen,setFiltersOpen]=useState(false),[customizeOpen,setCustomizeOpen]=useState(false);
+  const[typeFilter,setTypeFilter]=useState("all"),[categoryFilter,setCategoryFilter]=useState("all"),[statusFilter,setStatusFilter]=useState("all"),[uomFilter,setUomFilter]=useState("all");
+  const[customizeOpen,setCustomizeOpen]=useState(false);
   const[columns,setColumns]=useState<Record<ColumnKey,boolean>>(()=>{try{return{...DEFAULT_COLUMNS,...JSON.parse(localStorage.getItem("navilo-items-columns")||"{}")}}catch{return DEFAULT_COLUMNS}});
   const[error,setError]=useState(""),[saving,setSaving]=useState(false),[languageVersion,setLanguageVersion]=useState(0),[nameManual,setNameManual]=useState(false);
 
@@ -81,8 +81,9 @@ export default function Items(){
     return nameManual?next:applyGeneratedName(next);
   });
 
-  const shown=useMemo(()=>items.filter(x=>(typeFilter==="all"||x.type===typeFilter)&&(categoryFilter==="all"||x.category_id===categoryFilter)&&(!search||[x.sku,x.name,showUrdu?x.name_urdu:null,x.grade,x.size,x.hs_code,x.unit,cat(x.category_id)?.name,showUrdu?cat(x.category_id)?.name_urdu:null].some(v=>n(v).includes(n(search))))),[items,search,typeFilter,categoryFilter,categories,showUrdu]);
-  const activeFilterCount=[typeFilter!=="all",categoryFilter!=="all"].filter(Boolean).length;
+  const shown=useMemo(()=>items.filter(x=>(typeFilter==="all"||x.type===typeFilter)&&(categoryFilter==="all"||x.category_id===categoryFilter)&&(statusFilter==="all"||(statusFilter==="active"?x.is_active:!x.is_active))&&(uomFilter==="all"||x.unit===uomFilter)&&(!search||[x.name,showUrdu?x.name_urdu:null,x.grade,x.size,x.hs_code,x.unit,cat(x.category_id)?.name,showUrdu?cat(x.category_id)?.name_urdu:null].some(v=>n(v).includes(n(search))))),[items,search,typeFilter,categoryFilter,statusFilter,uomFilter,categories,showUrdu]);
+  const activeCount=items.filter(x=>x.is_active).length;
+  const inactiveCount=items.length-activeCount;
   const totalCost=shown.reduce((s,x)=>s+Number(x.cost||0),0),totalPrice=shown.reduce((s,x)=>s+Number(x.price||0),0);
 
   const start=async()=>{try{setEdit(null);setNameManual(false);const defaultUnit=uoms.find(u=>n(u.symbol)==="kg")?.symbol??uoms[0]?.symbol??"";setForm({...EMPTY,sku:await nextSku("finished"),unit:defaultUnit});setOpen(true)}catch(x){setError(x instanceof Error?x.message:"SKU generation failed")}};
@@ -104,30 +105,38 @@ export default function Items(){
   const del=async(x:Item)=>{const{error}=await supabase.from("items").delete().eq("id",x.id);if(error)setError(masterDeleteError(error));else await load()};
   const editItem=(x:Item)=>{const next:ItemForm={sku:x.sku,name:x.name,name_urdu:x.name_urdu??toUrduName(x.name),type:(x.type as ItemType)||"finished",grade:x.grade??"",size:x.size??"",unit:x.unit??"",hs_code:x.hs_code??"",cost:String(x.cost??0),price:String(x.price??0),category_id:x.category_id??""};setEdit(x);setForm(next);setNameManual(n(x.name)!==n(buildItemName(next.category_id,next.size,next.grade)));setOpen(true)};
 
-  const clearFilters=()=>{setTypeFilter("all");setCategoryFilter("all")};
+  const clearFilters=()=>{setTypeFilter("all");setCategoryFilter("all");setStatusFilter("all");setUomFilter("all")};
 
   const visible=(key:ColumnKey)=>columns[key]&&(key!=="urdu"||showUrdu);
   const toggleStatus=async(x:Item)=>{const{error}=await supabase.from("items").update({is_active:!x.is_active}).eq("id",x.id);if(error)setError(error.message);else await load()};
   const tableCols:Column<Item>[]=[{key:"name",label:"Item",render:x=><span className="font-medium">{x.name}</span>},...(showUrdu?[{key:"urdu",label:"Urdu Name",render:(x:Item)=><span dir="rtl">{x.name_urdu||"—"}</span>} as Column<Item>]:[]),{key:"type",label:"Type",render:x=><span className="capitalize">{x.type||"—"}</span>},{key:"category",label:"Category",render:x=>cat(x.category_id)?.name||"—"},{key:"hs",label:"HS/PCT",render:x=>x.hs_code||"—"},{key:"unit",label:"UOM",render:x=>x.unit||"—"},{key:"size",label:"Size",render:x=>x.size||"—"},{key:"grade",label:"Grade",render:x=>x.grade||"—"},{key:"cost",label:"Cost",className:"text-right",render:x=>Number(x.cost||0).toLocaleString()},{key:"price",label:"Sale Price",className:"text-right",render:x=>Number(x.price||0).toLocaleString()},{key:"status",label:"Status",render:x=><span className={`rounded-full px-2 py-1 text-xs font-semibold ${x.is_active?"bg-emerald-50 text-emerald-700":"bg-slate-100 text-slate-600"}`}>{x.is_active?"Active":"Inactive"}</span>},{key:"actions",label:"Actions",className:"text-right",render:x=><div className="flex justify-end gap-2"><button className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs" onClick={()=>editItem(x)}><Pencil className="h-3.5 w-3.5"/>Edit</button><MasterActionButton tone="danger" title={x.is_active?"Deactivate Item":"Activate Item"} message="Historical transactions will remain safe. Inactive records cannot be selected for new transactions." onConfirm={()=>toggleStatus(x)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Power className="h-3.5 w-3.5"/>{x.is_active?"Deactivate":"Activate"}</MasterActionButton><button className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600" onClick={()=>void del(x)}><Trash2 className="h-3.5 w-3.5"/>Delete</button></div>}];
   return <div className="space-y-4" data-navilo-master-standard="true">
-    <div className="flex flex-wrap items-start justify-between gap-3" data-no-print data-no-export>
-      <div><h1 className="flex items-center gap-2 text-2xl font-bold"><Package className="h-6 w-6"/>Items</h1><p className="text-sm text-slate-500">Item, UOM and statutory HS/PCT identity used by Sales and Purchase invoices.</p></div>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn-secondary" onClick={()=>setFiltersOpen(v=>!v)}><Filter className="h-4 w-4"/>Filters{activeFilterCount?` (${activeFilterCount})`:""}</button>
-        <button type="button" className="btn-primary" onClick={()=>void start()}><Plus className="h-4 w-4"/>Add Item</button>
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" data-no-print data-no-export>
+      <div className="grid gap-0 lg:grid-cols-[1.8fr_repeat(4,minmax(0,1fr))]">
+        <div className="flex items-center gap-4 p-5">
+          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-600"><Package className="h-7 w-7"/></div>
+          <div><h1 className="text-2xl font-bold tracking-tight text-slate-900">Items</h1><p className="mt-1 text-sm text-slate-500">Manage your item master data</p></div>
+        </div>
+        <div className="flex items-center gap-3 border-t border-slate-100 p-4 lg:border-l lg:border-t-0"><div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-600"><Package className="h-5 w-5"/></div><div><p className="text-xs font-medium text-slate-500">Total Items</p><p className="text-xl font-bold text-slate-900">{items.length.toLocaleString()}</p></div></div>
+        <div className="flex items-center gap-3 border-t border-slate-100 p-4 lg:border-l lg:border-t-0"><div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-600"><CheckCircle2 className="h-5 w-5"/></div><div><p className="text-xs font-medium text-slate-500">Active Items</p><p className="text-xl font-bold text-slate-900">{activeCount.toLocaleString()}</p></div></div>
+        <div className="flex items-center gap-3 border-t border-slate-100 p-4 lg:border-l lg:border-t-0"><div className="grid h-10 w-10 place-items-center rounded-xl bg-red-50 text-red-600"><XCircle className="h-5 w-5"/></div><div><p className="text-xs font-medium text-slate-500">Inactive Items</p><p className="text-xl font-bold text-slate-900">{inactiveCount.toLocaleString()}</p></div></div>
+        <div className="flex items-center gap-3 border-t border-slate-100 p-4 lg:border-l lg:border-t-0"><div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-600"><Layers3 className="h-5 w-5"/></div><div><p className="text-xs font-medium text-slate-500">Categories</p><p className="text-xl font-bold text-slate-900">{categories.length.toLocaleString()}</p></div></div>
       </div>
-    </div>
+    </section>
 
-    {error&&<div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700" data-no-print data-no-export>{error}</div>}
+    {error&&<div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" data-no-print data-no-export>{error}</div>}
 
-    <div className="space-y-3" data-no-print data-no-export>
-      <label className="relative block min-w-0"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/><input className="h-10 w-full rounded-md border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search item, category, HS/PCT, UOM, size or grade..."/></label>
-      {filtersOpen&&<div className="grid gap-3 rounded-xl border bg-white p-4 md:grid-cols-3">
-        <div><label className="label">Type</label><SearchableSelect className="input" value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}><option value="all">All Types</option><option value="raw">Raw</option><option value="component">Component</option><option value="finished">Finished</option></SearchableSelect></div>
-        <div><label className="label">Category</label><SearchableSelect className="input" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="all">All Categories</option>{categories.map(c=><option key={c.id} value={c.id}>{masterLabel(c.name,c.name_urdu)}</option>)}</SearchableSelect></div>
-        <div className="flex items-end"><button type="button" className="btn-secondary w-full justify-center" onClick={clearFilters}>Clear Filters</button></div>
-      </div>}
-    </div>
+    <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm" data-no-print data-no-export>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="relative min-w-[260px] flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/><input className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by item, category, HS/PCT, UOM..."/></label>
+        <SearchableSelect className="input !h-10 !w-auto min-w-[125px]" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">All Status</option><option value="active">Active</option><option value="inactive">Inactive</option></SearchableSelect>
+        <SearchableSelect className="input !h-10 !w-auto min-w-[145px]" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="all">All Categories</option>{categories.map(c=><option key={c.id} value={c.id}>{masterLabel(c.name,c.name_urdu)}</option>)}</SearchableSelect>
+        <SearchableSelect className="input !h-10 !w-auto min-w-[115px]" value={uomFilter} onChange={e=>setUomFilter(e.target.value)}><option value="all">All UOM</option>{uoms.map(u=><option key={u.id} value={u.symbol}>{masterLabel(u.name,u.name_urdu,u.symbol)}</option>)}</SearchableSelect>
+        <SearchableSelect className="input !h-10 !w-auto min-w-[120px]" value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}><option value="all">All Types</option><option value="raw">Raw</option><option value="component">Component</option><option value="finished">Finished</option></SearchableSelect>
+        {(search||typeFilter!=="all"||categoryFilter!=="all"||statusFilter!=="all"||uomFilter!=="all")&&<button type="button" className="btn-secondary !h-10 px-3" onClick={()=>{setSearch("");clearFilters()}}>Clear</button>}
+        <button type="button" className="btn-primary !h-10 whitespace-nowrap px-4" onClick={()=>void start()}><Plus className="h-4 w-4"/>Add Item</button>
+      </div>
+    </section>
 
     <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable showSerialNumber columns={tableCols} rows={shown} /></div>
 
