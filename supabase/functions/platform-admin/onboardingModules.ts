@@ -7,6 +7,7 @@ export function onboardingFiscalSettings(baseCurrency: unknown, taxMode: unknown
   if (!(BASE_CURRENCIES as readonly string[]).includes(currency)) throw new Error("Select a supported base currency");
   const mode = String(taxMode || "non_tax");
   if (mode !== "non_tax" && mode !== "tax_registered") throw new Error("Invalid company tax mode");
+  if (mode === "tax_registered" && !String(effectiveFrom || "").trim()) throw new Error("Tax effective date is required for a registered company");
   const date = String(effectiveFrom || new Date().toISOString().slice(0, 10));
   const parsedDate = new Date(`${date}T00:00:00Z`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0,10)!==date || date < new Date().toISOString().slice(0, 10))
