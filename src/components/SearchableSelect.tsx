@@ -5,6 +5,7 @@ import type { ChangeEvent, ReactElement, ReactNode, SelectHTMLAttributes } from 
 
 type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, "children"> & {
   children: ReactNode;
+  wrapperClassName?: string;
   searchPlaceholder?: string;
   emptyText?: string;
 };
@@ -84,6 +85,7 @@ function collectOptions(children: ReactNode): Option[] {
 export default function SearchableSelect({
   children,
   className = "",
+  wrapperClassName = "",
   value,
   defaultValue,
   onChange,
@@ -172,7 +174,7 @@ export default function SearchableSelect({
   };
 
   return (
-    <div ref={rootRef} className="relative w-full min-w-0">
+    <div ref={rootRef} className={`relative min-w-0 ${wrapperClassName || "w-full"}`}>
       <button
         id={id}
         type="button"
