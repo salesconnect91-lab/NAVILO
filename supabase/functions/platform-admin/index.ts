@@ -346,13 +346,41 @@ Deno.serve(async (request) => {
     }
 
     if (action === "update_membership") {
+      const membershipId = String(body.membership_id);
+      const { data: currentMembership, error: currentMembershipError } = await admin
+        .from("company_memberships")
+        .select("id,company_id,role,is_active")
+        .eq("id", membershipId)
+        .single();
+      if (currentMembershipError) throw currentMembershipError;
+
+      const nextRole = body.role !== undefined ? String(body.role) : currentMembership.role;
+      const nextActive = body.is_active !== undefined ? !!body.is_active : currentMembership.is_active;
+      const removesActiveOwner =
+        currentMembership.role === "company_owner" &&
+        currentMembership.is_active &&
+        (nextRole !== "company_owner" || !nextActive);
+
+      if (removesActiveOwner) {
+        const { count: activeOwnerCount, error: ownerCountError } = await admin
+          .from("company_memberships")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", currentMembership.company_id)
+          .eq("role", "company_owner")
+          .eq("is_active", true);
+        if (ownerCountError) throw ownerCountError;
+        if ((activeOwnerCount ?? 0) <= 1) {
+          return json({ error: "Assign another active Company Owner before demoting or disabling the last active owner." }, 409);
+        }
+      }
+
       const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (body.role !== undefined) patch.role = String(body.role);
-      if (body.is_active !== undefined) patch.is_active = !!body.is_active;
+      if (body.role !== undefined) patch.role = nextRole;
+      if (body.is_active !== undefined) patch.is_active = nextActive;
       const { data, error } = await admin
         .from("company_memberships")
         .update(patch)
-        .eq("id", String(body.membership_id))
+        .eq("id", membershipId)
         .select("*")
         .single();
       if (error) throw error;
