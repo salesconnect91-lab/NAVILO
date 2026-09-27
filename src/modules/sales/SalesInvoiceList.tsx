@@ -112,7 +112,6 @@ export default function SalesInvoiceList() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [invoiceSearch, setInvoiceSearch] = useState("");
-  const [invoiceSort, setInvoiceSort] = useState<"date_desc" | "date_asc" | "invoice_asc" | "balance_desc">("date_desc");
   const [invoiceSort, setInvoiceSort] = useState<"date_desc" | "date_asc" | "invoice_asc" | "balance_desc" | "balance_asc">("date_desc");
   const [openInvoices, setOpenInvoices] = useState<AgingInvoice[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
