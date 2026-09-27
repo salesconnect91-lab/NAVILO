@@ -8,6 +8,7 @@ import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { PageHeader, ErrorBanner } from "@/components/ui";
 import PlatformBrandingControl from "./PlatformBrandingControl";
 import SubscriptionControl from "./SubscriptionControl";
+import PlanManagementControl from "./PlanManagementControl";
 import TransactionResetControl from "./TransactionResetControl";
 import BusinessUnitControl from "./BusinessUnitControl";
 import BusinessWorkspaceLoginControl from "./BusinessWorkspaceLoginControl";
@@ -169,6 +170,7 @@ export default function OwnerPanel() {
     </>}
 
     {ownerView==="commercial"&&selectedCompanyId&&<>
+      <PlanManagementControl/>
       <SubscriptionControl companyId={selectedCompanyId} onSaved={async () => { await load(); await refreshAccess(); }}/>
       <BillingLedgerControl companyId={selectedCompanyId}/>
     </>}
