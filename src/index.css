@@ -7202,3 +7202,28 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
  .navilo-purchase-neus .overflow-x-auto{overflow:visible!important}
  .navilo-purchase-neus table{width:100%!important;min-width:0!important}
 }
+
+
+/* DataTable density owns row/control height; master-page defaults must not flatten the three modes. */
+[data-navilo-data-table][data-density="compact"] tbody .btn-primary,
+[data-navilo-data-table][data-density="compact"] tbody .btn-secondary {
+  min-height: 28px !important;
+  height: 28px;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+[data-navilo-data-table][data-density="comfortable"] tbody .btn-primary,
+[data-navilo-data-table][data-density="comfortable"] tbody .btn-secondary {
+  min-height: 34px !important;
+  height: 34px;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+[data-navilo-data-table][data-density="spacious"] tbody .btn-primary,
+[data-navilo-data-table][data-density="spacious"] tbody .btn-secondary {
+  min-height: 40px !important;
+  height: 40px;
+}
+[data-navilo-master-standard="true"] [data-navilo-data-table][data-density="compact"] table { font-size: 12px !important; }
+[data-navilo-master-standard="true"] [data-navilo-data-table][data-density="comfortable"] table { font-size: 13px !important; }
+[data-navilo-master-standard="true"] [data-navilo-data-table][data-density="spacious"] table { font-size: 14px !important; }
