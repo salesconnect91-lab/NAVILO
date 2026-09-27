@@ -387,6 +387,40 @@ Deno.serve(async (request) => {
       return json({ membership: data });
     }
 
+    if (action === "update_company_details") {
+      const companyId = String(body.company_id || "");
+      const name = String(body.name || "").trim();
+      const code = String(body.code || "").trim().toUpperCase();
+      if (!companyId || !name || !code) return json({ error: "Company, name and code are required." }, 400);
+
+      const { data: duplicate, error: duplicateError } = await admin
+        .from("companies")
+        .select("id")
+        .eq("code", code)
+        .neq("id", companyId)
+        .limit(1)
+        .maybeSingle();
+      if (duplicateError) throw duplicateError;
+      if (duplicate) return json({ error: `Company code ${code} already exists.` }, 409);
+
+      const { data, error } = await admin
+        .from("companies")
+        .update({
+          name,
+          code,
+          contact_email: String(body.contact_email || "").trim() || null,
+          contact_phone: String(body.contact_phone || "").trim() || null,
+          address: String(body.address || "").trim() || null,
+          notes: String(body.notes || "").trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", companyId)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return json({ company: data });
+    }
+
     if (action === "set_company_status") {
       const { data, error } = await admin
         .from("companies")
