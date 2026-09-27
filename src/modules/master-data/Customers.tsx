@@ -7,7 +7,7 @@ import { Customer } from "@/types";
 import DataTable, { Column } from "@/components/DataTable";
 import { PageHeader, Modal, ErrorBanner, ConfirmModal } from "@/components/ui";
 import { useAuth } from "@/auth/AuthContext";
-import { Search, Pencil, Power } from "lucide-react";
+import { Search, Pencil, Power, Trash2 } from "lucide-react";
 
 type CustomerRow = Customer & {
   name_urdu?: string | null;
@@ -43,6 +43,7 @@ export default function Customers() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<CustomerRow | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [hardDeleteId, setHardDeleteId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [urduTouched, setUrduTouched] = useState(false);
@@ -282,6 +283,11 @@ export default function Customers() {
 
   const filteredRows = useMemo(() => { const q = search.trim().toLowerCase(); if (!q) return rows; return rows.filter((r) => [r.name, r.name_urdu, r.email, r.phone, r.address, r.ntn, r.strn, r.cnic, r.tax_registration_status].some((v) => String(v ?? "").toLowerCase().includes(q))); }, [rows, search]);
 
+  const hardDelete = async () => {
+    if (!hardDeleteId) return;
+    const { error } = await supabase.from("customers").delete().eq("id", hardDeleteId);
+    if (error) setError(masterDeleteError(error)); else { setHardDeleteId(null); await load(); }
+  };
   const columns: Column<CustomerRow>[] = [
     { key: "name", label: "Name", render: (r) => <div data-business-data><div data-language-code="en" className="font-semibold text-slate-900">{r.name}</div><div data-language-code="ur" dir="rtl" className="text-sm text-slate-500">{r.name_urdu ?? "—"}</div></div> },
     { key: "tax", label: "Tax Registration", render: (r) => <div><div className="font-medium capitalize">{r.tax_registration_status ?? "unregistered"}</div><div className="text-xs text-slate-500">{r.strn ? `STRN ${r.strn}` : r.ntn ? `NTN ${r.ntn}` : "—"}</div></div> },
@@ -289,7 +295,7 @@ export default function Customers() {
     { key: "phone", label: "Phone", render: (r) => r.phone ?? "—" },
     { key: "address", label: "Address", render: (r) => r.address ?? "—" },
     { key: "status", label: "Status", render: (r) => <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${r.is_active === false ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-700"}`}>{r.is_active === false ? "Inactive" : "Active"}</span> },
-    { key: "actions", label: "Actions", className: "text-right", render: (r) => <div className="flex justify-end gap-2"><button onClick={() => openEdit(r)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Pencil className="h-3.5 w-3.5" />Edit</button><button onClick={() => setDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Power className="h-3.5 w-3.5" />{r.is_active === false ? "Activate" : "Deactivate"}</button></div> },
+    { key: "actions", label: "Actions", className: "text-right", render: (r) => <div className="flex justify-end gap-2"><button onClick={() => openEdit(r)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Pencil className="h-3.5 w-3.5" />Edit</button><button onClick={() => setDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Power className="h-3.5 w-3.5" />{r.is_active === false ? "Activate" : "Deactivate"}</button><button onClick={() => setHardDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600"><Trash2 className="h-3.5 w-3.5" />Delete</button></div> },
   ];
 
   return <div className="space-y-4" data-navilo-master-standard="true">
@@ -333,5 +339,6 @@ export default function Customers() {
     </Modal>
 
     <ConfirmModal open={!!deleteId} title={`${rows.find((r) => r.id === deleteId)?.is_active === false ? "Activate" : "Deactivate"} Customer`} message="Historical transactions will remain safe. Inactive customers cannot be selected for new transactions." onConfirm={handleStatusChange} onCancel={() => setDeleteId(null)} />
-  </div>;
+  
+    <ConfirmModal open={!!hardDeleteId} title="Delete Customer" message="Delete this customer? This is allowed only if it has never been used by any transaction or business record. Referenced records must be deactivated instead." onConfirm={hardDelete} onCancel={() => setHardDeleteId(null)} /></div>;
 }
