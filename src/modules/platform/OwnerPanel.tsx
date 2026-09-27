@@ -15,6 +15,7 @@ import CompanyDeleteControl from "./CompanyDeleteControl";
 import CoreAccountingControl from "./CoreAccountingControl";
 import OwnerOrderBookMigration from "./OwnerOrderBookMigration";
 import OwnerLanguageControl from "./OwnerLanguageControl";
+import OwnerFeatureControl from "./OwnerFeatureControl";
 import CustomerOnboardingWizard from "./CustomerOnboardingWizard";
 import BillingLedgerControl from "./BillingLedgerControl";
 
@@ -172,6 +173,7 @@ export default function OwnerPanel() {
 
     {ownerView==="advanced"&&<>
       {selectedCompanyId&&<OwnerLanguageControl companyId={selectedCompanyId}/>}
+      {selectedCompanyId&&<OwnerFeatureControl companyId={selectedCompanyId}/>}
       {selectedCompanyId&&<CoreAccountingControl companyId={selectedCompanyId}/>}
       <section className="rounded-xl border border-amber-200 bg-amber-50/30 p-4 shadow-sm">
         <div className="mb-4 flex items-center gap-2"><Building2 className="h-5 w-5"/><div><h2 className="font-semibold">Legacy / Manual Company Creation</h2><p className="text-xs text-slate-500">Advanced fallback that creates only a tenant company record. For normal new customers use New Customer Onboarding so owner login, licence, workspace, branch and modules are provisioned together.</p></div></div>
