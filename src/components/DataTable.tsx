@@ -244,38 +244,45 @@ export default function DataTable<T extends { id: string }>({
     </div>
 
     {customizeOpen && <div role="dialog" aria-modal="true" aria-label="Customize table columns" className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/30 p-4" data-no-print data-no-export>
-      <div className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
-          <div><h3 className="text-base font-bold text-slate-900">Customize Table</h3><p className="mt-1 text-xs text-slate-500">Show, hide, reorder, resize, pin and save your view.</p></div>
-          <button type="button" className="btn-secondary" onClick={()=>setCustomizeOpen(false)}>Close</button>
+      <div className="flex max-h-[88vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-3">
+          <div><h3 className="text-sm font-bold text-slate-900">Customize Table</h3><p className="mt-0.5 text-xs text-slate-500">Show, reorder, resize, pin and save your view.</p></div>
+          <button type="button" className="btn-secondary !min-h-8 h-8 px-3 text-xs" onClick={()=>setCustomizeOpen(false)}>Close</button>
         </div>
-        <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-5 py-3">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-2">
           <span className="text-xs font-semibold text-slate-500">{configurableColumns.filter(c=>!hiddenKeys.has(c.key)).length} visible</span>
-          <div className="flex gap-2"><button type="button" className="btn-secondary" onClick={()=>persistHidden(new Set())}>Select All</button>
-          <button type="button" className="btn-secondary" onClick={()=>{const keep=configurableColumns[0]?.key;persistHidden(new Set(configurableColumns.filter(c=>c.key!==keep).map(c=>c.key)))}}>Clear All</button></div>
+          <div className="flex gap-2"><button type="button" className="btn-secondary !min-h-8 h-8 px-3 text-xs" onClick={()=>persistHidden(new Set())}>Select All</button>
+          <button type="button" className="btn-secondary !min-h-8 h-8 px-3 text-xs" onClick={()=>{const keep=configurableColumns[0]?.key;persistHidden(new Set(configurableColumns.filter(c=>c.key!==keep).map(c=>c.key)))}}>Clear All</button></div>
         </div>
-        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-5">
-          {configurableColumns.map(column => <div key={column.key} draggable onDragStart={()=>setDragKey(column.key)} onDragOver={e=>e.preventDefault()} onDrop={()=>{if(dragKey)reorder(dragKey,column.key);setDragKey(null)}} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-slate-50">
-            <span className="cursor-grab text-slate-400" aria-hidden="true">⋮⋮</span>
-            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-              <input type="checkbox" aria-label={column.label || column.key} checked={!hiddenKeys.has(column.key)}
-                disabled={!hiddenKeys.has(column.key) && configurableColumns.filter(c=>!hiddenKeys.has(c.key)).length===1}
-                onChange={()=>toggleColumn(column.key)}/>
-              <span className="min-w-0 flex-1 text-slate-700">{column.label || column.key}</span>
-            </label>
-            <button type="button" className="btn-secondary h-7 px-2 text-xs" onClick={()=>pin(column.key,prefs.pins[column.key]==="left"?null:"left")}>{prefs.pins[column.key]==="left"?"Unpin":"Pin L"}</button>
-            <button type="button" className="btn-secondary h-7 px-2 text-xs" onClick={()=>pin(column.key,prefs.pins[column.key]==="right"?null:"right")}>{prefs.pins[column.key]==="right"?"Unpin":"Pin R"}</button>
-          </div>)}
-          <div className="mt-4 border-t border-slate-200 pt-4">
-            <div className="flex gap-2"><input className="input flex-1" placeholder="Saved view name" value={viewName} onChange={e=>setViewName(e.target.value)}/>
-              <button type="button" className="btn-primary" onClick={()=>{const name=viewName.trim();if(!name)return;const snap={...prefs,hidden:[...hiddenKeys]};const next={...savedViews,[name]:snap};setSavedViews(next);try{window.localStorage.setItem(viewsKey(columns),JSON.stringify(next))}catch{}setViewName("")}}>Save View</button>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
+          <div className="space-y-0.5">
+          {configurableColumns.map(column => {
+            const pinned=prefs.pins[column.key];
+            return <div key={column.key} draggable onDragStart={()=>setDragKey(column.key)} onDragOver={e=>e.preventDefault()} onDrop={()=>{if(dragKey)reorder(dragKey,column.key);setDragKey(null)}} className="flex min-h-9 items-center gap-2 rounded-md px-2 py-1 text-xs hover:bg-slate-50">
+              <span className="cursor-grab text-slate-400" aria-hidden="true">⋮⋮</span>
+              <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+                <input type="checkbox" aria-label={column.label || column.key} checked={!hiddenKeys.has(column.key)}
+                  disabled={!hiddenKeys.has(column.key) && configurableColumns.filter(c=>!hiddenKeys.has(c.key)).length===1}
+                  onChange={()=>toggleColumn(column.key)}/>
+                <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{column.label || column.key}</span>
+              </label>
+              {pinned ? <button type="button" className="btn-secondary !min-h-7 h-7 min-w-[104px] px-2 text-[11px]" onClick={()=>pin(column.key,null)}>Unpin {pinned==="left"?"← Left":"Right →"}</button> :
+                <><button type="button" className="btn-secondary !min-h-7 h-7 px-2 text-[11px]" onClick={()=>pin(column.key,"left")}>← Pin</button>
+                <button type="button" className="btn-secondary !min-h-7 h-7 px-2 text-[11px]" onClick={()=>pin(column.key,"right")}>Pin →</button></>}
+            </div>;
+          })}
+          </div>
+          <div className="mt-2 border-t border-slate-200 pt-2">
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Saved Views</div>
+            <div className="flex gap-2"><input className="input !min-h-8 h-8 flex-1 text-xs" placeholder="Saved view name" value={viewName} onChange={e=>setViewName(e.target.value)}/>
+              <button type="button" className="btn-primary !min-h-8 h-8 px-3 text-xs" onClick={()=>{const name=viewName.trim();if(!name)return;const snap={...prefs,hidden:[...hiddenKeys]};const next={...savedViews,[name]:snap};setSavedViews(next);try{window.localStorage.setItem(viewsKey(columns),JSON.stringify(next))}catch{}setViewName("")}}>Save View</button>
             </div>
-            {Object.keys(savedViews).length ? <div className="mt-2 flex flex-wrap gap-2">{Object.keys(savedViews).map(name=><button type="button" key={name} className="btn-secondary text-xs" onClick={()=>{const v=savedViews[name];savePrefs(v);persistHidden(restoredHiddenKeys(JSON.stringify(v.hidden),configurableColumns))}}>{name}</button>)}</div> : null}
+            {Object.keys(savedViews).length ? <div className="mt-2 space-y-1">{Object.keys(savedViews).map(name=><div key={name} className="flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1"><span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700">{name}</span><button type="button" className="btn-secondary !min-h-7 h-7 px-2 text-[11px]" onClick={()=>{const v=savedViews[name];savePrefs(v);persistHidden(restoredHiddenKeys(JSON.stringify(v.hidden),configurableColumns))}}>Load</button><button type="button" className="btn-secondary !min-h-7 h-7 px-2 text-[11px] text-rose-600" onClick={()=>{const next={...savedViews};delete next[name];setSavedViews(next);try{window.localStorage.setItem(viewsKey(columns),JSON.stringify(next))}catch{}}}>Delete</button></div>)}</div> : <p className="mt-1.5 text-[11px] text-slate-400">No saved views yet.</p>}
           </div>
         </div>
-        <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-white p-5">
-          <button type="button" className="btn-secondary" onClick={()=>{try{window.localStorage.removeItem(key);window.localStorage.removeItem(prefsKey(columns))}catch{}persistHidden(new Set());savePrefs(defaultPrefs(columns))}}>Reset Default</button>
-          <button type="button" className="btn-primary" onClick={()=>setCustomizeOpen(false)}>Done</button>
+        <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-2.5">
+          <button type="button" className="btn-secondary !min-h-8 h-8 px-3 text-xs" onClick={()=>{try{window.localStorage.removeItem(key);window.localStorage.removeItem(prefsKey(columns))}catch{}persistHidden(new Set());savePrefs(defaultPrefs(columns))}}>Reset Default</button>
+          <button type="button" className="btn-primary !min-h-8 h-8 px-4 text-xs" onClick={()=>setCustomizeOpen(false)}>Done</button>
         </div>
       </div>
     </div>}
