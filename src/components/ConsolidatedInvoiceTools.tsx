@@ -51,7 +51,9 @@ export default function ConsolidatedInvoiceTools() {
   const { pathname } = useLocation();
   const isSales = pathname === "/sales/consolidated";
   const isPurchase = pathname === "/purchase/consolidated";
-  const active = isSales || isPurchase;
+  // Sales consolidated list now uses the shared DataTable/UniversalDataTools toolbar.
+  // Keep this legacy helper active only for Purchase until that screen is migrated too.
+  const active = isPurchase;
   const [importOpen, setImportOpen] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [busy, setBusy] = useState(false);
