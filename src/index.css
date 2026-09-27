@@ -7227,3 +7227,18 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
 [data-navilo-master-standard="true"] [data-navilo-data-table][data-density="compact"] table { font-size: 12px !important; }
 [data-navilo-master-standard="true"] [data-navilo-data-table][data-density="comfortable"] table { font-size: 13px !important; }
 [data-navilo-master-standard="true"] [data-navilo-data-table][data-density="spacious"] table { font-size: 14px !important; }
+
+
+/* Density must override the master-data legacy fixed cell padding. */
+[data-navilo-master-standard="true"] [data-navilo-data-table][data-density="compact"] tbody td {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+[data-navilo-master-standard="true"] [data-navilo-data-table][data-density="comfortable"] tbody td {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+[data-navilo-master-standard="true"] [data-navilo-data-table][data-density="spacious"] tbody td {
+  padding-top: 20px !important;
+  padding-bottom: 20px !important;
+}
