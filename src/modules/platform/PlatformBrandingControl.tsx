@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Eye, EyeOff, ImagePlus, Loader2, Save, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { ConfirmModal } from "@/components/ui";
 import { HIDDEN_PLATFORM_BRANDING, invalidatePlatformBranding, loadPlatformBranding, type PlatformBranding } from "@/lib/platformBranding";
 
 export default function PlatformBrandingControl() {
@@ -10,6 +11,7 @@ export default function PlatformBrandingControl() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [confirmHideBranding, setConfirmHideBranding] = useState(false);
 
   useEffect(() => {
     void loadPlatformBranding(true)
@@ -91,7 +93,7 @@ export default function PlatformBrandingControl() {
   return <section className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h2 className="flex items-center gap-2 text-base font-black text-slate-950">{form.show_branding ? <Eye className="h-5 w-5 text-blue-600"/> : <EyeOff className="h-5 w-5 text-slate-500"/>}NAVILO Branding</h2><p className="mt-1 max-w-3xl text-xs text-slate-500">Platform Owner controls the NAVILO product identity. Company names and company logos remain separate company-level branding.</p></div>
-      <label className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-2 text-sm font-bold ${form.show_branding ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-slate-300 bg-slate-50 text-slate-700"}`}><input type="checkbox" checked={form.show_branding} onChange={(e)=>patch("show_branding",e.target.checked)} /><span>Show NAVILO Branding</span></label>
+      <label className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-2 text-sm font-bold ${form.show_branding ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-slate-300 bg-slate-50 text-slate-700"}`}><input type="checkbox" checked={form.show_branding} onChange={(e)=>{ if(e.target.checked) patch("show_branding",true); else setConfirmHideBranding(true); }} /><span>{form.show_branding ? "Show NAVILO Branding" : "NAVILO product branding hidden globally"}</span></label>
     </div>
     {error && <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
     {message && <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</div>}
@@ -107,5 +109,6 @@ export default function PlatformBrandingControl() {
     ] as const).map(([key,label])=><label key={key} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm"><span>{label}</span><input type="checkbox" checked={form[key]} disabled={!form.show_branding} onChange={(e)=>patch(key,e.target.checked)} /></label>)}</div>
     <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">When <strong>Show NAVILO Branding</strong> is ON, NAVILO appears only in the selected locations. When it is OFF, NAVILO product branding stays hidden everywhere.</div>
     <div className="mt-4 flex justify-end"><button type="button" className="btn btn-primary" disabled={saving || uploading} onClick={()=>void save()}>{saving ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/>}Save NAVILO Branding</button></div>
+    <ConfirmModal open={confirmHideBranding} title="Hide NAVILO product branding globally?" message="Login, Sidebar / workspace, Print / PDF and Tagline branding will be hidden after you save. Their individual selections will be preserved and become active again when global branding is turned back on." tone="danger" onCancel={()=>setConfirmHideBranding(false)} onConfirm={()=>{ patch("show_branding",false); setConfirmHideBranding(false); }} />
   </section>;
 }
