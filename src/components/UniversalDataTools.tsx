@@ -5,7 +5,6 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission, type ModuleKey } from "@/auth/permissions";
 import { exportDomReportToCSV, exportDomReportToExcel, exportDomReportToPDF, exportDomReportToWord, triggerPrint } from "@/lib/exportUtils";
-import ConsolidatedInvoiceTools from "@/components/ConsolidatedInvoiceTools";
 
 function cleanTitle(v:string){return v.replace(/\s*\/\s*[\u0600-\u06FF].*$/,"").replace(/[^a-z0-9]+/gi,"-").replace(/^-+|-+$/g,"").toLowerCase()||"navilo-export"}
 function journalListRoot(){
@@ -154,5 +153,5 @@ export default function UniversalDataTools(){
     {masterMode&&<button type="button" onClick={()=>window.location.reload()} className={base} title="Refresh master data"><RefreshCw className="h-4 w-4"/><span className="hidden xl:inline">Refresh</span></button>}
   </div>;
   if(!standardPath)return null;
-  return standardHost?createPortal(<><ConsolidatedInvoiceTools/>{toolbar}</>,standardHost):null;
+  return standardHost?createPortal(toolbar,standardHost):null;
 }
