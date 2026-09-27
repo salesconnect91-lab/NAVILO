@@ -292,7 +292,7 @@ export default function Suppliers() {
     <PageHeader title="Suppliers" subtitle="Vendor accounts" action={<div className="flex flex-wrap items-center gap-2"><button onClick={openCreate} className="btn-primary">+ New Supplier</button></div>} />
     {error && <ErrorBanner message={error} />}
     <div className="navilo-master-filterbar flex items-center gap-2 px-3 py-2" data-report-filters data-no-print data-no-export><Search className="h-4 w-4 text-slate-400" /><input className="w-full bg-transparent outline-none" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search supplier, phone, email, tax ID or address..." />{search && <button type="button" className="text-xs font-semibold text-primary-600" onClick={() => setSearch("")}>Clear</button>}</div>
-    <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable columns={columns} rows={filteredRows} loading={loading} emptyMessage="No suppliers yet." /></div>
+    <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable showSerialNumber columns={columns} rows={filteredRows} loading={loading} emptyMessage="No suppliers yet." /></div>
 
     <Modal open={modalOpen} title={editing ? "Edit Supplier" : "New Supplier"} onClose={() => setModalOpen(false)}>
       <form onSubmit={handleSubmit} className="space-y-4">
