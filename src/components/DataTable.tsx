@@ -171,7 +171,7 @@ export default function DataTable<T extends { id: string }>({
   if (rows.length === 0) return <div role="status" className="card p-12 text-center text-slate-600">{emptyMessage ?? "No records yet."}</div>;
 
   return <>
-    <div ref={rootRef} className="card overflow-hidden" data-report-content data-navilo-data-table data-neus-grid="true">
+    <div ref={rootRef} className="card overflow-hidden" data-report-content data-navilo-data-table data-neus-grid="true" data-density={prefs.density}>
       <div className="max-h-[65vh] overflow-auto">
         <table aria-label="ERP records" className={`w-full min-w-max ${densityClass} print:min-w-0`}>
           <thead className="sticky top-0 z-20">
