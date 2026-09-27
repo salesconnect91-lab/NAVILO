@@ -78,7 +78,7 @@ export default function Categories(){
      </div>}
    </div>
 
-   <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable columns={tableCols} rows={shown} loading={loading} emptyMessage="No categories found." /></div>
+   <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable showSerialNumber columns={tableCols} rows={shown} loading={loading} emptyMessage="No categories found." /></div>
 
    {importOpen&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 p-4" data-no-print data-no-export><div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"><div className="flex items-center justify-between"><div><h2 className="text-lg font-bold">Import Categories</h2><p className="text-sm text-slate-500">Download the NAVILO template, complete it, then choose the file.</p></div><button type="button" onClick={()=>setImportOpen(false)}><X className="h-5 w-5"/></button></div><div className="mt-5 grid gap-3"><button type="button" className="btn-secondary justify-center" onClick={downloadTemplate}><Download className="h-4 w-4"/>Download Template</button><label className="btn-primary cursor-pointer justify-center"><Upload className="h-4 w-4"/>Choose File<input hidden type="file" accept=".xlsx,.xls,.csv" onChange={importExcel}/></label><p className="text-xs text-slate-500">Accepted: .xlsx, .xls, .csv. Duplicate category names are blocked.</p></div></div></div>}
 
