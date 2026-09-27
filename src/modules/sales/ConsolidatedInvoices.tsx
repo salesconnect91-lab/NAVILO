@@ -1,7 +1,8 @@
 import SearchableSelect from "@/components/SearchableSelect";
 import { fixedTaxRateOn } from "@/lib/effectiveTaxRate";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, FileCheck2, Plus, Printer, RefreshCw, Save, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FileCheck2, Plus, Printer, RefreshCw, Save, Search, Trash2, X, FileText, Coins, Clock3 } from "lucide-react";
+import DataTable, { type Column } from "@/components/DataTable";
 import { Link } from "react-router-dom";
 import PrintLayout from "@/components/PrintLayout";
 import UnifiedOrderBookInvoicePicker from "@/components/UnifiedOrderBookInvoicePicker";
@@ -52,6 +53,9 @@ export default function ConsolidatedInvoices() {
   const [showForm, setShowForm] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
   const [search, setSearch] = useState("");
+  const [listStatus, setListStatus] = useState("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -315,9 +319,31 @@ export default function ConsolidatedInvoices() {
   const printCharges = charges.filter((row) => Number(row.amount) > 0).map((row) => ({ label: chargeMaster.find((master) => master.charge_key === row.charge_key)?.charge_name || row.charge_key, amount: Number(row.amount) || 0 }));
   const filteredInvoices = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return invoices;
-    return invoices.filter((row) => [row.invoice_no, row.customer?.name, row.reference_name, row.reference_no, row.invoice_date, row.status].some((value) => String(value || "").toLowerCase().includes(q)));
-  }, [invoices, search]);
+    return invoices.filter((row) => {
+      const matchesSearch = !q || [row.invoice_no, row.customer?.name, row.reference_name, row.reference_no, row.invoice_date, row.status]
+        .some((value) => String(value || "").toLowerCase().includes(q));
+      const matchesStatus = listStatus === "all" || row.status === listStatus;
+      const matchesFrom = !fromDate || row.invoice_date >= fromDate;
+      const matchesTo = !toDate || row.invoice_date <= toDate;
+      return matchesSearch && matchesStatus && matchesFrom && matchesTo;
+    });
+  }, [invoices, search, listStatus, fromDate, toDate]);
+
+  const listTotal = useMemo(() => filteredInvoices.reduce((sum, row) => sum + Number(row.total || 0), 0), [filteredInvoices]);
+  const draftCount = useMemo(() => filteredInvoices.filter((row) => row.status === "draft").length, [filteredInvoices]);
+  const postedCount = useMemo(() => filteredInvoices.filter((row) => row.status === "posted").length, [filteredInvoices]);
+
+  const listColumns = useMemo<Column<HawalaInvoice>[]>(() => [
+    { key: "invoice_no", label: "Consolidated Invoice #", sortable: true, render: (row) => <span className="font-semibold text-slate-900">{row.invoice_no}</span> },
+    { key: "invoice_date", label: "Date", sortable: true, render: (row) => row.invoice_date },
+    { key: "customer", label: "Customer", sortable: true, render: (row) => row.customer?.name || "—" },
+    { key: "reference", label: "Reference", sortable: true, render: (row) => <div><div className="font-medium">{row.reference_name || "—"}</div>{row.reference_no && <div className="text-[11px] text-slate-400">{row.reference_no}</div>}</div> },
+    { key: "type", label: "Type", sortable: true, render: (row) => <span className={row.invoice_type === "Tax Invoice" ? "rounded-full bg-violet-50 px-2 py-1 text-[11px] font-semibold text-violet-700" : "rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700"}>{row.invoice_type === "Tax Invoice" ? "With Tax" : "Without Tax"}</span> },
+    { key: "amount", label: "Amount", sortable: true, className: "text-right", render: (row) => <span className="font-semibold">{money(row.total)}</span> },
+    { key: "status", label: "Stock Status", sortable: true, render: (row) => <span className={row.status === "posted" ? "rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700" : row.status === "cancelled" ? "rounded-full bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700" : "rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700"}>{row.status === "posted" ? "Posted" : row.status === "cancelled" ? "Cancelled" : "Draft"}</span> },
+    { key: "main", label: "Main Invoice", render: (row) => row.main_sales_order_id ? <span className="font-medium text-blue-700">Linked</span> : <span className="text-slate-400">—</span> },
+    { key: "actions", label: "Action", className: "text-right", render: (row) => <button type="button" className="btn-secondary" onClick={() => void openInvoice(row)}>{row.status === "posted" ? "View" : "Open / Edit"}</button> },
+  ], [openInvoice]);
 
   if (showForm) {
     return <div className="navilo-consolidated-sales-editor space-y-4" data-navilo-document-editor="true" data-navilo-commercial-standard="true">
@@ -331,5 +357,32 @@ export default function ConsolidatedInvoices() {
     </div>;
   }
 
-  return <div className="space-y-3" data-navilo-commercial-standard="true"><section className="flex flex-col gap-3 border-b border-slate-200 pb-3 lg:flex-row lg:items-center lg:justify-between"><div><Link to="/sales" className="mb-1 inline-flex items-center gap-1 text-[12px] text-slate-500 hover:text-blue-700"><ArrowLeft className="h-3 w-3" />Sales</Link><h1 className="text-xl font-bold text-slate-900">Consolidated Sales Invoice</h1><p className="text-[12px] text-slate-500">Separate unbilled dispatch documents. Stock posts here; accounting posts only through the linked Main Sales Invoice.</p></div><div className="flex flex-wrap gap-1.5"><span data-navilo-standard-tools-host className="contents" /><button type="button" className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }}><Plus className="h-3.5 w-3.5" />New Consolidated Sales Invoice</button></div></section>{error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">{error}</div>}<div className="relative max-w-md"><Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" /><input className="input pl-8" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search document, customer or reference…" /></div><section data-report-content data-navilo-customizable="true" data-navilo-print-surface className="overflow-hidden rounded-lg border border-slate-200 bg-white"><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-[12px]"><thead className="bg-slate-50"><tr className="border-b border-slate-200"><th className="px-3 py-2 text-left">Hawala No.</th><th className="px-3 py-2 text-left">Date</th><th className="px-3 py-2 text-left">Customer</th><th className="px-3 py-2 text-left">Reference</th><th className="px-3 py-2 text-right">Amount</th><th className="px-3 py-2 text-center">Status</th><th className="px-3 py-2 text-right">Action</th></tr></thead><tbody>{loading ? <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-400">Loading…</td></tr> : !filteredInvoices.length ? <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-400">No Consolidated Sales Invoice documents found.</td></tr> : filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="px-3 py-2 font-semibold">{invoice.invoice_no}</td><td className="px-3 py-2">{invoice.invoice_date}</td><td className="px-3 py-2">{invoice.customer?.name || "—"}</td><td className="px-3 py-2"><div className="font-medium">{invoice.reference_name || "—"}</div>{invoice.reference_no && <div className="text-[12px] text-slate-400">{invoice.reference_no}</div>}</td><td className="px-3 py-2 text-right font-semibold">{money(invoice.total)}</td><td className="px-3 py-2 text-center"><span className={invoice.status === "posted" ? "rounded-full bg-emerald-50 px-2 py-1 font-semibold text-emerald-700" : "rounded-full bg-amber-50 px-2 py-1 font-semibold text-amber-700"}>{invoice.status}</span></td><td className="px-3 py-2 text-right"><button type="button" className="btn-secondary" onClick={() => void openInvoice(invoice)}>{invoice.status === "posted" ? "View" : "Open / Edit"}</button></td></tr>)}</tbody></table></div></section></div>;
+  return <div className="space-y-3" data-navilo-commercial-standard="true">
+    <section className="flex flex-col gap-3 border-b border-slate-200 pb-3 lg:flex-row lg:items-center lg:justify-between">
+      <div><Link to="/sales" className="mb-1 inline-flex items-center gap-1 text-[12px] text-slate-500 hover:text-blue-700"><ArrowLeft className="h-3 w-3" />Sales</Link><h1 className="text-xl font-bold text-slate-900">Consolidated Sales Invoice</h1><p className="text-[12px] text-slate-500">Separate unbilled dispatch documents. Stock posts here; accounting posts only through the linked Main Sales Invoice.</p></div>
+      <div className="flex flex-wrap gap-1.5"><span data-navilo-standard-tools-host className="contents" /><button type="button" className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }}><Plus className="h-3.5 w-3.5" />New Consolidated Sales Invoice</button></div>
+    </section>
+    {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">{error}</div>}
+
+    <section className="grid grid-cols-1 gap-3 md:grid-cols-4" data-no-print data-no-export>
+      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-blue-50 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Total Consolidated Invoices</div><div className="text-lg font-bold text-slate-900">{filteredInvoices.length}</div></div></div>
+      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-50 text-emerald-600"><Coins className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Total Amount</div><div className="text-lg font-bold text-slate-900">{money(listTotal)}</div></div></div>
+      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-amber-50 text-amber-600"><Clock3 className="h-5 w-5"/></span><div><div className="text-xs font-medium text-amber-700">Draft</div><div className="text-lg font-bold text-slate-900">{draftCount}</div></div></div>
+      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-50 text-emerald-600"><CheckCircle2 className="h-5 w-5"/></span><div><div className="text-xs font-medium text-emerald-700">Stock Posted</div><div className="text-lg font-bold text-slate-900">{postedCount}</div></div></div>
+    </section>
+
+    <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm" data-no-print data-no-export>
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="relative min-w-[300px] flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/><input className="input w-full pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search invoice, customer or reference..." /></div>
+        <div className="w-[180px]"><label className="label">Status</label><select className="input" value={listStatus} onChange={(e) => setListStatus(e.target.value)}><option value="all">All</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option></select></div>
+        <div className="w-[190px]"><label className="label">From Date</label><input className="input" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></div>
+        <div className="w-[190px]"><label className="label">To Date</label><input className="input" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></div>
+        <button type="button" className="btn-secondary" onClick={() => { setSearch(""); setListStatus("all"); setFromDate(""); setToDate(""); }}>Clear</button>
+      </div>
+    </section>
+
+    <section data-report-content data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <DataTable showSerialNumber columns={listColumns} rows={filteredInvoices} loading={loading} emptyMessage="No Consolidated Sales Invoice documents found." />
+    </section>
+  </div>;
 }
