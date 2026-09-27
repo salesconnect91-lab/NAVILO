@@ -1,3 +1,4 @@
+import { masterDeleteError } from "@/lib/masterDeleteError";
 import SearchableSelect from "@/components/SearchableSelect";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -98,7 +99,7 @@ export default function Items(){
       setOpen(false);setEdit(null);setNameManual(false);setForm(EMPTY);await load();
     }catch(x){setError(x instanceof Error?x.message:"Save failed")}finally{setSaving(false)}
   };
-  const del=async(x:Item)=>{if(!confirm(`Delete ${x.name}? Historical-use protection may block deletion.`))return;const{error}=await supabase.from("items").delete().eq("id",x.id);if(error)setError(error.message);else await load()};
+  const del=async(x:Item)=>{if(!confirm(`Delete ${x.name}? Historical-use protection may block deletion.`))return;const{error}=await supabase.from("items").delete().eq("id",x.id);if(error)setError(masterDeleteError(error));else await load()};
   const editItem=(x:Item)=>{const next:ItemForm={sku:x.sku,name:x.name,name_urdu:x.name_urdu??toUrduName(x.name),type:(x.type as ItemType)||"finished",grade:x.grade??"",size:x.size??"",unit:x.unit??"",hs_code:x.hs_code??"",cost:String(x.cost??0),price:String(x.price??0),category_id:x.category_id??""};setEdit(x);setForm(next);setNameManual(n(x.name)!==n(buildItemName(next.category_id,next.size,next.grade)));setOpen(true)};
 
   const clearFilters=()=>{setTypeFilter("all");setCategoryFilter("all")};

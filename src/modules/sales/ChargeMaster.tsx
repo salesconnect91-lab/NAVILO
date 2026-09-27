@@ -1,3 +1,4 @@
+import { masterDeleteError } from "@/lib/masterDeleteError";
 import SearchableSelect from "@/components/SearchableSelect";
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
@@ -184,7 +185,7 @@ export default function ChargeMaster() {
   const remove = async (charge: Charge) => {
     if (!confirm(`Delete ${charge.charge_name}?`)) return;
     const { error: deleteError } = await supabase.from("charge_master").delete().eq("id", charge.id);
-    if (deleteError) setError(deleteError.message); else await load();
+    if (deleteError) setError(masterDeleteError(deleteError)); else await load();
   };
   const accountLabel = (id: string | null) => {
     const account = accounts.find((candidate) => candidate.id === id);

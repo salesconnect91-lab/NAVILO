@@ -1,3 +1,4 @@
+import { masterDeleteError } from "@/lib/masterDeleteError";
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Save, Trash2 } from "lucide-react";
@@ -49,7 +50,7 @@ export default function TaxSettings() {
   const remove = async (tax: Tax, index: number) => {
     if (!tax.id) { setTaxes((rows) => rows.filter((_, rowIndex) => rowIndex !== index)); return; }
     const { error: deleteError } = await supabase.from("tax_rates").delete().eq("id", tax.id);
-    if (deleteError) setError(deleteError.message); else await load();
+    if (deleteError) setError(masterDeleteError(deleteError)); else await load();
   };
 
   return <div className="space-y-4">

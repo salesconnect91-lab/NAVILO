@@ -1,3 +1,4 @@
+import { masterDeleteError } from "@/lib/masterDeleteError";
 import { supabase } from "@/lib/supabase";
 import { AccountMapping, ChartOfAccount } from "@/types";
 
@@ -948,7 +949,7 @@ export async function deleteAccount(
     .eq("id", id);
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(masterDeleteError(error));
   }
 }
 
