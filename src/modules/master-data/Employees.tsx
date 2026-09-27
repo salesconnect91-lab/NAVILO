@@ -73,8 +73,11 @@ export default function Employees() {
   const toggle = async (employee: Employee) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setError("Authentication required."); return; }
-    const result = await supabase.from("employees").update({ is_active: !employee.is_active, updated_at: new Date().toISOString() }).eq("id", employee.id).eq("user_id", user.id);
-    if (result.error) setError(result.error.message); else await load();
+    const result = await supabase.from("employees").update({ is_active: !employee.is_active, updated_at: new Date().toISOString() }).eq("id", employee.id).select("id,is_active").maybeSingle();
+    if (result.error) { setError(result.error.message); return; }
+    if (!result.data) { setError("Employee status could not be updated. Please check your company access."); return; }
+    setEmployees((previous) => previous.map((row) => row.id === employee.id ? { ...row, is_active: result.data!.is_active } : row));
+    setError("");
   };
   const sheetRows = (template: boolean) => (template ? [{ name: "Ahmed Khan", name_urdu: "", phone: "03001234567", designation: "Operator", designation_urdu: "", department: "Production", department_urdu: "", is_active: true }] : filtered).map((employee) => ({ "Employee Name": employee.name, ...(showUrdu ? { "Employee Urdu Name": employee.name_urdu ?? "" } : {}), Phone: employee.phone ?? "", Designation: employee.designation ?? "", ...(showUrdu ? { "Designation Urdu": employee.designation_urdu ?? "" } : {}), Department: employee.department ?? "", ...(showUrdu ? { "Department Urdu": employee.department_urdu ?? "" } : {}), Active: employee.is_active ? "Yes" : "No" }));
   const downloadSheet = (template: boolean) => { const book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(sheetRows(template)), "Employees"); XLSX.writeFile(book, template ? "employee_import_template.xlsx" : "employees.xlsx"); };
