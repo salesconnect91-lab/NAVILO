@@ -180,7 +180,7 @@ export default function DataTable<T extends { id: string }>({
               </th>
               {visibleColumns.map(col => {
                 const action = col.key === "actions" || col.key === "action";
-                return <th key={col.key} aria-label={col.label} draggable={!action}
+                return <th key={col.key} aria-label={col.key === "actions" && !col.label ? "Actions" : col.label} draggable={!action}
                   onDragStart={() => setDragKey(col.key)} onDragOver={e => e.preventDefault()}
                   onDrop={() => { if (dragKey) reorder(dragKey,col.key); setDragKey(null); }}
                   data-no-print={action || undefined} data-no-export={action || undefined}
@@ -189,7 +189,7 @@ export default function DataTable<T extends { id: string }>({
                   <button type="button" className="inline-flex items-center gap-1 text-left"
                     disabled={action || col.sortable === false}
                     onClick={() => !action && col.sortable !== false && savePrefs({ ...prefs, sort: prefs.sort?.key === col.key ? { key:col.key, dir:prefs.sort.dir === "asc" ? "desc" : "asc" } : { key:col.key, dir:"asc" } })}>
-                    <span className={!action ? "cursor-grab" : ""}>{col.label}</span>
+                    <span className={!action ? "cursor-grab" : ""}>{col.key === "actions" && !col.label ? "Actions" : col.label}</span>
                     {prefs.sort?.key === col.key ? <span aria-hidden="true">{prefs.sort.dir === "asc" ? "↑" : "↓"}</span> : null}
                   </button>
                   {!action ? <span aria-hidden="true" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-slate-300"
