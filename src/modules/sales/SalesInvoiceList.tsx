@@ -1106,6 +1106,7 @@ export default function SalesInvoiceList() {
                 : `Receive & Post ${formatCurrency(allocatedTotal)}`}
             </button>
           </div>
+          </div>
           </form>
       </Modal>
     </div>
