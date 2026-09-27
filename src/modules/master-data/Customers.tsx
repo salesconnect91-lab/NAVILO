@@ -7,7 +7,7 @@ import { Customer } from "@/types";
 import DataTable, { Column } from "@/components/DataTable";
 import { PageHeader, Modal, ErrorBanner, ConfirmModal } from "@/components/ui";
 import { useAuth } from "@/auth/AuthContext";
-import { Search } from "lucide-react";
+import { Search, Pencil, Power } from "lucide-react";
 
 type CustomerRow = Customer & {
   name_urdu?: string | null;
@@ -289,7 +289,7 @@ export default function Customers() {
     { key: "phone", label: "Phone", render: (r) => r.phone ?? "—" },
     { key: "address", label: "Address", render: (r) => r.address ?? "—" },
     { key: "status", label: "Status", render: (r) => <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${r.is_active === false ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-700"}`}>{r.is_active === false ? "Inactive" : "Active"}</span> },
-    { key: "actions", label: "", className: "text-right", render: (r) => <div className="flex justify-end gap-2"><button onClick={() => openEdit(r)} className="text-primary-600 text-sm font-medium">Edit</button><button onClick={() => setDeleteId(r.id)} className={`${r.is_active === false ? "text-emerald-600" : "text-amber-600"} text-sm font-medium`}>{r.is_active === false ? "Activate" : "Deactivate"}</button></div> },
+    { key: "actions", label: "Actions", className: "text-right", render: (r) => <div className="flex justify-end gap-2"><button onClick={() => openEdit(r)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Pencil className="h-3.5 w-3.5" />Edit</button><button onClick={() => setDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Power className="h-3.5 w-3.5" />{r.is_active === false ? "Activate" : "Deactivate"}</button></div> },
   ];
 
   return <div className="space-y-4" data-navilo-master-standard="true">
