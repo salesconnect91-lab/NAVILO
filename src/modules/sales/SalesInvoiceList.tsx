@@ -1,4 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
+import { FileText, Coins, Clock3, Users, RotateCcw } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -333,6 +334,8 @@ export default function SalesInvoiceList() {
     });
   }, [rows, listSearch, postingFilter, paymentFilter]);
 
+  const visibleCustomerCount = useMemo(() => new Set(filteredRows.map((row) => row.customer_id).filter(Boolean)).size, [filteredRows]);
+
   const filteredInvoiceTotal = useMemo(
     () => filteredRows.reduce((sum, row) => sum + toNumber(row.total), 0),
     [filteredRows]
@@ -615,7 +618,7 @@ export default function SalesInvoiceList() {
     },
     {
       key: "actions",
-      label: "",
+      label: "Actions",
       className: "text-right",
       render: (r) => (
         <div className="flex justify-end items-center gap-3">
@@ -640,85 +643,29 @@ export default function SalesInvoiceList() {
   ];
 
   return (
-    <div data-navilo-commercial-standard="true">
+    <div data-navilo-commercial-standard="true" className="space-y-4">
 
-      <PageHeader
-        title="Sales Invoices"
-        subtitle="Customer invoices, receivables and posting"
-        action={
-          <div className="flex flex-wrap items-center gap-2" data-navilo-standard-tools-host>
-{canReceivePayment && <button onClick={() => openReceivePayment()} className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">Receive Payment</button>}
-{canCreateSales && <button
-              onClick={() => navigate("/sales/new")}
-              className="btn-primary"
-            >
-              New Invoice
-            </button>}
-          </div>
-        }
-      />
+      <PageHeader title="Sales Invoices" subtitle="Customer invoices, receivables and posting" action={<div className="flex flex-wrap items-center gap-2" data-navilo-standard-tools-host>{canReceivePayment && <button onClick={() => openReceivePayment()} className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">Receive Payment</button>}{canCreateSales && <button onClick={() => navigate("/sales/new")} className="btn-primary">+ New Invoice</button>}</div>} />
 
       {error && <ErrorBanner message={error} />}
 
-      <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4" data-no-print data-no-export>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <input
-            className="input"
-            value={listSearch}
-            onChange={(event) => setListSearch(event.target.value)}
-            placeholder="Search invoice, customer or sales person..."
-          />
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-4" data-no-print data-no-export>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-blue-50 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Visible Invoices</div><div className="text-lg font-bold text-slate-900">{filteredRows.length}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-50 text-emerald-600"><Coins className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Invoice Total</div><div className="text-lg font-bold text-slate-900">{formatCurrency(filteredInvoiceTotal)}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-rose-50 text-rose-600"><Clock3 className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Balance Due</div><div className="text-lg font-bold text-rose-700">{formatCurrency(filteredBalanceDue)}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-violet-50 text-violet-600"><Users className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Customers</div><div className="text-lg font-bold text-slate-900">{visibleCustomerCount}</div></div></div>
+      </section>
 
-          <SearchableSelect
-            className="input"
-            value={postingFilter}
-            onChange={(event) => setPostingFilter(event.target.value)}
-          >
-            <option value="all">All posting statuses</option>
-            <option value="draft">Draft</option>
-            <option value="posted">Posted</option>
-            <option value="cancelled">Cancelled</option>
-          </SearchableSelect>
+      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm" data-no-print data-no-export><div className="flex flex-wrap items-center gap-2">
+        <input className="input min-w-[260px] flex-1" value={listSearch} onChange={(event) => setListSearch(event.target.value)} placeholder="Search invoice, customer or sales person..." />
+        <SearchableSelect wrapperClassName="w-[220px]" className="input" value={postingFilter} onChange={(event) => setPostingFilter(event.target.value)}><option value="all">All posting statuses</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option></SearchableSelect>
+        <SearchableSelect wrapperClassName="w-[220px]" className="input" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value as "all" | PaymentStatus)}><option value="all">All payment statuses</option><option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Paid</option><option value="overpaid">Overpaid</option></SearchableSelect>
+        {(listSearch || postingFilter !== "all" || paymentFilter !== "all") && <button type="button" className="btn-secondary inline-flex items-center gap-1.5" onClick={() => { setListSearch(""); setPostingFilter("all"); setPaymentFilter("all"); }}><RotateCcw className="h-4 w-4"/>Clear Filters</button>}
+      </div></div>
 
-          <SearchableSelect
-            className="input"
-            value={paymentFilter}
-            onChange={(event) => setPaymentFilter(event.target.value as "all" | PaymentStatus)}
-          >
-            <option value="all">All payment statuses</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="partial">Partial</option>
-            <option value="paid">Paid</option>
-            <option value="overpaid">Overpaid</option>
-          </SearchableSelect>
-        </div>
-      </div>
-
-      <section data-report-content data-navilo-customizable="true" className="space-y-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h2 className="navilo-report-title text-lg font-bold text-slate-900">Sales Invoices</h2>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="text-xs font-medium text-slate-500">Visible Invoices</div>
-              <div className="mt-1 text-lg font-bold text-slate-900">{filteredRows.length}</div>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="text-xs font-medium text-slate-500">Invoice Total</div>
-              <div className="mt-1 text-lg font-bold text-slate-900">{formatCurrency(filteredInvoiceTotal)}</div>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="text-xs font-medium text-slate-500">Balance Due</div>
-              <div className="mt-1 text-lg font-bold text-rose-700">{formatCurrency(filteredBalanceDue)}</div>
-            </div>
-          </div>
-        </div>
-
-        <DataTable
-          columns={columns}
-          rows={filteredRows}
-          loading={loading}
-          emptyMessage="No invoices match the selected filters."
-        />
+      <section data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3"><h2 className="navilo-report-title text-base font-bold text-slate-900">Sales Invoices <span className="text-slate-400">({filteredRows.length})</span></h2><div data-navilo-standard-tools-host /></div>
+        <DataTable showSerialNumber columns={columns} rows={filteredRows} loading={loading} emptyMessage="No invoices match the selected filters." />
       </section>
 
       <Modal
