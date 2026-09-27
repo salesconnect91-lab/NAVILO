@@ -16,7 +16,7 @@ type Item = { id: string; name: string; sku?: string | null; name_urdu?: string 
 type Godown = { id: string; name: string; name_urdu?: string | null };
 type ChargeMaster = { id: string; charge_key: string; charge_name: string; default_rate: number | string; unit: "fixed" | "percent" | "per_kg" | "per_ton" | "per_piece"; tax_applicable: boolean; is_fixed: boolean };
 type CompanyPrintSettings = { company_name?: string | null; address?: string | null; phone?: string | null; email?: string | null; ntn?: string | null; strn?: string | null; logo_url?: string | null; document_header?: string | null; document_header_urdu?: string | null; document_footer?: string | null; document_footer_urdu?: string | null; prepared_by_label?: string | null; checked_by_label?: string | null; approved_by_label?: string | null };
-type HawalaInvoice = { id: string; invoice_no: string; invoice_date: string; customer_id: string | null; reference_name: string | null; reference_no: string | null; reference_notes: string | null; invoice_type: string; tax_percent: number | string; item_tax: number | string; charges_total: number | string; charge_tax: number | string; subtotal: number | string; total: number | string; status: "draft" | "posted" | "cancelled"; main_sales_order_id: string | null; posted_at: string | null; customer?: Customer | null };
+type HawalaInvoice = { id: string; invoice_no: string; invoice_date: string; customer_id: string | null; reference_name: string | null; reference_no: string | null; reference_notes: string | null; invoice_type: string; tax_percent: number | string; item_tax: number | string; charges_total: number | string; charge_tax: number | string; subtotal: number | string; total: number | string; status: "draft" | "posted" | "cancelled"; main_sales_order_id: string | null; main_invoice_no?: string | null; posted_at: string | null; customer?: Customer | null };
 type InvoiceRow = { id?: string; item_id: string; godown_id: string; qty: string; rate: string; tax_percent: string; description: string };
 type ChargeRow = { charge_key: string; quantity: string; rate: string; amount: string; tax_percent: string };
 
@@ -96,9 +96,20 @@ export default function ConsolidatedInvoices() {
   }, []);
 
   const loadInvoices = useCallback(async () => {
-    const { data, error: loadError } = await supabase.from("consolidated_sales_invoices").select("id,invoice_no,invoice_date,customer_id,reference_name,reference_no,reference_notes,invoice_type,tax_percent,item_tax,charges_total,charge_tax,subtotal,total,status,main_sales_order_id,posted_at,customer:customers(id,name,name_urdu)").order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
-    if (loadError) throw loadError;
-    setInvoices((data ?? []) as unknown as HawalaInvoice[]);
+    const [invoiceRes, linkRes] = await Promise.all([
+      supabase.from("consolidated_sales_invoices").select("id,invoice_no,invoice_date,customer_id,reference_name,reference_no,reference_notes,invoice_type,tax_percent,item_tax,charges_total,charge_tax,subtotal,total,status,main_sales_order_id,posted_at,customer:customers(id,name,name_urdu)").order("invoice_date", { ascending: false }).order("created_at", { ascending: false }),
+      supabase.from("sales_order_hawala_invoices").select("hawala_invoice_id,sales_order_id,sales_order:sales_orders(order_no)"),
+    ]);
+    if (invoiceRes.error) throw invoiceRes.error;
+    if (linkRes.error) throw linkRes.error;
+    const links = new Map((linkRes.data ?? []).map((link: any) => [link.hawala_invoice_id, {
+      id: link.sales_order_id,
+      no: Array.isArray(link.sales_order) ? link.sales_order[0]?.order_no : link.sales_order?.order_no,
+    }]));
+    setInvoices((invoiceRes.data ?? []).map((row: any) => {
+      const linked = links.get(row.id) as { id?: string; no?: string } | undefined;
+      return { ...row, main_sales_order_id: linked?.id || row.main_sales_order_id || null, main_invoice_no: linked?.no || null };
+    }) as HawalaInvoice[]);
   }, []);
 
   useEffect(() => {
@@ -285,8 +296,7 @@ export default function ConsolidatedInvoices() {
       if (rpcError) throw rpcError;
       await loadInvoices();
       setSuccess("Stock posted exactly once. Customer receivable and sales accounting will be recognized only when this document is linked to a Main Sales Invoice.");
-      const refreshed = await supabase.from("consolidated_sales_invoices").select("id,invoice_no,invoice_date,customer_id,reference_name,reference_no,reference_notes,invoice_type,tax_percent,item_tax,charges_total,charge_tax,subtotal,total,status,main_sales_order_id,posted_at,customer:customers(id,name,name_urdu)").eq("id", invoiceId).single();
-      if (refreshed.data) setInvoices((current) => [refreshed.data as unknown as HawalaInvoice, ...current.filter((row) => row.id !== invoiceId)]);
+      await loadInvoices();
     } catch (e: any) {
       setError(e?.message || "Failed to post Consolidated Sales Invoice stock.");
     } finally {
@@ -336,12 +346,12 @@ export default function ConsolidatedInvoices() {
   const listColumns = useMemo<Column<HawalaInvoice>[]>(() => [
     { key: "invoice_no", label: "Consolidated Invoice #", sortable: true, render: (row) => <span className="font-semibold text-slate-900">{row.invoice_no}</span> },
     { key: "invoice_date", label: "Date", sortable: true, render: (row) => row.invoice_date },
-    { key: "customer", label: "Customer", sortable: true, render: (row) => row.customer?.name || "—" },
-    { key: "reference", label: "Reference", sortable: true, render: (row) => <div><div className="font-medium">{row.reference_name || "—"}</div>{row.reference_no && <div className="text-[11px] text-slate-400">{row.reference_no}</div>}</div> },
-    { key: "type", label: "Type", sortable: true, render: (row) => <span className={row.invoice_type === "Tax Invoice" ? "rounded-full bg-violet-50 px-2 py-1 text-[11px] font-semibold text-violet-700" : "rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700"}>{row.invoice_type === "Tax Invoice" ? "With Tax" : "Without Tax"}</span> },
-    { key: "amount", label: "Amount", sortable: true, className: "text-right", render: (row) => <span className="font-semibold">{money(row.total)}</span> },
+    { key: "customer", label: "Customer", sortable: false, render: (row) => row.customer?.name || "—" },
+    { key: "reference_name", label: "Reference", sortable: true, render: (row) => <div><div className="font-medium">{row.reference_name || "—"}</div>{row.reference_no && <div className="text-[11px] text-slate-400">{row.reference_no}</div>}</div> },
+    { key: "invoice_type", label: "Type", sortable: true, render: (row) => <span className={row.invoice_type === "Tax Invoice" ? "rounded-full bg-violet-50 px-2 py-1 text-[11px] font-semibold text-violet-700" : "rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700"}>{row.invoice_type === "Tax Invoice" ? "With Tax" : "Without Tax"}</span> },
+    { key: "total", label: "Amount", sortable: true, className: "text-right", render: (row) => <span className="font-semibold">{money(row.total)}</span> },
     { key: "status", label: "Stock Status", sortable: true, render: (row) => <span className={row.status === "posted" ? "rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700" : row.status === "cancelled" ? "rounded-full bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700" : "rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700"}>{row.status === "posted" ? "Posted" : row.status === "cancelled" ? "Cancelled" : "Draft"}</span> },
-    { key: "main", label: "Main Invoice", render: (row) => row.main_sales_order_id ? <span className="font-medium text-blue-700">Linked</span> : <span className="text-slate-400">—</span> },
+    { key: "main_invoice_no", label: "Main Invoice", sortable: true, render: (row) => row.main_invoice_no ? <span className="font-semibold text-blue-700">{row.main_invoice_no}</span> : <span className="text-slate-400">—</span> },
     { key: "actions", label: "Action", className: "text-right", render: (row) => <button type="button" className="btn-secondary" onClick={() => void openInvoice(row)}>{row.status === "posted" ? "View" : "Open / Edit"}</button> },
   ], [openInvoice]);
 
