@@ -2,6 +2,7 @@ import MasterActionButton from "@/components/MasterActionButton";
 import DataTable,{Column} from "@/components/DataTable";
 import { masterDeleteError } from "@/lib/masterDeleteError";
 import SearchableSelect from "@/components/SearchableSelect";
+import MasterSummaryStrip from "@/components/MasterSummaryStrip";
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { Download, Filter, Plus, Search, Upload, X, Pencil, Trash2, Power } from "lucide-react";
@@ -59,14 +60,7 @@ export default function Categories(){
  const toggleStatus=async(r:Category)=>{const{error}=await supabase.from("categories").update({is_active:!r.is_active}).eq("id",r.id);if(error)setError(error.message);else await fetchCategories()};
  const tableCols:Column<Category>[]=[{key:"name",label:"Category Name",render:r=><span className="font-semibold">{r.name}</span>},...(showUrdu?[{key:"urdu",label:"Urdu Name",render:(r:Category)=><span dir="rtl">{r.name_urdu||"—"}</span>} as Column<Category>]:[]),{key:"description",label:"Description",render:r=>r.description||"—"},{key:"created_at",label:"Created At",render:r=>new Date(r.created_at).toLocaleString()},{key:"status",label:"Status",render:r=><span className={`rounded-full px-2 py-1 text-xs font-semibold ${r.is_active?"bg-emerald-50 text-emerald-700":"bg-slate-100 text-slate-600"}`}>{r.is_active?"Active":"Inactive"}</span>},{key:"actions",label:"Actions",className:"text-right",render:r=><div className="flex justify-end gap-2"><button type="button" onClick={()=>openEdit(r)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Pencil className="h-3.5 w-3.5"/>Edit</button><MasterActionButton tone="danger" title={r.is_active?"Deactivate Category":"Activate Category"} message="Historical records will remain safe. This only changes whether the category is active for current use." onConfirm={()=>toggleStatus(r)}><Power className="h-3.5 w-3.5"/>{r.is_active?"Deactivate":"Activate"}</MasterActionButton><button type="button" onClick={()=>setDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600"><Trash2 className="h-3.5 w-3.5"/>Delete</button></div>}];
  return <div className="space-y-3" data-navilo-master-standard="true">
-   <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" data-no-print data-no-export>
-     <div className="grid min-h-[72px] grid-cols-5 divide-x divide-slate-200">
-       <div className="col-span-2 flex items-center px-5"><div><h1 className="text-xl font-bold text-slate-900">Categories</h1><p className="mt-0.5 text-xs text-slate-500">Manage your item category master data</p></div></div>
-       <div className="flex items-center justify-center text-center"><div><div className="text-xs text-slate-500">Total Categories</div><div className="mt-1 text-lg font-bold text-slate-900">{rows.length}</div></div></div>
-       <div className="flex items-center justify-center text-center"><div><div className="text-xs text-slate-500">Active</div><div className="mt-1 text-lg font-bold text-emerald-600">{rows.filter(r=>r.is_active).length}</div></div></div>
-       <div className="flex items-center justify-center text-center"><div><div className="text-xs text-slate-500">Inactive</div><div className="mt-1 text-lg font-bold text-slate-600">{rows.filter(r=>!r.is_active).length}</div></div></div>
-     </div>
-   </section>
+   <MasterSummaryStrip kind="categories" title="Categories" subtitle="Manage your item category master data" total={rows.length} active={rows.filter(r=>r.is_active).length} inactive={rows.filter(r=>!r.is_active).length} fourthLabel="With Description" fourthValue={rows.filter(r=>Boolean(clean(r.description))).length}/>
 
    {error&&<ErrorBanner message={error}/>}
 
