@@ -132,11 +132,10 @@ export default function DataTable<T extends { id: string }>({
   const safePage = Math.min(page, totalPages);
   const pagedRows = sortedRows.slice((safePage - 1) * prefs.pageSize, safePage * prefs.pageSize);
   const allPageSelected = pagedRows.length > 0 && pagedRows.every(row => selected.has(row.id));
-  const densityClass = prefs.density === "compact" ? "text-xs" : prefs.density === "spacious" ? "text-sm" : "text-[13px]";
-  const rowPad = prefs.density === "compact" ? "py-1" : prefs.density === "spacious" ? "py-3.5" : "py-2";
-  const headerPad = prefs.density === "compact" ? "py-1.5" : prefs.density === "spacious" ? "py-3" : "py-2";
-  const cellPad = prefs.density === "compact" ? "px-2" : prefs.density === "spacious" ? "px-4" : "px-3";
-  const selectPad = prefs.density === "compact" ? "px-2" : prefs.density === "spacious" ? "px-3" : "px-2.5";
+  const densityClass = prefs.density === "compact" ? "text-xs" : prefs.density === "spacious" ? "text-base" : "text-sm";
+  const rowPad = prefs.density === "compact" ? "py-1" : prefs.density === "spacious" ? "py-5" : "py-2.5";
+  const cellPad = prefs.density === "compact" ? "px-2" : prefs.density === "spacious" ? "px-6" : "px-4";
+  const selectPad = prefs.density === "compact" ? "px-2" : prefs.density === "spacious" ? "px-4" : "px-3";
 
   const reorder = (from: string, to: string) => {
     if (from === to) return;
@@ -182,7 +181,7 @@ export default function DataTable<T extends { id: string }>({
                   const next = new Set(selected); pagedRows.forEach(row => allPageSelected ? next.delete(row.id) : next.add(row.id)); setSelected(next);
                 }}/>
               </th>
-              {showSerialNumber ? <th aria-label="Serial number" className={`bg-slate-50 ${cellPad} ${headerPad} text-left font-medium text-slate-600`} style={{width:72,minWidth:72}}>S.No.</th> : null}
+              {showSerialNumber ? <th aria-label="Serial number" className={`bg-slate-50 ${cellPad} ${prefs.density === "compact" ? "py-2" : prefs.density === "spacious" ? "py-4" : "py-3"} text-left font-medium text-slate-600`} style={{width:72,minWidth:72}}>S.No.</th> : null}
               {visibleColumns.map(col => {
                 const action = col.key === "actions" || col.key === "action";
                 return <th key={col.key} aria-label={col.key === "actions" && !col.label ? "Actions" : col.label} draggable={!action}
@@ -190,7 +189,7 @@ export default function DataTable<T extends { id: string }>({
                   onDrop={() => { if (dragKey) reorder(dragKey,col.key); setDragKey(null); }}
                   data-no-print={action || undefined} data-no-export={action || undefined}
                   style={{ width:prefs.widths[col.key], minWidth:prefs.widths[col.key], ...stickyStyle(col.key) }}
-                  className={`relative select-none bg-slate-50 ${cellPad} ${headerPad} text-left font-medium text-slate-600 ${col.className ?? ""}`}>
+                  className={`relative select-none bg-slate-50 ${cellPad} ${prefs.density === "compact" ? "py-2" : prefs.density === "spacious" ? "py-4" : "py-3"} text-left font-medium text-slate-600 ${col.className ?? ""}`}>
                   <button type="button" className="inline-flex items-center gap-1 text-left"
                     disabled={action || col.sortable === false}
                     onClick={() => !action && col.sortable !== false && savePrefs({ ...prefs, sort: prefs.sort?.key === col.key ? { key:col.key, dir:prefs.sort.dir === "asc" ? "desc" : "asc" } : { key:col.key, dir:"asc" } })}>
