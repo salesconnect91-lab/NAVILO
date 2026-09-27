@@ -2,7 +2,6 @@ import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BriefcaseBusiness, Loader2, Plus, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import OwnerFeatureControl from "./OwnerFeatureControl";
 import BranchControl from "./BranchControl";
 
 const moduleKeys=["dashboard","master","sales","purchase","inventory","production","transport","accounting","reports","settings"] as const;
@@ -39,6 +38,5 @@ export default function BusinessUnitControl({companyId,onSaved}:{companyId:strin
  <div className="mt-4 border-t border-slate-200 pt-3"><div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">User Access</div><div className="space-y-2">{companyMembers.filter(cm=>cm.is_active).map(cm=>{const p=profileById.get(cm.user_id);const bm=membershipMap.get(`${unit.id}:${cm.user_id}`);const active=Boolean(bm?.is_active);const role=bm?.role||cm.role||"viewer";return <div key={cm.user_id} className="grid gap-2 rounded-lg bg-slate-50 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_180px_110px] sm:items-center"><div className="min-w-0"><div className="truncate text-sm font-semibold text-slate-800">{p?.full_name||p?.email||cm.user_id}</div><div className="truncate text-xs text-slate-500">{p?.email||cm.user_id}</div></div><SearchableSelect className="input h-8 py-1 text-xs" disabled={saving||!active} value={role} onChange={e=>void setUserAccess(unit,cm.user_id,e.target.value,true)}>{roles.map(r=><option key={r} value={r}>{roleLabel(r)}</option>)}</SearchableSelect><button className={active?"btn-secondary h-8":"btn-primary h-8"} disabled={saving||!unit.is_active} onClick={()=>void setUserAccess(unit,cm.user_id,role,!active)}>{active?"Remove":"Assign"}</button></div>})}{companyMembers.filter(cm=>cm.is_active).length===0&&<div className="text-xs text-slate-400">No active users assigned to this company yet.</div>}</div></div>
  </div>)}</div></section>
  <BranchControl companyId={companyId}/>
- <OwnerFeatureControl companyId={companyId}/>
  </>;
 }
