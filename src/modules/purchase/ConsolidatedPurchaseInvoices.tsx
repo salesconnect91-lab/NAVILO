@@ -94,7 +94,6 @@ export default function ConsolidatedPurchaseInvoices() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [mainInvoiceLinks, setMainInvoiceLinks] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (loading || editingId) return;
@@ -128,7 +127,6 @@ export default function ConsolidatedPurchaseInvoices() {
     setSuppliers((supplierRes.data ?? []) as Supplier[]); setItems((itemRes.data ?? []) as Item[]); setGodowns(loadedGodowns);
     const linkMap: Record<string, string> = {};
     for (const link of linkRes.data ?? []) { const order = Array.isArray((link as any).purchase_order) ? (link as any).purchase_order[0] : (link as any).purchase_order; if (order?.order_no) linkMap[(link as any).consolidated_invoice_id] = order.order_no; }
-    setMainInvoiceLinks(linkMap);
     setInvoices((invoiceRes.data ?? []).map((invoice: any) => ({ ...invoice, main_purchase_invoice_no: linkMap[invoice.id] ?? null })) as Invoice[]); setConfiguredCharges((chargeRes.data ?? []) as Charge[]);
     setCompanyPrint((companyRes.data || {}) as CompanyPrintSettings);
     if (!visibilityRes.error) setPrintVisibility({ ...DEFAULT_PRINT_VISIBILITY, ...(visibilityRes.data || {}) });
@@ -173,17 +171,7 @@ export default function ConsolidatedPurchaseInvoices() {
   const visibleTotal = useMemo(() => filteredInvoices.reduce((sum, invoice) => sum + n(invoice.total), 0), [filteredInvoices]);
   const draftCount = useMemo(() => filteredInvoices.filter((invoice) => invoice.status === "draft").length, [filteredInvoices]);
   const postedCount = useMemo(() => filteredInvoices.filter((invoice) => invoice.status === "posted").length, [filteredInvoices]);
-  const listColumns: Column<Invoice>[] = [
-    { key: "invoice_no", label: "Consolidated Purchase #", sortable: true, render: (invoice) => <span className="font-semibold text-slate-900">{invoice.invoice_no}</span> },
-    { key: "invoice_date", label: "Date", sortable: true, render: (invoice) => formatDate(invoice.invoice_date) },
-    { key: "supplier", label: "Supplier", render: (invoice) => invoice.supplier?.name ?? "—" },
-    { key: "reference_name", label: "Reference", sortable: true, render: (invoice) => <div><div className="font-medium">{invoice.reference_name || "—"}</div>{invoice.reference_no && <div className="text-xs text-slate-500">{invoice.reference_no}</div>}</div> },
-    { key: "invoice_type", label: "Type", sortable: true, render: (invoice) => invoice.invoice_type === "Tax Invoice" ? <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700">With Tax</span> : <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Without Tax</span> },
-    { key: "total", label: "Amount", sortable: true, className: "text-right", render: (invoice) => <span className="font-semibold">{formatCurrency(n(invoice.total))}</span> },
-    { key: "status", label: "Stock Status", sortable: true, render: (invoice) => <StatusBadge status={invoice.status} /> },
-    { key: "main_purchase_invoice_no", label: "Main Purchase Invoice", sortable: true, render: (invoice) => invoice.main_purchase_invoice_no ? <span className="font-semibold text-blue-600">{invoice.main_purchase_invoice_no}</span> : <span className="text-slate-400">—</span> },
-    { key: "actions", label: "Action", className: "text-right", render: (invoice) => <div className="flex justify-end gap-2"><button type="button" className="btn-secondary text-xs" onClick={() => void editInvoice(invoice)}>View</button>{invoice.status === "draft" && <button type="button" className="btn-primary text-xs" disabled={postingId === invoice.id} onClick={() => void post(invoice)}>{postingId === invoice.id ? "Posting..." : "Post"}</button>}</div> },
-  ];
+
 
   useEffect(() => {
     if (!selectedChargeKeys.length) return;
@@ -332,6 +320,18 @@ export default function ConsolidatedPurchaseInvoices() {
     setSuccess(`${invoice.invoice_no} posted: stock received. Supplier accounting will be created only when it is added to a Main Purchase Invoice and that Main Invoice is posted.`);
     await load();
   };
+
+  const listColumns: Column<Invoice>[] = [
+    { key: "invoice_no", label: "Consolidated Purchase #", sortable: true, render: (invoice) => <span className="font-semibold text-slate-900">{invoice.invoice_no}</span> },
+    { key: "invoice_date", label: "Date", sortable: true, render: (invoice) => formatDate(invoice.invoice_date) },
+    { key: "supplier", label: "Supplier", render: (invoice) => invoice.supplier?.name ?? "—" },
+    { key: "reference_name", label: "Reference", sortable: true, render: (invoice) => <div><div className="font-medium">{invoice.reference_name || "—"}</div>{invoice.reference_no && <div className="text-xs text-slate-500">{invoice.reference_no}</div>}</div> },
+    { key: "invoice_type", label: "Type", sortable: true, render: (invoice) => invoice.invoice_type === "Tax Invoice" ? <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700">With Tax</span> : <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Without Tax</span> },
+    { key: "total", label: "Amount", sortable: true, className: "text-right", render: (invoice) => <span className="font-semibold">{formatCurrency(n(invoice.total))}</span> },
+    { key: "status", label: "Stock Status", sortable: true, render: (invoice) => <StatusBadge status={invoice.status} /> },
+    { key: "main_purchase_invoice_no", label: "Main Purchase Invoice", sortable: true, render: (invoice) => invoice.main_purchase_invoice_no ? <span className="font-semibold text-blue-600">{invoice.main_purchase_invoice_no}</span> : <span className="text-slate-400">—</span> },
+    { key: "actions", label: "Action", className: "text-right", render: (invoice) => <div className="flex justify-end gap-2"><button type="button" className="btn-secondary text-xs" onClick={() => void editInvoice(invoice)}>View</button>{invoice.status === "draft" && <button type="button" className="btn-primary text-xs" disabled={postingId === invoice.id} onClick={() => void post(invoice)}>{postingId === invoice.id ? "Posting..." : "Post"}</button>}</div> },
+  ];
 
   const printCharges = selectedCharges.map((charge) => ({ label: charge.charge_name, amount: n(chargeAmounts[charge.charge_key]) }));
 
