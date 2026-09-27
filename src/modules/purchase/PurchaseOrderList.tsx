@@ -6,6 +6,7 @@ import DataTable, { Column } from "@/components/DataTable";
 import { PageHeader, ErrorBanner, StatusBadge, formatCurrency, formatDate } from "@/components/ui";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
+import { CheckCircle2, Clock3, FileText, Landmark, RotateCcw, Truck } from "lucide-react";
 
 type ImportRow = {
   invoice_no?: string;
@@ -41,15 +42,29 @@ export default function PurchaseOrderList() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [consolidatedLinks, setConsolidatedLinks] = useState<Record<string, string[]>>({});
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
-    const { data, error: loadError } = await supabase
-      .from("purchase_orders")
-      .select("*, supplier:suppliers(*)")
-      .order("created_at", { ascending: false });
+    const [ordersRes, linksRes] = await Promise.all([
+      supabase.from("purchase_orders").select("*, supplier:suppliers(*)").order("created_at", { ascending: false }),
+      supabase.from("purchase_order_consolidated_invoices").select("purchase_order_id,consolidated_invoice:consolidated_purchase_invoices(invoice_no)"),
+    ]);
+    const loadError = ordersRes.error || linksRes.error;
     if (loadError) setError(loadError.message);
-    else setRows(data ?? []);
+    else {
+      setRows((ordersRes.data ?? []) as PurchaseOrder[]);
+      const links: Record<string, string[]> = {};
+      for (const link of linksRes.data ?? []) {
+        const invoice = Array.isArray((link as any).consolidated_invoice) ? (link as any).consolidated_invoice[0] : (link as any).consolidated_invoice;
+        if (!invoice?.invoice_no) continue;
+        (links[(link as any).purchase_order_id] ||= []).push(invoice.invoice_no);
+      }
+      setConsolidatedLinks(links);
+    }
     setLoading(false);
   }, []);
 
@@ -75,9 +90,13 @@ export default function PurchaseOrderList() {
         .includes(q);
       const matchesType = typeFilter === "all" || typeFilter === invoiceType;
       const matchesStatus = statusFilter === "all" || String(row.status ?? "").toLowerCase() === statusFilter;
-      return matchesSearch && matchesType && matchesStatus;
+      const rowPayment = String(row.payment_status ?? "unpaid").toLowerCase();
+      const matchesPayment = paymentFilter === "all" || rowPayment === paymentFilter;
+      const matchesFrom = !fromDate || String(row.order_date || "") >= fromDate;
+      const matchesTo = !toDate || String(row.order_date || "") <= toDate;
+      return matchesSearch && matchesType && matchesStatus && matchesPayment && matchesFrom && matchesTo;
     });
-  }, [rows, search, typeFilter, statusFilter]);
+  }, [rows, search, typeFilter, statusFilter, paymentFilter, fromDate, toDate]);
 
   const visiblePurchaseTotal = useMemo(
     () => filteredRows.reduce((sum, row) => sum + (Number(row.total) || 0), 0),
@@ -88,52 +107,66 @@ export default function PurchaseOrderList() {
     [filteredRows],
   );
 
+  const paymentBadge = (row: PurchaseOrder) => {
+    const status = String(row.payment_status ?? "unpaid").toLowerCase();
+    const label = status === "paid" ? "Paid" : status === "partial" ? "Partially Paid" : status === "overpaid" ? "Overpaid" : "Unpaid";
+    const cls = status === "paid" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : status === "partial" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-rose-200 bg-rose-50 text-rose-700";
+    return <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${cls}`}>{label}</span>;
+  };
+  const visibleBalance = useMemo(() => filteredRows.reduce((sum, row) => sum + (Number(row.outstanding_amount ?? row.total) || 0), 0), [filteredRows]);
+  const visibleSuppliers = useMemo(() => new Set(filteredRows.map((row) => row.supplier_id).filter(Boolean)).size, [filteredRows]);
+
   const columns: Column<PurchaseOrder>[] = [
-    { key: "order_no", label: "Invoice #", render: (r) => <span className="font-medium text-primary-600">{r.order_no}</span> },
+    { key: "order_no", label: "Purchase Invoice #", sortable: true, render: (r) => <span className="font-semibold text-blue-600">{r.order_no}</span> },
+    { key: "consolidated", label: "Consolidated Purchase #", render: (r) => consolidatedLinks[r.id]?.length ? <div className="flex flex-wrap gap-1">{consolidatedLinks[r.id].map((no) => <span key={no} className="font-semibold text-violet-700">{no}</span>)}</div> : <span className="text-slate-400">—</span> },
     { key: "supplier", label: "Supplier", render: (r) => r.supplier?.name ?? "—" },
-    { key: "order_date", label: "Date", render: (r) => formatDate(r.order_date) },
-    { key: "invoice_type", label: "Type", render: (r) => r.invoice_type === "Tax Invoice" ? "With Tax" : "Without Tax" },
-    { key: "status", label: "Status", render: (r) => <StatusBadge status={r.status} /> },
-    { key: "total", label: "Total", render: (r) => <span className="font-medium">{formatCurrency(r.total)}</span> },
+    { key: "order_date", label: "Invoice Date", sortable: true, render: (r) => formatDate(r.order_date) },
+    { key: "invoice_type", label: "Type", sortable: true, render: (r) => r.invoice_type === "Tax Invoice" ? <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700">With Tax</span> : <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Without Tax</span> },
+    { key: "status", label: "Posting", sortable: true, render: (r) => <StatusBadge status={r.status} /> },
+    { key: "payment_status", label: "Payment Status", sortable: true, render: paymentBadge },
+    { key: "total", label: "Invoice Amount", sortable: true, className: "text-right", render: (r) => <span className="font-semibold">{formatCurrency(r.total)}</span> },
+    { key: "outstanding_amount", label: "Balance Due", sortable: true, className: "text-right", render: (r) => <span className="font-semibold text-rose-600">{formatCurrency(Number(r.outstanding_amount ?? r.total) || 0)}</span> },
     { key: "actions", label: "Actions", className: "text-right", render: (r) => {
       const isDraft = String(r.status ?? "").toLowerCase() === "draft";
       return <div className="flex justify-end gap-2">
-        <button className="btn-secondary text-xs" onClick={() => navigate(`/purchase/${r.id}`)}>Open</button>
-        {isDraft && canDelete && <button className="btn-danger text-xs" onClick={() => void deleteDraft(r)}>Delete</button>}
+        <button className="font-semibold text-blue-600 hover:text-blue-800" onClick={() => navigate(`/purchase/${r.id}`)}>Open →</button>
+        {isDraft && canDelete && <button className="text-xs font-semibold text-rose-600" onClick={() => void deleteDraft(r)}>Delete</button>}
       </div>;
     }},
   ];
 
   return (
-    <div className="navilo-purchase-neus space-y-4" data-navilo-commercial-standard="true">
+    <div className="navilo-purchase-neus space-y-3" data-navilo-commercial-standard="true">
       <PageHeader
         title="Purchase Invoices"
-        subtitle="Manage supplier invoices, payment status, balances & posting"
+        subtitle="Supplier invoices, payables and posting"
         action={<div className="flex flex-wrap items-center gap-2">
-          {canCreate && <button onClick={() => navigate("/purchase/new")} className="btn-primary">+ Main Purchase Invoice</button>}
+          {canCreate && <button onClick={() => navigate("/purchase/new")} className="btn-primary">+ New Purchase Invoice</button>}
           <span data-navilo-standard-tools-host className="contents" />
         </div>}
       />
 
-      <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-3 md:grid-cols-[minmax(0,1fr)_180px_180px]" data-no-export data-no-print>
-        <input className="input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search invoice, supplier or status…" />
-        <select className="input" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-          <option value="all">All Types</option><option value="without-tax">Without Tax</option><option value="with-tax">With Tax</option>
-        </select>
-        <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="all">All Posting Statuses</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option>
-        </select>
+      <div className="grid gap-3 md:grid-cols-4" data-no-export>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-blue-50 p-2 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Visible Invoices</div><div className="font-bold">{filteredRows.length}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-emerald-50 p-2 text-emerald-600"><Landmark className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Purchase Total</div><div className="font-bold">{formatCurrency(visiblePurchaseTotal)}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-rose-50 p-2 text-rose-600"><Clock3 className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Balance Due</div><div className="font-bold text-rose-600">{formatCurrency(visibleBalance)}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-violet-50 p-2 text-violet-600"><Truck className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Suppliers</div><div className="font-bold">{visibleSuppliers}</div></div></div>
+      </div>
+
+      <div className="grid gap-2 rounded-xl border border-slate-200 bg-white p-3 lg:grid-cols-[minmax(260px,1fr)_150px_175px_175px_150px_150px_auto]" data-no-export data-no-print>
+        <input className="input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search invoice, supplier or status..." />
+        <select className="input" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}><option value="all">All Types</option><option value="without-tax">Without Tax</option><option value="with-tax">With Tax</option></select>
+        <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All posting statuses</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option></select>
+        <select className="input" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}><option value="all">All payment statuses</option><option value="unpaid">Unpaid</option><option value="partial">Partially Paid</option><option value="paid">Paid</option></select>
+        <label className="text-[11px] font-semibold text-slate-600">From Date<input type="date" className="input mt-1" value={fromDate} onChange={(e) => setFromDate(e.target.value)}/></label>
+        <label className="text-[11px] font-semibold text-slate-600">To Date<input type="date" className="input mt-1" value={toDate} onChange={(e) => setToDate(e.target.value)}/></label>
+        {(search || typeFilter !== "all" || statusFilter !== "all" || paymentFilter !== "all" || fromDate || toDate) && <button className="btn-secondary self-end" onClick={() => { setSearch(""); setTypeFilter("all"); setStatusFilter("all"); setPaymentFilter("all"); setFromDate(""); setToDate(""); }}><RotateCcw className="h-4 w-4"/>Clear</button>}
       </div>
 
       {error && <ErrorBanner message={error} />}
-      <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white p-3">
-        <div className="mb-3 flex items-center justify-between gap-3"><div><h2 className="navilo-report-title text-base font-bold text-slate-900">Purchase Invoices</h2>{(search || typeFilter !== "all" || statusFilter !== "all") && <p className="text-xs text-slate-500">Active filters: {search ? `Search “${search}” ` : ""}{typeFilter !== "all" ? `• ${typeFilter === "with-tax" ? "With Tax" : "Without Tax"} ` : ""}{statusFilter !== "all" ? `• ${statusFilter}` : ""}</p>}</div></div>
-        <div className="mb-3 grid gap-3 md:grid-cols-3" data-no-export>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3"><div className="text-xs text-slate-500">Visible Invoices</div><div className="mt-2 text-sm font-bold text-slate-900">{filteredRows.length}</div></div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3"><div className="text-xs text-slate-500">Purchase Total</div><div className="mt-2 text-sm font-bold text-slate-900">{formatCurrency(visiblePurchaseTotal)}</div></div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3"><div className="text-xs text-slate-500">Posted Purchase Total</div><div className="mt-2 text-sm font-bold text-slate-900">{formatCurrency(visiblePostedTotal)}</div></div>
-        </div>
-        <DataTable columns={columns} rows={filteredRows} loading={loading} emptyMessage="No Main Purchase Invoices found." />
+      <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-bold text-slate-900">Purchase Invoices <span className="text-slate-500">({filteredRows.length})</span></h2></div>
+        <DataTable columns={columns} rows={filteredRows} loading={loading} emptyMessage="No Main Purchase Invoices found." showSerialNumber />
       </div>
     </div>
   );
