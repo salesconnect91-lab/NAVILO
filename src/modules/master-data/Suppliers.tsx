@@ -298,12 +298,13 @@ export default function Suppliers() {
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
           <div className="mb-3 text-sm font-semibold text-slate-800">Tax Identity</div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div><label className="label">Tax Status</label><SearchableSelect className="input" value={form.tax_registration_status} onChange={(e) => setForm({ ...form, tax_registration_status: e.target.value as "registered" | "unregistered" })}><option value="unregistered">Unregistered</option><option value="registered">Registered</option></SearchableSelect></div>
-            <div><label className="label">STRN</label><input className="input" value={form.strn} onChange={(e) => setForm({ ...form, strn: e.target.value })} /></div>
-            <div><label className="label">NTN</label><input className="input" value={form.ntn} onChange={(e) => setForm({ ...form, ntn: e.target.value })} /></div>
-            <div><label className="label">CNIC (if applicable)</label><input className="input" value={form.cnic} onChange={(e) => setForm({ ...form, cnic: e.target.value })} /></div>
+            <div><label className="label">Tax Status</label><SearchableSelect className="input" value={form.tax_registration_status} onChange={(e) => { const status=e.target.value as "registered" | "unregistered"; setForm({ ...form, tax_registration_status: status, ...(status==="unregistered"?{ntn:"",strn:""}:{cnic:""}) }); }}><option value="unregistered">Unregistered</option><option value="registered">Registered</option></SearchableSelect></div>
+            {form.tax_registration_status === "registered" ? <>
+              <div><label className="label">STRN</label><input className="input" value={form.strn} onChange={(e) => setForm({ ...form, strn: e.target.value })} placeholder="Sales Tax Registration Number" /></div>
+              <div><label className="label">NTN</label><input className="input" value={form.ntn} onChange={(e) => setForm({ ...form, ntn: e.target.value })} placeholder="National Tax Number" /></div>
+            </> : <div><label className="label">CNIC (if applicable)</label><input className="input" value={form.cnic} onChange={(e) => setForm({ ...form, cnic: e.target.value })} placeholder="CNIC for unregistered party" /></div>}
           </div>
-          <div className="mt-2 text-xs text-slate-500">Registered supplier ke Tax Invoice ke liye STRN/NTN posting validation mein use hoga.</div>
+          <div className="mt-2 text-xs text-slate-500">{form.tax_registration_status === "registered" ? "Registered supplier ke Tax Invoice ke liye STRN/NTN posting validation mein use hoga." : "Unregistered supplier ke liye STRN/NTN required nahi; CNIC optional hai."}</div>
         </div>
 
         {!editing && canSetOpeningBalance && <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
