@@ -672,7 +672,7 @@ export default function SalesInvoiceList() {
         open={paymentModalOpen}
         title="Receive Customer Payment"
         onClose={closeReceivePayment}
-        panelClassName="!max-w-[1480px] !w-[calc(100vw-2rem)] !max-h-[96vh] !p-4"
+        panelClassName="!max-w-[1180px] !w-[calc(100vw-3rem)] !max-h-[92vh] !p-4"
       >
         <form onSubmit={handleReceivePayment} className="space-y-3">
           {paymentSuccess && (
@@ -886,8 +886,8 @@ export default function SalesInvoiceList() {
               </div>
             </div>
 
-            <div className="overflow-x-auto max-h-[430px] min-h-[430px]">
-              <table className="w-full text-sm min-w-[1120px]">
+            <div className="overflow-x-auto max-h-[390px] min-h-[390px]">
+              <table className="w-full text-sm min-w-[980px]">
                 <thead className="sticky top-0 z-10 bg-slate-50">
                   <tr className="border-b border-slate-200 text-slate-600">
                     <th className="py-2 px-3 text-center font-medium">Select</th>
