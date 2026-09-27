@@ -2,7 +2,7 @@ import { masterDeleteError } from "@/lib/masterDeleteError";
 import SearchableSelect from "@/components/SearchableSelect";
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { Download, Filter, Plus, Search, Upload, X } from "lucide-react";
+import { Download, Filter, Plus, Search, Upload, X, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toUrduName } from "@/lib/urdu";
 import { ConfirmModal, ErrorBanner, Modal } from "@/components/ui";
@@ -81,11 +81,11 @@ export default function Categories(){
        {search&&<div className="mt-1 text-xs text-slate-500">Search: {search}</div>}
      </div>
      <div className="max-h-[65vh] overflow-auto"><table data-neus-grid="true" data-report-content data-navilo-customizable="true" className="w-full text-sm"><thead className="sticky top-0 z-20 bg-slate-50"><tr>
-       {visible("name")&&<th className="p-3 text-left">Category Name</th>}{visible("urdu")&&<th className="p-3 text-right">Urdu Name</th>}{visible("description")&&<th className="p-3 text-left">Description</th>}{visible("created")&&<th className="p-3 text-left">Created At</th>}<th className="p-3" data-no-print data-no-export/>
+       {visible("name")&&<th className="p-3 text-left">Category Name</th>}{visible("urdu")&&<th className="p-3 text-right">Urdu Name</th>}{visible("description")&&<th className="p-3 text-left">Description</th>}{visible("created")&&<th className="p-3 text-left">Created At</th>}<th className="p-3 text-right" data-no-print data-no-export>Actions</th>
      </tr></thead><tbody>
        {loading?<tr><td className="p-6 text-center text-slate-500" colSpan={visibleCount+1}>Loading categories...</td></tr>:shown.length?shown.map(r=><tr key={r.id} className="border-t">
          {visible("name")&&<td className="p-3 font-semibold text-slate-900">{r.name}</td>}{visible("urdu")&&<td className="p-3 text-right" dir="rtl">{r.name_urdu||"—"}</td>}{visible("description")&&<td className="p-3">{r.description||"—"}</td>}{visible("created")&&<td className="p-3">{new Date(r.created_at).toLocaleString()}</td>}
-         <td className="p-3 text-right whitespace-nowrap" data-no-print data-no-export><button type="button" onClick={()=>openEdit(r)} className="mr-3 text-primary-600">Edit</button><button type="button" onClick={()=>setDeleteId(r.id)} className="text-red-600">Delete</button></td>
+         <td className="p-3 text-right whitespace-nowrap" data-no-print data-no-export><div className="flex justify-end gap-2"><button type="button" onClick={()=>openEdit(r)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Pencil className="h-3.5 w-3.5"/>Edit</button><button type="button" onClick={()=>setDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600"><Trash2 className="h-3.5 w-3.5"/>Delete</button></div></td>
        </tr>):<tr><td className="p-6 text-center text-slate-500" colSpan={visibleCount+1}>No categories found.</td></tr>}
      </tbody><tfoot><tr className="border-t bg-slate-50 font-semibold"><td className="p-3" colSpan={visibleCount}>TOTAL / SUMMARY — {shown.length} categor{shown.length===1?"y":"ies"}</td><td data-no-print data-no-export/></tr></tfoot></table></div>
    </section>
