@@ -6,7 +6,7 @@ import DataTable, { Column } from "@/components/DataTable";
 import { PageHeader, ErrorBanner, StatusBadge, formatCurrency, formatDate } from "@/components/ui";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
-import { CheckCircle2, Clock3, FileText, Landmark, RotateCcw, Truck } from "lucide-react";
+import { Clock3, FileText, Landmark, RotateCcw, Truck } from "lucide-react";
 
 type ImportRow = {
   invoice_no?: string;
