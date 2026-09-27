@@ -71,6 +71,8 @@ export default function Employees() {
     finally { setSaving(false); }
   };
   const toggle = async (employee: Employee) => {
+    const nextAction = employee.is_active ? "deactivate" : "activate";
+    if (!window.confirm(`Are you sure you want to ${nextAction} ${employee.name}?`)) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setError("Authentication required."); return; }
     const result = await supabase.from("employees").update({ is_active: !employee.is_active, updated_at: new Date().toISOString() }).eq("id", employee.id).select("id,is_active").maybeSingle();
