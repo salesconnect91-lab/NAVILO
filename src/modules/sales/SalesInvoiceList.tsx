@@ -112,6 +112,7 @@ export default function SalesInvoiceList() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [invoiceSearch, setInvoiceSearch] = useState("");
+  const [invoiceSort, setInvoiceSort] = useState<"date_desc" | "date_asc" | "invoice_asc" | "balance_desc" | "balance_asc">("date_desc");
   const [openInvoices, setOpenInvoices] = useState<AgingInvoice[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
 
@@ -856,8 +857,16 @@ export default function SalesInvoiceList() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  <select className="input h-8 w-44 text-xs" value={invoiceSort} onChange={(e)=>setInvoiceSort(e.target.value as typeof invoiceSort)} aria-label="Sort invoices">
+                    <option value="date_desc">Newest date</option>
+                    <option value="date_asc">Oldest date</option>
+                    <option value="invoice_asc">Invoice #</option>
+                    <option value="balance_desc">Balance: high-low</option>
+                    <option value="balance_asc">Balance: low-high</option>
+                  </select>
+
                   <input
-                    className="input text-sm w-56"
+                    className="input h-8 text-xs w-48"
                     placeholder="Search invoice..."
                     value={invoiceSearch}
                     onChange={(e) => setInvoiceSearch(e.target.value)}
@@ -889,33 +898,33 @@ export default function SalesInvoiceList() {
               </div>
             </div>
 
-            <div className="h-[348px] overflow-auto">
-              <table className="w-full min-w-[980px] text-[13px]">
+            <div className="h-[238px] overflow-auto">
+              <table className="w-full min-w-[980px] text-[12px] leading-none">
                 <thead className="sticky top-0 z-10 bg-slate-50">
                   <tr className="border-b border-slate-200 text-slate-600">
-                    <th className="h-8 py-1 px-3 text-center font-medium">Select</th>
-                    <th className="h-8 py-1 px-3 text-left font-medium">
+                    <th className="h-5 py-0 px-2 text-center font-medium">Select</th>
+                    <th className="h-5 py-0 px-2 text-left font-medium">
                       Invoice #
                     </th>
-                    <th className="h-8 py-1 px-3 text-left font-medium">
+                    <th className="h-5 py-0 px-2 text-left font-medium">
                       Invoice Date
                     </th>
-                    <th className="h-8 py-1 px-3 text-left font-medium">
+                    <th className="h-5 py-0 px-2 text-left font-medium">
                       Due Date
                     </th>
-                    <th className="h-8 py-1 px-3 text-right font-medium">
+                    <th className="h-5 py-0 px-2 text-right font-medium">
                       Invoice
                     </th>
-                    <th className="h-8 py-1 px-3 text-right font-medium">
+                    <th className="h-5 py-0 px-2 text-right font-medium">
                       Paid
                     </th>
-                    <th className="h-8 py-1 px-3 text-right font-medium">
+                    <th className="h-5 py-0 px-2 text-right font-medium">
                       Balance Due
                     </th>
-                    <th className="h-8 py-1 px-3 text-left font-medium">
+                    <th className="h-5 py-0 px-2 text-left font-medium">
                       Aging
                     </th>
-                    <th className="h-8 py-1 px-3 text-right font-medium">
+                    <th className="h-5 py-0 px-2 text-right font-medium">
                       Allocate
                     </th>
                   </tr>
@@ -950,7 +959,7 @@ export default function SalesInvoiceList() {
                       </td>
                     </tr>
                   ) : (
-                    filteredInvoices.map((invoice) => {
+                    [...filteredInvoices].sort((a,b) => { if(invoiceSort==="invoice_asc") return String(a.invoice_no).localeCompare(String(b.invoice_no)); if(invoiceSort==="balance_desc") return toNumber(b.outstanding_amount)-toNumber(a.outstanding_amount); if(invoiceSort==="balance_asc") return toNumber(a.outstanding_amount)-toNumber(b.outstanding_amount); const ad=new Date(a.invoice_date||0).getTime(), bd=new Date(b.invoice_date||0).getTime(); return invoiceSort==="date_asc"?ad-bd:bd-ad; }).map((invoice) => {
                       const currentAllocation = toNumber(
                         allocations[invoice.sales_order_id]
                       );
@@ -964,7 +973,7 @@ export default function SalesInvoiceList() {
                             isSelected ? "bg-emerald-50/50" : "hover:bg-slate-50"
                           }`}
                         >
-                          <td className="h-8 py-1 px-3 text-center">
+                          <td className="h-5 py-0 px-2 text-center">
                             <input
                               type="checkbox"
                               checked={isSelected}
@@ -973,35 +982,35 @@ export default function SalesInvoiceList() {
                             />
                           </td>
 
-                          <td className="h-8 py-1 px-3 font-semibold text-blue-700">
+                          <td className="h-5 py-0 px-2 font-semibold text-blue-700">
                             {invoice.invoice_no}
                           </td>
 
-                          <td className="h-8 py-1 px-3 text-slate-600">
+                          <td className="h-5 py-0 px-2 text-slate-600">
                             {formatDate(invoice.invoice_date)}
                           </td>
 
-                          <td className="h-8 py-1 px-3 text-slate-600">
+                          <td className="h-5 py-0 px-2 text-slate-600">
                             {invoice.due_date
                               ? formatDate(invoice.due_date)
                               : "—"}
                           </td>
 
-                          <td className="h-8 py-1 px-3 text-right">
+                          <td className="h-5 py-0 px-2 text-right">
                             {formatCurrency(toNumber(invoice.invoice_amount))}
                           </td>
 
-                          <td className="h-8 py-1 px-3 text-right text-emerald-700">
+                          <td className="h-5 py-0 px-2 text-right text-emerald-700">
                             {formatCurrency(toNumber(invoice.paid_amount))}
                           </td>
 
-                          <td className="h-8 py-1 px-3 text-right font-bold text-rose-700">
+                          <td className="h-5 py-0 px-2 text-right font-bold text-rose-700">
                             {formatCurrency(
                               toNumber(invoice.outstanding_amount)
                             )}
                           </td>
 
-                          <td className="h-8 py-1 px-3">
+                          <td className="h-5 py-0 px-2">
                             {overdue ? (
                               <div>
                                 <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">
@@ -1018,13 +1027,13 @@ export default function SalesInvoiceList() {
                             )}
                           </td>
 
-                          <td className="h-8 py-1 px-3">
+                          <td className="h-5 py-0 px-2">
                             <input
                               type="number"
                               min="0"
                               max={toNumber(invoice.outstanding_amount)}
                               step="0.01"
-                              className="input text-right min-w-[130px]"
+                              className="input !h-6 !min-h-0 py-0 text-right text-xs min-w-[120px]"
                               value={
                                 allocations[invoice.sales_order_id] ?? ""
                               }
