@@ -1,7 +1,7 @@
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { AlertTriangle, Building2, CalendarDays, FileSpreadsheet, Loader2, Plus, ShieldCheck, Users } from "lucide-react";
+import { AlertTriangle, Building2, CreditCard, FileSpreadsheet, LayoutDashboard, Loader2, Plus, Settings2, ShieldCheck, Users } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
@@ -44,6 +44,7 @@ export default function OwnerPanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [ownerView, setOwnerView] = useState<"overview"|"customers"|"access"|"commercial"|"advanced">("overview");
   const [company, setCompany] = useState({ name: "", code: "", contact_email: "", contact_phone: "", address: "", notes: "", subscription_expires_at: "", max_users: "10" });
   const [user, setUser] = useState({ full_name: "", email: "", password: "", role: "viewer" });
 
@@ -124,9 +125,21 @@ export default function OwnerPanel() {
       <div className="rounded-xl border bg-white p-4 shadow-sm"><div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Owner Scope</div><div className="mt-1 text-lg font-bold text-slate-900">Platform</div><div className="text-xs text-slate-500">Owner-only controls</div></div>
     </section>
 
-    <PlatformBrandingControl />
+    <section className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        {([
+          ["overview","Overview",LayoutDashboard,"Platform snapshot and branding"],
+          ["customers","Customers",Building2,"Onboard and manage customers"],
+          ["access","Users & Access",Users,"Company users and workspaces"],
+          ["commercial","Plans & Billing",CreditCard,"Licence, limits and billing"],
+          ["advanced","Advanced",Settings2,"Governance, migration and lifecycle"],
+        ] as const).map(([key,label,Icon,help])=><button key={key} type="button" onClick={()=>setOwnerView(key)} className={`rounded-lg border px-3 py-2 text-left transition ${ownerView===key?"border-blue-300 bg-blue-50 text-blue-900":"border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}><div className="flex items-center gap-2 text-sm font-semibold"><Icon className="h-4 w-4"/>{label}</div><div className="mt-0.5 text-[11px] text-slate-500">{help}</div></button>)}
+      </div>
+    </section>
 
-    <CustomerOnboardingWizard onComplete={async()=>{await load();await refreshAccess();}} />
+    {ownerView==="overview"&&<PlatformBrandingControl />}
+
+    {ownerView==="customers"&&<CustomerOnboardingWizard onComplete={async()=>{await load();await refreshAccess();}} />}
 
     <section className="rounded-xl border bg-white p-4 shadow-sm">
       <div className="mb-4 flex items-center gap-2"><Building2 className="h-5 w-5"/><div><h2 className="font-semibold">Company Management</h2><p className="text-xs text-slate-500">Create a tenant company and define its initial contact, expiry and user allowance.</p></div></div>
@@ -160,18 +173,18 @@ export default function OwnerPanel() {
     <section className="rounded-xl border border-blue-200 bg-blue-50/30 p-4 shadow-sm"><div className="flex flex-wrap items-end justify-between gap-4"><div><h2 className="font-semibold text-slate-900">Selected Company Workspace</h2><p className="mt-1 text-xs text-slate-500">All controls below apply only to the selected company.</p><SearchableSelect className="input mt-3 w-full sm:w-96" value={selectedCompanyId} onChange={event => setSelectedCompanyId(event.target.value)}>{companies.map(target => <option key={target.id} value={target.id} data-search={target.code}>{target.name}</option>)}</SearchableSelect></div>{selected&&<div className="grid min-w-[320px] grid-cols-2 gap-2 text-xs sm:grid-cols-4"><div className="rounded-lg border bg-white p-2"><div className="text-slate-500">Status</div><div className="font-semibold">{statusLabel(selectedSubscription?.status||selected.status)}</div></div><div className="rounded-lg border bg-white p-2"><div className="text-slate-500">Users</div><div className="font-semibold">{selectedUsers}/{selected.max_users}</div></div><div className="rounded-lg border bg-white p-2"><div className="text-slate-500">Business Units</div><div className="font-semibold">{selectedUnits}</div></div><div className="rounded-lg border bg-white p-2"><div className="text-slate-500">Modules</div><div className="font-semibold">{selectedModules}</div></div></div>}</div></section>
 
     {selectedCompanyId && <BusinessUnitControl companyId={selectedCompanyId} onSaved={refreshAccess}/>}
-    {selectedCompanyId && <BusinessWorkspaceLoginControl companyId={selectedCompanyId}/>}
-    {selectedCompanyId && <SubscriptionControl companyId={selectedCompanyId} onSaved={async () => { await load(); await refreshAccess(); }}/>}
-    {selectedCompanyId && <BillingLedgerControl companyId={selectedCompanyId}/>}
-    {selectedCompanyId && <OwnerLanguageControl companyId={selectedCompanyId}/>}
-    {selectedCompanyId && <CoreAccountingControl companyId={selectedCompanyId}/>}
+    {ownerView==="access"&&selectedCompanyId && <BusinessWorkspaceLoginControl companyId={selectedCompanyId}/>}
+    {ownerView==="commercial"&&selectedCompanyId && <SubscriptionControl companyId={selectedCompanyId} onSaved={async () => { await load(); await refreshAccess(); }}/>}
+    {ownerView==="commercial"&&selectedCompanyId && <BillingLedgerControl companyId={selectedCompanyId}/>}
+    {ownerView==="advanced"&&selectedCompanyId && <OwnerLanguageControl companyId={selectedCompanyId}/>}
+    {ownerView==="advanced"&&selectedCompanyId && <CoreAccountingControl companyId={selectedCompanyId}/>}
 
-    <section className="rounded-xl border bg-white p-4 shadow-sm"><div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5"/><div><h2 className="font-semibold">Create Company / Group User</h2><p className="text-xs text-slate-500">Use for users who may access more than one assigned business unit. Dedicated single-business logins are managed above.</p></div></div><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><label className="text-xs font-semibold text-slate-700">Full Name<input className="input mt-1 w-full" value={user.full_name} onChange={event => setUser({ ...user, full_name: event.target.value })}/></label><label className="text-xs font-semibold text-slate-700">Email / Login ID<input className="input mt-1 w-full" type="email" value={user.email} onChange={event => setUser({ ...user, email: event.target.value })}/></label><label className="text-xs font-semibold text-slate-700">Temporary Password<input className="input mt-1 w-full" type="password" value={user.password} onChange={event => setUser({ ...user, password: event.target.value })}/></label><label className="text-xs font-semibold text-slate-700">Company Role<SearchableSelect className="input mt-1 w-full" value={user.role} onChange={event => setUser({ ...user, role: event.target.value })}>{roles.map(role => <option key={role} value={role}>{roleLabel(role)}</option>)}</SearchableSelect></label></div><p className="mt-2 text-xs text-slate-500">Use a temporary password only for onboarding; the user should change it through the account password flow after first access.</p><button className="btn-primary mt-3" disabled={saving || !selectedCompanyId} onClick={() => void createUser()}>Create Group User</button></section>
+    {ownerView==="access"&&<section className="rounded-xl border bg-white p-4 shadow-sm"><div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5"/><div><h2 className="font-semibold">Company User Access</h2><p className="text-xs text-slate-500">Create a company-level user who may access more than one assigned business unit. Dedicated single-business logins are managed above.</p></div></div><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><label className="text-xs font-semibold text-slate-700">Full Name<input className="input mt-1 w-full" value={user.full_name} onChange={event => setUser({ ...user, full_name: event.target.value })}/></label><label className="text-xs font-semibold text-slate-700">Email / Login ID<input className="input mt-1 w-full" type="email" value={user.email} onChange={event => setUser({ ...user, email: event.target.value })}/></label><label className="text-xs font-semibold text-slate-700">Temporary Password<input className="input mt-1 w-full" type="password" value={user.password} onChange={event => setUser({ ...user, password: event.target.value })}/></label><label className="text-xs font-semibold text-slate-700">Company Role<SearchableSelect className="input mt-1 w-full" value={user.role} onChange={event => setUser({ ...user, role: event.target.value })}>{roles.map(role => <option key={role} value={role}>{roleLabel(role)}</option>)}</SearchableSelect></label></div><p className="mt-2 text-xs text-slate-500">Use a temporary password only for onboarding; the user should change it through the account password flow after first access.</p><button className="btn-primary mt-3" disabled={saving || !selectedCompanyId} onClick={() => void createUser()}>Create Group User</button></section>
 
     <section className="rounded-xl border bg-white p-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">Migration & Onboarding</h2><p className="mt-1 text-xs text-slate-500">Controlled tools for bringing opening balances and legacy operational data into NAVILO.</p></div><Link className="btn-secondary" to="/owner/opening-balances"><FileSpreadsheet className="h-4 w-4"/>Opening Balance Migration</Link></div></section>
     {selected && <OwnerOrderBookMigration companyId={selected.id} companyName={selected.name}/>}
 
-    <section className="rounded-xl border border-red-200 bg-red-50/40 p-4"><div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-5 w-5 text-red-700"/><div><h2 className="font-semibold text-red-900">Danger Zone</h2><p className="text-xs text-red-700">Destructive lifecycle actions belong here. Use Suspend for normal company access control. Permanent deletion and transaction reset require deliberate confirmation.</p></div></div>{selected&&<div className="mt-4"><CompanyDeleteControl companyId={selected.id} companyName={selected.name} companyCode={selected.code} onDeleted={async () => { await load(); await refreshAccess(); }}/></div>}</section>
+    {ownerView==="advanced"&&<section className="rounded-xl border border-red-200 bg-red-50/40 p-4"><div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-5 w-5 text-red-700"/><div><h2 className="font-semibold text-red-900">Danger Zone</h2><p className="text-xs text-red-700">Destructive lifecycle actions belong here. Use Suspend for normal company access control. Permanent deletion and transaction reset require deliberate confirmation.</p></div></div>{selected&&<div className="mt-4"><CompanyDeleteControl companyId={selected.id} companyName={selected.name} companyCode={selected.code} onDeleted={async () => { await load(); await refreshAccess(); }}/></div>}</section>
     {selected && <TransactionResetControl companyId={selected.id} companyName={selected.name} companyCode={selected.code}/>}
   </div>;
 }
