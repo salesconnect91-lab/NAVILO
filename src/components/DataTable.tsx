@@ -60,8 +60,8 @@ function readPrefs<T>(columns: Column<T>[]): ViewPrefs {
 }
 
 export default function DataTable<T extends { id: string }>({
-  columns, rows, loading, emptyMessage,
-}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string }) {
+  columns, rows, loading, emptyMessage, showSerialNumber = false,
+}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; showSerialNumber?: boolean }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const configurableColumns = useMemo(() => columns.filter(c => c.key !== "actions" && c.key !== "action"), [columns]);
   const key = useMemo(() => storageKey(columns), [columns]);
@@ -181,6 +181,8 @@ export default function DataTable<T extends { id: string }>({
                   const next = new Set(selected); pagedRows.forEach(row => allPageSelected ? next.delete(row.id) : next.add(row.id)); setSelected(next);
                 }}/>
               </th>
+              {showSerialNumber ? <th aria-label="Serial number" className={`bg-slate-50 ${cellPad} ${prefs.density === "compact" ? "py-2" : prefs.density === "spacious" ? "py-4" : "py-3"} text-left font-medium text-slate-600`} style={{width:72,minWidth:72}}>S.No.</th> : null}
+              {showSerialNumber ? <td className={`${cellPad} ${rowPad} text-slate-500`} style={{width:72,minWidth:72}}>{(safePage - 1) * prefs.pageSize + rowIndex + 1}</td> : null}
               {visibleColumns.map(col => {
                 const action = col.key === "actions" || col.key === "action";
                 return <th key={col.key} aria-label={col.key === "actions" && !col.label ? "Actions" : col.label} draggable={!action}
@@ -202,7 +204,7 @@ export default function DataTable<T extends { id: string }>({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {pagedRows.map(row => <tr key={row.id} className={`transition-colors hover:bg-slate-50 ${selected.has(row.id) ? "bg-slate-50" : ""}`}>
+            {pagedRows.map((row, rowIndex) => <tr key={row.id} className={`transition-colors hover:bg-slate-50 ${selected.has(row.id) ? "bg-slate-50" : ""}`}>
               <td className={`sticky left-0 z-10 bg-white ${selectPad} ${rowPad}`} data-no-print data-no-export>
                 <input aria-label="Select row" type="checkbox" checked={selected.has(row.id)} onChange={() => {
                   const next = new Set(selected); next.has(row.id) ? next.delete(row.id) : next.add(row.id); setSelected(next);
