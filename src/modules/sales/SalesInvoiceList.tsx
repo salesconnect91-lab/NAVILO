@@ -672,9 +672,9 @@ export default function SalesInvoiceList() {
         open={paymentModalOpen}
         title="Receive Customer Payment"
         onClose={closeReceivePayment}
-        panelClassName="!max-w-[1180px] !w-[calc(100vw-3rem)] !max-h-[92vh] !p-4"
+        panelClassName="!max-w-[1180px] !w-[calc(100vw-3rem)] !max-h-[94vh] !overflow-hidden !p-0"
       >
-        <form onSubmit={handleReceivePayment} className="space-y-3">
+        <form onSubmit={handleReceivePayment} className="flex max-h-[calc(94vh-58px)] flex-col">\n          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3">\n            <div className="flex items-center gap-3 pt-1"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600"><FileText className="h-5 w-5"/></span><div><div className="text-sm font-semibold text-slate-900">Receive and allocate customer payment</div><div className="text-xs text-slate-500">Select a customer, enter receipt details and allocate against open invoices.</div></div></div>
           {paymentSuccess && (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
               {paymentSuccess}
@@ -886,7 +886,7 @@ export default function SalesInvoiceList() {
               </div>
             </div>
 
-            <div className="overflow-x-auto max-h-[390px] min-h-[390px]">
+            <div className="overflow-x-auto max-h-[390px]">
               <table className="w-full text-sm min-w-[980px]">
                 <thead className="sticky top-0 z-10 bg-slate-50">
                   <tr className="border-b border-slate-200 text-slate-600">
@@ -1041,7 +1041,7 @@ export default function SalesInvoiceList() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          </div>\n\n          <div className="border-t border-slate-200 bg-white px-4 py-3">\n          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <div className="text-xs text-slate-500">Amount Received</div>
               <div className="mt-1 font-bold text-slate-900">
@@ -1077,7 +1077,7 @@ export default function SalesInvoiceList() {
             </div>
           </div>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-3">
             <button
               type="button"
               onClick={closeReceivePayment}
@@ -1102,7 +1102,7 @@ export default function SalesInvoiceList() {
                 : `Receive & Post ${formatCurrency(allocatedTotal)}`}
             </button>
           </div>
-        </form>
+          </div>\n        </form>
       </Modal>
     </div>
   );
