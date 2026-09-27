@@ -133,7 +133,7 @@ export default function DataTable<T extends { id: string }>({
   const pagedRows = sortedRows.slice((safePage - 1) * prefs.pageSize, safePage * prefs.pageSize);
   const allPageSelected = pagedRows.length > 0 && pagedRows.every(row => selected.has(row.id));
   const densityClass = prefs.density === "compact" ? "text-xs" : prefs.density === "spacious" ? "text-base" : "text-sm";
-  const rowPad = prefs.density === "compact" ? "py-1" : prefs.density === "spacious" ? "py-5" : "py-2.5";
+  const rowPad = prefs.density === "compact" ? "py-0.5" : prefs.density === "spacious" ? "py-5" : "py-2.5";
   const cellPad = prefs.density === "compact" ? "px-2" : prefs.density === "spacious" ? "px-6" : "px-4";
   const selectPad = prefs.density === "compact" ? "px-2" : prefs.density === "spacious" ? "px-4" : "px-3";
 
@@ -203,7 +203,7 @@ export default function DataTable<T extends { id: string }>({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {pagedRows.map((row, rowIndex) => <tr key={row.id} className={`transition-colors hover:bg-slate-50 ${selected.has(row.id) ? "bg-slate-50" : ""}`}>
+            {pagedRows.map((row, rowIndex) => <tr key={row.id} className={`transition-colors hover:bg-slate-50 ${prefs.density === "compact" ? "h-8" : prefs.density === "comfortable" ? "h-11" : "h-14"} ${selected.has(row.id) ? "bg-slate-50" : ""}`}>
               <td className={`sticky left-0 z-10 bg-white ${selectPad} ${rowPad}`} data-no-print data-no-export>
                 <input aria-label="Select row" type="checkbox" checked={selected.has(row.id)} onChange={() => {
                   const next = new Set(selected); next.has(row.id) ? next.delete(row.id) : next.add(row.id); setSelected(next);
