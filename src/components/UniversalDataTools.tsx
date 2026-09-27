@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Download, FileText, FileType2, Printer, RefreshCw, Settings2, Sheet, Table2 } from "lucide-react";
 import { useLocation } from "react-router-dom";
@@ -116,12 +116,12 @@ export default function UniversalDataTools(){
   useEffect(()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return;if(reportMode)main.dataset.naviloScreenType="report";else delete main.dataset.naviloScreenType;if(standardPath)main.dataset.naviloStandard="true";else delete main.dataset.naviloStandard;return()=>{delete main.dataset.naviloScreenType;delete main.dataset.naviloStandard}},[reportMode,standardPath,pathname]);
   useEffect(()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main||!standardPath||genericReport){setHasCustomizableTable(false);return;}const scan=()=>{const next=Boolean(main.querySelector("[data-navilo-data-table],[data-navilo-customizable='true']"));setHasCustomizableTable(prev=>prev===next?prev:next)};scan();const o=new MutationObserver(scan);o.observe(main,{childList:true,subtree:true});return()=>{o.disconnect();setHasCustomizableTable(false)}},[pathname,standardPath,genericReport]);
   useEffect(()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main||!standardPath||genericReport){setHasLocalDocumentOutput(false);return;}const hidden=new Set<HTMLElement>();const scan=()=>{let documentOutput=false;main.querySelectorAll<HTMLElement>("button,a,[role='button']").forEach(el=>{if(el.closest("[data-navilo-global-data-tools]"))return;if(isDocumentOutputAction(el)){documentOutput=true;return;}const label=labelOf(el);if(isTemplateAction(label)||isUploadAction(label)||isExportDuplicate(label)){el.style.setProperty("display","none","important");el.dataset.naviloDuplicateGlobalAction="true";hidden.add(el)}});setHasLocalDocumentOutput(prev=>prev===documentOutput?prev:documentOutput)};scan();const o=new MutationObserver(scan);o.observe(main,{childList:true,subtree:true});return()=>{o.disconnect();hidden.forEach(el=>{el.style.removeProperty("display");delete el.dataset.naviloDuplicateGlobalAction});setHasLocalDocumentOutput(false)}},[pathname,standardPath,genericReport]);
-  useEffect(()=>{
+  useLayoutEffect(()=>{
     if(!standardPath){setStandardHost(null);return;}
     const attach=()=>{
       const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return false;
       const explicit=main.querySelector<HTMLElement>("[data-navilo-standard-tools-host]");
-      if(explicit){setStandardHost(explicit);return true;}
+      if(explicit?.isConnected){setStandardHost(current=>current===explicit?current:explicit);return true;}
       const all=Array.from(main.querySelectorAll<HTMLElement>("button,a,[role='button']")).filter(el=>!el.closest("[data-navilo-global-data-tools]")&&!isDocumentOutputAction(el));
       const primary=all.find(el=>isPrimaryAction(labelOf(el)));
       const standardAction=all.find(el=>isTemplateAction(labelOf(el))||isUploadAction(labelOf(el))||isExportDuplicate(labelOf(el)));
@@ -135,11 +135,19 @@ export default function UniversalDataTools(){
       if(!actions)return false;
       let host=actions.querySelector<HTMLElement>("[data-navilo-standard-tools-host]");
       if(!host){host=document.createElement("span");host.dataset.naviloStandardToolsHost="true";host.className="contents";actions.prepend(host)}
-      setStandardHost(host);return true;
+      setStandardHost(current=>current===host?current:host);return true;
     };
-    if(attach())return()=>setStandardHost(null);
-    const observer=new MutationObserver(()=>{if(attach())observer.disconnect()});observer.observe(document.body,{childList:true,subtree:true});
-    return()=>{observer.disconnect();setStandardHost(null)};
+    attach();
+    const observer=new MutationObserver(()=>{
+      setStandardHost(current=>{
+        if(current?.isConnected)return current;
+        queueMicrotask(attach);
+        return null;
+      });
+      if(!document.querySelector("#navilo-main-content [data-navilo-standard-tools-host]"))queueMicrotask(attach);
+    });
+    observer.observe(document.querySelector("#navilo-main-content")??document.body,{childList:true,subtree:true});
+    return()=>{observer.disconnect()};
   },[standardPath,pathname]);
   useEffect(()=>{if(!open)return;const place=()=>{const r=exportButtonRef.current?.getBoundingClientRect();if(r)setMenuPos({top:r.bottom+6,right:Math.max(8,window.innerWidth-r.right)})};place();const close=(e:MouseEvent)=>{const target=e.target as Node;if(ref.current?.contains(target)||exportButtonRef.current?.contains(target))return;setOpen(false)};document.addEventListener("mousedown",close);window.addEventListener("resize",place);window.addEventListener("scroll",place,true);return()=>{document.removeEventListener("mousedown",close);window.removeEventListener("resize",place);window.removeEventListener("scroll",place,true)}},[open]);
 
