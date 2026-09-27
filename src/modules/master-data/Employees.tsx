@@ -1,6 +1,7 @@
 import DataTable,{Column} from "@/components/DataTable";
+import { masterDeleteError } from "@/lib/masterDeleteError";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, FileSpreadsheet, Pencil, Plus, Printer, Search, Upload, X, Power } from "lucide-react";
+import { Download, FileSpreadsheet, Pencil, Plus, Printer, Search, Upload, X, Power, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { suggestEmployeeName } from "@/lib/employeeLanguageFields";
@@ -81,6 +82,13 @@ export default function Employees() {
     setEmployees((previous) => previous.map((row) => row.id === employee.id ? { ...row, is_active: result.data!.is_active } : row));
     setError("");
   };
+  const remove = async (employee: Employee) => {
+    if (!window.confirm(`Delete ${employee.name}? This is allowed only if the employee has never been referenced by any transaction or business record.`)) return;
+    const result = await supabase.from("employees").delete().eq("id", employee.id);
+    if (result.error) { setError(masterDeleteError(result.error)); return; }
+    setEmployees((previous) => previous.filter((row) => row.id !== employee.id));
+    setError("");
+  };
   const sheetRows = (template: boolean) => (template ? [{ name: "Ahmed Khan", name_urdu: "", phone: "03001234567", designation: "Operator", designation_urdu: "", department: "Production", department_urdu: "", is_active: true }] : filtered).map((employee) => ({ "Employee Name": employee.name, ...(showUrdu ? { "Employee Urdu Name": employee.name_urdu ?? "" } : {}), Phone: employee.phone ?? "", Designation: employee.designation ?? "", ...(showUrdu ? { "Designation Urdu": employee.designation_urdu ?? "" } : {}), Department: employee.department ?? "", ...(showUrdu ? { "Department Urdu": employee.department_urdu ?? "" } : {}), Active: employee.is_active ? "Yes" : "No" }));
   const downloadSheet = (template: boolean) => { const book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(sheetRows(template)), "Employees"); XLSX.writeFile(book, template ? "employee_import_template.xlsx" : "employees.xlsx"); };
   const parseImport = async (file: File) => {
@@ -123,7 +131,7 @@ export default function Employees() {
   };
   const field = (label: string, key: "name" | "phone" | "designation" | "department", required = false) => <label className="text-xs font-semibold">{label}{required ? " *" : ""}<input className="input mt-1 w-full" value={form[key]} onChange={(event) => setForm((previous) => ({ ...previous, [key]: event.target.value }))} required={required} /></label>;
   const translated = (label: string, source: "name" | "designation" | "department", target: "name_urdu" | "designation_urdu" | "department_urdu") => showUrdu ? <label data-language-code="ur" className="text-xs font-semibold"><span className="flex items-center justify-between">{label}<button type="button" className="text-primary-600" onClick={() => autoConvert(source, target)}>Auto Convert</button></span><input dir="rtl" className="input mt-1 w-full text-right" value={form[target]} onChange={(event) => setForm((previous) => ({ ...previous, [target]: event.target.value }))} /></label> : null;
-  const cols:Column<Employee>[]=[{key:"name",label:"Employee",render:r=><span className="font-semibold">{r.name}</span>},...(showUrdu?[{key:"urdu",label:"Urdu Name",render:(r:Employee)=><span dir="rtl">{r.name_urdu||"—"}</span>} as Column<Employee>]:[]),{key:"phone",label:"Phone",render:r=>r.phone||"—"},{key:"designation",label:"Designation",render:r=>r.designation||"—"},{key:"department",label:"Department",render:r=>r.department||"—"},{key:"status",label:"Status",render:r=><span className={`rounded-full px-2 py-1 font-semibold ${r.is_active?"bg-emerald-50 text-emerald-700":"bg-slate-100 text-slate-600"}`}>{r.is_active?"Active":"Inactive"}</span>},{key:"actions",label:"Actions",className:"text-right",render:r=><div className="flex justify-end gap-2"><button className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs" onClick={()=>openEdit(r)}><Pencil className="h-3.5 w-3.5"/>Edit</button><button className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs" onClick={()=>void toggle(r)}><Power className="h-3.5 w-3.5"/>{r.is_active?"Deactivate":"Activate"}</button></div>}];
+  const cols:Column<Employee>[]=[{key:"name",label:"Employee",render:r=><span className="font-semibold">{r.name}</span>},...(showUrdu?[{key:"urdu",label:"Urdu Name",render:(r:Employee)=><span dir="rtl">{r.name_urdu||"—"}</span>} as Column<Employee>]:[]),{key:"phone",label:"Phone",render:r=>r.phone||"—"},{key:"designation",label:"Designation",render:r=>r.designation||"—"},{key:"department",label:"Department",render:r=>r.department||"—"},{key:"status",label:"Status",render:r=><span className={`rounded-full px-2 py-1 font-semibold ${r.is_active?"bg-emerald-50 text-emerald-700":"bg-slate-100 text-slate-600"}`}>{r.is_active?"Active":"Inactive"}</span>},{key:"actions",label:"Actions",className:"text-right",render:r=><div className="flex justify-end gap-2"><button className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs" onClick={()=>openEdit(r)}><Pencil className="h-3.5 w-3.5"/>Edit</button><button className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs" onClick={()=>void toggle(r)}><Power className="h-3.5 w-3.5"/>{r.is_active?"Deactivate":"Activate"}</button><button className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600" onClick={()=>void remove(r)}><Trash2 className="h-3.5 w-3.5"/>Delete</button></div>}];
   return <div className="space-y-4" data-navilo-master-standard="true">
     <div className="rounded-xl border bg-white p-4 shadow-sm flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-bold">Employees</h1><p className="text-xs text-slate-500">Manage employee master records</p></div><button className="btn-primary" onClick={openAdd}><Plus className="h-4 w-4" /> Add Employee</button></div>
     {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</div>}
