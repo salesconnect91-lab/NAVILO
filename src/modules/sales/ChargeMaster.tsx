@@ -276,7 +276,7 @@ export default function ChargeMaster() {
     <PageHeader title="Charge Master" subtitle="Central Sales/Purchase charges: Fixed, Qty, Kg, Ton, %, Manual and Piece with accounting, tax and landed-cost rules." action={actions} />
     {error && <ErrorBanner message={error} />}
     <div className="navilo-master-filterbar flex items-center gap-2 px-3 py-2" data-report-filters data-no-print data-no-export><Search className="h-4 w-4 text-slate-400" /><input className="w-full bg-transparent outline-none" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search charge, basis, account, treatment or status..." />{search && <button type="button" className="text-xs font-semibold text-primary-600" onClick={() => setSearch("")}>Clear</button>}</div>
-    <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable columns={cols} rows={visibleCharges} loading={loading}/></div>
+    <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable showSerialNumber columns={cols} rows={visibleCharges} loading={loading}/></div>
 
     <Modal open={open} title={editingId ? "Edit Charge" : "Add Charge"} onClose={() => !saving && setOpen(false)}>
       <form onSubmit={save} className="space-y-4">
