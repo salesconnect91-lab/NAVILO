@@ -1,13 +1,14 @@
 import SearchableSelect from "@/components/SearchableSelect";
 import { fixedTaxRateOn } from "@/lib/effectiveTaxRate";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Plus, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock3, FileText, Landmark, Plus, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner, StatusBadge, formatCurrency, formatDate } from "@/components/ui";
 import PrintLayout from "@/components/PrintLayout";
 import UnifiedOrderBookInvoicePicker from "@/components/UnifiedOrderBookInvoicePicker";
 import { calculateConfiguredChargeAmount, type ConfiguredChargeUnit } from "@/lib/chargeCalculation";
+import DataTable, { type Column } from "@/components/DataTable";
 
 type Supplier = { id: string; name: string; name_urdu?: string | null; phone?: string | null; address?: string | null };
 type Item = { id: string; name: string; name_urdu?: string | null; sku?: string | null; cost?: number | string | null; unit?: string | null };
@@ -33,6 +34,7 @@ type Invoice = {
   subtotal: number | string; item_tax: number | string; charges_total: number | string;
   charge_tax: number | string; total: number | string; status: "draft" | "posted" | "cancelled";
   supplier?: Supplier | null;
+  main_purchase_invoice_no?: string | null;
 };
 type CompanyPrintSettings = {
   company_name?: string | null; address?: string | null; phone?: string | null; email?: string | null;
@@ -89,6 +91,10 @@ export default function ConsolidatedPurchaseInvoices() {
   const [postingId, setPostingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [mainInvoiceLinks, setMainInvoiceLinks] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (loading || editingId) return;
@@ -104,7 +110,7 @@ export default function ConsolidatedPurchaseInvoices() {
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
-    const [supplierRes, itemRes, godownRes, invoiceRes, taxRes, companyRes, visibilityRes, chargeRes] = await Promise.all([
+    const [supplierRes, itemRes, godownRes, invoiceRes, taxRes, companyRes, visibilityRes, chargeRes, linkRes] = await Promise.all([
       supabase.from("suppliers").select("id,name,name_urdu,phone,address").eq("is_active", true).order("name"),
       supabase.from("items").select("id,name,name_urdu,sku,cost,unit").order("name"),
       supabase.from("godowns").select("id,name,name_urdu").order("name"),
@@ -113,13 +119,17 @@ export default function ConsolidatedPurchaseInvoices() {
       supabase.from("company_settings").select("*").maybeSingle(),
       supabase.from("document_print_visibility").select("*").eq("document_type", "purchase_invoice").maybeSingle(),
       supabase.from("charge_master").select("charge_key,charge_name,charge_name_urdu,default_rate,unit,is_fixed,tax_applicable,purchase_treatment").eq("is_active", true).in("applies_to", ["purchase", "both"]).order("charge_name"),
+      supabase.from("purchase_order_consolidated_invoices").select("consolidated_invoice_id,purchase_order:purchase_orders(order_no)"),
     ]);
     setLoading(false);
-    const firstError = supplierRes.error || itemRes.error || godownRes.error || invoiceRes.error || taxRes.error || companyRes.error || chargeRes.error;
+    const firstError = supplierRes.error || itemRes.error || godownRes.error || invoiceRes.error || taxRes.error || companyRes.error || chargeRes.error || linkRes.error;
     if (firstError) { setError(firstError.message); return; }
     const loadedGodowns = (godownRes.data ?? []) as Godown[];
     setSuppliers((supplierRes.data ?? []) as Supplier[]); setItems((itemRes.data ?? []) as Item[]); setGodowns(loadedGodowns);
-    setInvoices((invoiceRes.data ?? []) as unknown as Invoice[]); setConfiguredCharges((chargeRes.data ?? []) as Charge[]);
+    const linkMap: Record<string, string> = {};
+    for (const link of linkRes.data ?? []) { const order = Array.isArray((link as any).purchase_order) ? (link as any).purchase_order[0] : (link as any).purchase_order; if (order?.order_no) linkMap[(link as any).consolidated_invoice_id] = order.order_no; }
+    setMainInvoiceLinks(linkMap);
+    setInvoices((invoiceRes.data ?? []).map((invoice: any) => ({ ...invoice, main_purchase_invoice_no: linkMap[invoice.id] ?? null })) as Invoice[]); setConfiguredCharges((chargeRes.data ?? []) as Charge[]);
     setCompanyPrint((companyRes.data || {}) as CompanyPrintSettings);
     if (!visibilityRes.error) setPrintVisibility({ ...DEFAULT_PRINT_VISIBILITY, ...(visibilityRes.data || {}) });
     if (taxRes.data) {
@@ -150,10 +160,30 @@ export default function ConsolidatedPurchaseInvoices() {
   const currentSupplier = suppliers.find((supplier) => supplier.id === supplierId) ?? currentInvoice?.supplier ?? null;
   const filteredInvoices = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return invoices;
-    return invoices.filter((invoice) => [invoice.invoice_no, invoice.supplier?.name, invoice.invoice_date, invoice.invoice_type, invoice.status, invoice.reference_name, invoice.reference_no]
-      .some((value) => String(value ?? "").toLowerCase().includes(q)));
-  }, [invoices, search]);
+    return invoices.filter((invoice) => {
+      const matchesSearch = !q || [invoice.invoice_no, invoice.supplier?.name, invoice.invoice_date, invoice.invoice_type, invoice.status, invoice.reference_name, invoice.reference_no, invoice.main_purchase_invoice_no]
+        .some((value) => String(value ?? "").toLowerCase().includes(q));
+      const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;
+      const matchesFrom = !fromDate || invoice.invoice_date >= fromDate;
+      const matchesTo = !toDate || invoice.invoice_date <= toDate;
+      return matchesSearch && matchesStatus && matchesFrom && matchesTo;
+    });
+  }, [invoices, search, statusFilter, fromDate, toDate]);
+
+  const visibleTotal = useMemo(() => filteredInvoices.reduce((sum, invoice) => sum + n(invoice.total), 0), [filteredInvoices]);
+  const draftCount = useMemo(() => filteredInvoices.filter((invoice) => invoice.status === "draft").length, [filteredInvoices]);
+  const postedCount = useMemo(() => filteredInvoices.filter((invoice) => invoice.status === "posted").length, [filteredInvoices]);
+  const listColumns: Column<Invoice>[] = [
+    { key: "invoice_no", label: "Consolidated Purchase #", sortable: true, render: (invoice) => <span className="font-semibold text-slate-900">{invoice.invoice_no}</span> },
+    { key: "invoice_date", label: "Date", sortable: true, render: (invoice) => formatDate(invoice.invoice_date) },
+    { key: "supplier", label: "Supplier", render: (invoice) => invoice.supplier?.name ?? "—" },
+    { key: "reference_name", label: "Reference", sortable: true, render: (invoice) => <div><div className="font-medium">{invoice.reference_name || "—"}</div>{invoice.reference_no && <div className="text-xs text-slate-500">{invoice.reference_no}</div>}</div> },
+    { key: "invoice_type", label: "Type", sortable: true, render: (invoice) => invoice.invoice_type === "Tax Invoice" ? <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700">With Tax</span> : <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Without Tax</span> },
+    { key: "total", label: "Amount", sortable: true, className: "text-right", render: (invoice) => <span className="font-semibold">{formatCurrency(n(invoice.total))}</span> },
+    { key: "status", label: "Stock Status", sortable: true, render: (invoice) => <StatusBadge status={invoice.status} /> },
+    { key: "main_purchase_invoice_no", label: "Main Purchase Invoice", sortable: true, render: (invoice) => invoice.main_purchase_invoice_no ? <span className="font-semibold text-blue-600">{invoice.main_purchase_invoice_no}</span> : <span className="text-slate-400">—</span> },
+    { key: "actions", label: "Action", className: "text-right", render: (invoice) => <div className="flex justify-end gap-2"><button type="button" className="btn-secondary text-xs" onClick={() => void editInvoice(invoice)}>View</button>{invoice.status === "draft" && <button type="button" className="btn-primary text-xs" disabled={postingId === invoice.id} onClick={() => void post(invoice)}>{postingId === invoice.id ? "Posting..." : "Post"}</button>}</div> },
+  ];
 
   useEffect(() => {
     if (!selectedChargeKeys.length) return;
@@ -315,17 +345,27 @@ export default function ConsolidatedPurchaseInvoices() {
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <span data-navilo-standard-tools-host className="contents" />
-          <button type="button" className="btn-secondary" onClick={() => void load()}><RefreshCw className="h-3.5 w-3.5" />Refresh</button>
           <button type="button" className="btn-primary" onClick={() => { reset(); setShowForm(true); requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }}><Plus className="h-3.5 w-3.5" />New Consolidated Purchase</button>
         </div>
       </section>
       {error && <ErrorBanner message={error} />}
       {success && <div className="rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-700">{success}</div>}
 
-      {!showForm && <div className="relative max-w-md" data-no-export data-no-print>
-        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-        <input className="input pl-8" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search document, supplier or reference…" />
-      </div>}
+      {!showForm && <>
+        <div className="grid gap-3 md:grid-cols-4" data-no-export>
+          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-blue-50 p-2 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Total Consolidated Purchases</div><div className="font-bold">{filteredInvoices.length}</div></div></div>
+          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-emerald-50 p-2 text-emerald-600"><Landmark className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Total Amount</div><div className="font-bold">{formatCurrency(visibleTotal)}</div></div></div>
+          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-amber-50 p-2 text-amber-600"><Clock3 className="h-5 w-5"/></span><div><div className="text-xs text-amber-700">Draft</div><div className="font-bold">{draftCount}</div></div></div>
+          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-emerald-50 p-2 text-emerald-600"><CheckCircle2 className="h-5 w-5"/></span><div><div className="text-xs text-emerald-700">Stock Posted</div><div className="font-bold">{postedCount}</div></div></div>
+        </div>
+        <div className="grid gap-2 rounded-xl border border-slate-200 bg-white p-3 lg:grid-cols-[minmax(300px,1fr)_190px_200px_200px_auto]" data-no-export data-no-print>
+          <div className="relative"><Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400"/><input className="input pl-8" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search invoice, supplier or reference..."/></div>
+          <label className="text-[11px] font-semibold text-slate-600">Status<select className="input mt-1" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option></select></label>
+          <label className="text-[11px] font-semibold text-slate-600">From Date<input type="date" className="input mt-1" value={fromDate} onChange={(e) => setFromDate(e.target.value)}/></label>
+          <label className="text-[11px] font-semibold text-slate-600">To Date<input type="date" className="input mt-1" value={toDate} onChange={(e) => setToDate(e.target.value)}/></label>
+          <button type="button" className="btn-secondary self-end" onClick={() => { setSearch(""); setStatusFilter("all"); setFromDate(""); setToDate(""); }}>Clear</button>
+        </div>
+      </>}
 
       {showForm && <form ref={formRef} onSubmit={save} className="navilo-consolidated-purchase-editor mb-6 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -384,7 +424,7 @@ export default function ConsolidatedPurchaseInvoices() {
         {!locked && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">{editingId && currentInvoice?.status === "draft" && <button type="button" className="btn-danger" disabled={deleting} onClick={() => void deleteDraft(editingId, invoiceNo)}>{deleting ? "Deleting..." : "Delete Draft"}</button>}<button className="btn-primary" disabled={saving}>{saving ? "Saving..." : "Save Consolidated Purchase"}</button></div>}
       </form>}
 
-      {!showForm && <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="card overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b bg-slate-50"><th className="p-3 text-left">Invoice</th><th className="p-3 text-left">Supplier</th><th className="p-3 text-left">Date</th><th className="p-3 text-left">Type</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">VAT</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Actions</th></tr></thead><tbody>{loading ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">Loading…</td></tr> : filteredInvoices.length === 0 ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">No Consolidated Purchase Invoices found.</td></tr> : filteredInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-3 font-medium">{invoice.invoice_no}</td><td className="p-3">{invoice.supplier?.name ?? "—"}</td><td className="p-3">{formatDate(invoice.invoice_date)}</td><td className="p-3">{invoice.invoice_type === "Tax Invoice" ? "With Tax" : "Without Tax"}</td><td className="p-3"><StatusBadge status={invoice.status} /></td><td className="p-3 text-right">{invoice.invoice_type === "Tax Invoice" ? formatCurrency(n(invoice.item_tax) + n(invoice.charge_tax)) : "—"}</td><td className="p-3 text-right font-semibold">{formatCurrency(n(invoice.total))}</td><td className="p-3 text-right"><div className="flex justify-end gap-2"><button type="button" className="btn-secondary text-xs" onClick={() => void editInvoice(invoice)}>{editingId === invoice.id && showForm ? "Editing" : "Open / Edit"}</button>{invoice.status === "draft" && <button type="button" className="btn-danger text-xs" disabled={deleting} onClick={() => void deleteDraft(invoice.id, invoice.invoice_no)}>Delete</button>}{invoice.status === "draft" && <button type="button" className="btn-primary text-xs" disabled={postingId === invoice.id} onClick={() => void post(invoice)}>{postingId === invoice.id ? "Posting..." : "Post / Receive Stock"}</button>}</div></td></tr>)}</tbody></table></div>}
+      {!showForm && <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white"><DataTable columns={listColumns} rows={filteredInvoices} loading={loading} emptyMessage="No Consolidated Purchase Invoices found." showSerialNumber /></div>}
     </div>
 
     {showForm && editingId && <div id="consolidated-purchase-print-root" className="hidden print:block" data-print-root><PrintLayout
