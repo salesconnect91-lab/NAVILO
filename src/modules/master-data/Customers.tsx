@@ -1,4 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
+import MasterSummaryStrip from "@/components/MasterSummaryStrip";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { masterDeleteError } from "@/lib/masterDeleteError";
@@ -300,7 +301,8 @@ export default function Customers() {
   ];
 
   return <div className="space-y-4" data-navilo-master-standard="true">
-    <PageHeader title="Customers" subtitle="Customer accounts" action={<div className="flex flex-wrap items-center gap-2"><button onClick={openCreate} className="btn-primary">+ New Customer</button></div>} />
+    <MasterSummaryStrip kind="customers" title="Customers" subtitle="Manage customer accounts" total={rows.length} active={rows.filter(r=>r.is_active!==false).length} inactive={rows.filter(r=>r.is_active===false).length} fourthLabel="Displayed" fourthValue={filteredRows.length}/>
+    <div className="flex justify-end" data-no-print data-no-export><button onClick={openCreate} className="btn-primary">+ New Customer</button></div>
     {error && <ErrorBanner message={error} />}
     <div className="navilo-master-filterbar flex items-center gap-2 px-3 py-2" data-report-filters data-no-print data-no-export><Search className="h-4 w-4 text-slate-400" /><input className="w-full bg-transparent outline-none" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customer, phone, email, tax ID or address..." />{search && <button type="button" className="text-xs font-semibold text-primary-600" onClick={() => setSearch("")}>Clear</button>}</div>
     <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable showSerialNumber columns={columns} rows={filteredRows} loading={loading} emptyMessage="No customers yet." /></div>
