@@ -24,11 +24,14 @@ describe("company fiscal onboarding", () => {
       base_currency_code:"PKR",tax_mode:"non_tax",authority_code:null,
     });
   });
-  it("requires a tax authority and disallows a backdated transition", () => {
+  it("requires a tax effective date and authority and disallows a backdated transition", () => {
+    const today = new Date().toISOString().slice(0, 10);
     expect(() => onboardingFiscalSettings("PKR","tax_registered",undefined,undefined)).toThrow();
+    expect(() => onboardingFiscalSettings("PKR","tax_registered",undefined,"FBR")).toThrow("Tax effective date is required");
+    expect(() => onboardingFiscalSettings("PKR","tax_registered",today,undefined)).toThrow("Tax authority is required");
     expect(() => onboardingFiscalSettings("PKR","tax_registered","2020-01-01","FBR")).toThrow();
-    expect(onboardingFiscalSettings("USD","tax_registered",undefined,"FBR")).toMatchObject({
-      base_currency_code:"USD",tax_mode:"tax_registered",authority_code:"FBR",
+    expect(onboardingFiscalSettings("USD","tax_registered",today,"FBR")).toMatchObject({
+      base_currency_code:"USD",tax_mode:"tax_registered",tax_effective_from:today,authority_code:"FBR",
     });
   });
 });
