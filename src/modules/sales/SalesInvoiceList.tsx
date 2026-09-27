@@ -1043,9 +1043,7 @@ export default function SalesInvoiceList() {
             </div>
           </div>
 
-          </div>
 
-          <div className="border-t border-slate-200 bg-white px-4 py-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <div className="text-xs text-slate-500">Amount Received</div>
