@@ -132,7 +132,10 @@ export default function DataTable<T extends { id: string }>({
   const safePage = Math.min(page, totalPages);
   const pagedRows = sortedRows.slice((safePage - 1) * prefs.pageSize, safePage * prefs.pageSize);
   const allPageSelected = pagedRows.length > 0 && pagedRows.every(row => selected.has(row.id));
-  const rowPad = prefs.density === "compact" ? "py-1.5" : prefs.density === "spacious" ? "py-4" : "py-3";
+  const densityClass = prefs.density === "compact" ? "text-xs" : prefs.density === "spacious" ? "text-base" : "text-sm";
+  const rowPad = prefs.density === "compact" ? "py-1" : prefs.density === "spacious" ? "py-5" : "py-2.5";
+  const cellPad = prefs.density === "compact" ? "px-2" : prefs.density === "spacious" ? "px-6" : "px-4";
+  const selectPad = prefs.density === "compact" ? "px-2" : prefs.density === "spacious" ? "px-4" : "px-3";
 
   const reorder = (from: string, to: string) => {
     if (from === to) return;
@@ -170,10 +173,10 @@ export default function DataTable<T extends { id: string }>({
   return <>
     <div ref={rootRef} className="card overflow-hidden" data-report-content data-navilo-data-table data-neus-grid="true">
       <div className="max-h-[65vh] overflow-auto">
-        <table aria-label="ERP records" className="w-full min-w-max text-sm print:min-w-0">
+        <table aria-label="ERP records" className={`w-full min-w-max ${densityClass} print:min-w-0`}>
           <thead className="sticky top-0 z-20">
             <tr className="border-b border-slate-200 bg-slate-50">
-              <th aria-label="Select rows" className="sticky left-0 z-30 w-10 bg-slate-50 px-3" data-no-print data-no-export>
+              <th aria-label="Select rows" className={`sticky left-0 z-30 w-10 bg-slate-50 ${selectPad}`} data-no-print data-no-export>
                 <input aria-label="Select all rows on page" type="checkbox" checked={allPageSelected} onChange={() => {
                   const next = new Set(selected); pagedRows.forEach(row => allPageSelected ? next.delete(row.id) : next.add(row.id)); setSelected(next);
                 }}/>
@@ -185,7 +188,7 @@ export default function DataTable<T extends { id: string }>({
                   onDrop={() => { if (dragKey) reorder(dragKey,col.key); setDragKey(null); }}
                   data-no-print={action || undefined} data-no-export={action || undefined}
                   style={{ width:prefs.widths[col.key], minWidth:prefs.widths[col.key], ...stickyStyle(col.key) }}
-                  className={`relative select-none bg-slate-50 px-4 py-3 text-left font-medium text-slate-600 ${col.className ?? ""}`}>
+                  className={`relative select-none bg-slate-50 ${cellPad} ${prefs.density === "compact" ? "py-2" : prefs.density === "spacious" ? "py-4" : "py-3"} text-left font-medium text-slate-600 ${col.className ?? ""}`}>
                   <button type="button" className="inline-flex items-center gap-1 text-left"
                     disabled={action || col.sortable === false}
                     onClick={() => !action && col.sortable !== false && savePrefs({ ...prefs, sort: prefs.sort?.key === col.key ? { key:col.key, dir:prefs.sort.dir === "asc" ? "desc" : "asc" } : { key:col.key, dir:"asc" } })}>
@@ -200,7 +203,7 @@ export default function DataTable<T extends { id: string }>({
           </thead>
           <tbody className="divide-y divide-slate-100">
             {pagedRows.map(row => <tr key={row.id} className={`transition-colors hover:bg-slate-50 ${selected.has(row.id) ? "bg-slate-50" : ""}`}>
-              <td className={`sticky left-0 z-10 bg-white px-3 ${rowPad}`} data-no-print data-no-export>
+              <td className={`sticky left-0 z-10 bg-white ${selectPad} ${rowPad}`} data-no-print data-no-export>
                 <input aria-label="Select row" type="checkbox" checked={selected.has(row.id)} onChange={() => {
                   const next = new Set(selected); next.has(row.id) ? next.delete(row.id) : next.add(row.id); setSelected(next);
                 }}/>
@@ -209,7 +212,7 @@ export default function DataTable<T extends { id: string }>({
                 const action = col.key === "actions" || col.key === "action";
                 return <td key={col.key} data-no-print={action || undefined} data-no-export={action || undefined}
                   style={{ width:prefs.widths[col.key], minWidth:prefs.widths[col.key], ...stickyStyle(col.key) }}
-                  className={`px-4 ${rowPad} text-slate-700 ${col.className ?? ""}`}>
+                  className={`${cellPad} ${rowPad} text-slate-700 ${col.className ?? ""}`}>
                   {col.render ? col.render(row) : (row as Record<string,unknown>)[col.key] as React.ReactNode}
                 </td>;
               })}
