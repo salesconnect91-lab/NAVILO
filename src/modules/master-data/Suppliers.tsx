@@ -328,7 +328,7 @@ export default function Suppliers() {
       </form>
     </Modal>
 
-    <ConfirmModal open={!!deleteId} title={`${rows.find((r) => r.id === deleteId)?.is_active === false ? "Activate" : "Deactivate"} Supplier`} message="Historical transactions will remain safe. Inactive suppliers cannot be selected for new transactions." onConfirm={handleStatusChange} onCancel={() => setDeleteId(null)} />
+    <ConfirmModal tone="danger" open={!!deleteId} title={`${rows.find((r) => r.id === deleteId)?.is_active === false ? "Activate" : "Deactivate"} Supplier`} message="Historical transactions will remain safe. Inactive suppliers cannot be selected for new transactions." onConfirm={handleStatusChange} onCancel={() => setDeleteId(null)} />
   
-    <ConfirmModal open={!!hardDeleteId} title="Delete Supplier" message="Delete this supplier? This is allowed only if it has never been used by any transaction or business record. Referenced records must be deactivated instead." onConfirm={hardDelete} onCancel={() => setHardDeleteId(null)} /></div>;
+    <ConfirmModal tone="danger" open={!!hardDeleteId} title="Delete Supplier" message="Delete this supplier? This is allowed only if it has never been used by any transaction or business record. Referenced records must be deactivated instead." onConfirm={hardDelete} onCancel={() => setHardDeleteId(null)} /></div>;
 }
