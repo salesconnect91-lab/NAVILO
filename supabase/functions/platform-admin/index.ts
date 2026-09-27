@@ -345,6 +345,49 @@ Deno.serve(async (request) => {
       return json({ company: data });
     }
 
+    if (action === "update_user_identity") {
+      const companyId = String(body.company_id || "");
+      const userId = String(body.user_id || "");
+      const fullName = String(body.full_name || "").trim();
+      const email = String(body.email || "").trim().toLowerCase();
+      if (!companyId || !userId || !fullName || !email) return json({ error: "Company, user, full name and email are required." }, 400);
+
+      const { data: membership, error: membershipError } = await admin
+        .from("company_memberships")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (membershipError) throw membershipError;
+      if (!membership) return json({ error: "User is not assigned to this company." }, 404);
+
+      const { data: authLookup, error: authLookupError } = await admin.auth.admin.getUserById(userId);
+      if (authLookupError || !authLookup.user) return json({ error: authLookupError?.message || "Auth user not found." }, 404);
+      const previousEmail = String(authLookup.user.email || "").toLowerCase();
+      const previousName = String(authLookup.user.user_metadata?.full_name || "");
+
+      const { error: authError } = await admin.auth.admin.updateUserById(userId, {
+        email,
+        email_confirm: true,
+        user_metadata: { ...authLookup.user.user_metadata, full_name: fullName },
+      });
+      if (authError) return json({ error: authError.message }, 400);
+
+      const { error: profileError } = await admin
+        .from("user_profiles")
+        .update({ full_name: fullName, email, updated_at: new Date().toISOString() })
+        .eq("id", userId);
+      if (profileError) {
+        await admin.auth.admin.updateUserById(userId, {
+          email: previousEmail || undefined,
+          email_confirm: true,
+          user_metadata: { ...authLookup.user.user_metadata, full_name: previousName },
+        });
+        throw profileError;
+      }
+      return json({ user: { id: userId, full_name: fullName, email } });
+    }
+
     if (action === "update_membership") {
       const membershipId = String(body.membership_id);
       const { data: currentMembership, error: currentMembershipError } = await admin
