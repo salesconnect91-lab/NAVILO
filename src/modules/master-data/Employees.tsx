@@ -5,6 +5,7 @@ import { Download, FileSpreadsheet, Pencil, Plus, Printer, Search, Upload, X, Po
 import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { suggestEmployeeName } from "@/lib/employeeLanguageFields";
+import { ConfirmModal } from "@/components/ui";
 
 type Employee = { id: string; user_id: string; employee_code: string | null; name: string; name_urdu: string | null; phone: string | null; designation: string | null; designation_urdu: string | null; department: string | null; department_urdu: string | null; is_active: boolean };
 type Form = { name: string; name_urdu: string; phone: string; designation: string; designation_urdu: string; department: string; department_urdu: string; is_active: boolean };
