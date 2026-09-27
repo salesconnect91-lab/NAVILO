@@ -182,7 +182,6 @@ export default function DataTable<T extends { id: string }>({
                 }}/>
               </th>
               {showSerialNumber ? <th aria-label="Serial number" className={`bg-slate-50 ${cellPad} ${prefs.density === "compact" ? "py-2" : prefs.density === "spacious" ? "py-4" : "py-3"} text-left font-medium text-slate-600`} style={{width:72,minWidth:72}}>S.No.</th> : null}
-              {showSerialNumber ? <td className={`${cellPad} ${rowPad} text-slate-500`} style={{width:72,minWidth:72}}>{(safePage - 1) * prefs.pageSize + rowIndex + 1}</td> : null}
               {visibleColumns.map(col => {
                 const action = col.key === "actions" || col.key === "action";
                 return <th key={col.key} aria-label={col.key === "actions" && !col.label ? "Actions" : col.label} draggable={!action}
@@ -210,6 +209,7 @@ export default function DataTable<T extends { id: string }>({
                   const next = new Set(selected); next.has(row.id) ? next.delete(row.id) : next.add(row.id); setSelected(next);
                 }}/>
               </td>
+              {showSerialNumber ? <td className={`${cellPad} ${rowPad} text-slate-500`} style={{width:72,minWidth:72}}>{(safePage - 1) * prefs.pageSize + rowIndex + 1}</td> : null}
               {visibleColumns.map(col => {
                 const action = col.key === "actions" || col.key === "action";
                 return <td key={col.key} data-no-print={action || undefined} data-no-export={action || undefined}
