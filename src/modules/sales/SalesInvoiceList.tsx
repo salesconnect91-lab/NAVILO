@@ -672,20 +672,20 @@ export default function SalesInvoiceList() {
         open={paymentModalOpen}
         title="Receive Customer Payment"
         onClose={closeReceivePayment}
-        panelClassName="!max-w-[1180px] !w-[calc(100vw-3rem)] !max-h-[94vh] !p-4"
+        panelClassName="!max-w-[1120px] !w-[calc(100vw-3rem)] !max-h-[92vh] !p-3"
         closeOnBackdrop={false}
       >
-        <form onSubmit={handleReceivePayment} className="space-y-3">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 pt-1"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600"><FileText className="h-5 w-5"/></span><div><div className="text-sm font-semibold text-slate-900">Receive and allocate customer payment</div><div className="text-xs text-slate-500">Select a customer, enter receipt details and allocate against open invoices.</div></div></div>
+        <form onSubmit={handleReceivePayment} className="space-y-2">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600"><FileText className="h-5 w-5"/></span><div><div className="text-sm font-semibold text-slate-900">Receive and allocate customer payment</div><div className="text-xs text-slate-500">Select a customer, enter receipt details and allocate against open invoices.</div></div></div>
           {paymentSuccess && (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
               {paymentSuccess}
             </div>
           )}
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+            <div className="grid grid-cols-1 gap-x-3 gap-y-2 md:grid-cols-4">
               <div className="md:col-span-4 relative">
                 <label className="label">Customer</label>
 
@@ -741,7 +741,7 @@ export default function SalesInvoiceList() {
                 )}
 
                 {selectedCustomer && (
-                  <div className="mt-1 text-xs text-emerald-700">
+                  <div className="text-xs text-emerald-700">
                     Selected: {selectedCustomer.name}
                   </div>
                 )}
@@ -833,7 +833,7 @@ export default function SalesInvoiceList() {
               <div className="md:col-span-2">
                 <label className="label">Notes</label>
                 <textarea
-                  className="input min-h-[58px]"
+                  className="input min-h-[38px] h-[38px]"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Optional internal notes..."
@@ -844,8 +844,8 @@ export default function SalesInvoiceList() {
           </div>
 
           <div className="rounded-xl border border-slate-200 overflow-hidden">
-            <div className="bg-white border-b border-slate-200 p-3">
-              <div className="flex flex-col md:flex-row md:items-end gap-3 justify-between">
+            <div className="bg-white border-b border-slate-200 px-3 py-2">
+              <div className="flex flex-col md:flex-row md:items-center gap-2 justify-between">
                 <div>
                   <h3 className="font-bold text-slate-900">
                     Open / Partial Invoices
@@ -889,33 +889,33 @@ export default function SalesInvoiceList() {
               </div>
             </div>
 
-            <div className="overflow-x-auto max-h-[420px]">
+            <div className="overflow-x-auto max-h-[360px]">
               <table className="w-full text-sm min-w-[980px]">
                 <thead className="sticky top-0 z-10 bg-slate-50">
                   <tr className="border-b border-slate-200 text-slate-600">
-                    <th className="py-2 px-3 text-center font-medium">Select</th>
-                    <th className="py-2 px-3 text-left font-medium">
+                    <th className="py-1.5 px-3 text-center font-medium">Select</th>
+                    <th className="py-1.5 px-3 text-left font-medium">
                       Invoice #
                     </th>
-                    <th className="py-2 px-3 text-left font-medium">
+                    <th className="py-1.5 px-3 text-left font-medium">
                       Invoice Date
                     </th>
-                    <th className="py-2 px-3 text-left font-medium">
+                    <th className="py-1.5 px-3 text-left font-medium">
                       Due Date
                     </th>
-                    <th className="py-2 px-3 text-right font-medium">
+                    <th className="py-1.5 px-3 text-right font-medium">
                       Invoice
                     </th>
-                    <th className="py-2 px-3 text-right font-medium">
+                    <th className="py-1.5 px-3 text-right font-medium">
                       Paid
                     </th>
-                    <th className="py-2 px-3 text-right font-medium">
+                    <th className="py-1.5 px-3 text-right font-medium">
                       Balance Due
                     </th>
-                    <th className="py-2 px-3 text-left font-medium">
+                    <th className="py-1.5 px-3 text-left font-medium">
                       Aging
                     </th>
-                    <th className="py-2 px-3 text-right font-medium">
+                    <th className="py-1.5 px-3 text-right font-medium">
                       Allocate
                     </th>
                   </tr>
@@ -964,7 +964,7 @@ export default function SalesInvoiceList() {
                             isSelected ? "bg-emerald-50/50" : "hover:bg-slate-50"
                           }`}
                         >
-                          <td className="py-2 px-3 text-center">
+                          <td className="py-1.5 px-3 text-center">
                             <input
                               type="checkbox"
                               checked={isSelected}
@@ -973,35 +973,35 @@ export default function SalesInvoiceList() {
                             />
                           </td>
 
-                          <td className="py-2 px-3 font-semibold text-blue-700">
+                          <td className="py-1.5 px-3 font-semibold text-blue-700">
                             {invoice.invoice_no}
                           </td>
 
-                          <td className="py-2 px-3 text-slate-600">
+                          <td className="py-1.5 px-3 text-slate-600">
                             {formatDate(invoice.invoice_date)}
                           </td>
 
-                          <td className="py-2 px-3 text-slate-600">
+                          <td className="py-1.5 px-3 text-slate-600">
                             {invoice.due_date
                               ? formatDate(invoice.due_date)
                               : "—"}
                           </td>
 
-                          <td className="py-2 px-3 text-right">
+                          <td className="py-1.5 px-3 text-right">
                             {formatCurrency(toNumber(invoice.invoice_amount))}
                           </td>
 
-                          <td className="py-2 px-3 text-right text-emerald-700">
+                          <td className="py-1.5 px-3 text-right text-emerald-700">
                             {formatCurrency(toNumber(invoice.paid_amount))}
                           </td>
 
-                          <td className="py-2 px-3 text-right font-bold text-rose-700">
+                          <td className="py-1.5 px-3 text-right font-bold text-rose-700">
                             {formatCurrency(
                               toNumber(invoice.outstanding_amount)
                             )}
                           </td>
 
-                          <td className="py-2 px-3">
+                          <td className="py-1.5 px-3">
                             {overdue ? (
                               <div>
                                 <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">
@@ -1018,7 +1018,7 @@ export default function SalesInvoiceList() {
                             )}
                           </td>
 
-                          <td className="py-2 px-3">
+                          <td className="py-1.5 px-3">
                             <input
                               type="number"
                               min="0"
@@ -1045,22 +1045,22 @@ export default function SalesInvoiceList() {
           </div>
 
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-xs text-slate-500">Amount Received</div>
               <div className="mt-1 font-bold text-slate-900">
                 {formatCurrency(toNumber(paymentAmount))}
               </div>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-xs text-slate-500">Allocated</div>
               <div className="mt-1 font-bold text-slate-900">
                 {formatCurrency(allocatedTotal)}
               </div>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-xs text-slate-500">Unapplied</div>
               <div
                 className={`mt-1 font-bold ${
@@ -1073,7 +1073,7 @@ export default function SalesInvoiceList() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-xs text-slate-500">Invoices Selected</div>
               <div className="mt-1 font-bold text-slate-900">
                 {selectedInvoiceCount}
@@ -1081,7 +1081,7 @@ export default function SalesInvoiceList() {
             </div>
           </div>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-3">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">
             <button
               type="button"
               onClick={closeReceivePayment}
