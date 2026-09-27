@@ -478,28 +478,15 @@ Deno.serve(async (request) => {
     if (action === "remove_unused_business_unit") {
       const companyId = String(body.company_id || "");
       const unitId = String(body.business_unit_id || "");
-      const { data: unit, error: unitError } = await admin.from("business_units").select("id,is_default").eq("id", unitId).eq("company_id", companyId).maybeSingle();
-      if (unitError) throw unitError;
-      if (!unit) return json({ error: "Business unit not found for this company." }, 404);
-      if (unit.is_default) return json({ error: "The default Business Unit cannot be removed. Make another Business Unit default first." }, 409);
-
-      const blockers = await Promise.all([
-        admin.from("business_unit_memberships").select("id", { count: "exact", head: true }).eq("business_unit_id", unitId),
-        admin.from("operating_locations").select("id", { count: "exact", head: true }).eq("business_unit_id", unitId),
-      ]);
-      const blockerError = blockers.find(result => result.error)?.error;
-      if (blockerError) throw blockerError;
-      if (blockers.some(result => (result.count ?? 0) > 0)) {
-        return json({ error: "This Business Unit is already referenced by users or branches. Remove those unused assignments first, or disable the Business Unit instead." }, 409);
+      const { error } = await admin.rpc("platform_remove_unused_business_unit", {
+        p_company_id: companyId,
+        p_business_unit_id: unitId,
+      });
+      if (error) {
+        const message = error.message || "Could not remove Business Unit.";
+        const status = /default Business Unit|referenced|not found/i.test(message) ? 409 : 400;
+        return json({ error: message }, status);
       }
-
-      const { error: moduleError } = await admin.from("business_unit_modules").delete().eq("company_id", companyId).eq("business_unit_id", unitId);
-      if (moduleError) throw moduleError;
-      const { error: entitlementError } = await admin.from("business_unit_feature_entitlements").delete().eq("company_id", companyId).eq("business_unit_id", unitId);
-      if (entitlementError) throw entitlementError;
-      const { error } = await admin.from("business_units").delete().eq("id", unitId).eq("company_id", companyId);
-      if (error?.code === "23503") return json({ error: "This Business Unit is already referenced by operational or accounting records. Disable it instead." }, 409);
-      if (error) throw error;
       return json({ removed: true });
     }
 
