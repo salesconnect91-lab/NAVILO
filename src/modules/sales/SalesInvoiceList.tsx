@@ -28,6 +28,7 @@ type SalesInvoiceRow = SalesOrder & {
   paid_amount?: number | string | null;
   outstanding_amount?: number | string | null;
   payment_status?: PaymentStatus | null;
+  consolidated_invoice_numbers?: string[];
 };
 
 type AgingInvoice = {
@@ -104,6 +105,8 @@ export default function SalesInvoiceList() {
   const [listSearch, setListSearch] = useState("");
   const [postingFilter, setPostingFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState<"all" | PaymentStatus>("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentSaving, setPaymentSaving] = useState(false);
@@ -128,15 +131,36 @@ export default function SalesInvoiceList() {
   const fetchRows = useCallback(async () => {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("sales_orders")
-      .select("*, customer:customers(*)")
-      .order("created_at", { ascending: false });
+    const [ordersResult, linksResult] = await Promise.all([
+      supabase
+        .from("sales_orders")
+        .select("*, customer:customers(*)")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("sales_order_hawala_invoices")
+        .select("sales_order_id,hawala_invoice:consolidated_sales_invoices(invoice_no)"),
+    ]);
 
-    if (error) {
-      setError(error.message);
+    if (ordersResult.error) {
+      setError(ordersResult.error.message);
+    } else if (linksResult.error) {
+      setError(linksResult.error.message);
     } else {
-      setRows((data ?? []) as SalesInvoiceRow[]);
+      const linkedNumbers = new Map<string, string[]>();
+      for (const link of linksResult.data ?? []) {
+        const linked = Array.isArray((link as any).hawala_invoice)
+          ? (link as any).hawala_invoice[0]
+          : (link as any).hawala_invoice;
+        const invoiceNo = linked?.invoice_no;
+        if (!invoiceNo) continue;
+        const current = linkedNumbers.get((link as any).sales_order_id) ?? [];
+        current.push(invoiceNo);
+        linkedNumbers.set((link as any).sales_order_id, current);
+      }
+      setRows((ordersResult.data ?? []).map((row: any) => ({
+        ...row,
+        consolidated_invoice_numbers: linkedNumbers.get(row.id) ?? [],
+      })) as SalesInvoiceRow[]);
     }
 
     setLoading(false);
@@ -327,10 +351,12 @@ export default function SalesInvoiceList() {
       const matchesPayment =
         paymentFilter === "all" ||
         (row.payment_status || "unpaid") === paymentFilter;
+      const matchesFrom = !fromDate || String(row.order_date || "") >= fromDate;
+      const matchesTo = !toDate || String(row.order_date || "") <= toDate;
 
-      return matchesSearch && matchesPosting && matchesPayment;
+      return matchesSearch && matchesPosting && matchesPayment && matchesFrom && matchesTo;
     });
-  }, [rows, listSearch, postingFilter, paymentFilter]);
+  }, [rows, listSearch, postingFilter, paymentFilter, fromDate, toDate]);
 
   const visibleCustomerCount = useMemo(() => new Set(filteredRows.map((row) => row.customer_id).filter(Boolean)).size, [filteredRows]);
 
@@ -559,6 +585,17 @@ export default function SalesInvoiceList() {
       ),
     },
     {
+      key: "consolidated_invoice_numbers",
+      label: "Consolidated Invoice #",
+      render: (r) => r.consolidated_invoice_numbers?.length ? (
+        <div className="flex flex-wrap gap-1">
+          {r.consolidated_invoice_numbers.map((invoiceNo) => (
+            <span key={invoiceNo} className="font-semibold text-violet-700">{invoiceNo}</span>
+          ))}
+        </div>
+      ) : <span className="text-slate-400">—</span>,
+    },
+    {
       key: "customer",
       label: "Customer",
       render: (r) => r.customer?.name ?? "—",
@@ -657,8 +694,10 @@ export default function SalesInvoiceList() {
       <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm" data-no-print data-no-export><div className="flex flex-wrap items-center gap-2">
         <input className="input min-w-[260px] flex-1" value={listSearch} onChange={(event) => setListSearch(event.target.value)} placeholder="Search invoice, customer or sales person..." />
         <SearchableSelect wrapperClassName="w-[220px]" className="input" value={postingFilter} onChange={(event) => setPostingFilter(event.target.value)}><option value="all">All posting statuses</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option></SearchableSelect>
-        <SearchableSelect wrapperClassName="w-[220px]" className="input" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value as "all" | PaymentStatus)}><option value="all">All payment statuses</option><option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Paid</option><option value="overpaid">Overpaid</option></SearchableSelect>
-        {(listSearch || postingFilter !== "all" || paymentFilter !== "all") && <button type="button" className="btn-secondary inline-flex items-center gap-1.5" onClick={() => { setListSearch(""); setPostingFilter("all"); setPaymentFilter("all"); }}><RotateCcw className="h-4 w-4"/>Clear Filters</button>}
+        <SearchableSelect wrapperClassName="w-[190px]" className="input" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value as "all" | PaymentStatus)}><option value="all">All payment statuses</option><option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Paid</option><option value="overpaid">Overpaid</option></SearchableSelect>
+        <label className="flex w-[155px] flex-col gap-1 text-[11px] font-semibold text-slate-600"><span>From Date</span><input type="date" className="input" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label>
+        <label className="flex w-[155px] flex-col gap-1 text-[11px] font-semibold text-slate-600"><span>To Date</span><input type="date" className="input" value={toDate} onChange={(event) => setToDate(event.target.value)} /></label>
+        {(listSearch || postingFilter !== "all" || paymentFilter !== "all" || fromDate || toDate) && <button type="button" className="btn-secondary inline-flex items-center gap-1.5 self-end" onClick={() => { setListSearch(""); setPostingFilter("all"); setPaymentFilter("all"); setFromDate(""); setToDate(""); }}><RotateCcw className="h-4 w-4"/>Clear</button>}
       </div></div>
 
       <section data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white shadow-sm">
