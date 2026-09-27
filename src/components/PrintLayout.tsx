@@ -3,6 +3,7 @@ import { formatCurrency, formatDate } from "@/components/ui";
 import { ChargeBreakdownEntry } from "@/lib/chargeTypes";
 import { supabase } from "@/lib/supabase";
 import { QRCodeSVG } from "qrcode.react";
+import { usePlatformBranding } from "@/lib/platformBranding";
 
 export interface PrintPartyInfo {
   name: string;
@@ -148,6 +149,10 @@ export default function PrintLayout({
   const isPurchase = voucherTitle.toLowerCase().includes("purchase");
   const isSales = !isPurchase && ["sales invoice", "tax invoice", "cash bill"].includes(voucherTitle.toLowerCase());
   const [storedVisibility, setStoredVisibility] = useState<PrintVisibility>({});
+  const { branding } = usePlatformBranding();
+  const showPlatformPrintBranding = branding.show_branding && branding.show_on_prints;
+  const platformPrintName = String(branding.erp_name || "NAVILO").trim() || "NAVILO";
+  const platformPrintTagline = branding.show_tagline ? String(branding.tagline || "").trim() : "";
 
   useEffect(() => {
     const documentType = isPurchase ? "purchase_invoice" : isSales ? "sales_invoice" : null;
@@ -348,5 +353,7 @@ export default function PrintLayout({
     {showFooter && <div className="print-footer">{visibleEnglishFooter && <p>{visibleEnglishFooter}</p>}{visibleUrduFooter && <p>{visibleUrduFooter}</p>}{!visibleEnglishFooter && !visibleUrduFooter && <p>This is a computer-generated document.</p>}</div>}
     {showPrintDatetime && <div style={{ marginTop: 7, textAlign: "right", fontSize: 10, color: "#94a3b8" }}>{docLabel("Printed", "پرنٹ")}: {new Date().toLocaleString("en-PK")}</div>}
     {showPageNumbers && <div className="print-page-number" style={{ marginTop: 3, textAlign: "right", fontSize: 10, color: "#94a3b8" }}/>} 
+    {showPlatformPrintBranding && <div data-platform-print-branding="true" style={{ marginTop: 8, paddingTop: 6, borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, color: "#64748b", fontSize: 9, breakInside: "avoid" }}>{branding.logo_url && <img src={branding.logo_url} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />}<span>Powered by <strong style={{ color: "#334155" }}>{platformPrintName}</strong>{platformPrintTagline ? ` · ${platformPrintTagline}` : ""}</span></div>}
+
   </div></div>;
 }
