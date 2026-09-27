@@ -129,7 +129,7 @@ export default function Items(){
       </div>}
     </div>
 
-    <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable columns={tableCols} rows={shown} /></div>
+    <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable showSerialNumber columns={tableCols} rows={shown} /></div>
 
     
 
