@@ -49,7 +49,11 @@ export default function OwnerPanel() {
   const [ownerView, setOwnerView] = useState<"overview"|"customers"|"access"|"commercial"|"advanced">("overview");
   const [company, setCompany] = useState({ name: "", code: "", contact_email: "", contact_phone: "", address: "", notes: "", subscription_expires_at: "", max_users: "10" });
   const [user, setUser] = useState({ full_name: "", email: "", password: "", role: "viewer" });
-  const [showNewCompanyUser, setShowNewCompanyUser] = useState(false);\n  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);\n  const [editingUserId, setEditingUserId] = useState<string | null>(null);\n  const [userEdit, setUserEdit] = useState({ full_name: "", email: "" });\n  const [companyEdit, setCompanyEdit] = useState({ name: "", code: "", contact_email: "", contact_phone: "", address: "", notes: "" });
+  const [showNewCompanyUser, setShowNewCompanyUser] = useState(false);
+  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [userEdit, setUserEdit] = useState({ full_name: "", email: "" });
+  const [companyEdit, setCompanyEdit] = useState({ name: "", code: "", contact_email: "", contact_phone: "", address: "", notes: "" });
 
   const load = useCallback(async () => {
     if (!isPlatformOwner) { setLoading(false); return; }
