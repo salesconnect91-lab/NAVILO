@@ -49,7 +49,7 @@ export default function OwnerPanel() {
   const [ownerView, setOwnerView] = useState<"overview"|"customers"|"access"|"commercial"|"advanced">("overview");
   const [company, setCompany] = useState({ name: "", code: "", contact_email: "", contact_phone: "", address: "", notes: "", subscription_expires_at: "", max_users: "10" });
   const [user, setUser] = useState({ full_name: "", email: "", password: "", role: "viewer" });
-  const [showNewCompanyUser, setShowNewCompanyUser] = useState(false);
+  const [showNewCompanyUser, setShowNewCompanyUser] = useState(false);\n  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);\n  const [companyEdit, setCompanyEdit] = useState({ name: "", code: "", contact_email: "", contact_phone: "", address: "", notes: "" });
 
   const load = useCallback(async () => {
     if (!isPlatformOwner) { setLoading(false); return; }
@@ -103,6 +103,38 @@ export default function OwnerPanel() {
     catch (caught) { setError(caught instanceof Error ? caught.message : "Update failed."); } finally { setSaving(false); }
   };
 
+  const beginCompanyEdit = (target: Company) => {
+    setSelectedCompanyId(target.id);
+    setEditingCompanyId(target.id);
+    setCompanyEdit({
+      name: target.name,
+      code: target.code,
+      contact_email: target.contact_email || "",
+      contact_phone: target.contact_phone || "",
+      address: target.address || "",
+      notes: target.notes || "",
+    });
+    setError("");
+  };
+
+  const saveCompanyEdit = async (target: Company) => {
+    if (!companyEdit.name.trim() || !companyEdit.code.trim()) { setError("Company name and code are required."); return; }
+    setSaving(true); setError("");
+    try {
+      await invokeEdgeFunction("platform-admin", {
+        action: "update_company_details",
+        company_id: target.id,
+        ...companyEdit,
+        name: companyEdit.name.trim(),
+        code: companyEdit.code.trim().toUpperCase(),
+      });
+      setEditingCompanyId(null);
+      await load();
+      await refreshAccess();
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update company details."); }
+    finally { setSaving(false); }
+  };
+
   const createUser = async () => {
     if (!selectedCompanyId || !user.email.trim() || user.password.length < 8) { setError("Select company, enter email and minimum 8 character temporary password."); return; }
     setSaving(true); setError("");
@@ -152,7 +184,8 @@ export default function OwnerPanel() {
             const targetMemberships = memberships.filter(membership => membership.company_id === target.id);
             const usedSeats=targetMemberships.filter(m=>m.is_active).length;
             return <div key={target.id} className={`rounded-xl border p-4 ${selectedCompanyId===target.id?"border-blue-300 ring-1 ring-blue-100":"border-slate-200"}`}>
-              <div className="flex flex-wrap justify-between gap-3"><button type="button" className="text-left" onClick={()=>setSelectedCompanyId(target.id)}><div className="font-semibold text-slate-900">{target.name}</div><div className="text-xs text-slate-500">{statusLabel(target.status)} · {usedSeats}/{target.max_users} users · Expires {formatDate(target.subscription_expires_at)}</div></button><button className="btn-secondary" disabled={saving} onClick={() => void patchCompanyStatus(target, target.status === "suspended" ? "active" : "suspended")}>{target.status === "suspended" ? "Activate" : "Suspend"}</button></div>
+              <div className="flex flex-wrap justify-between gap-3"><button type="button" className="text-left" onClick={()=>setSelectedCompanyId(target.id)}><div className="font-semibold text-slate-900">{target.name}</div><div className="text-xs text-slate-500">{target.code} · {statusLabel(target.status)} · {usedSeats}/{target.max_users} users · Expires {formatDate(target.subscription_expires_at)}</div></button><div className="flex gap-2"><button className="btn-secondary" disabled={saving} onClick={()=>beginCompanyEdit(target)}>Edit</button><button className="btn-secondary" disabled={saving} onClick={() => void patchCompanyStatus(target, target.status === "suspended" ? "active" : "suspended")}>{target.status === "suspended" ? "Activate" : "Suspend"}</button></div></div>
+              {editingCompanyId===target.id&&<div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/30 p-3"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><label className="text-xs font-semibold text-slate-700">Company Name<input className="input mt-1 w-full" value={companyEdit.name} onChange={event=>setCompanyEdit({...companyEdit,name:event.target.value})}/></label><label className="text-xs font-semibold text-slate-700">Company Code<input className="input mt-1 w-full" value={companyEdit.code} onChange={event=>setCompanyEdit({...companyEdit,code:event.target.value.toUpperCase()})}/></label><label className="text-xs font-semibold text-slate-700">Contact Email<input className="input mt-1 w-full" type="email" value={companyEdit.contact_email} onChange={event=>setCompanyEdit({...companyEdit,contact_email:event.target.value})}/></label><label className="text-xs font-semibold text-slate-700">Contact Phone<input className="input mt-1 w-full" value={companyEdit.contact_phone} onChange={event=>setCompanyEdit({...companyEdit,contact_phone:event.target.value})}/></label><label className="text-xs font-semibold text-slate-700 sm:col-span-2">Address<input className="input mt-1 w-full" value={companyEdit.address} onChange={event=>setCompanyEdit({...companyEdit,address:event.target.value})}/></label></div><label className="mt-3 block text-xs font-semibold text-slate-700">Internal Notes<textarea className="input mt-1 min-h-20 w-full" value={companyEdit.notes} onChange={event=>setCompanyEdit({...companyEdit,notes:event.target.value})}/></label><div className="mt-3 flex gap-2"><button className="btn-primary" disabled={saving} onClick={()=>void saveCompanyEdit(target)}>Save Changes</button><button className="btn-secondary" disabled={saving} onClick={()=>setEditingCompanyId(null)}>Cancel</button></div><p className="mt-2 text-[11px] text-slate-500">Internal database ID is not editable. Company code changes are checked for uniqueness.</p></div>}
               <div className="mt-4 space-y-2">{targetMemberships.filter(membership=>membership.role==="company_owner").map(membership => { const profile = profileMap.get(membership.user_id); return <div key={membership.id} className="rounded-lg bg-slate-50 p-2"><div className="truncate text-sm font-medium">{profile?.full_name || profile?.email || membership.user_id}</div>{profile?.email&&profile.full_name&&<div className="truncate text-xs text-slate-500">{profile.email}</div>}<div className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Company Owner</div></div>; })}{targetMemberships.filter(membership=>membership.role==="company_owner").length===0&&<div className="text-xs text-slate-400">No company owner assigned.</div>}<div className="text-xs text-slate-500">User roles and enable/disable controls are managed in Users &amp; Access.</div></div>
             </div>;
           })}
