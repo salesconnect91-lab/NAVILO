@@ -67,6 +67,9 @@ export default function OrderBook({ type }: { type: OrderType }) {
   const [orders, setOrders] = useState<Header[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "open" | "rate_pending" | "completed">("all");
+  const [partyFilter, setPartyFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [partyId, setPartyId] = useState("");
   const [orderDate, setOrderDate] = useState(today());
@@ -112,12 +115,15 @@ export default function OrderBook({ type }: { type: OrderType }) {
       const commitments = order.order_book_commitments;
       const matchesSearch = !q || [order.order_no, order.order_date, order.party_name, order.salesperson_name, ...commitments.map((c) => c.item_name)].some((value) => String(value ?? "").toLowerCase().includes(q));
       if (!matchesSearch) return false;
+      if (partyFilter && order.party_id !== partyFilter) return false;
+      if (fromDate && order.order_date < fromDate) return false;
+      if (toDate && order.order_date > toDate) return false;
       if (filter === "completed") return order.status === "completed" || commitments.every((c) => c.status === "completed" || c.status === "cancelled");
       if (filter === "rate_pending") return commitments.some((c) => c.rate_status === "pending" && c.status !== "cancelled" && c.status !== "completed");
       if (filter === "open") return commitments.some((c) => Math.max(0, num(c.ordered_qty) - num(c.fulfilled_qty) - num(c.cancelled_qty)) > 0 && c.status !== "cancelled");
       return true;
     });
-  }, [orders, search, filter]);
+  }, [orders, search, filter, partyFilter, fromDate, toDate]);
 
   const totals = useMemo(() => {
     const commitmentRows = visibleOrders.flatMap((order) => order.order_book_commitments.map((commitment) => ({ order, commitment })));
@@ -246,21 +252,27 @@ export default function OrderBook({ type }: { type: OrderType }) {
         <Stat label="Open Agreed Value" value={formatCurrency(totals.openValue)} />
       </section>
 
-      <section className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 md:flex-row md:items-center md:justify-between">
-        <div className="relative w-full max-w-lg"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input className="input pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order, party, salesperson or item…" /></div>
-        <div className="flex flex-wrap gap-2">{(["all", "open", "rate_pending", "completed"] as const).map((value) => <button key={value} type="button" className={filter === value ? "btn-primary" : "btn-secondary"} onClick={() => setFilter(value)}>{value.replace("_", " ")}</button>)}</div>
+      <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="grid gap-2 xl:grid-cols-[minmax(280px,1fr)_190px_155px_155px_auto]">
+          <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input className="input h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order, party, salesperson or item…" /></div>
+          <SearchableSelect className="input h-10" value={partyFilter} onChange={(e) => setPartyFilter(e.target.value)}><option value="">All {isSales ? "Customers" : "Suppliers"}</option>{parties.map((party) => <option key={party.id} value={party.id}>{party.name}</option>)}</SearchableSelect>
+          <div><label className="mb-1 block text-[11px] font-semibold text-slate-600">From Date</label><input className="input h-10" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></div>
+          <div><label className="mb-1 block text-[11px] font-semibold text-slate-600">To Date</label><input className="input h-10" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></div>
+          <button type="button" className="btn-secondary h-10 self-end" onClick={() => { setSearch(""); setPartyFilter(""); setFromDate(""); setToDate(""); setFilter("all"); }}>Clear</button>
+        </div>
+        <div className="mt-2 flex flex-wrap justify-end gap-2">{(["all", "open", "rate_pending", "completed"] as const).map((value) => <button key={value} type="button" className={filter === value ? "btn-primary h-9" : "btn-secondary h-9"} onClick={() => setFilter(value)}>{value === "rate_pending" ? "rate pending" : value}</button>)}</div>
       </section>
 
       <section data-report-content data-navilo-customizable="true" data-navilo-print-surface className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <div className="overflow-x-auto">
           <table id="order-book-table" className="w-full min-w-[1050px] text-sm">
-            <thead className="bg-slate-50"><tr className="border-b border-slate-200"><th className="p-3 text-left">Order</th><th className="p-3 text-left">Date</th><th className="p-3 text-left">Party</th>{isSales && <th className="p-3 text-left">Salesperson</th>}<th className="p-3 text-left">Item</th><th className="p-3 text-right">Ordered</th><th className="p-3 text-right">Fulfilled</th><th className="p-3 text-right">Balance</th><th className="p-3 text-right">Rate</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">Action</th></tr></thead>
+            <thead className="bg-slate-50"><tr className="border-b border-slate-200"><th className="w-12 p-2 text-center">S.No.</th><th className="p-2 text-left">Order</th><th className="p-2 text-left">Date</th><th className="p-2 text-left">Party</th>{isSales && <th className="p-2 text-left">Salesperson</th>}<th className="p-2 text-left">Item</th><th className="p-2 text-right">Ordered</th><th className="p-2 text-right">Fulfilled</th><th className="p-2 text-right">Balance</th><th className="p-2 text-right">Rate</th><th className="p-2 text-left">Status</th><th className="p-2 text-right">Action</th></tr></thead>
             <tbody>
               {visibleOrders.flatMap((order) => order.order_book_commitments.map((commitment, index) => {
                 const balance = Math.max(0, num(commitment.ordered_qty) - num(commitment.fulfilled_qty) - num(commitment.cancelled_qty));
-                return <tr key={commitment.id} className="border-b border-slate-100"><td className="p-3 font-semibold">{index === 0 ? order.order_no : ""}</td><td className="p-3">{index === 0 ? order.order_date : ""}</td><td className="p-3">{index === 0 ? order.party_name : ""}</td>{isSales && <td className="p-3">{index === 0 ? order.salesperson_name || "—" : ""}</td>}<td className="p-3"><div className="font-medium">{commitment.item_name}</div><div className="text-xs text-slate-500">{commitment.uom || "—"} · {commitment.source}</div></td><td className="p-3 text-right">{num(commitment.ordered_qty).toLocaleString()}</td><td className="p-3 text-right">{num(commitment.fulfilled_qty).toLocaleString()}</td><td className="p-3 text-right font-semibold">{balance.toLocaleString()}</td><td className="p-3 text-right">{commitment.rate_status === "agreed" ? formatCurrency(num(commitment.agreed_rate)) : <span className="font-semibold text-amber-700">Pending</span>}</td><td className="p-3 capitalize">{commitment.status}</td><td className="p-3 text-right">{commitment.status !== "cancelled" && commitment.status !== "completed" && <button type="button" className="btn-secondary text-xs" onClick={() => { setRateTarget(commitment); setNewRate(commitment.agreed_rate == null ? "" : String(commitment.agreed_rate)); setRateDate(commitment.effective_at ? String(commitment.effective_at).slice(0, 10) : today()); }}>Revise Rate</button>}</td></tr>;
+                return <tr key={commitment.id} className="border-b border-slate-100"><td className="p-2 text-center text-slate-500">{visibleOrders.slice(0, visibleOrders.indexOf(order)).reduce((sum, row) => sum + row.order_book_commitments.length, 0) + index + 1}</td><td className="p-2 font-semibold">{index === 0 ? order.order_no : ""}</td><td className="p-2">{index === 0 ? order.order_date : ""}</td><td className="p-2">{index === 0 ? order.party_name : ""}</td>{isSales && <td className="p-2">{index === 0 ? order.salesperson_name || "—" : ""}</td>}<td className="p-2"><div className="font-medium">{commitment.item_name}</div><div className="text-xs text-slate-500">{commitment.uom || "—"} · {commitment.source}</div></td><td className="p-2 text-right">{num(commitment.ordered_qty).toLocaleString()}</td><td className="p-2 text-right">{num(commitment.fulfilled_qty).toLocaleString()}</td><td className="p-2 text-right font-semibold">{balance.toLocaleString()}</td><td className="p-2 text-right">{commitment.rate_status === "agreed" ? formatCurrency(num(commitment.agreed_rate)) : <span className="font-semibold text-amber-700">Pending</span>}</td><td className="p-2 capitalize">{commitment.status}</td><td className="p-2 text-right">{commitment.status !== "cancelled" && commitment.status !== "completed" && <button type="button" className="btn-secondary text-xs" onClick={() => { setRateTarget(commitment); setNewRate(commitment.agreed_rate == null ? "" : String(commitment.agreed_rate)); setRateDate(commitment.effective_at ? String(commitment.effective_at).slice(0, 10) : today()); }}>Revise Rate</button>}</td></tr>;
               }))}
-              {visibleOrders.length === 0 && <tr><td colSpan={isSales ? 11 : 10} className="p-8 text-center text-slate-400">No matching Order Book commitments.</td></tr>}
+              {visibleOrders.length === 0 && <tr><td colSpan={isSales ? 12 : 11} className="p-8 text-center text-slate-400">No matching Order Book commitments.</td></tr>}
             </tbody>
           </table>
         </div>
