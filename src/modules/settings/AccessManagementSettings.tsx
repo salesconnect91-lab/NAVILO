@@ -2,7 +2,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback,useEffect,useMemo,useState } from "react";
 import { Building2,KeyRound,Loader2,MapPin,Plus,Save,ShieldCheck,SlidersHorizontal,Users } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
-import { defaultRolePermissions, mergePermissions, type ModuleAction, type ModuleKey, type PermissionMatrix } from "@/auth/permissions";
+import { defaultRolePermissions, mergePermissions, type ModuleAction, type ModuleKey, type PermissionMatrix, type TransportAction } from "@/auth/permissions";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { supabase } from "@/lib/supabase";
 import { PageHeader } from "@/components/ui";
@@ -15,6 +15,7 @@ type Payload={users:UserRow[];units:Unit[];locations:Location[];limits:Limits;ac
 const ALL_ROLES=["admin","accounts","sales","purchase","store","production","transport","viewer"];
 const MODULES:ModuleKey[]=["dashboard","master","sales","purchase","inventory","production","transport","accounting","reports","settings"];
 const ACTIONS:ModuleAction[]=["view","create","edit","delete","post","print","export"];
+const TRANSPORT_ACTIONS:TransportAction[]=["trip_create","trip_edit","master_manage","number_config","vehicle_owner_change","customer_rate_finalize","customer_rate_override","rent_finalize","rent_correct","assignment_replace","ppr_receive","trip_cancel","trip_delete","settlement_post","settlement_unpost","billing_adjust","payment_correct","driver_month_close","driver_month_reopen"];
 const moduleLabel=(m:ModuleKey)=>({dashboard:"Dashboard",master:"Master Data",sales:"Sales",purchase:"Purchase",inventory:"Inventory",production:"Production",transport:"Transport",accounting:"Accounting",reports:"Reports",settings:"Settings"}[m]);
 const roleLabel=(r:string)=>({admin:"Administrator",accounts:"Accounts",sales:"Sales",purchase:"Purchase",store:"Store / Inventory",production:"Production",transport:"Transport",viewer:"Viewer",company_owner:"Company Owner"}[r]||r);
 const hasOverrides=(matrix?:PermissionMatrix|null)=>Boolean(matrix&&Object.keys(matrix).length);
@@ -119,6 +120,6 @@ export default function AccessManagementSettings(){
 
 function PermissionMatrixEditor({value,onChange}:{value:PermissionMatrix;onChange:(next:PermissionMatrix)=>void}){
   const toggle=(module:ModuleKey,action:ModuleAction,checked:boolean)=>onChange({...value,[module]:{...(value[module]||{}),[action]:checked}});
-  return <div className="overflow-x-auto rounded-lg border bg-white"><table className="min-w-[780px] w-full text-xs"><thead className="bg-slate-50"><tr><th className="px-3 py-2 text-left">Module</th>{ACTIONS.map(a=><th key={a} className="px-2 py-2 text-center capitalize">{a}</th>)}</tr></thead><tbody>{MODULES.map(module=><tr key={module} className="border-t"><td className="px-3 py-2 font-semibold">{moduleLabel(module)}</td>{ACTIONS.map(action=><td key={action} className="px-2 py-2 text-center"><input type="checkbox" checked={value[module]?.[action]===true} onChange={e=>toggle(module,action,e.target.checked)} aria-label={`${moduleLabel(module)} ${action}`}/></td>)}</tr>)}</tbody></table></div>;
+  return <div className="space-y-3"><div className="overflow-x-auto rounded-lg border bg-white"><table className="min-w-[780px] w-full text-xs"><thead className="bg-slate-50"><tr><th className="px-3 py-2 text-left">Module</th>{ACTIONS.map(a=><th key={a} className="px-2 py-2 text-center capitalize">{a}</th>)}</tr></thead><tbody>{MODULES.map(module=><tr key={module} className="border-t"><td className="px-3 py-2 font-semibold">{moduleLabel(module)}</td>{ACTIONS.map(action=><td key={action} className="px-2 py-2 text-center"><input type="checkbox" checked={value[module]?.[action]===true} onChange={e=>toggle(module,action,e.target.checked)} aria-label={`${moduleLabel(module)} ${action}`}/></td>)}</tr>)}</tbody></table></div><div className="rounded-lg border bg-white p-3"><h3 className="mb-2 text-sm font-semibold">Transport sensitive actions</h3><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{TRANSPORT_ACTIONS.map(action=><label key={action} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={value.transport_actions?.[action]===true} onChange={e=>onChange({...value,transport_actions:{...value.transport_actions,[action]:e.target.checked}})}/>{action.replaceAll("_"," ")}</label>)}</div></div></div>;
 }
 function Stat({label,value}:{label:string;value:string}){return <div className="rounded-xl border bg-white p-4 shadow-sm"><div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div><div className="mt-1 text-xl font-bold text-slate-900">{value}</div></div>}

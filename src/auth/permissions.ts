@@ -24,7 +24,23 @@ export type ModuleKey =
 
 export type ModuleAction = "view" | "create" | "edit" | "delete" | "post" | "print" | "export";
 export type ModulePermissionSet = Record<ModuleAction, boolean>;
-export type PermissionMatrix = Partial<Record<ModuleKey, Partial<ModulePermissionSet>>>;
+export type PermissionMatrix = Partial<Record<ModuleKey, Partial<ModulePermissionSet>>> & {
+  transport_actions?: Partial<Record<TransportAction, boolean>>;
+};
+
+export type TransportAction = "trip_create" | "trip_edit" | "trip_cancel" | "trip_delete" |
+  "customer_rate_finalize" | "customer_rate_override" | "rent_finalize" | "rent_correct" |
+  "vehicle_owner_change" | "assignment_replace" | "ppr_receive" | "master_manage" | "number_config" |
+  "settlement_post" | "settlement_unpost" | "billing_adjust" | "payment_correct" |
+  "driver_month_close" | "driver_month_reopen";
+
+export function canTransportAction(role: CompanyRole | null | undefined,
+  permissions: Record<string, unknown> | null | undefined, action: TransportAction, isPlatformOwner = false) {
+  if (isPlatformOwner) return true;
+  const override = (permissions?.transport_actions as Record<string, unknown> | undefined)?.[action];
+  if (typeof override === "boolean") return override;
+  return role === "company_owner" || role === "admin";
+}
 
 const ALL_MODULES: ModuleKey[] = [
   "dashboard",
@@ -93,6 +109,7 @@ export function mergePermissions(base: PermissionMatrix, overrides?: PermissionM
       ...(overrides?.[module] ?? {}),
     };
   }
+  merged.transport_actions = { ...(base.transport_actions ?? {}), ...(overrides?.transport_actions ?? {}) };
   return merged;
 }
 

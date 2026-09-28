@@ -10,6 +10,8 @@ import Transporters from "./Transporters";
 import Employees from "./Employees";
 import MasterRecordDetail from "./MasterRecordDetail";
 import TransportMaster from "./TransportMaster";
+import TransportFoundationMaster from "./TransportFoundationMaster";
+import TransportVehicleOwnership from "./TransportVehicleOwnership";
 
 function TransportMasterOnly({kind}:{kind:"vehicles"|"drivers"}) {
   const { activeCompany, activeBusinessUnit } = useAuth();
@@ -36,6 +38,10 @@ export default function MasterData() {
         <Route path="/transporters" element={<Transporters />} />
         <Route path="/vehicles" element={<TransportMasterOnly kind="vehicles" />} />
         <Route path="/drivers" element={<TransportMasterOnly kind="drivers" />} />
+        <Route path="/truck-types" element={<TransportFoundationMaster kind="truck_types" />} />
+        <Route path="/transport-locations" element={<TransportFoundationMaster kind="locations" />} />
+        <Route path="/vehicle-expense-types" element={<TransportFoundationMaster kind="vehicle_expense_types" />} />
+        <Route path="/vehicle-ownership" element={<TransportVehicleOwnership />} />
       </Routes>
     </div>
   );

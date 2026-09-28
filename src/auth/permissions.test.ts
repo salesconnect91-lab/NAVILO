@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { defaultRolePermissions, hasPermission, mergePermissions, type PermissionMatrix } from "./permissions";
+import { canTransportAction, defaultRolePermissions, hasPermission, mergePermissions, type PermissionMatrix } from "./permissions";
 
 describe("ERP permission model", () => {
+  it("defaults sensitive Transport actions to owner/admin and honors explicit false", () => {
+    expect(canTransportAction("transport",{},"rent_finalize")).toBe(false);
+    expect(canTransportAction("admin",{},"rent_finalize")).toBe(true);
+    expect(canTransportAction("admin",{transport_actions:{rent_finalize:false}},"rent_finalize")).toBe(false);
+    expect(canTransportAction("transport",{transport_actions:{rent_finalize:true}},"rent_finalize")).toBe(true);
+  });
   it("keeps company admins fully privileged", () => {
     expect(hasPermission("admin", "accounting", "post")).toBe(true);
     expect(hasPermission("company_owner", "settings", "delete")).toBe(true);
