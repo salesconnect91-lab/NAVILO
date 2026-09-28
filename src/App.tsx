@@ -37,7 +37,7 @@ const ConsolidatedInvoices = lazy(() => import("@/modules/sales/ConsolidatedInvo
 const OrderBook = lazy(() => import("@/modules/orders/OrderBook"));
 const OwnerPanel = lazy(() => import("@/modules/platform/OwnerPanel"));
 const OpeningBalanceMigration = lazy(() => import("@/modules/platform/OpeningBalanceMigration"));
-const TransportWorkspace = lazy(() => import("@/modules/transport/TransportWorkspace"));
+const TransportWorkspace = lazy(() => import("@/modules/transport/TransportWorkspace"));\nconst TransportReports = lazy(() => import("@/modules/transport/TransportReports"));
 const PreInvoiceWorkspace = lazy(() => import("@/modules/commercial/PreInvoiceWorkspace"));
 
 function OwnerOnly({ children }: { children?: ReactNode }) {
@@ -126,7 +126,7 @@ export default function App() {
       <Route path="/transport/*" element={<BusinessTypeOnly type="transport"><ModuleOnly module="transport"><TransportWorkspace /></ModuleOnly></BusinessTypeOnly>} />
       <Route path="/accounting/customer-invoice-statement" element={<ModuleOnly module="accounting"><ReportSurface><CustomerInvoiceStatement /></ReportSurface></ModuleOnly>} />
       <Route path="/accounting/*" element={<ModuleOnly module="accounting"><Accounting /></ModuleOnly>} />
-      <Route path="/reports/steel-stock" element={<ModuleOnly module="reports"><ModuleOnly module="inventory"><ReportSurface><SteelStockControl /></ReportSurface></ModuleOnly></ModuleOnly>} />
+      <Route path="/reports/transport" element={<ModuleOnly module="reports"><ModuleOnly module="transport"><BusinessTypeOnly type="transport"><ReportSurface><TransportReports /></ReportSurface></BusinessTypeOnly></ModuleOnly></ModuleOnly>} />\n      <Route path="/reports/steel-stock" element={<ModuleOnly module="reports"><ModuleOnly module="inventory"><ReportSurface><SteelStockControl /></ReportSurface></ModuleOnly></ModuleOnly>} />
       <Route path="/reports/supplier-aging" element={<ModuleOnly module="reports"><ModuleOnly module="purchase"><ReportSurface><SupplierAgingReport /></ReportSurface></ModuleOnly></ModuleOnly>} />
       <Route path="/reports/daily-stock-trading" element={<ModuleOnly module="reports"><ReportSurface><Reports /></ReportSurface></ModuleOnly>} />
       <Route path="/reports/trading-margin" element={<ModuleOnly module="reports"><ReportSurface><Reports /></ReportSurface></ModuleOnly>} />
