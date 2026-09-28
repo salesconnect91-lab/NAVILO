@@ -6,10 +6,10 @@ import DataTable,{type Column} from "@/components/DataTable";
 import MasterSummaryStrip from "@/components/MasterSummaryStrip";
 import MasterActionButton from "@/components/MasterActionButton";
 
-type Kind="vehicles"|"drivers";
+type TransportMasterKind="vehicles"|"drivers";
 type Row={id:string;name:string;detail:string;mobile:string;owner:string;active:boolean};
 const EMPTY={name:"",detail:"",mobile:"",owner:""};
-export default function TransportMaster({kind}:{kind:Kind}){
+export default function TransportMaster({kind}:{kind:TransportMasterKind}){
  const{activeCompany,activeBusinessUnit}=useAuth();
  const[rows,setRows]=useState<Row[]>([]),[q,setQ]=useState(""),[status,setStatus]=useState("all"),[error,setError]=useState(""),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[show,setShow]=useState(false),[editing,setEditing]=useState<Row|null>(null),[form,setForm]=useState(EMPTY);
  const vehicle=kind==="vehicles";
