@@ -1,4 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "@/auth/AuthContext";
 import Items from "./Items";
 import Categories from "./Categories";
 import Customers from "./Customers";
@@ -9,6 +10,14 @@ import Transporters from "./Transporters";
 import Employees from "./Employees";
 import MasterRecordDetail from "./MasterRecordDetail";
 import TransportMaster from "./TransportMaster";
+
+function TransportMasterOnly({kind}:{kind:"vehicles"|"drivers"}) {
+  const { activeCompany, activeBusinessUnit } = useAuth();
+  const companyAllowed = activeCompany?.enabled_modules?.includes("transport") ?? false;
+  const unitAllowed = activeBusinessUnit?.enabled_modules?.includes("transport") ?? false;
+  const transportUnit = activeBusinessUnit?.business_unit_type === "transport";
+  return companyAllowed && unitAllowed && transportUnit ? <TransportMaster kind={kind} /> : <Navigate to="/master-data" replace />;
+}
 
 export default function MasterData() {
   return (
@@ -25,8 +34,8 @@ export default function MasterData() {
         <Route path="/warehouses" element={<Warehouses />} />
         <Route path="/uom" element={<Uom />} />
         <Route path="/transporters" element={<Transporters />} />
-        <Route path="/vehicles" element={<TransportMaster kind="vehicles" />} />
-        <Route path="/drivers" element={<TransportMaster kind="drivers" />} />
+        <Route path="/vehicles" element={<TransportMasterOnly kind="vehicles" />} />
+        <Route path="/drivers" element={<TransportMasterOnly kind="drivers" />} />
       </Routes>
     </div>
   );
