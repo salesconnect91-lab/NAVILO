@@ -5,7 +5,7 @@ import path from "node:path";
 const root = path.resolve(process.cwd(), "src/modules/master-data");
 const listScreens = [
   "Customers.tsx","Suppliers.tsx","Godown.tsx","Categories.tsx","Employees.tsx",
-  "Items.tsx","Transporters.tsx","Uom.tsx","Warehouses.tsx",
+  "Items.tsx","Transporters.tsx","TransportMaster.tsx","Uom.tsx","Warehouses.tsx",
 ];
 
 describe("Master Data NEUS coverage", () => {
