@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import UniversalDataTools from "@/components/UniversalDataTools";
 import NeusRouteSurface from "@/components/NeusRouteSurface";
 
-type NavNode={key:string;label:string;to?:string;end?:boolean;module?:ModuleKey;ownerOnly?:boolean;accessAdminOnly?:boolean;steelOnly?:boolean;icon?:Lucide.LucideIcon;children?:NavNode[]};
+type NavNode={key:string;label:string;to?:string;end?:boolean;module?:ModuleKey;requiresModule?:ModuleKey;ownerOnly?:boolean;accessAdminOnly?:boolean;steelOnly?:boolean;icon?:Lucide.LucideIcon;children?:NavNode[]};
 
 const navigation:NavNode[]=[
   {key:"dashboard",to:"/",label:"Dashboard / ڈیش بورڈ",icon:Lucide.LayoutDashboard,end:true,module:"dashboard"},
@@ -31,18 +31,18 @@ const navigation:NavNode[]=[
     {key:"accounting-setup",label:"Accounting Setup / اکاؤنٹنگ سیٹ اپ",module:"accounting",children:[{key:"coa",to:"/accounting/accounts",label:"Chart of Accounts / چارٹ آف اکاؤنٹس",module:"accounting"},{key:"mapping",to:"/accounting/mappings",label:"Account Mapping / اکاؤنٹ میپنگ",module:"accounting"},{key:"opening-balances",to:"/accounting/opening-balances",label:"Opening Balances / اوپننگ بیلنس",module:"accounting"}]},
   ]},
   {key:"reports",label:"Reports / رپورٹس",icon:Lucide.ChartNoAxesCombined,module:"reports",children:[
-    {key:"sales-customer-reports",label:"Sales & Customer / سیلز و گاہک",module:"reports",children:[
+    {key:"sales-customer-reports",label:"Sales & Customer / سیلز و گاہک",module:"reports",requiresModule:"sales",children:[
       {key:"sales-margin-report",to:"/reports/sales-margin",label:"Sales & Margin / سیلز و مارجن",module:"reports"},{key:"sales-register-report",to:"/reports/sales-register",label:"Sales Register / سیلز رجسٹر",module:"reports"},{key:"customer-aging-report",to:"/reports/customer-aging",label:"Customer Aging / گاہک ایجنگ",module:"reports"},{key:"customer-items-report",to:"/reports/customer-item-history",label:"Customer Item History / گاہک آئٹم ہسٹری",module:"reports"},{key:"customer-profitability-report",to:"/reports/customer-profitability",label:"Customer Profitability / گاہک منافع",module:"reports"},{key:"item-profitability-report",to:"/reports/item-profitability",label:"Item Profitability / آئٹم منافع",module:"reports"},{key:"salesperson-profitability-report",to:"/reports/salesperson-profitability",label:"Salesperson Profitability / سیلز پرسن منافع",module:"reports"},{key:"customer-collections-report",to:"/reports/customer-collections",label:"Customer Collections / وصولیاں",module:"reports"},{key:"salesperson-report",to:"/sales/report",label:"Salesperson Performance / سیلز پرسن",module:"reports"},{key:"customer-statement",to:"/accounting/customer-invoice-statement",label:"Customer Statement / گاہک اسٹیٹمنٹ",module:"accounting"},
     ]},
-    {key:"purchase-supplier-reports",label:"Purchase & Supplier / خریداری و سپلائر",module:"reports",children:[
+    {key:"purchase-supplier-reports",label:"Purchase & Supplier / خریداری و سپلائر",module:"reports",requiresModule:"purchase",children:[
       {key:"purchase-register-report",to:"/reports/purchase-register",label:"Purchase Register / پرچیز رجسٹر",module:"reports"},{key:"supplier-aging-report",to:"/reports/supplier-aging",label:"Supplier Aging / سپلائر ایجنگ",module:"reports"},{key:"supplier-items-report",to:"/reports/supplier-item-history",label:"Supplier Item History / سپلائر آئٹم ہسٹری",module:"reports"},{key:"supplier-performance-report",to:"/reports/supplier-performance",label:"Supplier Performance / سپلائر کارکردگی",module:"reports"},{key:"purchase-price-variance-report",to:"/reports/purchase-price-variance",label:"Purchase Price Variance / خریداری ریٹ فرق",module:"reports"},
     ]},
-    {key:"inventory-reports",label:"Inventory / اسٹاک رپورٹس",module:"reports",children:[
+    {key:"inventory-reports",label:"Inventory / اسٹاک رپورٹس",module:"reports",requiresModule:"inventory",children:[
       {key:"stock-valuation-report",to:"/reports/stock-valuation",label:"Stock Valuation / اسٹاک ویلیو",module:"reports"},{key:"daily-stock-trading-report",to:"/reports/daily-stock-trading",label:"Daily Stock & Trading Summary / روزانہ اسٹاک",module:"reports"},{key:"trading-margin-report",to:"/reports/trading-margin",label:"Purchase vs Sales Rate & Margin / خرید و فروخت مارجن",module:"reports"},{key:"inventory-aging-report",to:"/reports/inventory-aging",label:"Inventory Aging / Slow Moving",module:"reports"},{key:"inventory-turnover-report",to:"/reports/inventory-turnover",label:"Inventory Turnover / اسٹاک ٹرن اوور",module:"reports"},{key:"stock-exceptions-report",to:"/reports/stock-exceptions",label:"Stock Exceptions / اسٹاک ایکسیپشنز",module:"reports"},{key:"steel-stock",to:"/reports/steel-stock",label:"Stock Control / اسٹاک کنٹرول",module:"reports"},
     ]},
     {key:"management-reports",label:"Management & MIS / مینجمنٹ",module:"reports",children:[{key:"business-unit-performance-report",to:"/reports/business-unit-performance",label:"Business Unit Performance / بزنس یونٹ",module:"reports"},{key:"monthly-mis-report",to:"/reports/monthly-mis",label:"Monthly Business MIS / ماہانہ ایم آئی ایس",module:"reports"}]},
-    {key:"control-reports",label:"Control & Reconciliation / کنٹرول رپورٹس",module:"reports",children:[{key:"returns-register-report",to:"/reports/returns-register",label:"Returns Register / ریٹرنز رجسٹر",module:"reports"},{key:"reconciliation-report",to:"/reports/ar-ap-reconciliation",label:"AR / AP Reconciliation / ریکنسیلی ایشن",module:"reports"},{key:"exceptions-report",to:"/reports/exceptions",label:"Exceptions / ایکسیپشنز",module:"reports"},{key:"service-charges-report",to:"/reports/service-charges",label:"Service Charges / سروس چارجز",module:"reports"}]},
-    {key:"operations-reports",label:"Operations / آپریشن رپورٹس",module:"reports",children:[{key:"gate-pass-report",to:"/reports/gate-pass",label:"Gate Pass Report / گیٹ پاس رپورٹ",module:"reports"}]},
+    {key:"control-reports",label:"Control & Reconciliation / کنٹرول رپورٹس",module:"reports",requiresModule:"accounting",children:[{key:"returns-register-report",to:"/reports/returns-register",label:"Returns Register / ریٹرنز رجسٹر",module:"reports"},{key:"reconciliation-report",to:"/reports/ar-ap-reconciliation",label:"AR / AP Reconciliation / ریکنسیلی ایشن",module:"reports"},{key:"exceptions-report",to:"/reports/exceptions",label:"Exceptions / ایکسیپشنز",module:"reports"},{key:"service-charges-report",to:"/reports/service-charges",label:"Service Charges / سروس چارجز",module:"reports"}]},
+    {key:"operations-reports",label:"Operations / آپریشن رپورٹس",module:"reports",requiresModule:"production",children:[{key:"gate-pass-report",to:"/reports/gate-pass",label:"Gate Pass Report / گیٹ پاس رپورٹ",module:"reports"}]},
   ]},
   {key:"owner",to:"/owner",label:"Owner Control / مالک کنٹرول",icon:Lucide.ShieldCheck,ownerOnly:true},
   {key:"settings",label:"Settings / سیٹنگز",icon:Lucide.Settings,module:"settings",children:[
@@ -68,6 +68,7 @@ function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],
   if(n.ownerOnly&&!owner)return null;
   if(n.accessAdminOnly&&!owner&&role!=="company_owner"&&role!=="admin")return null;
   if(n.steelOnly&&unitType&&unitType!=="steel")return null;
+  if(n.requiresModule&&!mods.includes(n.requiresModule))return null;
   if(n.module&&(!mods.includes(n.module)||!hasPermission(role as never,n.module,"view",permissions,owner)))return null;
   if(n.to&&FEATURE_BY_KEY.has(n.key)&&!isFeatureEnabled(n.key))return null;
   const children=n.children?.map(c=>filterNode(c,role,owner,mods,unitType,permissions,isFeatureEnabled)).filter(Boolean) as NavNode[]|undefined;
