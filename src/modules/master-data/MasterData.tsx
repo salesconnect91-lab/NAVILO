@@ -8,6 +8,7 @@ import Uom from "./Uom";
 import Transporters from "./Transporters";
 import Employees from "./Employees";
 import MasterRecordDetail from "./MasterRecordDetail";
+import TransportMaster from "./TransportMaster";
 
 export default function MasterData() {
   return (
@@ -24,6 +25,8 @@ export default function MasterData() {
         <Route path="/warehouses" element={<Warehouses />} />
         <Route path="/uom" element={<Uom />} />
         <Route path="/transporters" element={<Transporters />} />
+        <Route path="/vehicles" element={<TransportMaster kind="vehicles" />} />
+        <Route path="/drivers" element={<TransportMaster kind="drivers" />} />
       </Routes>
     </div>
   );
