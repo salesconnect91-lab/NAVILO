@@ -42,6 +42,13 @@ const defs:Record<string,Def>={
  "/reports/business-unit-performance":{title:"Business Unit Performance",view:"business_unit_performance_report",cols:C({key:"business_unit_id",label:"Business Unit"},{key:"net_sales",label:"Net Sales",kind:"money"},{key:"gross_profit",label:"Gross Profit",kind:"money"},{key:"purchases",label:"Purchases",kind:"money"},{key:"receivables",label:"Receivables",kind:"money"},{key:"payables",label:"Payables",kind:"money"},{key:"inventory_value",label:"Inventory Value",kind:"money"})},
  "/reports/monthly-mis":{title:"Monthly Business Performance / MIS",view:"monthly_business_performance_report",dateKey:"month_start",order:"month_start",note:"AR, AP and inventory are current-state balances shown only on the current month; historical snapshots are not fabricated.",cols:C({key:"month_start",label:"Month",kind:"date"},{key:"net_sales",label:"Net Sales",kind:"money"},{key:"purchases",label:"Purchases",kind:"money"},{key:"gross_profit",label:"Gross Profit",kind:"money"},{key:"expenses",label:"Expenses",kind:"money"},{key:"net_profit",label:"Net Profit",kind:"money"},{key:"collections",label:"Collections",kind:"money"},{key:"previous_net_sales",label:"Previous Sales",kind:"money"},{key:"sales_change_percent",label:"Sales Change %",kind:"percent"},{key:"previous_gross_profit",label:"Previous GP",kind:"money"},{key:"previous_net_profit",label:"Previous Net Profit",kind:"money"},{key:"current_ar",label:"Current AR",kind:"money"},{key:"current_ap",label:"Current AP",kind:"money"},{key:"current_inventory_value",label:"Current Inventory",kind:"money"})},
 };
+const REPORT_MODULE:Record<string,string>={
+ "/reports":"sales","/reports/sales-margin":"sales","/reports/sales-register":"sales","/reports/customer-aging":"sales","/reports/customer-item-history":"sales","/reports/customer-profitability":"sales","/reports/item-profitability":"sales","/reports/salesperson-profitability":"sales","/reports/customer-collections":"sales",
+ "/reports/purchase-register":"purchase","/reports/supplier-aging":"purchase","/reports/supplier-item-history":"purchase","/reports/supplier-performance":"purchase","/reports/purchase-price-variance":"purchase",
+ "/reports/trading-margin":"inventory","/reports/daily-stock-trading":"inventory","/reports/stock-valuation":"inventory","/reports/inventory-aging":"inventory","/reports/inventory-turnover":"inventory","/reports/stock-exceptions":"inventory",
+ "/reports/returns-register":"accounting","/reports/ar-ap-reconciliation":"accounting","/reports/exceptions":"accounting","/reports/service-charges":"accounting",
+ "/reports/gate-pass":"production"
+};
 function unique(rows:any[],key?:string){return key?Array.from(new Set(rows.map(r=>String(r[key]??"")).filter(Boolean))).sort():[]}
 function show(v:any,k?:Kind){if(v===null||v===undefined||v==="")return"—";if(k==="money")return formatCurrency(n(v));if(k==="percent")return `${n(v).toFixed(2)}%`;if(k==="number")return n(v).toLocaleString();if(k==="date")return formatDate(String(v));return String(v)}
 type SavedReportView={name:string;filters:{q:string;from:string;to:string;party:string;item:string;category:string;status:string;groupBy:string;range:string;inventoryView?:string;godown?:string}};
@@ -50,6 +57,9 @@ export default function Reports(){
  const loc=useLocation();const def=defs[loc.pathname]??defs["/reports/sales-margin"];
  const{user,isPlatformOwner,activeCompany,activeBusinessUnit}=useAuth();
  const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role,permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
+ const enabledModules=activeBusinessUnit?.enabled_modules??[];
+ const requiredModule=REPORT_MODULE[loc.pathname];
+ const canViewReport=isPlatformOwner||!requiredModule||enabledModules.includes(requiredModule);
  const canPrint=isPlatformOwner||hasPermission(role,"reports","print",permissions,false),canExport=isPlatformOwner||hasPermission(role,"reports","export",permissions,false);
  const dailyStockReport=loc.pathname==="/reports/daily-stock-trading";
  const[data,setData]=useState<any[]>([]),[masterParties,setMasterParties]=useState<string[]>([]),[categoryOptions,setCategoryOptions]=useState<{id:string;name:string}[]>([]),[itemCategoryIds,setItemCategoryIds]=useState<Record<string,string>>({}),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(null);
@@ -65,15 +75,17 @@ export default function Reports(){
  const deleteSavedView=()=>{try{localStorage.removeItem(viewKey)}finally{setSavedView(null);setViewName("");setSaveOpen(false)}};
  const load=useCallback(async()=>{
   setLoading(true);setError(null);
+  if(!canViewReport){setData([]);setError(`This report requires the ${requiredModule} module to be enabled for this workspace.`);setLoading(false);return;}
   let r:any;
   if(def.rpc) r=await supabase.rpc(def.rpc,{p_from:from||null,p_to:to||null});
   else {let query=supabase.from(def.view!).select("*").limit(10000);if(def.order)query=query.order(def.order,{ascending:false});r=await query;}
   if(r.error)setError(r.error.message);setData(r.data??[]);setLoading(false);
- },[def.rpc,def.view,def.order,from,to]);
+ },[def.rpc,def.view,def.order,from,to,canViewReport,requiredModule]);
  useEffect(()=>{void load()},[load]);
  useEffect(()=>{
   let cancelled=false;
   const loadMasterParties=async()=>{
+   if(!canViewReport){setMasterParties([]);return;}
    const table=def.partyKey==="supplier_name"?"suppliers":def.partyKey==="customer_name"?"customers":null;
    if(!table){setMasterParties([]);return;}
    const r=await supabase.from(table).select("name").eq("is_active",true).order("name");
@@ -83,7 +95,7 @@ export default function Reports(){
   };
   void loadMasterParties();
   return()=>{cancelled=true};
- },[def.partyKey]);
+ },[def.partyKey,canViewReport]);
  const supportsCategory=["/reports/stock-valuation","/reports/inventory-aging","/reports/inventory-turnover","/reports/stock-exceptions","/reports/daily-stock-trading","/reports/trading-margin"].includes(loc.pathname);
  useEffect(()=>{
   let cancelled=false;
