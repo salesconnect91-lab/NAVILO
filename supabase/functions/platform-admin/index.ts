@@ -430,6 +430,53 @@ Deno.serve(async (request) => {
       return json({ membership: data });
     }
 
+    if (action === "remove_company_user") {
+      const companyId = String(body.company_id || "");
+      const membershipId = String(body.membership_id || "");
+      if (!companyId || !membershipId) return json({ error: "Company and membership are required." }, 400);
+
+      const { data: membership, error: membershipError } = await admin
+        .from("company_memberships")
+        .select("id,company_id,user_id,role,is_active")
+        .eq("id", membershipId)
+        .eq("company_id", companyId)
+        .maybeSingle();
+      if (membershipError) throw membershipError;
+      if (!membership) return json({ error: "Company user assignment not found." }, 404);
+
+      if (membership.role === "company_owner" && membership.is_active) {
+        const { count: activeOwnerCount, error: ownerCountError } = await admin
+          .from("company_memberships")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", companyId)
+          .eq("role", "company_owner")
+          .eq("is_active", true);
+        if (ownerCountError) throw ownerCountError;
+        if ((activeOwnerCount ?? 0) <= 1) {
+          return json({ error: "Assign another active Company Owner before removing the last active owner." }, 409);
+        }
+      }
+
+      // Remove only this company's access assignments. The global Auth user and
+      // user profile are deliberately preserved because the same login may
+      // belong to another NAVILO company.
+      const accessDeletes = [
+        await admin.from("operating_location_memberships").delete().eq("company_id", companyId).eq("user_id", membership.user_id),
+        await admin.from("business_unit_memberships").delete().eq("company_id", companyId).eq("user_id", membership.user_id),
+      ];
+      const accessError = accessDeletes.find(result => result.error)?.error;
+      if (accessError) throw accessError;
+
+      const { error: deleteError } = await admin
+        .from("company_memberships")
+        .delete()
+        .eq("id", membershipId)
+        .eq("company_id", companyId);
+      if (deleteError) throw deleteError;
+
+      return json({ removed: true, user_id: membership.user_id });
+    }
+
     if (action === "update_company_details") {
       const companyId = String(body.company_id || "");
       const name = String(body.name || "").trim();
