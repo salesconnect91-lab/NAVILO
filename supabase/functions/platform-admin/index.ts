@@ -1,4 +1,4 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+﻿import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
 import { checkOnboardingLookups } from "./onboardingPreflight.ts";
 import { onboardingFiscalSettings, onboardingModules } from "./onboardingModules.ts";
@@ -430,6 +430,22 @@ Deno.serve(async (request) => {
       return json({ membership: data });
     }
 
+    if (action === "remove_dedicated_workspace_login") {
+      const companyId = String(body.company_id || "");
+      const userId = String(body.user_id || "");
+      if (!companyId || !userId) return json({ error: "Company and user are required." }, 400);
+
+      const { error } = await admin.rpc("platform_remove_dedicated_workspace_login", {
+        p_company_id: companyId,
+        p_user_id: userId,
+      });
+      if (error) {
+        const message = error.message || "Could not remove dedicated workspace login.";
+        const status = /not found|not a dedicated|last active owner/i.test(message) ? 409 : 400;
+        return json({ error: message }, status);
+      }
+      return json({ removed: true, user_id: userId });
+    }
     if (action === "remove_company_user") {
       const companyId = String(body.company_id || "");
       const membershipId = String(body.membership_id || "");
@@ -609,3 +625,4 @@ Deno.serve(async (request) => {
     return json({ error: error instanceof Error ? error.message : "Request failed" }, 500);
   }
 });
+
