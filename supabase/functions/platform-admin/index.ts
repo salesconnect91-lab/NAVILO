@@ -48,6 +48,7 @@ Deno.serve(async (request) => {
       const code = String(body.code || "").trim().toUpperCase();
       const ownerEmail = String(body.owner_email || "").trim().toLowerCase();
       const ownerName = String(body.owner_name || "").trim();
+      const countryCode = String(body.country_code || "PK").trim().toUpperCase();
       const password = String(body.password || "");
       const planId = String(body.plan_id || "");
       const unitName = String(body.business_unit_name || name).trim();
@@ -56,7 +57,7 @@ Deno.serve(async (request) => {
       const branchCode = String(body.branch_code || "HO").trim().toUpperCase();
       const status = body.status === "active" ? "active" : "trial";
       const businessType = String(body.business_unit_type || "custom");
-      if (!name || !code || !ownerName || !ownerEmail || !planId || !unitName || !unitCode || !branchName || !branchCode) {
+      if (!name || !code || !ownerName || !ownerEmail || !planId || !unitName || !unitCode || !branchName || !branchCode || !/^[A-Z]{2}$/.test(countryCode)) {
         return json({ error: "Company, owner, plan, business unit and branch details are required." }, 400);
       }
       if (password.length < 8) return json({ error: "Temporary password must be at least 8 characters." }, 400);
@@ -157,6 +158,7 @@ Deno.serve(async (request) => {
         });
         if (membershipError) throw membershipError;
         const writes = await Promise.all([
+          admin.from("company_settings").update({ country_code: countryCode, currency: fiscalSettings.base_currency_code, updated_at: new Date().toISOString() }).eq("company_id", companyId),
           admin.from("company_accounting_policies").update({
             base_currency: fiscalSettings.base_currency_code,
             updated_by: actor.id,
