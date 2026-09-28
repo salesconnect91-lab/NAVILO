@@ -1,7 +1,7 @@
 import { Boxes, Building2, CheckCircle2, CircleDollarSign, Database, Layers3, PackageOpen, Ruler, Truck, Users, UserRound, Warehouse, XCircle } from "lucide-react";
 
-type Kind="categories"|"customers"|"suppliers"|"employees"|"warehouses"|"godowns"|"uom"|"transporters"|"charges";
-const icons={categories:Layers3,customers:Users,suppliers:Building2,employees:UserRound,warehouses:Warehouse,godowns:Boxes,uom:Ruler,transporters:Truck,charges:CircleDollarSign} as const;
+type Kind="categories"|"customers"|"suppliers"|"employees"|"warehouses"|"godowns"|"uom"|"transporters"|"vehicles"|"drivers"|"charges";
+const icons={categories:Layers3,customers:Users,suppliers:Building2,employees:UserRound,warehouses:Warehouse,godowns:Boxes,uom:Ruler,transporters:Truck,vehicles:Truck,drivers:UserRound,charges:CircleDollarSign} as const;
 
 export default function MasterSummaryStrip({kind,title,subtitle,total,active,inactive,fourthLabel,fourthValue}:{kind:Kind;title:string;subtitle:string;total:number;active:number;inactive:number;fourthLabel:string;fourthValue:number|string}){
  const MainIcon=icons[kind]??PackageOpen;
