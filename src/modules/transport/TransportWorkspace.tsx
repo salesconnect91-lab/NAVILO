@@ -57,6 +57,7 @@ type BulkTripRow={
   ppr_status:string;
   customer_rate:string;
   supplier_rent:string;
+  source_invoice_no:string;
   notes:string;
   errors:string[];
 };
@@ -74,6 +75,7 @@ const BULK_TRIP_HEADERS=[
   "PPR Status",
   "Customer Rate",
   "Supplier Rent",
+  "Invoice Number",
   "Notes"
 ] as const;
 
@@ -374,7 +376,18 @@ export default function TransportWorkspace(){
       }
 
       const tripIds=all.map(r=>r.id);
+      const sourceInvoices:Array<{id:string;source_invoice_no:string|null}>=[];
       const links:Array<{trip_id:string;document_id:string}>=[];
+      for(let offset=0;offset<tripIds.length;offset+=200){
+        const ids=tripIds.slice(offset,offset+200);
+        if(!ids.length)continue;
+        const result=await supabase
+          .from("transport_trips")
+          .select("id,source_invoice_no")
+          .in("id",ids);
+        if(result.error)throw result.error;
+        sourceInvoices.push(...(result.data??[]));
+      }
       for(let offset=0;offset<tripIds.length;offset+=200){
         const ids=tripIds.slice(offset,offset+200);
         if(!ids.length)continue;
@@ -413,6 +426,11 @@ export default function TransportWorkspace(){
 
       const documentOrder=new Map(documents.map(r=>[r.id,r.sales_order_id]));
       const orderNumber=new Map(orders.map(r=>[r.id,r.order_no]));
+      const sourceInvoiceByTrip=new Map(
+        sourceInvoices
+          .filter(r=>Boolean(r.source_invoice_no?.trim()))
+          .map(r=>[r.id,r.source_invoice_no!.trim()])
+      );
       const invoiceByTrip=new Map<string,string>();
       for(const link of links){
         const orderId=documentOrder.get(link.document_id);
@@ -420,7 +438,10 @@ export default function TransportWorkspace(){
         if(invoiceNo&&!invoiceByTrip.has(link.trip_id))invoiceByTrip.set(link.trip_id,invoiceNo);
       }
 
-      setRows(all.map(r=>({...r,invoice_no:invoiceByTrip.get(r.id)??null})));
+      setRows(all.map(r=>({
+        ...r,
+        invoice_no:invoiceByTrip.get(r.id)??sourceInvoiceByTrip.get(r.id)??null
+      })));
     }catch(e:any){
       setError(e?.message||"Unable to load trips.");
     }finally{
@@ -1052,6 +1073,8 @@ export default function TransportWorkspace(){
             ? Number(row.supplier_rent)
             : null,
 
+          source_invoice_no:row.source_invoice_no||null,
+
           notes:row.notes||null
         };
       });
@@ -1185,6 +1208,14 @@ export default function TransportWorkspace(){
           const hasAnyValue=values.some(value=>cleanBulkText(value)!=="");
           if(!hasAnyValue)return null;
 
+          const explicitInvoice=cleanBulkText(get(values,"INVOICE NUMBER"));
+          const invoicedCell=cleanBulkText(get(values,"INVOICED"));
+          const sourceInvoiceNo=explicitInvoice||(
+            invoicedCell&&!/^(yes|no|y|n|true|false|invoiced|pending)$/i.test(invoicedCell)
+              ? invoicedCell
+              : ""
+          );
+
           const row:BulkTripRow={
             rowNo:index+2,
             trip_date:normalizeBulkDate(get(values,"DATE",0)),
@@ -1199,6 +1230,7 @@ export default function TransportWorkspace(){
             ppr_status:pprStatusFromBuKu(get(values,"PAPER RECEIVED BY")),
             customer_rate:cleanBulkText(get(values,"rate with company")),
             supplier_rent:cleanBulkText(get(values,"RENT WITH DRIVER")),
+            source_invoice_no:sourceInvoiceNo,
             notes:"",
             errors:[]
           };
@@ -2197,6 +2229,7 @@ export default function TransportWorkspace(){
                 <td className="whitespace-nowrap px-2 py-2">{row.ppr_status}</td>
                 <td className="whitespace-nowrap px-2 py-2">{row.customer_rate}</td>
                 <td className="whitespace-nowrap px-2 py-2">{row.supplier_rent}</td>
+                <td className="whitespace-nowrap px-2 py-2">{row.source_invoice_no}</td>
                 <td className="max-w-[220px] truncate px-2 py-2">{row.notes}</td>
 
               </tr>
