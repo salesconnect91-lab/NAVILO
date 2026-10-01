@@ -1472,7 +1472,7 @@ export default function TransportWorkspace(){
       case "trip_date": return String(r.trip_date??"");
       case "truck_type": return String(r.truck_type??"");
       case "job_no": return String(r.po_do_job_no??"");
-      case "invoiced": return r.invoiced?"Yes":"";
+      case "invoiced": return r.invoiced?"Yes":"No";
       case "company": return String(r.customer_name??"");
       case "driver": return String(r.driver_name??"");
       case "owner": return String(r.owner_name??"");
@@ -1481,12 +1481,12 @@ export default function TransportWorkspace(){
       case "to": return String(r.to_location??"");
       case "paper_received_by": return String(r.ppr_received_by_name??"");
       case "ppr_date": return String(r.ppr_received_date??"");
-      case "pay_driver": return financialNumber(r.driver_accrued);
-      case "rent_driver": return financialNumber(r.billed_supplier_net);
+      case "pay_driver": return financialNumber(r.driver_accrued??r.driver_pay);
+      case "rent_driver": return financialNumber(r.billed_supplier_net??r.supplier_rent??r.owner_rent);
       case "remaining_us": return financialNumber(r.remaining_with_us);
       case "payment_date": return r.payment_date??"";
       case "amount": return financialNumber(r.payment_amount);
-      case "company_rate": return financialNumber(r.billed_customer_net);
+      case "company_rate": return financialNumber(r.billed_customer_net??r.customer_rate);
       case "received_company": return financialNumber(r.received_from_company);
       case "remaining_company": return financialNumber(r.remaining_with_company);
       case "profit": return r.billed_customer_net==null||r.trip_profit==null?"":financialNumber(r.trip_profit);
