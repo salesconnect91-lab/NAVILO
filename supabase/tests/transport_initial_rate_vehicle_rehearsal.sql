@@ -58,6 +58,11 @@ begin
  execute 'set local role authenticated';
  if (select sum(vc.revenue-vc.cost) from public.transport_vehicle_contributions vc where trip_id=trip)<>1000 then raise exception 'Authenticated historical contribution missing';end if;
  execute 'reset role';
+ -- Simulate an assignment first recorded after an older bill (isolated fixture only).
+ insert into public.transport_action_gate(transaction_id,trip_id,action) values(txid_current(),trip,'assignment_replace');
+ update public.transport_trip_assignments set created_at=clock_timestamp()+interval '1 day' where trip_id=trip;
+ delete from public.transport_action_gate where transaction_id=txid_current() and trip_id=trip;
+ if exists(select 1 from public.transport_vehicle_account_movements where trip_ids=array[trip]) or exists(select 1 from public.transport_vehicle_contributions where trip_id=trip) then raise exception 'Pre-history bill guessed a later recorded assignment';end if;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,vehicle_id,from_location,to_location,sale_type)
  values(c,b,'',current_date,customer,vehicle,'A','B','credit') returning id into trip2;
  update public.business_unit_memberships set permissions=jsonb_set(coalesce(permissions,'{}'),'{transport_actions}',jsonb_build_object('customer_rate_finalize',false),true) where company_id=c and business_unit_id=b and user_id=u;
