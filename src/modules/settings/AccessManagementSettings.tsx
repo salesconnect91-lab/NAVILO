@@ -1,3 +1,4 @@
+import TransportFinancePermissions from '@/modules/transport/TransportFinancePermissions';
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback,useEffect,useMemo,useState } from "react";
 import { Building2,KeyRound,Loader2,MapPin,Plus,Save,ShieldCheck,SlidersHorizontal,Users } from "lucide-react";
@@ -94,7 +95,7 @@ export default function AccessManagementSettings(){
   return <div className="space-y-5">
     <PageHeader title="Users & Branch Access" subtitle="Manage company users, permissions, business units and branches within the licensed limits"/>
     <div className="rounded-lg border border-blue-200 bg-blue-50/50 px-3 py-2 text-xs text-blue-800"><strong>Licence boundary:</strong> Company Owner/Admin can manage access and resources here, but user, business-unit, branch and godown limits are controlled by the NAVILO Platform Owner and cannot be increased from Company Settings.</div>
-    {error&&<div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}{message&&<div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}
+    <TransportFinancePermissions users={data.users}/>    {error&&<div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}{message&&<div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Stat label="Users" value={`${activeUsers} / ${data.limits.max_users??"∞"}`}/><Stat label="Branches" value={`${activeBranches} / ${data.limits.max_branches??"∞"}`}/><Stat label="Business Units" value={`${data.units.filter(x=>x.is_active).length} / ${data.limits.max_business_units??"∞"}`}/><Stat label="Your Admin Role" value={roleLabel(data.actor_role)}/></div>
 
     <section className="rounded-xl border bg-white p-4 shadow-sm"><div className="flex items-center gap-2"><Building2 className="h-5 w-5 text-violet-700"/><div><h2 className="font-semibold">Business Units / Workspaces</h2><p className="text-xs text-slate-500">Company Owner may create workspaces inside the Platform Owner allowance. New workspaces inherit only company-licensed modules.</p></div></div>

@@ -1,0 +1,100 @@
+import {useCallback, useEffect, useRef, useState} from 'react';
+import {supabase} from '@/lib/supabase';
+import {useAuth} from '@/auth/AuthContext';
+import {fetchAllPages} from '@/lib/fetchAllPages';
+import {financeActions, financialNumber, type FinancialTrip, type ServiceBalance, type TransportFinanceAction} from './transportFinancialTypes';
+
+type Rent={id:string;supplier_id:string;amount:number;reason:string};
+type Option={id:string;name:string};
+type Adjustment={id:string;side:string;old_value:number;new_value:number;difference:number;reason:string;reference:string|null;created_by:string;created_at:string;accounting_evidence:Array<{document_id?:string;note_id?:string;journal_entry_id?:string}>};
+export default function TransportFinancialPanel({trip,onClose,onChanged}:{trip:FinancialTrip;onClose:()=>void;onChanged:()=>Promise<void>}) {
+ const {activeCompany,activeBusinessUnit}=useAuth();
+ const company=activeCompany?.company_id;const unit=activeBusinessUnit?.business_unit_id;
+ const [current,setCurrent]=useState(trip);const [balances,setBalances]=useState<ServiceBalance[]>([]);
+ const [rents,setRents]=useState<Rent[]>([]);const [suppliers,setSuppliers]=useState<Option[]>([]);
+ const [accounts,setAccounts]=useState<Array<Option & {type:string;detail_type:string}>>([]);
+ const [adjustments,setAdjustments]=useState<Adjustment[]>([]);const [allowed,setAllowed]=useState<Partial<Record<TransportFinanceAction,boolean>>>({});
+ const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [message,setMessage]=useState('');
+ const [date,setDate]=useState(new Date().toISOString().slice(0,10));const [withTax,setWithTax]=useState(false);
+ const [supplier,setSupplier]=useState('');const [amount,setAmount]=useState('');const [costAccount,setCostAccount]=useState('');const [cashAccount,setCashAccount]=useState('');
+ const [reason,setReason]=useState('');const [reference,setReference]=useState('');const [side,setSide]=useState<'customer'|'supplier'>('customer');
+ const [rentId,setRentId]=useState('');const [revised,setRevised]=useState('');const [costKind,setCostKind]=useState('commission');
+ const [allocationAmounts,setAllocationAmounts]=useState<Record<string,string>>({});const [fifo,setFifo]=useState('');const [party,setParty]=useState('');
+ const [agreedPay,setAgreedPay]=useState('');
+ const [payrollKind,setPayrollKind]=useState<'accrual'|'payment'>('accrual');const [payrollSource,setPayrollSource]=useState('');
+ const [payroll,setPayroll]=useState<Array<{id:string;kind:'accrual'|'payment';label:string}>>([]);
+ const dialog=useRef<HTMLElement>(null);const generation=useRef(0);const closeButton=useRef<HTMLButtonElement>(null);
+ const load=useCallback(async()=>{
+  if(!company||!unit)return;const request=++generation.current;
+  const [summary,rentRows,customerLinks,supplierLinks,costLinks,accountRows,supplierRows,history,permissions,driverResult]=await Promise.all([
+   supabase.from('transport_financial_register').select('*').eq('id',trip.id).single(),
+   supabase.from('transport_trip_supplier_rents').select('id,supplier_id,amount,reason').eq('trip_id',trip.id),
+   supabase.from('transport_customer_document_trips').select('document_id').eq('trip_id',trip.id),
+   supabase.from('transport_supplier_document_rents').select('document_id').eq('trip_id',trip.id),
+   supabase.from('transport_service_cost_links').select('purchase_order_id').eq('trip_id',trip.id),
+   supabase.from('chart_of_accounts').select('id,name,type,detail_type').eq('company_id',company).eq('is_active',true).eq('is_group',false),
+   supabase.from('suppliers').select('id,name').eq('company_id',company).eq('is_active',true),
+   supabase.from('transport_rate_adjustments').select('*').eq('trip_id',trip.id).order('created_at',{ascending:false}),
+   Promise.all(financeActions.map(async action=>{const result=await supabase.rpc('transport_finance_allowed',{p_action:action});if(result.error)throw result.error;return [action,result.data===true] as const})),
+   trip.driver_id?supabase.from('transport_drivers').select('employee_id').eq('id',trip.driver_id).single():Promise.resolve({data:null,error:null})
+  ]);
+  for(const result of [summary,rentRows,customerLinks,supplierLinks,costLinks,accountRows,supplierRows,history,driverResult])if(result.error)throw result.error;
+  const [customerDocs,supplierDocs]=await Promise.all([
+   customerLinks.data?.length?supabase.from('transport_customer_documents').select('sales_order_id').in('id',customerLinks.data.map(r=>r.document_id)):Promise.resolve({data:[],error:null}),
+   supplierLinks.data?.length?supabase.from('transport_supplier_documents').select('purchase_order_id').in('id',supplierLinks.data.map(r=>r.document_id)):Promise.resolve({data:[],error:null})
+  ]);
+  if(customerDocs.error)throw customerDocs.error;if(supplierDocs.error)throw supplierDocs.error;
+  const ids=[...(customerDocs.data??[]).map(r=>r.sales_order_id),...(supplierDocs.data??[]).map(r=>r.purchase_order_id),...(costLinks.data??[]).map(r=>r.purchase_order_id)];
+  const docs=ids.length?await supabase.from('transport_service_document_balances').select('*').in('order_id',ids):{data:[],error:null};if(docs.error)throw docs.error;
+  let sources:Array<{id:string;kind:'accrual'|'payment';label:string}>=[];
+  const employee=driverResult.data?.employee_id;
+  if(employee){
+   const [accruals,payments]=await Promise.all([
+    fetchAllPages<any>((from,to)=>supabase.from('employee_salary_accruals').select('id,voucher_no,monthly_salary').eq('company_id',company).eq('business_unit_id',unit).eq('employee_id',employee).order('id').range(from,to)),
+    fetchAllPages<any>((from,to)=>supabase.from('employee_salary_payments').select('id,voucher_no,amount').eq('company_id',company).eq('business_unit_id',unit).eq('employee_id',employee).order('id').range(from,to))
+   ]);
+   sources=[...accruals.map(r=>({id:r.id,kind:'accrual' as const,label:`${r.voucher_no} / ${financialNumber(r.monthly_salary)}`})),...payments.map(r=>({id:r.id,kind:'payment' as const,label:`${r.voucher_no} / ${financialNumber(r.amount)}`}))];
+  }
+  if(request!==generation.current)return;
+  setCurrent(summary.data);setBalances(docs.data??[]);setRents(rentRows.data??[]);setAccounts(accountRows.data??[]);setSuppliers(supplierRows.data??[]);
+  setAdjustments(history.data??[]);setAllowed(Object.fromEntries(permissions));setPayroll(sources);
+ },[company,unit,trip.id,trip.driver_id]);
+ useEffect(()=>{let live=true;void load().catch(e=>{if(live)setError(e.message)});closeButton.current?.focus();return()=>{live=false;generation.current++}},[load]);
+ async function action(rpc:string,args:Record<string,unknown>){setBusy(true);setError('');setMessage('');try{const r=await supabase.rpc(rpc,args);if(r.error)throw r.error;await load();await onChanged();setMessage('Posted and refreshed from canonical evidence.');setAllocationAmounts({});setFifo('')}catch(e){setError(e instanceof Error?e.message:'Action failed')}finally{setBusy(false)}}
+ const cash=accounts.filter(a=>['Cash on Hand','Bank Account'].includes(a.detail_type));const expenses=accounts.filter(a=>a.type==='expense');
+ const method=cash.find(a=>a.id===cashAccount)?.detail_type==='Bank Account'?'bank':'cash';
+ const selectedParty=side==='customer'?current.customer_id:party;
+ const shown=balances.filter(b=>b.side===side&&(!selectedParty||b.party_id===selectedParty));
+ const rent=rents.find(r=>r.id===rentId);const oldRate=side==='customer'?current.billed_customer_net:rent?Number(rent.amount)+adjustments.filter(a=>a.side==='supplier'&&(a as Adjustment & {rent_id:string}).rent_id===rentId).reduce((s,a)=>s+Number(a.difference),0):null;
+ const can=(a:TransportFinanceAction)=>allowed[a]===true&&!busy;
+ return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-3" onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const items=dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),a[href]');if(items?.length){const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}}>
+ <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="trip-finance-title" className="max-h-[94vh] w-full max-w-5xl overflow-auto rounded-lg bg-white p-4 text-xs shadow-xl">
+ <div className="flex items-center justify-between"><h2 id="trip-finance-title" className="font-bold">{trip.trip_no} · {current.financial_status} · Finance</h2><button ref={closeButton} className="btn" disabled={busy} onClick={onClose}>Close</button></div>
+ {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}{message&&<p role="status" className="my-2 text-emerald-700">{message}</p>}
+ <div className="my-3 grid grid-cols-4 gap-2 rounded border bg-slate-50 p-2">
+ <span>Customer due (VAT included): {financialNumber(current.customer_outstanding_gross)}</span><span>Customer credit/refund: {financialNumber(current.customer_credit_gross)}</span>
+ <span>Supplier due (VAT included): {financialNumber(current.supplier_outstanding_gross)}</span><span>Supplier credit/recovery: {financialNumber(current.supplier_credit_gross)}</span>
+ <span>Driver accrued: {financialNumber(current.driver_accrued)}</span><span>Driver paid: {financialNumber(current.driver_paid)}</span><span>Driver due: {financialNumber(current.driver_outstanding)}</span><span>Posted profit (VAT excluded): {financialNumber(current.trip_profit)}</span>
+ </div>
+ <div className="flex flex-wrap gap-3"><label>Date <input className="input" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label>Reference <input className="input" value={reference} onChange={e=>setReference(e.target.value)}/></label><label className="self-center"><input type="checkbox" checked={withTax} onChange={e=>setWithTax(e.target.checked)}/> With VAT</label><label>Reason <input className="input" value={reason} onChange={e=>setReason(e.target.value)}/></label></div>
+ <div className="my-3 flex gap-2"><button className="btn-primary" disabled={!can('billing')||current.customer_rate_locked} onClick={()=>void action('transport_post_customer_bill',{p_trip_id:trip.id,p_date:date,p_with_tax:withTax})}>Post Customer Bill</button><button className="btn" disabled={!can('close')||!reason.trim()} onClick={()=>void action('transport_complete_operations',{p_trip_id:trip.id,p_reason:reason})}>Mark Job Complete</button></div>
+ <fieldset className="my-3 rounded border p-3"><legend className="font-semibold">Supplier / Owner Rent and Costs</legend>
+ <div className="flex flex-wrap items-end gap-2"><label>Supplier <select className="input" value={supplier} onChange={e=>setSupplier(e.target.value)}><option value="">Select supplier</option>{suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label>Amount excluding VAT <input className="input" type="number" min="0.01" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)}/></label><label>Expense account <select className="input" value={costAccount} onChange={e=>setCostAccount(e.target.value)}><option value="">Select account</option>{expenses.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+ <button className="btn" disabled={!can('rent')||!supplier||!amount||!reason.trim()} onClick={()=>void action('transport_add_supplier_rent',{p_trip_id:trip.id,p_supplier_id:supplier,p_amount:Number(amount),p_reason:reason})}>Finalize Rent</button>
+ <label>Cost type <select className="input" value={costKind} onChange={e=>setCostKind(e.target.value)}>{['commission','vehicle_expense','other','driver_expense'].map(k=><option key={k} value={k}>{k.replaceAll('_',' ')}</option>)}</select></label><button className="btn" disabled={!can('cost')||!supplier||!amount||!costAccount} onClick={()=>void action('transport_post_cost',{p_trip_id:trip.id,p_kind:costKind,p_supplier_id:supplier,p_amount:Number(amount),p_date:date,p_cost_account_id:costAccount,p_with_tax:withTax,p_reference:reference})}>Post Cost Bill</button></div>
+ {rents.map(r=><div key={r.id} className="mt-2 flex items-center gap-3"><span>{suppliers.find(s=>s.id===r.supplier_id)?.name} · {financialNumber(r.amount)} · {r.reason}</span><button className="btn" disabled={!can('rent')||!costAccount} onClick={()=>void action('transport_post_supplier_bill',{p_rent_id:r.id,p_date:date,p_cost_account_id:costAccount,p_with_tax:withTax,p_reference:reference})}>Post Rent Bill</button></div>)}
+ </fieldset>
+ <fieldset className="my-3 rounded border p-3"><legend className="font-semibold">Canonical Receipts / Supplier Payments</legend>
+ <div className="mb-2 flex flex-wrap gap-2"><label>Side <select className="input" value={side} onChange={e=>{setSide(e.target.value as 'customer'|'supplier');setAllocationAmounts({});setFifo('')}}><option value="customer">Customer</option><option value="supplier">Supplier / Owner</option></select></label>
+ {side==='supplier'&&<label>Supplier <select className="input" value={party} onChange={e=>setParty(e.target.value)}><option value="">Select supplier</option>{suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}
+ <label>Cash / Bank <select className="input" value={cashAccount} onChange={e=>setCashAccount(e.target.value)}><option value="">Select account</option>{cash.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label></div>
+ <table className="w-full text-left"><thead><tr><th>Document</th><th>Billed including VAT</th><th>Paid</th><th>Outstanding</th><th>Credit / Refund</th><th>Allocate</th><th/></tr></thead><tbody>{shown.map(b=><tr key={b.order_id} className="border-t"><td>{b.order_no}</td><td>{financialNumber(b.billed_gross)}</td><td>{financialNumber(Number(b.paid_gross)-Number(b.refunded_gross))}</td><td>{financialNumber(b.outstanding_gross)}</td><td>{financialNumber(b.credit_gross)}</td><td><input aria-label={`Allocation ${b.order_no}`} className="input w-24" type="number" min="0" max={b.outstanding_gross} step="0.01" value={allocationAmounts[b.order_id]??''} onChange={e=>setAllocationAmounts(v=>({...v,[b.order_id]:e.target.value}))}/></td><td><button className="btn" disabled={!can('settlement')||!cashAccount||Number(b.credit_gross)<=0||!reason.trim()} onClick={()=>void action('transport_refund_service_credit',{p_side:side,p_order_id:b.order_id,p_date:date,p_cash_account_id:cashAccount,p_amount:Number(b.credit_gross),p_reason:reason})}>{side==='customer'?'Refund Credit':'Recover Credit'}</button></td></tr>)}</tbody></table>
+ <div className="mt-2 flex items-end gap-2"><button className="btn-primary" disabled={!can('settlement')||!cashAccount||!selectedParty||!Object.values(allocationAmounts).some(v=>Number(v)>0)} onClick={()=>void action('transport_settle_documents',{p_side:side,p_party_id:selectedParty,p_date:date,p_account_id:cashAccount,p_method:method,p_reference:reference,p_allocations:shown.filter(b=>Number(allocationAmounts[b.order_id])>0).map(b=>({document_id:b.order_id,amount:Number(allocationAmounts[b.order_id])}))})}>Post Selected Allocations</button><label>FIFO amount (all eligible Transport bills for this party in this branch) <input className="input w-28" type="number" min="0.01" step="0.01" value={fifo} onChange={e=>setFifo(e.target.value)}/></label><button className="btn" disabled={!can('settlement')||!cashAccount||!selectedParty||Number(fifo)<=0} onClick={()=>void action('transport_settle_documents',{p_side:side,p_party_id:selectedParty,p_date:date,p_account_id:cashAccount,p_method:method,p_reference:reference,p_fifo_amount:Number(fifo)})}>Post FIFO</button></div>
+ </fieldset>
+ <fieldset className="my-3 rounded border p-3"><legend className="font-semibold">Rate Correction / Adjustment</legend><p className="mb-2">Original posted rates and payment allocations stay intact. A decrease posts a canonical service credit/debit note; an increase posts an additional service invoice/bill. Payments use VAT-inclusive balances above.</p>
+ <div className="flex flex-wrap items-end gap-2">{side==='supplier'&&<label>Supplier rent <select className="input" value={rentId} onChange={e=>setRentId(e.target.value)}><option value="">Select rent</option>{rents.map(r=><option key={r.id} value={r.id}>{suppliers.find(s=>s.id===r.supplier_id)?.name} / {financialNumber(r.amount)}</option>)}</select></label>}<span>Original posted rate: {financialNumber(side==='customer'?current.customer_rate:rent?.amount)} · Current revised rate: {financialNumber(oldRate)}</span><label>New rate excluding VAT <input className="input w-32" type="number" min="0" step="0.01" value={revised} onChange={e=>setRevised(e.target.value)}/></label><span>Difference: {revised!==''&&oldRate!=null?financialNumber(Number(revised)-Number(oldRate)):''}</span><button className="btn-primary" disabled={!can('adjustment')||!reason.trim()||revised===''||(side==='supplier'&&!rentId)} onClick={()=>void action('transport_adjust_rate',{p_trip_id:trip.id,p_side:side,p_new_rate:Number(revised),p_reason:reason,p_date:date,p_rent_id:side==='supplier'?rentId:null,p_reference:reference})}>Post Rate Adjustment</button></div>
+ {adjustments.map(a=><details key={a.id} className="mt-2 border-t pt-2"><summary>{a.side} · {financialNumber(a.old_value)} → {financialNumber(a.new_value)} · {financialNumber(a.difference)} · {a.reason} · {a.created_at} · {a.created_by}</summary><p>Reference: {a.reference??'—'}</p><ul>{a.accounting_evidence.map((e,i)=><li key={i}>{e.document_id&&<a className="text-blue-700 underline" href={`/${a.side==='customer'?'sales':'purchase'}/${e.document_id}`}>Adjustment {a.side==='customer'?'invoice':'bill'}</a>}{e.note_id&&<span>Canonical credit/debit note: {e.note_id}</span>}{e.journal_entry_id&&<span> · Journal: {e.journal_entry_id}</span>}</li>)}</ul></details>)}
+ </fieldset>
+ <fieldset className="my-3 rounded border p-3"><legend className="font-semibold">Driver Account / Hisaab</legend><div className="mb-2 flex items-end gap-2"><label>Agreed driver pay <input className="input w-28" type="number" min="0" step="0.01" value={agreedPay} onChange={e=>setAgreedPay(e.target.value)}/></label><button className="btn" disabled={!can('driver')||agreedPay===''||!reason.trim()||Number(current.driver_accrued)>0||Number(current.driver_paid)>0} onClick={()=>void action('transport_set_driver_pay',{p_trip_id:trip.id,p_amount:Number(agreedPay),p_reason:reason})}>Record Agreed Pay</button></div><p>Attribute existing posted Employee Payroll accruals and salary payments. Employee mapping and available amounts are checked by the server.</p><div className="mt-2 flex flex-wrap items-end gap-2"><label>Evidence type <select className="input" value={payrollKind} onChange={e=>{setPayrollKind(e.target.value as 'accrual'|'payment');setPayrollSource('')}}><option value="accrual">Salary accrual</option><option value="payment">Salary payment</option></select></label><label>Canonical voucher <select className="input" value={payrollSource} onChange={e=>setPayrollSource(e.target.value)}><option value="">Select voucher</option>{payroll.filter(p=>p.kind===payrollKind).map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></label><label>Trip attribution amount <input className="input w-28" type="number" min="0.01" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)}/></label><button className="btn" disabled={!can('driver')||!payrollSource||Number(amount)<=0} onClick={()=>void action('attribute_transport_driver_account',{p_trip_id:trip.id,p_source_id:payrollSource,p_amount:Number(amount),p_kind:payrollKind})}>Attribute Payroll Evidence</button><a className="text-blue-700 underline" href="/accounting">Open canonical accounting</a></div></fieldset>
+ </section></div>;
+}

@@ -1,3 +1,4 @@
+import TransportServiceDocument from '@/modules/transport/TransportServiceDocument';
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -9,6 +10,7 @@ import PurchaseDraftAddControls from "@/components/PurchaseDraftAddControls";
 import DocumentTraceability from "@/components/DocumentTraceability";
 
 type PurchaseOrder = {
+  document_kind?: string;
   id: string;
   order_no: string;
   order_date: string;
@@ -319,6 +321,7 @@ export default function PurchaseInvoiceDetail() {
 
   if (loading) return <div className="card p-12 text-center text-slate-400">Loading Purchase Invoice…</div>;
   if (!order) return <ErrorBanner message="Purchase Invoice not found." />;
+  if(order.document_kind==='service')return <TransportServiceDocument side="supplier" id={order.id}/>;
 
   return <div className="navilo-purchase-neus navilo-invoice-detail space-y-5" data-navilo-commercial-standard="true" data-navilo-document-editor="true">
     <div className="print:hidden flex flex-wrap items-center justify-between gap-3">

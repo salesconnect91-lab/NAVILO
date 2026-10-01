@@ -2,25 +2,35 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
+import TransportFinancialPanel from './TransportFinancialPanel';
+import TransportCostUpload from './TransportCostUpload';
+import TransportAudit from './TransportAudit';
+import {financialNumber, type FinancialTrip} from './transportFinancialTypes';
 import * as XLSX from "xlsx";
 
 type Tab="trips"|"new"|"audit"|"driver-expenses"|"driver-account"|"vehicle-account";
-type Trip={
+type Trip=FinancialTrip & {
   id:string;
   trip_no:string;
   trip_date:string;
+  status:string|null;
+  ppr_status:string|null;
+  po_do_job_no:string|null;
   customer_name:string|null;
   vehicle_no:string|null;
+  truck_type:string|null;
   driver_name:string|null;
+  owner_name:string|null;
   from_location:string;
   to_location:string;
-  trip_status:string|null;
-  job_status:string|null;
-  ppr_status:string|null;
   customer_rate:number|null;
-  supplier_rent:number|null;
-  trip_margin:number|null;
-  po_do_job_no?:string|null;
+  driver_pay:number|null;
+  owner_rent:number|null;
+  trip_profit:number|null;
+  ppr_received_by_name:string|null;
+  ppr_received_date:string|null;
+  sale_type:string|null;
+  sales_order_id:string|null;
 };
 
 const tabs:{key:Tab;label:string;icon:any}[]=[
@@ -117,16 +127,222 @@ export default function TransportWorkspace(){
   const [bulkValidating,setBulkValidating]=useState(false);
   const [bulkImporting,setBulkImporting]=useState(false);
 
+  const [tripMasters,setTripMasters]=useState<{
+    customers:any[];
+    truckTypes:any[];
+    locations:any[];
+    vehicles:any[];
+    drivers:any[];
+    suppliers:any[];
+  }>({customers:[],truckTypes:[],locations:[],vehicles:[],drivers:[],suppliers:[]});
+
   const [form,setForm]=useState({
     trip_date:new Date().toISOString().slice(0,10),
+    customer_id:"",
     customer_name_snapshot:"",
+    truck_type_id:"",
+    vehicle_id:"",
+    driver_id:"",
     from_location:"",
     to_location:"",
     po_do_job_no:"",
+    ppr_status:"pending",
+    ppr_received_date:"",
     customer_rate:"",
     supplier_rent:"",
+    sale_type:"",
     notes:""
   });
+  const [financialTrip,setFinancialTrip]=useState<Trip|null>(null);
+  const [editingRateLocks,setEditingRateLocks]=useState({customer:false,supplier:false});
+  const [editingTripId,setEditingTripId]=useState<string|null>(null);
+  const [editingTripNo,setEditingTripNo]=useState("");
+  const [editingOriginalAssignment,setEditingOriginalAssignment]=useState({vehicle_id:"",driver_id:""});
+
+  const [quickAdd,setQuickAdd]=useState<null|"truckType"|"customer"|"driver"|"supplier"|"vehicle"|"locationFrom"|"locationTo">(null);
+  const [quickAddForm,setQuickAddForm]=useState({
+    name:"",
+    mobile:"",
+    truck_type_id:"",
+    ownership_type:"company",
+    supplier_id:""
+  });
+  const [quickAddSaving,setQuickAddSaving]=useState(false);
+
+  const selectedVehicle=tripMasters.vehicles.find((v:any)=>v.id===form.vehicle_id);
+  const selectedDriver=tripMasters.drivers.find((d:any)=>d.id===form.driver_id);
+  const selectedSupplier=selectedVehicle?.supplier_id
+    ? tripMasters.suppliers.find((s:any)=>s.id===selectedVehicle.supplier_id)
+    : null;
+
+  const ownerDisplay=selectedVehicle
+    ? selectedVehicle.owner_name?.trim()
+      || selectedSupplier?.name
+      || (selectedVehicle.ownership_type==="supplier" ? "Supplier" : "Company")
+    : "";
+
+
+  async function loadTripMasters(){
+    if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
+
+    const companyId=activeCompany.company_id;
+    const businessUnitId=activeBusinessUnit.business_unit_id;
+
+    const [customers,truckTypes,locations,vehicles,drivers,suppliers]=await Promise.all([
+      supabase.from("customers").select("id,name,is_active").eq("company_id",companyId).eq("is_active",true).order("name"),
+      supabase.from("transport_truck_types").select("id,name,is_active").eq("company_id",companyId).eq("business_unit_id",businessUnitId).eq("is_active",true).order("name"),
+      supabase.from("transport_locations").select("id,name,is_active").eq("company_id",companyId).eq("business_unit_id",businessUnitId).eq("is_active",true).order("name"),
+      supabase.from("transport_vehicles").select("id,vehicle_no,truck_type_id,ownership_type,owner_name,supplier_id,is_active").eq("company_id",companyId).eq("business_unit_id",businessUnitId).eq("is_active",true).order("vehicle_no"),
+      supabase.from("transport_drivers").select("id,driver_name,mobile,is_active").eq("company_id",companyId).eq("business_unit_id",businessUnitId).eq("is_active",true).order("driver_name"),
+      supabase.from("suppliers").select("id,name,is_active").eq("company_id",companyId).eq("is_active",true).order("name")
+    ]);
+
+    for(const result of [customers,truckTypes,locations,vehicles,drivers,suppliers]){
+      if(result.error)throw result.error;
+    }
+
+    setTripMasters({
+      customers:customers.data??[],
+      truckTypes:truckTypes.data??[],
+      locations:locations.data??[],
+      vehicles:vehicles.data??[],
+      drivers:drivers.data??[],
+      suppliers:suppliers.data??[]
+    });
+  }
+
+  const openQuickAdd=(kind:NonNullable<typeof quickAdd>)=>{
+    setError("");
+    setQuickAddForm({
+      name:"",
+      mobile:"",
+      truck_type_id:kind==="vehicle"?form.truck_type_id:"",
+      ownership_type:"company",
+      supplier_id:""
+    });
+    setQuickAdd(kind);
+  };
+
+  async function saveQuickAdd(){
+    if(!quickAdd||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
+    const name=quickAddForm.name.trim();
+    if(!name){setError("Name / value is required.");return}
+
+    const companyId=activeCompany.company_id;
+    const businessUnitId=activeBusinessUnit.business_unit_id;
+    const masterKey=(value:any)=>String(value??"")
+      .trim()
+      .replace(/\s+/g," ")
+      .toLocaleLowerCase();
+    const same=(value:any)=>masterKey(value)===masterKey(name);
+
+    const duplicate =
+      quickAdd==="customer" ? tripMasters.customers.find((r:any)=>same(r.name)) :
+      quickAdd==="supplier" ? tripMasters.suppliers.find((r:any)=>same(r.name)) :
+      quickAdd==="driver" ? tripMasters.drivers.find((r:any)=>same(r.driver_name)) :
+      quickAdd==="truckType" ? tripMasters.truckTypes.find((r:any)=>same(r.name)) :
+      quickAdd==="vehicle" ? tripMasters.vehicles.find((r:any)=>
+        same(r.vehicle_no) &&
+        String(r.supplier_id??"")===String(quickAddForm.supplier_id??"")
+      ) :
+      tripMasters.locations.find((r:any)=>same(r.name));
+
+    if(duplicate){
+      if(quickAdd==="customer")setForm({...form,customer_id:duplicate.id,customer_name_snapshot:duplicate.name});
+      else if(quickAdd==="driver")setForm({...form,driver_id:duplicate.id});
+      else if(quickAdd==="truckType")setForm({...form,truck_type_id:duplicate.id});
+      else if(quickAdd==="vehicle")setForm({...form,vehicle_id:duplicate.id,truck_type_id:duplicate.truck_type_id||form.truck_type_id});
+      else if(quickAdd==="locationFrom")setForm({...form,from_location:duplicate.name});
+      else if(quickAdd==="locationTo")setForm({...form,to_location:duplicate.name});
+      else if(quickAdd==="supplier"&&form.vehicle_id){
+        const {error:ownerError}=await supabase.from("transport_vehicles")
+          .update({ownership_type:"supplier",owner_type:"supplier",owner_name:duplicate.name,supplier_id:duplicate.id})
+          .eq("id",form.vehicle_id)
+          .eq("company_id",companyId)
+          .eq("business_unit_id",businessUnitId);
+        if(ownerError){setError(ownerError.message);return}
+        await loadTripMasters();
+      }
+      setQuickAdd(null);
+      return;
+    }
+
+    if(quickAdd==="vehicle"&&!quickAddForm.truck_type_id){
+      setError("Truck Type is required for a new vehicle.");
+      return;
+    }
+    if(quickAdd==="vehicle"&&!quickAddForm.supplier_id){
+      setError("Owner is required for a new vehicle.");
+      return;
+    }
+
+    setQuickAddSaving(true);
+    setError("");
+    try{
+      let result:any;
+      if(quickAdd==="customer"){
+        result=await supabase.from("customers")
+          .insert({company_id:companyId,name,is_active:true})
+          .select("id,name,is_active").single();
+      }else if(quickAdd==="supplier"){
+        result=await supabase.from("suppliers")
+          .insert({company_id:companyId,name,is_active:true})
+          .select("id,name,is_active").single();
+      }else if(quickAdd==="driver"){
+        result=await supabase.from("transport_drivers")
+          .insert({company_id:companyId,business_unit_id:businessUnitId,driver_name:name,mobile:quickAddForm.mobile.trim()||null,is_active:true})
+          .select("id,driver_name,mobile,is_active").single();
+      }else if(quickAdd==="truckType"){
+        result=await supabase.from("transport_truck_types")
+          .insert({company_id:companyId,business_unit_id:businessUnitId,name,is_active:true})
+          .select("id,name,is_active").single();
+      }else if(quickAdd==="vehicle"){
+        result=await supabase.from("transport_vehicles")
+          .insert({
+            company_id:companyId,
+            business_unit_id:businessUnitId,
+            vehicle_no:name,
+            truck_type_id:quickAddForm.truck_type_id,
+            ownership_type:"supplier",
+            owner_type:"supplier",
+            owner_name:tripMasters.suppliers.find((s:any)=>s.id===quickAddForm.supplier_id)?.name||null,
+            supplier_id:quickAddForm.supplier_id,
+            is_active:true
+          })
+          .select("id,vehicle_no,truck_type_id,ownership_type,supplier_id,is_active").single();
+      }else{
+        result=await supabase.from("transport_locations")
+          .insert({company_id:companyId,business_unit_id:businessUnitId,name,is_active:true})
+          .select("id,name,is_active").single();
+      }
+
+      if(result.error)throw result.error;
+      const created=result.data;
+      await loadTripMasters();
+
+      if(quickAdd==="customer")setForm({...form,customer_id:created.id,customer_name_snapshot:created.name});
+      else if(quickAdd==="driver")setForm({...form,driver_id:created.id});
+      else if(quickAdd==="truckType")setForm({...form,truck_type_id:created.id});
+      else if(quickAdd==="vehicle")setForm({...form,vehicle_id:created.id,truck_type_id:created.truck_type_id||form.truck_type_id});
+      else if(quickAdd==="locationFrom")setForm({...form,from_location:created.name});
+      else if(quickAdd==="locationTo")setForm({...form,to_location:created.name});
+      else if(quickAdd==="supplier"&&form.vehicle_id){
+        const {error:ownerError}=await supabase.from("transport_vehicles")
+          .update({ownership_type:"supplier",owner_type:"supplier",owner_name:created.name,supplier_id:created.id})
+          .eq("id",form.vehicle_id)
+          .eq("company_id",companyId)
+          .eq("business_unit_id",businessUnitId);
+        if(ownerError)throw ownerError;
+        await loadTripMasters();
+      }
+
+      setQuickAdd(null);
+    }catch(e:any){
+      setError(e?.message||"Unable to create master.");
+    }finally{
+      setQuickAddSaving(false);
+    }
+  }
 
   async function load(){
     setLoading(true);
@@ -139,7 +355,7 @@ export default function TransportWorkspace(){
 
       while(true){
         const {data,error}=await supabase
-          .from("transport_trip_register")
+          .from("transport_financial_register")
           .select("*")
           .order("trip_date",{ascending:false})
           .order("trip_no",{ascending:false})
@@ -147,7 +363,7 @@ export default function TransportWorkspace(){
 
         if(error) throw error;
 
-        const batch=(data??[]) as Trip[];
+        const batch=(data??[]).map(r=>({...r,truck_type:r.truck_type_name??r.truck_type})) as Trip[];
         all.push(...batch);
 
         if(batch.length<pageSize) break;
@@ -163,7 +379,10 @@ export default function TransportWorkspace(){
   }
 
   useEffect(()=>{
-    if(activeCompany?.company_id&&activeBusinessUnit?.business_unit_id) void load();
+    if(activeCompany?.company_id&&activeBusinessUnit?.business_unit_id){
+      void load();
+      void loadTripMasters().catch((e:any)=>setError(e?.message||"Unable to load Transport masters."));
+    }
   },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
 
   const visible=useMemo(()=>{
@@ -196,7 +415,7 @@ export default function TransportWorkspace(){
   const pprOptions=useMemo(()=>unique(rows.map(r=>r.ppr_status)),[rows]);
 
   const completedTrips=rows.filter(r=>
-    String(r.trip_status??"").toLowerCase()==="completed"
+    ["Complete","Closed"].includes(r.financial_status??"")
   ).length;
 
   const paperPending=rows.filter(r=>
@@ -938,12 +1157,207 @@ export default function TransportWorkspace(){
     setBulkFileName("");
   };
 
-  async function createTrip(){
+  async function startEditTrip(row:Trip){
+    setLoading(true);
+    setError("");
+    try{
+      await loadTripMasters();
+      const {data,error}=await supabase
+        .from("transport_trips")
+        .select("id,trip_no,trip_date,customer_id,customer_name_snapshot,truck_type_id,vehicle_id,driver_id,from_location,to_location,po_do_job_no,ppr_status,ppr_received_date,customer_rate,owner_rent,notes,sale_type")
+        .eq("id",row.id)
+        .eq("company_id",activeCompany?.company_id)
+        .eq("business_unit_id",activeBusinessUnit?.business_unit_id)
+        .single();
+      if(error)throw error;
+
+      setForm({
+        trip_date:data.trip_date||new Date().toISOString().slice(0,10),
+        customer_id:data.customer_id||"",
+        customer_name_snapshot:data.customer_name_snapshot||"",
+        truck_type_id:data.truck_type_id||"",
+        vehicle_id:data.vehicle_id||"",
+        driver_id:data.driver_id||"",
+        from_location:data.from_location||"",
+        to_location:data.to_location||"",
+        po_do_job_no:data.po_do_job_no||"",
+        ppr_status:data.ppr_status||"pending",
+        ppr_received_date:data.ppr_received_date||"",
+        customer_rate:data.customer_rate==null?"":String(data.customer_rate),
+        supplier_rent:data.owner_rent==null?"":String(data.owner_rent),
+        sale_type:data.sale_type||"",
+        notes:data.notes||""
+      });
+      setEditingRateLocks({customer:Boolean(row.customer_rate_locked),supplier:Boolean(row.supplier_rate_locked)});
+      setEditingTripId(data.id);
+      setEditingTripNo(data.trip_no);
+      setEditingOriginalAssignment({vehicle_id:data.vehicle_id||"",driver_id:data.driver_id||""});
+      setNewTripMode("single");
+      setTab("new");
+    }catch(e:any){
+      setError(e?.message||"Unable to open Trip for editing.");
+    }finally{
+      setLoading(false);
+    }
+  }
+
+  async function updateTrip(){
+    if(!editingTripId||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
+    if(!form.customer_id){setError("Customer is required.");return}
+    if(!form.sale_type){setError("Sale Type Cash or Credit is required.");return}
     if(!form.from_location.trim()||!form.to_location.trim()){setError("From and To locations are required.");return}
-    setLoading(true);setError("");
-    const payload={company_id:activeCompany?.company_id,business_unit_id:activeBusinessUnit?.business_unit_id,trip_no:"",trip_date:form.trip_date,customer_name_snapshot:form.customer_name_snapshot||null,from_location:form.from_location,to_location:form.to_location,po_do_job_no:form.po_do_job_no||null,customer_rate:form.customer_rate?Number(form.customer_rate):null,supplier_rent:form.supplier_rent?Number(form.supplier_rent):null,notes:form.notes||null};
+    if(!form.sale_type){setError("Sale Type Cash or Credit is required.");return}
+
+    const customer=tripMasters.customers.find((c:any)=>c.id===form.customer_id);
+    if(!customer){setError("Selected Customer is no longer available.");return}
+
+    setLoading(true);
+    setError("");
+    try{
+      const payload={
+        trip_date:form.trip_date,
+        customer_id:customer.id,
+        customer_name_snapshot:customer.name,
+        vehicle_id:form.vehicle_id||null,
+        driver_id:form.driver_id||null,
+        truck_type_id:form.truck_type_id||null,
+        owner_name_snapshot:ownerDisplay||null,
+        from_location:form.from_location,
+        to_location:form.to_location,
+        po_do_job_no:form.po_do_job_no||null,
+        ppr_status:form.ppr_status,
+        ppr_received_date:form.ppr_status==="received"?(form.ppr_received_date||null):null,
+        customer_rate:form.customer_rate!==""?Number(form.customer_rate):0,
+        owner_rent:form.supplier_rent!==""?Number(form.supplier_rent):0,
+        sale_type:form.sale_type,
+        notes:form.notes||null
+      };
+
+      const assignmentChanged=
+        form.vehicle_id!==editingOriginalAssignment.vehicle_id ||
+        form.driver_id!==editingOriginalAssignment.driver_id;
+
+      if(assignmentChanged){
+        const reason=window.prompt(
+          "Driver/vehicle replacement reason is required for the audit history:",
+          ""
+        );
+        if(!reason?.trim()){
+          setError("Driver/vehicle replacement cancelled. A reason is required.");
+          return;
+        }
+
+        const {error:replaceError}=await supabase.rpc("transport_replace_trip_assignment",{
+          p_trip_id:editingTripId,
+          p_vehicle_id:form.vehicle_id||null,
+          p_driver_id:form.driver_id||null,
+          p_reason:reason.trim()
+        });
+        if(replaceError)throw replaceError;
+      }
+
+      const safePayload={...payload};
+      delete (safePayload as any).vehicle_id;
+      delete (safePayload as any).driver_id;
+      delete (safePayload as any).owner_name_snapshot;
+      if(editingRateLocks.supplier)delete (safePayload as any).owner_rent;
+      if(editingRateLocks.customer){
+        delete (safePayload as any).customer_rate;
+        delete (safePayload as any).customer_id;
+        delete (safePayload as any).sale_type;
+      }
+
+      const {error}=await supabase.from("transport_trips")
+        .update(safePayload)
+        .eq("id",editingTripId)
+        .eq("company_id",activeCompany.company_id)
+        .eq("business_unit_id",activeBusinessUnit.business_unit_id);
+      if(error)throw error;
+
+      setEditingTripId(null);
+      setEditingTripNo("");
+      setEditingOriginalAssignment({vehicle_id:"",driver_id:""});
+      setTab("trips");
+      await load();
+    }catch(e:any){
+      setError(e?.message||"Unable to update Trip.");
+    }finally{
+      setLoading(false);
+    }
+  }
+  async function createTrip(){
+    if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){
+      setError("Active Company and Business Unit are required.");
+      return;
+    }
+    if(!form.customer_id){setError("Customer is required.");return}
+    if(!form.sale_type){setError("Sale Type Cash or Credit is required.");return}
+    if(!form.from_location.trim()||!form.to_location.trim()){
+      setError("From and To locations are required.");
+      return;
+    }
+
+    const customer=tripMasters.customers.find((c:any)=>c.id===form.customer_id);
+    if(!customer){setError("Selected Customer is no longer available.");return}
+    if(form.ppr_status==="received"){
+      setError("PPR Received requires the receiving employee. Keep it Pending for now; employee-linked receipt will be wired separately.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    const payload={
+      company_id:activeCompany.company_id,
+      business_unit_id:activeBusinessUnit.business_unit_id,
+      trip_no:"",
+      trip_date:form.trip_date,
+      customer_id:customer.id,
+      customer_name_snapshot:customer.name,
+      vehicle_id:form.vehicle_id||null,
+      driver_id:form.driver_id||null,
+      truck_type_id:form.truck_type_id||null,
+      owner_name_snapshot:ownerDisplay||null,
+      from_location:form.from_location,
+      to_location:form.to_location,
+      po_do_job_no:form.po_do_job_no||null,
+      ppr_status:form.ppr_status,
+      ppr_received_date:null,
+      customer_rate:form.customer_rate!==""?Number(form.customer_rate):0,
+      owner_rent:form.supplier_rent!==""?Number(form.supplier_rent):0,
+      sale_type:form.sale_type,
+      notes:form.notes||null
+    };
+
     const {error}=await supabase.from("transport_trips").insert(payload);
-    if(error)setError(error.message);else{setForm({...form,customer_name_snapshot:"",from_location:"",to_location:"",po_do_job_no:"",customer_rate:"",supplier_rent:"",notes:""});setTab("trips");await load()}
+
+    if(error){
+      setError(error.message);
+    }else{
+      setForm({
+        trip_date:new Date().toISOString().slice(0,10),
+        customer_id:"",
+        customer_name_snapshot:"",
+        truck_type_id:"",
+        vehicle_id:"",
+        driver_id:"",
+        from_location:"",
+        to_location:"",
+        po_do_job_no:"",
+        ppr_status:"pending",
+        ppr_received_date:"",
+        customer_rate:"",
+        supplier_rent:"",
+        sale_type:"",
+        notes:""
+      });
+      setEditingTripId(null);
+      setEditingTripNo("");
+      setEditingOriginalAssignment({vehicle_id:"",driver_id:""});
+      setTab("trips");
+      await load();
+    }
+
     setLoading(false);
   }
 
@@ -952,28 +1366,28 @@ export default function TransportWorkspace(){
     switch(key){
       case "trip_no": return String(r.trip_no??"");
       case "trip_date": return String(r.trip_date??"");
-      case "truck_type": return "";
+      case "truck_type": return String(r.truck_type??"");
       case "job_no": return String(r.po_do_job_no??"");
-      case "invoiced": return "";
+      case "invoiced": return r.invoiced?"Yes":"";
       case "company": return String(r.customer_name??"");
       case "driver": return String(r.driver_name??"");
-      case "owner": return "";
+      case "owner": return String(r.owner_name??"");
       case "plate": return String(r.vehicle_no??"");
       case "from": return String(r.from_location??"");
       case "to": return String(r.to_location??"");
-      case "paper_received_by": return "";
-      case "ppr_date": return "";
-      case "pay_driver": return "";
-      case "rent_driver": return r.supplier_rent==null?"":String(r.supplier_rent);
-      case "remaining_us": return "";
-      case "payment_date": return "";
-      case "amount": return "";
-      case "company_rate": return r.customer_rate==null?"":String(r.customer_rate);
-      case "received_company": return "";
-      case "remaining_company": return "";
-      case "profit": return r.trip_margin==null?"":String(r.trip_margin);
-      case "commission": return "";
-      case "sale_type": return "";
+      case "paper_received_by": return String(r.ppr_received_by_name??"");
+      case "ppr_date": return String(r.ppr_received_date??"");
+      case "pay_driver": return financialNumber(r.driver_accrued);
+      case "rent_driver": return financialNumber(r.billed_supplier_net);
+      case "remaining_us": return financialNumber(r.remaining_with_us);
+      case "payment_date": return r.payment_date??"";
+      case "amount": return financialNumber(r.payment_amount);
+      case "company_rate": return financialNumber(r.billed_customer_net);
+      case "received_company": return financialNumber(r.received_from_company);
+      case "remaining_company": return financialNumber(r.remaining_with_company);
+      case "profit": return r.trip_profit==null?"":String(r.trip_profit);
+      case "commission": return financialNumber(r.commission_paid_net);
+      case "sale_type": return String(r.sale_type??"");
       default:return "";
     }
   };
@@ -1051,7 +1465,7 @@ export default function TransportWorkspace(){
 
     <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
       <nav className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto" aria-label="Transport workspace">
-        {tabs.map(t=>{const I=t.icon;return <button key={t.key} onClick={()=>setTab(t.key)} className={`flex min-w-max items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold ${tab===t.key?"bg-slate-900 text-white":"text-slate-600 hover:bg-slate-100"}`}><I className="h-3.5 w-3.5"/>{t.label}</button>})}
+        {tabs.map(t=>{const I=t.icon;return <button key={t.key} onClick={()=>{setError("");setTab(t.key)}} className={`flex min-w-max items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold ${tab===t.key?"bg-slate-900 text-white":"text-slate-600 hover:bg-slate-100"}`}><I className="h-3.5 w-3.5"/>{t.label}</button>})}
       </nav>
 
 
@@ -1179,33 +1593,24 @@ export default function TransportWorkspace(){
 
           <tbody>
             {gridRows.map(r=><tr key={r.id} className="hover:bg-slate-50">
-              <td className="sticky left-0 z-[5] border-b border-slate-100 bg-white px-1.5 py-0.5 font-bold text-slate-900">{r.trip_no}</td>
+              <td className="sticky left-0 z-[5] border-b border-slate-100 bg-white px-1.5 py-0.5 font-bold text-slate-900">
+  <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
+    className="font-bold text-blue-700 underline-offset-2 hover:underline">
+    {r.trip_no}
+  </button>
+  <button type="button" className="ml-1 rounded border px-1 text-[9px] text-slate-600" onClick={()=>setFinancialTrip(r)} aria-label={`Finance ${r.trip_no}`}>Finance</button>
+  <span className="block text-[9px] font-normal text-slate-500">{r.financial_status}</span>
+</td>
 
-              {/* BuKu operational register order */}
-              <td className="border-b border-slate-100 px-1.5 py-0.5">{r.trip_date}</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5">?</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5">?</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5">?</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5">{r.customer_name||"?"}</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5">{r.driver_name||"?"}</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5">?</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5">{r.vehicle_no||"?"}</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5">{r.from_location||"?"}</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5">{r.to_location||"?"}</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5">?</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5">?</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5 text-right">?</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5 text-right">{r.supplier_rent?.toLocaleString()??"?"}</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5 text-right">?</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5">?</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5 text-right">?</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5 text-right">{r.customer_rate?.toLocaleString()??"?"}</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5 text-right">?</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5 text-right">?</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5 text-right font-bold">{r.trip_margin?.toLocaleString()??"?"}</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5 text-right">?</td>
-              <td className="border-b border-slate-100 px-1.5 py-0.5">?</td>
-            </tr>)}
+              {/* BuKu operational register order - one canonical mapping for display/filter/sort */}
+              {gridColumns.slice(1).map(([key])=>{
+                const value=tripCellValue(r,key);
+                const numeric=["pay_driver","rent_driver","remaining_us","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
+                return <td key={key}
+                  className={`border-b border-slate-100 px-1.5 py-0.5 ${numeric?"text-right":""}`}>
+                  {value||""}
+                </td>;
+              })}            </tr>)}
           </tbody>
         </table>
       </div>
@@ -1252,15 +1657,15 @@ export default function TransportWorkspace(){
   <div className="border-b border-slate-200">
     <div className="px-4 pb-2 pt-3">
       <h2 className="font-bold text-slate-950">
-        New Trip
+        {editingTripId?`Edit Trip - ${editingTripNo}`:"New Trip"}
       </h2>
 
       <p className="text-xs text-slate-500">
-        Trip number is generated automatically by NAVILO.
+        {editingTripId?"Trip No is permanent; edit permitted fields below.":"Trip number is generated automatically by NAVILO."}
       </p>
     </div>
 
-    <div className="flex items-center gap-1 px-4 pb-3">
+    {!editingTripId&&<div className="flex items-center gap-1 px-4 pb-3">
       <button
         type="button"
         onClick={()=>setNewTripMode("single")}
@@ -1277,115 +1682,262 @@ export default function TransportWorkspace(){
       >
         Bulk Upload
       </button>
-    </div>
+    </div>}
   </div>
 
 
   {newTripMode==="single"&&
-  <div className="p-4">
+  <div className="p-3">
+    <div className="overflow-visible rounded-lg border border-blue-300 bg-white">
+      <div className="grid grid-cols-1 border-b border-slate-300 md:grid-cols-2 xl:grid-cols-7">
+        <TripField label="Date">
+          <input type="date" value={form.trip_date}
+            onChange={e=>{setError("");setForm({...form,trip_date:e.target.value})}}
+            className="h-8 w-full border-0 bg-white px-2 text-xs outline-none"/>
+        </TripField>
 
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <TripField label="Truck Type" onAdd={()=>openQuickAdd("truckType")}>
+          <SearchMasterInput value={tripMasters.truckTypes.find((r:any)=>r.id===form.truck_type_id)?.name||""}
+            options={tripMasters.truckTypes.map((r:any)=>({value:r.id,label:r.name}))}
+            placeholder="Search Truck Type"
+            onSelect={truckTypeId=>{
+              const vehicle=tripMasters.vehicles.find((v:any)=>v.id===form.vehicle_id);
+              setError("");
+              setForm({...form,truck_type_id:truckTypeId,vehicle_id:vehicle&&truckTypeId&&vehicle.truck_type_id!==truckTypeId?"":form.vehicle_id});
+            }}/>
+        </TripField>
 
-      <label className="text-xs font-semibold">
-        Trip Date
-        <input
-          type="date"
-          value={form.trip_date}
-          onChange={e=>setForm({...form,trip_date:e.target.value})}
-          className="mt-1 w-full rounded-lg border p-2 text-sm"
-        />
-      </label>
+        <TripField label="PO/DO/Job No.">
+          <input value={form.po_do_job_no}
+            onChange={e=>{setError("");setForm({...form,po_do_job_no:e.target.value})}}
+            className="h-8 w-full border-0 bg-white px-2 text-xs outline-none"/>
+        </TripField>
 
-      <label className="text-xs font-semibold">
-        Customer
-        <input
-          value={form.customer_name_snapshot}
-          onChange={e=>setForm({...form,customer_name_snapshot:e.target.value})}
-          className="mt-1 w-full rounded-lg border p-2 text-sm"
-          placeholder="Customer"
-        />
-      </label>
+        <TripField label="Company Name" onAdd={()=>openQuickAdd("customer")}>
+          <SearchMasterInput value={tripMasters.customers.find((r:any)=>r.id===form.customer_id)?.name||""}
+            options={tripMasters.customers.map((r:any)=>({value:r.id,label:r.name}))}
+            placeholder="Search Customer"
+            disabled={Boolean(editingTripId&&editingRateLocks.customer)}
+            onSelect={customerId=>{
+              const customer=tripMasters.customers.find((r:any)=>r.id===customerId);
+              setError("");
+              setForm({...form,customer_id:customerId,customer_name_snapshot:customer?.name||""});
+            }}/>
+        </TripField>
 
-      <label className="text-xs font-semibold">
-        Job / PO / DO
-        <input
-          value={form.po_do_job_no}
-          onChange={e=>setForm({...form,po_do_job_no:e.target.value})}
-          className="mt-1 w-full rounded-lg border p-2 text-sm"
-        />
-      </label>
+        <TripField label="Driver Name" onAdd={()=>openQuickAdd("driver")}>
+          <SearchMasterInput value={selectedDriver?.driver_name||""}
+            options={tripMasters.drivers.map((r:any)=>({value:r.id,label:r.driver_name}))}
+            placeholder="Search Driver"
+            onSelect={driverId=>{setError("");setForm({...form,driver_id:driverId})}}/>
+        </TripField>
 
-      <label className="text-xs font-semibold">
-        From
-        <input
-          value={form.from_location}
-          onChange={e=>setForm({...form,from_location:e.target.value})}
-          className="mt-1 w-full rounded-lg border p-2 text-sm"
-        />
-      </label>
+        <TripField label="Owner" onAdd={()=>openQuickAdd("supplier")}>
+          <SearchMasterInput value={ownerDisplay}
+            options={tripMasters.suppliers.map((r:any)=>({value:r.id,label:r.name}))}
+            placeholder={form.vehicle_id?"Search Owner":"Select Plate first"}
+            disabled={!form.vehicle_id}
+            onSelect={async supplierId=>{
+              if(!form.vehicle_id)return;
+              const supplier=tripMasters.suppliers.find((r:any)=>r.id===supplierId);
+              if(!supplier)return;
+              setError("");
+              const {error:ownerError}=await supabase.from("transport_vehicles")
+                .update({ownership_type:"supplier",owner_type:"supplier",owner_name:supplier.name,supplier_id:supplier.id})
+                .eq("id",form.vehicle_id)
+                .eq("company_id",activeCompany?.company_id)
+                .eq("business_unit_id",activeBusinessUnit?.business_unit_id);
+              if(ownerError){setError(ownerError.message);return}
+              await loadTripMasters();
+            }}/>
+        </TripField>
 
-      <label className="text-xs font-semibold">
-        To
-        <input
-          value={form.to_location}
-          onChange={e=>setForm({...form,to_location:e.target.value})}
-          className="mt-1 w-full rounded-lg border p-2 text-sm"
-        />
-      </label>
+        <TripField label="Plate #" onAdd={()=>openQuickAdd("vehicle")}>
+          <SearchMasterInput value={selectedVehicle
+              ? `${selectedVehicle.vehicle_no}${ownerDisplay?` - ${ownerDisplay}`:""}`
+              : ""}
+            options={tripMasters.vehicles.map((r:any)=>{
+              const owner=r.owner_name?.trim()||tripMasters.suppliers.find((s:any)=>s.id===r.supplier_id)?.name||"";
+              return {value:r.id,label:owner?`${r.vehicle_no} - ${owner}`:r.vehicle_no};
+            })}
+            placeholder="Search Plate"
+            onSelect={vehicleId=>{
+              const vehicle=tripMasters.vehicles.find((r:any)=>r.id===vehicleId);
+              setError("");
+              setForm({...form,vehicle_id:vehicleId,truck_type_id:vehicle?.truck_type_id||form.truck_type_id});
+            }}/>
+        </TripField>
+      </div>
 
-      <label className="text-xs font-semibold">
-        Customer Rate
-        <input
-          type="number"
-          value={form.customer_rate}
-          onChange={e=>setForm({...form,customer_rate:e.target.value})}
-          className="mt-1 w-full rounded-lg border p-2 text-sm"
-        />
-      </label>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-8">
+        <TripField label="Driver Mob #">
+          <input value={selectedDriver?.mobile||""} readOnly
+            className="h-8 w-full border-0 bg-white px-2 text-xs text-slate-900 outline-none"/>
+        </TripField>
 
-      <label className="text-xs font-semibold">
-        Supplier Rent
-        <input
-          type="number"
-          value={form.supplier_rent}
-          onChange={e=>setForm({...form,supplier_rent:e.target.value})}
-          className="mt-1 w-full rounded-lg border p-2 text-sm"
-        />
-      </label>
+        <TripField label="From" onAdd={()=>openQuickAdd("locationFrom")}>
+          <SearchMasterInput value={form.from_location}
+            options={tripMasters.locations.map((r:any)=>({value:r.id,label:r.name}))}
+            placeholder="Search From"
+            onSelect={locationId=>{
+              const location=tripMasters.locations.find((r:any)=>r.id===locationId);
+              setError("");
+              setForm({...form,from_location:location?.name||""});
+            }}/>
+        </TripField>
 
-      <label className="text-xs font-semibold md:col-span-2">
-        Notes
-        <input
-          value={form.notes}
-          onChange={e=>setForm({...form,notes:e.target.value})}
-          className="mt-1 w-full rounded-lg border p-2 text-sm"
-        />
-      </label>
+        <TripField label="To" onAdd={()=>openQuickAdd("locationTo")}>
+          <SearchMasterInput value={form.to_location}
+            options={tripMasters.locations.map((r:any)=>({value:r.id,label:r.name}))}
+            placeholder="Search To"
+            onSelect={locationId=>{
+              const location=tripMasters.locations.find((r:any)=>r.id===locationId);
+              setError("");
+              setForm({...form,to_location:location?.name||""});
+            }}/>
+        </TripField>
 
+        <TripField label="Paper Received">
+          <select value={form.ppr_status}
+            onChange={e=>{setError("");setForm({...form,ppr_status:e.target.value,ppr_received_date:e.target.value==="received"?(form.ppr_received_date||new Date().toISOString().slice(0,10)):""})}}
+            className="h-8 w-full border-0 bg-white px-2 text-xs outline-none">
+            <option value="pending">Pending</option>
+            <option value="received">Received</option>
+            <option value="not_required">Not Required</option>
+          </select>
+        </TripField>
+
+        <TripField label="PPR Date">
+          <input type="date" value={form.ppr_received_date}
+            disabled={form.ppr_status!=="received"}
+            onChange={e=>{setError("");setForm({...form,ppr_received_date:e.target.value})}}
+            className="h-8 w-full border-0 bg-white px-2 text-xs outline-none disabled:bg-slate-50"/>
+        </TripField>
+
+        <TripField label="Rent With Driver">
+          <input type="number" min="0" step="0.01" readOnly={Boolean(editingTripId&&editingRateLocks.supplier)} title={editingRateLocks.supplier?"Posted rate: use Finance / Rate Adjustment":""} value={form.supplier_rent}
+            onChange={e=>{setError("");setForm({...form,supplier_rent:e.target.value})}}
+            className="h-8 w-full border-0 bg-white px-2 text-right text-xs outline-none"/>
+        </TripField>
+
+        <TripField label="Rate With Company">
+          <input type="number" min="0" step="0.01" readOnly={Boolean(editingTripId&&editingRateLocks.customer)} title={editingRateLocks.customer?"Posted rate: use Finance / Rate Adjustment":""} value={form.customer_rate}
+            onChange={e=>{setError("");setForm({...form,customer_rate:e.target.value})}}
+            className="h-8 w-full border-0 bg-white px-2 text-right text-xs outline-none"/>
+        </TripField>
+
+        <TripField label="Margin">
+          <input value={
+              form.customer_rate!==""&&form.supplier_rent!==""
+                ? (Number(form.customer_rate)-Number(form.supplier_rent)).toFixed(2)
+                : ""
+            }
+            readOnly
+            className="h-8 w-full border-0 bg-slate-50 px-2 text-right text-xs font-semibold outline-none"/>
+        </TripField>
+      </div>
     </div>
 
-    <div className="mt-4 flex justify-end gap-2">
+    <div className="mt-3 grid gap-3 xl:grid-cols-[180px_1fr_auto]">
+      <label className="text-[11px] font-semibold text-slate-700">
+        Sale Type
+        <select disabled={Boolean(editingTripId&&editingRateLocks.customer)} value={form.sale_type}
+          onChange={e=>{setError("");setForm({...form,sale_type:e.target.value})}}
+          className="mt-1 h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-blue-400">
+          <option value="">Select</option>
+          <option value="cash">Cash</option>
+          <option value="credit">Credit</option>
+        </select>
+      </label>
 
-      <button
-        className="btn"
-        onClick={()=>setTab("trips")}
-      >
-        Cancel
-      </button>
+      <label className="text-[11px] font-semibold text-slate-700">
+        Remarks
+        <input value={form.notes}
+          onChange={e=>{setError("");setForm({...form,notes:e.target.value})}}
+          className="mt-1 h-9 w-full rounded-md border border-slate-300 px-3 text-xs outline-none focus:border-blue-400"/>
+      </label>
 
-      <button
-        className="btn-primary"
-        onClick={()=>void createTrip()}
-        disabled={loading}
-      >
-        Create Trip
-      </button>
-
+      <div className="flex items-end justify-end gap-2">
+        <button className="btn" onClick={()=>{setError("");setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setTab("trips")}}>Cancel</button>
+        <button className="btn-primary" onClick={()=>void (editingTripId?updateTrip():createTrip())} disabled={loading}>
+          {loading?(editingTripId?"Saving...":"Creating..."):(editingTripId?"Save Changes":"Create Trip")}
+        </button>
+      </div>
     </div>
 
+    {quickAdd&&
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4" onMouseDown={()=>!quickAddSaving&&setQuickAdd(null)}>
+        <div className="w-full max-w-md rounded-lg border border-slate-300 bg-white shadow-2xl" onMouseDown={e=>e.stopPropagation()}>
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+            <div>
+              <div className="text-sm font-bold text-slate-900">
+                {quickAdd==="customer"?"Add Company / Customer":
+                 quickAdd==="driver"?"Add Driver":
+                 quickAdd==="supplier"?"Add Owner / Supplier":
+                 quickAdd==="truckType"?"Add Truck Type":
+                 quickAdd==="vehicle"?"Add Vehicle / Plate":"Add Location"}
+              </div>
+              <div className="text-[10px] text-slate-500">Saved directly to the linked NAVILO master.</div>
+            </div>
+            <button type="button" className="px-2 text-lg text-slate-500 hover:text-slate-900" onClick={()=>setQuickAdd(null)}>x</button>
+          </div>
+
+          <div className="space-y-3 p-4">
+            <label className="block text-[11px] font-semibold text-slate-700">
+              {quickAdd==="vehicle"?"Plate / Vehicle No.":quickAdd==="driver"?"Driver Name":"Name"}
+              <input autoFocus value={quickAddForm.name}
+                onChange={e=>{setError("");setQuickAddForm({...quickAddForm,name:e.target.value})}}
+                className="mt-1 h-9 w-full rounded-md border border-slate-300 px-3 text-xs outline-none focus:border-blue-500"/>
+            </label>
+
+            {quickAdd==="driver"&&
+              <label className="block text-[11px] font-semibold text-slate-700">
+                Mobile
+                <input value={quickAddForm.mobile}
+                  onChange={e=>setQuickAddForm({...quickAddForm,mobile:e.target.value})}
+                  className="mt-1 h-9 w-full rounded-md border border-slate-300 px-3 text-xs outline-none focus:border-blue-500"/>
+              </label>
+            }
+
+            {quickAdd==="vehicle"&&<>
+              <label className="block text-[11px] font-semibold text-slate-700">
+                Truck Type
+                <select value={quickAddForm.truck_type_id}
+                  onChange={e=>setQuickAddForm({...quickAddForm,truck_type_id:e.target.value})}
+                  className="mt-1 h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-xs outline-none">
+                  <option value="">Select Truck Type</option>
+                  {tripMasters.truckTypes.map((r:any)=><option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </label>
+              <label className="block text-[11px] font-semibold text-slate-700">
+                Owner
+                <SearchMasterInput
+                  value={tripMasters.suppliers.find((r:any)=>r.id===quickAddForm.supplier_id)?.name||""}
+                  options={tripMasters.suppliers.map((r:any)=>({value:r.id,label:r.name}))}
+                  placeholder="Search Owner"
+                  onSelect={supplierId=>setQuickAddForm({...quickAddForm,ownership_type:"supplier",supplier_id:supplierId})}/>
+                <div className="mt-1 text-[10px] text-slate-500">
+                  Select the actual Owner name from Owner / Supplier master.
+                </div>
+              </label>
+            </>}
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-slate-200 px-4 py-3">
+            <button type="button" className="btn" disabled={quickAddSaving} onClick={()=>setQuickAdd(null)}>Cancel</button>
+            <button type="button" className="btn-primary" disabled={quickAddSaving} onClick={()=>void saveQuickAdd()}>
+              {quickAddSaving?"Saving...":"Save & Select"}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <div className="mt-2 text-[10px] text-slate-500">
+      Trip No is generated automatically. PPR receiver is stamped by NAVILO when status becomes Received.
+    </div>
   </div>
   }
-
 
   {newTripMode==="bulk"&&
   <div className="space-y-3 p-4">
@@ -1619,10 +2171,11 @@ export default function TransportWorkspace(){
 
 </section>}
 
-    {tab==="audit"&&<SimplePanel title="Trip Audit" text="Searchable immutable trip-change history is backed by transport_trip_audit. Detailed old/new field viewer is the next UI batch."/>}
-    {tab==="driver-expenses"&&<SimplePanel title="Driver Expense Upload" text="Foundation table and RLS are active. Manual and Excel validated upload will be connected in the next batch."/>}
-    {tab==="driver-account"&&<SimplePanel title="Driver Account / Hisaab" text="This surface will use NAVILO Employee/Payroll/accounting as source of truth; no parallel ledger will be created."/>}
-    {tab==="vehicle-account"&&<SimplePanel title="Vehicle Account / Gari Hisaab" text="Vehicle economics will distinguish company-owned and supplier-owned vehicles and will not invent owner rent for company vehicles."/>}
+    {tab==="audit"&&<TransportAudit trips={rows}/>}
+    {tab==="driver-expenses"&&<TransportCostUpload trips={rows} onChanged={load}/> }
+    {tab==="driver-account"&&<TransportAccountRows title="Driver Account / Hisaab" rows={rows} kind="driver" onFinance={setFinancialTrip}/> }
+    {tab==="vehicle-account"&&<TransportAccountRows title="Vehicle Account / Gari Hisaab" rows={rows} kind="vehicle" onFinance={setFinancialTrip}/> }
+    {financialTrip&&<TransportFinancialPanel key={financialTrip.id} trip={financialTrip} onClose={()=>setFinancialTrip(null)} onChanged={load}/>}
   </div>
 }
 function ColumnFilterMenu({
@@ -1712,6 +2265,133 @@ function ColumnFilterMenu({
   </div>
 }
 
+function SearchMasterInput({value,options,onSelect,placeholder,disabled=false}:{
+  value:string;
+  options:{value:string;label:string}[];
+  onSelect:(value:string)=>void|Promise<void>;
+  placeholder?:string;
+  disabled?:boolean;
+}){
+  const [query,setQuery]=useState(value);
+  const [open,setOpen]=useState(false);
+  const [activeIndex,setActiveIndex]=useState(-1);
+
+  useEffect(()=>{setQuery(value)},[value]);
+
+  const normalized=(open&&query===value?"":query).trim().toLocaleLowerCase();
+  const filtered=options
+    .filter(o=>!normalized||o.label.toLocaleLowerCase().includes(normalized))
+    .slice(0,50);
+
+  const commit=(option:{value:string;label:string}|undefined)=>{
+    if(!option)return;
+    setQuery(option.label);
+    setOpen(false);
+    setActiveIndex(-1);
+    void onSelect(option.value);
+  };
+
+  return <div className="relative min-w-0">
+    <input
+      value={query}
+      disabled={disabled}
+      autoComplete="off"
+      placeholder={placeholder}
+      onFocus={e=>{
+        setOpen(true);
+        setActiveIndex(-1);
+        e.currentTarget.select();
+      }}
+      onClick={()=>{if(!disabled)setOpen(true)}}
+      onChange={e=>{
+        setQuery(e.target.value);
+        setOpen(true);
+        setActiveIndex(-1);
+      }}
+      onKeyDown={e=>{
+        if(e.key==="ArrowDown"){
+          e.preventDefault();
+          setOpen(true);
+          setActiveIndex(i=>Math.min(i+1,Math.max(filtered.length-1,0)));
+          return;
+        }
+        if(e.key==="ArrowUp"){
+          e.preventDefault();
+          setOpen(true);
+          setActiveIndex(i=>Math.max(i-1,0));
+          return;
+        }
+        if(e.key==="Enter"){
+          if(open&&filtered.length){
+            e.preventDefault();
+            e.stopPropagation();
+            commit(activeIndex>=0?filtered[activeIndex]:filtered[0]);
+          }
+          return;
+        }
+        if(e.key==="Escape"){
+          e.preventDefault();
+          setOpen(false);
+          setQuery(value);
+          return;
+        }
+        if(e.key==="Tab"&&open&&filtered.length===1){
+          commit(filtered[0]);
+        }
+      }}
+      onBlur={()=>{
+        window.setTimeout(()=>{
+          setOpen(false);
+          const exact=options.find(o=>o.label.toLocaleLowerCase()===query.trim().toLocaleLowerCase());
+          if(exact){
+            setQuery(exact.label);
+            void onSelect(exact.value);
+          }else{
+            setQuery(value);
+          }
+        },150);
+      }}
+      className="h-8 w-full border-0 bg-white px-2 pr-6 text-xs text-slate-900 outline-none disabled:cursor-not-allowed disabled:bg-white disabled:text-slate-500"
+    />
+    {!disabled&&<span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-slate-400">▼</span>}
+    {open&&!disabled&&
+      <div className="absolute left-0 right-0 top-full z-[80] max-h-52 overflow-y-auto rounded-b border border-slate-300 bg-white shadow-xl">
+        {filtered.length?filtered.map((o,index)=>
+          <button
+            key={o.value}
+            type="button"
+            tabIndex={-1}
+            onMouseEnter={()=>setActiveIndex(index)}
+            onMouseDown={e=>{
+              e.preventDefault();
+              e.stopPropagation();
+              commit(o);
+            }}
+            className={`block w-full px-2 py-2 text-left text-xs text-slate-800 ${index===activeIndex?"bg-blue-100":"bg-white hover:bg-blue-50"}`}
+          >
+            {o.label}
+          </button>
+        ):<div className="px-2 py-2 text-xs text-slate-500">No match</div>}
+      </div>
+    }
+  </div>
+}
+function TripField({label,children,onAdd}:{label:string;children:React.ReactNode;onAdd?:()=>void}){
+  return <div className="min-w-0 border-b border-r border-slate-300 last:border-r-0">
+    <div className="relative flex h-7 items-center justify-center bg-slate-200 px-1 text-center text-[9px] font-bold uppercase text-slate-800">
+      {label}
+      {onAdd&&
+        <button type="button" title={`Add ${label}`}
+          onClick={e=>{e.preventDefault();e.stopPropagation();onAdd()}}
+          className="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-lg font-bold leading-none text-red-600 hover:text-red-700">
+          +
+        </button>
+      }
+    </div>
+    <div className="block min-h-8">{children}</div>
+  </div>
+}
+
 function FilterDate({label,value,setValue}:{label:string;value:string;setValue:(value:string)=>void}){
   return <label className="text-[9px] font-bold uppercase tracking-normal text-slate-500">
     {label}
@@ -1732,3 +2412,10 @@ function FilterSelect({label,value,setValue,all,options}:{label:string;value:str
 }
 
 function SimplePanel({title,text}:{title:string;text:string}){return <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-base font-bold text-slate-950">{title}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{text}</p></section>}
+
+function TransportAccountRows({title,rows,kind,onFinance}:{title:string;rows:Trip[];kind:'driver'|'vehicle';onFinance:(trip:Trip)=>void}){
+ const [search,setSearch]=useState('');
+ const filtered=rows.filter(r=>`${r.trip_no} ${r.driver_name??''} ${r.vehicle_no??''}`.toLowerCase().includes(search.toLowerCase()));
+ return <section className="rounded-lg border bg-white p-3"><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">{title}</h2><input aria-label={`Search ${title}`} className="input" placeholder="Trip / driver / vehicle" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+ <div className="overflow-auto"><table className="w-full text-xs"><thead><tr><th className="text-left">Trip</th><th className="text-left">{kind==='driver'?'Driver':'Vehicle / Owner'}</th><th>Status</th><th>Accrued / Billed</th><th>Paid</th><th>Outstanding</th><th>Posted profit</th></tr></thead><tbody>{filtered.map(r=><tr className="border-t" key={r.id}><td><button className="text-blue-700 underline" onClick={()=>onFinance(r)}>{r.trip_no}</button></td><td>{kind==='driver'?r.driver_name:`${r.vehicle_no??''} / ${r.owner_name??''}`}</td><td>{r.financial_status}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_accrued:r.billed_supplier_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_paid:r.supplier_paid_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_outstanding:r.supplier_outstanding_gross)}</td><td className="text-right">{financialNumber(r.trip_profit)}</td></tr>)}</tbody></table></div></section>;
+}

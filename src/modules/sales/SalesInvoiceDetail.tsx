@@ -1,3 +1,4 @@
+import TransportServiceDocument from '@/modules/transport/TransportServiceDocument';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -68,6 +69,7 @@ type ItemDetail = {
 type PaymentStatus = "unpaid" | "partial" | "paid" | "overpaid";
 
 type SalesInvoiceDetailOrder = Omit<SalesOrder, "customer"> & {
+  document_kind?: string;
   customer?: CustomerDetail | null;
   customer_name_snapshot?: string | null;
   salesperson_name_snapshot?: string | null;
@@ -338,6 +340,7 @@ export default function SalesInvoiceDetail() {
 
   if (loading) return <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">Loading invoice…</div>;
   if (!order) return <ErrorBanner message="Invoice not found." />;
+  if(order.document_kind==='service')return <TransportServiceDocument side="customer" id={order.id} canPrint={canPrint}/>;
 
   return (
     <div className="navilo-sales-neus navilo-invoice-detail space-y-3" data-navilo-commercial-standard="true" data-navilo-document-editor="true">
