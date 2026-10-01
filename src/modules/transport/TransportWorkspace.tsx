@@ -376,17 +376,17 @@ export default function TransportWorkspace(){
       }
 
       const tripIds=all.map(r=>r.id);
-      const sourceInvoices:Array<{id:string;source_invoice_no:string|null}>=[];
+      const operationalTrips:Array<{id:string;source_invoice_no:string|null;customer_rate:number|null;owner_rent:number|null;supplier_rent:number|null;driver_pay:number|null}>=[];
       const links:Array<{trip_id:string;document_id:string}>=[];
       for(let offset=0;offset<tripIds.length;offset+=200){
         const ids=tripIds.slice(offset,offset+200);
         if(!ids.length)continue;
         const result=await supabase
           .from("transport_trips")
-          .select("id,source_invoice_no")
+          .select("id,source_invoice_no,customer_rate,owner_rent,supplier_rent,driver_pay")
           .in("id",ids);
         if(result.error)throw result.error;
-        sourceInvoices.push(...(result.data??[]));
+        operationalTrips.push(...(result.data??[]));
       }
       for(let offset=0;offset<tripIds.length;offset+=200){
         const ids=tripIds.slice(offset,offset+200);
@@ -426,8 +426,9 @@ export default function TransportWorkspace(){
 
       const documentOrder=new Map(documents.map(r=>[r.id,r.sales_order_id]));
       const orderNumber=new Map(orders.map(r=>[r.id,r.order_no]));
+      const operationalByTrip=new Map(operationalTrips.map(r=>[r.id,r]));
       const sourceInvoiceByTrip=new Map(
-        sourceInvoices
+        operationalTrips
           .filter(r=>Boolean(r.source_invoice_no?.trim()))
           .map(r=>[r.id,r.source_invoice_no!.trim()])
       );
@@ -438,10 +439,17 @@ export default function TransportWorkspace(){
         if(invoiceNo&&!invoiceByTrip.has(link.trip_id))invoiceByTrip.set(link.trip_id,invoiceNo);
       }
 
-      setRows(all.map(r=>({
-        ...r,
-        invoice_no:invoiceByTrip.get(r.id)??sourceInvoiceByTrip.get(r.id)??null
-      })));
+      setRows(all.map(r=>{
+        const operational=operationalByTrip.get(r.id);
+        return {
+          ...r,
+          customer_rate:operational?.customer_rate??r.customer_rate??null,
+          owner_rent:operational?.owner_rent??r.owner_rent??null,
+          supplier_rent:operational?.supplier_rent??r.supplier_rent??null,
+          driver_pay:operational?.driver_pay??r.driver_pay??null,
+          invoice_no:invoiceByTrip.get(r.id)??sourceInvoiceByTrip.get(r.id)??null
+        };
+      }));
     }catch(e:any){
       setError(e?.message||"Unable to load trips.");
     }finally{
