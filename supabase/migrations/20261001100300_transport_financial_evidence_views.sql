@@ -93,7 +93,7 @@ revoke all on public.transport_trip_financial_summary from public,anon;grant sel
 -- Keep the prior register view and its dependent consumers intact.
 create view public.transport_financial_register with(security_invoker=true) as
 select t.*,coalesce(c.name,t.customer_name_snapshot) customer_name,v.vehicle_no,coalesce(tt.name,t.truck_type,v.truck_type) truck_type_name,
- d.driver_name,coalesce(t.owner_name_snapshot,v.owner_name,s.name) owner_name,u.email ppr_received_by_name,
+ d.driver_name,coalesce(t.owner_name_snapshot,v.owner_name,s.name) owner_name,
  f.financial_status,f.customer_documents>0 invoiced,f.customer_rate_locked,f.supplier_rate_locked,
  case when f.customer_documents>0 then f.customer_net end billed_customer_net,
  case when f.customer_documents>0 then f.customer_received_net end received_from_company,
@@ -114,7 +114,7 @@ left join public.transport_vehicles v on v.id=t.vehicle_id
 left join public.transport_truck_types tt on tt.id=t.truck_type_id
 left join public.transport_drivers d on d.id=t.driver_id
 left join public.suppliers s on s.id=v.supplier_id
-left join public.user_profiles u on u.user_id=t.ppr_received_by;
+left join public.user_profiles u on u.id=t.ppr_received_by;
 revoke all on public.transport_financial_register from public,anon;grant select on public.transport_financial_register to authenticated;
 
 -- The old financial values and payer identities cannot be overwritten by Trip

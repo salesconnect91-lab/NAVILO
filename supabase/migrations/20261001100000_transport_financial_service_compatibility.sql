@@ -64,7 +64,7 @@ create table if not exists public.sales_service_lines(
  tax_percent numeric(7,4) not null default 0 check(tax_percent between 0 and 100),
  source_module text,source_id uuid,created_by uuid,created_at timestamptz not null default now(),
  unique(order_id,source_module,source_id));
-create index sales_service_lines_order_idx on public.sales_service_lines(company_id,business_unit_id,order_id);
+create index if not exists sales_service_lines_order_idx on public.sales_service_lines(company_id,business_unit_id,order_id);
 create table if not exists public.purchase_service_lines(
  id uuid primary key default gen_random_uuid(),company_id uuid not null,business_unit_id uuid not null,
  order_id uuid not null references public.purchase_orders(id) on delete restrict,
@@ -73,7 +73,7 @@ create table if not exists public.purchase_service_lines(
  cost_account_id uuid not null references public.chart_of_accounts(id) on delete restrict,
  source_module text,source_id uuid,created_by uuid,created_at timestamptz not null default now(),
  unique(order_id,source_module,source_id));
-create index purchase_service_lines_order_idx on public.purchase_service_lines(company_id,business_unit_id,order_id);
+create index if not exists purchase_service_lines_order_idx on public.purchase_service_lines(company_id,business_unit_id,order_id);
 
 create function public.guard_service_document_line() returns trigger
 language plpgsql security definer set search_path=public,pg_temp as $$

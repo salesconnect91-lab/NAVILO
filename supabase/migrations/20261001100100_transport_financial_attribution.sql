@@ -49,40 +49,108 @@ end $$;
 revoke all on function public.transport_set_financial_permission(uuid,text,boolean) from public,anon;
 grant execute on function public.transport_set_financial_permission(uuid,text,boolean) to authenticated;
 
-create table public.transport_trip_supplier_rents(
+create table if not exists public.transport_trip_supplier_rents(
  id uuid primary key default gen_random_uuid(),company_id uuid not null,business_unit_id uuid not null,
  trip_id uuid not null references public.transport_trips(id) on delete restrict,
  supplier_id uuid not null references public.suppliers(id) on delete restrict,
  amount numeric(18,2) not null check(amount>0),reason text not null check(btrim(reason)<>''),
  created_by uuid not null,created_at timestamptz not null default now());
-create table public.transport_customer_documents(
+create table if not exists public.transport_customer_documents(
  id uuid primary key default gen_random_uuid(),company_id uuid not null,business_unit_id uuid not null,operating_location_id uuid not null,
  customer_id uuid not null references public.customers(id) on delete restrict,
  document_kind text not null check(document_kind in ('credit','cash_hand_bill','adjustment')),
  sales_order_id uuid not null unique references public.sales_orders(id) on delete restrict,
  journal_entry_id uuid not null references public.journal_entries(id) on delete restrict,
  created_by uuid not null,created_at timestamptz not null default now());
-create table public.transport_customer_document_trips(
+create table if not exists public.transport_customer_document_trips(
  id uuid primary key default gen_random_uuid(),company_id uuid not null,business_unit_id uuid not null,
  document_id uuid not null references public.transport_customer_documents(id) on delete restrict,
  trip_id uuid not null references public.transport_trips(id) on delete restrict,
  rate_snapshot numeric(18,2) not null check(rate_snapshot>0),vat_snapshot numeric(18,2) not null check(vat_snapshot>=0),
  is_adjustment boolean not null default false,unique(document_id,trip_id));
-create unique index transport_original_customer_trip_uq on public.transport_customer_document_trips(trip_id) where not is_adjustment;
-create table public.transport_supplier_documents(
+create unique index if not exists transport_original_customer_trip_uq on public.transport_customer_document_trips(trip_id) where not is_adjustment;
+create table if not exists public.transport_supplier_documents(
  id uuid primary key default gen_random_uuid(),company_id uuid not null,business_unit_id uuid not null,operating_location_id uuid not null,
  supplier_id uuid not null references public.suppliers(id) on delete restrict,
  purchase_order_id uuid not null unique references public.purchase_orders(id) on delete restrict,
  journal_entry_id uuid not null references public.journal_entries(id) on delete restrict,
  created_by uuid not null,created_at timestamptz not null default now());
-create table public.transport_supplier_document_rents(
+create table if not exists public.transport_supplier_document_rents(
  id uuid primary key default gen_random_uuid(),company_id uuid not null,business_unit_id uuid not null,
  document_id uuid not null references public.transport_supplier_documents(id) on delete restrict,
  rent_id uuid not null references public.transport_trip_supplier_rents(id) on delete restrict,
  trip_id uuid not null references public.transport_trips(id) on delete restrict,
  amount_snapshot numeric(18,2) not null check(amount_snapshot>0),vat_snapshot numeric(18,2) not null check(vat_snapshot>=0),
  is_adjustment boolean not null default false,unique(document_id,rent_id));
-create unique index transport_original_supplier_rent_uq on public.transport_supplier_document_rents(rent_id) where not is_adjustment;
+
+create unique index if not exists transport_original_supplier_rent_uq on public.transport_supplier_document_rents(rent_id) where not is_adjustment;
+
+-- Existing Transport foundations may already contain these evidence tables.
+-- Add only missing canonical financial fields; never recreate historical rows.
+alter table public.transport_trip_supplier_rents
+  add column if not exists reason text;
+
+alter table public.transport_customer_documents
+  add column if not exists document_kind text,
+  add column if not exists journal_entry_id uuid references public.journal_entries(id) on delete restrict;
+
+alter table public.transport_customer_document_trips
+  add column if not exists vat_snapshot numeric(18,2) not null default 0,
+  add column if not exists is_adjustment boolean not null default false;
+
+alter table public.transport_supplier_documents
+  add column if not exists journal_entry_id uuid references public.journal_entries(id) on delete restrict;
+
+alter table public.transport_supplier_document_rents
+  add column if not exists vat_snapshot numeric(18,2) not null default 0,
+  add column if not exists is_adjustment boolean not null default false;
+
+-- Accounting evidence must be reconciled, not invented.
+do $$
+begin
+  if exists (
+    select 1 from public.transport_trip_supplier_rents
+    where reason is null or btrim(reason)=''
+  ) then
+    raise exception 'Existing Transport supplier rents require explicit reason reconciliation before financial migration';
+  end if;
+
+  if exists (
+    select 1 from public.transport_customer_documents
+    where document_kind is null or journal_entry_id is null
+  ) then
+    raise exception 'Existing Transport customer documents require canonical document/journal reconciliation before financial migration';
+  end if;
+
+  if exists (
+    select 1 from public.transport_supplier_documents
+    where journal_entry_id is null
+  ) then
+    raise exception 'Existing Transport supplier documents require canonical journal reconciliation before financial migration';
+  end if;
+end $$;
+
+alter table public.transport_trip_supplier_rents
+  alter column reason set not null;
+
+alter table public.transport_customer_documents
+  alter column document_kind set not null,
+  alter column journal_entry_id set not null;
+
+alter table public.transport_supplier_documents
+  alter column journal_entry_id set not null;
+
+create unique index if not exists transport_customer_documents_sales_order_uq
+  on public.transport_customer_documents(sales_order_id);
+
+create unique index if not exists transport_customer_document_trip_uq
+  on public.transport_customer_document_trips(document_id,trip_id);
+
+create unique index if not exists transport_supplier_documents_purchase_order_uq
+  on public.transport_supplier_documents(purchase_order_id);
+
+create unique index if not exists transport_supplier_document_rent_uq
+  on public.transport_supplier_document_rents(document_id,rent_id);
 create table public.transport_driver_accrual_attributions(
  id uuid primary key default gen_random_uuid(),company_id uuid not null,business_unit_id uuid not null,
  trip_id uuid not null references public.transport_trips(id) on delete restrict,
@@ -111,11 +179,12 @@ do $$ declare t text;begin
  foreach t in array array['transport_trip_supplier_rents','transport_customer_documents','transport_customer_document_trips',
  'transport_supplier_documents','transport_supplier_document_rents','transport_driver_accrual_attributions','transport_driver_payment_attributions','transport_service_cost_links'] loop
  execute format('alter table public.%I enable row level security',t);
+ execute format('drop policy if exists %I on public.%I',t||'_read',t);
  execute format('create policy %I on public.%I for select to authenticated using(company_id=public.current_company_id() and business_unit_id=public.current_business_unit_id() and public.has_module_permission(company_id,''transport'',''view''))',t||'_read',t);
  execute format('revoke all on public.%I from public,anon,authenticated',t);
  execute format('grant select on public.%I to authenticated',t);
  execute format('create trigger evidence_immutable before update or delete on public.%I for each row execute function public.transport_financial_append_only()',t);
- execute format('create index %I on public.%I(company_id,business_unit_id)',t||'_scope_idx',t);
+ execute format('create index if not exists %I on public.%I(company_id,business_unit_id)',t||'_scope_idx',t);
  end loop;
 end $$;
 
