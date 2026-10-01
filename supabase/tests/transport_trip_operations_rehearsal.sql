@@ -11,6 +11,8 @@ declare
   v_loc2 uuid;
   v_loc3 uuid;
   v_receiver uuid;
+  v_employee uuid;
+  v_ppr_employee uuid;
   v_received_date date;
   v_status text;
   v_count integer;
@@ -116,6 +118,10 @@ begin
          last_company_id=excluded.last_company_id,
          last_business_unit_id=excluded.last_business_unit_id;
 
+  insert into public.employees(user_id,company_id,name)
+  values(v_user,v_company,'Transport V1 PPR Employee')
+  returning id into v_employee;
+
   ---------------------------------------------------------------------------
   -- VERIFY NAVILO CONTEXT
   ---------------------------------------------------------------------------
@@ -172,7 +178,7 @@ begin
 
   if v_trip_no is null
      or btrim(v_trip_no)=''
-     or v_trip_no not like 'TRP-%' then
+     or v_trip_no <> 'OIC-000001' then
     raise exception 'FAIL: automatic Trip No generation: %',v_trip_no;
   end if;
 
@@ -360,14 +366,18 @@ begin
   -- PPR RECEIVED
   ---------------------------------------------------------------------------
   update public.transport_trips
-     set ppr_status='received'
+     set ppr_status='received',
+         ppr_received_by_employee_id=v_employee,
+         ppr_received_date=current_date
    where id=v_trip;
 
   select
     ppr_received_by,
+    ppr_received_by_employee_id,
     ppr_received_date
   into
     v_receiver,
+    v_ppr_employee,
     v_received_date
   from public.transport_trips
   where id=v_trip;
@@ -377,6 +387,13 @@ begin
       'FAIL: PPR Received By expected %, got %',
       v_user,
       v_receiver;
+  end if;
+
+  if v_ppr_employee is distinct from v_employee then
+    raise exception
+      'FAIL: PPR employee expected %, got %',
+      v_employee,
+      v_ppr_employee;
   end if;
 
   if v_received_date is distinct from current_date then
@@ -405,7 +422,9 @@ begin
   -- RECEIVED -> PENDING REVERSAL
   ---------------------------------------------------------------------------
   update public.transport_trips
-     set ppr_status='pending'
+     set ppr_status='pending',
+         ppr_received_by_employee_id=null,
+         ppr_received_by_name=null
    where id=v_trip;
 
   if exists(
@@ -414,6 +433,8 @@ begin
     where id=v_trip
       and (
         ppr_received_by is not null
+        or ppr_received_by_employee_id is not null
+        or ppr_received_by_name is not null
         or ppr_received_date is not null
         or ppr_attachment_path is not null
       )
@@ -497,29 +518,13 @@ begin
   end if;
 
   ---------------------------------------------------------------------------
-  -- MISSING CUSTOMER RATE => NOT COMPLETE
+  -- SUPPLIER RENT RESTORED => COMPLETE
+  -- customer_rate is NOT NULL in the reconciled main operational schema.
+  -- Pending/finalized customer-rate evidence is covered by the Batch-1 and
+  -- canonical financial rehearsals; this legacy test must not write NULL.
   ---------------------------------------------------------------------------
   update public.transport_trips
-     set supplier_rent=700,
-         customer_rate=null
-   where id=v_trip;
-
-  select trip_status
-  into v_status
-  from public.transport_trips
-  where id=v_trip;
-
-  if v_status <> 'running' then
-    raise exception
-      'FAIL: missing Customer Rate should be Not Complete/running, got %',
-      v_status;
-  end if;
-
-  ---------------------------------------------------------------------------
-  -- BOTH RESTORED => COMPLETE
-  ---------------------------------------------------------------------------
-  update public.transport_trips
-     set customer_rate=1000
+     set supplier_rent=700
    where id=v_trip;
 
   select trip_status
@@ -529,7 +534,7 @@ begin
 
   if v_status <> 'completed' then
     raise exception
-      'FAIL: restored rates should produce Complete, got %',
+      'FAIL: restored Supplier Rent should produce Complete, got %',
       v_status;
   end if;
 

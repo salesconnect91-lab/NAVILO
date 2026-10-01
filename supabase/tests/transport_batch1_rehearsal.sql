@@ -130,21 +130,14 @@ perform set_config('navilo.rehearsal_unit_a_vehicle',v::text,true);
 sp1 := current_setting('navilo.rehearsal_supplier_a')::uuid;
 sp2 := current_setting('navilo.rehearsal_supplier_b')::uuid;
 insert into public.transport_trips(company_id,business_unit_id,trip_no) values(c,b,'IGNORED') returning id into t2;
- insert into public.transport_trip_supplier_rents(company_id,business_unit_id,trip_id,supplier_id,supplier_name_snapshot,amount)
- values(c,b,t2,sp1,'Server replaces',300) returning id into r1;
- insert into public.transport_trip_supplier_rents(company_id,business_unit_id,trip_id,supplier_id,supplier_name_snapshot,amount)
- values(c,b,t2,sp2,'Server replaces',250) returning id into r2;
  rejected:=false;
- begin update public.transport_trips set owner_rent=250 where id=t2; exception when others then rejected:=true; end;
- if not rejected then raise exception 'Legacy owner rent and structured rents coexisted'; end if;
- rejected:=false;
- begin perform public.transport_finalize_trip_rent(t2); exception when others then rejected:=true; end;
- if not rejected then raise exception 'Trip completed while supplier rents pending'; end if;
- perform public.transport_finalize_supplier_rent(r1,300);
- perform public.transport_finalize_supplier_rent(r2,250);
- perform public.transport_finalize_trip_rent(t2);
- if not exists(select 1 from public.transport_trips where id=t2 and lifecycle_status='complete')
- then raise exception 'Multi-supplier completion failed'; end if;
+ begin
+   insert into public.transport_trip_supplier_rents(company_id,business_unit_id,trip_id,supplier_id,supplier_name_snapshot,amount)
+   values(c,b,t2,sp1,'Server replaces',300);
+ exception when insufficient_privilege then rejected:=true; end;
+ if not rejected then raise exception 'Direct supplier rent insert bypassed final financial evidence hardening'; end if;
+ -- Final-stack supplier-rent creation/finalization and multi-supplier settlement
+ -- are exercised through the canonical RPCs in transport_v1_financial_completion_rehearsal.sql.
  rejected:=false;
  begin update public.transport_trip_audit set action='tampered' where trip_id=t;
  exception when others then rejected:=true; end;

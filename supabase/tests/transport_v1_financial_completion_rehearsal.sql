@@ -86,6 +86,7 @@ begin
  result:=public.transport_settle_documents('customer',customer,current_date,cash_id,'cash',jsonb_build_array(jsonb_build_object('document_id',sales_id,'amount',600),jsonb_build_object('document_id',sales2,'amount',200),jsonb_build_object('document_id',cashbill,'amount',100)));
  result:=public.transport_settle_documents('supplier',supplier,current_date,cash_id,'cash',null,150);
  result:=public.transport_settle_documents('supplier',supplier2,current_date,cash_id,'cash',null,100);
+ update public.transport_trips set po_do_job_no='FIN-JOB-1' where id=trip;
  perform public.transport_complete_operations(trip,'Job completed');
  if (select financial_status from public.transport_trip_financial_summary where id=trip)<>'Closed' then raise exception 'Fully settled Trip did not close';end if;
  select jsonb_agg(to_jsonb(a) order by id) into initial_alloc from public.invoice_payment_allocations a where sales_order_id=sales_id;
@@ -151,6 +152,7 @@ begin
  perform public.transport_set_driver_pay(driver_trip,60,'Agreed Trip pay');
  result:=public.transport_post_customer_bill(driver_trip,current_date,true);j:=(result->>'document_id')::uuid;
  result:=public.transport_settle_documents('customer',customer,current_date,cash_id,'cash',jsonb_build_array(jsonb_build_object('document_id',j,'amount',236)));
+ update public.transport_trips set po_do_job_no='FIN-JOB-DRIVER' where id=driver_trip;
  perform public.transport_complete_operations(driver_trip,'Driver job complete');
  result:=public.accrue_employee_salary(employee,current_date);
  select id into accrual from public.employee_salary_accruals where employee_id=employee and company_id=c;
