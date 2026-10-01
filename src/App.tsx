@@ -87,11 +87,6 @@ function GlobalExperience() {
 }
 
 function DashboardHome() {
-  const { activeCompany,activeBusinessUnit }=useAuth();
-  if(activeBusinessUnit?.business_unit_type==="transport"){
-    const licensed=moduleLicensed(activeCompany?.enabled_modules,"transport")&&activeBusinessUnit.enabled_modules.includes("transport");
-    return licensed?<TransportWorkspace/>:<div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900"><strong>Transport service is not active.</strong> Enable Transport ERP in Owner Control for this company and Transport business unit.</div>;
-  }
   return <><DashboardGlobalSearch /><Dashboard /></>;
 }
 
