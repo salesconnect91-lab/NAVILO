@@ -12,3 +12,8 @@ describe("UI language source", () => {
     expect(sourceEnglish("Dashboard / ڈیش بورڈ")).toBe("Dashboard");
   });
 });
+
+ it("preserves complete English report labels and scope descriptions", () => {
+  expect(sourceEnglish("Customer / Supplier Reports and Bulk Allocation")).toBe("Customer / Supplier Reports and Bulk Allocation");
+  expect(sourceEnglish("Scope: Company / Business Unit / active branch")).toBe("Scope: Company / Business Unit / active branch");
+ });
