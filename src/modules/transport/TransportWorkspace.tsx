@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -108,6 +108,7 @@ export default function TransportWorkspace(){
   const [tab,setTab]=useState<Tab>("trips");
   const [rows,setRows]=useState<Trip[]>([]);
   const [loading,setLoading]=useState(false);
+  const tripsGridRef=useRef<HTMLDivElement|null>(null);
 
   const [error,setError]=useState("");
 
@@ -384,6 +385,14 @@ export default function TransportWorkspace(){
       void loadTripMasters().catch((e:any)=>setError(e?.message||"Unable to load Transport masters."));
     }
   },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
+
+  useEffect(()=>{
+    if(tab!=="trips")return;
+    const frame=window.requestAnimationFrame(()=>{
+      if(tripsGridRef.current)tripsGridRef.current.scrollLeft=0;
+    });
+    return ()=>window.cancelAnimationFrame(frame);
+  },[tab,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
 
   const visible=useMemo(()=>{
     return rows.filter(r=>{
@@ -1385,7 +1394,7 @@ export default function TransportWorkspace(){
       case "company_rate": return financialNumber(r.billed_customer_net);
       case "received_company": return financialNumber(r.received_from_company);
       case "remaining_company": return financialNumber(r.remaining_with_company);
-      case "profit": return r.trip_profit==null?"":String(r.trip_profit);
+      case "profit": return r.billed_customer_net==null||r.trip_profit==null?"":financialNumber(r.trip_profit);
       case "commission": return financialNumber(r.commission_paid_net);
       case "sale_type": return String(r.sale_type??"");
       default:return "";
@@ -1458,6 +1467,7 @@ export default function TransportWorkspace(){
     setSortColumn("");
     setSortDirection("asc");
     setOpenColumnFilter(null);
+    if(tripsGridRef.current)tripsGridRef.current.scrollLeft=0;
   };
 
   return <div className="mx-auto w-full max-w-[1800px] space-y-1 p-1.5">
@@ -1508,6 +1518,7 @@ export default function TransportWorkspace(){
         </div>
       </div>
       <div
+        ref={tripsGridRef}
         className="min-h-[220px] overscroll-contain overflow-auto border-t border-slate-200 bg-white"
         style={{height:tripsGridHeight}}
         onWheel={tripsGridWheel}
