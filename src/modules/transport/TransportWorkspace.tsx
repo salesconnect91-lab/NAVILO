@@ -544,7 +544,6 @@ export default function TransportWorkspace(){
           : event.deltaY;
 
       if(!delta)return;
-      event.preventDefault();
       event.stopPropagation();
       el.scrollLeft+=delta;
     };
