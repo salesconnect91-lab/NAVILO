@@ -21,11 +21,11 @@ create function storage.foldername(text) returns text[] language sql immutable a
 let count=0;
 for(const file of fs.readdirSync(root+'/supabase/migrations').filter(f=>f.endsWith('.sql')).sort()){
  try{await db.exec(fs.readFileSync(root+'/supabase/migrations/'+file,'utf8').replace(/^\uFEFF/,''));count++;}
- catch(e){console.log('FAIL',file,e.message);await db.close();process.exit(1)}
+ catch(e){console.log('FAIL',file,e.message);await db.close();throw new Error(file+': '+e.message)}
 }
 console.log('REPLAY PASS',count);
-for(const file of ['transport_party_reporting_rehearsal.sql','transport_v1_financial_completion_rehearsal.sql','tax_posting_reconciliation_rehearsal.sql','transport_ppr_account_rehearsal.sql','transport_initial_rate_vehicle_rehearsal.sql','transport_large_expense_rehearsal.sql']){
- if(!fs.existsSync(root+'/supabase/tests/'+file))continue;
- try{await db.exec(fs.readFileSync(root+'/supabase/tests/'+file,'utf8'));console.log('PASS',file)}catch(e){console.log('FAIL TEST',file,e.message);await db.close();process.exit(1)}
+for(const file of ['transport_party_reporting_rehearsal.sql','transport_v1_financial_completion_rehearsal.sql','tax_posting_reconciliation_rehearsal.sql','transport_ppr_account_rehearsal.sql','transport_initial_rate_vehicle_rehearsal.sql','transport_large_expense_rehearsal.sql','transport_cash_receive_rehearsal.sql','transport_advance_rehearsal.sql']){
+ if(!fs.existsSync(root+'/supabase/tests/'+file))throw new Error('Missing required rehearsal: '+file);
+ try{await db.exec(fs.readFileSync(root+'/supabase/tests/'+file,'utf8'));console.log('PASS',file)}catch(e){console.log('FAIL TEST',file,e.message);await db.close();throw new Error(file+': '+e.message)}
 }
 await db.close();

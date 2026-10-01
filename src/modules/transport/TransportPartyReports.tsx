@@ -6,6 +6,7 @@ import {fetchAllPages} from '@/lib/fetchAllPages';
 import {financialNumber} from './transportFinancialTypes';
 import {cents,money,statement,documentBalances,type PartyDocument,type PartyMovement,type PartySide} from './transportPartyReporting';
 import {exportPartyReport,type ReportTable} from './transportPartyExport';
+import TransportAdvanceOperations from './TransportAdvanceOperations';
 import TransportPartySettlement from './TransportPartySettlement';
 type Mode='outstanding'|'statement'|'allocations'|'canonical'|'reconciliation';
 export default function TransportPartyReports({onClose,onChanged}:{onClose:()=>void;onChanged:()=>Promise<void>}){
@@ -15,7 +16,7 @@ export default function TransportPartyReports({onClose,onChanged}:{onClose:()=>v
  const [documents,setDocuments]=useState<PartyDocument[]>([]);const [movements,setMovements]=useState<PartyMovement[]>([]);
  const [canonical,setCanonical]=useState<PartyMovement[]>([]);const [accounts,setAccounts]=useState<Array<{id:string;name:string;detail_type:string}>>([]);
  const [canLedger,setCanLedger]=useState(false);const [from,setFrom]=useState('');const [to,setTo]=useState(new Date().toISOString().slice(0,10));
- const [tripSearch,setTripSearch]=useState('');const [status,setStatus]=useState('all');const [settlement,setSettlement]=useState(false);
+ const [tripSearch,setTripSearch]=useState('');const [status,setStatus]=useState('all');const [settlement,setSettlement]=useState(false);const [showAdvances,setShowAdvances]=useState(false);
  const [busy,setBusy]=useState(false);const [loading,setLoading]=useState(false);const [error,setError]=useState('');const generation=useRef(0);
  const load=useCallback(async()=>{
  if(!company||!unit)return false;const request=++generation.current;setLoading(true);setError('');
@@ -76,13 +77,14 @@ export default function TransportPartyReports({onClose,onChanged}:{onClose:()=>v
  <label>From<input className="input" type="date" value={from} disabled={mode==='outstanding'||mode==='reconciliation'} onChange={e=>setFrom(e.target.value)}/></label><label>As of / To<input className="input" type="date" value={to} onChange={e=>setTo(e.target.value)}/></label>
  <label>Trip / document search<input className="input" disabled={mode==='canonical'} value={tripSearch} onChange={e=>setTripSearch(e.target.value)}/></label>
  {mode==='outstanding'&&<label>Balance<select className="input" value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All documents</option><option value="outstanding">Outstanding only</option><option value="settled">Settled only</option><option value="credit">Credits / refunds only</option></select></label>}
- <button className="btn-primary" disabled={!party||loading||!!error} onClick={()=>setSettlement(v=>!v)}>{side==='customer'?'Receive across Trips':'Pay supplier across Trips'}</button></fieldset>
+ <button className="btn" data-navilo-keep-local-action="true" onClick={()=>setShowAdvances(v=>!v)}>Advances / Unallocated Money</button><button className="btn-primary" disabled={!party||loading||!!error} onClick={()=>setSettlement(v=>!v)}>{side==='customer'?'Receive across Trips':'Pay supplier across Trips'}</button></fieldset>
  {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}{dateError&&<p role="alert" className="text-red-700">From must be on or before To.</p>}{needsParty&&<p className="my-2">Select one party for opening and running balances.</p>}
  {loading?<p role="status">Loading all report pages…</p>:canExport&&<><div className="my-3 flex gap-2"><button className="btn" data-navilo-keep-local-action="true" disabled={!outputAllowed.print} onClick={()=>void exportAs('print')}>Print</button><button className="btn" data-navilo-keep-local-action="true" disabled={!outputAllowed.export} onClick={()=>void exportAs('pdf')}>PDF</button><button className="btn" data-navilo-keep-local-action="true" disabled={!outputAllowed.export} onClick={()=>void exportAs('xlsx')}>Excel</button></div><p className="mb-2">{report.description}</p>
  <div className="max-h-[55vh] overflow-auto"><table className="w-full whitespace-nowrap text-left"><thead className="sticky top-0 bg-slate-100"><tr>{report.columns.map(c=><th key={c} className="p-2">{c}</th>)}</tr></thead><tbody data-business-data>{report.rows.map((row,i)=><tr key={i} className="border-t">{row.map((v,k)=><td key={k} className="p-2">{typeof v==='number'?(report.columns[k]==='Link count'?v:amount(v)):v}</td>)}</tr>)}</tbody></table></div>
  <details className="mt-2"><summary>Open source documents and vouchers</summary><div className="max-h-48 overflow-auto">{matchingDocs.map(d=><p key={d.order_id}>{d.trip_no} · <a className="underline text-blue-700" href={`/${side==='customer'?'sales':'purchase'}/${d.order_id}`}>{d.order_no}</a> · <a className="underline text-blue-700" href={`/accounting/${d.journal_entry_id}`}>Original journal</a></p>)}{ledger.rows.map(r=><p key={r.event_id}><a className="underline text-blue-700" href={`/accounting/${r.journal_entry_id}`}>{r.entry_no}</a> · {r.trip_no} · {r.event_type}</p>)}</div></details>
  {mode==='reconciliation'&&party&&canLedger&&<p className="mt-2">Party balance as of {to||'all dates'}: Transport {amount(statement(movements.filter(r=>r.side===side&&r.party_id===party),'',to).closing)} · Complete canonical ledger {amount(statement(canonical.filter(r=>r.side===side&&r.party_id===party),'',to).closing)}. The difference includes other business documents, opening balances and unallocated money; it is not automatically a Transport error.</p>}
  </>}
+ {showAdvances&&<TransportAdvanceOperations onChanged={async()=>{await load();await onChanged()}}/>}
  {settlement&&party&&<TransportPartySettlement key={`${side}:${party}`} side={side} party={party} documents={documents} accounts={accounts} onBusyChange={setBusy} onPosted={async()=>{if(!await load())throw new Error('Report refresh failed');await onChanged()}}/>}
  </section>;
 }

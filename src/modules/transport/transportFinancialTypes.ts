@@ -4,7 +4,7 @@ export type FinancialTrip = {
  id: string; trip_no: string; customer_id?: string; driver_id?: string; vehicle_id?: string;
  customer_name?: string|null; driver_name?: string|null; vehicle_no?: string|null; customer_rate?: number|null;
  owner_rent?: number|null; supplier_rent?: number|null; driver_pay?: number|null; trip_status?: string; financial_status?: string;
- customer_rate_state?: 'pending'|'finalized'; from_location?: string; to_location?: string; other_cost_net?: number; customer_rate_locked?: boolean; supplier_rate_locked?: boolean; invoiced?: boolean;
+ sale_type?: string|null; customer_rate_state?: 'pending'|'finalized'; from_location?: string; to_location?: string; other_cost_net?: number; customer_rate_locked?: boolean; supplier_rate_locked?: boolean; invoiced?: boolean;
  customer_gross?: number; supplier_paid_gross?: number; billed_customer_net?: number | null; billed_supplier_net?: number | null; driver_accrued?: number | null;
  received_from_company?: number | null; remaining_with_company?: number | null;
  remaining_with_us?: number | null; payment_date?: string | null; payment_amount?: number | null;
