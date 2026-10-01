@@ -31,6 +31,7 @@ type Trip=FinancialTrip & {
   ppr_received_date:string|null;
   sale_type:string|null;
   sales_order_id:string|null;
+  invoice_no:string|null;
 };
 
 const tabs:{key:Tab;label:string;icon:any}[]=[
@@ -99,6 +100,7 @@ const BUKU_TRIP_HEADERS=[
   "remaining with company",
   "PROFIT",
   "paid commissin for trip",
+  "INVOICE NUMBER",
   "Sale Type `n( Cash / Credit)"
 ] as const;
 
@@ -345,8 +347,8 @@ export default function TransportWorkspace(){
     }
   }
 
-  async function load(){
-    setLoading(true);
+  async function load(silent=false){
+    if(!silent)setLoading(true);
     setError("");
 
     try{
@@ -371,11 +373,58 @@ export default function TransportWorkspace(){
         from+=pageSize;
       }
 
-      setRows(all);
+      const tripIds=all.map(r=>r.id);
+      const links:Array<{trip_id:string;document_id:string}>=[];
+      for(let offset=0;offset<tripIds.length;offset+=200){
+        const ids=tripIds.slice(offset,offset+200);
+        if(!ids.length)continue;
+        const result=await supabase
+          .from("transport_customer_document_trips")
+          .select("trip_id,document_id,is_adjustment")
+          .in("trip_id",ids)
+          .eq("is_adjustment",false);
+        if(result.error)throw result.error;
+        links.push(...(result.data??[]).map(r=>({trip_id:r.trip_id,document_id:r.document_id})));
+      }
+
+      const documentIds=Array.from(new Set(links.map(r=>r.document_id)));
+      const documents:Array<{id:string;sales_order_id:string}>=[];
+      for(let offset=0;offset<documentIds.length;offset+=200){
+        const ids=documentIds.slice(offset,offset+200);
+        const result=await supabase
+          .from("transport_customer_documents")
+          .select("id,sales_order_id")
+          .in("id",ids);
+        if(result.error)throw result.error;
+        documents.push(...(result.data??[]));
+      }
+
+      const orderIds=Array.from(new Set(documents.map(r=>r.sales_order_id)));
+      const orders:Array<{id:string;order_no:string}>=[];
+      for(let offset=0;offset<orderIds.length;offset+=200){
+        const ids=orderIds.slice(offset,offset+200);
+        const result=await supabase
+          .from("sales_orders")
+          .select("id,order_no")
+          .in("id",ids);
+        if(result.error)throw result.error;
+        orders.push(...(result.data??[]));
+      }
+
+      const documentOrder=new Map(documents.map(r=>[r.id,r.sales_order_id]));
+      const orderNumber=new Map(orders.map(r=>[r.id,r.order_no]));
+      const invoiceByTrip=new Map<string,string>();
+      for(const link of links){
+        const orderId=documentOrder.get(link.document_id);
+        const invoiceNo=orderId?orderNumber.get(orderId):undefined;
+        if(invoiceNo&&!invoiceByTrip.has(link.trip_id))invoiceByTrip.set(link.trip_id,invoiceNo);
+      }
+
+      setRows(all.map(r=>({...r,invoice_no:invoiceByTrip.get(r.id)??null})));
     }catch(e:any){
       setError(e?.message||"Unable to load trips.");
     }finally{
-      setLoading(false);
+      if(!silent)setLoading(false);
     }
   }
 
@@ -385,6 +434,19 @@ export default function TransportWorkspace(){
       void loadTripMasters().catch((e:any)=>setError(e?.message||"Unable to load Transport masters."));
     }
   },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
+
+  useEffect(()=>{
+    if(tab!=="trips"||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
+    const refresh=()=>{if(document.visibilityState==="visible")void load(true)};
+    const timer=window.setInterval(refresh,15000);
+    window.addEventListener("focus",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    return ()=>{
+      window.clearInterval(timer);
+      window.removeEventListener("focus",refresh);
+      document.removeEventListener("visibilitychange",refresh);
+    };
+  },[tab,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
 
   useEffect(()=>{
     if(tab!=="trips")return;
@@ -545,6 +607,7 @@ export default function TransportWorkspace(){
       "Dammam",
       "Riyadh",
       "PPR PENDING",
+      "",
       "",
       "",
       "",
@@ -1396,6 +1459,7 @@ export default function TransportWorkspace(){
       case "remaining_company": return financialNumber(r.remaining_with_company);
       case "profit": return r.billed_customer_net==null||r.trip_profit==null?"":financialNumber(r.trip_profit);
       case "commission": return financialNumber(r.commission_paid_net);
+      case "invoice_no": return String(r.invoice_no??"");
       case "sale_type": return String(r.sale_type??"");
       default:return "";
     }
@@ -1425,6 +1489,7 @@ export default function TransportWorkspace(){
     ["remaining_company","Remaining With Company"],
     ["profit","Profit"],
     ["commission","Paid Commission For Trip"],
+    ["invoice_no","Invoice Number"],
     ["sale_type","Sale Type"]
   ] as const;
 
