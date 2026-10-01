@@ -533,19 +533,25 @@ export default function TransportWorkspace(){
     setPprFilter("");
   };
 
-  const tripsGridWheel=(e:React.WheelEvent<HTMLDivElement>)=>{
-    const el=e.currentTarget;
+  useEffect(()=>{
+    const el=tripsGridRef.current;
+    if(!el||tab!=="trips")return;
 
-    e.preventDefault();
-    e.stopPropagation();
+    const onWheel=(event:WheelEvent)=>{
+      const delta=
+        Math.abs(event.deltaX)>Math.abs(event.deltaY)
+          ? event.deltaX
+          : event.deltaY;
 
-    const delta=
-      Math.abs(e.deltaX)>Math.abs(e.deltaY)
-        ? e.deltaX
-        : e.deltaY;
+      if(!delta)return;
+      event.preventDefault();
+      event.stopPropagation();
+      el.scrollLeft+=delta;
+    };
 
-    el.scrollLeft+=delta;
-  };
+    el.addEventListener("wheel",onWheel,{passive:false});
+    return ()=>el.removeEventListener("wheel",onWheel);
+  },[tab]);
 
 
   const [columnFilters,setColumnFilters]=useState<Record<string,string[]>>({});
@@ -1626,7 +1632,6 @@ export default function TransportWorkspace(){
         ref={tripsGridRef}
         className="min-h-[220px] overscroll-contain overflow-auto border-t border-slate-200 bg-white"
         style={{height:tripsGridHeight}}
-        onWheel={tripsGridWheel}
       >
         <table className="w-max min-w-full table-auto whitespace-nowrap text-[11px] leading-tight">
           <thead className="sticky top-0 z-20 bg-slate-50 text-left text-[9px] uppercase tracking-normal text-slate-600">
