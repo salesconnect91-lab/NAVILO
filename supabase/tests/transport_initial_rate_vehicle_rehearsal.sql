@@ -58,6 +58,19 @@ begin
  execute 'set local role authenticated';
  if (select sum(vc.revenue-vc.cost) from public.transport_vehicle_contributions vc where trip_id=trip)<>1000 then raise exception 'Authenticated historical contribution missing';end if;
  execute 'reset role';
+ insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,vehicle_id,from_location,to_location,sale_type)
+ values(c,b,'',current_date,customer,vehicle,'A','B','credit') returning id into trip2;
+ update public.business_unit_memberships set permissions=jsonb_set(coalesce(permissions,'{}'),'{transport_actions}',jsonb_build_object('customer_rate_finalize',false),true) where company_id=c and business_unit_id=b and user_id=u;
+ execute 'set local role authenticated';
+ rejected:=false;begin perform public.transport_finalize_initial_customer_rate(trip2,999);exception when others then if sqlerrm not like 'Rate finalization permission required%' then raise;end if;rejected:=true;end;
+ if not rejected then raise exception 'Explicit rate permission denial ignored';end if;
+ if (select customer_rate_state from public.transport_trips where id=trip2)<>'pending' then raise exception 'Denied rate altered Trip';end if;
+ execute 'reset role';
+ if has_function_privilege('anon','public.transport_finalize_initial_customer_rate(uuid,numeric)','EXECUTE') then raise exception 'Anonymous initial rate execution granted';end if;
+ perform set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);
+ rejected:=false;begin perform public.transport_finalize_initial_customer_rate(trip2,999);exception when others then if sqlerrm not like 'Trip outside active business%' then raise;end if;rejected:=true;end;
+ if not rejected then raise exception 'Out-of-scope rate accepted';end if;
+ perform set_config('request.jwt.claim.sub',u::text,true);
  raise notice 'PASS initial finalize, repeat rejection, audit, historical vehicle, net contribution, authenticated reads';
 end $$;
 rollback;
