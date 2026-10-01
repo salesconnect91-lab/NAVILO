@@ -5,6 +5,9 @@ import { supabase } from "@/lib/supabase";
 import TransportFinancialPanel from './TransportFinancialPanel';
 import TransportCostUpload from './TransportCostUpload';
 import TransportAudit from './TransportAudit';
+import TransportPartyReports from './TransportPartyReports';
+import TransportAccountStatement from './TransportAccountStatement';
+import {fetchAllPages} from '@/lib/fetchAllPages';
 import {financialNumber, type FinancialTrip} from './transportFinancialTypes';
 import * as XLSX from "xlsx";
 
@@ -115,6 +118,7 @@ export default function TransportWorkspace(){
   const tripsGridRef=useRef<HTMLDivElement|null>(null);
 
   const [error,setError]=useState("");
+  const [showPartyReports,setShowPartyReports]=useState(false);
 
   const [fromDate,setFromDate]=useState("");
   const [toDate,setToDate]=useState("");
@@ -139,7 +143,8 @@ export default function TransportWorkspace(){
     vehicles:any[];
     drivers:any[];
     suppliers:any[];
-  }>({customers:[],truckTypes:[],locations:[],vehicles:[],drivers:[],suppliers:[]});
+    employees:any[];
+  }>({customers:[],truckTypes:[],locations:[],vehicles:[],drivers:[],suppliers:[],employees:[]});
 
   const [form,setForm]=useState({
     trip_date:new Date().toISOString().slice(0,10),
@@ -153,6 +158,8 @@ export default function TransportWorkspace(){
     po_do_job_no:"",
     ppr_status:"pending",
     ppr_received_date:"",
+    ppr_received_by_employee_id:"",
+    ppr_attachment_path:"",
     customer_rate:"",
     supplier_rent:"",
     sale_type:"",
@@ -193,13 +200,14 @@ export default function TransportWorkspace(){
     const companyId=activeCompany.company_id;
     const businessUnitId=activeBusinessUnit.business_unit_id;
 
-    const [customers,truckTypes,locations,vehicles,drivers,suppliers]=await Promise.all([
+    const [customers,truckTypes,locations,vehicles,drivers,suppliers,employees]=await Promise.all([
       supabase.from("customers").select("id,name,is_active").eq("company_id",companyId).eq("is_active",true).order("name"),
       supabase.from("transport_truck_types").select("id,name,is_active").eq("company_id",companyId).eq("business_unit_id",businessUnitId).eq("is_active",true).order("name"),
       supabase.from("transport_locations").select("id,name,is_active").eq("company_id",companyId).eq("business_unit_id",businessUnitId).eq("is_active",true).order("name"),
       supabase.from("transport_vehicles").select("id,vehicle_no,truck_type_id,ownership_type,owner_name,supplier_id,is_active").eq("company_id",companyId).eq("business_unit_id",businessUnitId).eq("is_active",true).order("vehicle_no"),
       supabase.from("transport_drivers").select("id,driver_name,mobile,is_active").eq("company_id",companyId).eq("business_unit_id",businessUnitId).eq("is_active",true).order("driver_name"),
-      supabase.from("suppliers").select("id,name,is_active").eq("company_id",companyId).eq("is_active",true).order("name")
+      supabase.from("suppliers").select("id,name,is_active").eq("company_id",companyId).eq("is_active",true).order("name"),
+      fetchAllPages<any>((start,end)=>supabase.from("employees").select("id,name").eq("company_id",companyId).eq("is_active",true).order("id").range(start,end))
     ]);
 
     for(const result of [customers,truckTypes,locations,vehicles,drivers,suppliers]){
@@ -212,7 +220,8 @@ export default function TransportWorkspace(){
       locations:locations.data??[],
       vehicles:vehicles.data??[],
       drivers:drivers.data??[],
-      suppliers:suppliers.data??[]
+      suppliers:suppliers.data??[],
+      employees
     });
   }
 
@@ -1281,7 +1290,7 @@ export default function TransportWorkspace(){
       await loadTripMasters();
       const {data,error}=await supabase
         .from("transport_trips")
-        .select("id,trip_no,trip_date,customer_id,customer_name_snapshot,truck_type_id,vehicle_id,driver_id,from_location,to_location,po_do_job_no,ppr_status,ppr_received_date,customer_rate,owner_rent,notes,sale_type")
+        .select("id,trip_no,trip_date,customer_id,customer_name_snapshot,truck_type_id,vehicle_id,driver_id,from_location,to_location,po_do_job_no,ppr_status,ppr_received_date,ppr_received_by_employee_id,ppr_attachment_path,customer_rate,owner_rent,notes,sale_type")
         .eq("id",row.id)
         .eq("company_id",activeCompany?.company_id)
         .eq("business_unit_id",activeBusinessUnit?.business_unit_id)
@@ -1300,6 +1309,8 @@ export default function TransportWorkspace(){
         po_do_job_no:data.po_do_job_no||"",
         ppr_status:data.ppr_status||"pending",
         ppr_received_date:data.ppr_received_date||"",
+        ppr_received_by_employee_id:data.ppr_received_by_employee_id||"",
+        ppr_attachment_path:data.ppr_attachment_path||"",
         customer_rate:data.customer_rate==null?"":String(data.customer_rate),
         supplier_rent:data.owner_rent==null?"":String(data.owner_rent),
         sale_type:data.sale_type||"",
@@ -1318,6 +1329,22 @@ export default function TransportWorkspace(){
     }
   }
 
+  async function attachPpr(file:File){
+    if(!editingTripId||!activeCompany||!activeBusinessUnit)return;
+    if(file.size>10*1024*1024||!['application/pdf','image/jpeg','image/png','image/webp'].includes(file.type)){setError('Choose a PDF, JPEG, PNG or WebP up to 10 MB.');return}
+    setLoading(true);setError('');
+    try{
+      const {data:branch,error:branchError}=await supabase.rpc('current_operating_location_id');if(branchError)throw branchError;if(!branch)throw new Error('Select an active branch before attaching PPR.');
+      const path=`${activeCompany.company_id}/${activeBusinessUnit.business_unit_id}/${branch}/${editingTripId}/${crypto.randomUUID()}.${file.type==='application/pdf'?'pdf':file.type.split('/')[1]}`;
+      const {error:uploadError}=await supabase.storage.from('transport-ppr').upload(path,file,{upsert:false});if(uploadError)throw uploadError;
+      const {data,error}=await supabase.from('transport_trips').update({ppr_attachment_path:path}).eq('id',editingTripId).eq('company_id',activeCompany.company_id).eq('business_unit_id',activeBusinessUnit.business_unit_id).eq('ppr_status','received').select('id').single();
+      if(error||!data){await supabase.storage.from('transport-ppr').remove([path]);throw error||new Error('Save the Received employee and date before attaching PPR.');}
+      setForm(previous=>({...previous,ppr_attachment_path:path}));await load();
+    }catch(e:any){setError(e?.message||'Unable to attach PPR.')}finally{setLoading(false)}
+  }
+  async function openPpr(){
+    try{const {data,error}=await supabase.storage.from('transport-ppr').createSignedUrl(form.ppr_attachment_path,60);if(error)throw error;window.open(data.signedUrl,'_blank','noopener,noreferrer')}catch(e:any){setError(e?.message||'Unable to open PPR.')}
+  }
   async function updateTrip(){
     if(!editingTripId||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
     if(!form.customer_id){setError("Customer is required.");return}
@@ -1325,6 +1352,7 @@ export default function TransportWorkspace(){
     if(!form.from_location.trim()||!form.to_location.trim()){setError("From and To locations are required.");return}
     if(!form.sale_type){setError("Sale Type Cash or Credit is required.");return}
 
+    if(form.ppr_status==="received"&&(!form.ppr_received_by_employee_id||!form.ppr_received_date)){setError("PPR Received requires the receiving employee and date.");return}
     const customer=tripMasters.customers.find((c:any)=>c.id===form.customer_id);
     if(!customer){setError("Selected Customer is no longer available.");return}
 
@@ -1344,6 +1372,8 @@ export default function TransportWorkspace(){
         po_do_job_no:form.po_do_job_no||null,
         ppr_status:form.ppr_status,
         ppr_received_date:form.ppr_status==="received"?(form.ppr_received_date||null):null,
+        ppr_received_by_employee_id:form.ppr_status==="received"?form.ppr_received_by_employee_id:null,
+        ppr_attachment_path:form.ppr_status==="received"?(form.ppr_attachment_path||null):null,
         customer_rate:form.customer_rate!==""?Number(form.customer_rate):0,
         owner_rent:form.supplier_rent!==""?Number(form.supplier_rent):0,
         sale_type:form.sale_type,
@@ -1414,12 +1444,9 @@ export default function TransportWorkspace(){
       return;
     }
 
+    if(form.ppr_status==="received"&&(!form.ppr_received_by_employee_id||!form.ppr_received_date)){setError("PPR Received requires the receiving employee and date.");return}
     const customer=tripMasters.customers.find((c:any)=>c.id===form.customer_id);
     if(!customer){setError("Selected Customer is no longer available.");return}
-    if(form.ppr_status==="received"){
-      setError("PPR Received requires the receiving employee. Keep it Pending for now; employee-linked receipt will be wired separately.");
-      return;
-    }
 
     setLoading(true);
     setError("");
@@ -1439,7 +1466,8 @@ export default function TransportWorkspace(){
       to_location:form.to_location,
       po_do_job_no:form.po_do_job_no||null,
       ppr_status:form.ppr_status,
-      ppr_received_date:null,
+      ppr_received_date:form.ppr_status==="received"?form.ppr_received_date:null,
+      ppr_received_by_employee_id:form.ppr_status==="received"?form.ppr_received_by_employee_id:null,
       customer_rate:form.customer_rate!==""?Number(form.customer_rate):0,
       owner_rent:form.supplier_rent!==""?Number(form.supplier_rent):0,
       sale_type:form.sale_type,
@@ -1463,6 +1491,8 @@ export default function TransportWorkspace(){
         po_do_job_no:"",
         ppr_status:"pending",
         ppr_received_date:"",
+    ppr_received_by_employee_id:"",
+    ppr_attachment_path:"",
         customer_rate:"",
         supplier_rent:"",
         sale_type:"",
@@ -1590,6 +1620,9 @@ export default function TransportWorkspace(){
 
 
     </div>
+
+    {!showPartyReports&&<button className="btn" onClick={()=>setShowPartyReports(true)}>Customer / Supplier Reports and Bulk Allocation</button>}
+    {showPartyReports&&<TransportPartyReports key={`${activeCompany?.company_id}:${activeBusinessUnit?.business_unit_id}`} onClose={()=>setShowPartyReports(false)} onChanged={load}/>}
 
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
@@ -1919,7 +1952,7 @@ export default function TransportWorkspace(){
 
         <TripField label="Paper Received">
           <select value={form.ppr_status}
-            onChange={e=>{setError("");setForm({...form,ppr_status:e.target.value,ppr_received_date:e.target.value==="received"?(form.ppr_received_date||new Date().toISOString().slice(0,10)):""})}}
+            onChange={e=>{setError("");setForm({...form,ppr_status:e.target.value,ppr_received_by_employee_id:e.target.value==="received"?form.ppr_received_by_employee_id:"",ppr_attachment_path:e.target.value==="received"?form.ppr_attachment_path:"",ppr_received_date:e.target.value==="received"?(form.ppr_received_date||new Date().toISOString().slice(0,10)):""})}}
             className="h-8 w-full border-0 bg-white px-2 text-xs outline-none">
             <option value="pending">Pending</option>
             <option value="received">Received</option>
@@ -1927,6 +1960,18 @@ export default function TransportWorkspace(){
           </select>
         </TripField>
 
+        <TripField label="PPR Receiving Employee">
+          <select aria-label="PPR Receiving Employee" value={form.ppr_received_by_employee_id} disabled={form.ppr_status!=="received"} onChange={e=>setForm({...form,ppr_received_by_employee_id:e.target.value})} className="input w-full">
+            <option value="">Select employee</option>
+            {form.ppr_received_by_employee_id&&!tripMasters.employees.some(e=>e.id===form.ppr_received_by_employee_id)&&<option value={form.ppr_received_by_employee_id}>Recorded employee</option>}
+            {tripMasters.employees.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+        </TripField>
+        <TripField label="PPR Attachment (optional)">
+          <input aria-label="PPR Attachment" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={loading||!editingTripId||form.ppr_status!=="received"} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void attachPpr(file)}}/>
+          <small>Save the Trip receipt first, then edit to attach a PDF or image (up to 10 MB).</small>
+          {form.ppr_attachment_path&&<button type="button" className="text-blue-700 underline" onClick={()=>void openPpr()}>View saved PPR</button>}
+        </TripField>
         <TripField label="PPR Date">
           <input type="date" value={form.ppr_received_date}
             disabled={form.ppr_status!=="received"}
@@ -2538,5 +2583,5 @@ function TransportAccountRows({title,rows,kind,onFinance}:{title:string;rows:Tri
  const [search,setSearch]=useState('');
  const filtered=rows.filter(r=>`${r.trip_no} ${r.driver_name??''} ${r.vehicle_no??''}`.toLowerCase().includes(search.toLowerCase()));
  return <section className="rounded-lg border bg-white p-3"><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">{title}</h2><input aria-label={`Search ${title}`} className="input" placeholder="Trip / driver / vehicle" value={search} onChange={e=>setSearch(e.target.value)}/></div>
- <div className="overflow-auto"><table className="w-full text-xs"><thead><tr><th className="text-left">Trip</th><th className="text-left">{kind==='driver'?'Driver':'Vehicle / Owner'}</th><th>Status</th><th>Accrued / Billed</th><th>Paid</th><th>Outstanding</th><th>Posted profit</th></tr></thead><tbody>{filtered.map(r=><tr className="border-t" key={r.id}><td><button className="text-blue-700 underline" onClick={()=>onFinance(r)}>{r.trip_no}</button></td><td>{kind==='driver'?r.driver_name:`${r.vehicle_no??''} / ${r.owner_name??''}`}</td><td>{r.financial_status}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_accrued:r.billed_supplier_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_paid:r.supplier_paid_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_outstanding:r.supplier_outstanding_gross)}</td><td className="text-right">{financialNumber(r.trip_profit)}</td></tr>)}</tbody></table></div></section>;
+ <TransportAccountStatement kind={kind}/><div className="overflow-auto"><table className="w-full text-xs"><thead><tr><th className="text-left">Trip</th><th className="text-left">{kind==='driver'?'Driver':'Vehicle / Owner'}</th><th>Status</th><th>Accrued / Billed</th><th>Paid</th><th>Outstanding</th><th>Posted profit</th></tr></thead><tbody>{filtered.map(r=><tr className="border-t" key={r.id}><td><button className="text-blue-700 underline" onClick={()=>onFinance(r)}>{r.trip_no}</button></td><td>{kind==='driver'?r.driver_name:`${r.vehicle_no??''} / ${r.owner_name??''}`}</td><td>{r.financial_status}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_accrued:r.billed_supplier_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_paid:r.supplier_paid_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_outstanding:r.supplier_outstanding_gross)}</td><td className="text-right">{financialNumber(r.trip_profit)}</td></tr>)}</tbody></table></div></section>;
 }

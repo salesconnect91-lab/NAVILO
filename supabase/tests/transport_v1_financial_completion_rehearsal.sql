@@ -168,6 +168,8 @@ begin
  if (select financial_status from public.transport_trip_financial_summary where id=driver_trip)<>'Closed' or (select posted_profit from public.transport_trip_financial_summary where id=driver_trip)<>140 then raise exception 'Payroll evidence closure/profit';end if;
  rejected:=false;begin perform public.attribute_transport_driver_account(driver_trip,salary2,1,'payment');exception when others then rejected:=true;end;if not rejected then raise exception 'Overallocated payroll accepted';end if;
  rejected:=false;begin update public.transport_trips set driver_pay=0 where id=driver_trip;exception when others then rejected:=true;end;if not rejected then raise exception 'Posted driver pay was editable';end if;
+ if (select sum(amount) from public.transport_driver_account_movements where employee_id=employee and trip_id=driver_trip)<>0 then raise exception 'Driver statement did not reconcile full attributed payroll';end if;
+ if (select count(*) from public.transport_driver_account_movements where employee_id=employee and trip_id=driver_trip)<>3 then raise exception 'Driver statement lost partial salary payments';end if;
  -- Cost upload is all-or-nothing and safe to retry with same request ID.
  payload:=jsonb_build_array(jsonb_build_object('trip_id',vat_trip,'amount',5,'date',current_date,'reference','UP-1'));
  result:=public.transport_post_cost_chunk(request_id,payload,supplier,acct,true);
