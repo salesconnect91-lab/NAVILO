@@ -14,7 +14,8 @@ describe('Transport canonical finance controls',()=>{
  it('keeps financial actions disabled without server permissions and original billing protected',async()=>{
  render(<TransportFinancialPanel trip={trip} onClose={vi.fn()} onChanged={async()=>{}}/>);
  await screen.findByText('S-A');
- expect((screen.getByRole('button',{name:'Post Customer Bill'}) as HTMLButtonElement).disabled).toBe(true);
+ expect(screen.queryByRole('button',{name:'Post Customer Bill'})).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'Correct Rate'}));
  expect((screen.getByRole('button',{name:'Post Rate Adjustment'}) as HTMLButtonElement).disabled).toBe(true);
  expect(screen.getByText(/Original posted rate: 100.00/)).toBeTruthy();
  });
@@ -23,7 +24,7 @@ describe('Transport canonical finance controls',()=>{
  fireEvent.change(screen.getByLabelText('Cash / Bank'),{target:{value:'cash-a'}});
  fireEvent.change(screen.getByLabelText('Allocation S-A'),{target:{value:'59'}});
  fireEvent.click(screen.getByRole('button',{name:'Post Selected Allocations'}));
- await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_settle_documents',expect.objectContaining({p_side:'customer',p_party_id:'customer-a',p_allocations:[{document_id:'invoice-a',amount:59}]})));
- expect((screen.getByRole('button',{name:'Post Customer Bill'}) as HTMLButtonElement).disabled).toBe(true);
+ await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_settle_reviewed_documents',expect.objectContaining({p_side:'customer',p_party_id:'customer-a',p_allocations:[{document_id:'invoice-a',amount:59}]})));
+ expect(screen.queryByRole('button',{name:'Post Customer Bill'})).toBeNull();
  });
 });

@@ -5,7 +5,7 @@ declare u uuid:=gen_random_uuid();code text:=substr(replace(gen_random_uuid()::t
  c uuid;b uuid;loc uuid;customer uuid;supplier uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;
  trip uuid;trip2 uuid;sales_id uuid;sales2 uuid;rent uuid;rent2 uuid;bill uuid;bill2 uuid;
  result jsonb;again jsonb;payload jsonb;request_id uuid:=gen_random_uuid();payment_id uuid;receipt_id uuid;
- employee uuid;path text; count_before bigint;rejected boolean;other_bu uuid;other_loc uuid;other_c uuid;v numeric;
+ employee uuid;path text;vehicle uuid;vehicle2 uuid; count_before bigint;rejected boolean;other_bu uuid;other_loc uuid;other_c uuid;v numeric;
 begin
  insert into auth.users(id,role,email,created_at,updated_at)
  values(u,'authenticated','service-'||code||'@navilo.test',now(),now());
@@ -40,25 +40,24 @@ begin
  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Service Customer',ar) returning id into customer;
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
 
- insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
- values(c,b,'',current_date,customer,'A','B',1000,400,'credit') returning id into trip;
- insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
- values(c,b,'',current_date,customer,'A','B',1000,300,'credit') returning id into trip2;
- insert into public.employees(user_id,company_id,name,is_active) values(u,c,'PPR Employee',true) returning id into employee;
- update public.transport_trips set ppr_status='received',ppr_received_by_employee_id=employee,ppr_received_date=current_date where id=trip;
- if (select ppr_received_by_name from public.transport_trips where id=trip)<>'PPR Employee' then raise exception 'PPR employee snapshot missing';end if;
- path:=c::text||'/'||b::text||'/'||loc::text||'/'||trip::text||'/receipt.pdf';
- if not public.transport_ppr_object_allowed(path,true) then raise exception 'Scoped PPR upload denied';end if;
- if public.transport_ppr_object_allowed(c::text||'/'||b::text||'/'||gen_random_uuid()::text||'/'||trip::text||'/receipt.pdf',false) then raise exception 'Cross-branch PPR access accepted';end if;
- rejected:=false;begin update public.transport_trips set ppr_attachment_path=path where id=trip;exception when others then rejected:=true;end;
- if not rejected then raise exception 'Missing PPR upload accepted';end if;
- insert into storage.objects(bucket_id,name) values('transport-ppr',path);
- update public.transport_trips set ppr_attachment_path=path where id=trip;
- if not exists(select 1 from public.transport_trip_audit where trip_id=trip and action='ppr_attachment_change' and new_value->>'path'=path) then raise exception 'PPR attachment audit missing';end if;
- if (select ppr_attachment_path from public.transport_trips where id=trip)<>path then raise exception 'Uploaded PPR not attached';end if;
+ insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,b,'Original') returning id into vehicle;
+ insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,b,'Replacement') returning id into vehicle2;
+ insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,vehicle_id,from_location,to_location,sale_type)
+ values(c,b,'',current_date,customer,vehicle,'A','B','credit') returning id into trip;
+ rejected:=false;begin perform public.transport_finalize_initial_customer_rate(trip,100.123);exception when others then rejected:=true;end;
+ if not rejected then raise exception 'Fractional cent rate accepted';end if;
+ perform public.transport_finalize_initial_customer_rate(trip,1000);
+ rejected:=false;begin perform public.transport_finalize_initial_customer_rate(trip,2000);exception when others then rejected:=true;end;
+ if not rejected or (select customer_rate from public.transport_trips where id=trip)<>1000 then raise exception 'One-time rate overwritten';end if;
+ if (select count(*) from public.transport_trip_audit where trip_id=trip and action='customer_rate_finalize')<>1 then raise exception 'Initial rate audit count incorrect';end if;
+ result:=public.transport_post_customer_bill(trip,current_date,false);
+ perform public.transport_replace_trip_assignment(trip,vehicle2,null,'Vehicle breakdown');
+ if (select vehicle_id from public.transport_trips where id=trip)<>vehicle2 then raise exception 'Replacement did not apply';end if;
+ if exists(select 1 from public.transport_vehicle_account_movements where trip_ids=array[trip] and account_id<>vehicle) or not exists(select 1 from public.transport_vehicle_account_movements where trip_ids=array[trip] and account_id=vehicle) then raise exception 'Historical bill moved to replacement vehicle';end if;
+ if (select sum(vc.revenue-vc.cost) from public.transport_vehicle_contributions vc where trip_id=trip and account_id=vehicle)<>1000 then raise exception 'Vehicle contribution differs from posted revenue';end if;
  execute 'set local role authenticated';
- if not public.transport_ppr_object_allowed(path,false) then raise exception 'Authenticated scoped PPR access denied';end if;
+ if (select sum(vc.revenue-vc.cost) from public.transport_vehicle_contributions vc where trip_id=trip)<>1000 then raise exception 'Authenticated historical contribution missing';end if;
  execute 'reset role';
- raise notice 'PASS: employee/date PPR receipt, private attachment existence and branch isolation';
+ raise notice 'PASS initial finalize, repeat rejection, audit, historical vehicle, net contribution, authenticated reads';
 end $$;
 rollback;

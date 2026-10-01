@@ -8,7 +8,7 @@ vi.mock('./transportPartyExport',()=>({exportPartyReport:mock.export}));
 vi.mock('@/lib/supabase',()=>({supabase:{rpc:async()=>({data:mock.output,error:null}),from:(table:string)=>{
  const bill={event_id:'a',side:'supplier',employee_id:'employee',party_id:'supplier',party_name:'Original Driver',trip_ids:['trip'],trip_no:'Trip-1',journal_entry_id:'j',entry_no:'J-1',event_date:'2026-09-01',created_at:'2026-09-01',event_type:'salary_accrual',description:'Accrual',debit:100,credit:0,amount:100};
  const payment={...bill,event_id:'p',event_date:'2026-09-02',created_at:'2026-09-02',event_type:'salary_payment',debit:0,credit:30,amount:-30};
- const rows:Record<string,unknown[]>={transport_driver_account_movements:[bill,payment],transport_party_movements:[bill,payment,{...bill,event_id:'shared',trip_ids:['trip','other'],amount:500},{...bill,event_id:'ar',side:'customer',amount:200}],transport_financial_register:[{id:'trip',vehicle_id:'vehicle',vehicle_no:'Truck-1'}]};
+ const rows:Record<string,unknown[]>={transport_driver_account_movements:[bill,payment],transport_vehicle_account_movements:[{...bill,account_id:'vehicle',account_name:'Truck-1'},{...payment,account_id:'vehicle',account_name:'Truck-1'},{...bill,event_id:'ar',side:'customer',amount:200,account_id:'vehicle',account_name:'Truck-1'}],transport_financial_register:[{id:'trip',vehicle_id:'vehicle',vehicle_no:'Truck-1'}]};
  const q:any={};for(const m of ['select','order','range'])q[m]=()=>q;q.then=(resolve:any)=>Promise.resolve({data:rows[table]??[],error:mock.fail?{message:'Permission denied'}:null}).then(resolve);return q;
 }}}));
 beforeEach(()=>{mock.export.mockReset();mock.fail=false;mock.output=true});afterEach(cleanup);

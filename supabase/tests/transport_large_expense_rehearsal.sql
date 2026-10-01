@@ -40,25 +40,22 @@ begin
  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Service Customer',ar) returning id into customer;
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
 
- insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
- values(c,b,'',current_date,customer,'A','B',1000,400,'credit') returning id into trip;
- insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
- values(c,b,'',current_date,customer,'A','B',1000,300,'credit') returning id into trip2;
- insert into public.employees(user_id,company_id,name,is_active) values(u,c,'PPR Employee',true) returning id into employee;
- update public.transport_trips set ppr_status='received',ppr_received_by_employee_id=employee,ppr_received_date=current_date where id=trip;
- if (select ppr_received_by_name from public.transport_trips where id=trip)<>'PPR Employee' then raise exception 'PPR employee snapshot missing';end if;
- path:=c::text||'/'||b::text||'/'||loc::text||'/'||trip::text||'/receipt.pdf';
- if not public.transport_ppr_object_allowed(path,true) then raise exception 'Scoped PPR upload denied';end if;
- if public.transport_ppr_object_allowed(c::text||'/'||b::text||'/'||gen_random_uuid()::text||'/'||trip::text||'/receipt.pdf',false) then raise exception 'Cross-branch PPR access accepted';end if;
- rejected:=false;begin update public.transport_trips set ppr_attachment_path=path where id=trip;exception when others then rejected:=true;end;
- if not rejected then raise exception 'Missing PPR upload accepted';end if;
- insert into storage.objects(bucket_id,name) values('transport-ppr',path);
- update public.transport_trips set ppr_attachment_path=path where id=trip;
- if not exists(select 1 from public.transport_trip_audit where trip_id=trip and action='ppr_attachment_change' and new_value->>'path'=path) then raise exception 'PPR attachment audit missing';end if;
- if (select ppr_attachment_path from public.transport_trips where id=trip)<>path then raise exception 'Uploaded PPR not attached';end if;
- execute 'set local role authenticated';
- if not public.transport_ppr_object_allowed(path,false) then raise exception 'Authenticated scoped PPR access denied';end if;
- execute 'reset role';
- raise notice 'PASS: employee/date PPR receipt, private attachment existence and branch isolation';
+ insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,sale_type)
+ values(c,b,'',current_date,customer,'A','B','credit') returning id into trip;
+ select jsonb_agg(jsonb_build_object('trip_id',trip,'amount',1,'date',current_date,'reference','BATCH-'||n)) into payload from generate_series(1,500) n;
+ result:=public.transport_post_cost_chunk(request_id,payload,supplier,acct,false);
+ if jsonb_array_length(result->'documents')<>500 then raise exception '500-row batch truncated';end if;
+ if (select count(*) from public.transport_service_cost_links where trip_id=trip)<>500 then raise exception 'Expense evidence count incorrect';end if;
+ if (select sum(b.outstanding_gross) from public.transport_service_cost_links l join public.transport_service_document_balances b on b.order_id=l.purchase_order_id and b.side='supplier' where l.trip_id=trip)<>500 then raise exception '500-row expense AP balance incorrect';end if;
+ if (select sum(jl.credit-jl.debit) from public.journal_lines jl join public.transport_service_cost_links l on l.journal_entry_id=jl.entry_id where l.trip_id=trip and jl.account_id=ap)<>500 then raise exception 'Expense balance differs from canonical AP';end if;
+ again:=public.transport_post_cost_chunk(request_id,payload,supplier,acct,false);
+ if again<>result or (select count(*) from public.transport_service_cost_links where trip_id=trip)<>500 then raise exception 'Retry duplicated expenses';end if;
+ rejected:=false;begin perform public.transport_post_cost_chunk(request_id,payload,supplier,acct,true);exception when others then rejected:=true;end;
+ if not rejected then raise exception 'Request reused with changed VAT accepted';end if;
+ rejected:=false;begin perform public.transport_post_cost_chunk(gen_random_uuid(),jsonb_build_array(jsonb_build_object('trip_id',trip,'amount',2,'date',current_date)),gen_random_uuid(),acct,false);exception when others then rejected:=true;end;
+ if not rejected then raise exception 'Invalid supplier accepted';end if;
+ rejected:=false;begin perform public.transport_post_cost_chunk(gen_random_uuid(),jsonb_build_array(jsonb_build_object('trip_id',trip,'amount',2,'date',current_date)),supplier,gen_random_uuid(),false);exception when others then rejected:=true;end;
+ if not rejected or (select count(*) from public.transport_service_cost_links where trip_id=trip)<>500 then raise exception 'Invalid account accepted or partial posting persisted';end if;
+ raise notice 'PASS 500 expenses, canonical AP=500, idempotent retry, changed-payload and invalid supplier/account rejection';
 end $$;
 rollback;

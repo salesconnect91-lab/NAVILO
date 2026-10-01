@@ -3,6 +3,7 @@ import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, Re
 import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 import TransportFinancialPanel from './TransportFinancialPanel';
+import TransportInitialRate from './TransportInitialRate';
 import TransportCostUpload from './TransportCostUpload';
 import TransportAudit from './TransportAudit';
 import TransportPartyReports from './TransportPartyReports';
@@ -166,6 +167,7 @@ export default function TransportWorkspace(){
     notes:""
   });
   const [financialTrip,setFinancialTrip]=useState<Trip|null>(null);
+  const [initialRateTrip,setInitialRateTrip]=useState<Trip|null>(null);
   const [editingRateLocks,setEditingRateLocks]=useState({customer:false,supplier:false});
   const [editingTripId,setEditingTripId]=useState<string|null>(null);
   const [editingTripNo,setEditingTripNo]=useState("");
@@ -1316,7 +1318,7 @@ export default function TransportWorkspace(){
         sale_type:data.sale_type||"",
         notes:data.notes||""
       });
-      setEditingRateLocks({customer:Boolean(row.customer_rate_locked),supplier:Boolean(row.supplier_rate_locked)});
+      setEditingRateLocks({customer:Boolean(row.customer_rate_locked||row.customer_rate_state==='finalized'),supplier:Boolean(row.supplier_rate_locked)});
       setEditingTripId(data.id);
       setEditingTripNo(data.trip_no);
       setEditingOriginalAssignment({vehicle_id:data.vehicle_id||"",driver_id:data.driver_id||""});
@@ -1761,7 +1763,7 @@ export default function TransportWorkspace(){
                 const numeric=["pay_driver","rent_driver","remaining_us","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
                 return <td key={key}
                   className={`border-b border-slate-100 px-1.5 py-0.5 ${numeric?"text-right":""}`}>
-                  {value||""}
+                  {key==='company_rate'&&r.customer_rate_state==='pending'&&!r.customer_rate_locked?<button className="rounded border border-blue-200 px-1 text-blue-700" aria-label={`Add Rate ${r.trip_no}`} onClick={()=>setInitialRateTrip(r)}>Add Rate</button>:value||""}
                 </td>;
               })}            </tr>)}
           </tbody>
@@ -2341,6 +2343,7 @@ export default function TransportWorkspace(){
     {tab==="driver-expenses"&&<TransportCostUpload trips={rows} onChanged={load}/> }
     {tab==="driver-account"&&<TransportAccountRows title="Driver Account / Hisaab" rows={rows} kind="driver" onFinance={setFinancialTrip}/> }
     {tab==="vehicle-account"&&<TransportAccountRows title="Vehicle Account / Gari Hisaab" rows={rows} kind="vehicle" onFinance={setFinancialTrip}/> }
+    {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={load}/>}
     {financialTrip&&<TransportFinancialPanel key={financialTrip.id} trip={financialTrip} onClose={()=>setFinancialTrip(null)} onChanged={load}/>}
   </div>
 }
