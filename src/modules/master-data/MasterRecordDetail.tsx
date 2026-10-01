@@ -1,3 +1,4 @@
+import useTransportMasterClient from "./useTransportMasterClient";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Boxes, Mail, MapPin, Package, Phone, Truck, UserRound } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -19,6 +20,7 @@ const money = (v: unknown) => {
 };
 
 export default function MasterRecordDetail({ entity }: { entity: Entity }) {
+  const supabase = useTransportMasterClient();
   const { id } = useParams();
   const navigate = useNavigate();
   const config = CONFIG[entity];
@@ -40,7 +42,7 @@ export default function MasterRecordDetail({ entity }: { entity: Entity }) {
     };
     void load();
     return () => { cancelled = true; };
-  }, [config.table, id]);
+  }, [config.table, id, supabase]);
 
   const fields = useMemo(() => {
     if (!row) return [] as Array<{ label: string; value: string; icon?: typeof Package }>;

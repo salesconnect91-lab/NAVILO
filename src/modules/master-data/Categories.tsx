@@ -1,3 +1,4 @@
+import useTransportMasterClient from "./useTransportMasterClient";
 import MasterActionButton from "@/components/MasterActionButton";
 import DataTable,{Column} from "@/components/DataTable";
 import { masterDeleteError } from "@/lib/masterDeleteError";
@@ -21,13 +22,14 @@ const clean=(v:unknown)=>String(v??"").trim();
 const norm=(v:unknown)=>clean(v).toLowerCase();
 
 export default function Categories(){
+ const supabase = useTransportMasterClient();
  const[rows,setRows]=useState<Category[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[languageVersion,setLanguageVersion]=useState(0);
  const[error,setError]=useState<string|null>(null),[modalOpen,setModalOpen]=useState(false),[editing,setEditing]=useState<Category|null>(null),[deleteId,setDeleteId]=useState<string|null>(null),[form,setForm]=useState<CategoryForm>(EMPTY_FORM);
  const[search,setSearch]=useState(""),[statusFilter,setStatusFilter]=useState("all"),[translationFilter,setTranslationFilter]=useState("all"),[descriptionFilter,setDescriptionFilter]=useState("all");
  const[filtersOpen,setFiltersOpen]=useState(false),[importOpen,setImportOpen]=useState(false),[customizeOpen,setCustomizeOpen]=useState(false);
  const[columns,setColumns]=useState<Record<ColumnKey,boolean>>(()=>{try{return{...DEFAULT_COLUMNS,...JSON.parse(localStorage.getItem("navilo-categories-columns")||"{}")}}catch{return DEFAULT_COLUMNS}});
 
- const fetchCategories=useCallback(async()=>{setLoading(true);const{data,error}=await supabase.from("categories").select("id,name,name_urdu,description,created_at,is_active").order("name");if(error){setError(error.message);setRows([])}else{setError(null);setRows((data??[]) as Category[])}setLoading(false)},[]);
+ const fetchCategories=useCallback(async()=>{setLoading(true);const{data,error}=await supabase.from("categories").select("id,name,name_urdu,description,created_at,is_active").order("name");if(error){setError(error.message);setRows([])}else{setError(null);setRows((data??[]) as Category[])}setLoading(false)},[supabase]);
  useEffect(()=>{void fetchCategories()},[fetchCategories]);
  useEffect(()=>{localStorage.setItem("navilo-categories-columns",JSON.stringify(columns))},[columns]);
  useEffect(()=>{const h=()=>setCustomizeOpen(true);window.addEventListener("navilo:report-customize",h);return()=>window.removeEventListener("navilo:report-customize",h)},[]);

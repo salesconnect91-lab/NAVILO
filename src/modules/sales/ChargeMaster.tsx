@@ -1,3 +1,4 @@
+import useTransportMasterClient from "../master-data/useTransportMasterClient";
 import MasterActionButton from "@/components/MasterActionButton";
 import MasterSummaryStrip from "@/components/MasterSummaryStrip";
 import DataTable,{Column} from "@/components/DataTable";
@@ -83,6 +84,7 @@ const normalizedTypeForContext = (context: ChargeContext, type: ChargeType): Cha
   context === "purchase" ? "cost" : context === "sales" && type === "cost" ? "recovery" : type;
 
 export default function ChargeMaster() {
+  const supabase = useTransportMasterClient();
   const { activeCompany, isPlatformOwner } = useAuth();
   const canCreate = canPerformModule(activeCompany?.membership_role, "master", "create", activeCompany?.permissions, isPlatformOwner);
   const canEdit = canPerformModule(activeCompany?.membership_role, "master", "edit", activeCompany?.permissions, isPlatformOwner);
@@ -108,7 +110,7 @@ export default function ChargeMaster() {
     setCharges((chargeRes.data ?? []) as Charge[]);
     setAccounts((accountRes.data ?? []) as Account[]);
     setError("");
-  }, []);
+  }, [supabase]);
 
   useEffect(() => { void load(); }, [load]);
 

@@ -1,3 +1,6 @@
+import { useAuth } from "@/auth/AuthContext";
+import { isDedicatedTransportContext } from "@/lib/transportMasterContext";
+import useTransportMasterClient from "./useTransportMasterClient";
 import DataTable,{Column} from "@/components/DataTable";
 import MasterSummaryStrip from "@/components/MasterSummaryStrip";
 import { masterDeleteError } from "@/lib/masterDeleteError";
@@ -17,6 +20,9 @@ const escapeHtml = (value: unknown) => clean(value).replace(/[&<>"']/g, (char) =
 function urduEnabled() { const root = document.documentElement; return root.dataset.primaryLanguage === "ur" || (root.dataset.languageMode === "bilingual" && root.dataset.secondaryLanguage === "ur"); }
 
 export default function Employees() {
+ const supabase = useTransportMasterClient();
+  const { activeCompany, activeBusinessUnit } = useAuth();
+  const transportContext = isDedicatedTransportContext(activeCompany, activeBusinessUnit);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -50,7 +56,7 @@ export default function Employees() {
     else { setEmployees((data ?? []) as Employee[]); setError(""); }
     setLoading(false);
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [supabase]);
   const filtered = useMemo(() => employees.filter((employee) => (status === "all" || (status === "active") === employee.is_active) && [employee.employee_code, employee.name, employee.phone, employee.designation, employee.department, ...(showUrdu ? [employee.name_urdu, employee.designation_urdu, employee.department_urdu] : [])].some((value) => clean(value).toLowerCase().includes(search.trim().toLowerCase()))), [employees, status, search, showUrdu]);
   const openAdd = () => { setEditing(null); setForm({ ...blank }); setError(""); setShowForm(true); };
   const openEdit = (employee: Employee) => { setEditing(employee); setForm({ name: employee.name, name_urdu: employee.name_urdu ?? "", phone: employee.phone ?? "", designation: employee.designation ?? "", designation_urdu: employee.designation_urdu ?? "", department: employee.department ?? "", department_urdu: employee.department_urdu ?? "", is_active: employee.is_active }); setError(""); setShowForm(true); };
@@ -68,7 +74,9 @@ export default function Employees() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Authentication required.");
       const payload = { user_id: user.id, name: form.name.trim(), phone: form.phone.trim() || null, designation: form.designation.trim() || null, department: form.department.trim() || null, is_active: form.is_active, updated_at: new Date().toISOString(), ...(urduEnabled() ? { name_urdu: form.name_urdu.trim() || null, designation_urdu: form.designation_urdu.trim() || null, department_urdu: form.department_urdu.trim() || null } : {}) };
-      const result = editing ? await supabase.from("employees").update(payload).eq("id", editing.id).eq("user_id", user.id) : await supabase.from("employees").insert({ ...payload, employee_code: null });
+      let updateQuery = editing ? supabase.from("employees").update({ ...payload, ...(transportContext ? { user_id: editing.user_id } : {}) }).eq("id", editing.id) : null;
+      if (updateQuery && !transportContext) updateQuery = updateQuery.eq("user_id", user.id);
+      const result = updateQuery ? await updateQuery.select("id").single() : await supabase.from("employees").insert({ ...payload, employee_code: null });
       if (result.error) throw result.error;
       setShowForm(false); setEditing(null); setForm({ ...blank }); await load(); setSuccess(editing ? "Employee updated successfully." : "Employee added successfully.");
     } catch (failure: unknown) { setError(failure instanceof Error ? failure.message : "Unable to save employee."); }

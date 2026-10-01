@@ -1,3 +1,4 @@
+import useTransportMasterClient from "./useTransportMasterClient";
 import MasterActionButton from "@/components/MasterActionButton";
 import DataTable,{Column} from "@/components/DataTable";
 import { masterDeleteError } from "@/lib/masterDeleteError";
@@ -25,13 +26,14 @@ const n=(v:unknown)=>String(v??"").trim().toLowerCase();
 const num=(v:string)=>Number.isFinite(Number(v))?Number(v):0;
 const prefix=(t:ItemType)=>t==="raw"?"RAW":t==="component"?"CMP":"FG";
 
-async function nextSku(t:ItemType){
-  const p=prefix(t),{data,error}=await supabase.from("items").select("sku").ilike("sku",`${p}-%`);if(error)throw error;
+async function nextSku(t:ItemType, client = supabase){
+  const p=prefix(t),{data,error}=await client.from("items").select("sku").ilike("sku",`${p}-%`);if(error)throw error;
   let m=0;(data??[]).forEach(r=>{const x=String(r.sku??"").match(new RegExp(`^${p}-(\\d+)$`,`i`));if(x)m=Math.max(m,Number(x[1]))});
   return `${p}-${String(m+1).padStart(3,"0")}`;
 }
 
 export default function Items(){
+ const supabase = useTransportMasterClient();
   const[items,setItems]=useState<Item[]>([]),[categories,setCategories]=useState<Category[]>([]),[uoms,setUoms]=useState<Uom[]>([]);
   const[form,setForm]=useState<ItemForm>(EMPTY),[edit,setEdit]=useState<Item|null>(null),[open,setOpen]=useState(false),[search,setSearch]=useState("");
   const[typeFilter,setTypeFilter]=useState("all"),[categoryFilter,setCategoryFilter]=useState("all"),[statusFilter,setStatusFilter]=useState("all"),[uomFilter,setUomFilter]=useState("all");
@@ -40,7 +42,7 @@ export default function Items(){
   const[error,setError]=useState(""),[saving,setSaving]=useState(false),[languageVersion,setLanguageVersion]=useState(0),[nameManual,setNameManual]=useState(false);
 
   const load=async()=>{const[i,c,u]=await Promise.all([supabase.from("items").select("id,sku,name,name_urdu,type,grade,size,unit,hs_code,cost,price,category_id,is_active").order("name"),supabase.from("categories").select("id,name,name_urdu").order("name"),supabase.from("uom").select("id,name,name_urdu,symbol").order("name")]);if(i.error||c.error||u.error)setError(i.error?.message||c.error?.message||u.error?.message||"Load failed");else{setItems((i.data??[]) as Item[]);setCategories((c.data??[]) as Category[]);setUoms((u.data??[]) as Uom[])}};
-  useEffect(()=>{void load()},[]);
+  useEffect(()=>{void load()},[supabase]);
   useEffect(()=>{const h=()=>setCustomizeOpen(true);window.addEventListener("navilo:report-customize",h);return()=>window.removeEventListener("navilo:report-customize",h)},[]);
   useEffect(()=>{const h=()=>setLanguageVersion(v=>v+1);window.addEventListener("navilo-language-changed",h);window.addEventListener("navilo:language-changed",h);return()=>{window.removeEventListener("navilo-language-changed",h);window.removeEventListener("navilo:language-changed",h)}},[]);
   useEffect(()=>{localStorage.setItem("navilo-items-columns",JSON.stringify(columns))},[columns]);
@@ -86,7 +88,7 @@ export default function Items(){
   const inactiveCount=items.length-activeCount;
   const totalCost=shown.reduce((s,x)=>s+Number(x.cost||0),0),totalPrice=shown.reduce((s,x)=>s+Number(x.price||0),0);
 
-  const start=async()=>{try{setEdit(null);setNameManual(false);const defaultUnit=uoms.find(u=>n(u.symbol)==="kg")?.symbol??uoms[0]?.symbol??"";setForm({...EMPTY,sku:await nextSku("finished"),unit:defaultUnit});setOpen(true)}catch(x){setError(x instanceof Error?x.message:"SKU generation failed")}};
+  const start=async()=>{try{setEdit(null);setNameManual(false);const defaultUnit=uoms.find(u=>n(u.symbol)==="kg")?.symbol??uoms[0]?.symbol??"";setForm({...EMPTY,sku:await nextSku("finished", supabase),unit:defaultUnit});setOpen(true)}catch(x){setError(x instanceof Error?x.message:"SKU generation failed")}};
   const save=async(e:FormEvent)=>{
     e.preventDefault();setSaving(true);setError("");
     try{
@@ -94,7 +96,7 @@ export default function Items(){
       if(!resolvedName)throw new Error("Item name is required. Select a category and enter size/grade, or type a manual name.");
       const duplicateName=items.find(x=>x.id!==edit?.id&&n(x.name)===n(resolvedName));
       if(duplicateName)throw new Error(`Duplicate item name: ${duplicateName.name}.`);
-      const sku=edit?edit.sku:await nextSku(form.type);
+      const sku=edit?edit.sku:await nextSku(form.type, supabase);
       const duplicateSku=items.find(x=>x.id!==edit?.id&&n(x.sku)===n(sku));
       if(duplicateSku)throw new Error(`Duplicate SKU: ${sku}.`);
       const p={sku,name:resolvedName,name_urdu:showUrdu?(form.name_urdu.trim()||toUrduName(resolvedName)):(edit?.name_urdu??null),type:form.type,grade:form.grade.trim()||null,size:form.size.trim()||null,unit:form.unit.trim()||null,hs_code:form.hs_code.trim()||null,cost:num(form.cost),price:num(form.price),category_id:form.category_id||null};
@@ -144,7 +146,7 @@ export default function Items(){
 
     {open&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 p-4" data-no-print data-no-export><form onSubmit={save} className="max-h-[90vh] w-full max-w-2xl space-y-3 overflow-visible rounded-xl bg-white p-6 shadow-xl"><h2 className="text-lg font-bold">{edit?"Edit Item":"Add Item"}</h2><div className="grid gap-3 sm:grid-cols-2">
       
-      <div><label className="label">Type</label><SearchableSelect className="input" value={form.type} onChange={async e=>{const type=e.target.value as ItemType;if(edit){setForm(x=>({...x,type}));return;}try{const sku=await nextSku(type);setForm(x=>({...x,type,sku}))}catch(x){setError(x instanceof Error?x.message:"SKU generation failed")}}}><option value="raw">Raw</option><option value="component">Component</option><option value="finished">Finished</option></SearchableSelect></div>
+      <div><label className="label">Type</label><SearchableSelect className="input" value={form.type} onChange={async e=>{const type=e.target.value as ItemType;if(edit){setForm(x=>({...x,type}));return;}try{const sku=await nextSku(type, supabase);setForm(x=>({...x,type,sku}))}catch(x){setError(x instanceof Error?x.message:"SKU generation failed")}}}><option value="raw">Raw</option><option value="component">Component</option><option value="finished">Finished</option></SearchableSelect></div>
       <div><div className="flex items-center justify-between"><label className="label">Item Name (English)</label><button type="button" className="text-xs font-semibold text-primary-600" onClick={()=>{setNameManual(false);setForm(x=>applyGeneratedName(x))}}>Auto Name</button></div><input className="input" value={form.name} onChange={e=>{setNameManual(true);setForm(x=>({...x,name:e.target.value,name_urdu:(!x.name_urdu||x.name_urdu===toUrduName(x.name))?toUrduName(e.target.value):x.name_urdu}))}} placeholder="Auto from Category + Size + Grade"/></div>
       {showUrdu&&<div><div className="flex items-center justify-between"><label className="label">Urdu Name</label><button type="button" className="text-xs font-semibold text-primary-600" onClick={()=>setForm(x=>({...x,name_urdu:toUrduName(x.name)}))}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.name_urdu} onChange={e=>setForm(x=>({...x,name_urdu:e.target.value}))}/></div>}
       <div><label className="label">Category</label><SearchableSelect className="input" value={form.category_id} onChange={e=>updateStructuredField({category_id:e.target.value})}><option value="">None</option>{categories.map(c=><option key={c.id} value={c.id}>{masterLabel(c.name,c.name_urdu)}</option>)}</SearchableSelect></div>

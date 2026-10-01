@@ -1,3 +1,4 @@
+import useTransportMasterClient from "./useTransportMasterClient";
 import SearchableSelect from "@/components/SearchableSelect";
 import MasterSummaryStrip from "@/components/MasterSummaryStrip";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -34,6 +35,7 @@ const EMPTY = {
 };
 
 export default function Suppliers() {
+ const supabase = useTransportMasterClient();
   const { isPlatformOwner, activeCompany } = useAuth();
   const role = activeCompany?.membership_role ?? "";
   const canSetOpeningBalance = isPlatformOwner || role === "company_owner" || role === "admin";
@@ -61,7 +63,7 @@ export default function Suppliers() {
       setRows((data ?? []) as SupplierRow[]);
     }
     setLoading(false);
-  }, []);
+  }, [supabase]);
 
   useEffect(() => { void fetchRows(); }, [fetchRows]);
 
