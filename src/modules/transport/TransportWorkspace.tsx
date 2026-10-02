@@ -1353,7 +1353,7 @@ export default function TransportWorkspace(){
       >
         <table className="w-max min-w-full table-auto whitespace-nowrap text-[8px] leading-none">
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
-          <thead className="sticky top-0 z-20 bg-slate-50 text-left text-[8px] uppercase tracking-normal text-slate-600">
+          <thead className="sticky top-0 z-40 bg-slate-50 text-left text-[8px] uppercase tracking-normal text-slate-600 shadow-[0_1px_2px_rgba(15,23,42,0.12)]">
             <tr>
               {orderedGridColumns.map(([key,label],i)=>{
                 const active=(columnFilters[key]?.length??0)>0;
@@ -1362,7 +1362,7 @@ export default function TransportWorkspace(){
 
                 return <th key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`relative h-[17px] border-b border-r border-slate-200 px-0.5 !py-0 font-bold leading-none ${isSupplierGridKey(key)?"bg-amber-50 text-amber-900":isCustomerGridKey(key)?"bg-blue-50 text-blue-900":"bg-slate-50"} ${i===0?"!sticky left-0 z-50 shadow-[2px_0_3px_rgba(15,23,42,0.10)]":""}`}>
+                  className={`sticky top-0 h-[17px] border-b border-r border-slate-200 px-0.5 !py-0 font-bold leading-none ${isSupplierGridKey(key)?"bg-amber-50 text-amber-900":isCustomerGridKey(key)?"bg-blue-50 text-blue-900":"bg-slate-50"} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
                   <div className="flex h-[17px] w-full min-w-0 items-center gap-0.5">
                     <button type="button"
                       title={sorted?"Clear sort":`Sort by ${label}`}
