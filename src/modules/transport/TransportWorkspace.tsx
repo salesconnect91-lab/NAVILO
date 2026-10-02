@@ -1048,7 +1048,7 @@ export default function TransportWorkspace(){
       case "from": return String(r.from_location??"");
       case "to": return String(r.to_location??"");
       case "paper_received_by": return r.ppr_status==="received"?[String(r.ppr_received_by_name??"—"),r.ppr_received_date?formatNaviloDate(r.ppr_received_date):""].filter(Boolean).join(" · "):"Pending";
-      case "pay_driver": return financialNumber(r.driver_accrued??r.driver_pay);
+      case "supplier_paid": return financialNumber(r.supplier_paid_net??r.supplier_paid_gross??0);\n      case "supplier_balance": return financialNumber(r.supplier_outstanding_gross??r.remaining_with_us??0);\n      case "driver_pay": return financialNumber(r.driver_accrued??r.driver_pay);\n      case "driver_paid": return financialNumber(r.driver_paid??0);\n      case "driver_balance": return financialNumber(r.driver_outstanding??0);
       case "rent_driver": return financialNumber(r.billed_supplier_net??r.supplier_rent??r.owner_rent);
       case "remaining_us": return financialNumber(r.remaining_with_us??0);
       case "payment_date": return r.payment_date?formatNaviloDate(r.payment_date):"";
@@ -1373,7 +1373,7 @@ export default function TransportWorkspace(){
               {/* BuKu operational register order - one canonical mapping for display/filter/sort */}
               {orderedGridColumns.slice(1).map(([key])=>{
                 const value=tripCellValue(r,key);
-                const numeric=["pay_driver","rent_driver","remaining_us","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
+                const numeric=["rent_driver","supplier_paid","supplier_balance","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
