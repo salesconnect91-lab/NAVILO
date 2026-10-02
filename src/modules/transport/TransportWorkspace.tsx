@@ -1054,7 +1054,7 @@ export default function TransportWorkspace(){
       case "to": return String(r.to_location??"");
       case "paper_received_by": return r.ppr_status==="received"?[String(r.ppr_received_by_name??"—"),r.ppr_received_date?formatNaviloDate(r.ppr_received_date):""].filter(Boolean).join(" · "):"Pending";
       case "supplier_paid": return financialNumber(r.supplier_paid_net??r.supplier_paid_gross??0);
-      case "supplier_balance": return financialNumber(r.supplier_outstanding_gross??r.remaining_with_us??0);
+      case "supplier_balance": return financialNumber(Number(r.supplier_outstanding_gross??r.remaining_with_us??0)-Number(r.supplier_credit_gross??0));
       case "driver_pay": return financialNumber(r.driver_accrued??r.driver_pay);
       case "driver_paid": return financialNumber(r.driver_paid??0);
       case "driver_balance": return financialNumber(r.driver_outstanding??0);
@@ -1200,7 +1200,7 @@ export default function TransportWorkspace(){
     switch(key){
       case "rent_driver": return sum+Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0);
       case "supplier_paid": return sum+Number(r.supplier_paid_net??r.supplier_paid_gross??0);
-      case "supplier_balance": return sum+Number(r.supplier_outstanding_gross??r.remaining_with_us??0);
+      case "supplier_balance": return sum+Number(r.supplier_outstanding_gross??r.remaining_with_us??0)-Number(r.supplier_credit_gross??0);
       case "driver_pay": return sum+Number(r.driver_accrued??r.driver_pay??0);
       case "driver_paid": return sum+Number(r.driver_paid??0);
       case "driver_balance": return sum+Number(r.driver_outstanding??0);
@@ -2203,5 +2203,5 @@ function TransportAccountRows({title,rows,kind,onFinance}:{title:string;rows:Tri
  const [search,setSearch]=useState('');
  const filtered=rows.filter(r=>`${r.trip_no} ${r.driver_name??''} ${r.vehicle_no??''}`.toLowerCase().includes(search.toLowerCase()));
  return <section className="rounded-lg border bg-white p-3"><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">{title}</h2><input aria-label={`Search ${title}`} className="input" placeholder="Trip / driver / vehicle" value={search} onChange={e=>setSearch(e.target.value)}/></div>
- <TransportAccountStatement kind={kind}/><div className="overflow-auto"><table className="w-full text-xs"><thead><tr><th className="text-left">Trip</th><th className="text-left">{kind==='driver'?'Driver':'Current vehicle / owner'}</th><th>Status</th><th>Accrued / Billed</th><th>Paid</th><th>Outstanding</th><th>Posted Trip profit</th></tr></thead><tbody>{filtered.map(r=><tr className="border-t" key={r.id}><td><button className="text-blue-700 underline" onClick={()=>onFinance(r)}>{r.trip_no}</button></td><td>{kind==='driver'?r.driver_name:`${r.vehicle_no??''} / ${r.owner_name??''}`}</td><td>{r.financial_status}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_accrued:r.billed_supplier_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_paid:r.supplier_paid_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_outstanding:r.supplier_outstanding_gross)}</td><td className="text-right">{financialNumber(r.trip_profit)}</td></tr>)}</tbody></table></div></section>;
+ <TransportAccountStatement kind={kind}/><div className="overflow-auto"><table className="w-full text-xs"><thead><tr><th className="text-left">Trip</th><th className="text-left">{kind==='driver'?'Driver':'Current vehicle / owner'}</th><th>Status</th><th>Accrued / Billed</th><th>Paid</th><th>Outstanding</th><th>Posted Trip profit</th></tr></thead><tbody>{filtered.map(r=><tr className="border-t" key={r.id}><td><button className="text-blue-700 underline" onClick={()=>onFinance(r)}>{r.trip_no}</button></td><td>{kind==='driver'?r.driver_name:`${r.vehicle_no??''} / ${r.owner_name??''}`}</td><td>{r.financial_status}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_accrued:r.billed_supplier_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_paid:r.supplier_paid_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_outstanding:Number(r.supplier_outstanding_gross??0)-Number(r.supplier_credit_gross??0))}</td><td className="text-right">{financialNumber(r.trip_profit)}</td></tr>)}</tbody></table></div></section>;
 }
