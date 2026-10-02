@@ -301,12 +301,10 @@ export default function TransportWorkspace(){
       const all:Trip[]=[];
 
       while(true){
-        const {data,error}=await supabase
-          .from("transport_financial_register")
-          .select("*").eq("company_id",activeCompany?.company_id).eq("business_unit_id",activeBusinessUnit?.business_unit_id)
-          .order("trip_date",{ascending:false})
-          .order("trip_no",{ascending:false})
-          .range(from,from+pageSize-1);
+        const {data,error}=await supabase.rpc("transport_financial_register_page",{
+          p_limit:pageSize,
+          p_offset:from,
+        });
 
         if(error) throw error;
 
