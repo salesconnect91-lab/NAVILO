@@ -121,7 +121,7 @@ const BUKU_TRIP_HEADERS=[
 ] as const;
 
 export default function TransportWorkspace(){
-  const {activeCompany,activeBusinessUnit}=useAuth();
+  const {user,activeCompany,activeBusinessUnit}=useAuth();
   const scopeKey=`${activeCompany?.company_id}/${activeBusinessUnit?.business_unit_id}`;
   const scopeRef=useRef(scopeKey);scopeRef.current=scopeKey;
   const submissionRef=useRef(false);
@@ -1066,6 +1066,11 @@ export default function TransportWorkspace(){
     }
   };
 
+  const supplierGridKeys=["owner","rent_driver","supplier_paid","supplier_balance","payment_date","amount"] as const;
+  const customerGridKeys=["company","invoiced","company_rate","received_company","remaining_company","invoice_no","sale_type"] as const;
+  const isSupplierGridKey=(key:string)=>(supplierGridKeys as readonly string[]).includes(key);
+  const isCustomerGridKey=(key:string)=>(customerGridKeys as readonly string[]).includes(key);
+
   const gridColumns:ReadonlyArray<readonly [string,string]>=[
     ["trip_no","Trip No"],
     ["trip_date","Date"],
@@ -1096,7 +1101,7 @@ export default function TransportWorkspace(){
     ["sale_type","Sale Type"]
   ] as const;
 
-  const tripGridStorageKey=`navilo:transport:trip-grid:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
+  const tripGridStorageKey=`navilo:transport:trip-grid:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
   const orderedGridColumns=useMemo(()=>{
     const byKey=new Map(gridColumns.map(column=>[column[0],column] as const));
     const order=tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0]);
@@ -1119,6 +1124,14 @@ export default function TransportWorkspace(){
       setTripColumnWidths({});
     }
   },[tripGridStorageKey]);
+
+  const supplierDataVisible=supplierGridKeys.some(key=>!hiddenTripColumns.includes(key));
+  const customerDataVisible=customerGridKeys.some(key=>!hiddenTripColumns.includes(key));
+  const setGridGroupVisible=(keys:readonly string[],show:boolean)=>{
+    setHiddenTripColumns(current=>show
+      ?current.filter(key=>!keys.includes(key))
+      :Array.from(new Set([...current,...keys])));
+  };
 
   const saveTripGridLayout=()=>{
     localStorage.setItem(tripGridStorageKey,JSON.stringify({
@@ -1259,6 +1272,19 @@ export default function TransportWorkspace(){
               <button type="button" onClick={saveTripGridLayout} className="h-5 rounded border border-blue-200 bg-blue-50 px-2 text-[9px] font-semibold text-blue-700">Save as Default</button>
             </div>
           </div>
+          <div className="mb-1 flex flex-wrap items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1">
+            <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-amber-800">
+              <input type="checkbox" checked={supplierDataVisible}
+                onChange={e=>setGridGroupVisible(supplierGridKeys,e.target.checked)}/>
+              Show Supplier Data
+            </label>
+            <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-blue-800">
+              <input type="checkbox" checked={customerDataVisible}
+                onChange={e=>setGridGroupVisible(customerGridKeys,e.target.checked)}/>
+              Show Customer Data
+            </label>
+            <span className="text-[9px] text-slate-500">Hide either group to keep the Trips dashboard compact.</span>
+          </div>
           <div className="flex flex-wrap gap-1">
             {(tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0])).map(key=>{
               const column=gridColumns.find(item=>item[0]===key);
@@ -1296,7 +1322,7 @@ export default function TransportWorkspace(){
 
                 return <th key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`relative h-[17px] border-b border-r border-slate-200 bg-slate-50 px-0.5 !py-0 font-bold leading-none ${i===0?"sticky left-0 z-30":""}`}>
+                  className={`relative h-[17px] border-b border-r border-slate-200 px-0.5 !py-0 font-bold leading-none ${isSupplierGridKey(key)?"bg-amber-50 text-amber-900":isCustomerGridKey(key)?"bg-blue-50 text-blue-900":"bg-slate-50"} ${i===0?"sticky left-0 z-30":""}`}>
                   <div className="flex h-[17px] w-full min-w-0 items-center gap-0.5">
                     <button type="button"
                       title={sorted?"Clear sort":`Sort by ${label}`}
@@ -1382,7 +1408,7 @@ export default function TransportWorkspace(){
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`h-[17px] max-h-[17px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-slate-100 px-0.5 !py-0 leading-none ${numeric?"text-right":""}`}>
+                  className={`h-[17px] max-h-[17px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-slate-100 px-0.5 !py-0 leading-none ${isSupplierGridKey(key)?"bg-amber-50/40":isCustomerGridKey(key)?"bg-blue-50/40":""} ${numeric?"text-right":""}`}>
                   {key==='company_rate'&&r.customer_rate_state==='pending'&&!r.customer_rate_locked
                     ?<button className="h-[14px] rounded border border-blue-200 px-0.5 py-0 text-[8px] leading-none text-blue-700" aria-label={`Add Rate ${r.trip_no}`} onClick={()=>setInitialRateTrip(r)}>Add Rate</button>
                     :key==='paper_received_by'
