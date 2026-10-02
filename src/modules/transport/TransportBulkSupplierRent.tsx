@@ -6,7 +6,7 @@ import {financialNumber} from './transportFinancialTypes';
 
 type Row={id:string;trip_no:string;trip_date:string;owner_name?:string|null;supplier_rent?:number|null;owner_rent?:number|null;billed_supplier_net?:number|null};
 type Supplier={id:string;name:string};
-type Rent={id:string;trip_id:string;supplier_id:string;amount:number};
+type Rent={id:string;trip_id:string;supplier_id:string;amount:number;state?:string;finalized_amount_snapshot?:number|null};
 type Account={id:string;name:string;type:string};
 
 export default function TransportBulkSupplierRent({onClose,onChanged}:{onClose:()=>void;onChanged:()=>Promise<void>}){
@@ -19,7 +19,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged}:{onClose:(
   const [rr,ss,rt,aa]=await Promise.all([
    supabase.rpc('transport_financial_register_page',{p_limit:1000,p_offset:0}),
    supabase.from('suppliers').select('id,name').eq('company_id',activeCompany?.company_id).eq('is_active',true).order('name'),
-   supabase.from('transport_trip_supplier_rents').select('id,trip_id,supplier_id,amount').eq('company_id',activeCompany?.company_id).eq('business_unit_id',activeBusinessUnit?.business_unit_id),
+   supabase.from('transport_trip_supplier_rents').select('id,trip_id,supplier_id,amount,state,finalized_amount_snapshot').eq('company_id',activeCompany?.company_id).eq('business_unit_id',activeBusinessUnit?.business_unit_id),
    supabase.from('chart_of_accounts').select('id,name,type').eq('company_id',activeCompany?.company_id).eq('is_active',true).eq('type','expense').order('name')
   ]);
   const e=rr.error||ss.error||rt.error||aa.error;if(e)throw e;
@@ -27,24 +27,26 @@ export default function TransportBulkSupplierRent({onClose,onChanged}:{onClose:(
  }
  useEffect(()=>{void load().catch(e=>setError(e.message))},[activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
  const existing=useMemo(()=>new Map(rents.map(r=>[r.trip_id,r])),[rents]);
+ const postedTripIds=useMemo(()=>new Set(rows.filter(r=>Number(r.billed_supplier_net??0)>0).map(r=>r.id)),[rows]);
+ const unavailableTripIds=useMemo(()=>new Set([...existing.keys(),...postedTripIds]),[existing,postedTripIds]);
  const supplierName=suppliers.find(s=>s.id===supplier)?.name??'';
  const visible=rows.filter(r=>!supplierName||r.owner_name===supplierName||existing.get(r.id)?.supplier_id===supplier).filter(r=>!search||r.trip_no.toLowerCase().includes(search.toLowerCase()));
  function toggle(id:string,on:boolean){setSelected(v=>on?[...new Set([...v,id])]:v.filter(x=>x!==id));}
- function selectShown(){const ids=visible.filter(r=>!existing.has(r.id)).map(r=>r.id);setSelected(ids);setAmounts(v=>({...v,...Object.fromEntries(ids.map(id=>{const r=rows.find(x=>x.id===id)!;return [id,String(r.supplier_rent??r.owner_rent??'')]}))}));}
+ function selectShown(){const ids=visible.filter(r=>!unavailableTripIds.has(r.id)).map(r=>r.id);setSelected(ids);setAmounts(v=>({...v,...Object.fromEntries(ids.map(id=>{const r=rows.find(x=>x.id===id)!;return [id,String(r.supplier_rent??r.owner_rent??'')]}))}));}
  async function post(){
   if(!supplier||!account||!selected.length||!reason.trim())return;
   setBusy(true);setError('');setMessage('');
   let done=0;
   try{
    for(const id of selected){
-    if(existing.has(id))continue;
-    const amount=Number(amounts[id]);if(!(amount>0))throw new Error(`Enter a valid rent for ${rows.find(r=>r.id===id)?.trip_no}`);
+    if(unavailableTripIds.has(id))continue;
+    const row=rows.find(r=>r.id===id);const raw=amounts[id]??String(row?.supplier_rent??row?.owner_rent??'');const amount=Number(raw);if(!(amount>0))throw new Error(`Enter a valid rent for ${row?.trip_no}`);
     const add=await supabase.rpc('transport_add_supplier_rent',{p_trip_id:id,p_supplier_id:supplier,p_amount:amount,p_reason:reason.trim()});if(add.error)throw add.error;
     const bill=await supabase.rpc('transport_post_supplier_bill',{p_rent_id:add.data,p_date:date,p_cost_account_id:account,p_with_tax:withTax,p_reference:'Bulk supplier rent'});if(bill.error)throw bill.error;
     done++;
    }
    await load();await onChanged();setSelected([]);setAmounts({});setMessage(`${done} trip rent(s) finalized and posted to canonical Accounts Payable.`);
-  }catch(e){setError(`${e instanceof Error?e.message:'Bulk rent failed'} · ${done} trip(s) completed before this error; completed trips will not be repeated.`)}
+  }catch(e){const detail=e&&typeof e==='object'&&'message' in e?String((e as {message?:unknown}).message):String(e||'Bulk rent failed');setError(`${detail} · ${done} trip(s) completed before this error; completed trips will not be repeated.`)}
   finally{setBusy(false)}
  }
  return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-3"><section className="max-h-[94vh] w-full max-w-6xl overflow-auto rounded-lg bg-white p-4 text-xs shadow-xl">
@@ -59,7 +61,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged}:{onClose:(
    <label>Search Trip<input className="input" value={search} onChange={e=>setSearch(e.target.value)}/></label>
    <button className="btn" disabled={!supplier||busy} onClick={selectShown}>Select All Unposted</button>
   </div>
-  <div className="max-h-[55vh] overflow-auto border"><table className="w-full whitespace-nowrap text-left text-xs"><thead className="sticky top-0 bg-slate-100"><tr><th className="p-2">Select</th><th>Trip</th><th>Date</th><th>Owner</th><th>Rent</th><th>Status</th></tr></thead><tbody>{visible.map(r=>{const ex=existing.get(r.id);return <tr key={r.id} className="border-t"><td className="p-2"><input type="checkbox" disabled={!!ex||busy} checked={selected.includes(r.id)} onChange={e=>toggle(r.id,e.target.checked)}/></td><td className="font-semibold">{r.trip_no}</td><td>{r.trip_date}</td><td>{r.owner_name||'—'}</td><td><input className="input w-28" type="number" min="0.01" step="0.01" disabled={!!ex||busy} value={ex?String(ex.amount):amounts[r.id]??String(r.supplier_rent??r.owner_rent??'')} onChange={e=>setAmounts(v=>({...v,[r.id]:e.target.value}))}/></td><td>{ex?<span className="text-emerald-700">Finalized {financialNumber(ex.amount)}</span>:<span className="text-amber-700">Ready</span>}</td></tr>})}</tbody></table></div>
+  <div className="max-h-[55vh] overflow-auto border"><table className="w-full whitespace-nowrap text-left text-xs"><thead className="sticky top-0 bg-slate-100"><tr><th className="p-2">Select</th><th>Trip</th><th>Date</th><th>Owner</th><th>Rent</th><th>Status</th></tr></thead><tbody>{visible.map(r=>{const ex=existing.get(r.id);const posted=postedTripIds.has(r.id);const locked=!!ex||posted;return <tr key={r.id} className="border-t"><td className="p-2"><input type="checkbox" disabled={locked||busy} checked={selected.includes(r.id)} onChange={e=>toggle(r.id,e.target.checked)}/></td><td className="font-semibold">{r.trip_no}</td><td>{r.trip_date}</td><td>{r.owner_name||'—'}</td><td><input className="input w-28" type="number" min="0.01" step="0.01" disabled={locked||busy} value={ex?String(ex.finalized_amount_snapshot??ex.amount):posted?String(r.billed_supplier_net??''):amounts[r.id]??String(r.supplier_rent??r.owner_rent??'')} onChange={e=>setAmounts(v=>({...v,[r.id]:e.target.value}))}/></td><td>{locked?<span className="text-emerald-700">Already posted {financialNumber(ex?.finalized_amount_snapshot??ex?.amount??r.billed_supplier_net)}</span>:<span className="text-amber-700">Ready</span>}</td></tr>})}</tbody></table></div>
   <div className="mt-3 flex items-center justify-between"><strong>{selected.length} trip(s) selected</strong><button className="btn-primary" disabled={busy||!supplier||!account||!selected.length||!reason.trim()} onClick={()=>void post()}>{busy?'Posting…':'Finalize & Post Selected'}</button></div>
  </section></div>;
 }
