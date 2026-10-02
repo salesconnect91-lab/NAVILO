@@ -216,6 +216,9 @@ export default function TransportWorkspace(){
     notes:""
   });
   const [financialTrip,setFinancialTrip]=useState<Trip|null>(null);
+  const [quickPprTrip,setQuickPprTrip]=useState<Trip|null>(null);
+  const [quickPprEmployee,setQuickPprEmployee]=useState("");
+  const [quickPprDate,setQuickPprDate]=useState(new Date().toISOString().slice(0,10));
   const [initialRateTrip,setInitialRateTrip]=useState<Trip|null>(null);
   const [editingRateLocks,setEditingRateLocks]=useState({customer:false,supplier:false});
   const [editingTripId,setEditingTripId]=useState<string|null>(null);
@@ -837,6 +840,25 @@ export default function TransportWorkspace(){
     setBulkFileName("");
   };
 
+  async function openQuickPpr(row:Trip){
+    setError("");setLoading(true);
+    try{await loadTripMasters();setQuickPprEmployee("");setQuickPprDate(new Date().toISOString().slice(0,10));setQuickPprTrip(row);}
+    catch(e:any){setError(e?.message||"Unable to load PPR employees.");}finally{setLoading(false);}
+  }
+  async function saveQuickPpr(){
+    if(!quickPprTrip||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
+    if(!quickPprEmployee||!quickPprDate){setError("Select Received By employee and PPR date.");return;}
+    setLoading(true);setError("");
+    try{
+      const {data,error}=await supabase.from("transport_trips")
+        .update({ppr_status:"received",ppr_received_by_employee_id:quickPprEmployee,ppr_received_date:quickPprDate})
+        .eq("id",quickPprTrip.id).eq("company_id",activeCompany.company_id).eq("business_unit_id",activeBusinessUnit.business_unit_id)
+        .eq("ppr_status","pending").select("id").single();
+      if(error)throw error;if(!data)throw new Error("PPR is no longer pending.");
+      setQuickPprTrip(null);setQuickPprEmployee("");await load();
+    }catch(e:any){setError(e?.message||"Unable to receive PPR.");}finally{setLoading(false);}
+  }
+
   async function startEditTrip(row:Trip){
     setLoading(true);
     setError("");
@@ -1025,8 +1047,7 @@ export default function TransportWorkspace(){
       case "plate": return String(r.vehicle_no??"");
       case "from": return String(r.from_location??"");
       case "to": return String(r.to_location??"");
-      case "paper_received_by": return r.ppr_status==="received"?String(r.ppr_received_by_name??"—"):"Pending";
-      case "ppr_date": return r.ppr_status==="received"&&r.ppr_received_date?formatNaviloDate(r.ppr_received_date):"Pending";
+      case "paper_received_by": return r.ppr_status==="received"?[String(r.ppr_received_by_name??"—"),r.ppr_received_date?formatNaviloDate(r.ppr_received_date):""].filter(Boolean).join(" · "):"Pending";
       case "pay_driver": return financialNumber(r.driver_accrued??r.driver_pay);
       case "rent_driver": return financialNumber(r.billed_supplier_net??r.supplier_rent??r.owner_rent);
       case "remaining_us": return financialNumber(r.remaining_with_us??0);
@@ -1055,8 +1076,7 @@ export default function TransportWorkspace(){
     ["plate","Plate #"],
     ["from","From"],
     ["to","To"],
-    ["paper_received_by","Paper Received By"],
-    ["ppr_date","PPR Date"],
+    ["paper_received_by","PPR Received By"],
     ["pay_driver","Pay To Driver"],
     ["rent_driver","Rent With Driver"],
     ["remaining_us","Remaining With Us"],
@@ -1358,7 +1378,13 @@ export default function TransportWorkspace(){
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
                   className={`h-[17px] max-h-[17px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-slate-100 px-0.5 !py-0 leading-none ${numeric?"text-right":""}`}>
-                  {key==='company_rate'&&r.customer_rate_state==='pending'&&!r.customer_rate_locked?<button className="h-[14px] rounded border border-blue-200 px-0.5 py-0 text-[8px] leading-none text-blue-700" aria-label={`Add Rate ${r.trip_no}`} onClick={()=>setInitialRateTrip(r)}>Add Rate</button>:value||""}
+                  {key==='company_rate'&&r.customer_rate_state==='pending'&&!r.customer_rate_locked
+                    ?<button className="h-[14px] rounded border border-blue-200 px-0.5 py-0 text-[8px] leading-none text-blue-700" aria-label={`Add Rate ${r.trip_no}`} onClick={()=>setInitialRateTrip(r)}>Add Rate</button>
+                    :key==='paper_received_by'
+                      ?r.ppr_status==='received'
+                        ?<span className="inline-flex items-baseline gap-1"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[7px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
+                        :<button type="button" onClick={()=>void openQuickPpr(r)} className="h-[14px] rounded border border-amber-300 bg-amber-50 px-1 py-0 text-[8px] font-semibold leading-none text-amber-800">Receive PPR</button>
+                      :value||""}
                 </td>;
               })}            </tr>)}
           </tbody>
@@ -1856,6 +1882,29 @@ export default function TransportWorkspace(){
     {tab==="driver-expenses"&&<TransportCostUpload trips={rows} onChanged={load}/> }
     {tab==="driver-account"&&<TransportAccountRows title="Driver Account / Hisaab" rows={rows} kind="driver" onFinance={setFinancialTrip}/> }
     {tab==="vehicle-account"&&<TransportAccountRows title="Vehicle Account / Gari Hisaab" rows={rows} kind="vehicle" onFinance={setFinancialTrip}/> }
+    {quickPprTrip&&<div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/30 p-4">
+      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
+        <div className="mb-3 flex items-center justify-between">
+          <div><div className="text-sm font-bold">Receive PPR</div><div className="text-xs text-slate-500">{quickPprTrip.trip_no}</div></div>
+          <button type="button" onClick={()=>setQuickPprTrip(null)} className="rounded border px-2 py-1 text-xs">Close</button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-xs font-semibold">Received By
+            <select value={quickPprEmployee} onChange={e=>setQuickPprEmployee(e.target.value)} className="mt-1 h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs">
+              <option value="">Select employee</option>
+              {tripMasters.employees.map((employee:any)=><option key={employee.id} value={employee.id}>{employee.name}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-semibold">PPR Date
+            <NaviloDateInput aria-label="PPR Received Date" type="date" value={quickPprDate} onChange={e=>setQuickPprDate(e.target.value)} className="mt-1 h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs"/>
+          </label>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={()=>setQuickPprTrip(null)} className="rounded border px-3 py-2 text-xs font-semibold">Cancel</button>
+          <button type="button" disabled={loading||!quickPprEmployee||!quickPprDate} onClick={()=>void saveQuickPpr()} className="rounded bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Mark Received</button>
+        </div>
+      </div>
+    </div>}
     {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={load}/>}
     {financialTrip&&<TransportFinancialPanel key={financialTrip.id} trip={financialTrip} onClose={()=>setFinancialTrip(null)} onChanged={load}/>}
   </div>
