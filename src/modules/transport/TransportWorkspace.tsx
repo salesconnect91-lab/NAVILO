@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw, LockKeyhole } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
-import TransportFinancialPanel from './TransportFinancialPanel';
 import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportBulkCustomerRate from './TransportBulkCustomerRate';
 import TransportInitialRate from './TransportInitialRate';
@@ -218,7 +217,6 @@ export default function TransportWorkspace(){
     sale_type:"",
     notes:""
   });
-  const [financialTrip,setFinancialTrip]=useState<Trip|null>(null);
   const [showBulkSupplierRent,setShowBulkSupplierRent]=useState(false);
   const [showBulkCustomerRate,setShowBulkCustomerRate]=useState(false);
   const [bulkSupplierRentTrip,setBulkSupplierRentTrip]=useState<Trip|null>(null);
@@ -1446,7 +1444,6 @@ export default function TransportWorkspace(){
     {r.trip_no}
   </button>
   {tripHasPostedAccounting(r)&&<span title="Locked: posted accounting exists. Financial party/rate changes require controlled correction." aria-label={`Locked ${r.trip_no}`} className="ml-0.5 inline-flex align-middle text-amber-700"><LockKeyhole className="h-2.5 w-2.5"/></span>}
-  <button type="button" className="ml-0.5 h-[14px] rounded border px-0.5 py-0 text-[7px] leading-none text-slate-600" onClick={()=>setFinancialTrip(r)} aria-label={`Finance ${r.trip_no}`}>Finance</button>
   <span className="ml-0.5 inline text-[7px] font-normal leading-none text-slate-500">{r.financial_status}</span>
 </td>
 
