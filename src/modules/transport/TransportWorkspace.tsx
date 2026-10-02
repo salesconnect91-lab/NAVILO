@@ -1048,7 +1048,11 @@ export default function TransportWorkspace(){
       case "from": return String(r.from_location??"");
       case "to": return String(r.to_location??"");
       case "paper_received_by": return r.ppr_status==="received"?[String(r.ppr_received_by_name??"—"),r.ppr_received_date?formatNaviloDate(r.ppr_received_date):""].filter(Boolean).join(" · "):"Pending";
-      case "supplier_paid": return financialNumber(r.supplier_paid_net??r.supplier_paid_gross??0);\n      case "supplier_balance": return financialNumber(r.supplier_outstanding_gross??r.remaining_with_us??0);\n      case "driver_pay": return financialNumber(r.driver_accrued??r.driver_pay);\n      case "driver_paid": return financialNumber(r.driver_paid??0);\n      case "driver_balance": return financialNumber(r.driver_outstanding??0);
+      case "supplier_paid": return financialNumber(r.supplier_paid_net??r.supplier_paid_gross??0);
+      case "supplier_balance": return financialNumber(r.supplier_outstanding_gross??r.remaining_with_us??0);
+      case "driver_pay": return financialNumber(r.driver_accrued??r.driver_pay);
+      case "driver_paid": return financialNumber(r.driver_paid??0);
+      case "driver_balance": return financialNumber(r.driver_outstanding??0);
       case "rent_driver": return financialNumber(r.billed_supplier_net??r.supplier_rent??r.owner_rent);
       case "remaining_us": return financialNumber(r.remaining_with_us??0);
       case "payment_date": return r.payment_date?formatNaviloDate(r.payment_date):"";
@@ -1077,9 +1081,12 @@ export default function TransportWorkspace(){
     ["from","From"],
     ["to","To"],
     ["paper_received_by","PPR Received By"],
-    ["pay_driver","Pay To Driver"],
-    ["rent_driver","Rent With Driver"],
-    ["remaining_us","Remaining With Us"],
+    ["rent_driver","Supplier Rent"],
+    ["supplier_paid","Supplier Paid"],
+    ["supplier_balance","Supplier Balance"],
+    ["driver_pay","Driver Pay"],
+    ["driver_paid","Driver Paid"],
+    ["driver_balance","Driver Balance"],
     ["payment_date","Payment Date"],
     ["amount","Amount"],
     ["company_rate","Rate With Company"],
