@@ -18,11 +18,18 @@ export function scopeMasterClient(client: typeof supabase, companyId: string, un
         return typeof member === "function" ? member.bind(target) : member;
       }
       return (table: string) => {
-        const builder = target.from(table);
-        if (!companyTables.has(table) && !transportTables.has(table)) return builder;
+        if (!companyTables.has(table) && !transportTables.has(table)) return target.from(table);
         const transport = transportTables.has(table);
         const fields = { company_id: companyId, ...(transport ? { business_unit_id: unitId } : {}) };
-        return new Proxy(builder, {
+
+        // Scope the query through the real Supabase builder instead of proxying it.
+        // Supabase builders are thenable and rely on their own method receiver; wrapping
+        // the builder in another Proxy can break request/header propagation on mutations.
+        const scoped = target.from(table).select("*");
+        const companyScoped = scoped.eq("company_id", companyId);
+        const baseScoped = transport ? companyScoped.eq("business_unit_id", unitId) : companyScoped;
+
+        return new Proxy(target.from(table), {
           get(query, method, queryReceiver) {
             const member = Reflect.get(query, method, queryReceiver);
             if (typeof member !== "function") return member;
@@ -31,13 +38,18 @@ export function scopeMasterClient(client: typeof supabase, companyId: string, un
                 const values = args[0];
                 args[0] = Array.isArray(values)
                   ? values.map(row => ({ ...row, ...fields })) : { ...(values as object), ...fields };
+                return target.from(table)[method](args[0] as never);
               }
-              let result = member.apply(query, args);
-              if (method === "select" || method === "update" || method === "delete") {
-                result = result.eq("company_id", companyId);
-                if (transport) result = result.eq("business_unit_id", unitId);
+              if (method === "select") return baseScoped;
+              if (method === "update") {
+                const update = target.from(table).update(args[0] as never).eq("company_id", companyId);
+                return transport ? update.eq("business_unit_id", unitId) : update;
               }
-              return result;
+              if (method === "delete") {
+                const remove = target.from(table).delete().eq("company_id", companyId);
+                return transport ? remove.eq("business_unit_id", unitId) : remove;
+              }
+              return member.apply(query, args);
             };
           },
         });
