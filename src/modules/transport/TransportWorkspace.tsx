@@ -501,25 +501,19 @@ export default function TransportWorkspace(){
     if(!el||tab!=="trips")return;
 
     const onWheel=(event:WheelEvent)=>{
-      // Keep the Transport controls/header on screen: vertical wheel scrolls
-      // only the Trip rows; Shift+wheel / horizontal wheel scrolls columns.
-      if(event.shiftKey||Math.abs(event.deltaX)>Math.abs(event.deltaY)){
-        const delta=event.deltaX||event.deltaY;
-        if(!delta)return;
-        event.preventDefault();
-        event.stopPropagation();
-        el.scrollLeft+=delta;
-        return;
-      }
-
-      if(!event.deltaY)return;
+      // The grid owns its scrolling. Vertical wheel moves rows only;
+      // horizontal/Shift+wheel moves columns only, never the page.
+      const horizontal=event.shiftKey||Math.abs(event.deltaX)>Math.abs(event.deltaY);
+      const delta=horizontal?(event.deltaX||event.deltaY):event.deltaY;
+      if(!delta)return;
       event.preventDefault();
-      event.stopPropagation();
-      el.scrollTop+=event.deltaY;
+      event.stopImmediatePropagation();
+      if(horizontal)el.scrollLeft+=delta;
+      else el.scrollTop+=delta;
     };
 
-    el.addEventListener("wheel",onWheel,{passive:false});
-    return ()=>el.removeEventListener("wheel",onWheel);
+    el.addEventListener("wheel",onWheel,{passive:false,capture:true});
+    return ()=>el.removeEventListener("wheel",onWheel,{capture:true});
   },[tab]);
 
 
@@ -1263,8 +1257,8 @@ export default function TransportWorkspace(){
 
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-    {tab==="trips"&&<section className="rounded-lg border border-slate-200 bg-white shadow-sm" data-navilo-customizable="true">
-      <div className="border-b border-slate-200 bg-white px-1.5 py-1">
+    {tab==="trips"&&<section className="relative flex max-h-[calc(100vh-150px)] min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm" data-navilo-customizable="true">
+      <div className="z-40 shrink-0 border-b border-slate-200 bg-white px-1.5 py-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="flex h-7 min-w-[92px] items-center justify-between rounded-md border border-cyan-200 bg-cyan-50 px-2">
             <span className="text-[9px] font-bold uppercase text-cyan-700">Total Trips</span>
@@ -1355,7 +1349,7 @@ export default function TransportWorkspace(){
       </div>
       <div
         ref={tripsGridRef}
-        className="min-h-[220px] overscroll-contain overflow-auto border-t border-slate-200 bg-white"
+        className="min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-200 bg-white"
         style={{height:tripsGridHeight}}
       >
         <table className="w-max min-w-full table-auto whitespace-nowrap text-[8px] leading-none">
@@ -1472,7 +1466,7 @@ export default function TransportWorkspace(){
         </table>
       </div>
 
-      <div className="border-t border-slate-200 bg-slate-50">
+      <div className="z-40 shrink-0 border-t border-slate-200 bg-slate-50">
         <div
           role="separator"
           aria-orientation="horizontal"
