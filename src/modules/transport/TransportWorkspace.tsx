@@ -1362,7 +1362,7 @@ export default function TransportWorkspace(){
 
                 return <th key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`relative h-[17px] border-b border-r border-slate-200 px-0.5 !py-0 font-bold leading-none ${isSupplierGridKey(key)?"bg-amber-50 text-amber-900":isCustomerGridKey(key)?"bg-blue-50 text-blue-900":"bg-slate-50"} ${i===0?"sticky left-0 z-30":""}`}>
+                  className={`relative h-[17px] border-b border-r border-slate-200 px-0.5 !py-0 font-bold leading-none ${isSupplierGridKey(key)?"bg-amber-50 text-amber-900":isCustomerGridKey(key)?"bg-blue-50 text-blue-900":"bg-slate-50"} ${i===0?"!sticky left-0 z-50 shadow-[2px_0_3px_rgba(15,23,42,0.10)]":""}`}>
                   <div className="flex h-[17px] w-full min-w-0 items-center gap-0.5">
                     <button type="button"
                       title={sorted?"Clear sort":`Sort by ${label}`}
@@ -1432,7 +1432,7 @@ export default function TransportWorkspace(){
             {gridRows.map(r=><tr key={r.id} className="h-[17px] align-middle hover:bg-slate-50">
               <td
                 style={tripColumnWidths[orderedGridColumns[0]?.[0]??""]?{width:tripColumnWidths[orderedGridColumns[0]?.[0]??""],minWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""]}:undefined}
-                className="sticky left-0 z-[5] h-[17px] max-h-[17px] overflow-hidden whitespace-nowrap border-b border-slate-100 bg-white px-0.5 !py-0 font-bold leading-none text-slate-900">
+                className="!sticky left-0 z-30 h-[17px] max-h-[17px] overflow-hidden whitespace-nowrap border-b border-r border-slate-200 bg-white px-0.5 !py-0 font-bold leading-none text-slate-900 shadow-[2px_0_3px_rgba(15,23,42,0.08)]">
   <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
     className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
