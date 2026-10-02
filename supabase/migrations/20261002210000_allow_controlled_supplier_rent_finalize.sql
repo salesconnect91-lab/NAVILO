@@ -20,8 +20,12 @@ begin
      and new.business_unit_id is not distinct from old.business_unit_id
      and new.trip_id is not distinct from old.trip_id
      and new.supplier_id is not distinct from old.supplier_id
-     and old.state = 'pending'
+     and old.state in ('pending','finalized')
      and new.state = 'finalized'
+     and not exists (
+       select 1 from public.transport_supplier_document_rents l
+       where l.rent_id = old.id and not l.is_adjustment
+     )
   then
     return new;
   end if;
