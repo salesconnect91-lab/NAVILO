@@ -43,13 +43,13 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
  const rentStatus=(r:Row)=>postedTripIds.has(r.id)?'posted':legacyBlockedOnly.has(r.id)?'legacy correction required':existing.get(r.id)?.state==='finalized'?'finalized ready to post':'pending ready to finalize';
  const visible=rows.filter(r=>!supplierName||r.owner_name===supplierName||existing.get(r.id)?.supplier_id===supplier).filter(r=>!tripStatus||(r.trip_status||r.financial_status)===tripStatus).filter(r=>!search||[r.trip_no,r.customer_name,r.vehicle_no,r.driver_name,r.from_location,r.to_location,r.po_do_job_no].some(v=>String(v??'').toLowerCase().includes(search.toLowerCase()))).filter(r=>filterMatch(r.trip_no,'trip')&&filterMatch(formatTripDate(r.trip_date),'date')&&filterMatch(r.trip_status||r.financial_status,'status')&&filterMatch(r.customer_name,'company')&&filterMatch(`${r.from_location??''} ${r.to_location??''}`,'route')&&filterMatch(r.vehicle_no,'vehicle')&&filterMatch(r.driver_name,'driver')&&filterMatch(r.po_do_job_no,'job')&&filterMatch(r.owner_name||supplierName,'owner')&&filterMatch(existing.get(r.id)?.finalized_amount_snapshot??existing.get(r.id)?.amount??r.supplier_rent??r.owner_rent,'rent')&&filterMatch(rentStatus(r),'rentStatus'));
  function toggle(id:string,on:boolean){setSelected(v=>on?[...new Set([...v,id])]:v.filter(x=>x!==id));}
- function selectShown(){const ids=visible.filter(r=>!unavailableTripIds.has(r.id)).map(r=>r.id);setSelected(ids);setAmounts(v=>({...v,...Object.fromEntries(ids.map(id=>{const r=rows.find(x=>x.id===id)!;const ex=existing.get(id);return [id,String(ex?.finalized_amount_snapshot??ex?.amount??r.supplier_rent??r.owner_rent??'')]}))}));}
+ function selectShown(){const ids=visible.filter(r=>!unavailableTripIds.has(r.id)).map(r=>r.id);setSelected(ids);}
  async function finalizeSelected(){
   if(!supplier||!selected.length||!reason.trim())return;
   setBusy(true);setError('');setMessage('');let done=0,skipped=0;
   try{
-   for(const id of selected){
-    if(unavailableTripIds.has(id)){skipped++;continue;}
+   for(const id of [...selected]){
+    if(!selected.includes(id)||unavailableTripIds.has(id)){skipped++;continue;}
     const row=rows.find(r=>r.id===id);const raw=amounts[id]??String(existing.get(id)?.amount??row?.supplier_rent??row?.owner_rent??'');const amount=Number(raw);
     if(!(amount>=0))throw new Error(`Enter a valid rent for ${row?.trip_no}`);
     let rent=existing.get(id);
@@ -65,8 +65,8 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
   if(!account||!selected.length)return;
   setBusy(true);setError('');setMessage('');let done=0,skipped=0;
   try{
-   for(const id of selected){
-    if(unavailableTripIds.has(id)){skipped++;continue;}
+   for(const id of [...selected]){
+    if(!selected.includes(id)||unavailableTripIds.has(id)){skipped++;continue;}
     const rent=existing.get(id);
     if(!rent||rent.state!=='finalized'){skipped++;continue;}
     const bill=await supabase.rpc('transport_post_supplier_bill',{p_rent_id:rent.id,p_date:date,p_cost_account_id:account,p_with_tax:withTax,p_reference:'Bulk supplier rent'});if(bill.error)throw bill.error;done++;
