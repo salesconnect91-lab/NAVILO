@@ -1955,7 +1955,7 @@ export default function TransportWorkspace(){
     {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={load}/>}
     {showBulkSupplierRent&&<TransportBulkSupplierRent initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={async()=>{await load(true)}}/>}
       {showBulkCustomerRate&&<TransportBulkCustomerRate onClose={()=>setShowBulkCustomerRate(false)} onChanged={async()=>{await load(true)}}/>}
-    {financialTrip&&<TransportFinancialPanel key={financialTrip.id} trip={financialTrip} onClose={()=>setFinancialTrip(null)} onChanged={load}/>}
+
   </div>
 }
 function ColumnFilterMenu({
