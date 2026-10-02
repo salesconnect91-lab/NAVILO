@@ -501,14 +501,21 @@ export default function TransportWorkspace(){
     if(!el||tab!=="trips")return;
 
     const onWheel=(event:WheelEvent)=>{
-      const delta=
-        Math.abs(event.deltaX)>Math.abs(event.deltaY)
-          ? event.deltaX
-          : event.deltaY;
+      // Keep the Transport controls/header on screen: vertical wheel scrolls
+      // only the Trip rows; Shift+wheel / horizontal wheel scrolls columns.
+      if(event.shiftKey||Math.abs(event.deltaX)>Math.abs(event.deltaY)){
+        const delta=event.deltaX||event.deltaY;
+        if(!delta)return;
+        event.preventDefault();
+        event.stopPropagation();
+        el.scrollLeft+=delta;
+        return;
+      }
 
-      if(!delta)return;
+      if(!event.deltaY)return;
+      event.preventDefault();
       event.stopPropagation();
-      el.scrollLeft+=delta;
+      el.scrollTop+=event.deltaY;
     };
 
     el.addEventListener("wheel",onWheel,{passive:false});
