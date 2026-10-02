@@ -25,10 +25,20 @@ export default function TransportVehicleOwnership(){
   const plate=vehicleById.get(row.vehicle_id)?.vehicle_no?.trim().toLocaleUpperCase()??row.vehicle_id;
   return [plate,row.owner_type,row.supplier_id??"",row.owner_name_snapshot??"",row.effective_from,row.effective_to??""].join("|");
  };
+ const canonicalVehicleByPlate=new Map<string,Vehicle>();
+ for(const item of v){
+  const key=item.vehicle_no.trim().toLocaleUpperCase();
+  if(!canonicalVehicleByPlate.has(key))canonicalVehicleByPlate.set(key,item);
+ }
+ const canonicalVehicleIdBySourceId=new Map<string,string>();
+ for(const item of v){
+  const key=item.vehicle_no.trim().toLocaleUpperCase();
+  canonicalVehicleIdBySourceId.set(item.id,canonicalVehicleByPlate.get(key)?.id??item.id);
+ }
+ const normalizedPeriods=p.map(row=>({...row,vehicle_id:canonicalVehicleIdBySourceId.get(row.vehicle_id)??row.vehicle_id}));
  const seenOwnership=new Set<string>();
- const displayPeriods=p.filter(row=>{const key=ownershipKey(row);if(seenOwnership.has(key))return false;seenOwnership.add(key);return true;});
- const seenVehicles=new Set<string>();
- const displayVehicles=v.filter(item=>{const key=item.vehicle_no.trim().toLocaleUpperCase();if(seenVehicles.has(key))return false;seenVehicles.add(key);return true;});
+ const displayPeriods=normalizedPeriods.filter(row=>{const key=ownershipKey(row);if(seenOwnership.has(key))return false;seenOwnership.add(key);return true;});
+ const displayVehicles=Array.from(canonicalVehicleByPlate.values());
  setVehicles(displayVehicles);setSuppliers(s);setPeriods(displayPeriods);setError("");
  }catch(failure:any){setVehicles([]);setSuppliers([]);setPeriods([]);setError(failure.message??"Unable to load ownership history.")}};
  useEffect(()=>{void load()},[activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
