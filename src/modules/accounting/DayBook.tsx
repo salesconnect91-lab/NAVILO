@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, FilePlus2 } from "lucide-react";
@@ -154,7 +155,7 @@ export default function DayBook() {
             <button className="btn-primary" onClick={() => navigate("/accounting")}>
               <FilePlus2 size={16} /> New Journal Entry
             </button>
-            <input aria-label="Filter Day Book by date" className="input w-auto" type="date" value={filterDate} onChange={(event) => setFilterDate(event.target.value)} />
+            <NaviloDateInput aria-label="Filter Day Book by date" className="input w-auto" type="date" value={filterDate} onChange={(event) => setFilterDate(event.target.value)} />
             <button className="btn-secondary" disabled={!filterDate} onClick={() => setFilterDate("")}>Clear</button>
             <button className="btn-secondary" disabled={rows.length === 0} onClick={() => exportToCSV("posted-day-book.csv", exportColumns, exportRows)}>CSV</button>
             <button className="btn-secondary" disabled={rows.length === 0} onClick={() => exportToExcel("posted-day-book.xls", exportColumns, exportRows)}>Excel</button>

@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import { useCallback,useEffect,useMemo,useState } from "react";
 import { useLocation } from "react-router-dom";
 import { BarChart3,Download,Mail,Printer,RefreshCw,RotateCcw,Save,Settings2,Sparkles,Trash2 } from "lucide-react";
@@ -153,8 +154,8 @@ export default function Reports(){
       {showDateControls&&<>
        {dailyStockReport&&<button type="button" className="btn h-9 self-end whitespace-nowrap" aria-label="Show today only" title="Set From and To to today" onClick={()=>{const d=localDate(new Date());setFrom(d);setTo(d);setRange("custom")}}>Today</button>}
       <label className="block w-32 text-[11px] font-semibold text-slate-600">Date range<select className="input mt-1 w-full" value={range} onChange={e=>changeRange(e.target.value)}><option value="all">All dates</option><option value="this-month">This month</option><option value="last-month">Last month</option><option value="custom">Custom</option></select></label>
-      <label className="block w-36 text-[11px] font-semibold text-slate-600">From<input className="input mt-1 w-full" aria-label="From date" type="date" value={from} onChange={e=>{setFrom(e.target.value);setRange("custom")}}/></label>
-      <label className="block w-36 text-[11px] font-semibold text-slate-600">To<input className="input mt-1 w-full" aria-label="To date" type="date" value={to} onChange={e=>{setTo(e.target.value);setRange("custom")}}/></label>
+      <label className="block w-36 text-[11px] font-semibold text-slate-600">From<NaviloDateInput className="input mt-1 w-full" aria-label="From date" type="date" value={from} onChange={e=>{setFrom(e.target.value);setRange("custom")}}/></label>
+      <label className="block w-36 text-[11px] font-semibold text-slate-600">To<NaviloDateInput className="input mt-1 w-full" aria-label="To date" type="date" value={to} onChange={e=>{setTo(e.target.value);setRange("custom")}}/></label>
       </>}
       <label className="block w-36 text-[11px] font-semibold text-slate-600" title="These reports use posted transactions; cash-basis reporting is not implemented.">Accounting method<select className="input mt-1 w-full" aria-label="Accounting method" value="posted" disabled><option value="posted">Posted basis</option></select></label>
       {groupOptions.length>0&&<label className="block w-32 text-[11px] font-semibold text-slate-600">Column grouping<SearchableSelect className="input mt-1 w-full" aria-label="Column grouping" value={groupBy} onChange={e=>setGroupBy(e.target.value)}><option value="">None</option>{groupOptions.map(option=><option key={option.key} value={option.key}>{option.label}</option>)}</SearchableSelect></label>}

@@ -1,3 +1,5 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
+import { formatNaviloDate } from "@/lib/naviloDate";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
@@ -987,7 +989,7 @@ export default function TransportWorkspace(){
   const tripCellValue=(r:Trip,key:string):string=>{
     switch(key){
       case "trip_no": return String(r.trip_no??"");
-      case "trip_date": return String(r.trip_date??"");
+      case "trip_date": return formatNaviloDate(r.trip_date);
       case "truck_type": return String(r.truck_type??"");
       case "job_no": return String(r.po_do_job_no??"");
       case "invoiced": return r.invoiced?"Yes":"No";
@@ -998,11 +1000,11 @@ export default function TransportWorkspace(){
       case "from": return String(r.from_location??"");
       case "to": return String(r.to_location??"");
       case "paper_received_by": return String(r.ppr_received_by_name??"");
-      case "ppr_date": return String(r.ppr_received_date??"");
+      case "ppr_date": return r.ppr_received_date?formatNaviloDate(r.ppr_received_date):"";
       case "pay_driver": return financialNumber(r.driver_accrued??r.driver_pay);
       case "rent_driver": return financialNumber(r.billed_supplier_net??r.supplier_rent??r.owner_rent);
       case "remaining_us": return financialNumber(r.remaining_with_us);
-      case "payment_date": return r.payment_date??"";
+      case "payment_date": return r.payment_date?formatNaviloDate(r.payment_date):"";
       case "amount": return financialNumber(r.payment_amount);
       case "company_rate": return financialNumber(r.billed_customer_net??r.customer_rate);
       case "received_company": return financialNumber(r.received_from_company);
@@ -1055,8 +1057,9 @@ export default function TransportWorkspace(){
     }))
     .sort((a,b)=>{
       if(!sortColumn)return 0;
-      const av=tripCellValue(a,sortColumn);
-      const bv=tripCellValue(b,sortColumn);
+      const sortValue=(r:Trip)=>sortColumn==="trip_date"?r.trip_date:sortColumn==="ppr_date"?r.ppr_received_date??"":sortColumn==="payment_date"?r.payment_date??"":tripCellValue(r,sortColumn);
+      const av=sortValue(a);
+      const bv=sortValue(b);
       const result=av.localeCompare(bv,undefined,{numeric:true,sensitivity:"base"});
       return sortDirection==="asc"?result:-result;
     });
@@ -1319,7 +1322,7 @@ export default function TransportWorkspace(){
     <div className="overflow-visible rounded-lg border border-blue-300 bg-white">
       <div className="grid grid-cols-1 border-b border-slate-300 md:grid-cols-2 xl:grid-cols-7">
         <TripField label="Date">
-          <input aria-label="Trip Date" type="date" disabled={Boolean(editingTripId)} value={form.trip_date}
+          <NaviloDateInput aria-label="Trip Date" type="date" disabled={Boolean(editingTripId)} value={form.trip_date}
             onChange={e=>{setError("");setForm({...form,trip_date:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-xs outline-none"/>
         </TripField>
@@ -1434,7 +1437,7 @@ export default function TransportWorkspace(){
           {form.ppr_attachment_path&&<button type="button" className="text-blue-700 underline" onClick={()=>void openPpr()}>View saved PPR</button>}
         </TripField>
         <TripField label="PPR Date">
-          <input aria-label="PPR Date" type="date" value={form.ppr_received_date}
+          <NaviloDateInput aria-label="PPR Date" type="date" value={form.ppr_received_date}
             disabled={form.ppr_status!=="received"}
             onChange={e=>{setError("");setForm({...form,ppr_received_date:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-xs outline-none disabled:bg-slate-50"/>
@@ -1665,7 +1668,7 @@ export default function TransportWorkspace(){
 
                 </td>
 
-                <td className="whitespace-nowrap px-2 py-2">{row.trip_date}</td>
+                <td className="whitespace-nowrap px-2 py-2">{formatNaviloDate(row.trip_date)}</td>
                 <td className="whitespace-nowrap px-2 py-2">{row.customer}</td>
                 <td className="whitespace-nowrap px-2 py-2">{row.truck_type}</td>
                 <td className="whitespace-nowrap px-2 py-2">{row.vehicle}</td>
@@ -1955,7 +1958,7 @@ function TripField({label,children,onAdd}:{label:string;children:React.ReactNode
 function FilterDate({label,value,setValue}:{label:string;value:string;setValue:(value:string)=>void}){
   return <label className="text-[9px] font-bold uppercase tracking-normal text-slate-500">
     {label}
-    <input type="date" value={value} onChange={e=>setValue(e.target.value)}
+    <NaviloDateInput type="date" value={value} onChange={e=>setValue(e.target.value)}
       className="mt-0.5 h-6 w-full rounded border border-slate-200 bg-white px-1.5 text-[10px]"/>
   </label>
 }

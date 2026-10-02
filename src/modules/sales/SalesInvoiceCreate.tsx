@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import { fixedTaxRateOn } from "@/lib/effectiveTaxRate";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -545,7 +546,7 @@ export default function SalesInvoiceCreate() {
         <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
           <div><label className="label">Invoice Type</label><SearchableSelect className="input" disabled={isLocked} value={invoiceType} onChange={(e) => changeInvoiceType(e.target.value as InvoiceType)}><option value="Sale Invoice">Without Tax</option><option value="Tax Invoice">With Tax</option></SearchableSelect></div>
           <div><label className="label">Invoice No.</label><input className="input bg-slate-50 font-semibold" readOnly value={invoiceNo} /></div>
-          <div><label className="label">Invoice Date</label><input className="input" type="date" disabled={isLocked} value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} /></div>
+          <div><label className="label">Invoice Date</label><NaviloDateInput className="input" type="date" disabled={isLocked} value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} /></div>
           <div><label className="label">Fixed VAT %</label><input className="input bg-slate-50 text-right" readOnly value={invoiceType === "Tax Invoice" ? configuredTaxRate || "Not configured" : "0"} /></div>
           <div><label className="label">Customer</label><SearchableSelect className="input" disabled={isLocked} value={customerId} onChange={(e) => setCustomerId(e.target.value)}><option value="">— Select customer —</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}{customer.name_urdu ? ` / ${customer.name_urdu}` : ""}</option>)}</SearchableSelect></div>
           <div><label className="label">Sales Person</label><SearchableSelect className="input" disabled={isLocked} value={salesPersonId} onChange={(e) => { const nextId = e.target.value; const selected = salesPersons.find((row) => row.id === nextId); setSalesPersonId(nextId); setSalesPerson(selected?.name || ""); }}><option value="">— Select sales person —</option>{salesPersons.map((person) => <option key={person.id} value={person.id} data-search={person.employee_code||undefined}>{person.name}{person.designation ? ` · ${person.designation}` : ""}</option>)}</SearchableSelect></div>

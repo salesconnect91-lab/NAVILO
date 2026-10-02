@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -139,8 +140,8 @@ export default function SalespersonReport() {
     {error && <ErrorBanner message={error}/>} 
     <div className="no-print flex gap-2"><button className={mode === "sales" ? "btn-primary" : "btn-secondary"} onClick={() => setMode("sales")}>Sales Person</button><button className={mode === "purchase" ? "btn-primary" : "btn-secondary"} onClick={() => setMode("purchase")}>Purchase Person / Buyer</button></div>
     <div className="grid gap-2 rounded-lg border bg-white p-3 md:grid-cols-6 no-print">
-      <label className="text-xs">From<input type="date" className="input mt-1 w-full" value={from} onChange={e=>setFrom(e.target.value)}/></label>
-      <label className="text-xs">To<input type="date" className="input mt-1 w-full" value={to} onChange={e=>setTo(e.target.value)}/></label>
+      <label className="text-xs">From<NaviloDateInput type="date" className="input mt-1 w-full" value={from} onChange={e=>setFrom(e.target.value)}/></label>
+      <label className="text-xs">To<NaviloDateInput type="date" className="input mt-1 w-full" value={to} onChange={e=>setTo(e.target.value)}/></label>
       <label className="text-xs">Invoice Type<select className="input mt-1 w-full" value={invoiceType} onChange={e=>setInvoiceType(e.target.value as any)}><option value="all">All</option><option value="without">Without Tax</option><option value="tax">With Tax</option></select></label>
       {mode === "sales" ? <label className="text-xs">Settlement<select className="input mt-1 w-full" value={settlement} onChange={e=>setSettlement(e.target.value as any)}><option value="all">All</option><option value="cash">Cash</option><option value="bank">Bank</option><option value="credit">Credit</option></select></label> : <div/>}
       <label className="text-xs md:col-span-2">Search<input className="input mt-1 w-full" placeholder={mode === "sales" ? "Person, customer, invoiceΓÇª" : "Buyer, supplier, invoiceΓÇª"} value={search} onChange={e=>setSearch(e.target.value)}/></label>

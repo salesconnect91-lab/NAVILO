@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -448,7 +449,7 @@ export default function TrialBalance() {
               <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
                 From Date
               </span>
-              <input
+              <NaviloDateInput
                 type="date"
                 value={fromDate}
                 max={toDate}
@@ -461,7 +462,7 @@ export default function TrialBalance() {
               <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
                 To Date
               </span>
-              <input
+              <NaviloDateInput
                 type="date"
                 value={toDate}
                 min={fromDate}

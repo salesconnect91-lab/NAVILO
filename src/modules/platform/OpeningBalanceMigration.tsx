@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import { useMemo, useRef, useState } from "react";
 import { ArrowLeft, Download, FileSpreadsheet, ShieldCheck, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -200,7 +201,7 @@ export default function OpeningBalanceMigration() {
 
       <section className="rounded-xl border bg-white p-4 shadow-sm">
         <div className="grid gap-4 md:grid-cols-[220px_1fr_auto] md:items-end">
-          <label className="text-xs font-semibold text-slate-600">Opening Date<input type="date" className="input mt-1 w-full" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} /></label>
+          <label className="text-xs font-semibold text-slate-600">Opening Date<NaviloDateInput type="date" className="input mt-1 w-full" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} /></label>
           <div><div className="text-xs font-semibold text-slate-600">Excel / CSV File</div><div className="mt-1 flex min-h-10 items-center rounded-lg border bg-slate-50 px-3 text-sm text-slate-600"><FileSpreadsheet size={16} className="mr-2"/>{fileName || "No file selected"}</div></div>
           <div><input ref={inputRef} className="hidden" type="file" accept=".xlsx,.xls,.csv" onChange={(e) => e.target.files?.[0] && void parseFile(e.target.files[0])}/><button type="button" className="btn-primary" disabled={busy || !activeCompany} onClick={() => inputRef.current?.click()}><Upload size={16}/> {busy ? "Reading..." : "Upload & Preview"}</button></div>
         </div>

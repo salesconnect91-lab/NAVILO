@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import {
   useEffect,
@@ -2838,7 +2839,7 @@ export default function JournalEntryDetail() {
           </div>
           <div>
             <label className="label">Reversal Date</label>
-            <input className="input" type="date" value={reversalDate} onChange={(event) => setReversalDate(event.target.value)} />
+            <NaviloDateInput className="input" type="date" value={reversalDate} onChange={(event) => setReversalDate(event.target.value)} />
           </div>
           <div>
             <label className="label">Mandatory Reason</label>

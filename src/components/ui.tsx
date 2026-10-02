@@ -1,3 +1,4 @@
+import { formatNaviloDate } from "@/lib/naviloDate";
 import React, { useEffect, useRef, useState } from "react";
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
@@ -38,4 +39,4 @@ export function Modal({open,title,onClose,children,panelClassName="",closeOnBack
 }
 
 export function formatCurrency(n:number):string{return `Rs. ${Number(n||0).toLocaleString("en-PK",{minimumFractionDigits:2,maximumFractionDigits:2})}`;}
-export function formatDate(s:string):string{if(!s)return"—";return new Date(s).toLocaleDateString("en-PK",{year:"numeric",month:"short",day:"numeric"});}
+export function formatDate(s:string):string{return formatNaviloDate(s);}

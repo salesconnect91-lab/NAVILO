@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -397,7 +398,7 @@ export default function WorkOrderList() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Start Date</label>
-              <input
+              <NaviloDateInput
                 className="input"
                 type="date"
                 value={form.start_date}
@@ -409,7 +410,7 @@ export default function WorkOrderList() {
 
             <div>
               <label className="label">Planned End Date</label>
-              <input
+              <NaviloDateInput
                 className="input"
                 type="date"
                 value={form.end_date}

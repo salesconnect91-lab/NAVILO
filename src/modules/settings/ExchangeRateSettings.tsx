@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -87,7 +88,7 @@ export default function ExchangeRateSettings() {
         </select>
       </label>
       <label className="text-xs font-semibold">Effective from
-        <input className="input mt-1 w-full" type="date" value={effectiveOn} onChange={event => setEffectiveOn(event.target.value)} required />
+        <NaviloDateInput className="input mt-1 w-full" type="date" value={effectiveOn} onChange={event => setEffectiveOn(event.target.value)} required />
       </label>
       <label className="text-xs font-semibold">1 foreign = {base || "base"}
         <input className="input mt-1 w-full" type="number" step="any" min="0.0000000001" value={rate} onChange={event => setRate(event.target.value)} required />

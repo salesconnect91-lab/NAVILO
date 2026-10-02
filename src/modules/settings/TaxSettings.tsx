@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import { masterDeleteError } from "@/lib/masterDeleteError";
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useState } from "react";
@@ -63,8 +64,8 @@ export default function TaxSettings() {
       <div className="space-y-2">{taxes.map((tax, index) => <div key={tax.id ?? index} className="grid grid-cols-1 gap-2 rounded border p-3 md:grid-cols-4 xl:grid-cols-[2fr_1fr_1fr_1fr_1.5fr_1fr_1fr_auto]">
         <input className="input" value={tax.name} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, name: event.target.value } : row))} />
         <input className="input" type="number" min="0" max="100" step="0.01" value={tax.rate} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, rate: event.target.value } : row))} />
-        <label className="text-xs">Effective From<input className="input" type="date" value={tax.effective_from || ""} onChange={(event) => setTaxes(taxes.map((row,i) => i === index ? { ...row, effective_from: event.target.value || null } : row))} /></label>
-        <label className="text-xs">Effective To<input className="input" type="date" value={tax.effective_to || ""} onChange={(event) => setTaxes(taxes.map((row,i) => i === index ? { ...row, effective_to: event.target.value || null } : row))} /></label>
+        <label className="text-xs">Effective From<NaviloDateInput className="input" type="date" value={tax.effective_from || ""} onChange={(event) => setTaxes(taxes.map((row,i) => i === index ? { ...row, effective_from: event.target.value || null } : row))} /></label>
+        <label className="text-xs">Effective To<NaviloDateInput className="input" type="date" value={tax.effective_to || ""} onChange={(event) => setTaxes(taxes.map((row,i) => i === index ? { ...row, effective_to: event.target.value || null } : row))} /></label>
         <SearchableSelect className="input" value={tax.applies_to} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, applies_to: event.target.value as Tax["applies_to"] } : row))}><option value="sales">Sales</option><option value="purchase">Purchase</option><option value="both">Both</option></SearchableSelect>
         <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={tax.is_fixed} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, is_fixed: event.target.checked } : row))} /> Fixed</label>
         <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={tax.is_active} onChange={(event) => setTaxes(taxes.map((row, i) => i === index ? { ...row, is_active: event.target.checked } : row))} /> Active</label>

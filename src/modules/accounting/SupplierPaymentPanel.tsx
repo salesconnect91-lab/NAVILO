@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, RefreshCw } from "lucide-react";
@@ -137,7 +138,7 @@ export default function SupplierPaymentPanel() {
       {success && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">{success}</div>}
       {lastPaymentReceipt && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3"><span className="mr-2 text-xs font-bold text-slate-500">Payment Tools</span><button type="button" onClick={() => printPaymentReceipt(lastPaymentReceipt)} className="btn-secondary text-sm">Print</button><button type="button" onClick={() => downloadPaymentPdf(lastPaymentReceipt)} className="btn-secondary text-sm">PDF</button></div>}
       <div className="grid gap-4 md:grid-cols-3">
-        <div><label className="mb-1.5 block text-xs font-semibold">Payment Date</label><input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3"/></div>
+        <div><label className="mb-1.5 block text-xs font-semibold">Payment Date</label><NaviloDateInput type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3"/></div>
         <div><label className="mb-1.5 block text-xs font-semibold">Payment Method</label><SearchableSelect value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="Cash">Cash</option><option value="Bank">Bank</option><option value="Cheque">Cheque</option><option value="Online">Online</option><option value="Other">Other</option></SearchableSelect></div>
         <div><label className="mb-1.5 block text-xs font-semibold">Payment Account</label><SearchableSelect value={accountId} onChange={(e) => setAccountId(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select payment account</option>{accounts.map((account) => <option key={account.id} value={account.id} data-search={account.code}>{account.name}</option>)}</SearchableSelect></div>
       </div>

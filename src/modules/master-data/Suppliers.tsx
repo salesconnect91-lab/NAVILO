@@ -1,7 +1,9 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
+import type { MasterQuickCreate } from "./MasterQuickCreate";
 import useTransportMasterClient from "./useTransportMasterClient";
 import SearchableSelect from "@/components/SearchableSelect";
 import MasterSummaryStrip from "@/components/MasterSummaryStrip";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { masterDeleteError } from "@/lib/masterDeleteError";
 import { toUrduName } from "@/lib/urdu";
@@ -34,7 +36,7 @@ const EMPTY = {
   opening_date: new Date().toISOString().slice(0, 10),
 };
 
-export default function Suppliers() {
+export default function Suppliers({ quickCreate }: { quickCreate?: MasterQuickCreate } = {}) {
  const supabase = useTransportMasterClient();
   const { isPlatformOwner, activeCompany } = useAuth();
   const role = activeCompany?.membership_role ?? "";
@@ -43,13 +45,17 @@ export default function Suppliers() {
   const [rows, setRows] = useState<SupplierRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(Boolean(quickCreate));
   const [editing, setEditing] = useState<SupplierRow | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [hardDeleteId, setHardDeleteId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [urduTouched, setUrduTouched] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const submitting = useRef(false);
+  const quickCreatedId = useRef<string | null>(null);
+  const closeEditor = () => { setModalOpen(false); quickCreate?.onClose(); };
   const [search, setSearch] = useState("");
 
   const fetchRows = useCallback(async () => {
@@ -98,7 +104,11 @@ export default function Suppliers() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true; setSaving(true);
+    try {
     setError(null);
+    let selectedCreatedId = quickCreatedId.current;
 
     const payload = {
       name: form.name.trim(),
@@ -125,7 +135,10 @@ export default function Suppliers() {
       return setError("Opening date is required.");
     }
 
-    if (editing) {
+    if (quickCreate && quickCreatedId.current) {
+      const {error: retryError} = await supabase.from("suppliers").update(payload).eq("id",quickCreatedId.current);
+      if(retryError) return setError(retryError.message);
+    } else if (editing) {
       const { error } = await supabase.from("suppliers").update(payload).eq("id", editing.id);
       if (error) return setError(error.message);
     } else if (canSetOpeningBalance) {
@@ -143,6 +156,7 @@ export default function Suppliers() {
       if (error) return setError(error.message);
       const createdId = (data as { party_id?: string } | null)?.party_id;
       if (createdId) {
+        selectedCreatedId = createdId; if(quickCreate) quickCreatedId.current = createdId;
         const { error: taxError } = await supabase.from("suppliers").update({
           ntn: payload.ntn,
           strn: payload.strn,
@@ -161,6 +175,7 @@ export default function Suppliers() {
       if (error) return setError(error.message);
       const created = Array.isArray(data) ? data[0] : data;
       if (created?.id) {
+        selectedCreatedId = created.id; if(quickCreate) quickCreatedId.current = created.id;
         const { error: updateError } = await supabase.from("suppliers").update({
           name_urdu: payload.name_urdu,
           ntn: payload.ntn,
@@ -172,10 +187,18 @@ export default function Suppliers() {
       }
     }
 
+    window.dispatchEvent(new Event("navilo-master-data-changed"));
+    if (quickCreate) {
+      if (!selectedCreatedId) throw new Error("Master creation returned no record ID.");
+      await quickCreate.onCreated({id:selectedCreatedId,name:payload.name});
+      quickCreate.onClose(); return;
+    }
     setModalOpen(false);
     setEditing(null);
     setForm({ ...EMPTY, opening_date: new Date().toISOString().slice(0, 10) });
     await fetchRows();
+    } catch(failure:any) { setError(failure.message || "Unable to save master."); }
+    finally { submitting.current=false; setSaving(false); }
   };
 
   const handleStatusChange = async () => {
@@ -291,29 +314,23 @@ export default function Suppliers() {
     { key: "actions", label: "Actions", className: "text-right", render: (r) => <div className="flex justify-end gap-2"><button onClick={() => openEdit(r)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Pencil className="h-3.5 w-3.5" />Edit</button><button onClick={() => setDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Power className="h-3.5 w-3.5" />{r.is_active === false ? "Activate" : "Deactivate"}</button><button onClick={() => setHardDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600"><Trash2 className="h-3.5 w-3.5" />Delete</button></div> },
   ];
 
-  return <div className="space-y-4" data-navilo-master-standard="true">
-    <MasterSummaryStrip kind="suppliers" title="Suppliers" subtitle="Manage supplier accounts" total={rows.length} active={rows.filter(r=>r.is_active!==false).length} inactive={rows.filter(r=>r.is_active===false).length} fourthLabel="Displayed" fourthValue={filteredRows.length}/>
-    <div className="flex justify-end" data-no-print data-no-export><button onClick={openCreate} className="btn-primary">+ New Supplier</button></div>
-    {error && <ErrorBanner message={error} />}
-    <div className="navilo-master-filterbar flex items-center gap-2 px-3 py-2" data-report-filters data-no-print data-no-export><Search className="h-4 w-4 text-slate-400" /><input className="w-full bg-transparent outline-none" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search supplier, phone, email, tax ID or address..." />{search && <button type="button" className="text-xs font-semibold text-primary-600" onClick={() => setSearch("")}>Clear</button>}</div>
-    <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable showSerialNumber columns={columns} rows={filteredRows} loading={loading} emptyMessage="No suppliers yet." /></div>
-
-    <Modal open={modalOpen} title={editing ? "Edit Supplier" : "New Supplier"} onClose={() => setModalOpen(false)}>
+  const editor = <Modal open={modalOpen} title={editing ? "Edit Supplier" : "New Supplier"} onClose={closeEditor}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div><label className="label">English Name</label><input className="input" required value={form.name} onChange={(e) => { const name = e.target.value; setForm((f) => ({ ...f, name, name_urdu: urduTouched ? f.name_urdu : toUrduName(name) })); }} /></div>
-        <div data-language-code="ur"><div className="flex items-center justify-between"><label className="label">Urdu Name</label><button type="button" className="text-xs text-primary-600" onClick={() => { setUrduTouched(false); setForm((f) => ({ ...f, name_urdu: toUrduName(f.name) })); }}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.name_urdu} onChange={(e) => { setUrduTouched(true); setForm({ ...form, name_urdu: e.target.value }); }} placeholder="خودکار اردو نام" /></div>
-        <div><label className="label">Email</label><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-        <div><label className="label">Phone</label><input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-        <div><label className="label">Address</label><textarea className="input" rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+        {quickCreate && error && <ErrorBanner message={error} />}
+        <div><label className="label">English Name</label><input aria-label="English Name" className="input" required value={form.name} onChange={(e) => { const name = e.target.value; setForm((f) => ({ ...f, name, name_urdu: urduTouched ? f.name_urdu : toUrduName(name) })); }} /></div>
+        <div data-language-code="ur"><div className="flex items-center justify-between"><label className="label">Urdu Name</label><button type="button" className="text-xs text-primary-600" onClick={() => { setUrduTouched(false); setForm((f) => ({ ...f, name_urdu: toUrduName(f.name) })); }}>Auto Urdu</button></div><input aria-label="Urdu Name" dir="rtl" className="input text-right" value={form.name_urdu} onChange={(e) => { setUrduTouched(true); setForm({ ...form, name_urdu: e.target.value }); }} placeholder="خودکار اردو نام" /></div>
+        <div><label className="label">Email</label><input aria-label="Email" className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+        <div><label className="label">Phone</label><input aria-label="Phone" className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+        <div><label className="label">Address</label><textarea aria-label="Address" className="input" rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
           <div className="mb-3 text-sm font-semibold text-slate-800">Tax Identity</div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div><label className="label">Tax Status</label><SearchableSelect className="input" value={form.tax_registration_status} onChange={(e) => { const status=e.target.value as "registered" | "unregistered"; setForm({ ...form, tax_registration_status: status, ...(status==="unregistered"?{ntn:"",strn:""}:{cnic:""}) }); }}><option value="unregistered">Unregistered</option><option value="registered">Registered</option></SearchableSelect></div>
+            <div><label className="label">Tax Status</label><SearchableSelect aria-label="Tax Status" className="input" value={form.tax_registration_status} onChange={(e) => { const status=e.target.value as "registered" | "unregistered"; setForm({ ...form, tax_registration_status: status, ...(status==="unregistered"?{ntn:"",strn:""}:{cnic:""}) }); }}><option value="unregistered">Unregistered</option><option value="registered">Registered</option></SearchableSelect></div>
             {form.tax_registration_status === "registered" ? <>
-              <div><label className="label">STRN</label><input className="input" value={form.strn} onChange={(e) => setForm({ ...form, strn: e.target.value })} placeholder="Sales Tax Registration Number" /></div>
-              <div><label className="label">NTN</label><input className="input" value={form.ntn} onChange={(e) => setForm({ ...form, ntn: e.target.value })} placeholder="National Tax Number" /></div>
-            </> : <div><label className="label">CNIC (if applicable)</label><input className="input" value={form.cnic} onChange={(e) => setForm({ ...form, cnic: e.target.value })} placeholder="CNIC for unregistered party" /></div>}
+              <div><label className="label">STRN</label><input aria-label="STRN" className="input" value={form.strn} onChange={(e) => setForm({ ...form, strn: e.target.value })} placeholder="Sales Tax Registration Number" /></div>
+              <div><label className="label">NTN</label><input aria-label="NTN" className="input" value={form.ntn} onChange={(e) => setForm({ ...form, ntn: e.target.value })} placeholder="National Tax Number" /></div>
+            </> : <div><label className="label">CNIC (if applicable)</label><input aria-label="CNIC (if applicable)" className="input" value={form.cnic} onChange={(e) => setForm({ ...form, cnic: e.target.value })} placeholder="CNIC for unregistered party" /></div>}
           </div>
           <div className="mt-2 text-xs text-slate-500">{form.tax_registration_status === "registered" ? "Registered supplier ke Tax Invoice ke liye STRN/NTN posting validation mein use hoga." : "Unregistered supplier ke liye STRN/NTN required nahi; CNIC optional hai."}</div>
         </div>
@@ -321,16 +338,26 @@ export default function Suppliers() {
         {!editing && canSetOpeningBalance && <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
           <div className="mb-3"><div className="text-sm font-semibold text-blue-900">Opening Balance</div><div className="text-xs text-blue-700">Optional. Company Owner/Admin can enter the migrated opening balance here; 0 means no opening balance.</div></div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <div><label className="label">Amount</label><input className="input" type="number" min="0" step="0.01" value={form.opening_amount} onChange={(e) => setForm({ ...form, opening_amount: e.target.value })} placeholder="0.00" /></div>
-            <div><label className="label">Balance Side</label><SearchableSelect className="input" value={form.balance_side} onChange={(e) => setForm({ ...form, balance_side: e.target.value })}><option value="credit">Credit / Cr</option><option value="debit">Debit / Dr</option></SearchableSelect></div>
-            <div><label className="label">Opening Date</label><input className="input" type="date" value={form.opening_date} onChange={(e) => setForm({ ...form, opening_date: e.target.value })} /></div>
+            <div><label className="label">Amount</label><input aria-label="Amount" className="input" type="number" min="0" step="0.01" value={form.opening_amount} onChange={(e) => setForm({ ...form, opening_amount: e.target.value })} placeholder="0.00" /></div>
+            <div><label className="label">Balance Side</label><SearchableSelect aria-label="Balance Side" className="input" value={form.balance_side} onChange={(e) => setForm({ ...form, balance_side: e.target.value })}><option value="credit">Credit / Cr</option><option value="debit">Debit / Dr</option></SearchableSelect></div>
+            <div><label className="label">Opening Date</label><NaviloDateInput aria-label="Opening Date" className="input" type="date" value={form.opening_date} onChange={(e) => setForm({ ...form, opening_date: e.target.value })} /></div>
           </div>
           <div className="mt-2 text-xs text-blue-700">Supplier Credit = amount payable to supplier. Supplier Debit = supplier advance / debit balance.</div>
         </div>}
 
-        <div className="flex justify-end gap-3 pt-2"><button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button><button type="submit" className="btn-primary">{editing ? "Save Changes" : "Create Supplier"}</button></div>
+        <div className="flex justify-end gap-3 pt-2"><button type="button" onClick={closeEditor} className="btn-secondary">Cancel</button><button type="submit" disabled={saving} className="btn-primary">{editing ? "Save Changes" : "Create Supplier"}</button></div>
       </form>
-    </Modal>
+    </Modal>;
+  if (quickCreate) return editor;
+
+  return <div className="space-y-4" data-navilo-master-standard="true">
+    <MasterSummaryStrip kind="suppliers" title="Suppliers" subtitle="Manage supplier accounts" total={rows.length} active={rows.filter(r=>r.is_active!==false).length} inactive={rows.filter(r=>r.is_active===false).length} fourthLabel="Displayed" fourthValue={filteredRows.length}/>
+    <div className="flex justify-end" data-no-print data-no-export><button onClick={openCreate} className="btn-primary">+ New Supplier</button></div>
+    {error && <ErrorBanner message={error} />}
+    <div className="navilo-master-filterbar flex items-center gap-2 px-3 py-2" data-report-filters data-no-print data-no-export><Search className="h-4 w-4 text-slate-400" /><input className="w-full bg-transparent outline-none" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search supplier, phone, email, tax ID or address..." />{search && <button type="button" className="text-xs font-semibold text-primary-600" onClick={() => setSearch("")}>Clear</button>}</div>
+    <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable showSerialNumber columns={columns} rows={filteredRows} loading={loading} emptyMessage="No suppliers yet." /></div>
+
+    {editor}
 
     <ConfirmModal tone="danger" open={!!deleteId} title={`${rows.find((r) => r.id === deleteId)?.is_active === false ? "Activate" : "Deactivate"} Supplier`} message="Historical transactions will remain safe. Inactive suppliers cannot be selected for new transactions." onConfirm={handleStatusChange} onCancel={() => setDeleteId(null)} />
   

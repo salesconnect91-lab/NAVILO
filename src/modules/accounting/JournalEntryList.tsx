@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import {
   useState,
   useEffect,
@@ -2852,7 +2853,7 @@ export default function JournalEntryList() {
 
                 <label className="text-xs font-semibold">Entry Date</label>
 
-                <input
+                <NaviloDateInput
                   className="mt-1 w-full border rounded p-2"
                   type="date"
                   required

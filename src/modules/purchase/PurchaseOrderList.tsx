@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -158,8 +159,8 @@ export default function PurchaseOrderList() {
         <select className="input" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}><option value="all">All Types</option><option value="without-tax">Without Tax</option><option value="with-tax">With Tax</option></select>
         <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All posting statuses</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option></select>
         <select className="input" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}><option value="all">All payment statuses</option><option value="unpaid">Unpaid</option><option value="partial">Partially Paid</option><option value="paid">Paid</option></select>
-        <label className="min-w-0 text-[11px] font-semibold text-slate-600">From Date<input type="date" className="input mt-1 min-w-0 max-w-full" value={fromDate} onChange={(e) => setFromDate(e.target.value)}/></label>
-        <label className="min-w-0 text-[11px] font-semibold text-slate-600">To Date<input type="date" className="input mt-1 min-w-0 max-w-full" value={toDate} onChange={(e) => setToDate(e.target.value)}/></label>
+        <label className="min-w-0 text-[11px] font-semibold text-slate-600">From Date<NaviloDateInput type="date" className="input mt-1 min-w-0 max-w-full" value={fromDate} onChange={(e) => setFromDate(e.target.value)}/></label>
+        <label className="min-w-0 text-[11px] font-semibold text-slate-600">To Date<NaviloDateInput type="date" className="input mt-1 min-w-0 max-w-full" value={toDate} onChange={(e) => setToDate(e.target.value)}/></label>
         {(search || typeFilter !== "all" || statusFilter !== "all" || paymentFilter !== "all" || fromDate || toDate) && <button className="btn-secondary self-end" onClick={() => { setSearch(""); setTypeFilter("all"); setStatusFilter("all"); setPaymentFilter("all"); setFromDate(""); setToDate(""); }}><RotateCcw className="h-4 w-4"/>Clear</button>}
       </div>
 

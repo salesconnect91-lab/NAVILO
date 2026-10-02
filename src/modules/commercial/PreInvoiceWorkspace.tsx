@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import { useCallback,useEffect,useMemo,useState } from "react";
 import { Check,CheckCircle2,ChevronRight,Clock3,FileText,Loader2,Plus,RefreshCw,Search,Send,X } from "lucide-react";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -42,8 +43,8 @@ export default function PreInvoiceWorkspace({side}:{side:Side}){const types=FLOW
       <SearchableSelect className="input h-10" value={documentFilter} onChange={e=>{setDocumentFilter(e.target.value);setPage(1)}}><option value="all">All Document Types</option>{types.map(t=><option key={t} value={t}>{label(t)}</option>)}</SearchableSelect>
       <SearchableSelect className="input h-10" value={statusFilter} onChange={e=>{setStatusFilter(e.target.value);setPage(1)}}><option value="all">All Statuses</option>{["draft","submitted","approved","posted","cancelled"].map(s=><option key={s} value={s}>{label(s)}</option>)}</SearchableSelect>
       <SearchableSelect className="input h-10" value={partyFilter} onChange={e=>{setPartyFilter(e.target.value);setPage(1)}}><option value="">All {side==="sales"?"Customers":"Suppliers"}</option>{parties.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</SearchableSelect>
-      <div><label className="mb-1 block text-[11px] font-semibold text-slate-600">From Date</label><input className="input h-10" type="date" value={fromDate} onChange={e=>{setFromDate(e.target.value);setPage(1)}}/></div>
-      <div><label className="mb-1 block text-[11px] font-semibold text-slate-600">To Date</label><input className="input h-10" type="date" value={toDate} onChange={e=>{setToDate(e.target.value);setPage(1)}}/></div>
+      <div><label className="mb-1 block text-[11px] font-semibold text-slate-600">From Date</label><NaviloDateInput className="input h-10" type="date" value={fromDate} onChange={e=>{setFromDate(e.target.value);setPage(1)}}/></div>
+      <div><label className="mb-1 block text-[11px] font-semibold text-slate-600">To Date</label><NaviloDateInput className="input h-10" type="date" value={toDate} onChange={e=>{setToDate(e.target.value);setPage(1)}}/></div>
       <button className="btn-secondary h-10 self-end" onClick={()=>{setSearch("");setDocumentFilter("all");setStatusFilter("all");setPartyFilter("");setFromDate("");setToDate("");setPage(1)}}>Clear</button>
     </div>
     <div className="mt-2 flex flex-wrap justify-end gap-2"><button className={documentFilter==="all"?"btn-primary h-9":"btn-secondary h-9"} onClick={()=>{setDocumentFilter("all");setPage(1)}}>All</button>{types.map(t=><button key={t} className={documentFilter===t?"btn-primary h-9":"btn-secondary h-9"} onClick={()=>{setDocumentFilter(t);setPage(1)}}>{label(t).replace(/^Sales /,"").replace(/^Purchase /,"").replace("Stock ","")}</button>)}</div>

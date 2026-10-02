@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -476,7 +477,7 @@ export default function BalanceSheet() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[260px_1fr_auto] lg:items-end">
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">As-of Date</span>
-              <input
+              <NaviloDateInput
                 type="date"
                 value={asOfDate}
                 max={getLocalToday()}

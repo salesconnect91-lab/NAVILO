@@ -1,3 +1,5 @@
+import {formatNaviloDate} from '@/lib/naviloDate';
+import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
@@ -32,7 +34,7 @@ type Subscription = { company_id: string; status: string; expires_at: string | n
 const roles = ["company_owner", "admin", "accounts", "sales", "purchase", "store", "production", "viewer"];
 const roleLabel=(role:string)=>({company_owner:"Company Owner",admin:"Administrator",accounts:"Accounts",sales:"Sales",purchase:"Purchase",store:"Store / Inventory",production:"Production",viewer:"Viewer"}[role]||role.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase()));
 const statusLabel=(status:string)=>status.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase());
-const formatDate=(value:string|null)=>value?new Date(value).toLocaleDateString():"No expiry";
+const formatDate=(value:string|null)=>value?formatNaviloDate(value):"No expiry";
 
 export default function OwnerPanel() {
   const { isPlatformOwner, refreshAccess } = useAuth();
@@ -264,7 +266,7 @@ export default function OwnerPanel() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-xs font-semibold text-slate-700">Company Name<input className="input mt-1 w-full" value={company.name} onChange={event => setCompany({ ...company, name: event.target.value })}/></label>
           <label className="text-xs font-semibold text-slate-700">Company Code<input className="input mt-1 w-full" value={company.code} onChange={event => setCompany({ ...company, code: event.target.value })}/></label>
-          <label className="text-xs font-semibold text-slate-700">Subscription Expiry<input className="input mt-1 w-full" type="date" value={company.subscription_expires_at} onChange={event => setCompany({ ...company, subscription_expires_at: event.target.value })}/></label>
+          <label className="text-xs font-semibold text-slate-700">Subscription Expiry<NaviloDateInput className="input mt-1 w-full" type="date" value={company.subscription_expires_at} onChange={event => setCompany({ ...company, subscription_expires_at: event.target.value })}/></label>
           <label className="text-xs font-semibold text-slate-700">Max Users<input className="input mt-1 w-full" type="number" min="1" value={company.max_users} onChange={event => setCompany({ ...company, max_users: event.target.value })}/></label>
           <label className="text-xs font-semibold text-slate-700">Contact Email<input className="input mt-1 w-full" type="email" value={company.contact_email} onChange={event => setCompany({ ...company, contact_email: event.target.value })}/></label>
           <label className="text-xs font-semibold text-slate-700">Contact Phone<input className="input mt-1 w-full" value={company.contact_phone} onChange={event => setCompany({ ...company, contact_phone: event.target.value })}/></label>

@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Plus, Trash2, Upload } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -181,7 +182,7 @@ export default function OpeningBalances() {
     {error && <ErrorBanner message={error}/>} {success && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{success}</div>}
 
     <div className="grid gap-3 md:grid-cols-4" data-no-print data-no-export>
-      <label className="rounded-xl border bg-white p-4 text-xs font-bold text-slate-600">OPENING DATE<input type="date" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} className="input mt-2 w-full"/></label>
+      <label className="rounded-xl border bg-white p-4 text-xs font-bold text-slate-600">OPENING DATE<NaviloDateInput type="date" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} className="input mt-2 w-full"/></label>
       <div className="rounded-xl border bg-white p-4"><div className="text-xs font-bold text-slate-500">TOTAL DEBIT</div><div className="mt-2 text-xl font-bold">{formatCurrency(totals.debit)}</div></div>
       <div className="rounded-xl border bg-white p-4"><div className="text-xs font-bold text-slate-500">TOTAL CREDIT</div><div className="mt-2 text-xl font-bold">{formatCurrency(totals.credit)}</div></div>
       <div className="rounded-xl border bg-white p-4"><div className="text-xs font-bold text-slate-500">DIFFERENCE</div><div className={`mt-2 text-xl font-bold ${Math.abs(difference) < .01 ? "text-emerald-700" : "text-rose-700"}`}>{formatCurrency(Math.abs(difference))}</div></div>

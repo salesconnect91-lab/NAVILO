@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {supabase} from '@/lib/supabase';
 import {financialNumber} from './transportFinancialTypes';
@@ -35,7 +36,7 @@ export default function TransportPartySettlement({side,party,documents,accounts,
  return <fieldset className="my-3 rounded border p-3" disabled={busy}><legend className="font-semibold">Cross-Trip {side==='customer'?'Receipt':'Supplier Payment'} — VAT included</legend>
  <p className="mb-2">One selected party in the active branch. FIFO prepares visible allocations for review; no payment is posted until confirmation. Report date/search filters do not limit this payment list.</p>
  {error&&<p role="alert" className="text-red-700">{error}</p>}{result&&<p role="status" className="text-emerald-700">{result.message} {result.journals.map(id=><a key={id} className="ml-2 underline" href={`/accounting/${id}`}>Voucher</a>)}</p>}
- <div className="my-2 flex flex-wrap items-end gap-2"><label>Payment date<input className="input" type="date" value={date} onChange={e=>{setDate(e.target.value);changed()}}/></label>
+ <div className="my-2 flex flex-wrap items-end gap-2"><label>Payment date<NaviloDateInput className="input" type="date" value={date} onChange={e=>{setDate(e.target.value);changed()}}/></label>
  <label>Cash / Bank<select className="input" value={account} onChange={e=>{setAccount(e.target.value);changed()}}><option value="">Select account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
  <label>Payment reference<input className="input" value={reference} onChange={e=>{setReference(e.target.value);changed()}}/></label>
  <label>FIFO amount<input className="input w-28" type="number" step="0.01" min="0.01" value={fifo} onChange={e=>setFifo(e.target.value)}/></label>

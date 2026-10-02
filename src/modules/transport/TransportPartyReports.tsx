@@ -1,3 +1,5 @@
+import {formatNaviloDate} from '@/lib/naviloDate';
+import NaviloDateInput from '@/components/NaviloDateInput';
 import {useTransportOutputPermissions} from './useTransportOutputPermissions';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {useAuth} from '@/auth/AuthContext';
@@ -44,22 +46,22 @@ export default function TransportPartyReports({onClose,onChanged}:{onClose:()=>v
  const dateError=!['outstanding','reconciliation'].includes(mode)&&!!(from&&to&&from>to);const needsParty=['statement','canonical'].includes(mode)&&!party;
  const amount=(n:unknown)=>financialNumber(n);const report=useMemo<ReportTable>(()=>{
  const title=`Transport ${side==='customer'?'Customer':'Supplier'} ${mode}`;
- const description=`${activeCompany?.company_name??''} / ${activeBusinessUnit?.business_unit_name??''} / active branch · ${selectedName} · ${mode==='outstanding'?`As of ${to||'all dates'}`:`${from||'Beginning'} to ${to||'all dates'}`} · Company base currency · Supplier positive balance = payable; customer positive balance = receivable. ${tripSearch?`Trip/document filter: ${tripSearch}. `:''}`;
+ const description=`${activeCompany?.company_name??''} / ${activeBusinessUnit?.business_unit_name??''} / active branch · ${selectedName} · ${mode==='outstanding'?`As of ${to?formatNaviloDate(to):'all dates'}`:`${from?formatNaviloDate(from):'Beginning'} to ${to?formatNaviloDate(to):'all dates'}`} · Company base currency · Supplier positive balance = payable; customer positive balance = receivable. ${tripSearch?`Trip/document filter: ${tripSearch}. `:''}`;
  if(mode==='outstanding'){
  const columns=['Party','Trip','Document','Date','Kind','Net after credits','VAT after credits','Gross after credits','Received / Paid','Refund / Recovery','Outstanding gross','Credit gross'];
- const rows=balances.map(d=>[d.party_name,d.trip_no,d.order_no,d.order_date,d.kind,d.net,d.vat,d.billed,d.paid,d.refund,d.outstanding,d.credit]);
+ const rows=balances.map(d=>[d.party_name,d.trip_no,d.order_no,formatNaviloDate(d.order_date),d.kind,d.net,d.vat,d.billed,d.paid,d.refund,d.outstanding,d.credit]);
  const sums=["TOTAL","","","","",...['net','vat','billed','paid','refund','outstanding','credit'].map(k=>money(balances.reduce((s,d)=>s+cents(d[k as keyof typeof d]),0)))];
  return {title,description:description+` Status: ${status}. Includes older unsettled bills.`,columns,rows:[...rows,sums]};
  }
  if(mode==='statement'||mode==='canonical')return {title,description:description+(mode==='canonical'?' Complete canonical party ledger in active branch; includes other modules and unallocated money. Trip filter is not applied.':' Transport-attributed movements only; unallocated receipts/payments excluded. Allocations deleted by reversals before the reporting update require manual historical reconciliation.'),
  columns:['Date','Trip','Document','Event','Voucher','Description','Debit','Credit',side==='supplier'?'Running payable':'Running receivable'],
- rows:[['Opening','','','','','',0,0,ledger.opening],...ledger.rows.map(r=>[r.event_date,r.trip_no??'',r.order_no??'',r.event_type??'canonical',r.entry_no,r.description??'',Number(r.debit),Number(r.credit),r.running]),['TOTAL / Closing','','','','','',ledger.debit,ledger.credit,ledger.closing]]};
+ rows:[['Opening','','','','','',0,0,ledger.opening],...ledger.rows.map(r=>[formatNaviloDate(r.event_date),r.trip_no??'',r.order_no??'',r.event_type??'canonical',r.entry_no,r.description??'',Number(r.debit),Number(r.credit),r.running]),['TOTAL / Closing','','','','','',ledger.debit,ledger.credit,ledger.closing]]};
  if(mode==='allocations'){
  const rows=matchingEvents.filter(r=>(!from||r.event_date>=from)&&(!to||r.event_date<=to)&&/receipt|payment|refund|recovery/.test(r.event_type??''));
  const voucherTotals=new Map<string,number>();for(const r of rows)voucherTotals.set(r.journal_entry_id,(voucherTotals.get(r.journal_entry_id)??0)+cents(r.amount));
  return {title,description:description+' Voucher totals are the Transport shares within the report filters; full voucher opens separately. Reversals carry the opposite sign.',
  columns:['Date','Party','Trip','Bill','Event','Voucher','Allocated gross (signed balance effect)','Transport voucher total (shown once)'],
- rows:rows.sort((a,b)=>a.event_date.localeCompare(b.event_date)||a.journal_entry_id.localeCompare(b.journal_entry_id)||a.event_id.localeCompare(b.event_id)).map((r,i,all)=>[r.event_date,r.party_name,r.trip_no??'',r.order_no??'',r.event_type??'',r.entry_no,Number(r.amount),i===0||all[i-1].journal_entry_id!==r.journal_entry_id?money(voucherTotals.get(r.journal_entry_id)??0):''])};
+ rows:rows.sort((a,b)=>a.event_date.localeCompare(b.event_date)||a.journal_entry_id.localeCompare(b.journal_entry_id)||a.event_id.localeCompare(b.event_id)).map((r,i,all)=>[formatNaviloDate(r.event_date),r.party_name,r.trip_no??'',r.order_no??'',r.event_type??'',r.entry_no,Number(r.amount),i===0||all[i-1].journal_entry_id!==r.journal_entry_id?money(voucherTotals.get(r.journal_entry_id)??0):''])};
  }
  const current=documentBalances(matchingDocs,matchingEvents,'');
  return {title,description:`${description} Live document reconciliation uses all posted dates, independent of report date range. Difference should be zero.`,
@@ -74,7 +76,7 @@ export default function TransportPartyReports({onClose,onChanged}:{onClose:()=>v
  <fieldset disabled={busy} className="flex flex-wrap items-end gap-2"><label>Party side<select aria-label="Party side" className="input" value={side} onChange={e=>{setSide(e.target.value as PartySide);setParty('');setSettlement(false)}}><option value="customer">Customer</option><option value="supplier">Supplier / Owner</option></select></label>
  <label>Party<select aria-label="Party" className="input" value={party} onChange={e=>{setParty(e.target.value);setSettlement(false)}}><option value="">All parties</option>{parties.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
  <label>Report<select aria-label="Report" className="input" value={mode} onChange={e=>setMode(e.target.value as Mode)}><option value="outstanding">Trip-wise outstanding</option><option value="statement">Transport statement / ledger</option><option value="allocations">Receipt / payment allocations</option><option value="canonical" disabled={!canLedger}>Complete canonical party ledger</option><option value="reconciliation">Document reconciliation</option></select></label>
- <label>From<input className="input" type="date" value={from} disabled={mode==='outstanding'||mode==='reconciliation'} onChange={e=>setFrom(e.target.value)}/></label><label>As of / To<input className="input" type="date" value={to} onChange={e=>setTo(e.target.value)}/></label>
+ <label>From<NaviloDateInput className="input" type="date" value={from} disabled={mode==='outstanding'||mode==='reconciliation'} onChange={e=>setFrom(e.target.value)}/></label><label>As of / To<NaviloDateInput className="input" type="date" value={to} onChange={e=>setTo(e.target.value)}/></label>
  <label>Trip / document search<input className="input" disabled={mode==='canonical'} value={tripSearch} onChange={e=>setTripSearch(e.target.value)}/></label>
  {mode==='outstanding'&&<label>Balance<select className="input" value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All documents</option><option value="outstanding">Outstanding only</option><option value="settled">Settled only</option><option value="credit">Credits / refunds only</option></select></label>}
  <button className="btn" data-navilo-keep-local-action="true" onClick={()=>setShowAdvances(v=>!v)}>Advances / Unallocated Money</button><button className="btn-primary" disabled={!party||loading||!!error} onClick={()=>setSettlement(v=>!v)}>{side==='customer'?'Receive across Trips':'Pay supplier across Trips'}</button></fieldset>

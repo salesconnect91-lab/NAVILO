@@ -17,7 +17,7 @@ function setup(){render(<TransportPartyReports onClose={()=>{}} onChanged={async
 describe('Separate Transport party reporting',()=>{
  it('exports the complete filtered VAT-inclusive outstanding with totals',async()=>{
  setup();await screen.findByText('TOTAL');fireEvent.click(screen.getByRole('button',{name:'Excel'}));await waitFor(()=>expect(mock.export).toHaveBeenCalled());
- const table=mock.export.mock.calls[0][0];expect(table.rows[0]).toEqual(['Customer A','Trip-1','INV-A','2026-09-01','credit',100,18,118,59,0,59,0]);expect(table.rows[1][10]).toBe(59);
+ const table=mock.export.mock.calls[0][0];expect(table.rows[0]).toEqual(['Customer A','Trip-1','INV-A','01-Sep-26','credit',100,18,118,59,0,59,0]);expect(table.rows[1][10]).toBe(59);
  });
  it('requires a party and includes historical opening in statements',async()=>{
  setup();await screen.findByText('TOTAL');fireEvent.change(screen.getByLabelText('Report'),{target:{value:'statement'}});expect(screen.queryByRole('button',{name:'PDF'})).toBeNull();

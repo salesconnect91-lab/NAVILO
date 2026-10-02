@@ -2,11 +2,12 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import TransportWorkspace from './TransportWorkspace';
+import {MemoryRouter} from 'react-router-dom';
 import * as XLSX from 'xlsx';
 const mock=vi.hoisted(()=>({rpc:vi.fn(),tables:{} as Record<string,any[]>,allow:true}));
-vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'c',enabled_modules:['transport']},activeBusinessUnit:{business_unit_id:'b',business_unit_type:'transport',enabled_modules:['transport']}})}));
-vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{const q:any={select:()=>q,eq:()=>q,in:()=>q,order:()=>q,
- insert:(values:any)=>{const row={...values,id:'added'};(mock.tables[table]??=[]).push(row);return {select:()=>({single:async()=>({data:row,error:null})})};},range:()=>Promise.resolve({data:mock.tables[table]??[],error:null}),then:(resolve:any)=>Promise.resolve({data:mock.tables[table]??[],error:null}).then(resolve)};return q;}}}));
+vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'c',membership_role:'company_owner',enabled_modules:['transport']},activeBusinessUnit:{business_unit_id:'b',membership_role:'company_owner',business_unit_type:'transport',enabled_modules:['transport']}})}));
+vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{const q:any={select:()=>q,eq:()=>q,in:()=>q,order:()=>q,update:()=>q,
+ insert:(values:any)=>{const row={...values,id:'added',is_active:true};(mock.tables[table]??=[]).push(row);return {select:()=>({single:async()=>({data:row,error:null})})};},range:()=>Promise.resolve({data:mock.tables[table]??[],error:null}),then:(resolve:any)=>Promise.resolve({data:mock.tables[table]??[],error:null}).then(resolve)};return q;}}}));
 vi.mock('./TransportFinancialPanel',()=>({default:()=>null}));vi.mock('./TransportInitialRate',()=>({default:()=>null}));
 vi.mock('./TransportCostUpload',()=>({default:()=>null}));vi.mock('./TransportAudit',()=>({default:()=>null}));
 vi.mock('./TransportPartyReports',()=>({default:()=>null}));vi.mock('./TransportAccountStatement',()=>({default:()=>null}));
@@ -20,7 +21,7 @@ beforeEach(()=>{
  transport_vehicle_ownership:[{id:'old',vehicle_id:'v',owner_type:'third_party',supplier_id:'s',owner_name_snapshot:'Supplier',effective_from:'2020-01-01',effective_to:'2026-06-30'},
  {id:'current',vehicle_id:'v',owner_type:'company',supplier_id:null,owner_name_snapshot:'Company',effective_from:'2026-07-01',effective_to:null}]};
 });afterEach(cleanup);
-async function view(){render(<TransportWorkspace/>);fireEvent.click(screen.getByRole('button',{name:'New Trip'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Add Truck Type'})).toBeTruthy());await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_finance_allowed',{p_action:'driver'}));}
+async function view(){render(<MemoryRouter><TransportWorkspace/></MemoryRouter>);fireEvent.click(screen.getByRole('button',{name:'New Trip'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Add Truck Type'})).toBeTruthy());await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_finance_allowed',{p_action:'driver'}));}
 function choose(placeholder:string,name:string){fireEvent.focus(screen.getByPlaceholderText(placeholder));fireEvent.mouseDown(screen.getByRole('button',{name}));}
 async function fill(){await view();choose('Search Customer','Customer');choose('Search From','From');choose('Search To','To');fireEvent.change(screen.getByLabelText('Sale Type'),{target:{value:'credit'}});}
 describe('New Trip master integration',()=>{
@@ -67,25 +68,25 @@ describe('New Trip master integration',()=>{
   ['Add To','locationTo','Search To','transport_locations'],
  ] as const)('refreshes and auto-selects %s',async(button,kind,placeholder,table)=>{
   await view();mock.rpc.mockImplementation(async(name:string)=>{
-   if(name==='create_customer_with_ar'){const row={id:'added',name:'Added',is_active:true};mock.tables[table].push(row);return {data:row,error:null};}
+   if(name==='create_party_with_opening_balance_v2'){const row={id:'added',name:'Added',is_active:true};mock.tables[table].push(row);return {data:{party_id:row.id},error:null};}
    return {data:true,error:null};
   });
-  fireEvent.click(screen.getByRole('button',{name:button}));fireEvent.change(screen.getByLabelText(kind==='driver'?'Driver Name':'Name'),{target:{value:'Added'}});
-  fireEvent.submit(screen.getByRole('dialog'));await waitFor(()=>expect(screen.queryByRole('dialog')).toBeNull());
+  fireEvent.click(screen.getByRole('button',{name:button}));fireEvent.change(screen.getByLabelText(kind==='driver'?'Driver Name *':kind==='customer'?'English Name':'Name'),{target:{value:'Added'}});
+  fireEvent.submit(document.querySelectorAll('form')[document.querySelectorAll('form').length-1]);await waitFor(()=>expect(document.querySelector('form')).toBeNull());
   expect((screen.getByPlaceholderText(placeholder) as HTMLInputElement).value).toBe('Added');
  });
  it('selects created Supplier without changing the selected Vehicle owner',async()=>{
   await view();choose('Search Truck Type','Flatbed');choose('Search Plate','FLAT-1 - Company');
-  mock.rpc.mockImplementation(async(name:string)=>{if(name==='create_supplier_with_ap'){const row={id:'added',name:'New Supplier',is_active:true};mock.tables.suppliers.push(row);return {data:row,error:null};}return {data:true,error:null};});
-  fireEvent.click(screen.getByRole('button',{name:'Add Owner / Supplier'}));fireEvent.change(screen.getByLabelText('Name'),{target:{value:'New Supplier'}});fireEvent.submit(screen.getByRole('dialog'));
-  await waitFor(()=>expect(screen.queryByRole('dialog')).toBeNull());expect(screen.getByText(/Supplier selected: New Supplier/)).toBeTruthy();expect((screen.getByLabelText('Trip Owner / Supplier') as HTMLInputElement).value).toBe('Company');
+  mock.rpc.mockImplementation(async(name:string)=>{if(name==='create_party_with_opening_balance_v2'){const row={id:'added',name:'New Supplier',is_active:true};mock.tables.suppliers.push(row);return {data:{party_id:row.id},error:null};}return {data:true,error:null};});
+  fireEvent.click(screen.getByRole('button',{name:'Add Owner / Supplier'}));fireEvent.change(screen.getByLabelText('English Name'),{target:{value:'New Supplier'}});fireEvent.submit(document.querySelectorAll('form')[document.querySelectorAll('form').length-1]);
+  await waitFor(()=>expect(document.querySelector('form')).toBeNull());expect(screen.getByText(/Supplier selected: New Supplier/)).toBeTruthy();expect((screen.getByLabelText('Trip Owner / Supplier') as HTMLInputElement).value).toBe('Company');
  });
  it('refreshes and selects atomic new Vehicle and dated ownership',async()=>{
   await view();choose('Search Truck Type','Flatbed');mock.rpc.mockImplementation(async(name:string)=>{
    if(name==='transport_create_vehicle_master'){mock.tables.transport_vehicles.push({id:'added',vehicle_no:'NEW-V',truck_type_id:'tt',is_active:true});mock.tables.transport_vehicle_ownership.push({id:'new-own',vehicle_id:'added',owner_type:'company',owner_name_snapshot:'Company',effective_from:'2020-01-01',effective_to:null});return {data:'added',error:null};}
    return {data:true,error:null};});
-  fireEvent.click(screen.getByRole('button',{name:'Add Plate #'}));fireEvent.change(screen.getByLabelText('Plate / Vehicle No'),{target:{value:'NEW-V'}});fireEvent.change(screen.getByLabelText('Ownership Effective From'),{target:{value:'2020-01-01'}});fireEvent.submit(screen.getByRole('dialog'));
-  await waitFor(()=>expect(screen.queryByRole('dialog')).toBeNull());expect((screen.getByPlaceholderText('Search Plate') as HTMLInputElement).value).toBe('NEW-V - Company');
+  fireEvent.click(screen.getByRole('button',{name:'Add Plate #'}));fireEvent.change(screen.getByLabelText('Vehicle No / Plate No *'),{target:{value:'NEW-V'}});fireEvent.change(screen.getByLabelText('Ownership Effective From *'),{target:{value:'2020-01-01'}});fireEvent.submit(document.querySelectorAll('form')[document.querySelectorAll('form').length-1]);
+  await waitFor(()=>expect(document.querySelector('form')).toBeNull());expect((screen.getByPlaceholderText('Search Plate') as HTMLInputElement).value).toBe('NEW-V - Company');
  });
  async function upload(sale='Credit',owner='Supplier'){
   await view();fireEvent.click(screen.getByRole('button',{name:'Bulk Upload'}));

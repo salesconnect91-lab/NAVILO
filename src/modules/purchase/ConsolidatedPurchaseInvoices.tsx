@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import { fixedTaxRateOn } from "@/lib/effectiveTaxRate";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -361,8 +362,8 @@ export default function ConsolidatedPurchaseInvoices() {
         <div className="grid gap-2 rounded-xl border border-slate-200 bg-white p-3 lg:grid-cols-[minmax(300px,1fr)_190px_200px_200px_auto]" data-no-export data-no-print>
           <div className="relative"><Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400"/><input className="input pl-8" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search invoice, supplier or reference..."/></div>
           <label className="text-[11px] font-semibold text-slate-600">Status<select className="input mt-1" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option></select></label>
-          <label className="text-[11px] font-semibold text-slate-600">From Date<input type="date" className="input mt-1" value={fromDate} onChange={(e) => setFromDate(e.target.value)}/></label>
-          <label className="text-[11px] font-semibold text-slate-600">To Date<input type="date" className="input mt-1" value={toDate} onChange={(e) => setToDate(e.target.value)}/></label>
+          <label className="text-[11px] font-semibold text-slate-600">From Date<NaviloDateInput type="date" className="input mt-1" value={fromDate} onChange={(e) => setFromDate(e.target.value)}/></label>
+          <label className="text-[11px] font-semibold text-slate-600">To Date<NaviloDateInput type="date" className="input mt-1" value={toDate} onChange={(e) => setToDate(e.target.value)}/></label>
           <button type="button" className="btn-secondary self-end" onClick={() => { setSearch(""); setStatusFilter("all"); setFromDate(""); setToDate(""); }}>Clear</button>
         </div>
       </>}
@@ -381,7 +382,7 @@ export default function ConsolidatedPurchaseInvoices() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <div><label className="label">Invoice No.</label><input className="input cursor-not-allowed bg-slate-50" value={invoiceNo} readOnly tabIndex={-1} /></div>
           <div><label className="label">Supplier</label><SearchableSelect className="input" value={supplierId} disabled={locked} onChange={(e) => setSupplierId(e.target.value)}><option value="">— Select —</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}{supplier.name_urdu ? ` / ${supplier.name_urdu}` : ""}</option>)}</SearchableSelect></div>
-          <div><label className="label">Date</label><input className="input" type="date" value={invoiceDate} disabled={locked} onChange={(e) => setInvoiceDate(e.target.value)} /></div>
+          <div><label className="label">Date</label><NaviloDateInput className="input" type="date" value={invoiceDate} disabled={locked} onChange={(e) => setInvoiceDate(e.target.value)} /></div>
           <div><label className="label">Type</label><SearchableSelect className="input" value={invoiceType} disabled={locked} onChange={(e) => handleInvoiceType(e.target.value as "Purchase Invoice" | "Tax Invoice")}><option value="Purchase Invoice">Without Tax</option><option value="Tax Invoice">With Tax</option></SearchableSelect></div>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

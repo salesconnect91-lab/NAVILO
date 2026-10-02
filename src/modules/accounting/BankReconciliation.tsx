@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Trash2 } from "lucide-react";
@@ -92,8 +93,8 @@ export default function BankReconciliation() {
       <h3 className="mb-4 font-semibold">New Reconciliation</h3>
       <div className="grid gap-4 md:grid-cols-3">
         <label className="text-sm font-medium">Bank account<SearchableSelect className="input mt-1 w-full" value={form.account_id} onChange={e=>setForm({...form,account_id:e.target.value})}><option value="">Select bank</option>{accounts.map(a=><option key={a.id} value={a.id} data-search={a.code}>{a.name}</option>)}</SearchableSelect></label>
-        <label className="text-sm font-medium">Statement start<input className="input mt-1 w-full" type="date" value={form.start} onChange={e=>setForm({...form,start:e.target.value})}/></label>
-        <label className="text-sm font-medium">Statement end<input className="input mt-1 w-full" type="date" value={form.end} onChange={e=>setForm({...form,end:e.target.value})}/></label>
+        <label className="text-sm font-medium">Statement start<NaviloDateInput className="input mt-1 w-full" type="date" value={form.start} onChange={e=>setForm({...form,start:e.target.value})}/></label>
+        <label className="text-sm font-medium">Statement end<NaviloDateInput className="input mt-1 w-full" type="date" value={form.end} onChange={e=>setForm({...form,end:e.target.value})}/></label>
         <label className="text-sm font-medium">Opening statement balance<input className="input mt-1 w-full text-right" type="number" step="0.01" value={form.opening} onChange={e=>setForm({...form,opening:e.target.value})}/></label>
         <label className="text-sm font-medium">Closing statement balance<input className="input mt-1 w-full text-right" type="number" step="0.01" value={form.closing} onChange={e=>setForm({...form,closing:e.target.value})}/></label>
         <label className="text-sm font-medium">Notes<input className="input mt-1 w-full" value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></label>
@@ -109,7 +110,7 @@ export default function BankReconciliation() {
           {active.notes&&<div className="mt-1 text-xs text-slate-500" data-report-filter-value data-report-filter-label="Notes">{active.notes}</div>}
         </div>
         {active.status==="draft"?<div className="no-print flex items-center gap-2" data-no-export>
-          <label className="text-xs">Cleared date <input className="input ml-1" type="date" min={active.statement_start} max={active.statement_end} value={clearedDate} onChange={e=>setClearedDate(e.target.value)}/></label>
+          <label className="text-xs">Cleared date <NaviloDateInput className="input ml-1" type="date" min={active.statement_start} max={active.statement_end} value={clearedDate} onChange={e=>setClearedDate(e.target.value)}/></label>
           <button className="btn btn-secondary text-red-600" onClick={cancelRecon}><Trash2 size={15}/>Cancel</button>
         </div>:<div className="text-xs text-slate-500">Closed{active.closed_at?` ${formatDate(active.closed_at)}`:""}</div>}
       </div>

@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import { FileText, Coins, Clock3, Users, RotateCcw, Search } from "lucide-react";
 import {
@@ -704,8 +705,8 @@ export default function SalesInvoiceList() {
         <input className="input min-w-[260px] flex-1" value={listSearch} onChange={(event) => setListSearch(event.target.value)} placeholder="Search invoice, customer or sales person..." />
         <SearchableSelect wrapperClassName="w-[220px]" className="input" value={postingFilter} onChange={(event) => setPostingFilter(event.target.value)}><option value="all">All posting statuses</option><option value="draft">Draft</option><option value="posted">Posted</option><option value="cancelled">Cancelled</option></SearchableSelect>
         <SearchableSelect wrapperClassName="w-[190px]" className="input" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value as "all" | PaymentStatus)}><option value="all">All receipt statuses</option><option value="unpaid">Not Received</option><option value="partial">Partially Received</option><option value="paid">Fully Received</option></SearchableSelect>
-        <label className="flex w-[155px] flex-col gap-1 text-[11px] font-semibold text-slate-600"><span>From Date</span><input type="date" className="input" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label>
-        <label className="flex w-[155px] flex-col gap-1 text-[11px] font-semibold text-slate-600"><span>To Date</span><input type="date" className="input" value={toDate} onChange={(event) => setToDate(event.target.value)} /></label>
+        <label className="flex w-[155px] flex-col gap-1 text-[11px] font-semibold text-slate-600"><span>From Date</span><NaviloDateInput type="date" className="input" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label>
+        <label className="flex w-[155px] flex-col gap-1 text-[11px] font-semibold text-slate-600"><span>To Date</span><NaviloDateInput type="date" className="input" value={toDate} onChange={(event) => setToDate(event.target.value)} /></label>
         {(listSearch || postingFilter !== "all" || paymentFilter !== "all" || fromDate || toDate) && <button type="button" className="btn-secondary inline-flex items-center gap-1.5 self-end" onClick={() => { setListSearch(""); setPostingFilter("all"); setPaymentFilter("all"); setFromDate(""); setToDate(""); }}><RotateCcw className="h-4 w-4"/>Clear</button>}
       </div></div>
 
@@ -795,7 +796,7 @@ export default function SalesInvoiceList() {
 
               <div>
                 <label className="label">Payment Date</label>
-                <input
+                <NaviloDateInput
                   type="date"
                   className="input"
                   value={paymentDate}

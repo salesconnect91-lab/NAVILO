@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import NaviloDateInput from '@/components/NaviloDateInput';
+import { formatNaviloDate } from "@/lib/naviloDate";
+import type { MasterQuickCreate } from "./MasterQuickCreate";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Pencil, Plus, Power, Search, X } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
@@ -17,7 +20,7 @@ type Option = { id: string; name: string; is_active: boolean };
 const EMPTY = { name: "", detail: "", mobile: "", truckTypeId: "", ownerType: "company", supplierId: "",
   driverType: "company", identityNo: "", licenceNo: "", licenceExpiry: "", effectiveFrom: "" };
 
-export default function TransportMaster({ kind }: { kind: Kind }) {
+export default function TransportMaster({ kind, quickCreate }: { kind: Kind; quickCreate?: MasterQuickCreate }) {
   const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
   const supabase = useTransportMasterClient();
   const vehicle = kind === "vehicles";
@@ -29,9 +32,13 @@ export default function TransportMaster({ kind }: { kind: Kind }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [show, setShow] = useState(false);
+  const [show, setShow] = useState(Boolean(quickCreate));
+  const createdRecord=useRef<{id:string;name:string;truck_type_id:string}|null>(null);
+  const submitting=useRef(false);
+  const closeEditor=()=>{setShow(false);quickCreate?.onClose();};
   const [editing, setEditing] = useState<Row | null>(null);
-  const [form, setForm] = useState(EMPTY);
+  const initialForm={...EMPTY,truckTypeId:quickCreate?.truckTypeId??"",supplierId:quickCreate?.supplierId??""};
+  const [form, setForm] = useState(initialForm);
   const role = activeBusinessUnit?.membership_role ?? activeCompany?.membership_role;
   const permissions = activeBusinessUnit?.permissions ?? activeCompany?.permissions;
   const allowed = canTransportAction(role, permissions, "master_manage", isPlatformOwner);
@@ -63,7 +70,7 @@ export default function TransportMaster({ kind }: { kind: Kind }) {
     } catch (failure: any) { setRows([]); setTruckTypes([]); setSuppliers([]); setError(failure.message ?? "Unable to load masters."); }
     finally { setLoading(false); }
   }, [supabase, vehicle]);
-  useEffect(() => { setShow(false); setEditing(null); setForm(EMPTY); void load(); }, [load]);
+  useEffect(() => { setShow(Boolean(quickCreate)); setEditing(null); setForm(initialForm); void load(); }, [load]);
   const partyName = (row: Row) => suppliers.find(s => s.id === row.supplierId)?.name ?? row.owner;
   const filtered = useMemo(() => rows.filter(row => (status === "all" || (status === "active") === row.active) &&
     (!q.trim() || [row.name, row.detail, row.mobile, row.owner, suppliers.find(s => s.id === row.supplierId)?.name ?? "",
@@ -75,16 +82,16 @@ export default function TransportMaster({ kind }: { kind: Kind }) {
   };
   const changed = async () => { window.dispatchEvent(new Event("navilo-master-data-changed")); await load(); };
   const save = async (event: React.FormEvent) => {
-    event.preventDefault(); setError("");
+    event.preventDefault(); if(submitting.current)return; setError("");
     if (!allowed || !activeCompany?.company_id || !activeBusinessUnit?.business_unit_id) return setError("Select an authorized Transport workspace.");
     if (!form.name.trim()) return setError(vehicle ? "Vehicle number is required." : "Driver name is required.");
     if (vehicle && !editing && (!canAddOwner || !form.effectiveFrom)) return setError("Owner-history permission and actual Effective From date are required.");
     const supplierRequired = vehicle ? !editing && form.ownerType === "supplier" : form.driverType === "supplier";
     if (supplierRequired && !form.supplierId) return setError("Select the Supplier.");
     if (!vehicle && !form.driverType) return setError("Select Company Driver or Supplier Driver.");
-    setSaving(true);
+    submitting.current=true; setSaving(true);
     try {
-      const result = vehicle
+      const result = createdRecord.current ? {data:createdRecord.current.id,error:null} : vehicle
         ? editing
           ? await supabase.from("transport_vehicles").update({ vehicle_no: form.name.trim(), truck_type_id: form.truckTypeId || null })
             .eq("id", editing.id).select("id").single()
@@ -101,9 +108,16 @@ export default function TransportMaster({ kind }: { kind: Kind }) {
             : supabase.from("transport_drivers").insert(fields).select("id").single();
         })();
       if (result.error) throw result.error;
+      if(quickCreate){
+        const id=typeof result.data==="string"?result.data:result.data?.id;
+        if(!id)throw new Error("Master creation returned no record ID.");
+        createdRecord.current ??= {id,name:form.name.trim(),truck_type_id:form.truckTypeId};
+        window.dispatchEvent(new Event("navilo-master-data-changed"));
+        await quickCreate.onCreated(createdRecord.current);quickCreate.onClose();return;
+      }
       setShow(false); setEditing(null); setForm(EMPTY); await changed();
     } catch (failure: any) { setError(failure.message ?? "Unable to save master."); }
-    finally { setSaving(false); }
+    finally { submitting.current=false; setSaving(false); }
   };
   const toggle = async (row: Row) => {
     if (!allowed) return;
@@ -117,7 +131,7 @@ export default function TransportMaster({ kind }: { kind: Kind }) {
     ...(!vehicle ? [{ key: "mobile", label: "Mobile", render: (row: Row) => row.mobile || "—" } as Column<Row>] : []),
     { key: "type", label: vehicle ? "Ownership Type" : "Driver Type", render: row => (vehicle ? row.ownerType : row.driverType) === "supplier" ? "Supplier" : (vehicle ? row.ownerType : row.driverType) === "company" ? "Company" : "Legacy / not classified" },
     { key: "owner", label: "Supplier / Owner", render: row => partyName(row) || "—" },
-    ...(!vehicle ? [{ key: "licence", label: "Licence Expiry", render: (row: Row) => row.licenceExpiry || "—" } as Column<Row>] : []),
+    ...(!vehicle ? [{ key: "licence", label: "Licence Expiry", render: (row: Row) => formatNaviloDate(row.licenceExpiry) } as Column<Row>] : []),
     { key: "status", label: "Status", render: row => row.active ? "Active" : "Inactive" },
     { key: "actions", label: "Actions", className: "text-right", render: row => allowed && <div className="flex justify-end gap-2">
       <button className="btn-secondary px-2 py-1 text-xs" onClick={() => openEdit(row)}><Pencil className="inline h-3.5 w-3.5" /> Edit</button>
@@ -127,6 +141,26 @@ export default function TransportMaster({ kind }: { kind: Kind }) {
     </div> },
   ];
   const supplierOptions = suppliers.filter(s => s.is_active || s.id === form.supplierId);
+  const editor = <div role="dialog" aria-modal="true" aria-labelledby="transport-master-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <form onSubmit={save} className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b px-5 py-3"><h2 id="transport-master-title" className="font-bold">{editing ? "Edit" : "Add"} {vehicle ? "Vehicle" : "Driver"}</h2><button type="button" className="btn" aria-label="Close" onClick={closeEditor}><X className="h-4 w-4" /></button></div>
+        {quickCreate && error && <div role="alert" className="px-5 pt-3 text-xs text-red-700">{error}</div>}
+        <div className="grid gap-3 p-5 sm:grid-cols-2">
+          <label className="text-xs font-semibold">{vehicle ? "Vehicle No / Plate No" : "Driver Name"} *<input className="input mt-1 w-full" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></label>
+          {vehicle ? <label className="text-xs font-semibold">Truck Type<select className="input mt-1 w-full" value={form.truckTypeId} onChange={e => setForm({ ...form, truckTypeId: e.target.value })}><option value="">Select Truck Type</option>{truckTypes.filter(t => t.is_active || t.id === form.truckTypeId).map(t => <option key={t.id} value={t.id}>{t.name}{!t.is_active ? " (Inactive)" : ""}</option>)}</select></label>
+            : <label className="text-xs font-semibold">Driver Code<input className="input mt-1 w-full" value={form.detail} onChange={e => setForm({ ...form, detail: e.target.value })} /></label>}
+          {vehicle && editing ? <div className="text-xs sm:col-span-2">Owner: {partyName(editing) || "Legacy / not classified"}. <Link className="text-blue-700 underline" to="/master-data/vehicle-ownership">Change through Vehicle Ownership History</Link></div>
+            : <><label className="text-xs font-semibold">{vehicle ? "Ownership Type" : "Driver Type"}<select required className="input mt-1 w-full" value={vehicle ? form.ownerType : form.driverType} onChange={e => setForm({ ...form, ...(vehicle ? { ownerType: e.target.value } : { driverType: e.target.value }), supplierId: "" })}>
+              <option value="">Select type</option><option value="company">{vehicle ? "Company Owned" : "Company Driver"}</option><option value="supplier">{vehicle ? "Supplier Owned" : "Supplier Driver"}</option></select></label>
+              {(vehicle ? form.ownerType : form.driverType) === "supplier" && <label className="text-xs font-semibold">Supplier *<select required className="input mt-1 w-full" value={form.supplierId} onChange={e => setForm({ ...form, supplierId: e.target.value })}><option value="">Select Supplier</option>{supplierOptions.map(s => <option key={s.id} value={s.id}>{s.name}{!s.is_active ? " (Inactive)" : ""}</option>)}</select></label>}</>}
+          {vehicle && !editing && <label className="text-xs font-semibold">Ownership Effective From *<NaviloDateInput required type="date" className="input mt-1 w-full" value={form.effectiveFrom} onChange={e => setForm({ ...form, effectiveFrom: e.target.value })} /></label>}
+          {!vehicle && <><label className="text-xs font-semibold">Mobile<input className="input mt-1 w-full" value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} /></label>
+            <label className="text-xs font-semibold">ID / CNIC / Iqama<input className="input mt-1 w-full" value={form.identityNo} onChange={e => setForm({ ...form, identityNo: e.target.value })} /></label>
+            <label className="text-xs font-semibold">Driving Licence No<input className="input mt-1 w-full" value={form.licenceNo} onChange={e => setForm({ ...form, licenceNo: e.target.value })} /></label>
+            <label className="text-xs font-semibold">Licence Expiry<NaviloDateInput type="date" className="input mt-1 w-full" value={form.licenceExpiry} onChange={e => setForm({ ...form, licenceExpiry: e.target.value })} /></label></>}
+        </div><div className="flex justify-end gap-2 border-t px-5 py-3"><button type="button" className="btn-secondary" onClick={closeEditor}>Cancel</button><button className="btn-primary" disabled={saving}>{saving ? "Saving..." : "Save"}</button></div>
+      </form></div>;
+  if(quickCreate) return allowed && (!vehicle || canAddOwner) ? editor : <div role="alert">Master / ownership permission required.</div>;
   return <div className="space-y-4" data-navilo-master-standard="true">
     <MasterSummaryStrip kind={kind} title={vehicle ? "Vehicles" : "Drivers"} subtitle={vehicle ? "Vehicle identities and dated ownership" : "Drivers are independent of permanent Vehicle assignments"}
       total={rows.length} active={rows.filter(r => r.active).length} inactive={rows.filter(r => !r.active).length} fourthLabel="Displayed" fourthValue={filtered.length} />
@@ -139,23 +173,6 @@ export default function TransportMaster({ kind }: { kind: Kind }) {
       <select aria-label="Status" className="input" value={status} onChange={e => setStatus(e.target.value)}><option value="all">All Status</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
     </div>
     <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable showSerialNumber columns={columns} rows={filtered} loading={loading} emptyMessage={`No ${kind} found.`} /></div>
-    {show && <div role="dialog" aria-modal="true" aria-labelledby="transport-master-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <form onSubmit={save} className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b px-5 py-3"><h2 id="transport-master-title" className="font-bold">{editing ? "Edit" : "Add"} {vehicle ? "Vehicle" : "Driver"}</h2><button type="button" className="btn" aria-label="Close" onClick={() => setShow(false)}><X className="h-4 w-4" /></button></div>
-        <div className="grid gap-3 p-5 sm:grid-cols-2">
-          <label className="text-xs font-semibold">{vehicle ? "Vehicle No / Plate No" : "Driver Name"} *<input className="input mt-1 w-full" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></label>
-          {vehicle ? <label className="text-xs font-semibold">Truck Type<select className="input mt-1 w-full" value={form.truckTypeId} onChange={e => setForm({ ...form, truckTypeId: e.target.value })}><option value="">Select Truck Type</option>{truckTypes.filter(t => t.is_active || t.id === form.truckTypeId).map(t => <option key={t.id} value={t.id}>{t.name}{!t.is_active ? " (Inactive)" : ""}</option>)}</select></label>
-            : <label className="text-xs font-semibold">Driver Code<input className="input mt-1 w-full" value={form.detail} onChange={e => setForm({ ...form, detail: e.target.value })} /></label>}
-          {vehicle && editing ? <div className="text-xs sm:col-span-2">Owner: {partyName(editing) || "Legacy / not classified"}. <Link className="text-blue-700 underline" to="/master-data/vehicle-ownership">Change through Vehicle Ownership History</Link></div>
-            : <><label className="text-xs font-semibold">{vehicle ? "Ownership Type" : "Driver Type"}<select required className="input mt-1 w-full" value={vehicle ? form.ownerType : form.driverType} onChange={e => setForm({ ...form, ...(vehicle ? { ownerType: e.target.value } : { driverType: e.target.value }), supplierId: "" })}>
-              <option value="">Select type</option><option value="company">{vehicle ? "Company Owned" : "Company Driver"}</option><option value="supplier">{vehicle ? "Supplier Owned" : "Supplier Driver"}</option></select></label>
-              {(vehicle ? form.ownerType : form.driverType) === "supplier" && <label className="text-xs font-semibold">Supplier *<select required className="input mt-1 w-full" value={form.supplierId} onChange={e => setForm({ ...form, supplierId: e.target.value })}><option value="">Select Supplier</option>{supplierOptions.map(s => <option key={s.id} value={s.id}>{s.name}{!s.is_active ? " (Inactive)" : ""}</option>)}</select></label>}</>}
-          {vehicle && !editing && <label className="text-xs font-semibold">Ownership Effective From *<input required type="date" className="input mt-1 w-full" value={form.effectiveFrom} onChange={e => setForm({ ...form, effectiveFrom: e.target.value })} /></label>}
-          {!vehicle && <><label className="text-xs font-semibold">Mobile<input className="input mt-1 w-full" value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} /></label>
-            <label className="text-xs font-semibold">ID / CNIC / Iqama<input className="input mt-1 w-full" value={form.identityNo} onChange={e => setForm({ ...form, identityNo: e.target.value })} /></label>
-            <label className="text-xs font-semibold">Driving Licence No<input className="input mt-1 w-full" value={form.licenceNo} onChange={e => setForm({ ...form, licenceNo: e.target.value })} /></label>
-            <label className="text-xs font-semibold">Licence Expiry<input type="date" className="input mt-1 w-full" value={form.licenceExpiry} onChange={e => setForm({ ...form, licenceExpiry: e.target.value })} /></label></>}
-        </div><div className="flex justify-end gap-2 border-t px-5 py-3"><button type="button" className="btn-secondary" onClick={() => setShow(false)}>Cancel</button><button className="btn-primary" disabled={saving}>{saving ? "Saving..." : "Save"}</button></div>
-      </form></div>}
+    {show && editor}
   </div>;
 }

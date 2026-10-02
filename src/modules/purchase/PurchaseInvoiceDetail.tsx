@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import TransportServiceDocument from '@/modules/transport/TransportServiceDocument';
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -356,7 +357,7 @@ export default function PurchaseInvoiceDetail() {
         <div className="mt-4 grid gap-3 md:grid-cols-5">
           <div><label className="label">Purchase Person / Buyer</label><SearchableSelect className="input" disabled={order.status === "posted"} value={sourceDocument.purchase_person_employee_id} onChange={(e) => setSourceDocument({ ...sourceDocument, purchase_person_employee_id: e.target.value })}><option value="">— Select employee —</option>{employees.map((employee) => <option key={employee.id} value={employee.id} data-search={employee.employee_code || undefined}>{employee.name}{employee.designation ? ` · ${employee.designation}` : ""}</option>)}</SearchableSelect></div>
           <div><label className="label">Supplier Invoice No.</label><input className="input" disabled={order.status === "posted"} value={sourceDocument.supplier_invoice_no} onChange={(e) => setSourceDocument({ ...sourceDocument, supplier_invoice_no: e.target.value })} /></div>
-          <div><label className="label">Supplier Invoice Date</label><input className="input" type="date" disabled={order.status === "posted"} value={sourceDocument.supplier_invoice_date} onChange={(e) => setSourceDocument({ ...sourceDocument, supplier_invoice_date: e.target.value })} /></div>
+          <div><label className="label">Supplier Invoice Date</label><NaviloDateInput className="input" type="date" disabled={order.status === "posted"} value={sourceDocument.supplier_invoice_date} onChange={(e) => setSourceDocument({ ...sourceDocument, supplier_invoice_date: e.target.value })} /></div>
           <div><label className="label">Reference No.</label><input className="input" disabled={order.status === "posted"} value={sourceDocument.reference_no} onChange={(e) => setSourceDocument({ ...sourceDocument, reference_no: e.target.value })} /></div>
           <div><label className="label">Reference Notes</label><input className="input" disabled={order.status === "posted"} value={sourceDocument.reference_notes} onChange={(e) => setSourceDocument({ ...sourceDocument, reference_notes: e.target.value })} /></div>
         </div>

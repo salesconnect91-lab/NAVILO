@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import {
   useCallback,
@@ -1706,7 +1707,7 @@ export default function CashCounter() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
                 <label className="mb-1.5 block text-xs font-semibold text-slate-600">Payment Date</label>
-                <input
+                <NaviloDateInput
                   type="date"
                   value={paymentDate}
                   onChange={(e) =>

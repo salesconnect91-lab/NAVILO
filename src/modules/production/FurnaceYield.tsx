@@ -1,3 +1,4 @@
+import NaviloDateInput from '@/components/NaviloDateInput';
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { FurnaceYield as FurnaceYieldType } from "@/types";
@@ -121,7 +122,7 @@ export default function FurnaceYield() {
             <div><label className="label">Heat Number</label><input className="input" required value={form.heat_no} onChange={(e) => setForm({ ...form, heat_no: e.target.value })} /></div>
             <div><label className="label">Furnace Number</label><input className="input" value={form.furnace_no} onChange={(e) => setForm({ ...form, furnace_no: e.target.value })} /></div>
           </div>
-          <div><label className="label">Date</label><input className="input" type="date" required value={form.yield_date} onChange={(e) => setForm({ ...form, yield_date: e.target.value })} /></div>
+          <div><label className="label">Date</label><NaviloDateInput className="input" type="date" required value={form.yield_date} onChange={(e) => setForm({ ...form, yield_date: e.target.value })} /></div>
           <div className="grid grid-cols-2 gap-4">
             <div><label className="label">Charge Weight (kg)</label><input className="input" type="number" step="0.01" required value={form.charge_weight} onChange={(e) => setForm({ ...form, charge_weight: e.target.value })} /></div>
             <div><label className="label">Output Weight (kg)</label><input className="input" type="number" step="0.01" required value={form.output_weight} onChange={(e) => setForm({ ...form, output_weight: e.target.value })} /></div>
