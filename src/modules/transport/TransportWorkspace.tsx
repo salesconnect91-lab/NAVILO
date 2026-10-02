@@ -14,7 +14,7 @@ import TransportAccountStatement from './TransportAccountStatement';
 import {fetchAllPages} from '@/lib/fetchAllPages';
 import {financialNumber, type FinancialTrip} from './transportFinancialTypes';
 import * as XLSX from "xlsx";
-import {parseTripFile,fileDigest,makeImportJob,runImportJob,storedImport,saveImport,type ImportRow,type ImportJob} from './transportTripImport';
+import {parseTripFile,fileDigest,makeImportJob,runImportJob,storedImport,saveImport,tripImportIdentity,type ImportRow,type ImportJob} from './transportTripImport';
 import TransportPagination from './TransportPagination';
 import TransportQuickAdd from './TransportQuickAdd';
 import {compatibleVehicles,ownershipOnDate,matchingCustomerRate,estimatedMargin,masterKey,validMoney,type QuickAddKind,type OwnershipPeriod} from './transportTripEntry';
@@ -578,7 +578,7 @@ export default function TransportWorkspace(){
         if(row.owner_supplier&&(!owner||masterKey(row.owner_supplier)!==masterKey(owner.owner_name_snapshot)))errors.push('Owner / Supplier does not match dated ownership');
         if(row.supplier_rent!==''&&owner?.owner_type!=='third_party')errors.push('Supplier Rent requires dated Supplier Owned Vehicle');
         if(row.driver_pay!==''&&Number(row.driver_pay)>0&&!driver)errors.push('Driver Pay requires Driver');
-        const duplicateKey=[row.trip_date,customer?.id,vehicle?.id,driver?.id,masterKey(row.po_do_job_no),from?.id,to?.id].join('|');
+        const duplicateKey=tripImportIdentity(row,{customer:customer?.id,vehicle:vehicle?.id,driver:driver?.id,from:from?.id,to:to?.id});
         if(seen.has(duplicateKey))errors.push('Duplicate row in upload file');seen.add(duplicateKey);
         return {...row,errors,payload:{trip_date:row.trip_date,customer_id:customer?.id,truck_type_id:truck?.id??vehicle?.truck_type_id??null,
           vehicle_id:vehicle?.id??null,driver_id:driver?.id??null,from_location_id:from?.id,to_location_id:to?.id,

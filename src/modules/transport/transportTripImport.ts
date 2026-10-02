@@ -8,6 +8,11 @@ export type ImportRow = {
 };
 const text=(value:unknown)=>String(value??'').trim();
 const key=(value:unknown)=>text(value).replace(/\s+/g,' ').toLowerCase();
+export function tripImportIdentity(row:ImportRow,masters:Partial<Record<'customer'|'vehicle'|'driver'|'from'|'to',string>>={}) {
+ const identity=(id:string|undefined,name:string)=>id?['id',id]:['name',key(name)];
+ return JSON.stringify([row.trip_date,identity(masters.customer,row.customer),identity(masters.vehicle,row.vehicle),
+  identity(masters.driver,row.driver),key(row.po_do_job_no),identity(masters.from,row.from_location),identity(masters.to,row.to_location)]);
+}
 export function importDate(value:unknown):string {
  if(value instanceof Date) return Number.isNaN(value.getTime())?'':`${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}`;
  if(typeof value==='number') {const d=XLSX.SSF.parse_date_code(value);return d?`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`:'';}

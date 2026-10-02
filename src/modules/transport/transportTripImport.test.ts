@@ -1,11 +1,17 @@
 import {describe,expect,it,vi} from 'vitest';
 import * as XLSX from 'xlsx';
-import {importDate,parseTripWorkbook,makeImportJob,runImportJob,type ImportRow} from './transportTripImport';
+import {importDate,parseTripWorkbook,makeImportJob,runImportJob,tripImportIdentity,type ImportRow} from './transportTripImport';
 import fs from 'node:fs';
 const headers=['DATE','TRUCK TYPE','PO/DO/JOB NO.','INVOICED','COMPANY NAME','DRIVER NAME','OWNER','PLATE #','FROM','TO','PAPER RECEIVED BY','DATE','PAY TO DRIVER','RENT WITH DRIVER','REMAINING WITH US','PAYMENT DATE','AMOUNT','rate with company','received from company','remaining with company','PROFIT','paid commissin for trip','Sale Type \r\n( Cash / Credit)'];
 function workbook(rows:unknown[][]){const w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([headers,...rows]),'Trips');return XLSX.write(w,{type:'array',bookType:'xlsx'});}
 const example=['2026-10-01','FLATBED','JOB-1','','Customer','Driver','Owner','0012','From','To','PPR PENDING','','50','100','','','',200,0,200,0,'','Credit'];
 describe('BuKu Trip import',()=>{
+ it('keeps distinct unresolved vehicles separate while detecting repeated rows and canonical aliases',()=>{
+  const row=parseTripWorkbook(workbook([example]))[0];
+  expect(tripImportIdentity(row)).not.toBe(tripImportIdentity({...row,vehicle:'3490'}));
+  expect(tripImportIdentity(row)).toBe(tripImportIdentity({...row,customer:' CUSTOMER ',vehicle:'0012'}));
+  expect(tripImportIdentity(row,{vehicle:'canonical'})).toBe(tripImportIdentity({...row,vehicle:'Alias'},{vehicle:'canonical'}));
+ });
  it('reads duplicate Date headers, multiline Sale Type, rates and numeric zero without inferring payment posting',()=>{
   const row=[...example];row[10]='Receiver';row[11]='02-Oct-26';row[13]=0;row[17]=0;
   const result=parseTripWorkbook(workbook([row]))[0];expect(result.trip_date).toBe('2026-10-01');expect(result.ppr_date).toBe('2026-10-02');
