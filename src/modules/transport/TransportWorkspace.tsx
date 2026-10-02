@@ -1029,15 +1029,15 @@ export default function TransportWorkspace(){
       case "ppr_date": return r.ppr_status==="received"&&r.ppr_received_date?formatNaviloDate(r.ppr_received_date):"Pending";
       case "pay_driver": return financialNumber(r.driver_accrued??r.driver_pay);
       case "rent_driver": return financialNumber(r.billed_supplier_net??r.supplier_rent??r.owner_rent);
-      case "remaining_us": return r.remaining_with_us==null?"Pending":financialNumber(r.remaining_with_us);
-      case "payment_date": return r.payment_date?formatNaviloDate(r.payment_date):"Pending";
-      case "amount": return r.payment_amount==null?"Pending":financialNumber(r.payment_amount);
+      case "remaining_us": return financialNumber(r.remaining_with_us);
+      case "payment_date": return r.payment_date?formatNaviloDate(r.payment_date):"";
+      case "amount": return financialNumber(r.payment_amount);
       case "company_rate": return financialNumber(r.billed_customer_net??r.customer_rate);
-      case "received_company": return !r.invoiced?"Not Invoiced":r.received_from_company==null?"—":financialNumber(r.received_from_company);
-      case "remaining_company": return !r.invoiced?"Not Invoiced":r.remaining_with_company==null?"—":financialNumber(r.remaining_with_company);
-      case "profit": return !r.invoiced?"Not Invoiced":r.trip_profit==null?"Pending":financialNumber(r.trip_profit);
+      case "received_company": return financialNumber(r.received_from_company);
+      case "remaining_company": return financialNumber(r.remaining_with_company);
+      case "profit": return financialNumber(r.trip_profit);
       case "commission": return r.commission_paid_net==null?"—":financialNumber(r.commission_paid_net);
-      case "invoice_no": return !r.invoiced?"Not Invoiced":String(r.invoice_no??"—");
+      case "invoice_no": return String(r.invoice_no??"");
       case "sale_type": return String(r.sale_type??"");
       default:return "";
     }
