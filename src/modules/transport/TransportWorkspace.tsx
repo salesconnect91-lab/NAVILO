@@ -5,6 +5,7 @@ import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, Re
 import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 import TransportFinancialPanel from './TransportFinancialPanel';
+import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportInitialRate from './TransportInitialRate';
 import TransportCostUpload from './TransportCostUpload';
 import TransportAudit from './TransportAudit';
@@ -216,6 +217,7 @@ export default function TransportWorkspace(){
     notes:""
   });
   const [financialTrip,setFinancialTrip]=useState<Trip|null>(null);
+  const [showBulkSupplierRent,setShowBulkSupplierRent]=useState(false);
   const [quickPprTrip,setQuickPprTrip]=useState<Trip|null>(null);
   const [quickPprEmployee,setQuickPprEmployee]=useState("");
   const [quickPprDate,setQuickPprDate]=useState(new Date().toISOString().slice(0,10));
@@ -1256,6 +1258,10 @@ export default function TransportWorkspace(){
             <RefreshCw className="h-3.5 w-3.5"/>
             Refresh
           </button>
+          <button type="button" onClick={()=>setShowBulkSupplierRent(true)}
+            className="h-7 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-[10px] font-bold text-amber-800 hover:bg-amber-100">
+            Bulk Supplier Rent
+          </button>
           <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)}
             className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50">
             Columns
@@ -1936,6 +1942,7 @@ export default function TransportWorkspace(){
       </div>
     </div>}
     {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={load}/>}
+    {showBulkSupplierRent&&<TransportBulkSupplierRent onClose={()=>setShowBulkSupplierRent(false)} onChanged={async()=>{await load(true)}}/>}
     {financialTrip&&<TransportFinancialPanel key={financialTrip.id} trip={financialTrip} onClose={()=>setFinancialTrip(null)} onChanged={load}/>}
   </div>
 }
