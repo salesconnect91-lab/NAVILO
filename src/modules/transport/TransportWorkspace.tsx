@@ -284,60 +284,55 @@ export default function TransportWorkspace(){
       }
 
       const tripIds=all.map(r=>r.id);
-      const operationalTrips:Array<{id:string;source_invoice_no:string|null;customer_rate:number|null;owner_rent:number|null;supplier_rent:number|null;driver_pay:number|null}>=[];
-      const links:Array<{trip_id:string;document_id:string}>=[];
-      for(let offset=0;offset<tripIds.length;offset+=200){
-        const ids=tripIds.slice(offset,offset+200);
-        if(!ids.length)continue;
-        const result=await supabase
-          .from("transport_trips")
-          .select("id,source_invoice_no,customer_rate,owner_rent,supplier_rent,driver_pay")
-          .in("id",ids);
-        if(result.error)throw result.error;
-        operationalTrips.push(...(result.data??[]));
-      }
-      for(let offset=0;offset<tripIds.length;offset+=200){
-        const ids=tripIds.slice(offset,offset+200);
-        if(!ids.length)continue;
-        const result=await supabase
-          .from("transport_customer_document_trips")
-          .select("trip_id,document_id,is_adjustment")
-          .in("trip_id",ids)
-          .eq("is_adjustment",false);
-        if(result.error)throw result.error;
-        links.push(...(result.data??[]).map(r=>({trip_id:r.trip_id,document_id:r.document_id})));
-      }
+      const chunks:Array<string[]>= [];
+      for(let offset=0;offset<tripIds.length;offset+=200)chunks.push(tripIds.slice(offset,offset+200));
+
+      // Dashboard enrichment used to wait for each request one-by-one. Fetch the
+      // independent operational, billing-link and rent data in parallel so a
+      // Refresh reflects changes without several sequential network round trips.
+      const [operationalBatches,linkBatches,rentBatches]=await Promise.all([
+        Promise.all(chunks.map(async ids=>{
+          const result=await supabase.from("transport_trips")
+            .select("id,source_invoice_no,customer_rate,owner_rent,supplier_rent,driver_pay").in("id",ids);
+          if(result.error)throw result.error;
+          return result.data??[];
+        })),
+        Promise.all(chunks.map(async ids=>{
+          const result=await supabase.from("transport_customer_document_trips")
+            .select("trip_id,document_id,is_adjustment").in("trip_id",ids).eq("is_adjustment",false);
+          if(result.error)throw result.error;
+          return (result.data??[]).map(r=>({trip_id:r.trip_id,document_id:r.document_id}));
+        })),
+        Promise.all(chunks.map(ids=>fetchAllPages<any>((start,end)=>supabase.from('transport_trip_supplier_rents')
+          .select('id,trip_id,amount,finalized_amount_snapshot').in('trip_id',ids).order('id').range(start,end))))
+      ]);
+      const operationalTrips=operationalBatches.flat();
+      const links=linkBatches.flat();
 
       const documentIds=Array.from(new Set(links.map(r=>r.document_id)));
-      const documents:Array<{id:string;sales_order_id:string}>=[];
-      for(let offset=0;offset<documentIds.length;offset+=200){
-        const ids=documentIds.slice(offset,offset+200);
-        const result=await supabase
-          .from("transport_customer_documents")
-          .select("id,sales_order_id")
-          .in("id",ids);
+      const documentChunks:Array<string[]>= [];
+      for(let offset=0;offset<documentIds.length;offset+=200)documentChunks.push(documentIds.slice(offset,offset+200));
+      const documentBatches=await Promise.all(documentChunks.map(async ids=>{
+        const result=await supabase.from("transport_customer_documents").select("id,sales_order_id").in("id",ids);
         if(result.error)throw result.error;
-        documents.push(...(result.data??[]));
-      }
+        return result.data??[];
+      }));
+      const documents=documentBatches.flat();
 
       const orderIds=Array.from(new Set(documents.map(r=>r.sales_order_id)));
-      const orders:Array<{id:string;order_no:string}>=[];
-      for(let offset=0;offset<orderIds.length;offset+=200){
-        const ids=orderIds.slice(offset,offset+200);
-        const result=await supabase
-          .from("sales_orders")
-          .select("id,order_no")
-          .in("id",ids);
+      const orderChunks:Array<string[]>= [];
+      for(let offset=0;offset<orderIds.length;offset+=200)orderChunks.push(orderIds.slice(offset,offset+200));
+      const orderBatches=await Promise.all(orderChunks.map(async ids=>{
+        const result=await supabase.from("sales_orders").select("id,order_no").in("id",ids);
         if(result.error)throw result.error;
-        orders.push(...(result.data??[]));
-      }
+        return result.data??[];
+      }));
+      const orders=orderBatches.flat();
 
       const documentOrder=new Map(documents.map(r=>[r.id,r.sales_order_id]));
       const orderNumber=new Map(orders.map(r=>[r.id,r.order_no]));
       const structuredRentTotals=new Map<string,number>();
-      for(let offset=0;offset<tripIds.length;offset+=200){
-        const ids=tripIds.slice(offset,offset+200);
-        const rents=await fetchAllPages<any>((start,end)=>supabase.from('transport_trip_supplier_rents').select('id,trip_id,amount,finalized_amount_snapshot').in('trip_id',ids).order('id').range(start,end));
+      for(const rents of rentBatches){
         for(const rent of rents)structuredRentTotals.set(rent.trip_id,(structuredRentTotals.get(rent.trip_id)??0)+Number(rent.finalized_amount_snapshot??rent.amount));
       }
       const operationalByTrip=new Map(operationalTrips.map(r=>[r.id,r]));
@@ -396,7 +391,7 @@ export default function TransportWorkspace(){
   useEffect(()=>{
     if(tab!=="trips"||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
     const refresh=()=>{if(document.visibilityState==="visible")void load(true)};
-    const timer=window.setInterval(refresh,15000);
+    const timer=window.setInterval(refresh,8000);
     window.addEventListener("focus",refresh);
     document.addEventListener("visibilitychange",refresh);
     return ()=>{
@@ -1151,7 +1146,7 @@ export default function TransportWorkspace(){
                 const sorted=sortColumn===key;
 
                 return <th key={key}
-                  className={`border-b border-slate-200 bg-slate-50 px-1 py-0.5 font-bold ${i===0?"sticky left-0 z-30":""}`}>
+                  className={`h-8 border-b border-slate-200 bg-slate-50 px-1 !py-1 font-bold leading-none ${i===0?"sticky left-0 z-30":""}`}>
                   <button
                     type="button"
                     onClick={e=>{
@@ -1223,8 +1218,8 @@ export default function TransportWorkspace(){
           </thead>
 
           <tbody>
-            {gridRows.map(r=><tr key={r.id} className="hover:bg-slate-50">
-              <td className="sticky left-0 z-[5] border-b border-slate-100 bg-white px-1.5 py-0.5 font-bold text-slate-900">
+            {gridRows.map(r=><tr key={r.id} className="h-9 hover:bg-slate-50">
+              <td className="sticky left-0 z-[5] border-b border-slate-100 bg-white px-1.5 !py-1 font-bold leading-tight text-slate-900">
   <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
     className="font-bold text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
@@ -1238,7 +1233,7 @@ export default function TransportWorkspace(){
                 const value=tripCellValue(r,key);
                 const numeric=["pay_driver","rent_driver","remaining_us","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
                 return <td key={key}
-                  className={`border-b border-slate-100 px-1.5 py-0.5 ${numeric?"text-right":""}`}>
+                  className={`border-b border-slate-100 px-1.5 !py-1 leading-tight ${numeric?"text-right":""}`}>
                   {key==='company_rate'&&r.customer_rate_state==='pending'&&!r.customer_rate_locked?<button className="rounded border border-blue-200 px-1 text-blue-700" aria-label={`Add Rate ${r.trip_no}`} onClick={()=>setInitialRateTrip(r)}>Add Rate</button>:value||""}
                 </td>;
               })}            </tr>)}
