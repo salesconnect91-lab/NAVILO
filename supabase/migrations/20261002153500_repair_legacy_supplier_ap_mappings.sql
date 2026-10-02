@@ -5,6 +5,7 @@ returns integer language plpgsql security definer set search_path=public,pg_temp
 declare n integer;
 begin
   if session_user <> 'postgres' then raise exception 'Migration-only function'; end if;
+  perform set_config('app.maintenance_reset','1',true);
   update public.suppliers s
   set account_id=am.account_id
   from public.account_mappings am
@@ -15,6 +16,7 @@ begin
     and coa.user_id=s.user_id and coa.company_id=s.company_id
     and coa.type='liability' and coa.is_active and not coa.is_group;
   get diagnostics n=row_count;
+  perform set_config('app.maintenance_reset','0',true);
   return n;
 end $$;
 select public.repair_legacy_supplier_ap_mappings();
