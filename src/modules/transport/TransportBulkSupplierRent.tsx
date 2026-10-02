@@ -13,7 +13,7 @@ type Account={id:string;name:string;type:string};
 export default function TransportBulkSupplierRent({onClose,onChanged}:{onClose:()=>void;onChanged:()=>Promise<void>}){
  const {activeCompany,activeBusinessUnit}=useAuth();
  const [rows,setRows]=useState<Row[]>([]),[legacyRents,setLegacyRents]=useState<LegacyRent[]>([]),[suppliers,setSuppliers]=useState<Supplier[]>([]),[rents,setRents]=useState<Rent[]>([]),[accounts,setAccounts]=useState<Account[]>([]);
- const [supplier,setSupplier]=useState(''),[search,setSearch]=useState(''),[selected,setSelected]=useState<string[]>([]),[amounts,setAmounts]=useState<Record<string,string>>({});
+ const [supplier,setSupplier]=useState(''),[tripStatus,setTripStatus]=useState(''),[search,setSearch]=useState(''),[selected,setSelected]=useState<string[]>([]),[amounts,setAmounts]=useState<Record<string,string>>({});
  const [account,setAccount]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[reason,setReason]=useState('Bulk supplier rent'),[withTax,setWithTax]=useState(false);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  async function load(){
@@ -33,7 +33,8 @@ export default function TransportBulkSupplierRent({onClose,onChanged}:{onClose:(
  const postedTripIds=useMemo(()=>new Set(rows.filter(r=>Number(r.billed_supplier_net??0)>0).map(r=>r.id)),[rows]);
  const unavailableTripIds=useMemo(()=>new Set([...existing.keys(),...postedTripIds,...legacyBlockedTripIds]),[existing,postedTripIds]);
  const supplierName=suppliers.find(s=>s.id===supplier)?.name??'';
- const visible=rows.filter(r=>!supplierName||r.owner_name===supplierName||existing.get(r.id)?.supplier_id===supplier).filter(r=>!search||r.trip_no.toLowerCase().includes(search.toLowerCase()));
+ const tripStatuses=useMemo(()=>[...new Set(rows.map(r=>r.trip_status||r.financial_status).filter((v):v is string=>!!v))].sort(),[rows]);
+ const visible=rows.filter(r=>!supplierName||r.owner_name===supplierName||existing.get(r.id)?.supplier_id===supplier).filter(r=>!tripStatus||(r.trip_status||r.financial_status)===tripStatus).filter(r=>!search||r.trip_no.toLowerCase().includes(search.toLowerCase()));
  function toggle(id:string,on:boolean){setSelected(v=>on?[...new Set([...v,id])]:v.filter(x=>x!==id));}
  function selectShown(){const ids=visible.filter(r=>!unavailableTripIds.has(r.id)).map(r=>r.id);setSelected(ids);setAmounts(v=>({...v,...Object.fromEntries(ids.map(id=>{const r=rows.find(x=>x.id===id)!;return [id,String(r.supplier_rent??r.owner_rent??'')]}))}));}
  async function post(){
@@ -61,6 +62,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged}:{onClose:(
    <label>Date<NaviloDateInput className="input" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
    <label>Reason<input className="input" value={reason} onChange={e=>setReason(e.target.value)}/></label>
    <label className="pb-1"><input type="checkbox" checked={withTax} onChange={e=>setWithTax(e.target.checked)}/> With VAT</label>
+   <label>Trip Status<select className="input" value={tripStatus} onChange={e=>{setTripStatus(e.target.value);setSelected([])}}><option value="">All Statuses</option>{tripStatuses.map(s=><option key={s} value={s}>{s}</option>)}</select></label>
    <label>Search Trip<input className="input" value={search} onChange={e=>setSearch(e.target.value)}/></label>
    <button className="btn" disabled={!supplier||busy} onClick={selectShown}>Select All Unposted</button>
   </div>
