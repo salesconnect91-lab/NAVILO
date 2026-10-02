@@ -1122,10 +1122,20 @@ export default function TransportWorkspace(){
     });
   };
 
-  const columnOptions=(key:string)=>
-    Array.from(new Set(
-      visible.map(r=>tripCellValue(r,key)||"?")
+  const columnOptions=(key:string)=>{
+    // Excel-style cascading filters: options for this column come only from
+    // rows that still match every OTHER active column filter.
+    const contextRows=visible.filter(r=>
+      Object.entries(columnFilters).every(([filterKey,selected])=>{
+        if(filterKey===key||!selected.length)return true;
+        return selected.includes(tripCellValue(r,filterKey)||"?");
+      })
+    );
+
+    return Array.from(new Set(
+      contextRows.map(r=>tripCellValue(r,key)||"?")
     )).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  };
 
   const gridRows=visible
     .filter(r=>Object.entries(columnFilters).every(([key,selected])=>{
