@@ -33,27 +33,42 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
  const existing=useMemo(()=>new Map(rents.map(r=>[r.trip_id,r])),[rents]);
  const legacyBlockedTripIds=useMemo(()=>new Set(legacyRents.filter(r=>r.rent_state==='finalized'||!!r.rent_finalized_at).map(r=>r.id)),[legacyRents]);
  const postedTripIds=useMemo(()=>new Set(rows.filter(r=>Number(r.billed_supplier_net??0)>0).map(r=>r.id)),[rows]);
- const unavailableTripIds=useMemo(()=>new Set([...existing.keys(),...postedTripIds,...legacyBlockedTripIds]),[existing,postedTripIds]);
+ const legacyBlockedOnly=useMemo(()=>new Set([...legacyBlockedTripIds].filter(id=>!existing.has(id)&&!postedTripIds.has(id))),[legacyBlockedTripIds,existing,postedTripIds]);
+ const unavailableTripIds=useMemo(()=>new Set([...postedTripIds,...legacyBlockedOnly]),[postedTripIds,legacyBlockedOnly]);
  const supplierName=suppliers.find(s=>s.id===supplier)?.name??'';
  const tripStatuses=useMemo(()=>[...new Set(rows.map(r=>r.trip_status||r.financial_status).filter((v):v is string=>!!v))].sort(),[rows]);
  const visible=rows.filter(r=>!supplierName||r.owner_name===supplierName||existing.get(r.id)?.supplier_id===supplier).filter(r=>!tripStatus||(r.trip_status||r.financial_status)===tripStatus).filter(r=>!search||r.trip_no.toLowerCase().includes(search.toLowerCase()));
  function toggle(id:string,on:boolean){setSelected(v=>on?[...new Set([...v,id])]:v.filter(x=>x!==id));}
  function selectShown(){const ids=visible.filter(r=>!unavailableTripIds.has(r.id)).map(r=>r.id);setSelected(ids);setAmounts(v=>({...v,...Object.fromEntries(ids.map(id=>{const r=rows.find(x=>x.id===id)!;return [id,String(r.supplier_rent??r.owner_rent??'')]}))}));}
- async function processSelected(postBills:boolean){
-  if(!supplier||!account||!selected.length||!reason.trim())return;
-  setBusy(true);setError('');setMessage('');
-  let done=0,skipped=0;
+ async function finalizeSelected(){
+  if(!supplier||!selected.length||!reason.trim())return;
+  setBusy(true);setError('');setMessage('');let done=0,skipped=0;
   try{
    for(const id of selected){
     if(unavailableTripIds.has(id)){skipped++;continue;}
-    const row=rows.find(r=>r.id===id);const raw=amounts[id]??String(row?.supplier_rent??row?.owner_rent??'');const amount=Number(raw);if(!(amount>0))throw new Error(`Enter a valid rent for ${row?.trip_no}`);
-    const add=await supabase.rpc('transport_add_supplier_rent',{p_trip_id:id,p_supplier_id:supplier,p_amount:amount,p_reason:reason.trim()});if(add.error)throw add.error;
-    if(postBills){const bill=await supabase.rpc('transport_post_supplier_bill',{p_rent_id:add.data,p_date:date,p_cost_account_id:account,p_with_tax:withTax,p_reference:'Bulk supplier rent'});if(bill.error)throw bill.error;}
+    const row=rows.find(r=>r.id===id);const raw=amounts[id]??String(existing.get(id)?.amount??row?.supplier_rent??row?.owner_rent??'');const amount=Number(raw);
+    if(!(amount>=0))throw new Error(`Enter a valid rent for ${row?.trip_no}`);
+    let rent=existing.get(id);
+    if(!rent){const add=await supabase.rpc('transport_add_supplier_rent',{p_trip_id:id,p_supplier_id:supplier,p_amount:amount,p_reason:reason.trim()});if(add.error)throw add.error;rent={id:add.data,trip_id:id,supplier_id:supplier,amount};}
+    if(rent.state==='finalized'){skipped++;continue;}
+    const fin=await supabase.rpc('transport_finalize_supplier_rent',{p_rent_id:rent.id,p_amount:amount,p_reason:reason.trim()});if(fin.error)throw fin.error;
     done++;
    }
-   await load();await onChanged();setSelected([]);setAmounts({});setMessage(`${done} trip rent(s) ${postBills?'finalized and posted to canonical Accounts Payable':'finalized only — not posted yet'}.${skipped?` ${skipped} legacy/already-posted trip(s) skipped safely.`:''}`);
-  }catch(e){const detail=e&&typeof e==='object'&&'message' in e?String((e as {message?:unknown}).message):String(e||'Bulk rent failed');setError(`${detail} · ${done} trip(s) completed before this error; completed trips will not be repeated.`)}
-  finally{setBusy(false)}
+   await load();await onChanged();setSelected([]);setMessage(`${done} trip rent(s) finalized only — no AP bill posted.${skipped?` ${skipped} trip(s) skipped.`:''}`);
+  }catch(e){const detail=e&&typeof e==='object'&&'message' in e?String((e as {message?:unknown}).message):String(e||'Bulk rent failed');setError(`${detail} · ${done} trip(s) finalized before this error.`)}finally{setBusy(false)}
+ }
+ async function postSelected(){
+  if(!account||!selected.length)return;
+  setBusy(true);setError('');setMessage('');let done=0,skipped=0;
+  try{
+   for(const id of selected){
+    if(unavailableTripIds.has(id)){skipped++;continue;}
+    const rent=existing.get(id);
+    if(!rent||rent.state!=='finalized'){skipped++;continue;}
+    const bill=await supabase.rpc('transport_post_supplier_bill',{p_rent_id:rent.id,p_date:date,p_cost_account_id:account,p_with_tax:withTax,p_reference:'Bulk supplier rent'});if(bill.error)throw bill.error;done++;
+   }
+   await load();await onChanged();setSelected([]);setMessage(`${done} finalized rent(s) posted to canonical Accounts Payable.${skipped?` ${skipped} non-finalized/blocked trip(s) skipped.`:''}`);
+  }catch(e){const detail=e&&typeof e==='object'&&'message' in e?String((e as {message?:unknown}).message):String(e||'Bulk post failed');setError(`${detail} · ${done} trip(s) posted before this error.`)}finally{setBusy(false)}
  }
  return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-3"><section className="max-h-[94vh] w-full max-w-6xl overflow-auto rounded-lg bg-white p-4 text-xs shadow-xl">
   <div className="flex items-center justify-between"><div><h2 className="text-sm font-bold">Bulk Supplier Rent</h2><p className="text-slate-500">Select supplier → enter/paste trip rents → Finalize & Post once. Each trip still creates its own canonical supplier bill.</p></div><button className="btn" disabled={busy} onClick={onClose}>Close</button></div>
@@ -68,7 +83,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
    <label>Search Trip<input className="input" value={search} onChange={e=>setSearch(e.target.value)}/></label>
    <button className="btn" disabled={!supplier||busy} onClick={selectShown}>Select All Unposted</button>
   </div>
-  <div className="max-h-[55vh] overflow-auto border"><table className="w-full whitespace-nowrap text-left text-xs"><thead className="sticky top-0 bg-slate-100"><tr><th className="p-2">Select</th><th>Trip</th><th>Date</th><th>Trip Status</th><th>Owner / Supplier</th><th>Rent</th><th>Rent / Post Status</th></tr></thead><tbody>{visible.map(r=>{const ex=existing.get(r.id);const posted=postedTripIds.has(r.id);const legacyBlocked=legacyBlockedTripIds.has(r.id)&&!ex&&!posted;const locked=!!ex||posted||legacyBlocked;return <tr key={r.id} className="border-t"><td className="p-2"><input type="checkbox" disabled={locked||busy} checked={selected.includes(r.id)} onChange={e=>toggle(r.id,e.target.checked)}/></td><td className="font-semibold">{r.trip_no}</td><td>{r.trip_date}</td><td><span className="rounded bg-slate-100 px-2 py-1 font-medium">{r.trip_status||r.financial_status||'—'}</span></td><td>{r.owner_name||supplierName||'—'}</td><td><input className="input w-28" type="number" min="0.01" step="0.01" disabled={locked||busy} value={ex?String(ex.finalized_amount_snapshot??ex.amount):posted?String(r.billed_supplier_net??''):amounts[r.id]??String(r.supplier_rent??r.owner_rent??'')} onChange={e=>setAmounts(v=>({...v,[r.id]:e.target.value}))}/></td><td>{legacyBlocked?<span className="font-medium text-red-700">Legacy Rent — Correction Required</span>:locked?<span className="text-emerald-700">Already posted {financialNumber(ex?.finalized_amount_snapshot??ex?.amount??r.billed_supplier_net)}</span>:<span className="text-amber-700">Ready</span>}</td></tr>})}</tbody></table></div>
-  <div className="mt-3 flex items-center justify-between gap-2"><strong>{selected.length} trip(s) selected</strong><div className="flex gap-2"><button className="btn" disabled={busy||!supplier||!selected.length||!reason.trim()} onClick={()=>void processSelected(false)}>{busy?'Working…':'Finalize Selected'}</button><button className="btn-primary" disabled={busy||!supplier||!account||!selected.length||!reason.trim()} onClick={()=>void processSelected(true)}>{busy?'Posting…':'Finalize & Post Selected'}</button></div></div>
+  <div className="max-h-[55vh] overflow-auto border"><table className="w-full whitespace-nowrap text-left text-xs"><thead className="sticky top-0 bg-slate-100"><tr><th className="p-2">Select</th><th>Trip</th><th>Date</th><th>Trip Status</th><th>Owner / Supplier</th><th>Rent</th><th>Rent / Post Status</th></tr></thead><tbody>{visible.map(r=>{const ex=existing.get(r.id);const posted=postedTripIds.has(r.id);const legacyBlocked=legacyBlockedOnly.has(r.id);const locked=posted||legacyBlocked;return <tr key={r.id} className="border-t"><td className="p-2"><input type="checkbox" disabled={locked||busy} checked={selected.includes(r.id)} onChange={e=>toggle(r.id,e.target.checked)}/></td><td className="font-semibold">{r.trip_no}</td><td>{r.trip_date}</td><td><span className="rounded bg-slate-100 px-2 py-1 font-medium">{r.trip_status||r.financial_status||'—'}</span></td><td>{r.owner_name||supplierName||'—'}</td><td><input className="input w-28" type="number" min="0.01" step="0.01" disabled={locked||busy} value={posted?String(r.billed_supplier_net??''):amounts[r.id]??String(ex?.finalized_amount_snapshot??ex?.amount??r.supplier_rent??r.owner_rent??'')} onChange={e=>setAmounts(v=>({...v,[r.id]:e.target.value}))}/></td><td>{legacyBlocked?<span className="font-medium text-red-700">Legacy Rent — Correction Required</span>:posted?<span className="text-emerald-700">Posted {financialNumber(r.billed_supplier_net)}</span>:ex?.state==='finalized'?<span className="font-medium text-blue-700">Finalized — Ready to Post</span>:ex?<span className="font-medium text-amber-700">Pending — Ready to Finalize</span>:<span className="text-amber-700">Pending — Ready to Finalize</span>}</td></tr>})}</tbody></table></div>
+  <div className="mt-3 flex items-center justify-between gap-2"><strong>{selected.length} trip(s) selected</strong><div className="flex gap-2"><button className="btn" disabled={busy||!supplier||!selected.length||!reason.trim()} onClick={()=>void finalizeSelected()}>{busy?'Working…':'Finalize Selected'}</button><button className="btn-primary" disabled={busy||!account||!selected.length} onClick={()=>void postSelected()}>{busy?'Posting…':'Post Finalized Selected'}</button></div></div>
  </section></div>;
 }
