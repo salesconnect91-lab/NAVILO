@@ -14,9 +14,9 @@ select coalesce(
   from public.operating_location_memberships m join public.operating_locations l on l.id=m.operating_location_id cross join ctx
   where m.user_id=ctx.uid and m.company_id=ctx.company_id and m.business_unit_id=ctx.business_unit_id
     and m.is_active and l.is_active order by m.created_at limit 1),
- (select min(l.id)
+ (select l.id
   from public.operating_locations l cross join ctx
   where l.company_id=ctx.company_id and l.business_unit_id=ctx.business_unit_id and l.is_active
     and (select count(*) from public.operating_locations x where x.company_id=ctx.company_id and x.business_unit_id=ctx.business_unit_id and x.is_active)=1
-    and exists(select 1 from public.business_unit_memberships bm where bm.company_id=ctx.company_id and bm.business_unit_id=ctx.business_unit_id and bm.user_id=ctx.uid and bm.is_active and bm.role in ('company_owner','admin')))
+    and exists(select 1 from public.business_unit_memberships bm where bm.company_id=ctx.company_id and bm.business_unit_id=ctx.business_unit_id and bm.user_id=ctx.uid and bm.is_active and bm.role in ('company_owner','admin')) order by l.created_at,l.id limit 1)
 ); $$;
