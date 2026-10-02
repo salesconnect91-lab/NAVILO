@@ -20,7 +20,16 @@ export default function TransportVehicleOwnership(){
  fetchAllPages<Vehicle>((start,end)=>supabase.from("transport_vehicles").select("id,vehicle_no").order("id").range(start,end)),
  fetchAllPages<Supplier>((start,end)=>supabase.from("suppliers").select("id,name").eq("is_active",true).order("id").range(start,end)),
  fetchAllPages<Period>((start,end)=>supabase.from("transport_vehicle_ownership").select("*").order("id").range(start,end))]);
- setVehicles(v);setSuppliers(s);setPeriods(p);setError("");
+ const vehicleById=new Map(v.map(item=>[item.id,item]));
+ const ownershipKey=(row:Period)=>{
+  const plate=vehicleById.get(row.vehicle_id)?.vehicle_no?.trim().toLocaleUpperCase()??row.vehicle_id;
+  return [plate,row.owner_type,row.supplier_id??"",row.owner_name_snapshot??"",row.effective_from,row.effective_to??""].join("|");
+ };
+ const seenOwnership=new Set<string>();
+ const displayPeriods=p.filter(row=>{const key=ownershipKey(row);if(seenOwnership.has(key))return false;seenOwnership.add(key);return true;});
+ const seenVehicles=new Set<string>();
+ const displayVehicles=v.filter(item=>{const key=item.vehicle_no.trim().toLocaleUpperCase();if(seenVehicles.has(key))return false;seenVehicles.add(key);return true;});
+ setVehicles(displayVehicles);setSuppliers(s);setPeriods(displayPeriods);setError("");
  }catch(failure:any){setVehicles([]);setSuppliers([]);setPeriods([]);setError(failure.message??"Unable to load ownership history.")}};
  useEffect(()=>{void load()},[activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
  const save=async(e:React.FormEvent)=>{e.preventDefault();if(busy||!allowed||!vehicle||!start||ownerType==="third_party"&&!supplier)return;
