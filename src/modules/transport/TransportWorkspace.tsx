@@ -176,6 +176,7 @@ export default function TransportWorkspace(){
   const [fromFilter,setFromFilter]=useState("");
   const [toFilter,setToFilter]=useState("");
   const [pprFilter,setPprFilter]=useState("");
+  const [tripStatusFilter,setTripStatusFilter]=useState("");
 
   const [newTripMode,setNewTripMode]=useState<"single"|"bulk">("single");
   const [bulkRows,setBulkRows]=useState<BulkTripRow[]>([]);
@@ -455,11 +456,12 @@ export default function TransportWorkspace(){
         (!vehicleFilter||r.vehicle_no===vehicleFilter)&&
         (!fromFilter||r.from_location===fromFilter)&&
         (!toFilter||r.to_location===toFilter)&&
-        (!pprFilter||String(r.ppr_status??"")===pprFilter);
+        (!pprFilter||String(r.ppr_status??"")===pprFilter)&&
+        (!tripStatusFilter||String(r.financial_status??"")===tripStatusFilter);
     });
   },[
     rows,fromDate,toDate,customerFilter,driverFilter,
-    vehicleFilter,fromFilter,toFilter,pprFilter
+    vehicleFilter,fromFilter,toFilter,pprFilter,tripStatusFilter
   ]);
 
   const unique=(values:(string|null|undefined)[]) =>
@@ -471,6 +473,7 @@ export default function TransportWorkspace(){
   const fromOptions=useMemo(()=>unique(rows.map(r=>r.from_location)),[rows]);
   const toOptions=useMemo(()=>unique(rows.map(r=>r.to_location)),[rows]);
   const pprOptions=useMemo(()=>unique(rows.map(r=>r.ppr_status)),[rows]);
+  const tripStatusOptions=useMemo(()=>unique(rows.map(r=>r.financial_status)),[rows]);
 
   const completedTrips=rows.filter(r=>
     ["Complete","Closed"].includes(r.financial_status??"")
@@ -489,6 +492,7 @@ export default function TransportWorkspace(){
     setFromFilter("");
     setToFilter("");
     setPprFilter("");
+    setTripStatusFilter("");
   };
 
   useEffect(()=>{
@@ -1247,6 +1251,14 @@ export default function TransportWorkspace(){
             <span className="text-[9px] font-bold uppercase text-amber-700">Paper Pending</span>
             <span className="text-sm font-bold text-slate-950">{paperPending.toLocaleString()}</span>
           </div>
+
+          <label className="flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-600">
+            Trip Status
+            <select className="h-5 min-w-[112px] bg-transparent text-[10px] font-semibold text-slate-800 outline-none" value={tripStatusFilter} onChange={e=>setTripStatusFilter(e.target.value)}>
+              <option value="">All Statuses</option>
+              {tripStatusOptions.map(status=><option key={status} value={status}>{status}</option>)}
+            </select>
+          </label>
 
           <button type="button" onClick={resetGrid}
             className="h-7 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
