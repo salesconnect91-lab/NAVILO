@@ -1255,12 +1255,12 @@ export default function TransportWorkspace(){
           </thead>
 
           <tbody>
-            {gridRows.map(r=><tr key={r.id} className="h-[18px] hover:bg-slate-50">
+            {gridRows.map(r=><tr key={r.id} className="min-h-[24px] align-top hover:bg-slate-50">
               <td
                 style={tripColumnWidths[gridColumns[0]?.[0]??""]?{width:tripColumnWidths[gridColumns[0]?.[0]??""],minWidth:tripColumnWidths[gridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[gridColumns[0]?.[0]??""]}:undefined}
-                className="sticky left-0 z-[5] h-[18px] overflow-hidden border-b border-slate-100 bg-white px-0.5 !py-0 font-bold leading-none text-slate-900">
+                className="sticky left-0 z-[5] min-h-[24px] whitespace-normal break-words border-b border-slate-100 bg-white px-1 !py-1 font-bold leading-[14px] text-slate-900">
   <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
-    className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
+    className="font-bold leading-[14px] text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
   </button>
   <button type="button" className="ml-0.5 h-[14px] rounded border px-0.5 py-0 text-[7px] leading-none text-slate-600" onClick={()=>setFinancialTrip(r)} aria-label={`Finance ${r.trip_no}`}>Finance</button>
@@ -1274,7 +1274,7 @@ export default function TransportWorkspace(){
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`h-[18px] overflow-hidden text-ellipsis border-b border-slate-100 px-0.5 !py-0 leading-none ${numeric?"text-right":""}`}>
+                  className={`min-h-[24px] whitespace-normal break-words border-b border-slate-100 px-1 !py-1 leading-[14px] ${numeric?"text-right":""}`}>
                   {key==='company_rate'&&r.customer_rate_state==='pending'&&!r.customer_rate_locked?<button className="h-[14px] rounded border border-blue-200 px-0.5 py-0 text-[8px] leading-none text-blue-700" aria-label={`Add Rate ${r.trip_no}`} onClick={()=>setInitialRateTrip(r)}>Add Rate</button>:value||""}
                 </td>;
               })}            </tr>)}
