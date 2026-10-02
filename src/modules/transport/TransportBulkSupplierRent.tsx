@@ -10,7 +10,7 @@ type Supplier={id:string;name:string};
 type Rent={id:string;trip_id:string;supplier_id:string;amount:number;state?:string;finalized_amount_snapshot?:number|null};
 type Account={id:string;name:string;type:string};
 
-export default function TransportBulkSupplierRent({onClose,onChanged}:{onClose:()=>void;onChanged:()=>Promise<void>}){
+export default function TransportBulkSupplierRent({onClose,onChanged,initialTripId,initialSupplierName}:{onClose:()=>void;onChanged:()=>Promise<void>;initialTripId?:string;initialSupplierName?:string}){
  const {activeCompany,activeBusinessUnit}=useAuth();
  const [rows,setRows]=useState<Row[]>([]),[legacyRents,setLegacyRents]=useState<LegacyRent[]>([]),[suppliers,setSuppliers]=useState<Supplier[]>([]),[rents,setRents]=useState<Rent[]>([]),[accounts,setAccounts]=useState<Account[]>([]);
  const [supplier,setSupplier]=useState(''),[tripStatus,setTripStatus]=useState(''),[search,setSearch]=useState(''),[selected,setSelected]=useState<string[]>([]),[amounts,setAmounts]=useState<Record<string,string>>({});
@@ -28,6 +28,8 @@ export default function TransportBulkSupplierRent({onClose,onChanged}:{onClose:(
   setRows((rr.data??[]) as Row[]);setLegacyRents((lr.data??[]) as LegacyRent[]);setSuppliers((ss.data??[]) as Supplier[]);setRents((rt.data??[]) as Rent[]);setAccounts((aa.data??[]) as Account[]);
  }
  useEffect(()=>{void load().catch(e=>setError(e.message))},[activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
+ useEffect(()=>{if(!initialSupplierName||supplier)return;const match=suppliers.find(s=>s.name===initialSupplierName);if(match)setSupplier(match.id)},[suppliers,initialSupplierName,supplier]);
+ useEffect(()=>{if(!initialTripId||!rows.some(r=>r.id===initialTripId)||unavailableTripIds.has(initialTripId))return;setSelected([initialTripId]);const r=rows.find(x=>x.id===initialTripId);setAmounts(v=>({...v,[initialTripId]:v[initialTripId]??String(r?.supplier_rent??r?.owner_rent??'')}))},[initialTripId,rows]);
  const existing=useMemo(()=>new Map(rents.map(r=>[r.trip_id,r])),[rents]);
  const legacyBlockedTripIds=useMemo(()=>new Set(legacyRents.filter(r=>r.rent_state==='finalized'||!!r.rent_finalized_at).map(r=>r.id)),[legacyRents]);
  const postedTripIds=useMemo(()=>new Set(rows.filter(r=>Number(r.billed_supplier_net??0)>0).map(r=>r.id)),[rows]);
