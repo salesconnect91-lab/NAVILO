@@ -1927,8 +1927,8 @@ export default function TransportWorkspace(){
 
     {tab==="audit"&&<TransportAudit trips={rows}/>}
     {tab==="driver-expenses"&&<TransportCostUpload trips={rows} onChanged={load}/> }
-    {tab==="driver-account"&&<TransportAccountRows title="Driver Account / Hisaab" rows={rows} kind="driver" onFinance={setFinancialTrip}/> }
-    {tab==="vehicle-account"&&<TransportAccountRows title="Vehicle Account / Gari Hisaab" rows={rows} kind="vehicle" onFinance={setFinancialTrip}/> }
+    {tab==="driver-account"&&<TransportAccountRows title="Driver Account / Hisaab" rows={rows} kind="driver"/> }
+    {tab==="vehicle-account"&&<TransportAccountRows title="Vehicle Account / Gari Hisaab" rows={rows} kind="vehicle"/> }
     {quickPprTrip&&<div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/30 p-4">
       <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
         <div className="mb-3 flex items-center justify-between">
@@ -2177,9 +2177,9 @@ function FilterSelect({label,value,setValue,all,options}:{label:string;value:str
 
 function SimplePanel({title,text}:{title:string;text:string}){return <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-base font-bold text-slate-950">{title}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{text}</p></section>}
 
-function TransportAccountRows({title,rows,kind,onFinance}:{title:string;rows:Trip[];kind:'driver'|'vehicle';onFinance:(trip:Trip)=>void}){
+function TransportAccountRows({title,rows,kind}:{title:string;rows:Trip[];kind:'driver'|'vehicle'}){
  const [search,setSearch]=useState('');
  const filtered=rows.filter(r=>`${r.trip_no} ${r.driver_name??''} ${r.vehicle_no??''}`.toLowerCase().includes(search.toLowerCase()));
  return <section className="rounded-lg border bg-white p-3"><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">{title}</h2><input aria-label={`Search ${title}`} className="input" placeholder="Trip / driver / vehicle" value={search} onChange={e=>setSearch(e.target.value)}/></div>
- <TransportAccountStatement kind={kind}/><div className="overflow-auto"><table className="w-full text-xs"><thead><tr><th className="text-left">Trip</th><th className="text-left">{kind==='driver'?'Driver':'Current vehicle / owner'}</th><th>Status</th><th>Accrued / Billed</th><th>Paid</th><th>Outstanding</th><th>Posted Trip profit</th></tr></thead><tbody>{filtered.map(r=><tr className="border-t" key={r.id}><td><button className="text-blue-700 underline" onClick={()=>onFinance(r)}>{r.trip_no}</button></td><td>{kind==='driver'?r.driver_name:`${r.vehicle_no??''} / ${r.owner_name??''}`}</td><td>{r.financial_status}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_accrued:r.billed_supplier_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_paid:r.supplier_paid_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_outstanding:Number(r.supplier_outstanding_gross??0)-Number(r.supplier_credit_gross??0))}</td><td className="text-right">{financialNumber(r.trip_profit)}</td></tr>)}</tbody></table></div></section>;
+ <TransportAccountStatement kind={kind}/><div className="overflow-auto"><table className="w-full text-xs"><thead><tr><th className="text-left">Trip</th><th className="text-left">{kind==='driver'?'Driver':'Current vehicle / owner'}</th><th>Status</th><th>Accrued / Billed</th><th>Paid</th><th>Outstanding</th><th>Posted Trip profit</th></tr></thead><tbody>{filtered.map(r=><tr className="border-t" key={r.id}><td><span className="font-semibold text-blue-700">{r.trip_no}</span></td><td>{kind==='driver'?r.driver_name:`${r.vehicle_no??''} / ${r.owner_name??''}`}</td><td>{r.financial_status}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_accrued:r.billed_supplier_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_paid:r.supplier_paid_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_outstanding:Number(r.supplier_outstanding_gross??0)-Number(r.supplier_credit_gross??0))}</td><td className="text-right">{financialNumber(r.trip_profit)}</td></tr>)}</tbody></table></div></section>;
 }
