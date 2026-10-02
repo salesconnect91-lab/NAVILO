@@ -1043,7 +1043,7 @@ export default function TransportWorkspace(){
     }
   };
 
-  const gridColumns=[
+  const gridColumns:ReadonlyArray<readonly [string,string]>=[
     ["trip_no","Trip No"],
     ["trip_date","Date"],
     ["truck_type","Truck Type"],
@@ -1075,7 +1075,7 @@ export default function TransportWorkspace(){
   const orderedGridColumns=useMemo(()=>{
     const byKey=new Map(gridColumns.map(column=>[column[0],column] as const));
     const order=tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0]);
-    const arranged=order.map(key=>byKey.get(key)).filter(Boolean) as Array<(typeof gridColumns)[number]>;
+    const arranged=order.map(key=>byKey.get(key)).filter((column):column is readonly [string,string]=>Boolean(column));
     for(const column of gridColumns)if(!arranged.some(item=>item[0]===column[0]))arranged.push(column);
     return arranged.filter(column=>!hiddenTripColumns.includes(column[0]));
   },[tripColumnOrder,hiddenTripColumns]);
