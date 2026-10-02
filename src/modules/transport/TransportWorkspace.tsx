@@ -133,6 +133,10 @@ export default function TransportWorkspace(){
   const [loading,setLoading]=useState(false);
   const tripsGridRef=useRef<HTMLDivElement|null>(null);
   const [tripColumnWidths,setTripColumnWidths]=useState<Record<string,number>>({});
+  const [tripColumnOrder,setTripColumnOrder]=useState<string[]>([]);
+  const [hiddenTripColumns,setHiddenTripColumns]=useState<string[]>([]);
+  const [showTripColumnSetup,setShowTripColumnSetup]=useState(false);
+  const tripColumnDragKey=useRef<string|null>(null);
 
   const startTripColumnResize=(e:React.MouseEvent<HTMLDivElement>,key:string)=>{
     e.preventDefault();
@@ -1067,6 +1071,57 @@ export default function TransportWorkspace(){
     ["sale_type","Sale Type"]
   ] as const;
 
+  const tripGridStorageKey=`navilo:transport:trip-grid:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
+  const orderedGridColumns=useMemo(()=>{
+    const byKey=new Map(gridColumns.map(column=>[column[0],column] as const));
+    const order=tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0]);
+    const arranged=order.map(key=>byKey.get(key)).filter(Boolean) as Array<(typeof gridColumns)[number]>;
+    for(const column of gridColumns)if(!arranged.some(item=>item[0]===column[0]))arranged.push(column);
+    return arranged.filter(column=>!hiddenTripColumns.includes(column[0]));
+  },[tripColumnOrder,hiddenTripColumns]);
+
+  useEffect(()=>{
+    try{
+      const saved=localStorage.getItem(tripGridStorageKey);
+      if(!saved){setTripColumnOrder([]);setHiddenTripColumns([]);setTripColumnWidths({});return;}
+      const parsed=JSON.parse(saved);
+      setTripColumnOrder(Array.isArray(parsed.order)?parsed.order:[]);
+      setHiddenTripColumns(Array.isArray(parsed.hidden)?parsed.hidden:[]);
+      setTripColumnWidths(parsed.widths&&typeof parsed.widths==="object"?parsed.widths:{});
+    }catch{
+      setTripColumnOrder([]);
+      setHiddenTripColumns([]);
+      setTripColumnWidths({});
+    }
+  },[tripGridStorageKey]);
+
+  const saveTripGridLayout=()=>{
+    localStorage.setItem(tripGridStorageKey,JSON.stringify({
+      order:tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0]),
+      hidden:hiddenTripColumns,
+      widths:tripColumnWidths
+    }));
+    setShowTripColumnSetup(false);
+  };
+
+  const resetTripGridLayout=()=>{
+    localStorage.removeItem(tripGridStorageKey);
+    setTripColumnOrder([]);
+    setHiddenTripColumns([]);
+    setTripColumnWidths({});
+  };
+
+  const moveTripColumn=(dragKey:string,targetKey:string)=>{
+    if(dragKey===targetKey)return;
+    setTripColumnOrder(current=>{
+      const base=current.length?current:[...gridColumns.map(column=>column[0])];
+      const next=base.filter(key=>key!==dragKey);
+      const targetIndex=next.indexOf(targetKey);
+      next.splice(targetIndex<0?next.length:targetIndex,0,dragKey);
+      return next;
+    });
+  };
+
   const columnOptions=(key:string)=>
     Array.from(new Set(
       visible.map(r=>tripCellValue(r,key)||"?")
@@ -1154,7 +1209,38 @@ export default function TransportWorkspace(){
             <RefreshCw className="h-3.5 w-3.5"/>
             Refresh
           </button>
+          <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)}
+            className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50">
+            Columns
+          </button>
+
         </div>
+
+        {showTripColumnSetup&&<div className="mb-1 rounded-md border border-slate-200 bg-slate-50 p-1.5">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-[10px] font-bold text-slate-700">Trip columns — drag to reorder, tick to show</span>
+            <div className="flex gap-1">
+              <button type="button" onClick={resetTripGridLayout} className="h-5 rounded border bg-white px-2 text-[9px] font-semibold">Reset Default</button>
+              <button type="button" onClick={saveTripGridLayout} className="h-5 rounded border border-blue-200 bg-blue-50 px-2 text-[9px] font-semibold text-blue-700">Save as Default</button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {(tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0])).map(key=>{
+              const column=gridColumns.find(item=>item[0]===key);
+              if(!column)return null;
+              return <div key={key} draggable
+                onDragStart={()=>{tripColumnDragKey.current=key}}
+                onDragOver={e=>e.preventDefault()}
+                onDrop={()=>{if(tripColumnDragKey.current)moveTripColumn(tripColumnDragKey.current,key);tripColumnDragKey.current=null}}
+                className="flex cursor-grab items-center gap-1 rounded border border-slate-200 bg-white px-1.5 py-1 text-[9px] text-slate-700">
+                <span className="text-slate-400">⋮⋮</span>
+                <input type="checkbox" checked={!hiddenTripColumns.includes(key)}
+                  onChange={()=>setHiddenTripColumns(current=>current.includes(key)?current.filter(item=>item!==key):[...current,key])}/>
+                <span>{column[1]}</span>
+              </div>;
+            })}
+          </div>
+        </div>}
 
         <div className="flex h-3.5 items-center justify-end text-[9px] font-semibold text-slate-600">
           {gridRows.length.toLocaleString()} / {rows.length.toLocaleString()} trips
@@ -1168,7 +1254,7 @@ export default function TransportWorkspace(){
         <table className="w-max min-w-full table-auto whitespace-nowrap text-[8px] leading-none">
           <thead className="sticky top-0 z-20 bg-slate-50 text-left text-[8px] uppercase tracking-normal text-slate-600">
             <tr>
-              {gridColumns.map(([key,label],i)=>{
+              {orderedGridColumns.map(([key,label],i)=>{
                 const active=(columnFilters[key]?.length??0)>0;
                 const sorted=sortColumn===key;
                 const columnWidth=tripColumnWidths[key];
@@ -1244,7 +1330,7 @@ export default function TransportWorkspace(){
           <tbody>
             {gridRows.map(r=><tr key={r.id} className="h-[17px] align-middle hover:bg-slate-50">
               <td
-                style={tripColumnWidths[gridColumns[0]?.[0]??""]?{width:tripColumnWidths[gridColumns[0]?.[0]??""],minWidth:tripColumnWidths[gridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[gridColumns[0]?.[0]??""]}:undefined}
+                style={tripColumnWidths[orderedGridColumns[0]?.[0]??""]?{width:tripColumnWidths[orderedGridColumns[0]?.[0]??""],minWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""]}:undefined}
                 className="sticky left-0 z-[5] h-[17px] max-h-[17px] overflow-hidden whitespace-nowrap border-b border-slate-100 bg-white px-0.5 !py-0 font-bold leading-none text-slate-900">
   <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
     className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
@@ -1255,7 +1341,7 @@ export default function TransportWorkspace(){
 </td>
 
               {/* BuKu operational register order - one canonical mapping for display/filter/sort */}
-              {gridColumns.slice(1).map(([key])=>{
+              {orderedGridColumns.slice(1).map(([key])=>{
                 const value=tripCellValue(r,key);
                 const numeric=["pay_driver","rent_driver","remaining_us","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
                 const columnWidth=tripColumnWidths[key];
