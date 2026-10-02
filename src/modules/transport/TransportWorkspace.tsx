@@ -176,8 +176,9 @@ export default function TransportWorkspace(){
   const [fromFilter,setFromFilter]=useState("");
   const [toFilter,setToFilter]=useState("");
   const [pprFilter,setPprFilter]=useState("");
-  const [tripStatusFilter,setTripStatusFilter]=useState("");
-  const [financialStatusFilter,setFinancialStatusFilter]=useState("");
+  const [statusFilter,setStatusFilter]=useState("");
+  const [statusSearch,setStatusSearch]=useState("");
+  const [statusOpen,setStatusOpen]=useState(false);
 
   const [newTripMode,setNewTripMode]=useState<"single"|"bulk">("single");
   const [bulkRows,setBulkRows]=useState<BulkTripRow[]>([]);
@@ -459,12 +460,11 @@ export default function TransportWorkspace(){
         (!fromFilter||r.from_location===fromFilter)&&
         (!toFilter||r.to_location===toFilter)&&
         (!pprFilter||String(r.ppr_status??"")===pprFilter)&&
-        (!tripStatusFilter||String(r.status??"")===tripStatusFilter)&&
-        (!financialStatusFilter||String(r.financial_status??"")===financialStatusFilter);
+        (!statusFilter||(()=>{const [kind,...parts]=statusFilter.split(":");const value=parts.join(":");return kind==="trip"?String(r.status??"")===value:String(r.financial_status??"")===value})());
     });
   },[
     rows,fromDate,toDate,customerFilter,driverFilter,
-    vehicleFilter,fromFilter,toFilter,pprFilter,tripStatusFilter,financialStatusFilter
+    vehicleFilter,fromFilter,toFilter,pprFilter,statusFilter
   ]);
 
   const unique=(values:(string|null|undefined)[]) =>
@@ -476,8 +476,11 @@ export default function TransportWorkspace(){
   const fromOptions=useMemo(()=>unique(rows.map(r=>r.from_location)),[rows]);
   const toOptions=useMemo(()=>unique(rows.map(r=>r.to_location)),[rows]);
   const pprOptions=useMemo(()=>unique(rows.map(r=>r.ppr_status)),[rows]);
-  const tripStatusOptions=useMemo(()=>unique(rows.map(r=>r.status)),[rows]);
-  const financialStatusOptions=useMemo(()=>unique(rows.map(r=>r.financial_status)),[rows]);
+  const statusOptions=useMemo(()=>[
+    ...unique(rows.map(r=>r.status)).map(value=>({key:`trip:${value}`,label:`Trip · ${value}`})),
+    ...unique(rows.map(r=>r.financial_status)).map(value=>({key:`financial:${value}`,label:`Financial · ${value}`}))
+  ],[rows]);
+  const visibleStatusOptions=useMemo(()=>{const q=statusSearch.trim().toLowerCase();return q?statusOptions.filter(option=>option.label.toLowerCase().includes(q)):statusOptions},[statusOptions,statusSearch]);
 
   const completedTrips=rows.filter(r=>
     ["Complete","Closed"].includes(r.financial_status??"")
@@ -496,8 +499,9 @@ export default function TransportWorkspace(){
     setFromFilter("");
     setToFilter("");
     setPprFilter("");
-    setTripStatusFilter("");
-    setFinancialStatusFilter("");
+    setStatusFilter("");
+    setStatusSearch("");
+    setStatusOpen(false);
   };
 
   useEffect(()=>{
@@ -1285,20 +1289,20 @@ export default function TransportWorkspace(){
             <span className="text-sm font-bold text-slate-950">{paperPending.toLocaleString()}</span>
           </div>
 
-          <label className="flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-600">
-            Trip Status
-            <select className="h-5 min-w-[112px] bg-transparent text-[10px] font-semibold text-slate-800 outline-none" value={tripStatusFilter} onChange={e=>setTripStatusFilter(e.target.value)}>
-              <option value="">All Statuses</option>
-              {tripStatusOptions.map(status=><option key={status} value={status}>{status}</option>)}
-            </select>
-          </label>
-          <label className="flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-600">
-            Financial Status
-            <select className="h-5 min-w-[112px] bg-transparent text-[10px] font-semibold text-slate-800 outline-none" value={financialStatusFilter} onChange={e=>setFinancialStatusFilter(e.target.value)}>
-              <option value="">All Financial</option>
-              {financialStatusOptions.map(status=><option key={status} value={status}>{status}</option>)}
-            </select>
-          </label>
+          <div className="relative">
+            <button type="button" onClick={()=>setStatusOpen(v=>!v)} className="flex h-7 min-w-[190px] items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700">
+              <span>Status</span><span className="max-w-[135px] truncate text-slate-900">{statusFilter?(statusOptions.find(option=>option.key===statusFilter)?.label??"All Statuses"):"All Statuses"}</span>
+              <span aria-hidden>⌄</span>
+            </button>
+            {statusOpen&&<div className="absolute left-0 top-8 z-[70] w-[260px] rounded-md border border-slate-200 bg-white p-1.5 shadow-xl">
+              <input autoFocus className="input mb-1 h-7 w-full px-2 text-[11px]" placeholder="Search status..." value={statusSearch} onChange={e=>setStatusSearch(e.target.value)}/>
+              <div className="max-h-52 overflow-y-auto">
+                <button type="button" className="block w-full rounded px-2 py-1 text-left text-[10px] font-semibold hover:bg-slate-50" onClick={()=>{setStatusFilter("");setStatusSearch("");setStatusOpen(false)}}>All Statuses</button>
+                {visibleStatusOptions.map(option=><button type="button" key={option.key} className={`block w-full rounded px-2 py-1 text-left text-[10px] hover:bg-slate-50 ${statusFilter===option.key?"bg-blue-50 font-bold text-blue-800":""}`} onClick={()=>{setStatusFilter(option.key);setStatusSearch("");setStatusOpen(false)}}>{option.label}</button>)}
+                {visibleStatusOptions.length===0&&<div className="px-2 py-2 text-[10px] text-slate-500">No matching status</div>}
+              </div>
+            </div>}
+          </div>
 
           <button type="button" onClick={resetGrid}
             className="h-7 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
