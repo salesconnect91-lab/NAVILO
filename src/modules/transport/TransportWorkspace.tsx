@@ -523,7 +523,7 @@ export default function TransportWorkspace(){
   const [openColumnFilter,setOpenColumnFilter]=useState<string|null>(null);
   const [columnMenuPosition,setColumnMenuPosition]=useState({top:0,left:0});
 
-  const DEFAULT_TRIPS_GRID_HEIGHT=520;
+  const DEFAULT_TRIPS_GRID_HEIGHT=520; // retained for legacy saved preference; viewport now owns the Trips height
   const [tripsGridHeight,setTripsGridHeight]=useState(()=>{
     const saved=Number(localStorage.getItem("navilo.transport.tripsGridHeight"));
     return Number.isFinite(saved)&&saved>=220?saved:DEFAULT_TRIPS_GRID_HEIGHT;
@@ -1257,7 +1257,7 @@ export default function TransportWorkspace(){
 
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-    {tab==="trips"&&<section className="relative flex max-h-[calc(100vh-150px)] min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm" data-navilo-customizable="true">
+    {tab==="trips"&&<section className="relative flex h-[calc(100vh-205px)] min-h-[360px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm" data-navilo-customizable="true">
       <div className="z-40 shrink-0 border-b border-slate-200 bg-white px-1.5 py-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="flex h-7 min-w-[92px] items-center justify-between rounded-md border border-cyan-200 bg-cyan-50 px-2">
@@ -1350,7 +1350,6 @@ export default function TransportWorkspace(){
       <div
         ref={tripsGridRef}
         className="min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-200 bg-white"
-        style={{height:tripsGridHeight}}
       >
         <table className="w-max min-w-full table-auto whitespace-nowrap text-[8px] leading-none">
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
@@ -1466,39 +1465,7 @@ export default function TransportWorkspace(){
         </table>
       </div>
 
-      <div className="z-40 shrink-0 border-t border-slate-200 bg-slate-50">
-        <div
-          role="separator"
-          aria-orientation="horizontal"
-          title="Drag to resize Trips grid"
-          onMouseDown={startTripsGridResize}
-          className="group flex h-3 cursor-row-resize select-none items-center justify-center hover:bg-slate-100"
-        >
-          <div className="h-[2px] w-16 rounded bg-slate-300 group-hover:bg-slate-500"/>
-        </div>
-
-        <div className="flex h-6 items-center justify-between border-t border-slate-200 px-2 text-[9px] text-slate-500">
-          <span>Drag bar to resize grid - {Math.round(tripsGridHeight)}px</span>
-
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={saveTripsGridDefault}
-              className="rounded border border-slate-200 bg-white px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-100"
-            >
-              Set Default
-            </button>
-
-            <button
-              type="button"
-              onClick={resetTripsGridHeight}
-              className="rounded border border-slate-200 bg-white px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-100"
-            >
-              Reset Height
-            </button>
-          </div>
-        </div>
-      </div>
+      
       {!loading&&!visible.length&&<div className="p-10 text-center text-sm text-slate-500">No trips found.</div>}
     </section>}
 
