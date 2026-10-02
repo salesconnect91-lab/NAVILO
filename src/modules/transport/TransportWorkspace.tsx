@@ -1272,7 +1272,7 @@ export default function TransportWorkspace(){
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
     {tab==="trips"&&<section className="relative flex h-[calc(100vh-205px)] min-h-[360px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm" data-navilo-customizable="true">
-      <div className="z-40 shrink-0 border-b border-slate-200 bg-white px-1.5 py-1">
+      <div className="relative z-[80] shrink-0 border-b border-slate-200 bg-white px-1.5 py-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="flex h-7 min-w-[92px] items-center justify-between rounded-md border border-cyan-200 bg-cyan-50 px-2">
             <span className="text-[9px] font-bold uppercase text-cyan-700">Total Trips</span>
@@ -1294,7 +1294,7 @@ export default function TransportWorkspace(){
               <span>Status</span><span className="max-w-[135px] truncate text-slate-900">{statusFilters.length===0?"All Statuses":statusFilters.length===1?(statusOptions.find(option=>option.key===statusFilters[0])?.label??"1 selected"):`${statusFilters.length} selected`}</span>
               <span aria-hidden>⌄</span>
             </button>
-            {statusOpen&&<div className="absolute left-0 top-8 z-[70] w-[240px] overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl">
+            {statusOpen&&<div className="absolute left-0 top-8 z-[100] w-[240px] overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xl">
               <div className="border-b border-slate-100 p-1.5">
                 <input autoFocus className="input h-7 w-full px-2 text-[11px]" placeholder="Search status..." value={statusSearch} onChange={e=>setStatusSearch(e.target.value)}/>
               </div>
