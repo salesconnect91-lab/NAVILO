@@ -1067,7 +1067,7 @@ export default function TransportWorkspace(){
   };
 
   const supplierGridKeys=["owner","rent_driver","supplier_paid","supplier_balance","payment_date","amount"] as const;
-  const customerGridKeys=["company","invoiced","company_rate","received_company","remaining_company","invoice_no","sale_type"] as const;
+  const customerGridKeys=["company","company_rate","received_company","remaining_company","invoice_no","sale_type"] as const;
   const isSupplierGridKey=(key:string)=>(supplierGridKeys as readonly string[]).includes(key);
   const isCustomerGridKey=(key:string)=>(customerGridKeys as readonly string[]).includes(key);
 
@@ -1076,7 +1076,6 @@ export default function TransportWorkspace(){
     ["trip_date","Date"],
     ["truck_type","Truck Type"],
     ["job_no","PO/DO/Job No."],
-    ["invoiced","Invoiced"],
     ["company","Company Name"],
     ["driver","Driver Name"],
     ["owner","Owner"],
