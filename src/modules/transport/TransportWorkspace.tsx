@@ -1059,7 +1059,9 @@ export default function TransportWorkspace(){
       case "to": return String(r.to_location??"");
       case "paper_received_by": return r.ppr_status==="received"?[String(r.ppr_received_by_name??"—"),r.ppr_received_date?formatNaviloDate(r.ppr_received_date):""].filter(Boolean).join(" · "):"Pending";
       case "supplier_paid": return financialNumber(r.supplier_paid_net??r.supplier_paid_gross??0);
-      case "supplier_balance": return financialNumber(Number(r.supplier_outstanding_gross??r.remaining_with_us??0)-Number(r.supplier_credit_gross??0));
+      case "supplier_balance": return financialNumber(Math.max(0,Number(r.supplier_outstanding_gross??r.remaining_with_us??0)));
+      case "supplier_credit": return financialNumber(Math.max(0,Number(r.supplier_credit_gross??0)));
+      case "customer_credit": return financialNumber(Math.max(0,Number(r.customer_credit_gross??0)));
       case "driver_pay": return financialNumber(r.driver_accrued??r.driver_pay);
       case "driver_paid": return financialNumber(r.driver_paid??0);
       case "driver_balance": return financialNumber(r.driver_outstanding??0);
@@ -1069,7 +1071,7 @@ export default function TransportWorkspace(){
       case "amount": return financialNumber(r.payment_amount??0);
       case "company_rate": return financialNumber(r.billed_customer_net??r.customer_rate);
       case "received_company": return financialNumber(r.received_from_company??0);
-      case "remaining_company": return financialNumber(r.remaining_with_company??0);
+      case "remaining_company": return financialNumber(Math.max(0,Number(r.customer_outstanding_gross??r.remaining_with_company??0)));
       case "profit": return financialNumber(r.trip_profit??0);
       case "commission": return financialNumber(r.commission_paid_net??0);
       case "invoice_no": return String(r.invoice_no??"");
@@ -1078,8 +1080,8 @@ export default function TransportWorkspace(){
     }
   };
 
-  const supplierGridKeys=["owner","rent_driver","supplier_paid","supplier_balance","payment_date","amount"] as const;
-  const customerGridKeys=["company","company_rate","received_company","remaining_company","invoice_no","sale_type"] as const;
+  const supplierGridKeys=["owner","rent_driver","supplier_paid","supplier_balance","supplier_credit","payment_date","amount"] as const;
+  const customerGridKeys=["company","company_rate","received_company","remaining_company","customer_credit","invoice_no","sale_type"] as const;
   const isSupplierGridKey=(key:string)=>(supplierGridKeys as readonly string[]).includes(key);
   const isCustomerGridKey=(key:string)=>(customerGridKeys as readonly string[]).includes(key);
 
@@ -1098,6 +1100,7 @@ export default function TransportWorkspace(){
     ["rent_driver","Supplier Rent"],
     ["supplier_paid","Supplier Paid"],
     ["supplier_balance","Supplier Balance"],
+    ["supplier_credit","Supplier Credit / Advance"],
     ["driver_pay","Driver Pay"],
     ["driver_paid","Driver Paid"],
     ["driver_balance","Driver Balance"],
@@ -1106,6 +1109,7 @@ export default function TransportWorkspace(){
     ["company_rate","Rate With Company"],
     ["received_company","Received From Company"],
     ["remaining_company","Remaining With Company"],
+    ["customer_credit","Customer Credit / Advance"],
     ["profit","Profit"],
     ["commission","Paid Commission For Trip"],
     ["invoice_no","Invoice Number"],
@@ -1200,19 +1204,21 @@ export default function TransportWorkspace(){
       return sortDirection==="asc"?result:-result;
     });
 
-  const amountGridKeys=new Set(["rent_driver","supplier_paid","supplier_balance","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"]);
+  const amountGridKeys=new Set(["rent_driver","supplier_paid","supplier_balance","supplier_credit","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","customer_credit","profit","commission"]);
   const gridTotal=(key:string)=>gridRows.reduce((sum,r)=>{
     switch(key){
       case "rent_driver": return sum+Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0);
       case "supplier_paid": return sum+Number(r.supplier_paid_net??r.supplier_paid_gross??0);
-      case "supplier_balance": return sum+Number(r.supplier_outstanding_gross??r.remaining_with_us??0)-Number(r.supplier_credit_gross??0);
+      case "supplier_balance": return sum+Math.max(0,Number(r.supplier_outstanding_gross??r.remaining_with_us??0));
+      case "supplier_credit": return sum+Math.max(0,Number(r.supplier_credit_gross??0));
       case "driver_pay": return sum+Number(r.driver_accrued??r.driver_pay??0);
       case "driver_paid": return sum+Number(r.driver_paid??0);
       case "driver_balance": return sum+Number(r.driver_outstanding??0);
       case "amount": return sum+Number(r.payment_amount??0);
       case "company_rate": return sum+Number(r.billed_customer_net??r.customer_rate??0);
       case "received_company": return sum+Number(r.received_from_company??0);
-      case "remaining_company": return sum+Number(r.remaining_with_company??0);
+      case "remaining_company": return sum+Math.max(0,Number(r.customer_outstanding_gross??r.remaining_with_company??0));
+      case "customer_credit": return sum+Math.max(0,Number(r.customer_credit_gross??0));
       case "profit": return sum+Number(r.trip_profit??0);
       case "commission": return sum+Number(r.commission_paid_net??0);
       default:return sum;
