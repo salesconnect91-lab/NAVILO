@@ -1165,7 +1165,7 @@ export default function TransportWorkspace(){
         className="min-h-[220px] overscroll-contain overflow-auto border-t border-slate-200 bg-white"
         style={{height:tripsGridHeight}}
       >
-        <table className="w-max min-w-full table-fixed whitespace-nowrap text-[8px] leading-none">
+        <table className="w-max min-w-full table-auto whitespace-nowrap text-[9px] leading-none">
           <thead className="sticky top-0 z-20 bg-slate-50 text-left text-[8px] uppercase tracking-normal text-slate-600">
             <tr>
               {gridColumns.map(([key,label],i)=>{
@@ -1175,7 +1175,7 @@ export default function TransportWorkspace(){
 
                 return <th key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`relative h-[17px] border-b border-r border-slate-200 bg-slate-50 px-0.5 !py-0 font-bold leading-none ${i===0?"sticky left-0 z-30":""}`}>
+                  className={`relative h-[20px] border-b border-r border-slate-200 bg-slate-50 px-0.5 !py-0 font-bold leading-none ${i===0?"sticky left-0 z-30":""}`}>
                   <button
                     type="button"
                     onClick={e=>{
@@ -1201,7 +1201,7 @@ export default function TransportWorkspace(){
                       setColumnMenuPosition({top,left});
                       setOpenColumnFilter(key);
                     }}
-                    className={`flex h-[16px] w-full items-center justify-between gap-0.5 overflow-hidden rounded px-0.5 py-0 text-left leading-none hover:bg-slate-200 ${active?"text-blue-700":""}`}
+                    className={`flex h-[19px] w-full items-center justify-between gap-0.5 overflow-hidden rounded px-0.5 py-0 text-left leading-none hover:bg-slate-200 ${active?"text-blue-700":""}`}
                   >
                     <span className="overflow-hidden text-ellipsis">{label}</span>
                     <span
@@ -1255,10 +1255,10 @@ export default function TransportWorkspace(){
           </thead>
 
           <tbody>
-            {gridRows.map(r=><tr key={r.id} className="h-[19px] align-middle hover:bg-slate-50">
+            {gridRows.map(r=><tr key={r.id} className="h-[20px] align-middle hover:bg-slate-50">
               <td
                 style={tripColumnWidths[gridColumns[0]?.[0]??""]?{width:tripColumnWidths[gridColumns[0]?.[0]??""],minWidth:tripColumnWidths[gridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[gridColumns[0]?.[0]??""]}:undefined}
-                className="sticky left-0 z-[5] h-[19px] max-h-[19px] overflow-hidden whitespace-nowrap border-b border-slate-100 bg-white px-0.5 !py-0 font-bold leading-none text-slate-900">
+                className="sticky left-0 z-[5] h-[20px] max-h-[20px] overflow-hidden whitespace-nowrap border-b border-slate-100 bg-white px-0.5 !py-0 font-bold leading-none text-slate-900">
   <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
     className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
@@ -1274,7 +1274,7 @@ export default function TransportWorkspace(){
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`h-[19px] max-h-[19px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-slate-100 px-0.5 !py-0 leading-none ${numeric?"text-right":""}`}>
+                  className={`h-[20px] max-h-[20px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-slate-100 px-0.5 !py-0 leading-none ${numeric?"text-right":""}`}>
                   {key==='company_rate'&&r.customer_rate_state==='pending'&&!r.customer_rate_locked?<button className="h-[14px] rounded border border-blue-200 px-0.5 py-0 text-[8px] leading-none text-blue-700" aria-label={`Add Rate ${r.trip_no}`} onClick={()=>setInitialRateTrip(r)}>Add Rate</button>:value||""}
                 </td>;
               })}            </tr>)}
@@ -1799,7 +1799,7 @@ function ColumnFilterMenu({
   );
 
   return <div
-    className="fixed z-[9999] w-36 rounded border border-slate-200 bg-white p-1 text-[9px] normal-case shadow-lg"
+    className="fixed z-[9999] w-40 rounded-md border border-slate-200 bg-white p-1.5 text-[10px] normal-case shadow-lg"
     style={{top,left}}
     onClick={e=>e.stopPropagation()}
   >
@@ -1808,7 +1808,7 @@ function ColumnFilterMenu({
       <button type="button" onClick={onClose} className="h-4 px-1 text-[9px] leading-none text-slate-400 hover:text-slate-800">×</button>
     </div>
 
-    <div className="grid grid-cols-2 gap-px">
+    <div className="grid grid-cols-2 gap-1">
       <button type="button"
         onClick={()=>onSort("asc")}
         className={`h-5 rounded border px-1 py-0 text-left text-[8px] leading-none ${sortDirection==="asc"?"border-blue-300 bg-blue-50 text-blue-700":"border-slate-200"}`}>
@@ -1829,7 +1829,7 @@ function ColumnFilterMenu({
         value={search}
         onChange={e=>setSearch(e.target.value)}
         placeholder="Search values..."
-        className="h-5 w-full rounded border border-slate-200 pl-4 pr-1 text-[9px]"
+        className="h-6 w-full rounded border border-slate-200 pl-5 pr-1.5 text-[10px]"
       />
     </div>
 
@@ -1845,7 +1845,7 @@ function ColumnFilterMenu({
       </button>
     </div>
 
-    <div className="mt-0.5 max-h-36 overflow-y-auto border-t border-slate-100 pt-0.5">
+    <div className="mt-1 max-h-40 overflow-y-auto border-t border-slate-100 pt-0.5">
       {shown.map(value=>
         <label key={value} className="flex h-5 cursor-pointer items-center gap-1 rounded px-0.5 py-0 hover:bg-slate-50">
           <input
