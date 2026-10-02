@@ -1,7 +1,7 @@
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { formatNaviloDate } from "@/lib/naviloDate";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw } from "lucide-react";
+import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw, LockKeyhole } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 import TransportFinancialPanel from './TransportFinancialPanel';
@@ -1039,6 +1039,8 @@ export default function TransportWorkspace(){
     finally{submissionRef.current=false;setLoading(false)}
   }
 
+  const tripHasPostedAccounting=(r:Trip)=>Boolean(r.customer_rate_locked||r.supplier_rate_locked||r.invoiced||Number(r.billed_customer_net??0)>0||Number(r.billed_supplier_net??0)>0);
+
   const tripCellValue=(r:Trip,key:string):string=>{
     switch(key){
       case "trip_no": return String(r.trip_no??"");
@@ -1434,6 +1436,7 @@ export default function TransportWorkspace(){
     className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
   </button>
+  {tripHasPostedAccounting(r)&&<span title="Locked: posted accounting exists. Financial party/rate changes require controlled correction." aria-label={`Locked ${r.trip_no}`} className="ml-0.5 inline-flex align-middle text-amber-700"><LockKeyhole className="h-2.5 w-2.5"/></span>}
   <button type="button" className="ml-0.5 h-[14px] rounded border px-0.5 py-0 text-[7px] leading-none text-slate-600" onClick={()=>setFinancialTrip(r)} aria-label={`Finance ${r.trip_no}`}>Finance</button>
   <span className="ml-0.5 inline text-[7px] font-normal leading-none text-slate-500">{r.financial_status}</span>
 </td>
@@ -1503,7 +1506,7 @@ export default function TransportWorkspace(){
   <div className="border-b border-slate-200">
     <div className="px-4 pb-2 pt-3">
       <h2 className="font-bold text-slate-950">
-        {editingTripId?`Edit Trip - ${editingTripNo}`:"New Trip"}
+        {editingTripId?<span className="inline-flex items-center gap-1.5">Edit Trip - {editingTripNo}{(editingRateLocks.customer||editingRateLocks.supplier)&&<span title="Locked: posted accounting exists. Operational fields remain editable; posted financial identity/rates require controlled correction." className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"><LockKeyhole className="h-3 w-3"/>Locked</span>}</span>:"New Trip"}
       </h2>
 
       <p className="text-xs text-slate-500">
