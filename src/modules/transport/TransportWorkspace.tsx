@@ -176,7 +176,7 @@ export default function TransportWorkspace(){
   const [fromFilter,setFromFilter]=useState("");
   const [toFilter,setToFilter]=useState("");
   const [pprFilter,setPprFilter]=useState("");
-  const [statusFilter,setStatusFilter]=useState("");
+  const [statusFilters,setStatusFilters]=useState<string[]>([]);
   const [statusSearch,setStatusSearch]=useState("");
   const [statusOpen,setStatusOpen]=useState(false);
 
@@ -460,11 +460,11 @@ export default function TransportWorkspace(){
         (!fromFilter||r.from_location===fromFilter)&&
         (!toFilter||r.to_location===toFilter)&&
         (!pprFilter||String(r.ppr_status??"")===pprFilter)&&
-        (!statusFilter||(()=>{const [kind,...parts]=statusFilter.split(":");const value=parts.join(":");return kind==="trip"?String(r.status??"")===value:String(r.financial_status??"")===value})());
+        (!statusFilters.length||statusFilters.some(selected=>{const [kind,...parts]=selected.split(":");const value=parts.join(":");return kind==="trip"?String(r.status??"")===value:String(r.financial_status??"")===value}));
     });
   },[
     rows,fromDate,toDate,customerFilter,driverFilter,
-    vehicleFilter,fromFilter,toFilter,pprFilter,statusFilter
+    vehicleFilter,fromFilter,toFilter,pprFilter,statusFilters
   ]);
 
   const unique=(values:(string|null|undefined)[]) =>
@@ -499,7 +499,7 @@ export default function TransportWorkspace(){
     setFromFilter("");
     setToFilter("");
     setPprFilter("");
-    setStatusFilter("");
+    setStatusFilters([]);
     setStatusSearch("");
     setStatusOpen(false);
   };
@@ -1291,15 +1291,27 @@ export default function TransportWorkspace(){
 
           <div className="relative">
             <button type="button" onClick={()=>setStatusOpen(v=>!v)} className="flex h-7 min-w-[190px] items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700">
-              <span>Status</span><span className="max-w-[135px] truncate text-slate-900">{statusFilter?(statusOptions.find(option=>option.key===statusFilter)?.label??"All Statuses"):"All Statuses"}</span>
+              <span>Status</span><span className="max-w-[135px] truncate text-slate-900">{statusFilters.length===0?"All Statuses":statusFilters.length===1?(statusOptions.find(option=>option.key===statusFilters[0])?.label??"1 selected"):`${statusFilters.length} selected`}</span>
               <span aria-hidden>⌄</span>
             </button>
-            {statusOpen&&<div className="absolute left-0 top-8 z-[70] w-[260px] rounded-md border border-slate-200 bg-white p-1.5 shadow-xl">
-              <input autoFocus className="input mb-1 h-7 w-full px-2 text-[11px]" placeholder="Search status..." value={statusSearch} onChange={e=>setStatusSearch(e.target.value)}/>
-              <div className="max-h-52 overflow-y-auto">
-                <button type="button" className="block w-full rounded px-2 py-1 text-left text-[10px] font-semibold hover:bg-slate-50" onClick={()=>{setStatusFilter("");setStatusSearch("");setStatusOpen(false)}}>All Statuses</button>
-                {visibleStatusOptions.map(option=><button type="button" key={option.key} className={`block w-full rounded px-2 py-1 text-left text-[10px] hover:bg-slate-50 ${statusFilter===option.key?"bg-blue-50 font-bold text-blue-800":""}`} onClick={()=>{setStatusFilter(option.key);setStatusSearch("");setStatusOpen(false)}}>{option.label}</button>)}
+            {statusOpen&&<div className="absolute left-0 top-8 z-[70] w-[240px] overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl">
+              <div className="border-b border-slate-100 p-1.5">
+                <input autoFocus className="input h-7 w-full px-2 text-[11px]" placeholder="Search status..." value={statusSearch} onChange={e=>setStatusSearch(e.target.value)}/>
+              </div>
+              <div className="max-h-44 overflow-y-auto p-1">
+                <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[10px] font-semibold hover:bg-slate-50">
+                  <input type="checkbox" checked={statusFilters.length===0} onChange={()=>setStatusFilters([])}/>
+                  <span>All Statuses</span>
+                </label>
+                {visibleStatusOptions.map(option=><label key={option.key} className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[10px] hover:bg-slate-50 ${statusFilters.includes(option.key)?"bg-blue-50 font-bold text-blue-800":""}`}>
+                  <input type="checkbox" checked={statusFilters.includes(option.key)} onChange={()=>setStatusFilters(current=>current.includes(option.key)?current.filter(key=>key!==option.key):[...current,option.key])}/>
+                  <span>{option.label}</span>
+                </label>)}
                 {visibleStatusOptions.length===0&&<div className="px-2 py-2 text-[10px] text-slate-500">No matching status</div>}
+              </div>
+              <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-2 py-1">
+                <button type="button" className="text-[9px] font-semibold text-slate-600 hover:text-slate-900" onClick={()=>setStatusFilters([])}>Clear</button>
+                <button type="button" className="rounded bg-slate-900 px-2 py-1 text-[9px] font-semibold text-white" onClick={()=>{setStatusSearch("");setStatusOpen(false)}}>Done</button>
               </div>
             </div>}
           </div>
