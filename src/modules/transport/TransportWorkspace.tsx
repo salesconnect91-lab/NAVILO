@@ -132,6 +132,33 @@ export default function TransportWorkspace(){
   const [rows,setRows]=useState<Trip[]>([]);
   const [loading,setLoading]=useState(false);
   const tripsGridRef=useRef<HTMLDivElement|null>(null);
+  const [tripColumnWidths,setTripColumnWidths]=useState<Record<string,number>>({});
+
+  const startTripColumnResize=(e:React.MouseEvent<HTMLDivElement>,key:string)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    const header=e.currentTarget.parentElement;
+    if(!header)return;
+    const startX=e.clientX;
+    const startWidth=header.getBoundingClientRect().width;
+
+    const onMove=(event:MouseEvent)=>{
+      const width=Math.max(44,Math.round(startWidth+event.clientX-startX));
+      setTripColumnWidths(current=>({...current,[key]:width}));
+    };
+
+    const onUp=()=>{
+      document.body.style.cursor="";
+      document.body.style.userSelect="";
+      window.removeEventListener("mousemove",onMove);
+      window.removeEventListener("mouseup",onUp);
+    };
+
+    document.body.style.cursor="col-resize";
+    document.body.style.userSelect="none";
+    window.addEventListener("mousemove",onMove);
+    window.addEventListener("mouseup",onUp);
+  };
 
   const [error,setError]=useState("");
   const [showPartyReports,setShowPartyReports]=useState(false);
@@ -1138,15 +1165,17 @@ export default function TransportWorkspace(){
         className="min-h-[220px] overscroll-contain overflow-auto border-t border-slate-200 bg-white"
         style={{height:tripsGridHeight}}
       >
-        <table className="w-max min-w-full table-auto whitespace-nowrap text-[11px] leading-tight">
-          <thead className="sticky top-0 z-20 bg-slate-50 text-left text-[9px] uppercase tracking-normal text-slate-600">
+        <table className="w-max min-w-full table-auto whitespace-nowrap text-[9px] leading-none">
+          <thead className="sticky top-0 z-20 bg-slate-50 text-left text-[8px] uppercase tracking-normal text-slate-600">
             <tr>
               {gridColumns.map(([key,label],i)=>{
                 const active=(columnFilters[key]?.length??0)>0;
                 const sorted=sortColumn===key;
+                const columnWidth=tripColumnWidths[key];
 
                 return <th key={key}
-                  className={`h-8 border-b border-slate-200 bg-slate-50 px-1 !py-1 font-bold leading-none ${i===0?"sticky left-0 z-30":""}`}>
+                  style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
+                  className={`relative h-[18px] border-b border-r border-slate-200 bg-slate-50 px-0.5 !py-0 font-bold leading-none ${i===0?"sticky left-0 z-30":""}`}>
                   <button
                     type="button"
                     onClick={e=>{
@@ -1172,9 +1201,9 @@ export default function TransportWorkspace(){
                       setColumnMenuPosition({top,left});
                       setOpenColumnFilter(key);
                     }}
-                    className={`flex w-full items-center justify-between gap-1 rounded px-0.5 py-0.5 text-left hover:bg-slate-200 ${active?"text-blue-700":""}`}
+                    className={`flex h-[17px] w-full items-center justify-between gap-0.5 overflow-hidden rounded px-0.5 py-0 text-left leading-none hover:bg-slate-200 ${active?"text-blue-700":""}`}
                   >
-                    <span>{label}</span>
+                    <span className="overflow-hidden text-ellipsis">{label}</span>
                     <span
                       className={`ml-0.5 inline-flex h-3 w-3 items-center justify-center ${active?"text-blue-700":"text-slate-400"}`}
                       aria-label={active?"Filter active":"Open filter"}
@@ -1187,6 +1216,14 @@ export default function TransportWorkspace(){
                       </svg>
                     </span>
                   </button>
+
+                  <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    title={`Resize ${label}`}
+                    onMouseDown={e=>startTripColumnResize(e,key)}
+                    className="absolute -right-[2px] top-0 z-40 h-full w-[5px] cursor-col-resize select-none border-r border-slate-300 hover:border-blue-500 hover:bg-blue-100"
+                  />
 
                   {openColumnFilter===key&&
                     <ColumnFilterMenu
@@ -1218,23 +1255,27 @@ export default function TransportWorkspace(){
           </thead>
 
           <tbody>
-            {gridRows.map(r=><tr key={r.id} className="h-9 hover:bg-slate-50">
-              <td className="sticky left-0 z-[5] border-b border-slate-100 bg-white px-1.5 !py-1 font-bold leading-tight text-slate-900">
+            {gridRows.map(r=><tr key={r.id} className="h-[18px] hover:bg-slate-50">
+              <td
+                style={tripColumnWidths[gridColumns[0]?.[0]??""]?{width:tripColumnWidths[gridColumns[0]?.[0]??""],minWidth:tripColumnWidths[gridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[gridColumns[0]?.[0]??""]}:undefined}
+                className="sticky left-0 z-[5] h-[18px] overflow-hidden border-b border-slate-100 bg-white px-0.5 !py-0 font-bold leading-none text-slate-900">
   <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
-    className="font-bold text-blue-700 underline-offset-2 hover:underline">
+    className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
   </button>
-  <button type="button" className="ml-1 rounded border px-1 text-[9px] text-slate-600" onClick={()=>setFinancialTrip(r)} aria-label={`Finance ${r.trip_no}`}>Finance</button>
-  <span className="block text-[9px] font-normal text-slate-500">{r.financial_status}</span>
+  <button type="button" className="ml-0.5 h-[14px] rounded border px-0.5 py-0 text-[7px] leading-none text-slate-600" onClick={()=>setFinancialTrip(r)} aria-label={`Finance ${r.trip_no}`}>Finance</button>
+  <span className="ml-0.5 inline text-[7px] font-normal leading-none text-slate-500">{r.financial_status}</span>
 </td>
 
               {/* BuKu operational register order - one canonical mapping for display/filter/sort */}
               {gridColumns.slice(1).map(([key])=>{
                 const value=tripCellValue(r,key);
                 const numeric=["pay_driver","rent_driver","remaining_us","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
+                const columnWidth=tripColumnWidths[key];
                 return <td key={key}
-                  className={`border-b border-slate-100 px-1.5 !py-1 leading-tight ${numeric?"text-right":""}`}>
-                  {key==='company_rate'&&r.customer_rate_state==='pending'&&!r.customer_rate_locked?<button className="rounded border border-blue-200 px-1 text-blue-700" aria-label={`Add Rate ${r.trip_no}`} onClick={()=>setInitialRateTrip(r)}>Add Rate</button>:value||""}
+                  style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
+                  className={`h-[18px] overflow-hidden text-ellipsis border-b border-slate-100 px-0.5 !py-0 leading-none ${numeric?"text-right":""}`}>
+                  {key==='company_rate'&&r.customer_rate_state==='pending'&&!r.customer_rate_locked?<button className="h-[14px] rounded border border-blue-200 px-0.5 py-0 text-[8px] leading-none text-blue-700" aria-label={`Add Rate ${r.trip_no}`} onClick={()=>setInitialRateTrip(r)}>Add Rate</button>:value||""}
                 </td>;
               })}            </tr>)}
           </tbody>
