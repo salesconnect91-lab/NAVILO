@@ -1165,7 +1165,7 @@ export default function TransportWorkspace(){
         className="min-h-[220px] overscroll-contain overflow-auto border-t border-slate-200 bg-white"
         style={{height:tripsGridHeight}}
       >
-        <table className="w-max min-w-full table-auto whitespace-nowrap text-[9px] leading-none">
+        <table className="w-max min-w-full table-auto whitespace-nowrap text-[8px] leading-none">
           <thead className="sticky top-0 z-20 bg-slate-50 text-left text-[8px] uppercase tracking-normal text-slate-600">
             <tr>
               {gridColumns.map(([key,label],i)=>{
@@ -1175,47 +1175,40 @@ export default function TransportWorkspace(){
 
                 return <th key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`relative h-[20px] border-b border-r border-slate-200 bg-slate-50 px-0.5 !py-0 font-bold leading-none ${i===0?"sticky left-0 z-30":""}`}>
-                  <button
-                    type="button"
-                    onClick={e=>{
-                      if(openColumnFilter===key){
+                  className={`relative h-[17px] border-b border-r border-slate-200 bg-slate-50 px-0.5 !py-0 font-bold leading-none ${i===0?"sticky left-0 z-30":""}`}>
+                  <div className="flex h-[17px] w-full min-w-0 items-center gap-0.5">
+                    <button type="button"
+                      title={sorted?"Clear sort":`Sort by ${label}`}
+                      onClick={()=>{
+                        if(sorted){setSortColumn("");setSortDirection("asc");}
+                        else{setSortColumn(key);setSortDirection("asc");}
                         setOpenColumnFilter(null);
-                        return;
-                      }
-
-                      const rect=e.currentTarget.getBoundingClientRect();
-                      const width=176;
-                      const gap=8;
-
-                      let left=rect.left;
-                      if(left+width>window.innerWidth-gap){
-                        left=Math.max(gap,window.innerWidth-width-gap);
-                      }
-
-                      let top=rect.bottom+4;
-                      if(top+360>window.innerHeight-gap){
-                        top=Math.max(gap,rect.top-360);
-                      }
-
-                      setColumnMenuPosition({top,left});
-                      setOpenColumnFilter(key);
-                    }}
-                    className={`flex h-[19px] w-full items-center justify-between gap-0.5 overflow-hidden rounded px-0.5 py-0 text-left leading-none hover:bg-slate-200 ${active?"text-blue-700":""}`}
-                  >
-                    <span className="overflow-hidden text-ellipsis">{label}</span>
-                    <span
-                      className={`ml-0.5 inline-flex h-3 w-3 items-center justify-center ${active?"text-blue-700":"text-slate-400"}`}
-                      aria-label={active?"Filter active":"Open filter"}
-                    >
+                      }}
+                      className={`flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden rounded px-0.5 py-0 text-left leading-none hover:bg-slate-200 ${sorted?"text-blue-700":""}`}>
+                      <span className="overflow-hidden text-ellipsis">{label}</span>
+                      {sorted&&<span className="shrink-0 text-[7px]" aria-label="Sorted ascending">▲</span>}
+                    </button>
+                    <button type="button"
+                      title={active?"Filter active":"Filter"}
+                      aria-label={active?`Filter active for ${label}`:`Filter ${label}`}
+                      onClick={e=>{
+                        e.stopPropagation();
+                        if(openColumnFilter===key){setOpenColumnFilter(null);return;}
+                        const rect=e.currentTarget.getBoundingClientRect();
+                        const width=160,gap=8;
+                        let left=Math.max(gap,rect.right-width);
+                        if(left+width>window.innerWidth-gap)left=Math.max(gap,window.innerWidth-width-gap);
+                        let top=rect.bottom+4;
+                        if(top+260>window.innerHeight-gap)top=Math.max(gap,rect.top-260);
+                        setColumnMenuPosition({top,left});
+                        setOpenColumnFilter(key);
+                      }}
+                      className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded hover:bg-slate-200 ${active?"text-blue-700":"text-slate-400"}`}>
                       <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" aria-hidden="true">
-                        <path
-                          d="M1.5 2h9L7 6v3L5 10V6L1.5 2Z"
-                          fill="currentColor"
-                        />
+                        <path d="M1.5 2h9L7 6v3L5 10V6L1.5 2Z" fill="currentColor"/>
                       </svg>
-                    </span>
-                  </button>
+                    </button>
+                  </div>
 
                   <div
                     role="separator"
@@ -1232,12 +1225,6 @@ export default function TransportWorkspace(){
                       left={columnMenuPosition.left}
                       options={columnOptions(key)}
                       selected={columnFilters[key]??[]}
-                      sortDirection={sorted?sortDirection:null}
-                      onSort={direction=>{
-                        setSortColumn(key);
-                        setSortDirection(direction);
-                        setOpenColumnFilter(null);
-                      }}
                       onToggle={value=>toggleColumnValue(key,value)}
                       onSelectAll={()=>
                         setColumnFilters(current=>({
@@ -1255,10 +1242,10 @@ export default function TransportWorkspace(){
           </thead>
 
           <tbody>
-            {gridRows.map(r=><tr key={r.id} className="h-[20px] align-middle hover:bg-slate-50">
+            {gridRows.map(r=><tr key={r.id} className="h-[17px] align-middle hover:bg-slate-50">
               <td
                 style={tripColumnWidths[gridColumns[0]?.[0]??""]?{width:tripColumnWidths[gridColumns[0]?.[0]??""],minWidth:tripColumnWidths[gridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[gridColumns[0]?.[0]??""]}:undefined}
-                className="sticky left-0 z-[5] h-[20px] max-h-[20px] overflow-hidden whitespace-nowrap border-b border-slate-100 bg-white px-0.5 !py-0 font-bold leading-none text-slate-900">
+                className="sticky left-0 z-[5] h-[17px] max-h-[17px] overflow-hidden whitespace-nowrap border-b border-slate-100 bg-white px-0.5 !py-0 font-bold leading-none text-slate-900">
   <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
     className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
@@ -1274,7 +1261,7 @@ export default function TransportWorkspace(){
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`h-[20px] max-h-[20px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-slate-100 px-0.5 !py-0 leading-none ${numeric?"text-right":""}`}>
+                  className={`h-[17px] max-h-[17px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-slate-100 px-0.5 !py-0 leading-none ${numeric?"text-right":""}`}>
                   {key==='company_rate'&&r.customer_rate_state==='pending'&&!r.customer_rate_locked?<button className="h-[14px] rounded border border-blue-200 px-0.5 py-0 text-[8px] leading-none text-blue-700" aria-label={`Add Rate ${r.trip_no}`} onClick={()=>setInitialRateTrip(r)}>Add Rate</button>:value||""}
                 </td>;
               })}            </tr>)}
@@ -1778,15 +1765,13 @@ export default function TransportWorkspace(){
   </div>
 }
 function ColumnFilterMenu({
-  label,top,left,options,selected,sortDirection,onSort,onToggle,onSelectAll,onClear,onClose
+  label,top,left,options,selected,onToggle,onSelectAll,onClear,onClose
 }:{
   label:string;
   top:number;
   left:number;
   options:string[];
   selected:string[];
-  sortDirection:"asc"|"desc"|null;
-  onSort:(direction:"asc"|"desc")=>void;
   onToggle:(value:string)=>void;
   onSelectAll:()=>void;
   onClear:()=>void;
@@ -1806,20 +1791,6 @@ function ColumnFilterMenu({
     <div className="mb-0.5 flex items-center justify-between leading-none">
       <span className="font-bold text-slate-800">{label}</span>
       <button type="button" onClick={onClose} className="h-4 px-1 text-[9px] leading-none text-slate-400 hover:text-slate-800">×</button>
-    </div>
-
-    <div className="grid grid-cols-2 gap-1">
-      <button type="button"
-        onClick={()=>onSort("asc")}
-        className={`h-5 rounded border px-1 py-0 text-left text-[8px] leading-none ${sortDirection==="asc"?"border-blue-300 bg-blue-50 text-blue-700":"border-slate-200"}`}>
-        Sort A to Z
-      </button>
-
-      <button type="button"
-        onClick={()=>onSort("desc")}
-        className={`h-5 rounded border px-1 py-0 text-left text-[8px] leading-none ${sortDirection==="desc"?"border-blue-300 bg-blue-50 text-blue-700":"border-slate-200"}`}>
-        Sort Z to A
-      </button>
     </div>
 
     <div className="relative mt-0.5">
