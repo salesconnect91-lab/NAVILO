@@ -219,6 +219,7 @@ export default function TransportWorkspace(){
   });
   const [financialTrip,setFinancialTrip]=useState<Trip|null>(null);
   const [showBulkSupplierRent,setShowBulkSupplierRent]=useState(false);
+  const [bulkSupplierRentTrip,setBulkSupplierRentTrip]=useState<Trip|null>(null);
   const [quickPprTrip,setQuickPprTrip]=useState<Trip|null>(null);
   const [quickPprEmployee,setQuickPprEmployee]=useState("");
   const [quickPprDate,setQuickPprDate]=useState(new Date().toISOString().slice(0,10));
@@ -1428,6 +1429,8 @@ export default function TransportWorkspace(){
                   className={`h-[17px] max-h-[17px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-slate-100 px-0.5 !py-0 leading-none ${isSupplierGridKey(key)?"bg-amber-50/40":isCustomerGridKey(key)?"bg-blue-50/40":""} ${numeric?"text-right":""}`}>
                   {key==='company_rate'&&r.customer_rate_state==='pending'&&!r.customer_rate_locked
                     ?<button className="h-[14px] rounded border border-blue-200 px-0.5 py-0 text-[8px] leading-none text-blue-700" aria-label={`Add Rate ${r.trip_no}`} onClick={()=>setInitialRateTrip(r)}>Add Rate</button>
+                    :key==='rent_driver'&&r.customer_rate_state!==undefined&&Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)<=0
+                      ?<button className="h-[14px] rounded border border-amber-300 bg-amber-50 px-1 py-0 text-[8px] font-semibold leading-none text-amber-800" aria-label={`Add Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>Add Rent</button>
                     :key==='paper_received_by'
                       ?r.ppr_status==='received'
                         ?<span className="inline-flex items-baseline gap-1"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[7px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
@@ -1954,7 +1957,7 @@ export default function TransportWorkspace(){
       </div>
     </div>}
     {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={load}/>}
-    {showBulkSupplierRent&&<TransportBulkSupplierRent onClose={()=>setShowBulkSupplierRent(false)} onChanged={async()=>{await load(true)}}/>}
+    {showBulkSupplierRent&&<TransportBulkSupplierRent initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={async()=>{await load(true)}}/>}
     {financialTrip&&<TransportFinancialPanel key={financialTrip.id} trip={financialTrip} onClose={()=>setFinancialTrip(null)} onChanged={load}/>}
   </div>
 }
