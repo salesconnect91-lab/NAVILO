@@ -1195,6 +1195,25 @@ export default function TransportWorkspace(){
       return sortDirection==="asc"?result:-result;
     });
 
+  const amountGridKeys=new Set(["rent_driver","supplier_paid","supplier_balance","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"]);
+  const gridTotal=(key:string)=>gridRows.reduce((sum,r)=>{
+    switch(key){
+      case "rent_driver": return sum+Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0);
+      case "supplier_paid": return sum+Number(r.supplier_paid_net??r.supplier_paid_gross??0);
+      case "supplier_balance": return sum+Number(r.supplier_outstanding_gross??r.remaining_with_us??0);
+      case "driver_pay": return sum+Number(r.driver_accrued??r.driver_pay??0);
+      case "driver_paid": return sum+Number(r.driver_paid??0);
+      case "driver_balance": return sum+Number(r.driver_outstanding??0);
+      case "amount": return sum+Number(r.payment_amount??0);
+      case "company_rate": return sum+Number(r.billed_customer_net??r.customer_rate??0);
+      case "received_company": return sum+Number(r.received_from_company??0);
+      case "remaining_company": return sum+Number(r.remaining_with_company??0);
+      case "profit": return sum+Number(r.trip_profit??0);
+      case "commission": return sum+Number(r.commission_paid_net??0);
+      default:return sum;
+    }
+  },0);
+
   const toggleColumnValue=(key:string,value:string)=>{
     setColumnFilters(current=>{
       const selected=current[key]??[];
@@ -1350,7 +1369,7 @@ export default function TransportWorkspace(){
                         setOpenColumnFilter(null);
                       }}
                       className={`flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden rounded px-0.5 py-0 text-left leading-none hover:bg-slate-200 ${sorted?"text-blue-700":""}`}>
-                      <span className="overflow-hidden text-ellipsis">{label}</span>
+                      <span className="overflow-hidden text-ellipsis">{label}{amountGridKeys.has(key)&&<span className="ml-1 font-extrabold text-slate-950">· {financialNumber(gridTotal(key))}</span>}</span>
                       {sorted&&<span className="shrink-0 text-[7px]" aria-label="Sorted ascending">▲</span>}
                     </button>
                     <button type="button"
