@@ -22,8 +22,8 @@ create trigger zzzz_supplier_ap_mapping before insert or update of account_id,us
 on public.suppliers for each row execute function public.ensure_supplier_ap_mapping();
 
 -- Backfill only currently-unmapped suppliers where their own tenant/user has a valid AP mapping.
-update public.suppliers s set account_id=x.account_id
-from lateral (
+update public.suppliers s
+set account_id=(
  select am.account_id
  from public.account_mappings am
  join public.chart_of_accounts coa on coa.id=am.account_id
@@ -32,5 +32,12 @@ from lateral (
    and coa.user_id=s.user_id and coa.company_id=s.company_id
    and coa.type='liability' and coa.is_active and not coa.is_group
  limit 1
-) x
-where s.account_id is null;
+)
+where s.account_id is null
+and exists(
+ select 1 from public.account_mappings am
+ join public.chart_of_accounts coa on coa.id=am.account_id
+ where am.user_id=s.user_id and am.company_id=s.company_id
+ and am.mapping_key='accounts_payable' and coa.user_id=s.user_id and coa.company_id=s.company_id
+ and coa.type='liability' and coa.is_active and not coa.is_group
+);
