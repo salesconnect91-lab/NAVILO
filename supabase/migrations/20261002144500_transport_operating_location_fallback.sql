@@ -18,5 +18,5 @@ select coalesce(
   from public.operating_locations l cross join ctx
   where l.company_id=ctx.company_id and l.business_unit_id=ctx.business_unit_id and l.is_active
     and (select count(*) from public.operating_locations x where x.company_id=ctx.company_id and x.business_unit_id=ctx.business_unit_id and x.is_active)=1
-    and exists(select 1 from public.business_unit_memberships bm where bm.company_id=ctx.company_id and bm.business_unit_id=ctx.business_unit_id and bm.user_id=ctx.uid and bm.is_active and bm.role in ('company_owner','admin')) order by l.created_at,l.id limit 1)
+    and (public.is_platform_owner() or exists(select 1 from public.business_unit_memberships bm where bm.company_id=ctx.company_id and bm.business_unit_id=ctx.business_unit_id and bm.user_id=ctx.uid and bm.is_active and bm.role in ('company_owner','admin'))) order by l.created_at,l.id limit 1)
 ); $$;
