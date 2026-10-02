@@ -899,7 +899,7 @@ export default function TransportWorkspace(){
         sale_type:data.sale_type||"",
         notes:data.notes||""
       });
-      setEditingRateLocks({customer:Boolean(row.customer_rate_locked||row.customer_rate_state==='finalized'),supplier:Boolean(row.supplier_rate_locked)});
+      setEditingRateLocks({customer:Boolean(row.customer_rate_locked),supplier:Boolean(row.supplier_rate_locked)});
       setEditingTripId(data.id);
       setEditingTripNo(data.trip_no);
       setEditingOriginalAssignment({vehicle_id:data.vehicle_id||"",driver_id:data.driver_id||""});
@@ -1507,7 +1507,7 @@ export default function TransportWorkspace(){
       </h2>
 
       <p className="text-xs text-slate-500">
-        {editingTripId?"Trip No is permanent; edit permitted fields below.":"Trip number is generated automatically by NAVILO."}
+        {editingTripId?"Trip No and Trip Date are permanent. Operational fields below remain editable; posted financial fields stay protected.":"Trip number is generated automatically by NAVILO."}
       </p>
     </div>
 
@@ -1659,13 +1659,13 @@ export default function TransportWorkspace(){
         </TripField>
 
         <TripField label="Supplier / Owner Rent">
-          <input type="number" min="0" step="0.01" aria-label="Supplier / Owner Rent" readOnly={Boolean(editingTripId)||!entryPermissions.rent||!supplierOwned} title={editingRateLocks.supplier?"Posted rate: use Finance / Rate Adjustment":""} value={form.supplier_rent}
+          <input type="number" min="0" step="0.01" aria-label="Supplier / Owner Rent" readOnly={Boolean(editingTripId)||!entryPermissions.rent||!supplierOwned} title={editingTripId?"Rent is a financial field. Use Bulk Supplier Rent / Finance for unposted changes or correction after posting.":""} value={form.supplier_rent}
             onChange={e=>{setError("");setForm({...form,supplier_rent:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-right text-xs outline-none"/>
         </TripField>
 
         <TripField label="Customer Rate">
-          <input type="number" min="0" step="0.01" aria-label="Customer Rate" readOnly={Boolean(editingTripId)||!entryPermissions.rate} title={editingRateLocks.customer?"Posted rate: use Finance / Rate Adjustment":""} value={form.customer_rate}
+          <input type="number" min="0" step="0.01" aria-label="Customer Rate" readOnly={Boolean(editingTripId)||!entryPermissions.rate} title={editingTripId?"Customer Rate is a financial field. Use Finance for controlled changes.":""} value={form.customer_rate}
             onChange={e=>{setRateTouched(true);setError("");setForm({...form,customer_rate:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-right text-xs outline-none"/>
         </TripField>
