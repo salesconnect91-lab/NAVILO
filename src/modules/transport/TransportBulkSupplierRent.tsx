@@ -39,7 +39,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
  const visible=rows.filter(r=>!supplierName||r.owner_name===supplierName||existing.get(r.id)?.supplier_id===supplier).filter(r=>!tripStatus||(r.trip_status||r.financial_status)===tripStatus).filter(r=>!search||r.trip_no.toLowerCase().includes(search.toLowerCase()));
  function toggle(id:string,on:boolean){setSelected(v=>on?[...new Set([...v,id])]:v.filter(x=>x!==id));}
  function selectShown(){const ids=visible.filter(r=>!unavailableTripIds.has(r.id)).map(r=>r.id);setSelected(ids);setAmounts(v=>({...v,...Object.fromEntries(ids.map(id=>{const r=rows.find(x=>x.id===id)!;return [id,String(r.supplier_rent??r.owner_rent??'')]}))}));}
- async function post(){
+ async function processSelected(postBills:boolean){
   if(!supplier||!account||!selected.length||!reason.trim())return;
   setBusy(true);setError('');setMessage('');
   let done=0,skipped=0;
@@ -48,10 +48,10 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
     if(unavailableTripIds.has(id)){skipped++;continue;}
     const row=rows.find(r=>r.id===id);const raw=amounts[id]??String(row?.supplier_rent??row?.owner_rent??'');const amount=Number(raw);if(!(amount>0))throw new Error(`Enter a valid rent for ${row?.trip_no}`);
     const add=await supabase.rpc('transport_add_supplier_rent',{p_trip_id:id,p_supplier_id:supplier,p_amount:amount,p_reason:reason.trim()});if(add.error)throw add.error;
-    const bill=await supabase.rpc('transport_post_supplier_bill',{p_rent_id:add.data,p_date:date,p_cost_account_id:account,p_with_tax:withTax,p_reference:'Bulk supplier rent'});if(bill.error)throw bill.error;
+    if(postBills){const bill=await supabase.rpc('transport_post_supplier_bill',{p_rent_id:add.data,p_date:date,p_cost_account_id:account,p_with_tax:withTax,p_reference:'Bulk supplier rent'});if(bill.error)throw bill.error;}
     done++;
    }
-   await load();await onChanged();setSelected([]);setAmounts({});setMessage(`${done} trip rent(s) finalized and posted to canonical Accounts Payable.${skipped?` ${skipped} legacy/already-posted trip(s) skipped safely.`:''}`);
+   await load();await onChanged();setSelected([]);setAmounts({});setMessage(`${done} trip rent(s) ${postBills?'finalized and posted to canonical Accounts Payable':'finalized only — not posted yet'}.${skipped?` ${skipped} legacy/already-posted trip(s) skipped safely.`:''}`);
   }catch(e){const detail=e&&typeof e==='object'&&'message' in e?String((e as {message?:unknown}).message):String(e||'Bulk rent failed');setError(`${detail} · ${done} trip(s) completed before this error; completed trips will not be repeated.`)}
   finally{setBusy(false)}
  }
@@ -69,6 +69,6 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
    <button className="btn" disabled={!supplier||busy} onClick={selectShown}>Select All Unposted</button>
   </div>
   <div className="max-h-[55vh] overflow-auto border"><table className="w-full whitespace-nowrap text-left text-xs"><thead className="sticky top-0 bg-slate-100"><tr><th className="p-2">Select</th><th>Trip</th><th>Date</th><th>Trip Status</th><th>Owner / Supplier</th><th>Rent</th><th>Rent / Post Status</th></tr></thead><tbody>{visible.map(r=>{const ex=existing.get(r.id);const posted=postedTripIds.has(r.id);const legacyBlocked=legacyBlockedTripIds.has(r.id)&&!ex&&!posted;const locked=!!ex||posted||legacyBlocked;return <tr key={r.id} className="border-t"><td className="p-2"><input type="checkbox" disabled={locked||busy} checked={selected.includes(r.id)} onChange={e=>toggle(r.id,e.target.checked)}/></td><td className="font-semibold">{r.trip_no}</td><td>{r.trip_date}</td><td><span className="rounded bg-slate-100 px-2 py-1 font-medium">{r.trip_status||r.financial_status||'—'}</span></td><td>{r.owner_name||supplierName||'—'}</td><td><input className="input w-28" type="number" min="0.01" step="0.01" disabled={locked||busy} value={ex?String(ex.finalized_amount_snapshot??ex.amount):posted?String(r.billed_supplier_net??''):amounts[r.id]??String(r.supplier_rent??r.owner_rent??'')} onChange={e=>setAmounts(v=>({...v,[r.id]:e.target.value}))}/></td><td>{legacyBlocked?<span className="font-medium text-red-700">Legacy Rent — Correction Required</span>:locked?<span className="text-emerald-700">Already posted {financialNumber(ex?.finalized_amount_snapshot??ex?.amount??r.billed_supplier_net)}</span>:<span className="text-amber-700">Ready</span>}</td></tr>})}</tbody></table></div>
-  <div className="mt-3 flex items-center justify-between"><strong>{selected.length} trip(s) selected</strong><button className="btn-primary" disabled={busy||!supplier||!account||!selected.length||!reason.trim()} onClick={()=>void post()}>{busy?'Posting…':'Finalize & Post Selected'}</button></div>
+  <div className="mt-3 flex items-center justify-between gap-2"><strong>{selected.length} trip(s) selected</strong><div className="flex gap-2"><button className="btn" disabled={busy||!supplier||!selected.length||!reason.trim()} onClick={()=>void processSelected(false)}>{busy?'Working…':'Finalize Selected'}</button><button className="btn-primary" disabled={busy||!supplier||!account||!selected.length||!reason.trim()} onClick={()=>void processSelected(true)}>{busy?'Posting…':'Finalize & Post Selected'}</button></div></div>
  </section></div>;
 }
