@@ -6,6 +6,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 import TransportFinancialPanel from './TransportFinancialPanel';
 import TransportBulkSupplierRent from './TransportBulkSupplierRent';
+import TransportBulkCustomerRate from './TransportBulkCustomerRate';
 import TransportInitialRate from './TransportInitialRate';
 import TransportCostUpload from './TransportCostUpload';
 import TransportAudit from './TransportAudit';
@@ -219,6 +220,7 @@ export default function TransportWorkspace(){
   });
   const [financialTrip,setFinancialTrip]=useState<Trip|null>(null);
   const [showBulkSupplierRent,setShowBulkSupplierRent]=useState(false);
+  const [showBulkCustomerRate,setShowBulkCustomerRate]=useState(false);
   const [bulkSupplierRentTrip,setBulkSupplierRentTrip]=useState<Trip|null>(null);
   const [quickPprTrip,setQuickPprTrip]=useState<Trip|null>(null);
   const [quickPprEmployee,setQuickPprEmployee]=useState("");
@@ -1296,7 +1298,7 @@ export default function TransportWorkspace(){
           <button type="button" onClick={()=>setShowBulkSupplierRent(true)}
             className="h-7 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-[10px] font-bold text-amber-800 hover:bg-amber-100">
             Bulk Supplier Rent
-          </button>
+          </button><button type="button" onClick={()=>setShowBulkCustomerRate(true)} className="rounded border border-blue-300 bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 hover:bg-blue-100">Bulk Customer Rate</button>
           <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)}
             className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50">
             Columns
@@ -1949,6 +1951,7 @@ export default function TransportWorkspace(){
     </div>}
     {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={load}/>}
     {showBulkSupplierRent&&<TransportBulkSupplierRent initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={async()=>{await load(true)}}/>}
+      {showBulkCustomerRate&&<TransportBulkCustomerRate onClose={()=>setShowBulkCustomerRate(false)} onChanged={loadTrips}/>}
     {financialTrip&&<TransportFinancialPanel key={financialTrip.id} trip={financialTrip} onClose={()=>setFinancialTrip(null)} onChanged={load}/>}
   </div>
 }
