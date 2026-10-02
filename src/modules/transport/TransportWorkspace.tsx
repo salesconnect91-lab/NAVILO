@@ -1257,7 +1257,7 @@ export default function TransportWorkspace(){
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
     {tab==="trips"&&<section className="rounded-lg border border-slate-200 bg-white shadow-sm" data-navilo-customizable="true">
-      <div className="border-b border-slate-200 bg-white px-1.5 py-1">
+      <div className="sticky top-0 z-40 border-b border-slate-200 bg-white px-1.5 py-1 shadow-[0_1px_2px_rgba(15,23,42,0.08)]">
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="flex h-7 min-w-[92px] items-center justify-between rounded-md border border-cyan-200 bg-cyan-50 px-2">
             <span className="text-[9px] font-bold uppercase text-cyan-700">Total Trips</span>
