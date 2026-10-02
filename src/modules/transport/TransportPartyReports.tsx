@@ -26,9 +26,9 @@ export default function TransportPartyReports({onClose,onChanged}:{onClose:()=>v
  const permission=await supabase.rpc('has_module_permission',{p_company_id:company,p_module:'accounting',p_action:'view'});
  if(permission.error)throw permission.error;const ledgerAllowed=permission.data===true;
  const [d,m,c,a]=await Promise.all([
- fetchAllPages<PartyDocument>((start,end)=>supabase.from('transport_party_documents').select('*').order('side').order('order_id').range(start,end)),
- fetchAllPages<PartyMovement>((start,end)=>supabase.from('transport_party_movements').select('*').order('event_id').range(start,end)),
- ledgerAllowed?fetchAllPages<PartyMovement>((start,end)=>supabase.from('transport_canonical_party_movements').select('*').order('event_id').range(start,end)):Promise.resolve([]),
+ fetchAllPages<PartyDocument>((start,end)=>supabase.rpc('transport_party_report_page',{p_kind:'documents',p_limit:end-start+1,p_offset:start})),
+ fetchAllPages<PartyMovement>((start,end)=>supabase.rpc('transport_party_report_page',{p_kind:'movements',p_limit:end-start+1,p_offset:start})),
+ ledgerAllowed?fetchAllPages<PartyMovement>((start,end)=>supabase.rpc('transport_party_report_page',{p_kind:'canonical',p_limit:end-start+1,p_offset:start})):Promise.resolve([]),
  fetchAllPages<{id:string;name:string;detail_type:string}>((start,end)=>supabase.from('chart_of_accounts').select('id,name,detail_type').eq('company_id',company).eq('is_active',true).eq('is_group',false).in('detail_type',['Cash on Hand','Bank Account']).order('id').range(start,end))
  ]);
  if(request===generation.current){setDocuments(d);setMovements(m);setCanonical(c);setAccounts(a);setCanLedger(ledgerAllowed);return true;}

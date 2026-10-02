@@ -24,8 +24,18 @@ for(const file of fs.readdirSync(root+'/supabase/migrations').filter(f=>f.endsWi
  catch(e){console.log('FAIL',file,e.message);await db.close();throw new Error(file+': '+e.message)}
 }
 console.log('REPLAY PASS',count);
-for(const file of ['transport_party_reporting_rehearsal.sql','transport_v1_financial_completion_rehearsal.sql','tax_posting_reconciliation_rehearsal.sql','transport_ppr_account_rehearsal.sql','transport_initial_rate_vehicle_rehearsal.sql','transport_large_expense_rehearsal.sql','transport_cash_receive_rehearsal.sql','transport_advance_rehearsal.sql','transport_master_data_rehearsal.sql','transport_new_trip_entry_rehearsal.sql']){
- if(!fs.existsSync(root+'/supabase/tests/'+file))throw new Error('Missing required rehearsal: '+file);
- try{await db.exec(fs.readFileSync(root+'/supabase/tests/'+file,'utf8'));console.log('PASS',file)}catch(e){console.log('FAIL TEST',file,e.message);await db.close();throw new Error(file+': '+e.message)}
+const notice=notice=>{if(/Trips|50,000|20,000/.test(notice.message))console.log('SCALE',notice.message)};
+if(process.env.NAVILO_SCALE_TEST==='1'){
+ const sql=fs.readFileSync(root+'/supabase/tests/transport_scale_import_rehearsal.sql','utf8');
+ const parts=sql.split('-- NAVILO_SCALE_BATCHES: runner executes 200 independently committed calls here.');
+ await db.exec(parts[0]);const started=Date.now();
+ for(let batch=0;batch<200;batch++){await db.query('select pg_temp.navilo_scale_batch($1)',[batch]);if(batch%20===19)console.log('SCALE Trips imported:',(batch+1)*100);}
+ console.log('SCALE 20,000 independently committed import ms:',Date.now()-started);
+ await db.exec(parts[1],{onNotice:notice});console.log('PASS transport_scale_import_rehearsal.sql');
+}else{
+ for(const file of (process.env.NAVILO_BENCHMARK_ONLY==='1'?['transport_register_benchmark.sql']:process.env.NAVILO_READER_SMOKE==='1'?['transport_scale_reader_rehearsal.sql']:['transport_party_reporting_rehearsal.sql','transport_v1_financial_completion_rehearsal.sql','tax_posting_reconciliation_rehearsal.sql','transport_ppr_account_rehearsal.sql','transport_initial_rate_vehicle_rehearsal.sql','transport_large_expense_rehearsal.sql','transport_cash_receive_rehearsal.sql','transport_advance_rehearsal.sql','transport_master_data_rehearsal.sql','transport_new_trip_entry_rehearsal.sql','transport_scale_reader_rehearsal.sql'])){
+  if(!fs.existsSync(root+'/supabase/tests/'+file))throw new Error('Missing required rehearsal: '+file);
+  try{await db.exec(fs.readFileSync(root+'/supabase/tests/'+file,'utf8'),{onNotice:notice});console.log('PASS',file)}catch(e){console.log('FAIL TEST',file,e.message);await db.close();throw new Error(file+': '+e.message)}
+ }
 }
 await db.close();

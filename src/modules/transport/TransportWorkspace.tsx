@@ -14,6 +14,8 @@ import TransportAccountStatement from './TransportAccountStatement';
 import {fetchAllPages} from '@/lib/fetchAllPages';
 import {financialNumber, type FinancialTrip} from './transportFinancialTypes';
 import * as XLSX from "xlsx";
+import {parseTripFile,fileDigest,makeImportJob,runImportJob,storedImport,saveImport,type ImportRow,type ImportJob} from './transportTripImport';
+import TransportPagination from './TransportPagination';
 import TransportQuickAdd from './TransportQuickAdd';
 import {compatibleVehicles,ownershipOnDate,matchingCustomerRate,estimatedMargin,masterKey,validMoney,type QuickAddKind,type OwnershipPeriod} from './transportTripEntry';
 
@@ -52,29 +54,7 @@ const tabs:{key:Tab;label:string;icon:any}[]=[
 function Badge({value}:{value?:string|null}){const label=String(value??"").trim();return <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold capitalize text-slate-700">{label?label.replaceAll("_"," "):"?"}</span>}
 
 
-type BulkTripRow={
-  rowNo:number;
-  trip_date:string;
-  customer:string;
-  truck_type:string;
-  vehicle:string;
-  driver:string;
-  owner_supplier:string;
-  po_do_job_no:string;
-  from_location:string;
-  to_location:string;
-  ppr_status:string;
-  customer_rate:string;
-  supplier_rent:string;
-  source_invoice_no:string;
-  notes:string;
-  sale_type:string;
-  driver_pay:string;
-  ppr_employee:string;
-  ppr_date:string;
-  payload?:Record<string,unknown>;
-  errors:string[];
-};
+type BulkTripRow=ImportRow;
 
 const BULK_TRIP_HEADERS=[
   "Trip Date",
@@ -132,6 +112,7 @@ export default function TransportWorkspace(){
   const [tab,setTab]=useState<Tab>("trips");
   const [rows,setRows]=useState<Trip[]>([]);
   const [loading,setLoading]=useState(false);
+  const [registerLoading,setRegisterLoading]=useState(false);
   const tripsGridRef=useRef<HTMLDivElement|null>(null);
   const [tripColumnWidths,setTripColumnWidths]=useState<Record<string,number>>({});
   const [tripColumnOrder,setTripColumnOrder]=useState<string[]>([]);
@@ -180,12 +161,31 @@ export default function TransportWorkspace(){
   const [statusSearch,setStatusSearch]=useState("");
   const [statusOpen,setStatusOpen]=useState(false);
 
+  const [columnFilters,setColumnFilters]=useState<Record<string,string[]>>({});
+  const [sortColumn,setSortColumn]=useState<string>("");
+  const [sortDirection,setSortDirection]=useState<"asc"|"desc">("asc");
+  const [openColumnFilter,setOpenColumnFilter]=useState<string|null>(null);
+  const [columnMenuPosition,setColumnMenuPosition]=useState({top:0,left:0});
+
   const [newTripMode,setNewTripMode]=useState<"single"|"bulk">("single");
   const [bulkRows,setBulkRows]=useState<BulkTripRow[]>([]);
   const [bulkFileName,setBulkFileName]=useState("");
+  const [bulkSourceHash,setBulkSourceHash]=useState('');
   const [bulkParsing,setBulkParsing]=useState(false);
   const [bulkValidating,setBulkValidating]=useState(false);
   const [bulkImporting,setBulkImporting]=useState(false);
+  const [importJob,setImportJob]=useState<ImportJob|null>(null);
+  const [bulkPreviewPage,setBulkPreviewPage]=useState(0);
+  const importStop=useRef(false);
+  const importScope=`${user?.id??'session'}/${scopeKey}`;
+  const importScopeRef=useRef(importScope);importScopeRef.current=importScope;
+  useEffect(()=>{importStop.current=true;setImportJob(null);void storedImport(importScope).then(job=>{if(importScopeRef.current===importScope)setImportJob(job)}).catch(()=>{});return()=>{importStop.current=true}},[importScope]);
+  const [page,setPage]=useState(0);
+  const [registerSearch,setRegisterSearch]=useState('');
+  const [registerMeta,setRegisterMeta]=useState<any>({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
+  const readGeneration=useRef(0);
+  const registerRequest=useRef<AbortController|null>(null);
+
 
   const [tripMasters,setTripMasters]=useState<{
     customers:any[];
@@ -296,114 +296,33 @@ export default function TransportWorkspace(){
     return result.data;
   }
 
+  const registerFilters={fromDate,toDate,customer:customerFilter,driver:driverFilter,vehicle:vehicleFilter,from:fromFilter,to:toFilter,ppr:pprFilter,statuses:statusFilters,columns:columnFilters,search:registerSearch};
+  const registerKey=JSON.stringify({scopeKey,registerFilters,sortColumn,sortDirection});
   async function load(silent=false){
-    if(!silent)setLoading(true);
-    setError("");
-    const startedScope=scopeKey;
-
-    try{
-      const pageSize=1000;
-      let from=0;
-      const all:Trip[]=[];
-
-      while(true){
-        const {data,error}=await supabase.rpc("transport_financial_register_page",{
-          p_limit:pageSize,
-          p_offset:from,
-        });
-
-        if(error) throw error;
-
-        const batch=(data??[]).map(r=>({...r,truck_type:r.truck_type_name??r.truck_type})) as Trip[];
-        all.push(...batch);
-
-        if(batch.length<pageSize) break;
-        from+=pageSize;
-      }
-
-      const tripIds=all.map(r=>r.id);
-      const chunks:Array<string[]>= [];
-      for(let offset=0;offset<tripIds.length;offset+=200)chunks.push(tripIds.slice(offset,offset+200));
-
-      // Dashboard enrichment used to wait for each request one-by-one. Fetch the
-      // independent operational, billing-link and rent data in parallel so a
-      // Refresh reflects changes without several sequential network round trips.
-      const [operationalBatches,linkBatches,rentBatches]=await Promise.all([
-        Promise.all(chunks.map(async ids=>{
-          const result=await supabase.from("transport_trips")
-            .select("id,source_invoice_no,customer_rate,owner_rent,supplier_rent,driver_pay").in("id",ids);
-          if(result.error)throw result.error;
-          return result.data??[];
-        })),
-        Promise.all(chunks.map(async ids=>{
-          const result=await supabase.from("transport_customer_document_trips")
-            .select("trip_id,document_id,is_adjustment").in("trip_id",ids).eq("is_adjustment",false);
-          if(result.error)throw result.error;
-          return (result.data??[]).map(r=>({trip_id:r.trip_id,document_id:r.document_id}));
-        })),
-        Promise.all(chunks.map(ids=>fetchAllPages<any>((start,end)=>supabase.from('transport_trip_supplier_rents')
-          .select('id,trip_id,amount,finalized_amount_snapshot').in('trip_id',ids).order('id').range(start,end))))
-      ]);
-      const operationalTrips=operationalBatches.flat();
-      const links=linkBatches.flat();
-
-      const documentIds=Array.from(new Set(links.map(r=>r.document_id)));
-      const documentChunks:Array<string[]>= [];
-      for(let offset=0;offset<documentIds.length;offset+=200)documentChunks.push(documentIds.slice(offset,offset+200));
-      const documentBatches=await Promise.all(documentChunks.map(async ids=>{
-        const result=await supabase.from("transport_customer_documents").select("id,sales_order_id").in("id",ids);
-        if(result.error)throw result.error;
-        return result.data??[];
-      }));
-      const documents=documentBatches.flat();
-
-      const orderIds=Array.from(new Set(documents.map(r=>r.sales_order_id)));
-      const orderChunks:Array<string[]>= [];
-      for(let offset=0;offset<orderIds.length;offset+=200)orderChunks.push(orderIds.slice(offset,offset+200));
-      const orderBatches=await Promise.all(orderChunks.map(async ids=>{
-        const result=await supabase.from("sales_orders").select("id,order_no").in("id",ids);
-        if(result.error)throw result.error;
-        return result.data??[];
-      }));
-      const orders=orderBatches.flat();
-
-      const documentOrder=new Map(documents.map(r=>[r.id,r.sales_order_id]));
-      const orderNumber=new Map(orders.map(r=>[r.id,r.order_no]));
-      const structuredRentTotals=new Map<string,number>();
-      for(const rents of rentBatches){
-        for(const rent of rents)structuredRentTotals.set(rent.trip_id,(structuredRentTotals.get(rent.trip_id)??0)+Number(rent.finalized_amount_snapshot??rent.amount));
-      }
-      const operationalByTrip=new Map(operationalTrips.map(r=>[r.id,r]));
-      const sourceInvoiceByTrip=new Map(
-        operationalTrips
-          .filter(r=>Boolean(r.source_invoice_no?.trim()))
-          .map(r=>[r.id,r.source_invoice_no!.trim()])
-      );
-      const invoiceByTrip=new Map<string,string>();
-      for(const link of links){
-        const orderId=documentOrder.get(link.document_id);
-        const invoiceNo=orderId?orderNumber.get(orderId):undefined;
-        if(invoiceNo&&!invoiceByTrip.has(link.trip_id))invoiceByTrip.set(link.trip_id,invoiceNo);
-      }
-
-      if(scopeRef.current!==startedScope)return;
-      setRows(all.map(r=>{
-        const operational=operationalByTrip.get(r.id);
-        return {
-          ...r,
-          customer_rate:operational?.customer_rate??r.customer_rate??null,
-          owner_rent:operational?.owner_rent??r.owner_rent??null,
-          supplier_rent:structuredRentTotals.get(r.id)??operational?.supplier_rent??r.supplier_rent??null,
-          driver_pay:operational?.driver_pay??r.driver_pay??null,
-          invoice_no:invoiceByTrip.get(r.id)??sourceInvoiceByTrip.get(r.id)??null
-        };
-      }));
-    }catch(e:any){
-      setError(e?.message||"Unable to load trips.");
-    }finally{
-      if(!silent)setLoading(false);
-    }
+    if(silent&&registerRequest.current)return;
+    registerRequest.current?.abort();const controller=new AbortController();registerRequest.current=controller;
+    const generation=++readGeneration.current;
+    if(!silent)setRegisterLoading(true);setError('');
+    try {
+      const result=await supabase.rpc('transport_register_query',{p_limit:500,p_offset:page*500,p_filters:registerFilters,p_sort:sortColumn,p_direction:sortDirection}).abortSignal(controller.signal);
+      if(result.error)throw result.error;
+      if(scopeRef.current!==scopeKey||generation!==readGeneration.current)return;
+      const data=result.data;
+      setRows((data.rows??[]).map((r:any)=>({...r,truck_type:r.truck_type_name??r.truck_type})));
+      setRegisterMeta(data);
+      if(page>Math.max(0,Math.ceil(data.count/500)-1))setPage(Math.max(0,Math.ceil(data.count/500)-1));
+    }catch(e:any){if(generation===readGeneration.current){setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});setError(e?.message||'Unable to load trips.');}}
+    finally{if(registerRequest.current===controller)registerRequest.current=null;if(generation===readGeneration.current)setRegisterLoading(false);}
   }
+  const previousRegisterKey=useRef(registerKey);
+  useEffect(()=>{
+    const changed=previousRegisterKey.current!==registerKey;previousRegisterKey.current=registerKey;
+    readGeneration.current++;setRows([]);setRegisterLoading(true);
+    if(changed&&page!==0){setPage(0);return;}
+    if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){setRegisterLoading(false);return;}
+    const timer=window.setTimeout(()=>void load(),200);
+    return()=>{window.clearTimeout(timer);registerRequest.current?.abort();registerRequest.current=null;readGeneration.current++;};
+  },[registerKey,page]);
 
   useEffect(()=>{
     let active=true;
@@ -421,7 +340,6 @@ export default function TransportWorkspace(){
 
   useEffect(()=>{
     if(activeCompany?.company_id&&activeBusinessUnit?.business_unit_id){
-      void load();
       void loadTripMasters().catch((e:any)=>setError(e?.message||"Unable to load Transport masters."));
     }
   },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
@@ -429,7 +347,7 @@ export default function TransportWorkspace(){
   useEffect(()=>{
     if(tab!=="trips"||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
     const refresh=()=>{if(document.visibilityState==="visible")void load(true)};
-    const timer=window.setInterval(refresh,8000);
+    const timer=window.setInterval(refresh,30000);
     window.addEventListener("focus",refresh);
     document.addEventListener("visibilitychange",refresh);
     return ()=>{
@@ -437,7 +355,7 @@ export default function TransportWorkspace(){
       window.removeEventListener("focus",refresh);
       document.removeEventListener("visibilitychange",refresh);
     };
-  },[tab,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
+  },[tab,registerKey,page]);
 
   useEffect(()=>{
     if(tab!=="trips")return;
@@ -447,50 +365,21 @@ export default function TransportWorkspace(){
     return ()=>window.cancelAnimationFrame(frame);
   },[tab,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
 
-  const visible=useMemo(()=>{
-    return rows.filter(r=>{
-      const matchesDates=
-        (!fromDate||r.trip_date>=fromDate)&&
-        (!toDate||r.trip_date<=toDate);
-
-      return matchesDates&&
-        (!customerFilter||r.customer_name===customerFilter)&&
-        (!driverFilter||r.driver_name===driverFilter)&&
-        (!vehicleFilter||r.vehicle_no===vehicleFilter)&&
-        (!fromFilter||r.from_location===fromFilter)&&
-        (!toFilter||r.to_location===toFilter)&&
-        (!pprFilter||String(r.ppr_status??"")===pprFilter)&&
-        (!statusFilters.length||statusFilters.some(selected=>{const [kind,...parts]=selected.split(":");const value=parts.join(":");return kind==="trip"?String(r.status??"")===value:String(r.financial_status??"")===value}));
-    });
-  },[
-    rows,fromDate,toDate,customerFilter,driverFilter,
-    vehicleFilter,fromFilter,toFilter,pprFilter,statusFilters
-  ]);
-
-  const unique=(values:(string|null|undefined)[]) =>
-    Array.from(new Set(values.filter((v):v is string=>Boolean(v)))).sort();
-
-  const customerOptions=useMemo(()=>unique(rows.map(r=>r.customer_name)),[rows]);
-  const driverOptions=useMemo(()=>unique(rows.map(r=>r.driver_name)),[rows]);
-  const vehicleOptions=useMemo(()=>unique(rows.map(r=>r.vehicle_no)),[rows]);
-  const fromOptions=useMemo(()=>unique(rows.map(r=>r.from_location)),[rows]);
-  const toOptions=useMemo(()=>unique(rows.map(r=>r.to_location)),[rows]);
-  const pprOptions=useMemo(()=>unique(rows.map(r=>r.ppr_status)),[rows]);
-  const statusOptions=useMemo(()=>[
-    ...unique(rows.map(r=>r.status)).map(value=>({key:`trip:${value}`,label:`Trip · ${value}`})),
-    ...unique(rows.map(r=>r.financial_status)).map(value=>({key:`financial:${value}`,label:`Financial · ${value}`}))
-  ],[rows]);
-  const visibleStatusOptions=useMemo(()=>{const q=statusSearch.trim().toLowerCase();return q?statusOptions.filter(option=>option.label.toLowerCase().includes(q)):statusOptions},[statusOptions,statusSearch]);
-
-  const completedTrips=rows.filter(r=>
-    ["Complete","Closed"].includes(r.financial_status??"")
-  ).length;
-
-  const paperPending=rows.filter(r=>
-    String(r.ppr_status??"").toLowerCase()!=="received"
-  ).length;
+  const visible=rows;
+  const unique=(values:(string|null|undefined)[])=>Array.from(new Set(values.filter((v):v is string=>Boolean(v)))).sort();
+  const customerOptions=unique(tripMasters.customers.map(r=>r.name));
+  const driverOptions=unique(tripMasters.drivers.map(r=>r.driver_name));
+  const vehicleOptions=unique(tripMasters.vehicles.map(r=>r.vehicle_no));
+  const fromOptions=unique(tripMasters.locations.map(r=>r.name));
+  const toOptions=fromOptions;
+  const pprOptions=['pending','received','not_required'];
+  const statusOptions=registerMeta.statuses??[];
+  const visibleStatusOptions=statusOptions.filter((option:any)=>!statusSearch||option.label.toLowerCase().includes(statusSearch.toLowerCase()));
+  const completedTrips=registerMeta.completed??0;
+  const paperPending=registerMeta.paper_pending??0;
 
   const resetFilters=()=>{
+    setRegisterSearch("");
     setFromDate("");
     setToDate("");
     setCustomerFilter("");
@@ -524,12 +413,6 @@ export default function TransportWorkspace(){
     return ()=>el.removeEventListener("wheel",onWheel,{capture:true});
   },[tab]);
 
-
-  const [columnFilters,setColumnFilters]=useState<Record<string,string[]>>({});
-  const [sortColumn,setSortColumn]=useState<string>("");
-  const [sortDirection,setSortDirection]=useState<"asc"|"desc">("asc");
-  const [openColumnFilter,setOpenColumnFilter]=useState<string|null>(null);
-  const [columnMenuPosition,setColumnMenuPosition]=useState({top:0,left:0});
 
   const DEFAULT_TRIPS_GRID_HEIGHT=520; // retained for legacy saved preference; viewport now owns the Trips height
   const [tripsGridHeight,setTripsGridHeight]=useState(()=>{
@@ -670,8 +553,13 @@ export default function TransportWorkspace(){
     setBulkValidating(true);
     try{
       const masters=await loadTripMasters();const seen=new Set<string>();
-      const resolve=(records:any[],name:string,column='name')=>{
-        const found=records.filter(r=>masterKey(r[column])===masterKey(name));
+      const indexes=new Map<any[],Map<string,any[]>>();
+      for(const [records,column] of [[masters.customers,'name'],[masters.truckTypes,'name'],[masters.vehicles,'vehicle_no'],[masters.drivers,'driver_name'],[masters.locations,'name'],[masters.employees,'name']] as const){
+        const index=new Map<string,any[]>();for(const r of records){const k=masterKey(r[column]);index.set(k,[...(index.get(k)??[]),r]);}indexes.set(records,index);
+      }
+      const ownership=new Map<string,OwnershipPeriod[]>();for(const period of masters.ownership)ownership.set(period.vehicle_id,[...(ownership.get(period.vehicle_id)??[]),period]);
+      const resolve=(records:any[],name:string,_column='name')=>{
+        const found=indexes.get(records)?.get(masterKey(name))??[];
         return found.length===1?found[0]:null;
       };
       return rowsToValidate.map(row=>{
@@ -685,7 +573,7 @@ export default function TransportWorkspace(){
           ['Driver',driver,!!row.driver],['From',from,true],['To',to,true],['PPR Employee',employee,row.ppr_status==='received']] as const)
           if(needed&&(!record||!record.is_active))errors.push(`${label} is missing, ambiguous or inactive in the selected workspace`);
         if(truck&&vehicle&&vehicle.truck_type_id!==truck.id)errors.push('Vehicle does not match Truck Type');
-        const owner=vehicle?ownershipOnDate(masters.ownership,vehicle.id,row.trip_date):null;
+        const owner=vehicle?ownershipOnDate(ownership.get(vehicle.id)??[],vehicle.id,row.trip_date):null;
         if(vehicle&&!owner)errors.push('Vehicle Ownership History must cover Trip Date');
         if(row.owner_supplier&&(!owner||masterKey(row.owner_supplier)!==masterKey(owner.owner_name_snapshot)))errors.push('Owner / Supplier does not match dated ownership');
         if(row.supplier_rent!==''&&owner?.owner_type!=='third_party')errors.push('Supplier Rent requires dated Supplier Owned Vehicle');
@@ -701,157 +589,59 @@ export default function TransportWorkspace(){
       });
     }finally{setBulkValidating(false)}
   };
+  const executeImport=async(job:ImportJob)=>{
+    if(submissionRef.current||bulkParsing||bulkValidating)return;
+    const startedScope=importScope;
+    submissionRef.current=true;importStop.current=false;setBulkImporting(true);setError('');
+    try {
+      const prepared=await supabase.rpc('transport_prepare_trip_import',{p_source_hash:job.sourceHash,p_file_name:job.fileName,p_manifest:job.batches.map(batch=>batch.rowNos)});
+      if(prepared.error)throw prepared.error;
+      if(!prepared.data?.id||!Number.isInteger(prepared.data.completed))throw new Error('Invalid import preparation response.');
+      job.serverId=prepared.data.id;job.completed=prepared.data.completed;
+      setImportJob({...job});
+      await runImportJob(job,async(batch)=>{
+        if(importScopeRef.current!==startedScope)throw new Error('Workspace changed. Import paused.');
+        const r=await supabase.rpc('transport_import_trip_batch',{p_job_id:job.serverId,p_batch:job.completed,p_rows:batch.rows});
+        if(r.error)throw r.error;return r.data;
+      },saveImport,current=>{if(importScopeRef.current===startedScope)setImportJob({...current})},()=>importStop.current||importScopeRef.current!==startedScope);
+      if(importScopeRef.current!==startedScope)return;
+      setImportJob({...job});
+      if(job.completed===job.batches.length){setBulkRows(current=>current.filter(r=>r.errors.length));await load();window.alert(`${job.total} Trips imported. Rejected rows remain available for review.`);}
+    }catch(e:any){if(importScopeRef.current===startedScope)setError(`${e.message||'Import stopped.'} Resume uses the same batch IDs; completed batches are preserved.`);}
+    finally{submissionRef.current=false;setBulkImporting(false);}
+  };
   const importValidBulkRows=async()=>{
     if(submissionRef.current||bulkParsing||bulkValidating)return;
-    submissionRef.current=true;setBulkImporting(true);setError('');
-    try{
+    try {
       const validated=await validateBulkMasters(bulkRows);setBulkRows(validated);
-      const valid=validated.filter(row=>!row.errors.length);
-      if(!valid.length)throw new Error('No valid rows are available for import.');
-      if(!window.confirm(`Import ${valid.length} valid Transport Trips? Trip Nos will be generated by NAVILO.`))return;
-      await submitTripRows(valid.map(row=>row.payload!));
-      const rejected=validated.filter(row=>row.errors.length);setBulkRows(rejected);
-      if(!rejected.length){setBulkFileName('');setTab('trips')}
-      await load();window.alert(`${valid.length} Transport Trips imported. ${rejected.length} rejected rows remain.`);
-    }catch(e:any){setError(e.message||'Unable to import Transport Trips.')}
-    finally{submissionRef.current=false;setBulkImporting(false)}
+      if(!validated.some(r=>!r.errors.length))throw new Error('No valid rows are available for import.');
+      if(importJob&&importJob.completed<importJob.batches.length)throw new Error('Resume the pending import before starting another file.');
+      if(!window.confirm(`Import ${validated.filter(r=>!r.errors.length).length} valid Trips in batches of 100? NAVILO generates Trip Nos. Legacy payment/profit columns do not post accounting.`))return;
+      const job={...makeImportJob(importScope,bulkFileName,validated),sourceHash:bulkSourceHash};setImportJob(job);await executeImport(job);
+    }catch(e:any){setError(e.message||'Unable to prepare import.');}
   };
-
   const parseBulkFile=async(file:File)=>{
-    setBulkParsing(true);
-    setError("");
-
-    try{
-      const buffer=await file.arrayBuffer();
-      const workbook=XLSX.read(buffer,{
-        type:"array",
-        cellDates:true
-      });
-
-      const sheetName=workbook.SheetNames.find(
-        name=>name.trim().toLowerCase()==="trips"
-      )??workbook.SheetNames[0];
-
-      if(!sheetName)throw new Error("Workbook has no worksheet.");
-
-      const sheet=workbook.Sheets[sheetName];
-      const matrix=XLSX.utils.sheet_to_json<unknown[]>(sheet,{
-        header:1,
-        defval:"",
-        raw:true
-      });
-
-      if(matrix.length<2){
-        throw new Error("No data rows found in the selected file.");
-      }
-
-      const rawHeaders=(matrix[0]??[]).map(value=>cleanBulkText(value));
-      const headerKey=(value:unknown)=>
-        cleanBulkText(value)
-          .replace(/\s+/g," ")
-          .trim()
-          .toLowerCase();
-
-      const headerIndexes=new Map<string,number[]>();
-      rawHeaders.forEach((header,index)=>{
-        const key=headerKey(header);
-        const indexes=headerIndexes.get(key)??[];
-        indexes.push(index);
-        headerIndexes.set(key,indexes);
-      });
-
-      const required=[
-        "date","truck type","company name","driver name","owner",
-        "plate #","from","to","paper received by"
-      ];
-
-      const missing=required.filter(name=>!headerIndexes.has(name));
-      if(missing.length){
-        throw new Error(
-          "Selected file is not the BuKu Trip template. Missing column(s): "+
-          missing.join(", ")
-        );
-      }
-
-      const get=(source:unknown[],name:string,occurrence=0)=>{
-        const indexes=headerIndexes.get(headerKey(name))??[];
-        const index=indexes[occurrence];
-        return index===undefined?"":source[index];
-      };
-
-      const pprStatusFromBuKu=(value:unknown)=>{
-        const raw=cleanBulkText(value);
-        const key=raw.toLowerCase();
-
-        if(!raw||key.includes("pending"))return "pending";
-        if(key.includes("not required")||key.includes("n/a"))return "not_required";
-
-        // In the legacy BuKu sheet this column is "PAPER RECEIVED BY".
-        // A populated receiver/name means the paper has been received.
-        return "received";
-      };
-
-      const normalized=matrix.slice(1)
-        .map((source,index)=>{
-          const values=Array.isArray(source)?source:[];
-          const hasAnyValue=values.some(value=>cleanBulkText(value)!=="");
-          if(!hasAnyValue)return null;
-
-          const explicitInvoice=cleanBulkText(get(values,"INVOICE NUMBER"));
-          const invoicedCell=cleanBulkText(get(values,"INVOICED"));
-          const sourceInvoiceNo=explicitInvoice||(
-            invoicedCell&&!/^(yes|no|y|n|true|false|invoiced|pending)$/i.test(invoicedCell)
-              ? invoicedCell
-              : ""
-          );
-
-          const row:BulkTripRow={
-            rowNo:index+2,
-            trip_date:normalizeBulkDate(get(values,"DATE",0)),
-            customer:cleanBulkText(get(values,"COMPANY NAME")),
-            truck_type:cleanBulkText(get(values,"TRUCK TYPE")),
-            vehicle:cleanBulkText(get(values,"PLATE #")),
-            driver:cleanBulkText(get(values,"DRIVER NAME")),
-            owner_supplier:cleanBulkText(get(values,"OWNER")),
-            po_do_job_no:cleanBulkText(get(values,"PO/DO/JOB NO.")),
-            from_location:cleanBulkText(get(values,"FROM")),
-            to_location:cleanBulkText(get(values,"TO")),
-            ppr_status:pprStatusFromBuKu(get(values,"PAPER RECEIVED BY")),
-            customer_rate:cleanBulkText(get(values,"Customer Rate")||get(values,"rate with company")),
-            supplier_rent:cleanBulkText(get(values,"Supplier Rent")||get(values,"RENT WITH DRIVER")),
-            driver_pay:cleanBulkText(get(values,"Driver Pay")),
-            sale_type:cleanBulkText(get(values,"Sale Type (Cash / Credit)")||get(values,"Sale Type `n( Cash / Credit)")||get(values,"Sale Type ( Cash / Credit)")).toLowerCase(),
-            ppr_employee:pprStatusFromBuKu(get(values,"PAPER RECEIVED BY"))==='received'?cleanBulkText(get(values,"PAPER RECEIVED BY")):'',
-            ppr_date:pprStatusFromBuKu(get(values,"PAPER RECEIVED BY"))==='received'?normalizeBulkDate(get(values,"DATE",1)):'',
-            source_invoice_no:sourceInvoiceNo,
-            notes:"",
-            errors:[]
-          };
-
-          row.errors=validateBulkRow(row);
-          return row;
-        })
-        .filter((row):row is BulkTripRow=>row!==null);
-
-      if(!normalized.length){
-        throw new Error("No trip rows found in the selected BuKu file.");
-      }
-
+    if(bulkImporting||bulkParsing||bulkValidating)return;
+    if(importJob&&importJob.completed<importJob.batches.length){setError('Resume the pending import before selecting another file.');return;}
+    const startedScope=scopeKey;setBulkParsing(true);setError('');
+    try {
+      if(file.size>30*1024*1024)throw new Error('Maximum upload size is 30 MB.');
+      const buffer=await file.arrayBuffer();const hash=await fileDigest(buffer);const normalized=await parseTripFile(buffer);
       const validated=await validateBulkMasters(normalized);
-      setBulkRows(validated);
-      setBulkFileName(file.name);
-    }catch(e:any){
-      setBulkRows([]);
-      setBulkFileName("");
-      setError(e?.message||"Unable to read upload file.");
-    }finally{
-      setBulkParsing(false);
-    }
+      if(scopeRef.current!==startedScope)return;
+      setBulkRows(validated);setBulkFileName(file.name);setBulkSourceHash(hash);setBulkPreviewPage(0);
+    }catch(e:any){if(scopeRef.current===startedScope){setBulkRows([]);setBulkFileName('');setError(e.message||'Unable to read upload file.');}}
+    finally{setBulkParsing(false);}
   };
-
-  const clearBulkUpload=()=>{
-    setBulkRows([]);
-    setBulkFileName("");
+  const clearBulkUpload=()=>{if(bulkImporting||bulkParsing||bulkValidating)return;setBulkRows([]);setBulkFileName('');setBulkPreviewPage(0);};
+  const downloadRejected=()=>{
+    const rejected=bulkRows.filter(r=>r.errors.length);
+    const workbook=XLSX.utils.book_new();const sheet=XLSX.utils.aoa_to_sheet([
+      [...BUKU_TRIP_HEADERS,'Source Row','Validation Errors'],
+      ...rejected.map(r=>[r.trip_date,r.truck_type,r.po_do_job_no,'',r.customer,r.driver,r.owner_supplier,r.vehicle,r.from_location,r.to_location,
+        r.ppr_status==='received'?r.ppr_employee:r.ppr_status==='not_required'?'N/A':'PPR PENDING',r.ppr_date,'',r.supplier_rent,'','','',r.customer_rate,'','','','',r.source_invoice_no,r.sale_type,r.driver_pay,r.rowNo,r.errors.join('; ')])
+    ]);
+    XLSX.utils.book_append_sheet(workbook,sheet,'Rejected rows');XLSX.writeFile(workbook,'NAVILO-Trip-Import-Rejected.csv',{bookType:'csv'});
   };
 
   async function openQuickPpr(row:Trip){
@@ -1181,55 +971,22 @@ export default function TransportWorkspace(){
     });
   };
 
-  const columnOptions=(key:string)=>{
-    // Excel-style cascading filters: options for this column come only from
-    // rows that still match every OTHER active column filter.
-    const contextRows=visible.filter(r=>
-      Object.entries(columnFilters).every(([filterKey,selected])=>{
-        if(filterKey===key||!selected.length)return true;
-        return selected.includes(tripCellValue(r,filterKey)||"?");
-      })
-    );
-
-    return Array.from(new Set(
-      contextRows.map(r=>tripCellValue(r,key)||"?")
-    )).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
-  };
-
-  const gridRows=visible
-    .filter(r=>Object.entries(columnFilters).every(([key,selected])=>{
-      if(!selected.length)return true;
-      return selected.includes(tripCellValue(r,key)||"?");
-    }))
-    .sort((a,b)=>{
-      if(!sortColumn)return 0;
-      const sortValue=(r:Trip)=>sortColumn==="trip_date"?r.trip_date:sortColumn==="ppr_date"?r.ppr_received_date??"":sortColumn==="payment_date"?r.payment_date??"":tripCellValue(r,sortColumn);
-      const av=sortValue(a);
-      const bv=sortValue(b);
-      const result=av.localeCompare(bv,undefined,{numeric:true,sensitivity:"base"});
-      return sortDirection==="asc"?result:-result;
-    });
-
-  const amountGridKeys=new Set(["rent_driver","supplier_paid","supplier_balance","supplier_credit","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","customer_credit","profit","commission"]);
-  const gridTotal=(key:string)=>gridRows.reduce((sum,r)=>{
-    switch(key){
-      case "rent_driver": return sum+Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0);
-      case "supplier_paid": return sum+Number(r.supplier_paid_net??r.supplier_paid_gross??0);
-      case "supplier_balance": return sum+Math.max(0,Number(r.supplier_outstanding_gross??r.remaining_with_us??0));
-      case "supplier_credit": return sum+Math.max(0,Number(r.supplier_credit_gross??0));
-      case "driver_pay": return sum+Number(r.driver_accrued??r.driver_pay??0);
-      case "driver_paid": return sum+Number(r.driver_paid??0);
-      case "driver_balance": return sum+Number(r.driver_outstanding??0);
-      case "amount": return sum+Number(r.payment_amount??0);
-      case "company_rate": return sum+Number(r.billed_customer_net??r.customer_rate??0);
-      case "received_company": return sum+Number(r.received_from_company??0);
-      case "remaining_company": return sum+Math.max(0,Number(r.customer_outstanding_gross??r.remaining_with_company??0));
-      case "customer_credit": return sum+Math.max(0,Number(r.customer_credit_gross??0));
-      case "profit": return sum+Number(r.trip_profit??0);
-      case "commission": return sum+Number(r.commission_paid_net??0);
-      default:return sum;
-    }
-  },0);
+  const [columnValues,setColumnValues]=useState<string[]>([]);
+  const [columnSearch,setColumnSearch]=useState('');
+  const [columnValuesLoading,setColumnValuesLoading]=useState(false);
+  useEffect(()=>{setColumnSearch('');},[openColumnFilter]);
+  useEffect(()=>{
+    let live=true;setColumnValues([]);if(!openColumnFilter)return;
+    setColumnValuesLoading(true);
+    const timer=window.setTimeout(()=>{
+      void (async()=>{try{const r=await supabase.rpc('transport_register_query',{p_filters:registerFilters,p_option_key:openColumnFilter,p_option_search:columnSearch});if(!live)return;if(r.error){setError(r.error.message);return;}setColumnValues(r.data.options??[]);}finally{if(live)setColumnValuesLoading(false)}})();
+    },200);
+    return()=>{live=false;window.clearTimeout(timer)};
+  },[openColumnFilter,columnSearch,registerKey]);
+  const columnOptions=(_key:string)=>columnValues;
+  const gridRows=rows;
+  const amountGridKeys=new Set(['rent_driver','supplier_paid','supplier_balance','supplier_credit','driver_pay','driver_paid','driver_balance','amount','company_rate','received_company','remaining_company','customer_credit','profit','commission']);
+  const gridTotal=(key:string)=>Number(registerMeta.totals?.[key]??0);
 
   const toggleColumnValue=(key:string,value:string)=>{
     setColumnFilters(current=>{
@@ -1276,7 +1033,7 @@ export default function TransportWorkspace(){
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="flex h-7 min-w-[92px] items-center justify-between rounded-md border border-cyan-200 bg-cyan-50 px-2">
             <span className="text-[9px] font-bold uppercase text-cyan-700">Total Trips</span>
-            <span className="text-sm font-bold text-slate-950">{rows.length.toLocaleString()}</span>
+            <span className="text-sm font-bold text-slate-950">{Number(registerMeta.count??0).toLocaleString()}</span>
           </div>
 
           <div className="flex h-7 min-w-[100px] items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-2">
@@ -1316,12 +1073,13 @@ export default function TransportWorkspace(){
             </div>}
           </div>
 
+          <input aria-label="Search all Trips" placeholder="Trip / job / invoice / customer" className="input h-7 w-52 text-[11px]" value={registerSearch} onChange={e=>setRegisterSearch(e.target.value)}/>
           <button type="button" onClick={resetGrid}
             className="h-7 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
             Reset
           </button>
 
-          <button type="button" onClick={()=>void load()} disabled={loading}
+          <button type="button" onClick={()=>void load()} disabled={registerLoading}
             className="flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
             <RefreshCw className="h-3.5 w-3.5"/>
             Refresh
@@ -1377,9 +1135,10 @@ export default function TransportWorkspace(){
         </div>}
 
         <div className="flex h-3.5 items-center justify-end text-[9px] font-semibold text-slate-600">
-          {gridRows.length.toLocaleString()} / {rows.length.toLocaleString()} trips
+          {gridRows.length.toLocaleString()} shown / {Number(registerMeta.count??0).toLocaleString()} filtered trips
         </div>
       </div>
+      {registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
       <div
         ref={tripsGridRef}
         className="min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-200 bg-white"
@@ -1444,6 +1203,7 @@ export default function TransportWorkspace(){
                       top={columnMenuPosition.top}
                       left={columnMenuPosition.left}
                       options={columnOptions(key)}
+                      search={columnSearch} onSearch={setColumnSearch} loading={columnValuesLoading}
                       selected={columnFilters[key]??[]}
                       onToggle={value=>toggleColumnValue(key,value)}
                       onSelectAll={()=>
@@ -1498,7 +1258,9 @@ export default function TransportWorkspace(){
       </div>
 
       
-      {!loading&&!visible.length&&<div className="p-10 text-center text-sm text-slate-500">No trips found.</div>}
+      <TransportPagination page={page} pageSize={500} count={Number(registerMeta.count??0)} busy={registerLoading} onPage={setPage}/>
+      <p className="shrink-0 px-2 text-[10px] text-slate-500">Header totals cover all filtered Trips, across every page.</p>
+      {!registerLoading&&!visible.length&&<div className="p-10 text-center text-sm text-slate-500">No trips found.</div>}
     </section>}
 
     {tab==="new"&&
@@ -1740,6 +1502,7 @@ export default function TransportWorkspace(){
         <input
           type="file"
           accept=".xlsm,.xlsx,.xls,.csv"
+          disabled={bulkImporting||bulkParsing||bulkValidating||Boolean(importJob&&importJob.completed<importJob.batches.length)}
           className="hidden"
           onChange={e=>{
             const file=e.target.files?.[0];
@@ -1758,6 +1521,7 @@ export default function TransportWorkspace(){
         <button
           type="button"
           className="btn"
+          disabled={bulkImporting||bulkParsing||bulkValidating}
           onClick={clearBulkUpload}
         >
           Clear
@@ -1773,6 +1537,12 @@ export default function TransportWorkspace(){
     </div>
 
 
+    {importJob&&<div className="rounded border bg-blue-50 p-2 text-xs" role="status">
+      <strong>{importJob.fileName}</strong> · {Math.min(importJob.completed*100,importJob.total).toLocaleString()} / {importJob.total.toLocaleString()} Trips confirmed
+      {bulkImporting?<button className="btn ml-2" onClick={()=>{importStop.current=true}}>Pause after batch</button>:importJob.completed<importJob.batches.length?<button className="btn-primary ml-2" onClick={()=>void executeImport(importJob)}>Resume Import</button>:<span className="ml-2 text-emerald-700">Complete</span>}
+      <p>Keep this browser's saved import data until complete. Retry reconciles an uncertain batch through its original server request ID.</p>
+    </div>}
+    {bulkRows.some(r=>r.errors.length)&&<button className="btn" disabled={bulkImporting} onClick={downloadRejected}>Download Rejected Rows</button>}
     {(bulkParsing||bulkValidating)&&
       <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">
         {bulkValidating?"Matching NAVILO master data...":"Reading and validating file..."}
@@ -1860,7 +1630,7 @@ export default function TransportWorkspace(){
 
           <tbody>
 
-            {bulkRows.map(row=>
+            {bulkRows.slice(bulkPreviewPage*100,(bulkPreviewPage+1)*100).map(row=>
               <tr
                 key={row.rowNo}
                 className="border-t border-slate-100"
@@ -1914,10 +1684,11 @@ export default function TransportWorkspace(){
       </div>
 
 
+      <TransportPagination page={bulkPreviewPage} pageSize={100} count={bulkRows.length} busy={bulkParsing||bulkValidating} onPage={setBulkPreviewPage}/>
       <div className="flex items-center justify-between gap-3">
 
         <span className="text-xs text-slate-500">
-          Validation preview only. Nothing has been imported yet.
+          Preview shows 100 rows per page. Payments, balances and profit from Excel are not posted.
         </span>
 
         <button
@@ -1954,8 +1725,8 @@ export default function TransportWorkspace(){
 
     {tab==="audit"&&<TransportAudit trips={rows}/>}
     {tab==="driver-expenses"&&<TransportCostUpload trips={rows} onChanged={load}/> }
-    {tab==="driver-account"&&<TransportAccountRows title="Driver Account / Hisaab" rows={rows} kind="driver"/> }
-    {tab==="vehicle-account"&&<TransportAccountRows title="Vehicle Account / Gari Hisaab" rows={rows} kind="vehicle"/> }
+    {tab==="driver-account"&&<TransportAccountRows title="Driver Account / Hisaab" kind="driver"/> }
+    {tab==="vehicle-account"&&<TransportAccountRows title="Vehicle Account / Gari Hisaab" kind="vehicle"/> }
     {quickPprTrip&&<div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/30 p-4">
       <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
         <div className="mb-3 flex items-center justify-between">
@@ -1986,8 +1757,9 @@ export default function TransportWorkspace(){
   </div>
 }
 function ColumnFilterMenu({
-  label,top,left,options,selected,onToggle,onSelectAll,onClear,onClose
+  label,top,left,options,selected,onToggle,onSelectAll,onClear,onClose,search,onSearch,loading
 }:{
+  search:string;onSearch:(value:string)=>void;loading:boolean;
   label:string;
   top:number;
   left:number;
@@ -1998,11 +1770,7 @@ function ColumnFilterMenu({
   onClear:()=>void;
   onClose:()=>void;
 }){
-  const [search,setSearch]=useState("");
-
-  const shown=options.filter(v=>
-    v.toLowerCase().includes(search.trim().toLowerCase())
-  );
+  const shown=options;
 
   return <div
     className="fixed z-[9999] w-40 rounded-md border border-slate-200 bg-white p-1.5 text-[10px] normal-case shadow-lg"
@@ -2019,8 +1787,8 @@ function ColumnFilterMenu({
       <input
         autoFocus
         value={search}
-        onChange={e=>setSearch(e.target.value)}
-        placeholder="Search values..."
+        onChange={e=>onSearch(e.target.value)}
+        placeholder="Search all values..."
         className="h-6 w-full rounded border border-slate-200 pl-5 pr-1.5 text-[10px]"
       />
     </div>
@@ -2028,7 +1796,7 @@ function ColumnFilterMenu({
     <div className="mt-0.5 flex gap-px">
       <button type="button" onClick={onSelectAll}
         className="h-5 flex-1 rounded border border-slate-200 px-1 py-0 text-[8px] font-semibold leading-none hover:bg-slate-50">
-        Select All
+        Select Shown
       </button>
 
       <button type="button" onClick={onClear}
@@ -2038,6 +1806,8 @@ function ColumnFilterMenu({
     </div>
 
     <div className="mt-1 max-h-40 overflow-y-auto border-t border-slate-100 pt-0.5">
+      {loading&&<p>Loading values…</p>}
+      <p className="text-slate-500">Up to 200 matches. Search for more.</p>
       {shown.map(value=>
         <label key={value} className="flex h-5 cursor-pointer items-center gap-1 rounded px-0.5 py-0 hover:bg-slate-50">
           <input
@@ -2204,9 +1974,15 @@ function FilterSelect({label,value,setValue,all,options}:{label:string;value:str
 
 function SimplePanel({title,text}:{title:string;text:string}){return <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-base font-bold text-slate-950">{title}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{text}</p></section>}
 
-function TransportAccountRows({title,rows,kind}:{title:string;rows:Trip[];kind:'driver'|'vehicle'}){
- const [search,setSearch]=useState('');
- const filtered=rows.filter(r=>`${r.trip_no} ${r.driver_name??''} ${r.vehicle_no??''}`.toLowerCase().includes(search.toLowerCase()));
+function TransportAccountRows({title,kind}:{title:string;kind:'driver'|'vehicle'}){
+ const {activeCompany,activeBusinessUnit}=useAuth();
+ const [search,setSearch]=useState(''),[page,setPage]=useState(0),[filtered,setRows]=useState<Trip[]>([]),[count,setCount]=useState(0),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const scope=`${activeCompany?.company_id}/${activeBusinessUnit?.business_unit_id}`;
+ useEffect(()=>{setPage(0);setSearch('');},[scope]);
+ useEffect(()=>{setPage(0);},[search]);
+ useEffect(()=>{let live=true;setBusy(true);setRows([]);const timer=window.setTimeout(()=>void (async()=>{
+  try{const r=await supabase.rpc('transport_register_query',{p_limit:500,p_offset:page*500,p_filters:{search}});if(!live)return;if(r.error)throw r.error;setRows(r.data.rows);setCount(r.data.count);setError('');}catch(e:any){if(live)setError(e.message);}finally{if(live)setBusy(false);}
+ })(),200);return()=>{live=false;window.clearTimeout(timer)};},[scope,search,page]);
  return <section className="rounded-lg border bg-white p-3"><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">{title}</h2><input aria-label={`Search ${title}`} className="input" placeholder="Trip / driver / vehicle" value={search} onChange={e=>setSearch(e.target.value)}/></div>
- <TransportAccountStatement kind={kind}/><div className="overflow-auto"><table className="w-full text-xs"><thead><tr><th className="text-left">Trip</th><th className="text-left">{kind==='driver'?'Driver':'Current vehicle / owner'}</th><th>Status</th><th>Accrued / Billed</th><th>Paid</th><th>Outstanding</th><th>Posted Trip profit</th></tr></thead><tbody>{filtered.map(r=><tr className="border-t" key={r.id}><td><span className="font-semibold text-blue-700">{r.trip_no}</span></td><td>{kind==='driver'?r.driver_name:`${r.vehicle_no??''} / ${r.owner_name??''}`}</td><td>{r.financial_status}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_accrued:r.billed_supplier_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_paid:r.supplier_paid_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_outstanding:Number(r.supplier_outstanding_gross??0)-Number(r.supplier_credit_gross??0))}</td><td className="text-right">{financialNumber(r.trip_profit)}</td></tr>)}</tbody></table></div></section>;
+ <TransportAccountStatement kind={kind}/>{error&&<p role="alert">{error}</p>}<div className="overflow-auto"><table className="w-full text-xs"><thead><tr><th className="text-left">Trip</th><th className="text-left">{kind==='driver'?'Driver':'Current vehicle / owner'}</th><th>Status</th><th>Accrued / Billed</th><th>Paid</th><th>Outstanding</th><th>Posted Trip profit</th></tr></thead><tbody>{filtered.map(r=><tr className="border-t" key={r.id}><td><span className="font-semibold text-blue-700">{r.trip_no}</span></td><td>{kind==='driver'?r.driver_name:`${r.vehicle_no??''} / ${r.owner_name??''}`}</td><td>{r.financial_status}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_accrued:r.billed_supplier_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_paid:r.supplier_paid_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_outstanding:Number(r.supplier_outstanding_gross??0)-Number(r.supplier_credit_gross??0))}</td><td className="text-right">{financialNumber(r.trip_profit)}</td></tr>)}</tbody></table></div><TransportPagination page={page} pageSize={500} count={count} busy={busy} onPage={setPage}/></section>;
 }

@@ -4,15 +4,18 @@ import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import TransportWorkspace from './TransportWorkspace';
 import {MemoryRouter} from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import {webcrypto} from 'node:crypto';
+vi.mock('./transportTripImport',async original=>({...await original<any>(),saveImport:async()=>{},storedImport:async()=>null}));
 const mock=vi.hoisted(()=>({rpc:vi.fn(),tables:{} as Record<string,any[]>,allow:true}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'c',membership_role:'company_owner',enabled_modules:['transport']},activeBusinessUnit:{business_unit_id:'b',membership_role:'company_owner',business_unit_type:'transport',enabled_modules:['transport']}})}));
-vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{const q:any={select:()=>q,eq:()=>q,in:()=>q,order:()=>q,update:()=>q,
+vi.mock('@/lib/supabase',()=>({supabase:{rpc:(...args:any[])=>{const request=mock.rpc(...args);request.abortSignal=()=>request;return request;},from:(table:string)=>{const q:any={select:()=>q,eq:()=>q,in:()=>q,order:()=>q,update:()=>q,
  insert:(values:any)=>{const row={...values,id:'added',is_active:true};(mock.tables[table]??=[]).push(row);return {select:()=>({single:async()=>({data:row,error:null})})};},range:()=>Promise.resolve({data:mock.tables[table]??[],error:null}),then:(resolve:any)=>Promise.resolve({data:mock.tables[table]??[],error:null}).then(resolve)};return q;}}}));
 vi.mock('./TransportFinancialPanel',()=>({default:()=>null}));vi.mock('./TransportInitialRate',()=>({default:()=>null}));
 vi.mock('./TransportCostUpload',()=>({default:()=>null}));vi.mock('./TransportAudit',()=>({default:()=>null}));
 vi.mock('./TransportPartyReports',()=>({default:()=>null}));vi.mock('./TransportAccountStatement',()=>({default:()=>null}));
 beforeEach(()=>{
- mock.allow=true;mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_create_trips'?[{id:'trip',trip_no:'OIC-1'}]:mock.allow,error:null}));
+ Object.defineProperty(globalThis,'crypto',{value:webcrypto,configurable:true});
+ mock.allow=true;mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[],count:0,statuses:[],totals:{}}:name==='transport_prepare_trip_import'?{id:'job',completed:0}:name==='transport_import_trip_batch'?args.p_rows.map(()=>({id:'trip',trip_no:'OIC-1'})):name==='transport_create_trips'?[{id:'trip',trip_no:'OIC-1'}]:mock.allow,error:null}));
  mock.tables={customers:[{id:'c1',name:'Customer',is_active:true}],suppliers:[{id:'s',name:'Supplier',is_active:true}],employees:[{id:'e',name:'Employee',is_active:true}],
  transport_truck_types:[{id:'tt',name:'Flatbed',is_active:true},{id:'tt2',name:'Tanker',is_active:true}],
  transport_locations:[{id:'f',name:'From',is_active:true},{id:'t',name:'To',is_active:true}],
@@ -102,8 +105,29 @@ describe('New Trip master integration',()=>{
  });
  it('imports bulk through the same atomic entry RPC with separate rent/pay and no owner text',async()=>{
   vi.spyOn(window,'confirm').mockReturnValue(true);vi.spyOn(window,'alert').mockImplementation(()=>{});await upload();
-  fireEvent.click(screen.getByRole('button',{name:/Import Valid Rows/}));await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_create_trips',expect.objectContaining({p_rows:[expect.objectContaining({vehicle_id:'v',supplier_rent:300,driver_pay:50,sale_type:'credit'})]})));
-  expect(mock.rpc.mock.calls.find(c=>c[0]==='transport_create_trips')![1].p_rows[0]).not.toHaveProperty('owner_name_snapshot');
+  fireEvent.click(screen.getByRole('button',{name:/Import Valid Rows/}));await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_import_trip_batch',expect.objectContaining({p_rows:[expect.objectContaining({vehicle_id:'v',supplier_rent:300,driver_pay:50,sale_type:'credit'})]})));
+  expect(mock.rpc.mock.calls.find(c=>c[0]==='transport_import_trip_batch')![1].p_rows[0]).not.toHaveProperty('owner_name_snapshot');
  });
 
+});
+
+
+describe('Transport register server pagination',()=>{
+ it('navigates directly to Last and keeps whole filtered totals',async()=>{
+  mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[{id:'trip-'+args.p_offset,trip_no:'TRP-'+args.p_offset,trip_date:'2026-10-01',customer_rate:10,status:'draft'}],count:50000,statuses:[],totals:{company_rate:800000},completed:0,paper_pending:50000}:true,error:null}));
+  render(<MemoryRouter><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText('TRP-0');expect(screen.getByText(/800,000.00/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button',{name:'Last'}));await screen.findByText('TRP-49500');
+  expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({p_limit:500,p_offset:49500}));
+  expect(screen.getByText(/800,000.00/)).toBeTruthy();expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_financial_register_page')).toBe(false);
+ });
+ it('resets to first page and sends searches to the server',async()=>{
+  mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:args.p_filters?.search?[{id:'found',trip_no:'OFF-PAGE-TRIP',trip_date:'2026-10-01',customer_rate:50,status:'draft'}]:[],count:args.p_filters?.search?1:50000,statuses:[],totals:{company_rate:args.p_filters?.search?50:800000},completed:0,paper_pending:1}:true,error:null}));
+  render(<MemoryRouter><TransportWorkspace/></MemoryRouter>);
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Last'}) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button',{name:'Last'}));await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({p_offset:49500})));
+  fireEvent.change(screen.getByLabelText('Search all Trips'),{target:{value:'OFF-PAGE'}});await screen.findByText('OFF-PAGE-TRIP');
+  const calls=mock.rpc.mock.calls.filter(c=>c[0]==='transport_register_query');expect(calls[calls.length-1][1]).toMatchObject({p_offset:0,p_filters:{search:'OFF-PAGE'}});
+  expect(screen.getByText(/Total Trips/)).toBeTruthy();expect(screen.getByText('1 shown / 1 filtered trips')).toBeTruthy();
+ });
 });

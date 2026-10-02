@@ -21,6 +21,13 @@ beforeEach(()=>{
  transport_trip_supplier_rents:[{id:'rent-a',trip_id:'trip',supplier_id:'supplier-a',amount:70,state:'finalized'},{id:'rent-b',trip_id:'trip',supplier_id:'supplier-b',amount:30,state:'finalized'}],
  transport_supplier_document_rents:[],transport_rate_adjustments:[]};
  mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>{
+  if(name==='transport_bulk_rate_page'){
+   const f=args.p_filters;let rows=mock.trips.map(t=>({...t,posted:!!(t.customer_rate_locked||t.invoiced||t.sales_order_id)}));
+   if(args.p_side==='supplier')rows=bulkLines('supplier',mock.trips,mock.tables.transport_trip_supplier_rents,new Set(mock.tables.transport_supplier_document_rents.map(l=>l.rent_id)),mock.tables.transport_rate_adjustments,mock.tables.suppliers).map(l=>({...l.trip,id:l.key,trip_id:l.trip.id,party_id:l.partyId,owner_name:l.partyName,posted:l.posted,legacyBlocked:l.legacyBlocked,supplier_rent:l.amount,billed_supplier_net:l.posted?l.amount:null,rent:l.rent?{...l.rent,trip_id:l.key,amount:l.amount,finalized_amount_snapshot:l.amount}:null}));
+   const statuses=[...new Set(rows.map(r=>r.trip_status))];
+   rows=rows.filter(r=>(!f.party||(args.p_side==='customer'?r.customer_id:r.party_id)===f.party)&&(!f.status||r.trip_status===f.status)&&(!f.columns?.trip||r.trip_no.toLowerCase().includes(f.columns.trip.toLowerCase())));
+   return {data:{rows:rows.slice(args.p_offset,args.p_offset+args.p_limit),count:rows.length,statuses,amount:rows.reduce((s,r)=>s+Number(r.supplier_rent??r.customer_rate??0),0)},error:null};
+  }
   if(name==='transport_financial_register_page')return {data:mock.trips.slice(args.p_offset,args.p_offset+args.p_limit),error:null};
   if(['transport_finance_allowed','has_transport_action_permission'].includes(name))return {data:mock.allowed,error:null};
   return {data:{success:true},error:(name==='transport_post_cash_bill_receive'&&mock.failCash)||(name==='transport_adjust_rate'&&mock.failCorrection)?{message:'Network interrupted'}:null};
@@ -54,7 +61,8 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   await screen.findByRole('option',{name:'Supplier B'});
   fireEvent.change(screen.getByLabelText('Supplier'),{target:{value:'supplier-b'}});
   expect(screen.queryByLabelText('Rent TRP-1 Supplier A')).toBeNull();
-  fireEvent.click(screen.getByRole('button',{name:'Select All Unposted'}));
+  await waitFor(()=>expect(screen.getByLabelText('Rent TRP-1 Supplier B')).toBeTruthy());
+  fireEvent.click(screen.getByRole('button',{name:'Select Page Unposted'}));
   fireEvent.change(screen.getByLabelText('Expense account'),{target:{value:'expense'}});
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
   await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_supplier_bill',expect.objectContaining({p_rent_id:'rent-b'})));
@@ -68,14 +76,14 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   render(side==='customer'?<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>:<TransportBulkSupplierRent onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByRole('button',{name:side==='customer'?'Correct Rate':'Correct Rent'});
   expect((screen.getByLabelText(side==='customer'?'Rate TRP-1':'Rent TRP-1 Supplier A') as HTMLInputElement).disabled).toBe(true);
-  expect((screen.getByRole('button',{name:'Select All Unposted'}) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button',{name:'Select Page Unposted'}) as HTMLButtonElement).disabled).toBe(true);
  });
  it('uses atomic Cash Bill & Receive and reuses the request after an interrupted response',async()=>{
   mock.trips=[{...trip,sale_type:'cash'}];mock.failCash=true;
   render(<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByRole('option',{name:'Cash'});
   fireEvent.change(screen.getByLabelText('Cash / Bank'),{target:{value:'cash'}});
-  fireEvent.click(screen.getByRole('button',{name:'Select All Unposted'}));
+  fireEvent.click(screen.getByRole('button',{name:'Select Page Unposted'}));
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
   await screen.findByRole('alert');mock.failCash=false;
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
@@ -88,7 +96,7 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   mock.allowed=false;
   render(side==='customer'?<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>:<TransportBulkSupplierRent onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByRole('option',{name:side==='customer'?'Customer A':'Supplier A'});
-  expect((screen.getByRole('button',{name:'Select All Unposted'}) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button',{name:'Select Page Unposted'}) as HTMLButtonElement).disabled).toBe(true);
   expect((screen.getByRole('button',{name:'Finalize Selected'}) as HTMLButtonElement).disabled).toBe(true);
  });
  it.each(['customer','supplier'] as const)('filters %s operational status and columns consistently',async side=>{

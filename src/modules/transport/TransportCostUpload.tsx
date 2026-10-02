@@ -19,7 +19,10 @@ export default function TransportCostUpload({trips,onChanged}:{trips:FinancialTr
   const XLSX=await import('xlsx');const workbook=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
   const data=XLSX.utils.sheet_to_json<Record<string,unknown>>(workbook.Sheets[workbook.SheetNames[0]],{defval:''});
   if(!data.length||data.length>500)throw new Error('Upload 1 to 500 cost rows per batch.');
-  const parsed=data.map(r=>{const no=String(r['Trip No']??'').trim();const trip=trips.find(t=>t.trip_no===no);const amount=Number(r.Amount);const date=String(r.Date??'').trim();
+  const wanted=[...new Set(data.map(r=>String(r['Trip No']??'').trim()).filter(Boolean))];
+  const tripLookup=new Map(trips.map(t=>[t.trip_no,t]));
+  for(let i=0;i<wanted.length;i+=200){const r=await supabase.from('transport_trips').select('id,trip_no').eq('company_id',activeCompany?.company_id).eq('business_unit_id',activeBusinessUnit?.business_unit_id).in('trip_no',wanted.slice(i,i+200));if(r.error)throw r.error;for(const t of r.data??[])tripLookup.set(t.trip_no,t);}
+  const parsed=data.map(r=>{const no=String(r['Trip No']??'').trim();const trip=tripLookup.get(no);const amount=Number(r.Amount);const date=String(r.Date??'').trim();
    return {trip_id:trip?.id??'',trip_no:no,amount,date,reference:String(r.Reference??'').trim(),error:!trip?'Trip not found in active workspace':!Number.isFinite(amount)||amount<=0||Math.abs(amount*100-Math.round(amount*100))>0.000001?'Positive amount with up to two decimals required':!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date?'Valid date must be YYYY-MM-DD':''};});
   setRows(parsed);setRequestId(crypto.randomUUID());
  }catch(e){setError(e instanceof Error?e.message:'Unable to read upload')}}
