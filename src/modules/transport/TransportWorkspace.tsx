@@ -177,6 +177,7 @@ export default function TransportWorkspace(){
   const [toFilter,setToFilter]=useState("");
   const [pprFilter,setPprFilter]=useState("");
   const [tripStatusFilter,setTripStatusFilter]=useState("");
+  const [financialStatusFilter,setFinancialStatusFilter]=useState("");
 
   const [newTripMode,setNewTripMode]=useState<"single"|"bulk">("single");
   const [bulkRows,setBulkRows]=useState<BulkTripRow[]>([]);
@@ -458,11 +459,12 @@ export default function TransportWorkspace(){
         (!fromFilter||r.from_location===fromFilter)&&
         (!toFilter||r.to_location===toFilter)&&
         (!pprFilter||String(r.ppr_status??"")===pprFilter)&&
-        (!tripStatusFilter||String(r.financial_status??"")===tripStatusFilter);
+        (!tripStatusFilter||String(r.status??"")===tripStatusFilter)&&
+        (!financialStatusFilter||String(r.financial_status??"")===financialStatusFilter);
     });
   },[
     rows,fromDate,toDate,customerFilter,driverFilter,
-    vehicleFilter,fromFilter,toFilter,pprFilter,tripStatusFilter
+    vehicleFilter,fromFilter,toFilter,pprFilter,tripStatusFilter,financialStatusFilter
   ]);
 
   const unique=(values:(string|null|undefined)[]) =>
@@ -474,7 +476,8 @@ export default function TransportWorkspace(){
   const fromOptions=useMemo(()=>unique(rows.map(r=>r.from_location)),[rows]);
   const toOptions=useMemo(()=>unique(rows.map(r=>r.to_location)),[rows]);
   const pprOptions=useMemo(()=>unique(rows.map(r=>r.ppr_status)),[rows]);
-  const tripStatusOptions=useMemo(()=>unique(rows.map(r=>r.financial_status)),[rows]);
+  const tripStatusOptions=useMemo(()=>unique(rows.map(r=>r.status)),[rows]);
+  const financialStatusOptions=useMemo(()=>unique(rows.map(r=>r.financial_status)),[rows]);
 
   const completedTrips=rows.filter(r=>
     ["Complete","Closed"].includes(r.financial_status??"")
@@ -494,6 +497,7 @@ export default function TransportWorkspace(){
     setToFilter("");
     setPprFilter("");
     setTripStatusFilter("");
+    setFinancialStatusFilter("");
   };
 
   useEffect(()=>{
@@ -1288,6 +1292,13 @@ export default function TransportWorkspace(){
               {tripStatusOptions.map(status=><option key={status} value={status}>{status}</option>)}
             </select>
           </label>
+          <label className="flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-600">
+            Financial Status
+            <select className="h-5 min-w-[112px] bg-transparent text-[10px] font-semibold text-slate-800 outline-none" value={financialStatusFilter} onChange={e=>setFinancialStatusFilter(e.target.value)}>
+              <option value="">All Financial</option>
+              {financialStatusOptions.map(status=><option key={status} value={status}>{status}</option>)}
+            </select>
+          </label>
 
           <button type="button" onClick={resetGrid}
             className="h-7 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
@@ -1444,7 +1455,7 @@ export default function TransportWorkspace(){
     {r.trip_no}
   </button>
   {tripHasPostedAccounting(r)&&<span title="Locked: posted accounting exists. Financial party/rate changes require controlled correction." aria-label={`Locked ${r.trip_no}`} className="ml-0.5 inline-flex align-middle text-amber-700"><LockKeyhole className="h-2.5 w-2.5"/></span>}
-  <span className="ml-0.5 inline text-[7px] font-normal leading-none text-slate-500">{r.financial_status}</span>
+  <span title={`Trip status: ${r.status??"Unknown"}`} aria-label={`Trip status ${r.status??"Unknown"}`} className="ml-0.5 inline-flex h-3 w-3 items-center justify-center align-middle text-[9px] font-bold leading-none text-slate-500">{["complete","completed","closed"].includes(String(r.status??"").toLowerCase())?"✓":["cancelled","canceled"].includes(String(r.status??"").toLowerCase())?"×":["draft"].includes(String(r.status??"").toLowerCase())?"○":"◐"}</span>
 </td>
 
               {/* BuKu operational register order - one canonical mapping for display/filter/sort */}
