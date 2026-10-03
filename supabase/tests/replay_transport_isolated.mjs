@@ -13,7 +13,7 @@ if(process.env.NAVILO_NATIVE_REHEARSAL==='1'){
  await client.connect();
  const check=await client.query("select current_database() name,(select count(*)::integer from pg_tables where schemaname in ('public','auth','storage')) tables");
  if(check.rows[0].name!=='navilo_transport_rehearsal'||check.rows[0].tables!==0){await client.end();throw new Error('Rehearsal requires a fresh empty dedicated CI database');}
- client.on('notice',n=>{if(/Trips|50,000|20,000/.test(n.message))console.log('SCALE',n.message)});
+ client.on('notice',n=>{if(process.env.NAVILO_PROFILE_REHEARSAL==='1'||/Trips|50,000|20,000/.test(n.message))console.log('SCALE',n.message)});
  db={exec:sql=>client.query(sql),query:(sql,params)=>client.query(sql,params),close:()=>client.end()};
  console.log('NATIVE POSTGRES ISOLATED CI');
 }else db=await PGlite.create();
@@ -36,6 +36,7 @@ for(const file of fs.readdirSync(root+'/supabase/migrations').filter(f=>f.endsWi
  catch(e){console.log('FAIL',file,e.message);await db.close();throw new Error(file+': '+e.message)}
 }
 console.log('REPLAY PASS',count);
+if(process.env.NAVILO_PROFILE_REHEARSAL==='1'){if(process.env.NAVILO_NATIVE_REHEARSAL!=='1')throw new Error('Profile only the isolated native CI service');await db.exec("LOAD 'auto_explain'; SET auto_explain.log_min_duration=5; SET auto_explain.log_analyze=on; SET auto_explain.log_nested_statements=on; SET auto_explain.log_format=json; SET auto_explain.log_level=notice;");}
 const notice=notice=>{if(/Trips|50,000|20,000/.test(notice.message))console.log('SCALE',notice.message)};
 if(process.env.NAVILO_HISTORY_SCALE){
  const total=Number(process.env.NAVILO_HISTORY_SCALE);if(!Number.isInteger(total)||total<25||total>20000||total%25)throw new Error('History scale count requires a multiple of 25, at most 20,000');

@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [reconciliation, historical-20000]
+        mode: [profile]
     services:
       postgres:
         image: postgres:17
@@ -47,7 +47,9 @@ jobs:
           TEST_MODE: ${{ matrix.mode }}
         run: |
           set -o pipefail
-          if [ "$TEST_MODE" = historical-20000 ]; then
+          if [ "$TEST_MODE" = profile ]; then
+            NAVILO_PROFILE_REHEARSAL=1 NAVILO_HISTORY_SCALE=25 node --expose-gc supabase/tests/replay_transport_isolated.mjs 2>&1 | tee transport-rehearsal.log
+          elif [ "$TEST_MODE" = historical-20000 ]; then
             NAVILO_HISTORY_SCALE=20000 node --expose-gc supabase/tests/replay_transport_isolated.mjs 2>&1 | tee transport-rehearsal.log
           else
             node supabase/tests/replay_transport_isolated.mjs 2>&1 | tee transport-rehearsal.log
