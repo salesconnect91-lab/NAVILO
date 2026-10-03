@@ -1614,6 +1614,19 @@ export default function TransportWorkspace(){
       <p>Keep this browser's saved import data until complete. Retry reconciles an uncertain batch through its original server request ID.</p>
     </div>}
     {bulkRows.some(r=>r.errors.length)&&<button className="btn" disabled={bulkImporting} onClick={downloadRejected}>Download Rejected Rows</button>}
+    {bulkRows.length>0&&<div className="flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+      <button
+        type="button"
+        data-navilo-keep-local-action="true"
+        onClick={()=>void importValidBulkRows()}
+        disabled={bulkImporting||bulkParsing||bulkValidating||!bulkRows.some(row=>row.errors.length===0)}
+        className="btn-primary min-w-[190px] justify-center disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {bulkImporting?"Importing...":`Import Valid Rows (${bulkRows.filter(row=>row.errors.length===0).length})`}
+      </button>
+      <span className="text-xs font-medium text-slate-600">Only rows that pass all validations will be imported.</span>
+    </div>}
+
     {(bulkParsing||bulkValidating)&&
       <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">
         {bulkValidating?"Matching NAVILO master data...":"Reading and validating file..."}
@@ -1782,22 +1795,8 @@ export default function TransportWorkspace(){
 
 
       <TransportPagination page={bulkPreviewPage} pageSize={100} count={bulkRows.length} busy={bulkParsing||bulkValidating} onPage={setBulkPreviewPage}/>
-      <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
-
-        <span className="text-xs text-slate-500">
-          Preview shows 100 rows per page. Payments, balances and profit from Excel are not posted.
-        </span>
-
-        <button
-          type="button"
-          onClick={()=>void importValidBulkRows()}
-          disabled={bulkImporting||bulkParsing||bulkValidating||!bulkRows.some(row=>row.errors.length===0)}
-          className="btn-primary min-w-[190px] justify-center disabled:cursor-not-allowed disabled:opacity-50"
-          title={bulkRows.some(row=>row.errors.length===0)?"Import rows that passed all validations":"No valid rows available to import"}
-        >
-          {bulkImporting?"Importing...":`Import Valid Rows (${bulkRows.filter(row=>row.errors.length===0).length})`}
-        </button>
-
+      <div className="text-xs text-slate-500">
+        Preview shows 100 rows per page. Payments, balances and profit from Excel are not posted.
       </div>
 
     </>}
