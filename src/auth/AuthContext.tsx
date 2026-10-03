@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const userId = session?.user.id;
     const companyId = activeCompany?.company_id ?? null;
-    if (!userId || accessLoading || !accessContext) { setAccountingSetup({ userId: null, companyId: null, status: "idle", error: null }); return; }
+    if (!userId || accessLoading || !accessContext) { setAccountingSetup((current) => current.userId === null && current.companyId === null && current.status === "idle" && current.error === null ? current : { userId: null, companyId: null, status: "idle", error: null }); return; }
     const allowed = accessContext.profile_active && Boolean(activeCompany?.access_allowed);
     if (!allowed || !companyId) { setAccountingSetup({ userId, companyId, status: "ready", error: null }); return; }
     const role = activeCompany?.membership_role;
