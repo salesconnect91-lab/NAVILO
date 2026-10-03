@@ -1,0 +1,61 @@
+name: Transport accounting acceptance
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/transport-accounting-scale.yml'
+      - 'supabase/tests/replay_transport_isolated.mjs'
+      - 'supabase/tests/transport_historical_scale_rehearsal.sql'
+permissions:
+  contents: read
+jobs:
+  postgres-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [reconciliation, historical-20000]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: navilo_transport_rehearsal
+          POSTGRES_PASSWORD: navilo-rehearsal-only
+        ports:
+          - 6543:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install repository dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install isolated PostgreSQL test driver
+        run: npm install --prefix "$RUNNER_TEMP/navilo-rehearsal-driver" --no-save --package-lock=false --no-audit --no-fund pg@8.16.3
+      - name: Run canonical accounting acceptance
+        env:
+          NAVILO_NATIVE_REHEARSAL: '1'
+          NAVILO_PG_DRIVER: ${{ runner.temp }}/navilo-rehearsal-driver/node_modules/pg/lib/index.js
+          TEST_MODE: ${{ matrix.mode }}
+        run: |
+          set -o pipefail
+          if [ "$TEST_MODE" = historical-20000 ]; then
+            NAVILO_HISTORY_SCALE=20000 node --expose-gc supabase/tests/replay_transport_isolated.mjs | tee transport-rehearsal.log
+          else
+            node supabase/tests/replay_transport_isolated.mjs | tee transport-rehearsal.log
+          fi
+      - name: Preserve acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: transport-${{ matrix.mode }}-${{ github.sha }}
+          path: transport-rehearsal.log
+          retention-days: 14

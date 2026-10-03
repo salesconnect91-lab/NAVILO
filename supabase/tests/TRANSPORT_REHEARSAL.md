@@ -75,3 +75,13 @@ For the in-memory scale rehearsal, run with explicit garbage collection:
 `NAVILO_HISTORY_SCALE=20000 node --expose-gc supabase/tests/replay_transport_isolated.mjs`.
 The runner checkpoints after each 100 trips, logs RSS, and releases eligible
 JavaScript buffers. This remains one dataset with 800 canonical atomic batches.
+
+## Native PostgreSQL acceptance in CI
+
+The Transport accounting acceptance workflow uses a fresh PostgreSQL 17 service
+for each matrix job. One job replays all migrations and the twelve reconciliation
+rehearsals; the second imports the complete 20,000-trip historical dataset through
+800 canonical batches and checks final accounting totals. Logs are retained as
+job artifacts. This workflow uses no production connection or credentials.
+The native adapter accepts only the fixed loopback CI service, named empty
+rehearsal database and CI-only driver; arbitrary remote hosts are unsupported.

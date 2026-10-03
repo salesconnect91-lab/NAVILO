@@ -1,10 +1,22 @@
 import {PGlite} from '@electric-sql/pglite';
 import fs from 'node:fs';
 import path from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 // PostgreSQL-in-WASM rehearsal; not a full local Supabase stack or concurrent-session test.
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
-const db=await PGlite.create();
+let db;
+if(process.env.NAVILO_NATIVE_REHEARSAL==='1'){
+ const driver=process.env.NAVILO_PG_DRIVER;
+ if(process.env.GITHUB_ACTIONS!=='true'||!driver||!path.isAbsolute(driver))throw new Error('Native rehearsal is restricted to the isolated CI service');
+ const {Client}=await import(pathToFileURL(driver).href);
+ const client=new Client({host:'127.0.0.1',port:6543,user:'postgres',password:'navilo-rehearsal-only',database:'navilo_transport_rehearsal'});
+ await client.connect();
+ const check=await client.query("select current_database() name,(select count(*)::integer from pg_tables where schemaname in ('public','auth','storage')) tables");
+ if(check.rows[0].name!=='navilo_transport_rehearsal'||check.rows[0].tables!==0){await client.end();throw new Error('Rehearsal requires a fresh empty dedicated CI database');}
+ client.on('notice',n=>{if(/Trips|50,000|20,000/.test(n.message))console.log('SCALE',n.message)});
+ db={exec:sql=>client.query(sql),query:(sql,params)=>client.query(sql,params),close:()=>client.end()};
+ console.log('NATIVE POSTGRES ISOLATED CI');
+}else db=await PGlite.create();
 await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
 create schema auth;create schema storage;
 alter default privileges in schema public grant all on tables to authenticated,service_role;
