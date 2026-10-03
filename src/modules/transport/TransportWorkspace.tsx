@@ -1,6 +1,6 @@
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { formatNaviloDate } from "@/lib/naviloDate";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {useEffect, useMemo, useRef, useState, Fragment} from "react";
 import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw, LockKeyhole } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -1646,7 +1646,7 @@ export default function TransportWorkspace(){
           <tbody>
 
             {bulkRows.slice(bulkPreviewPage*100,(bulkPreviewPage+1)*100).map(row=>
-              <React.Fragment key={row.rowNo}>
+              <Fragment key={row.rowNo}>
               <tr
                 className="border-t border-slate-100"
               >
@@ -1708,7 +1708,7 @@ export default function TransportWorkspace(){
                     </div>
                   </td>
                 </tr>}
-              </React.Fragment>
+              </Fragment>
             )}
 
           </tbody>
