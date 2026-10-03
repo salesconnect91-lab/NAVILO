@@ -14,18 +14,16 @@ vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{
 }}}));
 beforeEach(()=>{mock.allowed=false;mock.cash=false;mock.failCash=false;mock.supplier=false;mock.failSettlement=false;mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_finance_allowed'?mock.allowed:{success:true},error:(name==='transport_post_cash_bill_receive'&&mock.failCash)||(name==='transport_correct_settlement'&&mock.failSettlement)?{message:'Network interrupted'}:null}))});afterEach(cleanup);
 describe('Transport canonical finance controls',()=>{
- it('posts a cash bill and receipt together and reuses the request after interruption',async()=>{
- mock.allowed=true;mock.cash=true;mock.failCash=true;
+ it('posts a Cash Trip invoice without collecting payment or requiring a cash account',async()=>{
+ mock.allowed=true;mock.cash=true;
+ const rpc=mock.rpc.getMockImplementation()!;
+ mock.rpc.mockImplementation((name:string,args:any)=>name==='transport_finance_allowed'&&args.p_action==='settlement'?Promise.resolve({data:false,error:null}):rpc(name,args));
  render(<TransportFinancialPanel trip={{...trip,customer_rate_locked:false,customer_rate_state:'finalized',sale_type:'cash'}} onClose={vi.fn()} onChanged={async()=>{}}/>);
- await screen.findByRole('option',{name:'Cash'});
- fireEvent.change(screen.getAllByLabelText('Cash / Bank')[0],{target:{value:'cash-a'}});
- await waitFor(()=>expect((screen.getByRole('button',{name:'Cash Bill & Receive'}) as HTMLButtonElement).disabled).toBe(false));
- fireEvent.click(screen.getByRole('button',{name:'Cash Bill & Receive'}));await screen.findByText('Network interrupted');
- mock.failCash=false;fireEvent.click(screen.getByRole('button',{name:'Cash Bill & Receive'}));
- await waitFor(()=>expect(mock.rpc.mock.calls.filter(([name])=>name==='transport_post_cash_bill_receive')).toHaveLength(2));
- const calls=mock.rpc.mock.calls.filter(([name])=>name==='transport_post_cash_bill_receive');expect(calls[0][1].p_request_id).toBe(calls[1][1].p_request_id);
- expect(calls[1][1]).toEqual(expect.objectContaining({p_trip_id:'trip-a',p_account_id:'cash-a',p_method:'cash',p_with_tax:false}));
- expect(mock.rpc.mock.calls.some(([name])=>name==='transport_post_customer_bill')).toBe(false);
+ await waitFor(()=>expect((screen.getByRole('button',{name:'Post Customer Bill'}) as HTMLButtonElement).disabled).toBe(false));
+ expect(screen.queryByLabelText('Cash / Bank')).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'Post Customer Bill'}));
+ await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_customer_bill',expect.objectContaining({p_trip_id:'trip-a',p_with_tax:false})));
+ expect(mock.rpc.mock.calls.some(([name])=>/cash_bill_receive|settle|receive_customer_payment/.test(name))).toBe(false);
  });
 
  it('keeps financial actions disabled without server permissions and original billing protected',async()=>{

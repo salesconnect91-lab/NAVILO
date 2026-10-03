@@ -68,6 +68,8 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
   await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_supplier_bill',expect.objectContaining({p_rent_id:'rent-b'})));
   expect(mock.rpc.mock.calls.filter(([n])=>n==='transport_post_supplier_bill')).toHaveLength(1);
+  expect(mock.rpc.mock.calls.some(([n])=>/settle|pay_supplier/.test(n))).toBe(false);
+  expect(screen.queryByLabelText('Cash / Bank')).toBeNull();
  });
  it.each(['customer','supplier'] as const)('keeps %s posted after full credit to zero',async side=>{
   mock.trips=[{...trip,customer_rate_locked:true,supplier_rate_locked:true,billed_customer_net:0,billed_supplier_net:0}];
@@ -79,21 +81,18 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   expect((screen.getByLabelText(side==='customer'?'Rate TRP-1':'Rent TRP-1 Supplier A') as HTMLInputElement).disabled).toBe(true);
   expect((screen.getByRole('button',{name:'Select Page Unposted'}) as HTMLButtonElement).disabled).toBe(true);
  });
- it('uses atomic Cash Bill & Receive and reuses the request after an interrupted response',async()=>{
-  mock.trips=[{...trip,sale_type:'cash'}];mock.failCash=true;
+ it.each(['', 'MY-CASH-1'])('posts a Cash Trip invoice without auto receipt or settlement permission (%s)',async invoiceNo=>{
+  mock.trips=[{...trip,sale_type:'cash'}];
+  const rpc=mock.rpc.getMockImplementation()!;
+  mock.rpc.mockImplementation((name:string,args:any)=>name==='transport_finance_allowed'&&args.p_action==='settlement'?Promise.resolve({data:false,error:null}):rpc(name,args));
   render(<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>);
-  await screen.findByRole('option',{name:'Cash'});
-  fireEvent.change(screen.getByLabelText('Cash / Bank'),{target:{value:'cash'}});
-  fireEvent.change(screen.getByLabelText('Invoice number TRP-1'),{target:{value:'MY-CASH-1'}});
+  await screen.findByRole('option',{name:'Customer A'});
+  expect(screen.queryByLabelText('Cash / Bank')).toBeNull();
+  if(invoiceNo)fireEvent.change(screen.getByLabelText('Invoice number TRP-1'),{target:{value:invoiceNo}});
   fireEvent.click(screen.getByRole('button',{name:'Select Page Unposted'}));
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
-  await screen.findByRole('alert');mock.failCash=false;
-  fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
-  await waitFor(()=>expect(mock.rpc.mock.calls.filter(([n])=>n==='transport_post_cash_bill_receive_numbered')).toHaveLength(2));
-  const calls=mock.rpc.mock.calls.filter(([n])=>n==='transport_post_cash_bill_receive_numbered');
-  expect(calls[0][1].p_request_id).toBe(calls[1][1].p_request_id);
-  expect(calls[1][1].p_invoice_no).toBe('MY-CASH-1');
-  expect(mock.rpc.mock.calls.some(([n])=>n==='transport_post_customer_bill')).toBe(false);
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith(invoiceNo?'transport_post_customer_bill_numbered':'transport_post_customer_bill',expect.objectContaining({p_trip_id:'trip',p_with_tax:false,...(invoiceNo?{p_invoice_no:invoiceNo}:{})})));
+  expect(mock.rpc.mock.calls.some(([n])=>/cash_bill_receive|settle|receive_customer_payment|pay_supplier/.test(n))).toBe(false);
  });
  it.each(['customer','supplier'] as const)('disables %s actions when server permissions deny them',async side=>{
   mock.allowed=false;
