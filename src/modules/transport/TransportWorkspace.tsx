@@ -149,6 +149,8 @@ export default function TransportWorkspace(){
 
   const [error,setError]=useState("");
   const [showPartyReports,setShowPartyReports]=useState(false);
+  const [transportNavCollapsed,setTransportNavCollapsed]=useState(()=>localStorage.getItem("navilo.transport.sidebar.collapsed")==="true");
+  useEffect(()=>{localStorage.setItem("navilo.transport.sidebar.collapsed",String(transportNavCollapsed));},[transportNavCollapsed]);
 
   const [fromDate,setFromDate]=useState("");
   const [toDate,setToDate]=useState("");
@@ -460,15 +462,16 @@ export default function TransportWorkspace(){
     if(!el||tab!=="trips")return;
 
     const onWheel=(event:WheelEvent)=>{
-      // The grid owns its scrolling. Vertical wheel moves rows only;
-      // horizontal/Shift+wheel moves columns only, never the page.
-      const horizontal=event.shiftKey||Math.abs(event.deltaX)>Math.abs(event.deltaY);
-      const delta=horizontal?(event.deltaX||event.deltaY):event.deltaY;
+      const target=event.target as HTMLElement|null;
+      const rect=el.getBoundingClientRect();
+      const overHeader=Boolean(target?.closest("thead"));
+      const overBottomScrollbar=event.clientY>=rect.bottom-18;
+      if(!overHeader&&!overBottomScrollbar)return;
+
+      const delta=Math.abs(event.deltaX)>Math.abs(event.deltaY)?event.deltaX:event.deltaY;
       if(!delta)return;
       event.preventDefault();
-      event.stopImmediatePropagation();
-      if(horizontal)el.scrollLeft+=delta;
-      else el.scrollTop+=delta;
+      el.scrollLeft+=delta;
     };
 
     el.addEventListener("wheel",onWheel,{passive:false,capture:true});
@@ -1075,23 +1078,40 @@ export default function TransportWorkspace(){
     if(tripsGridRef.current)tripsGridRef.current.scrollLeft=0;
   };
 
-  return <div className="mx-auto w-full max-w-[1800px] space-y-1 p-1.5">
+  return <div className="w-full p-0">
+    <div className="flex min-w-0 items-start gap-1.5">
+      <aside className={`${transportNavCollapsed?"w-11":"w-[178px]"} sticky top-2 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-[width] duration-150`} aria-label="Transport workspace">
+        <div className="flex h-9 items-center justify-between border-b border-slate-200 px-1.5">
+          {!transportNavCollapsed&&<span className="truncate text-[10px] font-black uppercase tracking-wide text-slate-500">Transport Workspace</span>}
+          <button type="button" onClick={()=>setTransportNavCollapsed(value=>!value)}
+            className="ml-auto flex h-6 w-6 items-center justify-center rounded border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+            title={transportNavCollapsed?"Expand Transport sidebar":"Collapse Transport sidebar"}
+            aria-label={transportNavCollapsed?"Expand Transport sidebar":"Collapse Transport sidebar"}>
+            {transportNavCollapsed?"›":"‹"}
+          </button>
+        </div>
+        <nav className="space-y-0.5 p-1" aria-label="Transport sections">
+          {tabs.map(t=>{const I=t.icon;const active=tab===t.key&&!showPartyReports;return <button key={t.key} type="button" title={transportNavCollapsed?t.label:undefined}
+            onClick={()=>{setError("");setShowPartyReports(false);setTab(t.key)}}
+            className={`flex h-8 w-full items-center ${transportNavCollapsed?"justify-center px-0":"gap-2 px-2"} rounded-md text-left text-[10px] font-semibold ${active?"bg-slate-900 text-white shadow-sm":"text-slate-700 hover:bg-slate-100"}`}>
+            <I className="h-3.5 w-3.5 shrink-0"/>{!transportNavCollapsed&&<span className="truncate">{t.label}</span>}
+          </button>})}
+          <div className="my-1 border-t border-slate-200"/>
+          {!transportNavCollapsed&&<div className="px-2 pb-0.5 pt-1 text-[9px] font-black uppercase tracking-wide text-slate-400">Reports & Allocation</div>}
+          <button type="button" title={transportNavCollapsed?"Customer / Supplier Reports and Bulk Allocation":undefined}
+            onClick={()=>setShowPartyReports(true)}
+            className={`flex min-h-8 w-full items-center ${transportNavCollapsed?"justify-center px-0":"gap-2 px-2"} rounded-md text-left text-[10px] font-semibold ${showPartyReports?"bg-blue-50 text-blue-800 ring-1 ring-blue-200":"text-slate-700 hover:bg-slate-100"}`}>
+            <ReceiptText className="h-3.5 w-3.5 shrink-0"/>{!transportNavCollapsed&&<span className="leading-tight">Customer / Supplier Reports & Allocation</span>}
+          </button>
+        </nav>
+      </aside>
 
+      <main className="min-w-0 flex-1 space-y-1">
+        {showPartyReports&&<TransportPartyReports key={`${activeCompany?.company_id}:${activeBusinessUnit?.business_unit_id}`} onClose={()=>setShowPartyReports(false)} onChanged={load}/>}
 
-    <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
-      <nav className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto" aria-label="Transport workspace">
-        {tabs.map(t=>{const I=t.icon;return <button key={t.key} onClick={()=>{setError("");setTab(t.key)}} className={`flex min-w-max items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold ${tab===t.key?"bg-slate-900 text-white":"text-slate-600 hover:bg-slate-100"}`}><I className="h-3.5 w-3.5"/>{t.label}</button>})}
-      </nav>
+        {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-
-    </div>
-
-    {!showPartyReports&&<button className="btn" onClick={()=>setShowPartyReports(true)}>Customer / Supplier Reports and Bulk Allocation</button>}
-    {showPartyReports&&<TransportPartyReports key={`${activeCompany?.company_id}:${activeBusinessUnit?.business_unit_id}`} onClose={()=>setShowPartyReports(false)} onChanged={load}/>}
-
-    {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-
-    {tab==="trips"&&<section className="relative flex h-[calc(100vh-205px)] min-h-[360px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm" data-navilo-customizable="true">
+    {tab==="trips"&&!showPartyReports&&<section className="relative flex h-[calc(100vh-92px)] min-h-[420px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm" data-navilo-customizable="true">
       <div className="relative z-[80] shrink-0 border-b border-slate-200 bg-white px-1.5 py-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="flex h-7 min-w-[92px] items-center justify-between rounded-md border border-cyan-200 bg-cyan-50 px-2">
@@ -1220,15 +1240,15 @@ export default function TransportWorkspace(){
                   className={`sticky top-0 h-[17px] border-b border-r border-slate-200 px-0.5 !py-0 font-bold leading-none ${isSupplierGridKey(key)?"bg-amber-50 text-amber-900":isCustomerGridKey(key)?"bg-blue-50 text-blue-900":"bg-slate-50"} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
                   <div className="flex h-[17px] w-full min-w-0 items-center gap-0.5">
                     <button type="button"
-                      title={sorted?"Clear sort":`Sort by ${label}`}
+                      title={sorted?`Sort ${sortDirection==="asc"?"descending":"ascending"}`:`Sort by ${label}`}
                       onClick={()=>{
-                        if(sorted){setSortColumn("");setSortDirection("asc");}
+                        if(sorted)setSortDirection(direction=>direction==="asc"?"desc":"asc");
                         else{setSortColumn(key);setSortDirection("asc");}
                         setOpenColumnFilter(null);
                       }}
                       className={`flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden rounded px-0.5 py-0 text-left leading-none hover:bg-slate-200 ${sorted?"text-blue-700":""}`}>
                       <span className="overflow-hidden text-ellipsis">{label}{amountGridKeys.has(key)&&<span className="ml-1 font-extrabold text-slate-950">· {financialNumber(gridTotal(key))}</span>}</span>
-                      {sorted&&<span className="shrink-0 text-[7px]" aria-label="Sorted ascending">▲</span>}
+                      {sorted&&<span className="shrink-0 text-[7px]" aria-label={`Sorted ${sortDirection==="asc"?"ascending":"descending"}`}>{sortDirection==="asc"?"▲":"▼"}</span>}
                     </button>
                     <button type="button"
                       title={active?"Filter active":"Filter"}
@@ -1326,7 +1346,7 @@ export default function TransportWorkspace(){
       {!registerLoading&&!visible.length&&<div className="p-10 text-center text-sm text-slate-500">No trips found.</div>}
     </section>}
 
-    {tab==="new"&&
+    {tab==="new"&&!showPartyReports&&
 <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
 
   <div className="border-b border-slate-200">
@@ -1806,10 +1826,10 @@ export default function TransportWorkspace(){
 
 </section>}
 
-    {tab==="audit"&&<TransportAudit trips={rows}/>}
-    {tab==="driver-expenses"&&<TransportCostUpload trips={rows} onChanged={load}/> }
-    {tab==="driver-account"&&<TransportAccountRows title="Driver Account / Hisaab" kind="driver"/> }
-    {tab==="vehicle-account"&&<TransportAccountRows title="Vehicle Account / Gari Hisaab" kind="vehicle"/> }
+    {tab==="audit"&&!showPartyReports&&<TransportAudit trips={rows}/>}
+    {tab==="driver-expenses"&&!showPartyReports&&<TransportCostUpload trips={rows} onChanged={load}/> }
+    {tab==="driver-account"&&!showPartyReports&&<TransportAccountRows title="Driver Account / Hisaab" kind="driver"/> }
+    {tab==="vehicle-account"&&!showPartyReports&&<TransportAccountRows title="Vehicle Account / Gari Hisaab" kind="vehicle"/> }
     {quickPprTrip&&<div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/30 p-4">
       <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
         <div className="mb-3 flex items-center justify-between">
@@ -1837,6 +1857,8 @@ export default function TransportWorkspace(){
     {showBulkSupplierRent&&<TransportBulkSupplierRent initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={async()=>{await load(true)}}/>}
       {showBulkCustomerRate&&<TransportBulkCustomerRate onClose={()=>setShowBulkCustomerRate(false)} onChanged={async()=>{await load(true)}}/>}
 
+      </main>
+    </div>
   </div>
 }
 function ColumnFilterMenu({
