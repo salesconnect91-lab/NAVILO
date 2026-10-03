@@ -12,11 +12,11 @@ permissions:
 jobs:
   postgres-acceptance:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        mode: [profile]
+        mode: [reconciliation, historical-20000]
     services:
       postgres:
         image: postgres:17
