@@ -1,0 +1,13 @@
+/* Touch devices keep native horizontal swiping and one native scrollbar. */
+[data-navilo-transport-register] .navilo-transport-horizontal-scrollbar {
+  display: none;
+}
+/* Desktop keeps the wheel-enabled bottom bar; vertical grid scrolling stays native. */
+@media (hover: hover) and (pointer: fine) {
+  [data-navilo-transport-register] .navilo-transport-trips-scrollport {
+    overflow-x: hidden;
+  }
+  [data-navilo-transport-register] .navilo-transport-horizontal-scrollbar {
+    display: block;
+  }
+}

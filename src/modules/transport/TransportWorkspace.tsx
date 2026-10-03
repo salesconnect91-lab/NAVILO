@@ -1,8 +1,9 @@
 import {useSearchParams} from 'react-router-dom';
 import TransportHorizontalScroll from './TransportHorizontalScroll';
+import './transportScrolling.css';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { formatNaviloDate } from "@/lib/naviloDate";
-import {useEffect, useMemo, useRef, useState, Fragment} from "react";
+import {useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment} from "react";
 import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw, LockKeyhole } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -120,6 +121,7 @@ export default function TransportWorkspace(){
   const [loading,setLoading]=useState(false);
   const [registerLoading,setRegisterLoading]=useState(false);
   const tripsGridRef=useRef<HTMLDivElement|null>(null);
+  const tripsSectionRef=useRef<HTMLElement|null>(null);
   const [tripColumnWidths,setTripColumnWidths]=useState<Record<string,number>>({});
   const [tripColumnOrder,setTripColumnOrder]=useState<string[]>([]);
   const [hiddenTripColumns,setHiddenTripColumns]=useState<string[]>([]);
@@ -483,6 +485,26 @@ export default function TransportWorkspace(){
     return ()=>el.removeEventListener("wheel",onWheel,{capture:true});
   },[tab,showPartyReports]);
 
+
+  useLayoutEffect(()=>{
+    const section=tripsSectionRef.current;
+    if(!section||tab!=="trips"||showPartyReports)return;
+    const fit=()=>{
+      const viewport=window.visualViewport?.height??window.innerHeight;
+      const available=Math.max(360,Math.floor(viewport-section.getBoundingClientRect().top-8));
+      section.style.height=`${available}px`;
+    };
+    fit();
+    window.addEventListener('resize',fit);
+    window.visualViewport?.addEventListener('resize',fit);
+    const observer=typeof ResizeObserver==='undefined'?null:new ResizeObserver(fit);
+    if(section.parentElement)observer?.observe(section.parentElement);
+    return()=>{
+      window.removeEventListener('resize',fit);
+      window.visualViewport?.removeEventListener('resize',fit);
+      observer?.disconnect();
+    };
+  },[tab,showPartyReports]);
 
   const DEFAULT_TRIPS_GRID_HEIGHT=520; // retained for legacy saved preference; viewport now owns the Trips height
   const [tripsGridHeight,setTripsGridHeight]=useState(()=>{
@@ -1090,7 +1112,7 @@ export default function TransportWorkspace(){
 
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-    {!showPartyReports&&tab==="trips"&&<section className="relative isolate flex h-[calc(100vh-205px)] min-h-[360px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm" data-navilo-customizable="true">
+    {!showPartyReports&&tab==="trips"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className="relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm" data-navilo-customizable="true">
       <div className="relative z-[80] shrink-0 border-b border-slate-200 bg-white px-1.5 py-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="flex h-7 min-w-[92px] items-center justify-between rounded-md border border-cyan-200 bg-cyan-50 px-2">
@@ -1203,7 +1225,7 @@ export default function TransportWorkspace(){
       {registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
       <div
         ref={tripsGridRef}
-        className="min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-200 bg-white"
+        className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-200 bg-white"
       >
         <table className="w-max min-w-full table-auto whitespace-nowrap text-[8px] leading-none">
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>

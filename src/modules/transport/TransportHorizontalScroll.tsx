@@ -11,5 +11,5 @@ export default function TransportHorizontalScroll({gridRef,revision}:{gridRef:Re
   const observer=typeof ResizeObserver==='undefined'?null:new ResizeObserver(measure);observer?.observe(grid);const table=grid.querySelector('table');if(table)observer?.observe(table);
   return()=>{grid.removeEventListener('scroll',mirror);bar.removeEventListener('wheel',wheel);window.removeEventListener('resize',measure);observer?.disconnect();};
  },[gridRef,revision]);
- return <div ref={barRef} aria-label="Trips horizontal scrollbar" className="h-4 shrink-0 overflow-x-auto overflow-y-hidden border-t bg-slate-50" onScroll={e=>{const grid=gridRef.current;if(grid&&Math.abs(grid.scrollLeft-e.currentTarget.scrollLeft)>0.5)grid.scrollLeft=e.currentTarget.scrollLeft;}}><div style={{width,height:1}}/></div>;
+ return <div ref={barRef} aria-label="Trips horizontal scrollbar" tabIndex={0} className="navilo-transport-horizontal-scrollbar h-4 shrink-0 overflow-x-auto overflow-y-hidden border-t bg-slate-50" onScroll={e=>{const grid=gridRef.current;if(grid&&Math.abs(grid.scrollLeft-e.currentTarget.scrollLeft)>0.5)grid.scrollLeft=e.currentTarget.scrollLeft;}}><div style={{width,height:1}}/></div>;
 }

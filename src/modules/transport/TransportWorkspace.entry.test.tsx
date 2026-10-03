@@ -133,6 +133,20 @@ describe('Transport register server pagination',()=>{
 });
 
 describe('Transport register interactions',()=>{
+ it('fits the register to remaining viewport height and recalculates after resize',async()=>{
+  const height=window.innerHeight;
+  const rect=vi.spyOn(HTMLElement.prototype,'getBoundingClientRect').mockImplementation(function(this:HTMLElement){
+   return {top:this.hasAttribute('data-navilo-transport-register')?92:0,bottom:0,left:0,right:0,x:0,y:0,width:0,height:0,toJSON:()=>({})} as DOMRect;
+  });
+  try{
+   Object.defineProperty(window,'innerHeight',{value:768,configurable:true});
+   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+   const section=document.querySelector<HTMLElement>('[data-navilo-transport-register]')!;
+   expect(section.style.height).toBe('668px');
+   Object.defineProperty(window,'innerHeight',{value:900,configurable:true});fireEvent(window,new Event('resize'));
+   expect(section.style.height).toBe('800px');
+  }finally{rect.mockRestore();Object.defineProperty(window,'innerHeight',{value:height,configurable:true});}
+ });
  it('toggles header ASC/DESC through the server query while retaining the 500 row page limit',async()=>{
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
   const header=await screen.findByTitle('Sort Trip No ascending');fireEvent.click(header);
