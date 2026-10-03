@@ -110,6 +110,17 @@ begin
  if (select sum(amount) from public.invoice_payment_allocations where company_id=c)<>1250 then raise exception 'Receipt retry duplicated allocation';end if;
  if (select sum(amount) from public.purchase_payment_allocations where company_id=c)<>2050 then raise exception 'Identical split supplier payments merged/duplicated';end if;
  if exists(select 1 from public.journal_lines jl join public.journal_entries j on j.id=jl.entry_id where j.company_id=c and j.status='posted' group by j.id having sum(jl.debit)<>sum(jl.credit)) then raise exception 'History journal is unbalanced';end if;
+ update public.business_unit_memberships set is_active=false where business_unit_id=b and user_id=u;
+ execute 'set local role authenticated';
+ rejected:=false;begin perform public.transport_history_import_status();exception when others then rejected:=true;end;
+ if not rejected then raise exception 'History accepted an inactive workspace administrator';end if;
+ execute 'reset role';
+ update public.user_profiles set platform_role='super_admin' where id=u;
+ execute 'set local role authenticated';
+ if (public.transport_history_import_status()->>'id')::uuid<>history_id then raise exception 'Existing Platform Owner could not review scoped historical job';end if;
+ execute 'reset role';
+ update public.user_profiles set platform_role='user' where id=u;
+ update public.business_unit_memberships set is_active=true where business_unit_id=b and user_id=u;
  perform set_config('request.jwt.claim.sub','',true);
  rejected:=false;begin perform public.transport_history_import_status();exception when others then rejected:=true;end;
  if not rejected then raise exception 'History accepted missing auth';end if;
