@@ -17,6 +17,31 @@ beforeEach(()=>{cleanup();mock.rpc.mockReset();mock.saved.mockReset();mock.store
 const masters=async(rows:any[])=>rows.map(r=>({...r,payload:{trip_date:r.trip_date,customer_id:'customer',from_location_id:'a',to_location_id:'b',sale_type:r.sale_type,customer_rate:2000},errors:[]}));
 async function upload(container:HTMLElement){await waitFor(()=>expect((container.querySelector('input[type=file]') as HTMLInputElement).disabled).toBe(false));const f=new File(['xlsx'],'history.xlsx');Object.defineProperty(f,'arrayBuffer',{value:async()=>new ArrayBuffer(1)});fireEvent.change(container.querySelector('input[type=file]')!,{target:{files:[f]}});await screen.findByText('OLD-1');}
 describe('Historical import review boundary',()=>{
+ it.each([
+  {name:'new upload',restore:false,size:5},
+  {name:'legacy restored upload',restore:true,size:25},
+  {name:'small restored upload',restore:true,size:5},
+ ])('keeps the accounting budget and exact resume manifest for $name',async({restore,size})=>{
+  const settings={cutoff:'2026-10-03',cost_account:'cost',opening_reviewed:true,...(size===5?{batch_size:5}:{})};
+  if(restore)mock.status={id:'server-job',file:'history.xlsx',completed:0,batches:Math.ceil(7/size),totals:{...totals,trips:0},settings,source_hash:'a'.repeat(64)};
+  mock.parse.mockResolvedValue(Array.from({length:7},(_,i)=>({...history,rowNo:i+2,source_id:'OLD-'+(i+1)})));
+  mock.rpc.mockImplementation(async(name:string,args:any)=>{
+   if(name==='transport_prepare_history_import'){
+    mock.status={id:'server-job',file:'history.xlsx',completed:args.p_manifest.length,batches:args.p_manifest.length,settings:args.p_settings,source_hash:'a'.repeat(64),totals:Object.fromEntries(Object.entries(totals).map(([k,v])=>[k,v*7]))};
+    return {data:{id:'server-job',completed:0},error:null};
+   }
+   if(name==='transport_import_history_batch')return {data:args.p_rows.map((r:any)=>({id:r.source_id})),error:null};
+   return {data:mock.status,error:null};
+  });
+  const changed=vi.fn(async()=>{});const {container}=render(<TransportHistoricalImport validateMasters={masters} onChanged={changed}/>);await upload(container);
+  if(!restore){fireEvent.change(screen.getByPlaceholderText('dd-mmm-yy'),{target:{value:'03-Oct-26'}});fireEvent.change(screen.getByRole('combobox'),{target:{value:'cost'}});fireEvent.click(screen.getByRole('checkbox'));}
+  fireEvent.click(screen.getByRole('button',{name:restore?'Resume from original file':'Confirm and import historical accounting'}));await waitFor(()=>expect(changed).toHaveBeenCalledOnce());
+  const prepared=mock.rpc.mock.calls.find(c=>c[0]==='transport_prepare_history_import')![1];
+  expect(prepared.p_settings).toEqual(settings);expect(prepared.p_manifest.map((b:any[])=>b.length)).toEqual(size===5?[5,2]:[7]);
+  expect(mock.rpc.mock.calls.filter(c=>c[0]==='transport_import_history_batch').flatMap(c=>c[1].p_rows).map((r:any)=>r.source_id)).toEqual(Array.from({length:7},(_,i)=>'OLD-'+(i+1)));
+  expect(screen.getByText(/Saved job: 7 \/ 7 trips confirmed/)).toBeTruthy();
+ });
+
  it('downloads a workbook whose Trips and dated partial Payments pass the actual historical parser',async()=>{mock.download.mockClear();render(<TransportHistoricalImport validateMasters={masters} onChanged={async()=>{}}/>);fireEvent.click(screen.getByRole('button',{name:'Download historical template'}));expect(mock.download).toHaveBeenCalledOnce();const [book,name]=mock.download.mock.calls[0];expect(name).toBe('Transport-Historical-Import-Template.xlsx');expect(book.SheetNames).toEqual(['Trips','Payments','Instructions']);const parsed=parseHistoricalWorkbook(XLSX.write(book,{type:'array',bookType:'xlsx'}));expect(parsed).toHaveLength(1);expect(parsed[0].errors).toEqual([]);expect(parsed[0]).toMatchObject({source_id:'OLD-0001',received:600,paid:1000,customer_remaining:1400,supplier_remaining:700});});
  it('posts through the separate canonical history endpoint only after review, then reconciles server totals',async()=>{const changed=vi.fn(async()=>{});const {container}=render(<TransportHistoricalImport validateMasters={masters} onChanged={changed}/>);await upload(container);expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_import_history_batch')).toBe(false);
   fireEvent.change(screen.getByPlaceholderText('dd-mmm-yy'),{target:{value:'03-Oct-26'}});fireEvent.change(screen.getByRole('combobox'),{target:{value:'cost'}});fireEvent.click(screen.getByRole('checkbox'));mock.status={file:'history.xlsx',completed:1,batches:1,totals,settings:{cutoff:'2026-10-03',cost_account:'cost',opening_reviewed:true},source_hash:'a'.repeat(64)};

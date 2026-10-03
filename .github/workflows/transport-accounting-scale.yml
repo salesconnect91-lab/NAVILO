@@ -6,7 +6,8 @@ on:
     paths:
       - '.github/workflows/transport-accounting-scale.yml'
       - 'supabase/tests/replay_transport_isolated.mjs'
-      - 'supabase/tests/transport_historical_scale_rehearsal.sql'
+      - 'supabase/tests/*.sql'
+      - 'supabase/migrations/**'
 permissions:
   contents: read
 jobs:
@@ -16,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [reconciliation, historical-20000]
+        mode: ${{ (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[transport-full-scale]')) && fromJSON('["reconciliation","historical-20000"]') || fromJSON('["reconciliation"]') }}
     services:
       postgres:
         image: postgres:17

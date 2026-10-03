@@ -34,7 +34,10 @@ be reconciled separately. Employee payroll is distinct from supplier rent.
 A workspace administrator or existing Platform Owner may import, subject to
 canonical finance and accounting permissions and active branch scope. Opening
 balances must exclude the imported bills and payments to prevent double counts.
-Each 25-row batch commits atomically. After interruption, resume the unchanged
+Each batch commits atomically. New browser imports use five Trips per
+request for payment-heavy accounting; the server allows up to 25 Trips and
+4,000 batches while retaining the total 20,000-Trip limit. The saved batch size
+is immutable. Existing saved 25-row jobs retain their original manifest. After interruption, resume the unchanged
 saved job; if browser storage is lost, restore the original workbook to recover
 server progress. The final server control totals must match the reviewed file.
 
@@ -49,9 +52,9 @@ Commands:
   The test checks final trip count, receipt/payment totals and canonical AR/AP/
   cash balances. The runner analyzes the database because PGlite has no
   autovacuum. WASM timings are not a production throughput guarantee.
-  Full accounting stress acceptance remains pending: a prior in-memory run
-  completed 12,800 trips before the local process exhausted memory. A 20,000-row
-  parser test passing does not establish 20,000-trip accounting acceptance.
+  Full native accounting acceptance passed in GitHub Actions run
+  `37122894511` (03-Oct-2026). Local WASM runs have memory limits; use the
+  native CI workflow for the complete accounting scale rehearsal.
 - `NAVILO_READER_SMOKE=1 npm run test:transport-db`: pagination, imports and
   canonical parity for customer/supplier, driver and vehicle reporting readers.
 
@@ -80,8 +83,9 @@ JavaScript buffers. This remains one dataset with 800 canonical atomic batches.
 ## Native PostgreSQL acceptance in CI
 
 The Transport accounting acceptance workflow uses a fresh PostgreSQL 17 service
-for each matrix job. One job replays all migrations and the thirteen reconciliation
-rehearsals; the second imports the complete 20,000-trip historical dataset through
+for each matrix job. Pushes replay all migrations and the thirteen reconciliation
+rehearsals. Manual workflow dispatch, or a commit marked `[transport-full-scale]`,
+also imports the complete 20,000-trip historical dataset through
 800 canonical batches and checks final accounting totals. Logs are retained as
 job artifacts. This workflow uses no production connection or credentials.
 The native adapter accepts only the fixed loopback CI service, named empty
@@ -94,3 +98,41 @@ security-definer settings and grants. PL/pgSQL caches executable query plans,
 not user/company/branch results. The regression fixture switches actors and
 workspaces within one backend and checks stale selections, inactive membership,
 Platform Owner access, suspended/expired companies and anonymous scope.
+
+Native verification on 03-Oct-2026: run `37122761905` measured the complete
+25-trip posting fixture at 2.499 seconds, compared with about 11.4 seconds
+before plan reuse. The company helper planned twice for 19,275 calls instead
+of 12,989 times. These isolated benchmark timings are not a production SLA.
+Run `37122894511` passed all thirteen reconciliation fixtures and replayed
+486 migrations. The invoice/route release passed 240 frontend tests in 49 files,
+typecheck and production build. The full 20,000-trip result is recorded below.
+
+## Full historical accounting acceptance — 03-Oct-2026
+
+GitHub Actions run [37122894511](https://github.com/salesconnect91-lab/NAVILO/actions/runs/37122894511)
+passed on source `a780e99a300ed2709b5741c0551aa0dfe89fab88`. It imported all
+20,000 synthetic Trips through 800 independent 25-row transactions and checked
+canonical accounting controls. Each Trip had customer and supplier service bills,
+a customer receipt and two partial supplier payments, with repeated original
+references and dates but distinct source IDs. Expected controls matched:
+
+| Control | Amount / count |
+| --- | ---: |
+| Trips | 20,000 |
+| Customer receipts | 12,000,000 |
+| Supplier payments | 20,000,000 |
+| Customer remaining / canonical AR | 28,000,000 |
+| Supplier remaining / canonical AP | 14,000,000 |
+| Net canonical Cash movement | -8,000,000 |
+
+The import took 62 minutes 21 seconds in the isolated CI service. Client RSS
+ended at 60 MB. The last measured batch took 9.446 seconds including ANALYZE
+and CHECKPOINT, so new browser imports use five-row accounting batches to
+leave headroom under production's eight-second authenticated request limit.
+The server's 20,000-Trip cap, atomicity, idempotency and original-job resume
+checks remain in force. The follow-up fixture validates a 4,000-batch manifest,
+rejects 20,001 Trips and preserves legacy 25-row job settings.
+
+Persistent raw evidence: `evidence/transport-history-20000-20261003.txt`.
+These are synthetic acceptance fixtures, not the customer's historical data.
+No historical import job was created in production during verification.

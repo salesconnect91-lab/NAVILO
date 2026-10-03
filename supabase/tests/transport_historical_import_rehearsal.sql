@@ -56,6 +56,16 @@ begin
  jsonb_build_object('side','supplier','date',current_date-1,'amount',500,'account_id',cash_id,'method','cash','reference','PAY-SHARED')));
  history_rows:=jsonb_build_array(payload,jsonb_set(payload,'{source_id}','"OLD-2"'));
  execute 'set local role authenticated';
+ -- Full 20,000-record manifest supports five-row request budgets; dataset cap stays unchanged.
+ select jsonb_agg(ids order by batch) into bad from
+ (select (i-1)/5 batch,jsonb_agg('BUDGET-'||i order by i) ids from generate_series(1,20000) i group by (i-1)/5) q;
+ history_job:=public.transport_prepare_history_import(repeat('d',64),'small-batches.xlsx',bad,history_settings||jsonb_build_object('batch_size',5));
+ if (history_job->>'batches')::integer is distinct from 4000 then raise exception 'Small accounting manifest rejected';end if;
+ perform public.transport_cancel_empty_history_import((history_job->>'id')::uuid);
+ rejected:=false;begin perform public.transport_prepare_history_import(repeat('d',64),'too-many-trips.xlsx',jsonb_set(bad,'{3999}',(bad->3999)||jsonb_build_array('BUDGET-20001')),history_settings);exception when others then rejected:=true;end;
+ if not rejected then raise exception 'Small manifests exceeded 20,000 trips';end if;
+ rejected:=false;begin perform public.transport_prepare_history_import(repeat('d',64),'too-many-batches.xlsx',bad||jsonb_build_array(jsonb_build_array('BUDGET-20001')),history_settings);exception when others then rejected:=true;end;
+ if not rejected then raise exception 'Small manifests exceeded 4,000 batches';end if;
  history_job:=public.transport_prepare_history_import(repeat('b',64),'history.xlsx',history_manifest,history_settings);history_id:=(history_job->>'id')::uuid;
  perform public.transport_cancel_empty_history_import(history_id);
  history_job:=public.transport_prepare_history_import(repeat('b',64),'history.xlsx',history_manifest,history_settings);history_id:=(history_job->>'id')::uuid;
