@@ -94,6 +94,21 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith(invoiceNo?'transport_post_customer_bill_numbered':'transport_post_customer_bill',expect.objectContaining({p_trip_id:'trip',p_with_tax:false,...(invoiceNo?{p_invoice_no:invoiceNo}:{})})));
   expect(mock.rpc.mock.calls.some(([n])=>/cash_bill_receive|settle|receive_customer_payment|pay_supplier/.test(n))).toBe(false);
  });
+ it.each(['customer','supplier'] as const)('posts %s custom description with the editable invoice number',async side=>{
+  render(side==='customer'?<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>:<TransportBulkSupplierRent onClose={vi.fn()} onChanged={async()=>{}}/>);
+  await screen.findByRole('option',{name:side==='customer'?'Customer A':'Supplier A'});
+  if(side==='supplier'){
+   fireEvent.change(screen.getByLabelText('Supplier'),{target:{value:'supplier-a'}});
+   fireEvent.change(screen.getByLabelText('Expense account'),{target:{value:'expense'}});
+  }
+  const suffix=side==='customer'?'TRP-1':'TRP-1 Supplier A';
+  fireEvent.change(await screen.findByLabelText(`Description ${suffix}`),{target:{value:'  Special delivery instructions  '}});
+  fireEvent.change(screen.getByLabelText(`Invoice number ${suffix}`),{target:{value:'DESC-001'}});
+  fireEvent.click(screen.getByRole('button',{name:'Select Page Unposted'}));
+  fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith(side==='customer'?'transport_post_customer_bill_described':'transport_post_supplier_bill_described',expect.objectContaining({p_invoice_no:'DESC-001',p_description:'Special delivery instructions'})));
+  expect(mock.rpc.mock.calls.some(([n])=>/cash_bill_receive|settle|pay_supplier/.test(n))).toBe(false);
+ });
  it.each(['customer','supplier'] as const)('disables %s actions when server permissions deny them',async side=>{
   mock.allowed=false;
   render(side==='customer'?<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>:<TransportBulkSupplierRent onClose={vi.fn()} onChanged={async()=>{}}/>);

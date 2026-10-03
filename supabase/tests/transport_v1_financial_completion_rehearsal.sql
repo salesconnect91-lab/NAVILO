@@ -49,7 +49,10 @@ begin
  values(c,b,'',current_date,customer,'A','B',200,0,'credit') returning id into trip2;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
  values(c,b,'',current_date,customer,'A','B',100,0,'cash') returning id into cash_trip;
- result:=public.transport_post_customer_bill_numbered(trip,current_date,false,'  CUSTOM-S-'||code||'  ');sales_id:=(result->>'document_id')::uuid;
+ result:=public.transport_post_customer_bill_described(trip,current_date,false,'  CUSTOM-S-'||code||'  ','  Customer delivery instructions  ');sales_id:=(result->>'document_id')::uuid;
+ if not exists(select 1 from public.sales_service_lines where order_id=sales_id and description like 'Customer delivery instructions%' and description like '%Vehicle: FIN-V%') then raise exception 'Customer description or automatic Trip detail missing';end if;
+ rejected:=false;begin perform public.transport_post_customer_bill_described(trip2,current_date,false,null,repeat('X',2001));exception when others then rejected:=true;end;
+ if not rejected or exists(select 1 from public.transport_customer_document_trips where trip_id=trip2) then raise exception 'Overlong description accepted or partial invoice created';end if;
  if (select order_no from public.sales_orders where id=sales_id)<>'CUSTOM-S-'||code then raise exception 'Custom sales number not preserved';end if;
  rejected:=false;begin perform public.transport_post_customer_bill_numbered(trip2,current_date,false,'custom-s-'||code);exception when others then rejected:=true;end;
  if not rejected or exists(select 1 from public.transport_customer_document_trips where trip_id=trip2) then raise exception 'Duplicate sales number accepted or left partial posting';end if;
@@ -75,7 +78,8 @@ begin
  or (select customer_received_gross from public.transport_trip_financial_summary where id=trip2)<>0 then raise exception 'Receipt cross-attribution';end if;
  rent:=public.transport_add_supplier_rent(trip,supplier,300,'Owner rent split');
  rent2:=public.transport_add_supplier_rent(trip,supplier2,100,'Second supplier rent');
- result:=public.transport_post_supplier_bill_numbered(rent,current_date,acct,false,'ORIGINAL-SUPPLIER-REF','CUSTOM-P-'||code);bill:=(result->>'document_id')::uuid;
+ result:=public.transport_post_supplier_bill_described(rent,current_date,acct,false,'ORIGINAL-SUPPLIER-REF','CUSTOM-P-'||code,'Supplier hire instructions');bill:=(result->>'document_id')::uuid;
+ if not exists(select 1 from public.purchase_service_lines where order_id=bill and description like 'Supplier hire instructions%' and description like '%Supplier rent%') then raise exception 'Supplier description or automatic Trip detail missing';end if;
  if not exists(select 1 from public.purchase_orders where id=bill and order_no='CUSTOM-P-'||code and supplier_invoice_no='ORIGINAL-SUPPLIER-REF') then raise exception 'Custom purchase number changed source reference';end if;
  rejected:=false;begin perform public.transport_post_supplier_bill_numbered(rent2,current_date,acct,false,null,'custom-p-'||code);exception when others then rejected:=true;end;
  if not rejected or exists(select 1 from public.transport_supplier_document_rents where rent_id=rent2) then raise exception 'Duplicate purchase number accepted or left partial posting';end if;
