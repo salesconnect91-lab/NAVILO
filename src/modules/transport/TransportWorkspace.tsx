@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportBulkCustomerRate from './TransportBulkCustomerRate';
 import TransportInitialRate from './TransportInitialRate';
+import TransportInvoiceNumber from './TransportInvoiceNumber';
 import TransportCostUpload from './TransportCostUpload';
 import TransportHistoricalImport from './TransportHistoricalImport';
 import TransportAudit from './TransportAudit';
@@ -235,6 +236,7 @@ export default function TransportWorkspace(){
   const [quickPprEmployee,setQuickPprEmployee]=useState("");
   const [quickPprDate,setQuickPprDate]=useState(new Date().toISOString().slice(0,10));
   const [initialRateTrip,setInitialRateTrip]=useState<Trip|null>(null);
+  const [invoiceTrip,setInvoiceTrip]=useState<Trip|null>(null);
   const [editingRateLocks,setEditingRateLocks]=useState({customer:false,supplier:false});
   const [editingTripId,setEditingTripId]=useState<string|null>(null);
   const [editingTripNo,setEditingTripNo]=useState("");
@@ -1330,8 +1332,20 @@ export default function TransportWorkspace(){
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
                   className={`h-[17px] max-h-[17px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-slate-100 px-0.5 !py-0 leading-none ${isSupplierGridKey(key)?"bg-amber-50/40":isCustomerGridKey(key)?"bg-blue-50/40":""} ${numeric?"text-right":""}`}>
-                  {key==='company_rate'&&r.customer_rate_state==='pending'&&!r.customer_rate_locked
-                    ?<button className="h-[14px] rounded border border-blue-200 px-0.5 py-0 text-[8px] leading-none text-blue-700" aria-label={`Add Rate ${r.trip_no}`} onClick={()=>setInitialRateTrip(r)}>Add Rate</button>
+                  {key==='company_rate'
+                    ?<button type="button"
+                      className={`h-[14px] rounded px-0.5 py-0 text-[8px] leading-none ${r.customer_rate_state==='pending'&&!r.customer_rate_locked?'border border-blue-200 text-blue-700':'font-semibold text-blue-700 hover:underline'}`}
+                      aria-label={`${r.customer_rate_state==='pending'?'Add':'Open'} Company Rate ${r.trip_no}`}
+                      onClick={()=>setInitialRateTrip(r)}>
+                      {r.customer_rate_state==='pending'&&!r.customer_rate_locked?'Add Rate':value||'0.00'}
+                    </button>
+                    :key==='invoice_no'
+                      ?<button type="button"
+                        className={`h-[14px] rounded px-0.5 py-0 text-[8px] leading-none ${r.invoice_no?'font-semibold text-blue-700 hover:underline':'border border-blue-200 text-blue-700'}`}
+                        aria-label={`${r.invoice_no?'Open':'Add'} Invoice Number ${r.trip_no}`}
+                        onClick={()=>setInvoiceTrip(r)}>
+                        {r.invoice_no||'Add Invoice'}
+                      </button>
                     :key==='rent_driver'&&r.customer_rate_state!==undefined&&Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)<=0
                       ?<button className="h-[14px] rounded border border-amber-300 bg-amber-50 px-1 py-0 text-[8px] font-semibold leading-none text-amber-800" aria-label={`Add Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>Add Rent</button>
                     :key==='paper_received_by'
@@ -1860,6 +1874,7 @@ export default function TransportWorkspace(){
       </div>
     </div>}
     {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={load}/>}
+    {invoiceTrip&&<TransportInvoiceNumber trip={invoiceTrip} onClose={()=>setInvoiceTrip(null)} onChanged={load}/>}
     {showBulkSupplierRent&&<TransportBulkSupplierRent initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={async()=>{await load(true)}}/>}
       {showBulkCustomerRate&&<TransportBulkCustomerRate onClose={()=>setShowBulkCustomerRate(false)} onChanged={async()=>{await load(true)}}/>}
 
