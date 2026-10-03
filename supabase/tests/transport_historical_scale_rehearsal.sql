@@ -1,4 +1,4 @@
--- Isolated local database only. Synthetic fixtures and requests roll back.
+-- Isolated local database only. Synthetic scale fixtures commit in this disposable rehearsal database; never run on production.
 begin;
 do $$
 declare u uuid:=gen_random_uuid();code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);

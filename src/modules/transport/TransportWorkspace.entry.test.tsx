@@ -97,7 +97,7 @@ describe('New Trip master integration',()=>{
   const row=['2026-06-01','Flatbed','Customer','Driver',owner,'FLAT-1','From','To','PPR PENDING','','1000','300','50',sale];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([headers,row]),'Trips');
   const bytes=XLSX.write(wb,{bookType:'xlsx',type:'array'});const file=new File([bytes],'trip.xlsx');Object.defineProperty(file,'arrayBuffer',{value:async()=>bytes});
-  fireEvent.change(screen.getByLabelText(/Select BuKu Excel/),{target:{files:[file]}});await screen.findByText('trip.xlsx');
+  fireEvent.change(screen.getByLabelText(/Select Transport Excel/),{target:{files:[file]}});await screen.findByText('trip.xlsx');
  }
  it('rejects bulk invalid Cash/Credit and free-text Owner mismatch',async()=>{
   await upload('Other','Fake Owner');expect(screen.getByRole('button',{name:/Import Valid Rows/}).hasAttribute('disabled')).toBe(true);

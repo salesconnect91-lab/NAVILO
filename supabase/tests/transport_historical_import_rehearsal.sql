@@ -2,7 +2,7 @@
 begin;
 do $$
 declare u uuid:=gen_random_uuid();code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
- c uuid;b uuid;loc uuid;customer uuid;supplier uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;
+ c uuid;b uuid;loc uuid;customer uuid;supplier uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;secondary_bank uuid;
  trip uuid;trip2 uuid;sales_id uuid;sales2 uuid;rent uuid;rent2 uuid;bill uuid;bill2 uuid;
  result jsonb;again jsonb;payload jsonb;request_id uuid:=gen_random_uuid();payment_id uuid;receipt_id uuid;
  history_job jsonb;history_manifest jsonb;history_settings jsonb;history_rows jsonb;history_id uuid;f uuid;dest uuid;history_vehicle uuid;bad jsonb;history_status jsonb;employee uuid;path text;vehicle uuid;vehicle2 uuid; count_before bigint;rejected boolean;other_bu uuid;other_loc uuid;other_c uuid;v numeric;
@@ -85,11 +85,12 @@ begin
  or (history_status->'totals'->>'received')::numeric<>1200 or (history_status->'totals'->>'paid')::numeric<>2000
  or (history_status->'totals'->>'customer_remaining')::numeric<>2800 or (history_status->'totals'->>'supplier_remaining')::numeric<>1400 then raise exception 'History control totals incorrect %',history_status;end if;
  execute 'reset role';
+ insert into public.chart_of_accounts(user_id,company_id,code,name,type,detail_type,is_group,is_active) values(u,c,'HIST-BANK','Historical second bank','asset','Bank Account',false,true) returning id into secondary_bank;
  insert into public.tax_rates(user_id,company_id,name,rate,applies_to,is_fixed,is_active,effective_from) values(u,c,'Historical VAT',18,'both',true,true,current_date-3);
  payload:=jsonb_build_object('source_id','OLD-4','trip',jsonb_build_object('trip_date',current_date-2,'customer_id',customer,'vehicle_id',history_vehicle,'from_location_id',f,'to_location_id',dest,'ppr_status','pending','sale_type','credit','customer_rate',100,'supplier_rent',100),
  'customer_posted',true,'supplier_posted',true,'customer_date',current_date-2,'supplier_date',current_date-2,'customer_vat',true,'supplier_vat',true,
  'customer_gross',118,'supplier_gross',118,'received',50,'paid',50,'customer_remaining',68,'supplier_remaining',68,
- 'payments',jsonb_build_array(jsonb_build_object('side','customer','date',current_date-1,'amount',50,'account_id',cash_id,'method','cash','reference','VAT-R'),jsonb_build_object('side','supplier','date',current_date-1,'amount',50,'account_id',cash_id,'method','cash','reference','VAT-P')));
+ 'payments',jsonb_build_array(jsonb_build_object('side','customer','date',current_date-1,'amount',50,'account_id',cash_id,'method','cash','reference','VAT-R'),jsonb_build_object('side','supplier','date',current_date-1,'amount',50,'account_id',secondary_bank,'method','bank','reference','VAT-P')));
  execute 'set local role authenticated';
  bad:=jsonb_set(jsonb_set(payload,'{customer_gross}','117'),'{customer_remaining}','67');
  rejected:=false;begin perform public.transport_import_history_batch(history_id,2,jsonb_build_array(bad));exception when others then rejected:=true;end;
@@ -97,6 +98,9 @@ begin
  bad:=jsonb_set(payload,'{payments,0,date}',to_jsonb((current_date+1)::text));
  rejected:=false;begin perform public.transport_import_history_batch(history_id,2,jsonb_build_array(bad));exception when others then rejected:=true;end;
  if not rejected then raise exception 'History accepted payment beyond cutoff';end if;
+ bad:=jsonb_set(payload,'{payments,1,method}','"cash"');
+ rejected:=false;begin perform public.transport_import_history_batch(history_id,2,jsonb_build_array(bad));exception when others then rejected:=true;end;
+ if not rejected then raise exception 'History accepted mismatched Cash/Bank evidence';end if;
  perform public.transport_import_history_batch(history_id,2,jsonb_build_array(payload));
  history_status:=public.transport_history_import_status();
  if (history_status->>'completed')::integer<>3 or (history_status->'totals'->>'trips')::integer<>4 then raise exception 'Historical VAT batch incomplete';end if;
@@ -106,7 +110,8 @@ begin
  or (select count(*) from public.purchase_orders where company_id=c and status='posted')<>3 then raise exception 'Posted/unposted history invoice count mismatch';end if;
  if (select sum(jl.debit-jl.credit) from public.journal_lines jl join public.journal_entries j on j.id=jl.entry_id where j.company_id=c and j.business_unit_id=b and j.status='posted' and jl.account_id=ar)<>2868 then raise exception 'Canonical historical AR mismatch';end if;
  if (select sum(jl.credit-jl.debit) from public.journal_lines jl join public.journal_entries j on j.id=jl.entry_id where j.company_id=c and j.business_unit_id=b and j.status='posted' and jl.account_id=ap)<>1468 then raise exception 'Canonical historical AP mismatch';end if;
- if (select sum(jl.debit-jl.credit) from public.journal_lines jl join public.journal_entries j on j.id=jl.entry_id where j.company_id=c and j.business_unit_id=b and j.status='posted' and jl.account_id=cash_id)<>-800 then raise exception 'Canonical historical cash mismatch';end if;
+ if (select sum(jl.debit-jl.credit) from public.journal_lines jl join public.journal_entries j on j.id=jl.entry_id where j.company_id=c and j.business_unit_id=b and j.status='posted' and jl.account_id=cash_id)<>-750 then raise exception 'Canonical historical cash mismatch';end if;
+ if (select sum(jl.debit-jl.credit) from public.journal_lines jl join public.journal_entries j on j.id=jl.entry_id where j.company_id=c and j.status='posted' and jl.account_id=secondary_bank)<>-50 then raise exception 'Historical supplier payment did not reach its actual secondary bank';end if;
  if (select sum(amount) from public.invoice_payment_allocations where company_id=c)<>1250 then raise exception 'Receipt retry duplicated allocation';end if;
  if (select sum(amount) from public.purchase_payment_allocations where company_id=c)<>2050 then raise exception 'Identical split supplier payments merged/duplicated';end if;
  if exists(select 1 from public.journal_lines jl join public.journal_entries j on j.id=jl.entry_id where j.company_id=c and j.status='posted' group by j.id having sum(jl.debit)<>sum(jl.credit)) then raise exception 'History journal is unbalanced';end if;
