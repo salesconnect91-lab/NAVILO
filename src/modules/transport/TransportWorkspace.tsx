@@ -1238,8 +1238,8 @@ export default function TransportWorkspace(){
 
                 return <th key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`sticky top-0 h-[17px] border-b border-r border-slate-200 px-0.5 !py-0 font-bold leading-none ${isSupplierGridKey(key)?"bg-amber-50 text-amber-900":isCustomerGridKey(key)?"bg-blue-50 text-blue-900":"bg-slate-50"} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
-                  <div className="flex h-[17px] w-full min-w-0 items-center gap-0.5">
+                  className={`sticky top-0 border-b border-r border-slate-200 px-0.5 !py-0 font-bold leading-none ${isSupplierGridKey(key)?"bg-amber-50 text-amber-900":isCustomerGridKey(key)?"bg-blue-50 text-blue-900":"bg-slate-50"} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
+                  <div className="flex min-h-[28px] w-full min-w-0 items-center gap-0.5">
                     <button type="button"
                       title={`Sort ${label} ${sorted&&sortDirection==="asc"?"descending":"ascending"}`}
                       onClick={()=>{
@@ -1248,7 +1248,10 @@ export default function TransportWorkspace(){
                         setOpenColumnFilter(null);
                       }}
                       className={`flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden rounded px-0.5 py-0 text-left leading-none hover:bg-slate-200 ${sorted?"text-blue-700":""}`}>
-                      <span className="overflow-hidden text-ellipsis">{label}{amountGridKeys.has(key)&&<span className="ml-1 font-extrabold text-slate-950">· {financialNumber(gridTotal(key))}</span>}</span>
+                      <span className="min-w-0 py-0.5 leading-[10px]">
+                        <span className="block max-w-[84px] whitespace-normal">{label}</span>
+                        {amountGridKeys.has(key)&&<span className="block whitespace-nowrap font-extrabold tabular-nums text-slate-950">{financialNumber(gridTotal(key))}</span>}
+                      </span>
                       {sorted&&<span className="shrink-0 text-[7px]" aria-label={sortDirection==="asc"?"Sorted ascending":"Sorted descending"}>{sortDirection==="asc"?"▲":"▼"}</span>}
                     </button>
                     <button type="button"
