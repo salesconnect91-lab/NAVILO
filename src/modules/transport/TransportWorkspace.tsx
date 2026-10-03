@@ -296,6 +296,39 @@ export default function TransportWorkspace(){
       return previous;
     });
   }
+  async function fixBulkOwnership(row:BulkTripRow){
+    if(!entryPermissions.owner)throw new Error('Vehicle ownership permission required.');
+    const masters=await loadTripMasters();
+    const exact=(records:any[],column:string,value:string)=>records.filter(r=>r.is_active!==false&&masterKey(r[column])===masterKey(value));
+    const vehicles=exact(masters.vehicles,'vehicle_no',row.vehicle);
+    const suppliers=exact(masters.suppliers,'name',row.owner_supplier);
+    if(vehicles.length!==1)throw new Error('Vehicle must resolve to one active master before ownership can be fixed.');
+    if(suppliers.length!==1)throw new Error('Owner / Supplier must resolve to one active Supplier before ownership can be fixed.');
+    const vehicle=vehicles[0],supplier=suppliers[0];
+    const existing=ownershipOnDate(masters.ownership,vehicle.id,row.trip_date);
+    if(existing){
+      if(existing.owner_type==='third_party'&&existing.supplier_id===supplier.id){
+        const validated=await validateBulkMasters(bulkRows,true);setBulkRows(validated);return;
+      }
+      throw new Error('A different dated owner already covers this Trip Date. Correct it through Vehicle Ownership History; it will not be overwritten.');
+    }
+    const next=masters.ownership.filter((p:any)=>p.vehicle_id===vehicle.id&&p.effective_from>row.trip_date)
+      .sort((a:any,b:any)=>a.effective_from.localeCompare(b.effective_from))[0];
+    let effectiveTo:string|null=null;
+    if(next){
+      const d=new Date(next.effective_from+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-1);effectiveTo=d.toISOString().slice(0,10);
+      if(effectiveTo<row.trip_date)throw new Error('Ownership history has no safe gap covering this Trip Date.');
+    }
+    const result=await supabase.from('transport_vehicle_ownership').insert({
+      company_id:activeCompany?.company_id,business_unit_id:activeBusinessUnit?.business_unit_id,vehicle_id:vehicle.id,
+      owner_type:'third_party',supplier_id:supplier.id,owner_name_snapshot:supplier.name,
+      effective_from:row.trip_date,effective_to:effectiveTo
+    });
+    if(result.error)throw result.error;
+    window.dispatchEvent(new Event('navilo-master-data-changed'));
+    const validated=await validateBulkMasters(bulkRows,true);setBulkRows(validated);
+  }
+
   async function submitTripRows(payloads:Record<string,unknown>[]){
     const key=JSON.stringify({scopeKey,payloads});
     if(entryRequest.current?.key!==key)entryRequest.current={key,id:crypto.randomUUID()};
@@ -1711,6 +1744,7 @@ export default function TransportWorkspace(){
                         {entryPermissions.master&&row.errors.some(e=>e.startsWith('To is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('locationTo')}}>+ To</button>}
                         {entryPermissions.master&&row.errors.some(e=>e.startsWith('Truck Type is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('truckType')}}>+ Truck Type</button>}
                         {entryPermissions.master&&entryPermissions.owner&&row.errors.some(e=>e.startsWith('Vehicle is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('vehicle')}}>+ Vehicle</button>}
+                        {entryPermissions.owner&&row.errors.some(e=>e==='Vehicle Ownership History must cover Trip Date')&&row.owner_supplier&&<button className="btn" disabled={bulkValidating} onClick={async()=>{setError('');try{await fixBulkOwnership(row)}catch(e:any){setError(e?.message||'Unable to fix dated ownership.')}}}>Fix Ownership</button>}
                         <button className="btn" disabled={bulkValidating} onClick={async()=>{const validated=await validateBulkMasters([row],true);setBulkRows(rows=>rows.map(item=>item.rowNo===row.rowNo?validated[0]:item));}}>Re-validate</button>
                       </div>
                     </div>
