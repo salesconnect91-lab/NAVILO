@@ -24,7 +24,7 @@ beforeEach(()=>{
  transport_vehicle_ownership:[{id:'old',vehicle_id:'v',owner_type:'third_party',supplier_id:'s',owner_name_snapshot:'Supplier',effective_from:'2020-01-01',effective_to:'2026-06-30'},
  {id:'current',vehicle_id:'v',owner_type:'company',supplier_id:null,owner_name_snapshot:'Company',effective_from:'2026-07-01',effective_to:null}]};
 });afterEach(cleanup);
-async function view(){render(<MemoryRouter><TransportWorkspace/></MemoryRouter>);fireEvent.click(screen.getByRole('button',{name:'New Trip'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Add Truck Type'})).toBeTruthy());await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_finance_allowed',{p_action:'driver'}));}
+async function view(){render(<MemoryRouter initialEntries={["/transport?view=new"]}><TransportWorkspace/></MemoryRouter>);await waitFor(()=>expect(screen.getByRole('button',{name:'Add Truck Type'})).toBeTruthy());await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_finance_allowed',{p_action:'driver'}));}
 function choose(placeholder:string,name:string){fireEvent.focus(screen.getByPlaceholderText(placeholder));fireEvent.mouseDown(screen.getByRole('button',{name}));}
 async function fill(){await view();choose('Search Customer','Customer');choose('Search From','From');choose('Search To','To');fireEvent.change(screen.getByLabelText('Sale Type'),{target:{value:'credit'}});}
 describe('New Trip master integration',()=>{
@@ -129,5 +129,24 @@ describe('Transport register server pagination',()=>{
   fireEvent.change(screen.getByLabelText('Search all Trips'),{target:{value:'OFF-PAGE'}});await screen.findByText('OFF-PAGE-TRIP');
   const calls=mock.rpc.mock.calls.filter(c=>c[0]==='transport_register_query');expect(calls[calls.length-1][1]).toMatchObject({p_offset:0,p_filters:{search:'OFF-PAGE'}});
   expect(screen.getByText(/Total Trips/)).toBeTruthy();expect(screen.getByText('1 shown / 1 filtered trips')).toBeTruthy();
+ });
+});
+
+describe('Transport register interactions',()=>{
+ it('toggles header ASC/DESC through the server query while retaining the 500 row page limit',async()=>{
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  const header=await screen.findByTitle('Sort Trip No ascending');fireEvent.click(header);
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({p_limit:500,p_offset:0,p_sort:'trip_no',p_direction:'asc'})));
+  expect(header.closest('th')?.getAttribute('aria-sort')).toBe('ascending');fireEvent.click(header);
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({p_limit:500,p_offset:0,p_sort:'trip_no',p_direction:'desc'})));
+  expect(header.closest('th')?.getAttribute('aria-sort')).toBe('descending');
+ });
+ it('scrolls horizontally on the header but leaves ordinary body wheel uncancelled',async()=>{
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  const header=await screen.findByTitle('Sort Trip No ascending');const table=header.closest('table')!,grid=table.parentElement!;
+  const horizontal=new WheelEvent('wheel',{deltaY:80,bubbles:true,cancelable:true});fireEvent(header,horizontal);
+  expect(horizontal.defaultPrevented).toBe(true);expect(grid.scrollLeft).toBe(80);
+  const vertical=new WheelEvent('wheel',{deltaY:60,bubbles:true,cancelable:true});fireEvent(table.querySelector('tbody')!,vertical);
+  expect(vertical.defaultPrevented).toBe(false);expect(grid.scrollLeft).toBe(80);
  });
 });

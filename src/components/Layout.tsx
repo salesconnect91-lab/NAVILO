@@ -22,7 +22,19 @@ const navigation:NavNode[]=[
   {key:"inventory",label:"Inventory / Stock / اسٹاک",icon:Lucide.Boxes,module:"inventory",children:[{key:"current-stock",to:"/godown",label:"Current Stock / موجودہ اسٹاک",end:true,module:"inventory"},{key:"stock-movements",to:"/godown/movements",label:"Stock Movements / اسٹاک موومنٹس",module:"inventory"},{key:"inventory-advanced",to:"/godown/advanced",label:"Advanced Controls / ایڈوانس کنٹرول",module:"inventory"}]},
   {key:"production",label:"Production / Furnace & Mill",icon:Lucide.Factory,module:"production",steelOnly:true,children:[{key:"work-orders",to:"/production",label:"Work Orders / ورک آرڈرز",end:true,module:"production",steelOnly:true},{key:"manufacturing-core",to:"/production/core",label:"Manufacturing Core / مینوفیکچرنگ",module:"production",steelOnly:true},{key:"furnace-yield",to:"/production/yields",label:"Furnace Yield / فرنس پیداوار",module:"production",steelOnly:true}]},
   {key:"cutting",label:"Cutting & Loading / کٹنگ و لوڈنگ",icon:Lucide.Scissors,module:"production",steelOnly:true,children:[{key:"cutting-orders",to:"/cutting",label:"Cutting Orders / کٹنگ آرڈرز",end:true,module:"production",steelOnly:true},{key:"gate-pass",to:"/cutting/gate-pass",label:"Gate Pass & Weighbridge / گیٹ پاس و وزن کانٹا",module:"production",steelOnly:true}]},
-  {key:"transport",to:"/transport",label:"Transport",icon:Lucide.Truck,module:"transport"},
+  {key:"transport",label:"Transport",icon:Lucide.Truck,module:"transport",businessType:"transport",children:[
+    {key:"transport-trips",to:"/transport?view=trips",label:"Trips",module:"transport"},
+    {key:"transport-new",to:"/transport?view=new",label:"New Trip",module:"transport"},
+    {key:"transport-audit",to:"/transport?view=audit",label:"Trip Audit",module:"transport"},
+    {key:"transport-driver-expenses",to:"/transport?view=driver-expenses",label:"Driver Expense Upload",module:"transport"},
+    {key:"transport-driver-account",to:"/transport?view=driver-account",label:"Driver Account / Hisaab",module:"transport"},
+    {key:"transport-vehicle-account",to:"/transport?view=vehicle-account",label:"Vehicle Account / Gari Hisaab",module:"transport"},
+    {key:"transport-party-reports",label:"Reports & Allocation",module:"transport",children:[
+      {key:"transport-customer-reports",to:"/transport?panel=customer-reports",label:"Customer Reports",module:"transport"},
+      {key:"transport-supplier-reports",to:"/transport?panel=supplier-reports",label:"Supplier Reports",module:"transport"},
+      {key:"transport-allocation",to:"/transport?panel=bulk-allocation",label:"Bulk Allocation",module:"transport"}
+    ]}
+  ]},
   {key:"accounting",label:"Accounting / اکاؤنٹنگ",icon:Lucide.Calculator,module:"accounting",children:[
     {key:"accounting-transactions",label:"Transactions / لین دین",module:"accounting",children:[{key:"journal",to:"/accounting",label:"Journal Entries / جرنل اندراجات",end:true,module:"accounting"},{key:"cash-counter",to:"/accounting/cash-counter",label:"Cash Counter / کیش کاؤنٹر",module:"accounting"},{key:"payment-reversals",to:"/accounting/payment-reversals",label:"Payment Reversals / ادائیگی واپسی",module:"accounting"},{key:"returns",to:"/accounting/returns",label:"Credit / Debit Notes / ریٹرن نوٹس",module:"accounting"}]},
     {key:"accounting-books",label:"Books & Registers / بکس و رجسٹر",module:"accounting",children:[{key:"vat-register",to:"/accounting/vat-register",label:"VAT Register / وی اے ٹی رجسٹر",module:"accounting"},{key:"day-book",to:"/accounting/day-book",label:"Day Book / روزنامچہ",module:"accounting"},{key:"ledgers",to:"/accounting/ledgers",label:"General Ledgers / جنرل لیجر",module:"accounting"},{key:"payroll-ledger",to:"/accounting/payroll",label:"Payroll & Salary Ledger / تنخواہ لیجر",module:"accounting"},{key:"loan-ledger",to:"/accounting/loans",label:"Loan & Lender Ledger / قرض خواہ لیجر",module:"accounting"},{key:"bank-recon",to:"/accounting/bank-reconciliation",label:"Bank Reconciliation / بینک ریکنسیلی ایشن",module:"accounting"}]},
@@ -64,7 +76,15 @@ function shellLabel(label:string):string{
   // this source into the exact selected single/bilingual language set.
   return label.replace(/\s\/\s(?=[\u0600-\u06FF]).*$/u,"").trim();
 }
-function matches(n:NavNode,p:string):boolean{return Boolean(n.to&&(p===n.to||(!n.end&&n.to!=="/"&&p.startsWith(n.to+"/"))))||Boolean(n.children?.some(c=>matches(c,p)))}
+function matches(n:NavNode,path:string):boolean {
+  const [pathname,search='']=path.split('?');
+  let active=false;
+  if(n.to?.startsWith('/transport?')&&pathname==='/transport') {
+    const target=new URLSearchParams(n.to.split('?')[1]),current=new URLSearchParams(search);
+    active=target.has('panel')?current.get('panel')===target.get('panel'):!current.has('panel')&&(current.get('view')??'trips')===target.get('view');
+  } else if(n.to) active=pathname===n.to||(!n.end&&n.to!=='/'&&pathname.startsWith(n.to+'/'));
+  return active||Boolean(n.children?.some(child=>matches(child,path)));
+}
 function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],unitType:string|undefined,permissions:PermissionMatrix|undefined,isFeatureEnabled:(key:string)=>boolean):NavNode|null{
   if(unitType === "transport" && (n.key === "sales-consolidated" || n.key === "purchase-consolidated"))return null;
   if(n.key === "transporters" && unitType === "transport" && mods.includes("transport"))return null;
@@ -81,6 +101,7 @@ function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],
 }
 function flatten(nodes:NavNode[]):NavNode[]{return nodes.flatMap(n=>[n,...(n.children?flatten(n.children):[])])}
 function title(pathname:string){
+  if(pathname==="/transport")return"Transport";
   if(pathname==="/sales/new")return"New Sales Invoice";
   if(/^\/sales\/[^/]+\/edit$/.test(pathname))return"Edit Sales Invoice";
   if(/^\/sales\/[^/]+$/.test(pathname)&&!["/sales/report","/sales/charges","/sales/consolidated","/sales/order-book","/sales/workflow"].includes(pathname))return"Sales Invoice";
@@ -124,10 +145,10 @@ export default function Layout({children}:{children:ReactNode}){
   },[ownerWorkspace,activeCompany?.company_id,activeCompany?.company_name]);
   useEffect(()=>{document.title=branding.show_branding&&branding.erp_name?`${pageTitle} · ${branding.erp_name}`:pageTitle},[pageTitle,branding.show_branding,branding.erp_name]);
   const render=(n:NavNode,d=0):ReactNode=>{
-    const active=matches(n,location.pathname),has=Boolean(n.children?.length),expanded=open[n.key]??active,Icon=n.icon;
+    const active=matches(n,location.pathname+location.search),has=Boolean(n.children?.length),expanded=open[n.key]??active,Icon=n.icon;
     if(has)return <div key={n.key}><button type="button" title={collapsed?shellLabel(n.label):undefined} aria-label={shellLabel(n.label)} aria-expanded={expanded&&(!collapsed||mobileOpen)} onClick={()=>{if(collapsed&&!mobileOpen){setCollapsed(false);setOpen(v=>({...v,[n.key]:true}));}else setOpen(v=>({...v,[n.key]:!expanded}));}} className={`navilo-nav-group flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${d===0?"text-[13px] font-bold":"text-[12.5px] font-semibold"} ${active?"is-active bg-white/[0.10] text-white":"text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"}`}>{Icon&&<Icon className="h-4 w-4 shrink-0"/>}<span className={`min-w-0 flex-1 truncate ${collapsed?"lg:hidden":""}`}>{shellLabel(n.label)}</span><Lucide.ChevronDown className={`h-3.5 w-3.5 shrink-0 ${collapsed?"lg:hidden":""} ${expanded?"rotate-180":""}`}/></button>{expanded&&(!collapsed||mobileOpen)&&<div className={`${d===0?"ml-4":"ml-3"} mt-1 border-l border-white/10 pl-2`}>{n.children?.map(c=>render(c,d+1))}</div>}</div>;
     if(!n.to)return null;
-    return <NavLink key={n.key} to={n.to} end={n.end} title={collapsed?shellLabel(n.label):undefined} aria-label={shellLabel(n.label)} onClick={()=>setMobileOpen(false)} className={({isActive})=>`navilo-nav-link flex min-h-8 items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold transition-colors duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${isActive?"is-active bg-blue-600 text-white shadow-sm shadow-blue-950/20":"text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"}`}>{Icon&&<Icon className="h-4 w-4 shrink-0"/>}<span className={`truncate ${collapsed?"lg:hidden":""}`}>{shellLabel(n.label)}</span></NavLink>;
+    return <NavLink key={n.key} to={n.to} end={n.end} aria-current={n.to.startsWith("/transport?")?(active?"page":false):undefined} title={collapsed?shellLabel(n.label):undefined} aria-label={shellLabel(n.label)} onClick={()=>setMobileOpen(false)} className={({isActive})=>`navilo-nav-link flex min-h-8 items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold transition-colors duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${(n.to?.startsWith("/transport?")?active:isActive)?"is-active bg-blue-600 text-white shadow-sm shadow-blue-950/20":"text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"}`}>{Icon&&<Icon className="h-4 w-4 shrink-0"/>}<span className={`truncate ${collapsed?"lg:hidden":""}`}>{shellLabel(n.label)}</span></NavLink>;
   };
   const side=collapsed?"lg:w-[68px]":"lg:w-[252px]",offset=collapsed?"lg:ml-[68px]":"lg:ml-[252px]";
   return <div className="erp-shell min-h-screen bg-[#f6f7f9] text-slate-900">
@@ -137,7 +158,7 @@ export default function Layout({children}:{children:ReactNode}){
       <nav aria-label="Modules" className="flex-1 overflow-y-auto px-2 py-3"><div className="space-y-1">{visible.map(n=>render(n))}</div></nav>
       <div className="border-t border-white/10 p-2"><div className={`mb-2 rounded-md bg-white/[0.03] px-2 py-2 ${collapsed?"lg:hidden":""}`}><div className="text-[11px] uppercase text-slate-600">Active Company</div><div className="truncate text-[12px] font-bold text-slate-300">{location.pathname.startsWith("/owner")?"Owner Workspace":activeCompany?.company_name??"No company"}</div><div className="text-[11px] text-slate-500">{user?.email??"Signed in"} · {isPlatformOwner?"Platform Owner":roleLabel(role)}</div></div><button type="button" aria-label="Sign out" onClick={async()=>{await signOut();navigate("/login")}} className="flex h-9 w-full items-center justify-center gap-2 rounded-md text-[12px] text-slate-300 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"><Lucide.LogOut className="h-4 w-4"/><span className={collapsed?"lg:hidden":""}>Sign out</span></button></div>
     </aside>
-    <div className={`min-h-screen transition-all ${offset}`}>
+    <div className={`min-h-screen transition-all ${offset} ${location.pathname.startsWith("/transport")?"relative z-0":""}`}>
       <header className="navilo-topbar sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="flex min-h-16 items-center gap-3 px-4 py-2 lg:px-5"><button ref={mobileMenuButton} type="button" aria-label="Open navigation" aria-controls="navilo-sidebar" aria-expanded={mobileOpen} onClick={()=>setMobileOpen(true)} className="rounded-md p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 lg:hidden"><Lucide.Menu/></button><button type="button" aria-label={collapsed?"Expand navigation":"Collapse navigation"} aria-controls="navilo-sidebar" aria-expanded={!collapsed} onClick={()=>setCollapsed(v=>!v)} className="hidden h-9 w-9 items-center justify-center rounded-md border focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 lg:flex"><Lucide.PanelLeftClose className={`h-4 w-4 ${collapsed?"rotate-180":""}`}/></button>{location.pathname!=="/"&&<button onClick={()=>navigate(-1)} className="hidden h-9 items-center gap-1 rounded-md border border-blue-300 bg-blue-50 px-3 text-[13px] font-black text-blue-800 sm:inline-flex"><Lucide.ArrowLeft className="h-4 w-4"/>Back</button>}<div className="min-w-0 flex-1"><div className="truncate text-[16px] font-black text-slate-950">{pageTitle}</div></div><UniversalDataTools/><div className="hidden text-right lg:block"><div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{location.pathname.startsWith("/owner")?"Platform Workspace":"Active Company"}</div><div className="max-w-[220px] truncate text-[12px] font-black text-slate-800">{location.pathname.startsWith("/owner")?(branding.show_branding&&branding.erp_name?`${branding.erp_name} Platform`:"Owner Platform"):activeCompany?.company_name??"No company selected"}</div></div></div></header>
       <main id="navilo-main-content" data-neus-route={location.pathname} style={location.pathname.startsWith("/transport")?{width:"100%",maxWidth:"none",marginInline:0}:undefined} className={location.pathname.startsWith("/transport")?"px-1 py-2":"px-3 py-4 sm:px-4 lg:px-5"}><NeusRouteSurface/>{children}</main>
     </div>

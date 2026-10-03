@@ -13,10 +13,10 @@ import {exportPartyReport,type ReportTable} from './transportPartyExport';
 import TransportAdvanceOperations from './TransportAdvanceOperations';
 import TransportPartySettlement from './TransportPartySettlement';
 type Mode='trip-statement'|'trip-ledger'|'trips'|'outstanding'|'statement'|'allocations'|'canonical'|'reconciliation';
-export default function TransportPartyReports({onClose,onChanged}:{onClose:()=>void;onChanged:()=>Promise<void>}){
+export default function TransportPartyReports({onClose,onChanged,initialSide='customer',allocationEntry=false}:{onClose:()=>void;onChanged:()=>Promise<void>;initialSide?:PartySide;allocationEntry?:boolean}){
  const outputAllowed=useTransportOutputPermissions();
  const {activeCompany,activeBusinessUnit}=useAuth();const company=activeCompany?.company_id;const unit=activeBusinessUnit?.business_unit_id;
- const [side,setSide]=useState<PartySide>('customer');const [party,setParty]=useState('');const [mode,setMode]=useState<Mode>('outstanding');
+ const [side,setSide]=useState<PartySide>(initialSide);const [party,setParty]=useState('');const [mode,setMode]=useState<Mode>(allocationEntry?'allocations':'outstanding');
  const [tripDetails,setTripDetails]=useState<any[]>([]);const [documents,setDocuments]=useState<PartyDocument[]>([]);const [movements,setMovements]=useState<PartyMovement[]>([]);
  const [canonical,setCanonical]=useState<PartyMovement[]>([]);const [accounts,setAccounts]=useState<Array<{id:string;name:string;detail_type:string}>>([]);
  const [canLedger,setCanLedger]=useState(false);const [from,setFrom]=useState('');const [to,setTo]=useState(new Date().toISOString().slice(0,10));
@@ -79,7 +79,7 @@ export default function TransportPartyReports({onClose,onChanged}:{onClose:()=>v
  const canExport=!loading&&!error&&!dateError&&!needsParty&&!(mode==='canonical'&&!canLedger);
  async function exportAs(format:'xlsx'|'pdf'|'print'){if(!(format==='print'?outputAllowed.print:outputAllowed.export))return;try{await exportPartyReport(report,format)}catch(e){setError(e instanceof Error?e.message:'Export failed')}}
  return <section className="rounded-lg border bg-white p-3 text-xs" aria-label="Transport party reports">
- <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">Customer / Supplier Reports and Allocation</h2><div className="flex gap-2"><button className="btn" disabled={busy||loading} onClick={()=>void load()}>Refresh reports</button><button className="btn" disabled={busy} onClick={onClose}>Close reports</button></div></div>
+ <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">{allocationEntry?"Bulk Allocation":`${side==='supplier'?'Supplier':'Customer'} Reports`}</h2><div className="flex gap-2"><button className="btn" disabled={busy||loading} onClick={()=>void load()}>Refresh reports</button><button className="btn" disabled={busy} onClick={onClose}>Close reports</button></div></div>
  <p className="my-2">Scope: current Company / Business Unit / active branch. Amounts are in company base currency. Outstanding uses the As of date; From applies to statements and allocation movements. Historical allocations deleted by reversals before this update cannot be reconstructed automatically.</p>
  <fieldset disabled={busy} className="flex flex-wrap items-end gap-2"><label>Party side<select aria-label="Party side" className="input" value={side} onChange={e=>{setSide(e.target.value as PartySide);setParty('');setSettlement(false)}}><option value="customer">Customer</option><option value="supplier">Supplier / Owner</option></select></label>
  <label>Party<select aria-label="Party" className="input" value={party} onChange={e=>{setParty(e.target.value);setSettlement(false)}}><option value="">All parties</option>{parties.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>

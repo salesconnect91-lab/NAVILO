@@ -22,7 +22,7 @@ do $$
 declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;
  code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
  customer uuid;supplier uuid;tt uuid;tt2 uuid;from_id uuid;to_id uuid;v uuid;company_v uuid;d uuid;company_d uuid;employee uuid;
- ownership uuid;rate uuid;result jsonb;payload jsonb;supplier_payload jsonb;trip uuid;trip2 uuid;request_id uuid:=gen_random_uuid();number text;
+ ownership uuid;rate uuid;result jsonb;payload jsonb;supplier_payload jsonb;trip uuid;trip2 uuid;request_id uuid:=gen_random_uuid();number text;deleted_number text;
  other_bu uuid;foreign_v uuid;other_c uuid;other_customer uuid;before_count bigint;canonical public.customers;canonical_supplier public.suppliers;
 data jsonb;bank_account uuid;fixed_account uuid;rent uuid;second_rent uuid;bill uuid;customer_trip uuid;
 begin
@@ -102,6 +102,40 @@ begin
  jsonb_build_object('trip_date',current_date-1,'customer_id',customer,'vehicle_id',company_v,'truck_type_id',tt,
  'from_location_id',from_id,'to_location_id',to_id,'sale_type','cash','ppr_status','pending','customer_rate',1000,'po_do_job_no','TEST-2'));
  result:=public.transport_create_trips(request_id,c,b,payload);trip:=(result->0->>'id')::uuid;customer_trip:=(result->1->>'id')::uuid;
+ select trip_no into number from public.transport_trips where id=trip;
+ data:=public.transport_trip_audit_report(lower(number),1,0);
+ if (data->>'count')::integer < 1 or jsonb_array_length(data->'rows')<>1 or data->'rows'->0->>'actor_name' is null then raise exception 'Exact Trip audit missing actor/evidence';end if;
+ if exists(select 1 from jsonb_array_elements(data->'rows') a where a->>'trip_no'<>number) then raise exception 'Audit mixed another Trip';end if;
+ data:=public.transport_trip_audit_report(number||'-NOT-A-TRIP');
+ if (data->>'count')::integer is distinct from 0 then raise exception 'Audit used substring matching';end if;
+ begin
+ execute 'reset role';
+ insert into public.transport_trips(company_id,business_unit_id,trip_date,customer_id,from_location_id,to_location_id,po_do_job_no,customer_rate,sale_type,ppr_status)
+ select c,b,current_date,customer,from_id,to_id,'SORT-ONLY',i,'credit','pending' from generate_series(1,501) i;
+ execute 'set local role authenticated';
+ data:=public.transport_register_query(500,0,jsonb_build_object('search','SORT-ONLY'),'company_rate','desc');
+ if (data->>'count')::integer is distinct from 501 or jsonb_array_length(data->'rows')<>500 or (data->'rows'->0->>'customer_rate')::numeric is distinct from 501 then raise exception 'Global descending sort before LIMIT failed';end if;
+ data:=public.transport_register_query(500,500,jsonb_build_object('search','SORT-ONLY'),'company_rate','desc');
+ if (data->'rows'->0->>'customer_rate')::numeric is distinct from 1 or (data->'totals'->>'company_rate')::numeric is distinct from 125751 then raise exception 'Descending second page / full totals failed';end if;
+ data:=public.transport_register_query(500,500,jsonb_build_object('search','SORT-ONLY'),'company_rate','asc');
+ if (data->'rows'->0->>'customer_rate')::numeric is distinct from 501 then raise exception 'Ascending second page failed';end if;
+ raise exception using errcode='PT501',message='Rollback only synthetic sort fixtures';
+ exception when sqlstate 'PT501' then null;
+ end;
+ -- Trusted synthetic retained history and exact-number cross-workspace isolation.
+ data:=public.transport_trip_audit_report(number);before_count:=(data->>'count')::bigint;
+ execute 'reset role';
+ insert into public.transport_trip_audit(company_id,business_unit_id,trip_no,event_type,new_data,changed_by)
+ values(c,other_bu,number,'update','{"reason":"FOREIGN-BU"}',u),
+ (other_c,(select id from public.business_units where company_id=other_c and is_default),number,'update','{"reason":"FOREIGN-COMPANY"}',u);
+ deleted_number:=number||'-DELETED';
+ insert into public.transport_trip_audit(company_id,business_unit_id,trip_no,event_type,old_data,changed_by)
+ values(c,b,deleted_number,'delete',jsonb_build_object('trip_no',deleted_number,'customer_rate',125),u);
+ execute 'set local role authenticated';
+ data:=public.transport_trip_audit_report(number);
+ if (data->>'count')::bigint is distinct from before_count then raise exception 'Audit crossed Company/Business Unit boundary';end if;
+ data:=public.transport_trip_audit_report(deleted_number);
+ if not (data->>'deleted')::boolean or (data->>'count')::integer<>1 or data->'snapshot'->>'customer_rate'<>'125' then raise exception 'Retained deleted Trip evidence missing';end if;
  data:=public.transport_audit_page(1,0,'TEST');
  data:=public.transport_register_query(1,0);
  if (data->>'count')::int<>2 or jsonb_array_length(data->'rows')<>1 or (data->'totals'->>'company_rate')::numeric<>2000 then raise exception 'Page/all totals mismatch: %',data;end if;
@@ -204,10 +238,12 @@ begin
  perform pg_temp.entry_rejected('select public.transport_prepare_trip_import(repeat(''a'',64),''denied'',''[[2]]'')','permission');
  execute 'reset role';
  perform set_config('request.jwt.claim.sub','',true);
+ perform pg_temp.entry_rejected('select public.transport_trip_audit_report(''ANY'')','permission');
  perform pg_temp.entry_rejected('select public.transport_register_query()','permission');
  perform pg_temp.entry_rejected('select public.transport_account_report_page(''vehicle'')','permission');
  perform pg_temp.entry_rejected('select public.transport_contribution_summary(null,current_date)','permission');
  execute 'set local role anon';
+ perform pg_temp.entry_rejected('select public.transport_trip_audit_report(''ANY'')','permission denied');
  perform pg_temp.entry_rejected('select public.transport_register_query()','permission denied');
  perform pg_temp.entry_rejected('select public.transport_account_report_page(''vehicle'')','permission denied');
  perform pg_temp.entry_rejected('select public.transport_party_report_page(''documents'')','permission denied');
