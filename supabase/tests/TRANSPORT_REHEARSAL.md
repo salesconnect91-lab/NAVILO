@@ -59,3 +59,19 @@ This is PostgreSQL in WASM, not a full local Supabase stack. It does not verify
 concurrent backend sessions, Storage HTTP, Auth HTTP or PostgREST. The SQL
 fixtures never run on production. Browser acceptance is read-only against the
 signed-in production workspace; financial posting tests use isolated fixtures.
+
+## Editable Transport invoice numbers
+
+Sales and Purchase Transport service editors offer an optional invoice number
+under each Trip. Each customer Trip and supplier rent remains an individual
+canonical invoice. Blank uses automatic numbering. The entered number is
+trimmed and saved before posting; case-insensitive duplicates in the active
+company are rejected. Posted numbers stay immutable. Supplier original invoice
+references remain separate. Cash Bill retries bind the chosen number to their
+immutable request payload. The SQL rehearsals cover custom numbers, duplicate
+rollback, page readers, private helper grants and Cash Bill idempotency.
+
+For the in-memory scale rehearsal, run with explicit garbage collection:
+`NAVILO_HISTORY_SCALE=20000 node --expose-gc supabase/tests/replay_transport_isolated.mjs`.
+The runner checkpoints after each 100 trips, logs RSS, and releases eligible
+JavaScript buffers. This remains one dataset with 800 canonical atomic batches.

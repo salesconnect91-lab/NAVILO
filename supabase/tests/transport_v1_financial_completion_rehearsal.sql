@@ -49,11 +49,20 @@ begin
  values(c,b,'',current_date,customer,'A','B',200,0,'credit') returning id into trip2;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
  values(c,b,'',current_date,customer,'A','B',100,0,'cash') returning id into cash_trip;
- result:=public.transport_post_customer_bill(trip,current_date,false);sales_id:=(result->>'document_id')::uuid;
+ result:=public.transport_post_customer_bill_numbered(trip,current_date,false,'  CUSTOM-S-'||code||'  ');sales_id:=(result->>'document_id')::uuid;
+ if (select order_no from public.sales_orders where id=sales_id)<>'CUSTOM-S-'||code then raise exception 'Custom sales number not preserved';end if;
+ rejected:=false;begin perform public.transport_post_customer_bill_numbered(trip2,current_date,false,'custom-s-'||code);exception when others then rejected:=true;end;
+ if not rejected or exists(select 1 from public.transport_customer_document_trips where trip_id=trip2) then raise exception 'Duplicate sales number accepted or left partial posting';end if;
+ rejected:=false;begin perform public.transport_post_customer_bill_numbered(trip2,current_date,false,repeat('X',81));exception when others then rejected:=true;end;
+ if not rejected then raise exception 'Overlong invoice number accepted';end if;
+
  result:=public.transport_post_customer_bill(trip2,current_date,false);sales2:=(result->>'document_id')::uuid;
  result:=public.transport_post_customer_bill(cash_trip,current_date,false);cashbill:=(result->>'document_id')::uuid;
  if not exists(select 1 from public.transport_customer_documents where sales_order_id=cashbill and document_kind='cash_hand_bill') then raise exception 'Cash bill subtype missing';end if;
  if exists(select 1 from public.stock_movements where source_id in(sales_id,sales2,cashbill)) then raise exception 'Service created inventory movement';end if;
+ if not exists(select 1 from jsonb_array_elements(public.transport_bulk_rate_page('customer',500,0,'{}')->'rows') x where x->>'id'=trip::text and x->>'invoice_no'='CUSTOM-S-'||code) then raise exception 'Customer page missing custom invoice number';end if;
+ rejected:=false;begin update public.sales_orders set order_no='RENUMBERED' where id=sales_id;exception when others then rejected:=true;end;
+ if not rejected then raise exception 'Posted invoice number mutable';end if;
  select to_jsonb(s) into original from public.sales_orders s where id=sales_id;
  select to_jsonb(original_entry) into original_journal from public.journal_entries original_entry join public.transport_customer_documents d on d.journal_entry_id=original_entry.id where d.sales_order_id=sales_id;
  select jsonb_agg(to_jsonb(l) order by l.id) into original_lines from public.journal_lines l join public.transport_customer_documents d on d.journal_entry_id=l.entry_id where d.sales_order_id=sales_id;
@@ -66,8 +75,14 @@ begin
  or (select customer_received_gross from public.transport_trip_financial_summary where id=trip2)<>0 then raise exception 'Receipt cross-attribution';end if;
  rent:=public.transport_add_supplier_rent(trip,supplier,300,'Owner rent split');
  rent2:=public.transport_add_supplier_rent(trip,supplier2,100,'Second supplier rent');
- result:=public.transport_post_supplier_bill(rent,current_date,acct,false);bill:=(result->>'document_id')::uuid;
+ result:=public.transport_post_supplier_bill_numbered(rent,current_date,acct,false,'ORIGINAL-SUPPLIER-REF','CUSTOM-P-'||code);bill:=(result->>'document_id')::uuid;
+ if not exists(select 1 from public.purchase_orders where id=bill and order_no='CUSTOM-P-'||code and supplier_invoice_no='ORIGINAL-SUPPLIER-REF') then raise exception 'Custom purchase number changed source reference';end if;
+ rejected:=false;begin perform public.transport_post_supplier_bill_numbered(rent2,current_date,acct,false,null,'custom-p-'||code);exception when others then rejected:=true;end;
+ if not rejected or exists(select 1 from public.transport_supplier_document_rents where rent_id=rent2) then raise exception 'Duplicate purchase number accepted or left partial posting';end if;
+
  result:=public.transport_post_supplier_bill(rent2,current_date,acct,false);bill2:=(result->>'document_id')::uuid;
+ if not exists(select 1 from jsonb_array_elements(public.transport_bulk_rate_page('supplier',500,0,'{}')->'rows') x where x->'rent'->>'id'=rent::text and x->>'invoice_no'='CUSTOM-P-'||code) then raise exception 'Supplier page missing custom invoice number';end if;
+ if has_function_privilege('anon','public.transport_post_customer_bill_numbered(uuid,date,boolean,text)','execute') or has_function_privilege('authenticated','public.transport_create_numbered_service_document(text,uuid,date,numeric,boolean,uuid,text,text,text)','execute') then raise exception 'Numbering helper privileges too broad';end if;
  result:=public.transport_settle_documents('supplier',supplier,current_date,cash_id,'cash',jsonb_build_array(jsonb_build_object('document_id',bill,'amount',100)));
  if (select supplier_outstanding_gross from public.transport_trip_financial_summary where id=trip)<>300 then raise exception 'Multi-supplier partial attribution';end if;
  rejected:=false;begin update public.transport_trips set customer_rate=1100 where id=trip;exception when others then rejected:=true;end;

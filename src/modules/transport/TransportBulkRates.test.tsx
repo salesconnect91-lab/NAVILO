@@ -3,6 +3,7 @@ import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import TransportBulkCustomerRate from './TransportBulkCustomerRate';
 import TransportBulkSupplierRent from './TransportBulkSupplierRent';
+import {invoiceNumberError} from './transportInvoiceNumbers';
 import {bulkLines,loadBulkTrips,validBulkMoney,type BulkTrip} from './transportBulkRates';
 
 const mock=vi.hoisted(()=>({rpc:vi.fn(),trips:[] as any[],tables:{} as Record<string,any[]>,allowed:true,failCash:false,failCorrection:false}));
@@ -30,7 +31,7 @@ beforeEach(()=>{
   }
   if(name==='transport_financial_register_page')return {data:mock.trips.slice(args.p_offset,args.p_offset+args.p_limit),error:null};
   if(['transport_finance_allowed','has_transport_action_permission'].includes(name))return {data:mock.allowed,error:null};
-  return {data:{success:true},error:(name==='transport_post_cash_bill_receive'&&mock.failCash)||(name==='transport_adjust_rate'&&mock.failCorrection)?{message:'Network interrupted'}:null};
+  return {data:{success:true},error:(['transport_post_cash_bill_receive','transport_post_cash_bill_receive_numbered'].includes(name)&&mock.failCash)||(name==='transport_adjust_rate'&&mock.failCorrection)?{message:'Network interrupted'}:null};
  });
 });
 afterEach(cleanup);
@@ -83,13 +84,15 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   render(<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByRole('option',{name:'Cash'});
   fireEvent.change(screen.getByLabelText('Cash / Bank'),{target:{value:'cash'}});
+  fireEvent.change(screen.getByLabelText('Invoice number TRP-1'),{target:{value:'MY-CASH-1'}});
   fireEvent.click(screen.getByRole('button',{name:'Select Page Unposted'}));
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
   await screen.findByRole('alert');mock.failCash=false;
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
-  await waitFor(()=>expect(mock.rpc.mock.calls.filter(([n])=>n==='transport_post_cash_bill_receive')).toHaveLength(2));
-  const calls=mock.rpc.mock.calls.filter(([n])=>n==='transport_post_cash_bill_receive');
+  await waitFor(()=>expect(mock.rpc.mock.calls.filter(([n])=>n==='transport_post_cash_bill_receive_numbered')).toHaveLength(2));
+  const calls=mock.rpc.mock.calls.filter(([n])=>n==='transport_post_cash_bill_receive_numbered');
   expect(calls[0][1].p_request_id).toBe(calls[1][1].p_request_id);
+  expect(calls[1][1].p_invoice_no).toBe('MY-CASH-1');
   expect(mock.rpc.mock.calls.some(([n])=>n==='transport_post_customer_bill')).toBe(false);
  });
  it.each(['customer','supplier'] as const)('disables %s actions when server permissions deny them',async side=>{
@@ -112,6 +115,28 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   await screen.findByRole('button',{name:'Correct Rate'});fireEvent.click(screen.getByRole('button',{name:'Correct Rate'}));
   fireEvent.change(screen.getByLabelText('New Rate'),{target:{value:'110'}});fireEvent.change(screen.getByLabelText('Correction Reason'),{target:{value:'Reason'}});
   fireEvent.click(screen.getByRole('button',{name:'Save Correction'}));await screen.findByRole('alert');expect(screen.getByLabelText('New Rate')).toBeTruthy();
+ });
+ it.each(['customer','supplier'] as const)('posts the chosen %s invoice number through canonical numbered posting',async side=>{
+  render(side==='customer'?<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>:<TransportBulkSupplierRent onClose={vi.fn()} onChanged={async()=>{}}/>);
+  await screen.findByRole('option',{name:side==='customer'?'Customer A':'Supplier A'});
+  const label=side==='customer'?'Invoice number TRP-1':'Invoice number TRP-1 Supplier A';
+  fireEvent.change(screen.getByLabelText(label),{target:{value:'  MY-INV-2026  '}});
+  if(side==='supplier')fireEvent.change(screen.getByLabelText('Expense account'),{target:{value:'expense'}});
+  fireEvent.click(screen.getByLabelText(side==='customer'?'Select TRP-1':'Select TRP-1 Supplier A'));
+  fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith(side==='customer'?'transport_post_customer_bill_numbered':'transport_post_supplier_bill_numbered',expect.objectContaining({p_invoice_no:'MY-INV-2026'})));
+ });
+ it('locks invoice numbering on posted trips',async()=>{
+  mock.trips=[{...trip,customer_rate_locked:true,invoice_no:'S-OLD'}];
+  render(<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>);
+  await screen.findByRole('button',{name:'Correct Rate'});
+  expect((screen.getByLabelText('Invoice number TRP-1') as HTMLInputElement).disabled).toBe(true);
+  expect((screen.getByLabelText('Invoice number TRP-1') as HTMLInputElement).value).toBe('S-OLD');
+ });
+ it('rejects duplicate batch invoice numbers before posting any row',()=>{
+  expect(invoiceNumberError([' A-1 ','a-1'])).toContain('Duplicate');
+  expect(invoiceNumberError(['','  ','A-1','A-2'])).toBeNull();
+  expect(invoiceNumberError(['BAD-AUTO'])).toContain('reserved');
  });
  it('rejects blank, nonfinite, negative and fractional-cent rates',()=>{
   for(const value of ['','-1','Infinity','NaN','1.001'])expect(validBulkMoney(value)).toBe(false);
