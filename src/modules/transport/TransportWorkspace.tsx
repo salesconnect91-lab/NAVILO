@@ -74,7 +74,7 @@ const BULK_TRIP_HEADERS=[
   "Notes", "Sale Type", "Driver Pay", "PPR Employee", "PPR Date"
 ] as const;
 
-const BUKU_TRIP_HEADERS=[
+const TRANSPORT_TRIP_HEADERS=[
   "DATE",
   "TRUCK TYPE",
   "PO/DO/JOB NO.",
@@ -520,11 +520,11 @@ export default function TransportWorkspace(){
     ];
 
     const ws=XLSX.utils.aoa_to_sheet([
-      [...BUKU_TRIP_HEADERS],
+      [...TRANSPORT_TRIP_HEADERS],
       example
     ]);
 
-    ws["!cols"]=BUKU_TRIP_HEADERS.map((header)=>({
+    ws["!cols"]=TRANSPORT_TRIP_HEADERS.map((header)=>({
       wch:Math.min(28,Math.max(12,String(header).length+3))
     }));
 
@@ -541,7 +541,7 @@ export default function TransportWorkspace(){
     XLSX.utils.book_append_sheet(wb,owners,"owners");
     XLSX.utils.book_append_sheet(wb,places,"places");
 
-    XLSX.writeFile(wb,"BuKu_Trip_Excel_Upload_template-NAVILO.xlsx");
+    XLSX.writeFile(wb,"Transport_Trip_Excel_Upload_template-NAVILO.xlsx");
   };
 
   const validateBulkRow=(row:BulkTripRow)=>{
@@ -645,7 +645,7 @@ export default function TransportWorkspace(){
   const downloadRejected=()=>{
     const rejected=bulkRows.filter(r=>r.errors.length);
     const workbook=XLSX.utils.book_new();const sheet=XLSX.utils.aoa_to_sheet([
-      [...BUKU_TRIP_HEADERS,'Source Row','Validation Errors'],
+      [...TRANSPORT_TRIP_HEADERS,'Source Row','Validation Errors'],
       ...rejected.map(r=>[r.trip_date,r.truck_type,r.po_do_job_no,'',r.customer,r.driver,r.owner_supplier,r.vehicle,r.from_location,r.to_location,
         r.ppr_status==='received'?r.ppr_employee:r.ppr_status==='not_required'?'N/A':'PPR PENDING',r.ppr_date,'',r.supplier_rent,'','','',r.customer_rate,'','','','',r.source_invoice_no,r.sale_type,r.driver_pay,r.rowNo,r.errors.join('; ')])
     ]);
@@ -1242,7 +1242,7 @@ export default function TransportWorkspace(){
   <span title={`Trip status: ${r.status??"Unknown"}`} aria-label={`Trip status ${r.status??"Unknown"}`} className="ml-0.5 inline-flex h-3 w-3 items-center justify-center align-middle text-[9px] font-bold leading-none text-slate-500">{["complete","completed","closed"].includes(String(r.status??"").toLowerCase())?"✓":["cancelled","canceled"].includes(String(r.status??"").toLowerCase())?"×":["draft"].includes(String(r.status??"").toLowerCase())?"○":"◐"}</span>
 </td>
 
-              {/* BuKu operational register order - one canonical mapping for display/filter/sort */}
+              {/* Transport operational register order - one canonical mapping for display/filter/sort */}
               {orderedGridColumns.slice(1).map(([key])=>{
                 const value=tripCellValue(r,key);
                 const numeric=["rent_driver","supplier_paid","supplier_balance","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
@@ -1494,6 +1494,7 @@ export default function TransportWorkspace(){
   <div className="space-y-3 p-4">
 
     {quickAdd&&bulkFixRowNo!==null&&<TransportQuickAdd key={`${scopeKey}/bulk/${bulkFixRowNo}/${quickAdd}`} kind={quickAdd} truckTypeId="" supplierId=""
+      initialName={(()=>{const row=bulkRows.find(r=>r.rowNo===bulkFixRowNo);if(!row)return "";if(quickAdd==="customer")return row.customer;if(quickAdd==="driver")return row.driver;if(quickAdd==="locationFrom")return row.from_location;if(quickAdd==="locationTo")return row.to_location;if(quickAdd==="truckType")return row.truck_type;if(quickAdd==="vehicle")return row.vehicle;if(quickAdd==="supplier")return row.owner_supplier;return "";})()}
       truckTypes={tripMasters.truckTypes} suppliers={tripMasters.suppliers} onCreated={quickMasterCreated} onClose={()=>{setQuickAdd(null);setBulkFixRowNo(null)}}/>}
     <p className="text-xs">Daily operational upload: creates Trips and agreed charges only. Historical receipts and paid rent require the separate One-time Historical Import.</p>
 
@@ -1512,7 +1513,7 @@ export default function TransportWorkspace(){
 
         <Upload className="h-4 w-4"/>
 
-        Select BuKu Excel / CSV
+        Select Transport Excel / CSV
 
         <input
           type="file"
@@ -1575,7 +1576,7 @@ export default function TransportWorkspace(){
         </div>
 
         <div className="mt-1 text-xs text-slate-500">
-          Download the BuKu-format template, complete the Trips rows, then upload XLSM, XLSX, XLS or CSV for validation.
+          Download the Transport-format template, complete the Trips rows, then upload XLSM, XLSX, XLS or CSV for validation.
         </div>
 
         <div className="mt-2 text-[11px] font-medium text-slate-500">
