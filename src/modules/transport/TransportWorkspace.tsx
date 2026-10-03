@@ -1075,7 +1075,7 @@ export default function TransportWorkspace(){
     if(tripsGridRef.current)tripsGridRef.current.scrollLeft=0;
   };
 
-  return <div className="mx-auto w-full max-w-[1800px] space-y-1 p-1.5">
+  return <div className="w-full max-w-none space-y-1 p-1">
 
 
     <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
