@@ -329,6 +329,26 @@ export default function TransportWorkspace(){
     const validated=await validateBulkMasters(bulkRows,true);setBulkRows(validated);
   }
 
+  async function fixBulkTruckType(row:BulkTripRow){
+    if(!entryPermissions.master)throw new Error('Master permission required.');
+    const masters=await loadTripMasters();
+    const vehicles=masters.vehicles.filter((r:any)=>r.is_active!==false&&masterKey(r.vehicle_no)===masterKey(row.vehicle));
+    const truckTypes=masters.truckTypes.filter((r:any)=>r.is_active!==false&&masterKey(r.name)===masterKey(row.truck_type));
+    if(vehicles.length!==1)throw new Error('Vehicle must resolve to one active master before Truck Type can be fixed.');
+    if(truckTypes.length!==1)throw new Error('Truck Type must resolve to one active master before it can be assigned.');
+    const vehicle=vehicles[0],truckType=truckTypes[0];
+    if(vehicle.truck_type_id===truckType.id){
+      const validated=await validateBulkMasters(bulkRows,true);setBulkRows(validated);return;
+    }
+    const current=masters.truckTypes.find((r:any)=>r.id===vehicle.truck_type_id);
+    const currentLabel=current?.name??'Unassigned';
+    if(!window.confirm(`Change Vehicle ${vehicle.vehicle_no} Truck Type from "${currentLabel}" to "${truckType.name}"? This updates the Vehicle Master.`))return;
+    const result=await supabase.from('transport_vehicles').update({truck_type_id:truckType.id}).eq('id',vehicle.id).select('id').single();
+    if(result.error)throw result.error;
+    window.dispatchEvent(new Event('navilo-master-data-changed'));
+    const validated=await validateBulkMasters(bulkRows,true);setBulkRows(validated);
+  }
+
   async function submitTripRows(payloads:Record<string,unknown>[]){
     const key=JSON.stringify({scopeKey,payloads});
     if(entryRequest.current?.key!==key)entryRequest.current={key,id:crypto.randomUUID()};
@@ -1745,6 +1765,7 @@ export default function TransportWorkspace(){
                         {entryPermissions.master&&row.errors.some(e=>e.startsWith('Truck Type is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('truckType')}}>+ Truck Type</button>}
                         {entryPermissions.master&&entryPermissions.owner&&row.errors.some(e=>e.startsWith('Vehicle is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('vehicle')}}>+ Vehicle</button>}
                         {entryPermissions.owner&&row.errors.some(e=>e==='Vehicle Ownership History must cover Trip Date')&&row.owner_supplier&&<button className="btn" disabled={bulkValidating} onClick={async()=>{setError('');try{await fixBulkOwnership(row)}catch(e:any){setError(e?.message||'Unable to fix dated ownership.')}}}>Fix Ownership</button>}
+                        {entryPermissions.master&&row.errors.some(e=>e==='Vehicle does not match Truck Type')&&<button className="btn" disabled={bulkValidating} onClick={async()=>{setError('');try{await fixBulkTruckType(row)}catch(e:any){setError(e?.message||'Unable to fix Vehicle Truck Type.')}}}>Fix Truck Type</button>}
                         <button className="btn" disabled={bulkValidating} onClick={async()=>{const validated=await validateBulkMasters([row],true);setBulkRows(rows=>rows.map(item=>item.rowNo===row.rowNo?validated[0]:item));}}>Re-validate</button>
                       </div>
                     </div>
