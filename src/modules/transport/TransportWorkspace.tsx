@@ -1179,7 +1179,7 @@ export default function TransportWorkspace(){
             className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50">
             Columns
           </button>
-          <span data-navilo-standard-tools-host="true" className="flex flex-wrap items-center gap-1.5" />
+          <span data-navilo-standard-tools-host="true" className="contents" />
 
         </div>
 
@@ -1335,20 +1335,20 @@ export default function TransportWorkspace(){
                   className={`h-[17px] max-h-[17px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-slate-100 px-0.5 !py-0 leading-none ${isSupplierGridKey(key)?"bg-amber-50/40":isCustomerGridKey(key)?"bg-blue-50/40":""} ${numeric?"text-right":""}`}>
                   {key==='company_rate'
                     ?<button type="button"
-                      className={`h-[14px] rounded px-0.5 py-0 text-[8px] leading-none ${r.customer_rate_state==='pending'&&!r.customer_rate_locked?'border border-blue-200 text-blue-700':'font-semibold text-blue-700 hover:underline'}`}
+                      className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[8px] font-semibold leading-none text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
                       aria-label={`${r.customer_rate_state==='pending'?'Add':'Open'} Company Rate ${r.trip_no}`}
                       onClick={()=>setInitialRateTrip(r)}>
-                      {r.customer_rate_state==='pending'&&!r.customer_rate_locked?'Add Rate':value||'0.00'}
+                      {r.customer_rate_state==='pending'&&!r.customer_rate_locked?'':value||'0.00'}
                     </button>
                     :key==='invoice_no'
                       ?<button type="button"
-                        className={`h-[14px] rounded px-0.5 py-0 text-[8px] leading-none ${r.invoice_no?'font-semibold text-blue-700 hover:underline':'border border-blue-200 text-blue-700'}`}
+                        className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-left text-[8px] font-semibold leading-none text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
                         aria-label={`${r.invoice_no?'Open':'Add'} Invoice Number ${r.trip_no}`}
                         onClick={()=>setInvoiceTrip(r)}>
-                        {r.invoice_no||'Add Invoice'}
+                        {r.invoice_no||''}
                       </button>
                     :key==='rent_driver'&&r.customer_rate_state!==undefined&&Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)<=0
-                      ?<button className="h-[14px] rounded border border-amber-300 bg-amber-50 px-1 py-0 text-[8px] font-semibold leading-none text-amber-800" aria-label={`Add Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>Add Rent</button>
+                      ?<button type="button" className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[8px] leading-none text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`Add Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}} />
                     :key==='paper_received_by'
                       ?r.ppr_status==='received'
                         ?<span className="inline-flex items-baseline gap-1"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[7px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>

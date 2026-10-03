@@ -9,6 +9,17 @@ vi.mock("@/components/ConsolidatedInvoiceTools", () => ({ default: () => null })
 afterEach(cleanup);
 
 describe("contextual output actions", () => {
+  it("keeps only Export in the Transport register toolbar instead of a blank invoice cell", () => {
+    render(<MemoryRouter initialEntries={["/transport"]}><main id="navilo-main-content"><section data-navilo-transport-register data-navilo-customizable="true"><header><button>Columns</button><span data-navilo-standard-tools-host /></header><table><tbody><tr><td><button aria-label="Add Invoice Number OIC-1" /></td></tr></tbody></table></section></main><UniversalDataTools /></MemoryRouter>);
+    const toolbar=document.querySelector("[data-navilo-global-data-tools]");
+    expect(toolbar?.closest("header")).not.toBeNull();
+    expect(toolbar?.closest("td")).toBeNull();
+    expect(screen.getByRole("button",{name:"Export"})).toBeTruthy();
+    expect(screen.queryByRole("button",{name:"Customize"})).toBeNull();
+    expect(screen.queryByRole("button",{name:"Print / PDF"})).toBeNull();
+    expect(screen.getByRole("button",{name:"Add Invoice Number OIC-1"}).textContent).toBe("");
+  });
+
   it("does not place generic export/print on a cash-entry screen or hide its local actions", () => {
     render(<MemoryRouter initialEntries={["/accounting/cash-counter"]}><main id="navilo-main-content"><button type="button">Print receipt</button></main><UniversalDataTools /></MemoryRouter>);
     expect(document.querySelector("[data-navilo-global-data-tools]")).toBeNull();
