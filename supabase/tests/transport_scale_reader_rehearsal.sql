@@ -9,13 +9,22 @@ begin
  end;
  raise exception 'Expected rejection missing: %',expected;
 end $$;
+create function pg_temp.cash_flow_voucher(p_debit uuid,p_credit uuid,p_amount numeric) returns void language plpgsql as $$
+declare voucher public.journal_entries;begin
+ voucher:=public.create_manual_journal_entry(current_date,'Cash flow reconciliation rehearsal');
+ insert into public.journal_lines(user_id,company_id,business_unit_id,operating_location_id,entry_id,account,account_id,debit,credit)
+ select voucher.user_id,voucher.company_id,voucher.business_unit_id,voucher.operating_location_id,voucher.id,a.name,a.id,
+ case when a.id=p_debit then p_amount else 0 end,case when a.id=p_credit then p_amount else 0 end
+ from public.chart_of_accounts a where a.id in (p_debit,p_credit);
+ perform public.post_journal_entry(voucher.id);
+end $$;
 do $$
 declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;
  code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
  customer uuid;supplier uuid;tt uuid;tt2 uuid;from_id uuid;to_id uuid;v uuid;company_v uuid;d uuid;company_d uuid;employee uuid;
  ownership uuid;rate uuid;result jsonb;payload jsonb;supplier_payload jsonb;trip uuid;trip2 uuid;request_id uuid:=gen_random_uuid();number text;
  other_bu uuid;foreign_v uuid;other_c uuid;other_customer uuid;before_count bigint;canonical public.customers;canonical_supplier public.suppliers;
-data jsonb;rent uuid;second_rent uuid;bill uuid;customer_trip uuid;
+data jsonb;bank_account uuid;fixed_account uuid;rent uuid;second_rent uuid;bill uuid;customer_trip uuid;
 begin
  insert into auth.users(id,role,email,created_at,updated_at)
  values(u,'authenticated','service-'||code||'@navilo.test',now(),now());
@@ -139,6 +148,17 @@ begin
  data:=public.transport_reviewed_cost_upload(request_id,payload,supplier,acct,'vehicle_expense',false);
  if data is distinct from public.transport_reviewed_cost_upload(request_id,payload,supplier,acct,'vehicle_expense',false) then raise exception 'Expense retry failed';end if;
  if (select count(*) from public.transport_service_cost_links where trip_id=trip and cost_kind='vehicle_expense')<>1 then raise exception 'Expense retry duplicated posting';end if;
+ data:=public.accounting_cash_flow_report(current_date-1,current_date);
+ if (data->>'movement')::numeric<>1000 or (data->>'closing')::numeric<>1000 or (data->>'difference')::numeric<>0 then raise exception 'Direct cash flow failed canonical cash reconciliation: %',data;end if;
+ select id into strict bank_account from public.chart_of_accounts where company_id=c and detail_type='Bank Account' and not is_group limit 1;
+ select id into strict fixed_account from public.chart_of_accounts where company_id=c and detail_type='Machinery & Equipment' and not is_group limit 1;
+ perform pg_temp.cash_flow_voucher(bank_account,cash_id,100);
+ perform pg_temp.cash_flow_voucher(fixed_account,cash_id,200);
+ perform pg_temp.cash_flow_voucher(acct,fixed_account,50);
+ data:=public.accounting_cash_flow_report(current_date-1,current_date);
+ if (data->>'movement')::numeric<>800 or (data->>'difference')::numeric<>0
+ or not exists(select 1 from jsonb_array_elements(data->'rows') x where x->>'category'='investing' and (x->>'amount')::numeric=-200)
+ then raise exception 'Cash transfer / asset purchase / noncash adjustment classification failed: %',data;end if;
  data:=public.accounting_report_balances(current_date-1,current_date,false);
  if (select sum((x->>'debit')::numeric-(x->>'credit')::numeric) from jsonb_array_elements(data) x)<>0 then raise exception 'Aggregated Trial Balance unbalanced';end if;
  data:=public.transport_contribution_summary(current_date-1,current_date);
@@ -174,9 +194,11 @@ begin
  execute 'reset role';
  perform set_config('request.jwt.claim.sub','',true);
  perform pg_temp.entry_rejected('select public.transport_register_query()','permission');
+ perform pg_temp.entry_rejected('select public.transport_contribution_summary(null,current_date)','permission');
  execute 'set local role anon';
  perform pg_temp.entry_rejected('select public.transport_register_query()','permission denied');
  perform pg_temp.entry_rejected('select public.transport_party_report_page(''documents'')','permission denied');
+ perform pg_temp.entry_rejected('select public.transport_contribution_summary(null,current_date)','permission denied');
  execute 'reset role';
 end $$;
 rollback;

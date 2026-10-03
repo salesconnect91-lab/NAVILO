@@ -1,3 +1,5 @@
+import {useAuth} from '@/auth/AuthContext';
+import TransportInvoiceCreate from '../transport/TransportInvoiceCreate';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import { fixedTaxRateOn } from "@/lib/effectiveTaxRate";
@@ -109,7 +111,7 @@ const emptyRow = (tax = "0", godownId = ""): InvoiceRow => ({
   description: "",
 });
 
-export default function SalesInvoiceCreate() {
+function SalesInvoiceCreateItems() {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
   const isEditing = Boolean(id);
@@ -619,3 +621,5 @@ export default function SalesInvoiceCreate() {
     </div>
   );
 }
+
+export default function SalesInvoiceCreate(){const {activeCompany,activeBusinessUnit}=useAuth();if(!activeBusinessUnit)return <p role="status">Select an active business unit.</p>;const scope=`${activeCompany?.company_id}:${activeBusinessUnit.business_unit_id}`;return activeBusinessUnit.business_unit_type==='transport'?<TransportInvoiceCreate key={scope} side="customer"/>:<SalesInvoiceCreateItems key={scope}/>}
