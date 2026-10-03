@@ -3,4 +3,5 @@ export type MasterQuickCreate = {
   onClose: () => void;
   truckTypeId?: string;
   supplierId?: string;
+  initialName?: string;
 };
