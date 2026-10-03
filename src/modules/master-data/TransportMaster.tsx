@@ -37,7 +37,7 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
   const submitting=useRef(false);
   const closeEditor=()=>{setShow(false);quickCreate?.onClose();};
   const [editing, setEditing] = useState<Row | null>(null);
-  const initialForm={...EMPTY,truckTypeId:quickCreate?.truckTypeId??"",supplierId:quickCreate?.supplierId??""};
+  const initialForm={...EMPTY,name:quickCreate?.initialName??"",truckTypeId:quickCreate?.truckTypeId??"",supplierId:quickCreate?.supplierId??""};
   const [form, setForm] = useState(initialForm);
   const role = activeBusinessUnit?.membership_role ?? activeCompany?.membership_role;
   const permissions = activeBusinessUnit?.permissions ?? activeCompany?.permissions;
