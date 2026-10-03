@@ -349,7 +349,7 @@ export default function ProfitLoss() {
             <label className="flex h-10 cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3"><input type="checkbox" checked={hideZeroBalances} onChange={(e) => setHideZeroBalances(e.target.checked)} className="h-4 w-4" /><span className="text-sm font-medium text-slate-800">Hide zero-balance accounts</span></label>
             <div className="flex gap-2"><button type="button" onClick={setThisMonth} className="h-10 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">This Month</button><button type="button" onClick={setThisYear} className="h-10 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">This Year</button></div>
           </div>
-          {lastUpdated && <div className="mt-2 text-right text-[12px] text-slate-400">Posted operational ledger entries only ┬╖ Updated {lastUpdated.toLocaleTimeString()}</div>}
+          {lastUpdated && <div className="mt-2 text-right text-[12px] text-slate-400">Posted operational ledger entries only · Updated {lastUpdated.toLocaleTimeString()}</div>}
         </div>
 
         {loading ? (

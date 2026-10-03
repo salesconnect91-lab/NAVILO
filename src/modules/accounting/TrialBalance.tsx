@@ -323,7 +323,7 @@ export default function TrialBalance() {
   };
 
   const amountCell = (amount: number) =>
-    Math.abs(amount) >= 0.005 ? formatCurrency(amount) : "ΓÇö";
+    Math.abs(amount) >= 0.005 ? formatCurrency(amount) : "—";
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-6 pb-12"><details className="no-print"><summary>Customize Trial Balance headers / export</summary><ConfigurableReport module="accounting" preferenceKey="accounting-trial-balance" report={{title:'Trial Balance',description:`${fromDate} to ${toDate} · Canonical posted ledger`,columns:['Code','Account','Opening debit','Opening credit','Period debit','Period credit','Closing debit','Closing credit'],rows:[...rows.map(r=>[r.code,r.name,r.openingDebit,r.openingCredit,r.periodDebit,r.periodCredit,r.closingDebit,r.closingCredit]),['TOTAL','',totals.openingDebit,totals.openingCredit,totals.periodDebit,totals.periodCredit,totals.closingDebit,totals.closingCredit]]}}/></details>
@@ -496,7 +496,7 @@ export default function TrialBalance() {
           </div>
           {lastUpdated && (
             <div className="mt-2 text-right text-[12px] text-slate-400">
-              Posted ledger entries only ┬╖ Updated {lastUpdated.toLocaleTimeString()}
+              Posted ledger entries only · Updated {lastUpdated.toLocaleTimeString()}
             </div>
           )}
         </div>
@@ -599,7 +599,7 @@ export default function TrialBalance() {
             <div>
               <span className="block font-bold text-slate-900">Trial Balance Control Check</span>
               <span className="text-xs text-slate-500">
-                Opening difference {formatCurrency(openingDifference)} ┬╖ Period difference {formatCurrency(periodDifference)}
+                Opening difference {formatCurrency(openingDifference)} · Period difference {formatCurrency(periodDifference)}
               </span>
             </div>
             <div className="text-left sm:text-right">
