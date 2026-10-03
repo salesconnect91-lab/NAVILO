@@ -1179,6 +1179,7 @@ export default function TransportWorkspace(){
             className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50">
             Columns
           </button>
+          <span data-navilo-standard-tools-host="true" className="flex flex-wrap items-center gap-1.5" />
 
         </div>
 
