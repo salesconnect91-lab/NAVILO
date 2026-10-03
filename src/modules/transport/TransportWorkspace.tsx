@@ -1695,16 +1695,21 @@ export default function TransportWorkspace(){
               {bulkFixRowNo===row.rowNo&&row.errors.length>0&&
                 <tr className="border-t border-red-100 bg-red-50/60">
                   <td colSpan={BULK_TRIP_HEADERS.length+2} className="px-3 py-2">
-                    <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                      <span className="font-semibold text-red-800">Fix rejected row:</span>
-                      {row.errors.map((message,index)=><span key={index} className="rounded border border-red-200 bg-white px-2 py-1 text-red-700">{message}</span>)}
-                      {entryPermissions.master&&row.errors.some(e=>e.startsWith('Customer is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('customer')}}>+ Customer</button>}
-                      {entryPermissions.master&&row.errors.some(e=>e.startsWith('Driver is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('driver')}}>+ Driver</button>}
-                      {entryPermissions.master&&row.errors.some(e=>e.startsWith('From is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('locationFrom')}}>+ From</button>}
-                      {entryPermissions.master&&row.errors.some(e=>e.startsWith('To is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('locationTo')}}>+ To</button>}
-                      {entryPermissions.master&&row.errors.some(e=>e.startsWith('Truck Type is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('truckType')}}>+ Truck Type</button>}
-                      {entryPermissions.master&&entryPermissions.owner&&row.errors.some(e=>e.startsWith('Vehicle is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('vehicle')}}>+ Vehicle</button>}
-                      <button className="btn" disabled={bulkValidating} onClick={async()=>{const validated=await validateBulkMasters([row],true);setBulkRows(rows=>rows.map(item=>item.rowNo===row.rowNo?validated[0]:item));}}>Re-validate</button>
+                    <div className="space-y-2 text-[11px]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-red-800">Fix rejected row:</span>
+                        {row.errors.map((message,index)=><span key={index} className="rounded border border-red-200 bg-white px-2 py-1 text-red-700">{message}</span>)}
+                      </div>
+                      <div className="sticky left-0 flex w-max max-w-full flex-wrap items-center gap-2 rounded border border-slate-200 bg-white p-2 shadow-sm">
+                        <span className="font-semibold text-slate-700">Create Missing Masters:</span>
+                        {entryPermissions.master&&row.errors.some(e=>e.startsWith('Customer is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('customer')}}>+ Customer</button>}
+                        {entryPermissions.master&&row.errors.some(e=>e.startsWith('Driver is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('driver')}}>+ Driver</button>}
+                        {entryPermissions.master&&row.errors.some(e=>e.startsWith('From is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('locationFrom')}}>+ From</button>}
+                        {entryPermissions.master&&row.errors.some(e=>e.startsWith('To is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('locationTo')}}>+ To</button>}
+                        {entryPermissions.master&&row.errors.some(e=>e.startsWith('Truck Type is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('truckType')}}>+ Truck Type</button>}
+                        {entryPermissions.master&&entryPermissions.owner&&row.errors.some(e=>e.startsWith('Vehicle is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('vehicle')}}>+ Vehicle</button>}
+                        <button className="btn" disabled={bulkValidating} onClick={async()=>{const validated=await validateBulkMasters([row],true);setBulkRows(rows=>rows.map(item=>item.rowNo===row.rowNo?validated[0]:item));}}>Re-validate</button>
+                      </div>
                     </div>
                   </td>
                 </tr>}
