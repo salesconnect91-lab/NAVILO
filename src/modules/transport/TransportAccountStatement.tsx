@@ -25,10 +25,10 @@ export default function TransportAccountStatement({kind,onChanged}:{kind:'driver
  async function load(){try{
  let data:AccountMovement[];let economics:Contribution[]=[];
  if(kind==='driver'){
- const items=await fetchAllPages<PartyMovement & {employee_id:string}>((start,end)=>supabase.from('transport_driver_account_movements').select('*').order('event_id').range(start,end));
+ const items=await fetchAllPages<PartyMovement & {employee_id:string}>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'driver',p_limit:end-start+1,p_offset:start}));
  data=items.map(r=>({...r,side:'supplier',party_id:r.employee_id,account_id:r.employee_id,account_name:r.party_name}));
  }else{
- [data,economics]=await Promise.all([fetchAllPages<AccountMovement>((start,end)=>supabase.from('transport_vehicle_account_movements').select('*').order('event_id').range(start,end)),fetchAllPages<Contribution>((start,end)=>supabase.from('transport_vehicle_contributions').select('*').order('event_id').range(start,end))]);
+ [data,economics]=await Promise.all([fetchAllPages<AccountMovement>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'vehicle',p_limit:end-start+1,p_offset:start})),fetchAllPages<Contribution>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'contributions',p_limit:end-start+1,p_offset:start}))]);
  }
  if(generation.current===token){setRows(data);setContributions(economics);}
  }catch(e:any){if(generation.current===token)setError(e?.message||'Unable to load posted account detail.')}finally{if(generation.current===token)setLoading(false)}}

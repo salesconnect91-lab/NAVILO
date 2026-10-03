@@ -178,6 +178,17 @@ begin
  data:=public.transport_party_report_page('canonical');
  if data is distinct from (select coalesce(jsonb_agg(to_jsonb(q)),'[]') from (select * from public.transport_canonical_party_movements order by event_id) q)
  then raise exception 'Reporting ledger diverged from canonical view';end if;
+ data:=public.transport_account_report_page('vehicle');
+ if data is distinct from (select coalesce(jsonb_agg(to_jsonb(q)),'[]') from (select * from public.transport_vehicle_account_movements where company_id=c and business_unit_id=b and operating_location_id=loc order by event_id) q)
+ then raise exception 'Scoped vehicle ledger differs from canonical attribution';end if;
+ data:=public.transport_account_report_page('contributions');
+ if data is distinct from (select coalesce(jsonb_agg(to_jsonb(q)),'[]') from (select * from public.transport_vehicle_contributions where company_id=c and business_unit_id=b and operating_location_id=loc order by event_id) q)
+ then raise exception 'Scoped vehicle margins differ from canonical attribution';end if;
+ data:=public.transport_account_report_page('driver');
+ if data is distinct from (select coalesce(jsonb_agg(to_jsonb(q)),'[]') from (select * from public.transport_driver_account_movements where company_id=c and business_unit_id=b and operating_location_id=loc order by event_id) q)
+ then raise exception 'Scoped driver ledger differs from canonical attribution';end if;
+ if jsonb_array_length(public.transport_account_report_page('vehicle',1,0))<>1 or jsonb_array_length(public.transport_account_report_page('vehicle',1,100000))<>0 then raise exception 'Account report pagination failed';end if;
+ perform pg_temp.entry_rejected('select public.transport_account_report_page(''unknown'')','Invalid account report');
  perform pg_temp.entry_rejected('select public.transport_party_report_page(''unknown'')','Invalid report');
  insert into auth.users(id,role,email,created_at,updated_at) values(request_id,'authenticated','other-import-'||code||'@navilo.test',now(),now());
  insert into public.user_profiles(id,user_id,email,role,platform_role,is_active,last_company_id,last_business_unit_id)
@@ -194,9 +205,11 @@ begin
  execute 'reset role';
  perform set_config('request.jwt.claim.sub','',true);
  perform pg_temp.entry_rejected('select public.transport_register_query()','permission');
+ perform pg_temp.entry_rejected('select public.transport_account_report_page(''vehicle'')','permission');
  perform pg_temp.entry_rejected('select public.transport_contribution_summary(null,current_date)','permission');
  execute 'set local role anon';
  perform pg_temp.entry_rejected('select public.transport_register_query()','permission denied');
+ perform pg_temp.entry_rejected('select public.transport_account_report_page(''vehicle'')','permission denied');
  perform pg_temp.entry_rejected('select public.transport_party_report_page(''documents'')','permission denied');
  perform pg_temp.entry_rejected('select public.transport_contribution_summary(null,current_date)','permission denied');
  execute 'reset role';
