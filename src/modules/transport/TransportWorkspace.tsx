@@ -1006,13 +1006,14 @@ export default function TransportWorkspace(){
   ] as const;
 
   const tripGridStorageKey=`navilo:transport:trip-grid:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
-  const orderedGridColumns=useMemo(()=>{
+  const allOrderedGridColumns=useMemo(()=>{
     const byKey=new Map(gridColumns.map(column=>[column[0],column] as const));
     const order=tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0]);
     const arranged=order.map(key=>byKey.get(key)).filter((column):column is readonly [string,string]=>Boolean(column));
     for(const column of gridColumns)if(!arranged.some(item=>item[0]===column[0]))arranged.push(column);
-    return arranged.filter(column=>!hiddenTripColumns.includes(column[0]));
-  },[tripColumnOrder,hiddenTripColumns]);
+    return arranged;
+  },[tripColumnOrder]);
+  const orderedGridColumns=allOrderedGridColumns.filter(column=>!hiddenTripColumns.includes(column[0]));
 
   useEffect(()=>{
     try{
@@ -1201,7 +1202,7 @@ export default function TransportWorkspace(){
             <span className="text-[9px] text-slate-500">Hide either group to keep the Trips dashboard compact.</span>
           </div>
           <div className="flex flex-wrap gap-1">
-            {(tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0])).map(key=>{
+            {allOrderedGridColumns.map(([key])=>{
               const column=gridColumns.find(item=>item[0]===key);
               if(!column)return null;
               return <div key={key} draggable
@@ -1248,9 +1249,9 @@ export default function TransportWorkspace(){
                         setOpenColumnFilter(null);
                       }}
                       className={`flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden rounded px-0.5 py-0 text-left leading-none hover:bg-slate-200 ${sorted?"text-blue-700":""}`}>
-                      <span className="min-w-0 py-0.5 leading-[10px]">
+                      <span className="min-w-0 py-0.5" style={{lineHeight:1.2}}>
                         <span className="block max-w-[84px] whitespace-normal">{label}</span>
-                        {amountGridKeys.has(key)&&<span className="block whitespace-nowrap font-extrabold tabular-nums text-slate-950">{financialNumber(gridTotal(key))}</span>}
+                        {amountGridKeys.has(key)&&<span className="mt-0.5 block whitespace-nowrap font-extrabold tabular-nums text-slate-950">{financialNumber(gridTotal(key))}</span>}
                       </span>
                       {sorted&&<span className="shrink-0 text-[7px]" aria-label={sortDirection==="asc"?"Sorted ascending":"Sorted descending"}>{sortDirection==="asc"?"▲":"▼"}</span>}
                     </button>
@@ -1324,7 +1325,7 @@ export default function TransportWorkspace(){
               {/* Transport operational register order - one canonical mapping for display/filter/sort */}
               {orderedGridColumns.slice(1).map(([key])=>{
                 const value=tripCellValue(r,key);
-                const numeric=["rent_driver","supplier_paid","supplier_balance","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
+                const numeric=["rent_driver","supplier_paid","supplier_balance","supplier_credit","customer_credit","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}

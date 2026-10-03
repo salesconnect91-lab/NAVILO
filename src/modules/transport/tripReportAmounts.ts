@@ -1,0 +1,8 @@
+const number=(value:unknown)=>Number(value??0);
+export const tripAmountColumns=['Agreed customer rate','Agreed supplier rent','Agreed driver charge','Posted revenue net','Posted supplier cost net','Posted driver charge','Posted other cost net','Posted contribution','Margin %','Customer received gross','Customer outstanding gross','Customer credit gross','Supplier paid gross','Supplier outstanding gross','Supplier credit gross','Driver paid','Driver outstanding'];
+export const tripAmountKeys=['customer_rate','agreed_supplier_rent','driver_pay','billed_customer_net','billed_supplier_net','driver_accrued','other_cost_net','profit','margin','customer_received_gross','customer_outstanding_gross','customer_credit_gross','supplier_paid_gross','supplier_outstanding_gross','supplier_credit_gross','driver_paid','driver_outstanding'];
+export function tripAmounts(row:Record<string,unknown>,total=false){
+ const revenue=number(row.billed_customer_net??row.revenue);
+ const profit=total?number(row.profit):revenue-number(row.billed_supplier_net)-number(row.driver_accrued)-number(row.other_cost_net);
+ return tripAmountKeys.map(key=>key==='profit'?profit:key==='margin'?(revenue?profit/revenue*100:0):key==='billed_customer_net'?revenue:key==='supplier_paid_gross'?number(row.supplier_paid_gross??row.payment_amount):number(row[key]));
+}

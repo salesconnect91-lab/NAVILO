@@ -147,6 +147,20 @@ describe('Transport register interactions',()=>{
    expect(section.style.height).toBe('800px');
   }finally{rect.mockRestore();Object.defineProperty(window,'innerHeight',{value:height,configurable:true});}
  });
+ it('includes new and hidden headers when loading an older saved column order',async()=>{
+  const key='navilo:transport:trip-grid:user:c:b';
+  localStorage.setItem(key,JSON.stringify({order:['trip_no','company_rate'],hidden:['customer_credit']}));
+  try{
+   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+   await screen.findByTitle('Sort Trip No ascending');fireEvent.click(screen.getByRole('button',{name:'Columns'}));
+   const supplier=screen.getAllByText('Supplier Credit / Advance').map(e=>e.closest('div[draggable]')).find(Boolean)!;
+   const customer=screen.getAllByText('Customer Credit / Advance').map(e=>e.closest('div[draggable]')).find(Boolean)!;
+   expect(supplier.querySelector('input')).toBeTruthy();
+   expect((customer.querySelector('input') as HTMLInputElement).checked).toBe(false);
+   fireEvent.click(customer.querySelector('input')!);
+   expect(screen.getByTitle('Sort Customer Credit / Advance ascending')).toBeTruthy();
+  }finally{localStorage.removeItem(key);}
+ });
  it('toggles header ASC/DESC through the server query while retaining the 500 row page limit',async()=>{
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
   const header=await screen.findByTitle('Sort Trip No ascending');fireEvent.click(header);

@@ -49,21 +49,35 @@ begin
  values(c,b,'',current_date,customer,'A','B',200,0,'credit') returning id into trip2;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
  values(c,b,'',current_date,customer,'A','B',100,0,'cash') returning id into cash_trip;
+ update public.customers set account_id=null where id=customer;
+ result:=public.transport_register_query(500,0,'{}','','asc','company_rate',' 1000 ');
+ if not (result->'options') @> '["1,000.00"]'::jsonb then raise exception 'Numeric register dropdown search failed';end if;
+ result:=public.transport_bulk_rate_page('customer',1,0,jsonb_build_object('columns',jsonb_build_object('rate','1,000')));
+ if (result->>'count')::integer<>1 then raise exception 'Comma amount header filter failed';end if;
+ result:=public.transport_bulk_rate_page('customer',1,0,jsonb_build_object('search','  FIN-V  ','columns',jsonb_build_object('route','A → B','driver','Financial Driver')));
+ if (result->>'count')::integer<>1 then raise exception 'Trimmed search, route or Driver header filter failed';end if;
  result:=public.transport_post_customer_bill_described(trip,current_date,false,'  CUSTOM-S-'||code||'  ','  Customer delivery instructions  ');sales_id:=(result->>'document_id')::uuid;
  if not exists(select 1 from public.sales_service_lines where order_id=sales_id and description like 'Customer delivery instructions%' and description like '%Vehicle: FIN-V%') then raise exception 'Customer description or automatic Trip detail missing';end if;
  rejected:=false;begin perform public.transport_post_customer_bill_described(trip2,current_date,false,null,repeat('X',2001));exception when others then rejected:=true;end;
  if not rejected or exists(select 1 from public.transport_customer_document_trips where trip_id=trip2) then raise exception 'Overlong description accepted or partial invoice created';end if;
+ if (select account_id from public.customers where id=customer) is distinct from ar then raise exception 'Blank Customer AR was not resolved to the valid company mapping';end if;
  if (select order_no from public.sales_orders where id=sales_id)<>'CUSTOM-S-'||code then raise exception 'Custom sales number not preserved';end if;
  rejected:=false;begin perform public.transport_post_customer_bill_numbered(trip2,current_date,false,'custom-s-'||code);exception when others then rejected:=true;end;
  if not rejected or exists(select 1 from public.transport_customer_document_trips where trip_id=trip2) then raise exception 'Duplicate sales number accepted or left partial posting';end if;
  rejected:=false;begin perform public.transport_post_customer_bill_numbered(trip2,current_date,false,repeat('X',81));exception when others then rejected:=true;end;
  if not rejected then raise exception 'Overlong invoice number accepted';end if;
 
+ update public.customers set account_id=cash_id where id=customer;
+ rejected:=false;begin perform public.transport_post_customer_bill(trip2,current_date,false);exception when others then rejected:=true;end;
+ if not rejected or exists(select 1 from public.transport_customer_document_trips where trip_id=trip2) then raise exception 'Explicit wrong AR accepted or left partial posting';end if;
+ update public.customers set account_id=null where id=customer;
  result:=public.transport_post_customer_bill(trip2,current_date,false);sales2:=(result->>'document_id')::uuid;
  result:=public.transport_post_customer_bill(cash_trip,current_date,false);cashbill:=(result->>'document_id')::uuid;
  if not exists(select 1 from public.transport_customer_documents where sales_order_id=cashbill and document_kind='cash_hand_bill') then raise exception 'Cash bill subtype missing';end if;
  if exists(select 1 from public.stock_movements where source_id in(sales_id,sales2,cashbill)) then raise exception 'Service created inventory movement';end if;
  if not exists(select 1 from jsonb_array_elements(public.transport_bulk_rate_page('customer',500,0,'{}')->'rows') x where x->>'id'=trip::text and x->>'invoice_no'='CUSTOM-S-'||code) then raise exception 'Customer page missing custom invoice number';end if;
+ result:=public.transport_trip_report('customer',1,0,jsonb_build_object('posting','posted'));
+ if (result->>'count')::integer<>3 or (result->'summary'->>'billed_customer_net')::numeric<>1300 or (result->'summary'->>'customer_outstanding_gross')::numeric<>1300 or jsonb_array_length(result->'rows')<>1 then raise exception 'Trip report full-filter amount totals depend on current page';end if;
  rejected:=false;begin update public.sales_orders set order_no='RENUMBERED' where id=sales_id;exception when others then rejected:=true;end;
  if not rejected then raise exception 'Posted invoice number mutable';end if;
  select to_jsonb(s) into original from public.sales_orders s where id=sales_id;

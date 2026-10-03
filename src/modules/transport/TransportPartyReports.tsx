@@ -17,6 +17,7 @@ export default function TransportPartyReports({onClose,onChanged,initialSide='cu
  const outputAllowed=useTransportOutputPermissions();
  const {activeCompany,activeBusinessUnit}=useAuth();const company=activeCompany?.company_id;const unit=activeBusinessUnit?.business_unit_id;
  const [side,setSide]=useState<PartySide>(initialSide);const [party,setParty]=useState('');const [mode,setMode]=useState<Mode>(allocationEntry?'allocations':'outstanding');
+ const [partyMasters,setPartyMasters]=useState<Array<{side:PartySide;party_id:string;party_name:string}>>([]);
  const [tripDetails,setTripDetails]=useState<any[]>([]);const [documents,setDocuments]=useState<PartyDocument[]>([]);const [movements,setMovements]=useState<PartyMovement[]>([]);
  const [canonical,setCanonical]=useState<PartyMovement[]>([]);const [accounts,setAccounts]=useState<Array<{id:string;name:string;detail_type:string}>>([]);
  const [canLedger,setCanLedger]=useState(false);const [from,setFrom]=useState('');const [to,setTo]=useState(new Date().toISOString().slice(0,10));
@@ -27,21 +28,23 @@ export default function TransportPartyReports({onClose,onChanged,initialSide='cu
  try{
  const permission=await supabase.rpc('has_module_permission',{p_company_id:company,p_module:'accounting',p_action:'view'});
  if(permission.error)throw permission.error;const ledgerAllowed=permission.data===true;
- const [d,m,c,a,ct,st]=await Promise.all([
+ const [d,m,c,a,ct,st,customers,suppliers]=await Promise.all([
  fetchAllPages<PartyDocument>((start,end)=>supabase.rpc('transport_party_report_page',{p_kind:'documents',p_limit:end-start+1,p_offset:start})),
  fetchAllPages<PartyMovement>((start,end)=>supabase.rpc('transport_party_report_page',{p_kind:'movements',p_limit:end-start+1,p_offset:start})),
  ledgerAllowed?fetchAllPages<PartyMovement>((start,end)=>supabase.rpc('transport_party_report_page',{p_kind:'canonical',p_limit:end-start+1,p_offset:start})):Promise.resolve([]),
  fetchAllPages<{id:string;name:string;detail_type:string}>((start,end)=>supabase.from('chart_of_accounts').select('id,name,detail_type').eq('company_id',company).eq('is_active',true).eq('is_group',false).in('detail_type',['Cash on Hand','Bank Account']).order('id').range(start,end)),
  fetchAllPages<any>((start,end)=>supabase.rpc('transport_document_trip_details',{p_side:'customer',p_limit:end-start+1,p_offset:start})),
- fetchAllPages<any>((start,end)=>supabase.rpc('transport_document_trip_details',{p_side:'supplier',p_limit:end-start+1,p_offset:start}))
+ fetchAllPages<any>((start,end)=>supabase.rpc('transport_document_trip_details',{p_side:'supplier',p_limit:end-start+1,p_offset:start})),
+ fetchAllPages<{id:string;name:string}>((start,end)=>supabase.from('customers').select('id,name').eq('company_id',company).order('id').range(start,end)),
+ fetchAllPages<{id:string;name:string}>((start,end)=>supabase.from('suppliers').select('id,name').eq('company_id',company).order('id').range(start,end))
  ]);
- if(request===generation.current){setDocuments(d);setTripDetails([...ct.map(r=>({...r,side:'customer'})),...st.map(r=>({...r,side:'supplier'}))]);setMovements(m);setCanonical(c);setAccounts(a);setCanLedger(ledgerAllowed);return true;}
+ if(request===generation.current){setPartyMasters([...customers.map(r=>({side:'customer' as const,party_id:r.id,party_name:r.name})),...suppliers.map(r=>({side:'supplier' as const,party_id:r.id,party_name:r.name}))]);setDocuments(d);setTripDetails([...ct.map(r=>({...r,side:'customer'})),...st.map(r=>({...r,side:'supplier'}))]);setMovements(m);setCanonical(c);setAccounts(a);setCanLedger(ledgerAllowed);return true;}
  return false;
- }catch(e){if(request===generation.current){setError(e instanceof Error?e.message:'Unable to load reports');setDocuments([]);setMovements([]);setCanonical([]);}return false;}
+ }catch(e){if(request===generation.current){setError(e&&typeof e==='object'&&'message' in e?String(e.message):'Unable to load reports');setDocuments([]);setMovements([]);setCanonical([]);}return false;}
  finally{if(request===generation.current)setLoading(false)}
  },[company,unit]);
  useEffect(()=>{void load();return()=>{generation.current++}},[load]);
- const parties=useMemo(()=>Array.from(new Map([...documents,...canonical].filter(r=>r.side===side).map(r=>[r.party_id,r.party_name])).entries()).sort((a,b)=>a[1].localeCompare(b[1])),[documents,canonical,side]);
+ const parties=useMemo(()=>Array.from(new Map([...partyMasters,...documents,...canonical].filter(r=>r.side===side).map(r=>[r.party_id,r.party_name])).entries()).sort((a,b)=>a[1].localeCompare(b[1])),[partyMasters,documents,canonical,side]);
  const filter=(r:{side:PartySide;party_id:string;trip_no?:string;order_no?:string})=>r.side===side&&(!party||r.party_id===party)&&(!tripSearch||`${r.trip_no??''} ${r.order_no??''}`.toLowerCase().includes(tripSearch.toLowerCase()));
  const matchingDocs=documents.filter(filter);const matchingEvents=movements.filter(filter);
  const ledger=statement(mode==='canonical'?canonical.filter(r=>r.side===side&&r.party_id===party):matchingEvents,from,to);
@@ -89,7 +92,7 @@ export default function TransportPartyReports({onClose,onChanged,initialSide='cu
  {mode==='outstanding'&&<label>Balance<select className="input" value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All documents</option><option value="outstanding">Outstanding only</option><option value="settled">Settled only</option><option value="credit">Credits / refunds only</option></select></label>}
  <button className="btn" data-navilo-keep-local-action="true" onClick={()=>setShowAdvances(v=>!v)}>Advances / Unallocated Money</button><button className="btn-primary" disabled={!party||loading||!!error} onClick={()=>setSettlement(v=>!v)}>{side==='customer'?'Receive across Trips':'Pay supplier across Trips'}</button></fieldset>
  {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}{dateError&&<p role="alert" className="text-red-700">From must be on or before To.</p>}{needsParty&&<p className="my-2">Select one party for opening and running balances.</p>}
- {loading?<p role="status">Loading all report pages…</p>:canExport&&<>{mode==='trips'?<TransportTripReports side={side} party={party}/>:<ConfigurableReport report={detailedReport} preferenceKey={`${company}:${unit}:${side}:${mode}`}/>}
+ {loading?<p role="status">Loading all report pages…</p>:canExport&&<>{mode==='trips'?<TransportTripReports side={side} party={party} externalFilters={{from,to,search:tripSearch}}/>:<ConfigurableReport report={detailedReport} preferenceKey={`${company}:${unit}:${side}:${mode}`}/>}
  <details className="mt-2"><summary>Open source documents and vouchers</summary><div className="max-h-48 overflow-auto">{matchingDocs.map(d=><p key={d.order_id}>{d.trip_no} · <a className="underline text-blue-700" href={`/${side==='customer'?'sales':'purchase'}/${d.order_id}`}>{d.order_no}</a> · <a className="underline text-blue-700" href={`/accounting/${d.journal_entry_id}`}>Original journal</a></p>)}{ledger.rows.map(r=><p key={r.event_id}><a className="underline text-blue-700" href={`/accounting/${r.journal_entry_id}`}>{r.entry_no}</a> · {r.trip_no} · {r.event_type}</p>)}</div></details>
  {mode==='reconciliation'&&party&&canLedger&&<p className="mt-2">Party balance as of {to||'all dates'}: Transport {amount(statement(movements.filter(r=>r.side===side&&r.party_id===party),'',to).closing)} · Complete canonical ledger {amount(statement(canonical.filter(r=>r.side===side&&r.party_id===party),'',to).closing)}. The difference includes other business documents, opening balances and unallocated money; it is not automatically a Transport error.</p>}
  </>}
