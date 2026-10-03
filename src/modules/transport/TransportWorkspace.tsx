@@ -8,6 +8,7 @@ import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportBulkCustomerRate from './TransportBulkCustomerRate';
 import TransportInitialRate from './TransportInitialRate';
 import TransportCostUpload from './TransportCostUpload';
+import TransportHistoricalImport from './TransportHistoricalImport';
 import TransportAudit from './TransportAudit';
 import TransportPartyReports from './TransportPartyReports';
 import TransportAccountStatement from './TransportAccountStatement';
@@ -167,7 +168,7 @@ export default function TransportWorkspace(){
   const [openColumnFilter,setOpenColumnFilter]=useState<string|null>(null);
   const [columnMenuPosition,setColumnMenuPosition]=useState({top:0,left:0});
 
-  const [newTripMode,setNewTripMode]=useState<"single"|"bulk">("single");
+  const [newTripMode,setNewTripMode]=useState<"single"|"bulk"|"historical">("single");
   const [bulkRows,setBulkRows]=useState<BulkTripRow[]>([]);
   const [bulkFileName,setBulkFileName]=useState("");
   const [bulkSourceHash,setBulkSourceHash]=useState('');
@@ -549,7 +550,7 @@ export default function TransportWorkspace(){
       if(!validMoney(value))errors.push(`${label} must be nonnegative with at most two decimal places`);
     return errors;
   };
-  const validateBulkMasters=async(rowsToValidate:BulkTripRow[])=>{
+  const validateBulkMasters=async(rowsToValidate:BulkTripRow[],allowRepeatJourneys=false)=>{
     setBulkValidating(true);
     try{
       const masters=await loadTripMasters();const seen=new Set<string>();
@@ -579,7 +580,7 @@ export default function TransportWorkspace(){
         if(row.supplier_rent!==''&&owner?.owner_type!=='third_party')errors.push('Supplier Rent requires dated Supplier Owned Vehicle');
         if(row.driver_pay!==''&&Number(row.driver_pay)>0&&!driver)errors.push('Driver Pay requires Driver');
         const duplicateKey=tripImportIdentity(row,{customer:customer?.id,vehicle:vehicle?.id,driver:driver?.id,from:from?.id,to:to?.id});
-        if(seen.has(duplicateKey))errors.push('Duplicate row in upload file');seen.add(duplicateKey);
+        if(!allowRepeatJourneys&&seen.has(duplicateKey))errors.push('Duplicate row in upload file');seen.add(duplicateKey);
         return {...row,errors,payload:{trip_date:row.trip_date,customer_id:customer?.id,truck_type_id:truck?.id??vehicle?.truck_type_id??null,
           vehicle_id:vehicle?.id??null,driver_id:driver?.id??null,from_location_id:from?.id,to_location_id:to?.id,
           po_do_job_no:row.po_do_job_no||null,ppr_status:row.ppr_status,
@@ -627,6 +628,7 @@ export default function TransportWorkspace(){
     try {
       if(file.size>30*1024*1024)throw new Error('Maximum upload size is 30 MB.');
       const buffer=await file.arrayBuffer();const hash=await fileDigest(buffer);const normalized=await parseTripFile(buffer);
+      if(normalized.some(row=>row.has_accounting_evidence))throw new Error('This file contains historical payments or accounting evidence. Use One-time Historical Import so receipts and paid rent are reconciled instead of omitted.');
       const validated=await validateBulkMasters(normalized);
       if(scopeRef.current!==startedScope)return;
       setBulkRows(validated);setBulkFileName(file.name);setBulkSourceHash(hash);setBulkPreviewPage(0);
@@ -1294,9 +1296,12 @@ export default function TransportWorkspace(){
       >
         Bulk Upload
       </button>
+      <button type="button" className={`btn ${newTripMode==='historical'?'bg-slate-900 text-white':''}`} onClick={()=>setNewTripMode('historical')}>One-time Historical Import</button>
     </div>}
   </div>
 
+
+  {newTripMode==='historical'&&<TransportHistoricalImport key={importScope} validateMasters={rows=>validateBulkMasters(rows,true)} onChanged={load}/>}
 
   {newTripMode==="single"&&
   <div className="p-3">
@@ -1481,6 +1486,7 @@ export default function TransportWorkspace(){
 
   {newTripMode==="bulk"&&
   <div className="space-y-3 p-4">
+    <p className="text-xs">Daily operational upload: creates Trips and agreed charges only. Historical receipts and paid rent require the separate One-time Historical Import.</p>
 
     <div className="flex flex-wrap items-center gap-2">
 

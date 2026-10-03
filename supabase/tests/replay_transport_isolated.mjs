@@ -25,7 +25,12 @@ for(const file of fs.readdirSync(root+'/supabase/migrations').filter(f=>f.endsWi
 }
 console.log('REPLAY PASS',count);
 const notice=notice=>{if(/Trips|50,000|20,000/.test(notice.message))console.log('SCALE',notice.message)};
-if(process.env.NAVILO_SCALE_TEST==='1'){
+if(process.env.NAVILO_HISTORY_SCALE){
+ const total=Number(process.env.NAVILO_HISTORY_SCALE);if(!Number.isInteger(total)||total<25||total>20000||total%25)throw new Error('History scale count requires a multiple of 25, at most 20,000');
+ const sql=fs.readFileSync(root+'/supabase/tests/transport_historical_scale_rehearsal.sql','utf8').replaceAll('NAVILO_HISTORY_COUNT',String(total));const parts=sql.split('-- NAVILO_HISTORY_BATCHES');await db.exec(parts[0]);await db.exec('analyze');const started=Date.now();
+ for(let batch=0;batch<total/25;batch++){const batchStart=Date.now();await db.query('select pg_temp.history_scale_batch($1)',[batch]);if(batch%4===3){await db.exec('analyze');console.log('HISTORY SCALE', (batch+1)*25, 'trips; last batch ms',Date.now()-batchStart,'elapsed ms',Date.now()-started);}}
+ await db.exec(parts[1]);console.log('PASS historical canonical accounting scale',total,'trips ms',Date.now()-started);
+}else if(process.env.NAVILO_SCALE_TEST==='1'){
  const sql=fs.readFileSync(root+'/supabase/tests/transport_scale_import_rehearsal.sql','utf8');
  const parts=sql.split('-- NAVILO_SCALE_BATCHES: runner executes 200 independently committed calls here.');
  await db.exec(parts[0]);const started=Date.now();
@@ -33,7 +38,7 @@ if(process.env.NAVILO_SCALE_TEST==='1'){
  console.log('SCALE 20,000 independently committed import ms:',Date.now()-started);
  await db.exec(parts[1],{onNotice:notice});console.log('PASS transport_scale_import_rehearsal.sql');
 }else{
- for(const file of (process.env.NAVILO_BENCHMARK_ONLY==='1'?['transport_register_benchmark.sql']:process.env.NAVILO_READER_SMOKE==='1'?['transport_scale_reader_rehearsal.sql']:['transport_party_reporting_rehearsal.sql','transport_v1_financial_completion_rehearsal.sql','tax_posting_reconciliation_rehearsal.sql','transport_ppr_account_rehearsal.sql','transport_initial_rate_vehicle_rehearsal.sql','transport_large_expense_rehearsal.sql','transport_cash_receive_rehearsal.sql','transport_advance_rehearsal.sql','transport_master_data_rehearsal.sql','transport_new_trip_entry_rehearsal.sql','transport_scale_reader_rehearsal.sql'])){
+ for(const file of (process.env.NAVILO_HISTORY_SMOKE==='1'?['transport_historical_import_rehearsal.sql']:process.env.NAVILO_BENCHMARK_ONLY==='1'?['transport_register_benchmark.sql']:process.env.NAVILO_READER_SMOKE==='1'?['transport_scale_reader_rehearsal.sql']:['transport_historical_import_rehearsal.sql','transport_party_reporting_rehearsal.sql','transport_v1_financial_completion_rehearsal.sql','tax_posting_reconciliation_rehearsal.sql','transport_ppr_account_rehearsal.sql','transport_initial_rate_vehicle_rehearsal.sql','transport_large_expense_rehearsal.sql','transport_cash_receive_rehearsal.sql','transport_advance_rehearsal.sql','transport_master_data_rehearsal.sql','transport_new_trip_entry_rehearsal.sql','transport_scale_reader_rehearsal.sql'])){
   if(!fs.existsSync(root+'/supabase/tests/'+file))throw new Error('Missing required rehearsal: '+file);
   try{await db.exec(fs.readFileSync(root+'/supabase/tests/'+file,'utf8'),{onNotice:notice});console.log('PASS',file)}catch(e){console.log('FAIL TEST',file,e.message);await db.close();throw new Error(file+': '+e.message)}
  }

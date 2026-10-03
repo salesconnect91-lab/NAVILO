@@ -4,7 +4,7 @@ export type ImportRow = {
  rowNo:number;trip_date:string;customer:string;truck_type:string;vehicle:string;driver:string;owner_supplier:string;
  po_do_job_no:string;from_location:string;to_location:string;ppr_status:string;customer_rate:string;supplier_rent:string;
  source_invoice_no:string;notes:string;sale_type:string;driver_pay:string;ppr_employee:string;ppr_date:string;
- payload?:Record<string,unknown>;errors:string[];
+ payload?:Record<string,unknown>;errors:string[];has_accounting_evidence?:boolean;
 };
 const text=(value:unknown)=>String(value??'').trim();
 const key=(value:unknown)=>text(value).replace(/\s+/g,' ').toLowerCase();
@@ -50,7 +50,8 @@ export function parseTripWorkbook(buffer:ArrayBuffer):ImportRow[] {
    from_location:text(get('FROM')),to_location:text(get('TO')),ppr_status:ppr,ppr_employee:ppr==='received'?paper:'',ppr_date:ppr==='received'?importDate(get('DATE',1)):'',
    customer_rate:text(first('Customer Rate','rate with company')),supplier_rent:text(first('Supplier Rent','RENT WITH DRIVER')),
    driver_pay:text(get('Driver Pay')),sale_type:text(first('Sale Type (Cash / Credit)','Sale Type ( Cash / Credit)')).toLowerCase(),
-   source_invoice_no:/^(yes|no|y|n|true|false|invoiced|pending)$/i.test(invoice)?'':invoice,notes:text(get('Notes')),errors:[]});
+   source_invoice_no:/^(yes|no|y|n|true|false|invoiced|pending)$/i.test(invoice)?'':invoice,notes:text(get('Notes')),errors:[],
+   has_accounting_evidence:indexes.has('source record id')||['PAY TO DRIVER','received from company','AMOUNT','paid commissin for trip','Supplier Paid','Customer Received'].some(h=>text(get(h))!==''&&Number(get(h))!==0)});
  }
  if(!rows.length)throw new Error('No Trip rows found.');
  if(rows.length>20000)throw new Error('Upload at most 20,000 Trips per file.');
@@ -84,6 +85,9 @@ export async function saveImport(job:ImportJob):Promise<void> {
  const db=await database();return new Promise((resolve,reject)=>{const tx=db.transaction(['jobs','progress'],'readwrite'),store=tx.objectStore('jobs'),existing=store.get(job.scope);
   existing.onsuccess=()=>{if(existing.result?.id!==job.id)store.put(job);tx.objectStore('progress').put({scope:job.scope,id:job.id,completed:job.completed});};
   tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();reject(tx.error);};tx.onabort=()=>{db.close();reject(tx.error);};});
+}
+export async function removeStoredImport(scope:string):Promise<void>{
+ const db=await database();return new Promise((resolve,reject)=>{const tx=db.transaction(['jobs','progress'],'readwrite');tx.objectStore('jobs').delete(scope);tx.objectStore('progress').delete(scope);tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();reject(tx.error);};});
 }
 
 export async function fileDigest(buffer:ArrayBuffer):Promise<string>{return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',buffer)),n=>n.toString(16).padStart(2,'0')).join('');}
