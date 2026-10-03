@@ -195,6 +195,8 @@ export default function TransportAudit({trips}:{trips:TripRef[]}){
             const changes=changesFor(row);
             const eventKey=String(row.event_type||row.action||'').toLowerCase();
             const sensitive=/delete|cancel|correct|adjust|override/.test(eventKey);
+            const recordedSource=objectValue(row.new_data)?.source;
+            const sourceReason=row.reason??(typeof recordedSource==='string'||typeof recordedSource==='number'?String(recordedSource):'');
             return <article key={row.id} className={`rounded-lg border p-3 ${sensitive?'border-amber-200 bg-amber-50/40':'border-slate-200 bg-white'}`}>
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -205,8 +207,8 @@ export default function TransportAudit({trips}:{trips:TripRef[]}){
                     {auditDateTime(row.changed_at??row.occurred_at)}
                   </div>
                 </div>
-                {(row.reason||objectValue(row.new_data)?.source)&&<div className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-700">
-                  Source / Reason: <span className="font-semibold">{String(row.reason??objectValue(row.new_data)?.source)}</span>
+                {sourceReason&&<div className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-700">
+                  Source / Reason: <span className="font-semibold">{sourceReason}</span>
                 </div>}
               </div>
 
