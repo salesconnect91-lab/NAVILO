@@ -120,6 +120,29 @@ begin
  perform public.transport_post_cash_bill_receive(gen_random_uuid(),customer_trip,current_date,cash_id,'cash',false,'Reader cash');
  data:=public.transport_register_query();
  if (data->'totals'->>'company_rate')::numeric<>1000 or (data->'totals'->>'received_company')::numeric<>1000 then raise exception 'Cash canonical totals failed: %',data-'rows';end if;
+
+ -- Additive report and import coverage, including independent side posting,
+ -- zero charges, canonical balances, retry stability and historical ownership.
+ data:=public.transport_trip_report('supplier',1,0,'{"posting":"posted"}');
+ if (data->>'count')::int<>1 or jsonb_array_length(data->'rows')<>1 then raise exception 'Supplier posted filter leaked customer-only Trip';end if;
+ data:=public.transport_trip_report('supplier',1,0,'{"posting":"unposted"}');
+ if (data->>'count')::int<>1 or data->'rows'->0->>'id'<>customer_trip::text then raise exception 'Supplier unposted filter failed';end if;
+ data:=public.transport_trip_report('customer',1,0,'{"posting":"all"}');
+ if (data->>'count')::int<>2 or (data->'summary'->>'revenue')::numeric<>1000 then raise exception 'Report page/full-filter totals failed';end if;
+ data:=public.transport_document_trip_details('customer');
+ if jsonb_array_length(data)<>2 or not exists(select 1 from jsonb_array_elements(data) x where x->>'trip_id'=trip::text and x->>'vehicle_no'='ENTRY-S') then raise exception 'Saved invoice Trip details failed';end if;
+ request_id:=gen_random_uuid();payload:=jsonb_build_array(jsonb_build_object('trip_id',trip,'amount',0,'reason','Zero agreed driver charge'));
+ data:=public.transport_driver_charge_upload(request_id,payload);
+ if data is distinct from public.transport_driver_charge_upload(request_id,payload) then raise exception 'Driver charge retry failed';end if;
+ perform pg_temp.entry_rejected(format('select public.transport_driver_charge_upload(%L,%L)',request_id,jsonb_build_array(jsonb_build_object('trip_id',trip,'amount',1,'reason','Changed'))),'mismatch');
+ request_id:=gen_random_uuid();payload:=jsonb_build_array(jsonb_build_object('trip_id',trip,'amount',25,'date',current_date,'reference','Vehicle expense rehearsal'));
+ data:=public.transport_reviewed_cost_upload(request_id,payload,supplier,acct,'vehicle_expense',false);
+ if data is distinct from public.transport_reviewed_cost_upload(request_id,payload,supplier,acct,'vehicle_expense',false) then raise exception 'Expense retry failed';end if;
+ if (select count(*) from public.transport_service_cost_links where trip_id=trip and cost_kind='vehicle_expense')<>1 then raise exception 'Expense retry duplicated posting';end if;
+ data:=public.accounting_report_balances(current_date-1,current_date,false);
+ if (select sum((x->>'debit')::numeric-(x->>'credit')::numeric) from jsonb_array_elements(data) x)<>0 then raise exception 'Aggregated Trial Balance unbalanced';end if;
+ data:=public.transport_contribution_summary(current_date-1,current_date);
+ if not exists(select 1 from jsonb_array_elements(data) x where x->>'ownership'='company' and (x->>'revenue')::numeric=1000) then raise exception 'Company fleet attribution failed';end if;
  -- Server file lock prevents another user from importing the same file again.
  perform public.transport_prepare_trip_import(repeat('b',64),'same-workspace.xlsx','[[2]]');
  execute 'reset role';

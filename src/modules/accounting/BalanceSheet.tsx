@@ -1,3 +1,4 @@
+import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
@@ -196,15 +197,7 @@ export default function BalanceSheet() {
             .order("id",{ascending:true})
             .range(fromRow,toRow)
         ),
-        fetchAllPages<any>((fromRow,toRow) =>
-          supabase
-            .from("ledgers")
-            .select("id, account_id, entry_date, debit, credit")
-            .lte("entry_date",asOfDate)
-            .order("entry_date",{ascending:true})
-            .order("id",{ascending:true})
-            .range(fromRow,toRow)
-        ),
+        (async()=>{const r=await supabase.rpc('accounting_report_balances',{p_from:null,p_to:asOfDate,p_exclude_closing:false});if(r.error)throw r.error;return r.data||[]})(),
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load balance sheet.");
@@ -416,7 +409,7 @@ export default function BalanceSheet() {
   );
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 pb-12">
+    <div className="mx-auto max-w-[1500px] space-y-6 pb-12"><details className="no-print"><summary>Export / customize Balance Sheet</summary><ConfigurableReport module="accounting" preferenceKey="accounting-balance-sheet" report={{title:'Balance Sheet',description:`As of ${asOfDate} · Canonical posted ledger · Difference ${equationDifference.toFixed(2)}`,columns:['Section','Account','Amount'],rows:[...assets.items.map(i=>['Assets',i.name,i.amount]),...liabilities.items.map(i=>['Liabilities',i.name,i.amount]),...equity.items.map(i=>['Equity',i.name,i.amount]),['Total','Assets',assets.total],['Total','Liabilities and Equity',totalLiabilitiesAndEquity]]}}/></details>
       <style>{`
         @media print {
           body * { visibility: hidden; }

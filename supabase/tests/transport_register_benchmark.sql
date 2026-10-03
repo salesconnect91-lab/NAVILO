@@ -110,6 +110,11 @@ begin
  started:=clock_timestamp();data:=public.transport_bulk_rate_page('supplier');
  if (data->>'count')::int<>50000 then raise exception '50k supplier mismatch';end if;
  raise notice '50,000 supplier bulk ms: %',extract(epoch from clock_timestamp()-started)*1000;
+ started:=clock_timestamp();data:=public.transport_trip_report('customer',500,0,'{"posting":"all"}');
+ if (data->>'count')::int<>50000 or jsonb_array_length(data->'rows')<>500 then raise exception '50k reporting page failed';end if;
+ raise notice '50,000 trip report with full filtered totals ms: %',extract(epoch from clock_timestamp()-started)*1000;
+ data:=public.transport_trip_report('customer',500,49500,'{"posting":"all"}');
+ if jsonb_array_length(data->'rows')<>500 then raise exception '50k reporting last page failed';end if;
  execute 'reset role';
 end $$;
 rollback;

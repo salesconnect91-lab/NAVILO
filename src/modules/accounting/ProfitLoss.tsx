@@ -1,3 +1,5 @@
+import TransportContributionSummary from '../transport/TransportContributionSummary';
+import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
@@ -169,17 +171,7 @@ export default function ProfitLoss() {
             .order("id",{ascending:true})
             .range(fromRow,toRow)
         ),
-        fetchAllPages<LedgerRow>((fromRow,toRow) =>
-          supabase
-            .from("ledgers")
-            .select("account_id,journal_entry_id,entry_date,debit,credit")
-            .gte("entry_date",fromDate)
-            .lte("entry_date",toDate)
-            .order("entry_date",{ascending:true})
-            .order("journal_entry_id",{ascending:true})
-            .order("account_id",{ascending:true})
-            .range(fromRow,toRow)
-        ),
+        (async()=>{const r=await supabase.rpc('accounting_report_balances',{p_from:fromDate,p_to:toDate,p_exclude_closing:true});if(r.error)throw r.error;return r.data||[]})(),
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load Profit & Loss statement.");
@@ -364,7 +356,7 @@ export default function ProfitLoss() {
           <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-slate-400 shadow-sm">Loading Profit & Loss statement...</div>
         ) : (
           <>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <TransportContributionSummary from={fromDate} to={toDate}/><details className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...Object.entries(data).flatMap(([bucket,section])=>section.items.map(item=>[bucket,item.name,item.amount])),['Total','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {([
                 ["Revenue", data.operatingRevenue.total, "text-emerald-700"],
                 ["Cost of Sales", data.costOfSales.total, "text-rose-700"],

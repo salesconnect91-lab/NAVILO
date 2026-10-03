@@ -16,13 +16,13 @@ describe('Dated account statements',()=>{
  it('retains payroll employee identity and historical opening for partial payment',async()=>{
  render(<TransportAccountStatement kind="driver"/>);await screen.findByRole('option',{name:'Original Driver'});
  fireEvent.change(screen.getByLabelText('Payroll employee'),{target:{value:'employee'}});fireEvent.change(screen.getByLabelText('From'),{target:{value:'2026-09-02'}});
- fireEvent.click(screen.getByRole('button',{name:'Excel'}));await waitFor(()=>expect(mock.export).toHaveBeenCalled());
+ await waitFor(()=>expect((screen.getByRole('button',{name:'Excel'}) as HTMLButtonElement).disabled).toBe(false));fireEvent.click(screen.getByRole('button',{name:'Excel'}));await waitFor(()=>expect(mock.export).toHaveBeenCalled());
  const table=mock.export.mock.calls[0][0];expect(table.rows[0][7]).toBe(100);expect(table.rows[1][7]).toBe(70);expect(table.rows[2][7]).toBe(70);
  });
  it('separates vehicle payable from receivable and excludes shared-document double counting',async()=>{
  render(<TransportAccountStatement kind="vehicle"/>);await screen.findByRole('option',{name:'Truck-1'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'vehicle'}});
- fireEvent.click(screen.getByRole('button',{name:'Excel'}));await waitFor(()=>expect(mock.export).toHaveBeenCalled());expect(mock.export.mock.calls[0][0].rows.at(-1)[7]).toBe(70);
- fireEvent.change(screen.getByLabelText('Balance side'),{target:{value:'customer'}});fireEvent.click(screen.getByRole('button',{name:'Excel'}));await waitFor(()=>expect(mock.export).toHaveBeenCalledTimes(2));expect(mock.export.mock.calls[1][0].rows.at(-1)[7]).toBe(200);
+ await waitFor(()=>expect((screen.getByRole('button',{name:'Excel'}) as HTMLButtonElement).disabled).toBe(false));fireEvent.click(screen.getByRole('button',{name:'Excel'}));await waitFor(()=>expect(mock.export).toHaveBeenCalled());expect(mock.export.mock.calls[0][0].rows.at(-1)[7]).toBe(70);
+ fireEvent.change(screen.getByLabelText('Balance side'),{target:{value:'customer'}});await waitFor(()=>expect((screen.getByRole('button',{name:'Excel'}) as HTMLButtonElement).disabled).toBe(false));fireEvent.click(screen.getByRole('button',{name:'Excel'}));await waitFor(()=>expect(mock.export).toHaveBeenCalledTimes(2));expect(mock.export.mock.calls[1][0].rows.at(-1)[7]).toBe(200);
  });
  it('disables output without Transport export permission',async()=>{mock.output=false;render(<TransportAccountStatement kind="driver"/>);await screen.findByRole('option',{name:'Original Driver'});fireEvent.change(screen.getByLabelText('Payroll employee'),{target:{value:'employee'}});expect((screen.getByRole('button',{name:'Excel'}) as HTMLButtonElement).disabled).toBe(true)});
  it('blocks output on permission failure',async()=>{mock.fail=true;render(<TransportAccountStatement kind="driver"/>);await screen.findByRole('alert');expect(screen.queryByRole('button',{name:'Excel'})).toBeNull()});
