@@ -1646,8 +1646,8 @@ export default function TransportWorkspace(){
           <tbody>
 
             {bulkRows.slice(bulkPreviewPage*100,(bulkPreviewPage+1)*100).map(row=>
+              <React.Fragment key={row.rowNo}>
               <tr
-                key={row.rowNo}
                 className="border-t border-slate-100"
               >
 
@@ -1692,7 +1692,6 @@ export default function TransportWorkspace(){
                 <td className="px-2 py-2">{row.ppr_employee}</td><td className="px-2 py-2">{row.ppr_date}</td>
 
               </tr>
-              <React.Fragment key={`fix-${row.rowNo}`}>
               {bulkFixRowNo===row.rowNo&&row.errors.length>0&&
                 <tr className="border-t border-red-100 bg-red-50/60">
                   <td colSpan={BULK_TRIP_HEADERS.length+2} className="px-3 py-2">
