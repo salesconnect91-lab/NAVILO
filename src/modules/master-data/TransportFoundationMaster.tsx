@@ -14,7 +14,7 @@ export default function TransportFoundationMaster({ kind, quickCreate }: { kind:
   const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
   const supabase = useTransportMasterClient();
   const [rows, setRows] = useState<Row[]>([]);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(quickCreate?.initialName ?? "");
   const [city, setCity] = useState("");
   const [expenseScope, setExpenseScope] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
