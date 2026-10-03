@@ -36,7 +36,8 @@ for(const file of fs.readdirSync(root+'/supabase/migrations').filter(f=>f.endsWi
  catch(e){console.log('FAIL',file,e.message);await db.close();throw new Error(file+': '+e.message)}
 }
 console.log('REPLAY PASS',count);
-if(process.env.NAVILO_PROFILE_REHEARSAL==='1'){if(process.env.NAVILO_NATIVE_REHEARSAL!=='1')throw new Error('Profile only the isolated native CI service');await db.exec("LOAD 'auto_explain'; SET auto_explain.log_min_duration=5; SET auto_explain.log_analyze=on; SET auto_explain.log_nested_statements=on; SET auto_explain.log_format=json; SET auto_explain.log_level=notice;");}
+if(process.env.NAVILO_PROFILE_REHEARSAL==='1'){if(process.env.NAVILO_NATIVE_REHEARSAL!=='1')throw new Error('Profile only the isolated native CI service');await db.exec("CREATE EXTENSION pg_stat_statements; SET pg_stat_statements.track='all'; SET pg_stat_statements.track_planning=on; SELECT pg_stat_statements_reset();");}
+
 const notice=notice=>{if(/Trips|50,000|20,000/.test(notice.message))console.log('SCALE',notice.message)};
 if(process.env.NAVILO_HISTORY_SCALE){
  const total=Number(process.env.NAVILO_HISTORY_SCALE);if(!Number.isInteger(total)||total<25||total>20000||total%25)throw new Error('History scale count requires a multiple of 25, at most 20,000');
@@ -56,4 +57,5 @@ if(process.env.NAVILO_HISTORY_SCALE){
   try{await db.exec(fs.readFileSync(root+'/supabase/tests/'+file,'utf8'),{onNotice:notice});console.log('PASS',file)}catch(e){console.log('FAIL TEST',file,e.message);await db.close();throw new Error(file+': '+e.message)}
  }
 }
+if(process.env.NAVILO_PROFILE_REHEARSAL==='1'){const stats=await db.query("select query,calls,plans,total_plan_time,total_exec_time,rows from pg_stat_statements order by total_plan_time+total_exec_time desc limit 100");console.log('PROFILE STATISTICS',JSON.stringify(stats.rows));}
 await db.close();

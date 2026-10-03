@@ -36,6 +36,17 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Enable isolated query planning profile
+        if: matrix.mode == 'profile'
+        env:
+          TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker exec "$TEST_POSTGRES_CONTAINER" psql -U postgres -d navilo_transport_rehearsal -c "ALTER SYSTEM SET shared_preload_libraries='pg_stat_statements'"
+          docker restart "$TEST_POSTGRES_CONTAINER"
+          for attempt in $(seq 1 30); do
+            if docker exec "$TEST_POSTGRES_CONTAINER" pg_isready -U postgres -d navilo_transport_rehearsal; then break; fi
+            sleep 1
+          done
       - name: Install repository dependencies
         run: npm ci --no-audit --no-fund
       - name: Install isolated PostgreSQL test driver
