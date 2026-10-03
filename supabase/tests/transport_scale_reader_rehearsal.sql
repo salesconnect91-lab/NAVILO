@@ -110,8 +110,14 @@ begin
  if (data->>'count')::integer is distinct from 0 then raise exception 'Audit used substring matching';end if;
  begin
  execute 'reset role';
- insert into public.transport_trips(company_id,business_unit_id,trip_date,customer_id,from_location_id,to_location_id,po_do_job_no,customer_rate,sale_type,ppr_status)
- select c,b,current_date,customer,from_id,to_id,'SORT-ONLY',i,'credit','pending' from generate_series(1,501) i;
+ -- Reader-only synthetic fixtures, seeded like the existing 50k benchmark;
+ -- creation/posting behavior is covered independently by canonical rehearsals.
+ alter table public.transport_trips disable trigger user;
+ insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,customer_name_snapshot,from_location_id,to_location_id,from_location,to_location,po_do_job_no,customer_rate,sale_type,ppr_status)
+ select c,b,'SORT-'||code||'-'||i,current_date,customer,'Entry Customer',from_id,to_id,'Entry From','Entry To','SORT-ONLY',i,'credit','pending' from generate_series(1,501) i;
+ alter table public.transport_trips enable trigger user;
+ analyze public.transport_trips;
+ raise notice '501 Trips sort fixture prepared';
  execute 'set local role authenticated';
  data:=public.transport_register_query(500,0,jsonb_build_object('search','SORT-ONLY'),'company_rate','desc');
  if (data->>'count')::integer is distinct from 501 or jsonb_array_length(data->'rows')<>500 or (data->'rows'->0->>'customer_rate')::numeric is distinct from 501 then raise exception 'Global descending sort before LIMIT failed';end if;
@@ -119,6 +125,7 @@ begin
  if (data->'rows'->0->>'customer_rate')::numeric is distinct from 1 or (data->'totals'->>'company_rate')::numeric is distinct from 125751 then raise exception 'Descending second page / full totals failed';end if;
  data:=public.transport_register_query(500,500,jsonb_build_object('search','SORT-ONLY'),'company_rate','asc');
  if (data->'rows'->0->>'customer_rate')::numeric is distinct from 501 then raise exception 'Ascending second page failed';end if;
+ raise notice 'Trips full-filter ASC/DESC, second page and totals passed for 501 rows';
  raise exception using errcode='PT501',message='Rollback only synthetic sort fixtures';
  exception when sqlstate 'PT501' then null;
  end;
