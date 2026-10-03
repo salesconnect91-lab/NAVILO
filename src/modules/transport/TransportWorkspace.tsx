@@ -279,8 +279,10 @@ export default function TransportWorkspace(){
   async function quickMasterCreated(created:any){
     await loadTripMasters();
     if(bulkFixRowNo!==null){
-      const current=bulkRows.find(row=>row.rowNo===bulkFixRowNo);
-      if(current){const validated=await validateBulkMasters([current],true);setBulkRows(rows=>rows.map(row=>row.rowNo===bulkFixRowNo?validated[0]:row));}
+      // A newly-created master can resolve the same rejection in many uploaded rows.
+      // Re-run the existing validator for the whole preview; no validation rule is bypassed.
+      const validated=await validateBulkMasters(bulkRows,true);
+      setBulkRows(validated);
       setBulkFixRowNo(null);setQuickAdd(null);return;
     }
     if(quickAdd==='supplier'){setQuickSupplierId(created.id);return;}
