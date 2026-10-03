@@ -1782,34 +1782,21 @@ export default function TransportWorkspace(){
 
 
       <TransportPagination page={bulkPreviewPage} pageSize={100} count={bulkRows.length} busy={bulkParsing||bulkValidating} onPage={setBulkPreviewPage}/>
-      <div className="flex items-center justify-between gap-3">
+      <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
 
         <span className="text-xs text-slate-500">
           Preview shows 100 rows per page. Payments, balances and profit from Excel are not posted.
         </span>
 
         <button
-                  type="button"
-                  onClick={()=>void importValidBulkRows()}
-                  disabled={
-                    bulkImporting||
-                    bulkParsing||
-                    bulkValidating||
-                    !bulkRows.some(row=>row.errors.length===0)
-                  }
-                  className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50"
-                  title={
-                    bulkRows.some(row=>row.errors.length===0)
-                      ?"Import rows that passed all validations"
-                      :"No valid rows available to import"
-                  }
-                >
-                  {bulkImporting
-                    ?"Importing..."
-                    :"Import Valid Rows ("+
-                      bulkRows.filter(row=>row.errors.length===0).length+
-                      ")"}
-                </button>
+          type="button"
+          onClick={()=>void importValidBulkRows()}
+          disabled={bulkImporting||bulkParsing||bulkValidating||!bulkRows.some(row=>row.errors.length===0)}
+          className="btn-primary min-w-[190px] justify-center disabled:cursor-not-allowed disabled:opacity-50"
+          title={bulkRows.some(row=>row.errors.length===0)?"Import rows that passed all validations":"No valid rows available to import"}
+        >
+          {bulkImporting?"Importing...":`Import Valid Rows (${bulkRows.filter(row=>row.errors.length===0).length})`}
+        </button>
 
       </div>
 
