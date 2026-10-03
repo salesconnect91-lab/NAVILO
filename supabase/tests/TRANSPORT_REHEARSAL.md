@@ -136,3 +136,13 @@ rejects 20,001 Trips and preserves legacy 25-row job settings.
 Persistent raw evidence: `evidence/transport-history-20000-20261003.txt`.
 These are synthetic acceptance fixtures, not the customer's historical data.
 No historical import job was created in production during verification.
+
+The follow-up request-budget release
+`fcace28ef62cdee07489d1421aba1702558f9686` passed native run
+[37126748442](https://github.com/salesconnect91-lab/NAVILO/actions/runs/37126748442):
+487 migrations and all thirteen SQL rehearsals, including the full small-batch
+manifest guards. It also passed 243 frontend tests in 49 files, typecheck and
+production build. Production verification confirmed the 4,000-batch allowance,
+20,000-Trip cap, 25-row atomic maximum, authenticated-only access and zero
+actual historical jobs. Raw reconciliation evidence is retained in
+`evidence/transport-reconciliation-20261003.txt`.

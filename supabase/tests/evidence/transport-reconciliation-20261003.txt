@@ -1,0 +1,16 @@
+NATIVE POSTGRES ISOLATED CI
+REPLAY PASS 487
+PASS scope_plan_cache_rehearsal.sql
+PASS transport_historical_import_rehearsal.sql
+PASS transport_party_reporting_rehearsal.sql
+SCALE PASS: canonical credit/cash service billing; receipt and AP allocation; multiple Trips/suppliers; partial/full settlement; positive/negative corrections; Closed/refund; posted history; commission/profit; reversal; ledger reconciliation; delete/edit and permission guards
+PASS transport_v1_financial_completion_rehearsal.sql
+PASS tax_posting_reconciliation_rehearsal.sql
+PASS transport_ppr_account_rehearsal.sql
+PASS transport_initial_rate_vehicle_rehearsal.sql
+PASS transport_large_expense_rehearsal.sql
+PASS transport_cash_receive_rehearsal.sql
+PASS transport_advance_rehearsal.sql
+PASS transport_master_data_rehearsal.sql
+PASS transport_new_trip_entry_rehearsal.sql
+PASS transport_scale_reader_rehearsal.sql
