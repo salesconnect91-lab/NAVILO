@@ -66,6 +66,7 @@ function shellLabel(label:string):string{
 }
 function matches(n:NavNode,p:string):boolean{return Boolean(n.to&&(p===n.to||(!n.end&&n.to!=="/"&&p.startsWith(n.to+"/"))))||Boolean(n.children?.some(c=>matches(c,p)))}
 function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],unitType:string|undefined,permissions:PermissionMatrix|undefined,isFeatureEnabled:(key:string)=>boolean):NavNode|null{
+  if(unitType === "transport" && (n.key === "sales-consolidated" || n.key === "purchase-consolidated"))return null;
   if(n.key === "transporters" && unitType === "transport" && mods.includes("transport"))return null;
   if(n.ownerOnly&&!owner)return null;
   if(n.accessAdminOnly&&!owner&&role!=="company_owner"&&role!=="admin")return null;

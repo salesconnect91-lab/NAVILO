@@ -64,7 +64,8 @@ signed-in production workspace; financial posting tests use isolated fixtures.
 
 Sales and Purchase Transport service editors offer an optional invoice number
 under each Trip. Each customer Trip and supplier rent remains an individual
-canonical invoice. Blank uses automatic numbering. The entered number is
+canonical invoice. Transport navigation hides consolidated documents, and
+direct Sales/Purchase consolidated links redirect to Trip service creation. Blank uses automatic numbering. The entered number is
 trimmed and saved before posting; case-insensitive duplicates in the active
 company are rejected. Posted numbers stay immutable. Supplier original invoice
 references remain separate. Cash Bill retries bind the chosen number to their
@@ -79,9 +80,17 @@ JavaScript buffers. This remains one dataset with 800 canonical atomic batches.
 ## Native PostgreSQL acceptance in CI
 
 The Transport accounting acceptance workflow uses a fresh PostgreSQL 17 service
-for each matrix job. One job replays all migrations and the twelve reconciliation
+for each matrix job. One job replays all migrations and the thirteen reconciliation
 rehearsals; the second imports the complete 20,000-trip historical dataset through
 800 canonical batches and checks final accounting totals. Logs are retained as
 job artifacts. This workflow uses no production connection or credentials.
 The native adapter accepts only the fixed loopback CI service, named empty
 rehearsal database and CI-only driver; arbitrary remote hosts are unsupported.
+
+## Scope plan reuse
+
+The scope helpers retain their original authorization queries, stable volatility,
+security-definer settings and grants. PL/pgSQL caches executable query plans,
+not user/company/branch results. The regression fixture switches actors and
+workspaces within one backend and checks stale selections, inactive membership,
+Platform Owner access, suspended/expired companies and anonymous scope.

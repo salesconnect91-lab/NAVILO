@@ -8,6 +8,7 @@ import Login from "@/auth/Login";
 import ResetPassword from "@/auth/ResetPassword";
 import ProtectedRoute from "@/auth/ProtectedRoute";
 import Layout from "@/components/Layout";
+import ConsolidatedInvoiceGuard from "@/components/ConsolidatedInvoiceGuard";
 import CompanySwitcher from "@/components/CompanySwitcher";
 import BusinessUnitSwitcher from "@/components/BusinessUnitSwitcher";
 import PrintPreviewController from "@/components/PrintPreviewController";
@@ -111,7 +112,7 @@ export default function App() {
       <Route path="/sales/report" element={<ModuleOnly module="reports"><ReportSurface><SalespersonReportHub /></ReportSurface></ModuleOnly>} />
       <Route path="/sales/person-ledger" element={<ModuleOnly module="reports"><ReportSurface><SalespersonLedger /></ReportSurface></ModuleOnly>} />
       <Route path="/sales/charges" element={<ModuleOnly module="master"><ChargeMaster /></ModuleOnly>} />
-      <Route path="/sales/consolidated" element={<ModuleOnly module="sales"><ConsolidatedInvoices /></ModuleOnly>} />
+      <Route path="/sales/consolidated" element={<ModuleOnly module="sales"><ConsolidatedInvoiceGuard side="sales"><ConsolidatedInvoices /></ConsolidatedInvoiceGuard></ModuleOnly>} />
       <Route path="/sales/order-book" element={<ModuleOnly module="sales"><OrderBook type="sales" /></ModuleOnly>} />
       <Route path="/sales/workflow" element={<ModuleOnly module="sales"><PreInvoiceWorkspace side="sales" /></ModuleOnly>} />
       <Route path="/sales/:id" element={<ModuleOnly module="sales"><SalesInvoiceDetail /></ModuleOnly>} />
