@@ -1179,7 +1179,10 @@ export default function TransportWorkspace(){
             className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50">
             Columns
           </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+          <button type="button" onClick={()=>setTab("new")} className="flex h-7 items-center gap-1 rounded-md border border-blue-300 bg-blue-50 px-2 text-[11px] font-semibold text-blue-800 hover:bg-blue-100"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
           <span data-navilo-standard-tools-host="true" className="contents" />
+          </div>
 
         </div>
 
@@ -1351,7 +1354,7 @@ export default function TransportWorkspace(){
                       ?<button type="button" className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[8px] leading-none text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
                     :key==='paper_received_by'
                       ?r.ppr_status==='received'
-                        ?<span className="inline-flex items-baseline gap-1"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[7px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
+                        ?<span className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[7px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
                         :<button type="button" onClick={()=>void openQuickPpr(r)} className="h-[14px] rounded border border-amber-300 bg-amber-50 px-1 py-0 text-[8px] font-semibold leading-none text-amber-800">Receive PPR</button>
                       :value||""}
                 </td>;

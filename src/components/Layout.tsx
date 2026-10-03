@@ -24,7 +24,6 @@ const navigation:NavNode[]=[
   {key:"cutting",label:"Cutting & Loading / کٹنگ و لوڈنگ",icon:Lucide.Scissors,module:"production",steelOnly:true,children:[{key:"cutting-orders",to:"/cutting",label:"Cutting Orders / کٹنگ آرڈرز",end:true,module:"production",steelOnly:true},{key:"gate-pass",to:"/cutting/gate-pass",label:"Gate Pass & Weighbridge / گیٹ پاس و وزن کانٹا",module:"production",steelOnly:true}]},
   {key:"transport",label:"Transport",icon:Lucide.Truck,module:"transport",businessType:"transport",children:[
     {key:"transport-trips",to:"/transport?view=trips",label:"Trips",module:"transport"},
-    {key:"transport-new",to:"/transport?view=new",label:"New Trip",module:"transport"},
     {key:"transport-audit",to:"/transport?view=audit",label:"Trip Audit",module:"transport"},
     {key:"transport-driver-expenses",to:"/transport?view=driver-expenses",label:"Driver Expense Upload",module:"transport"},
     {key:"transport-driver-account",to:"/transport?view=driver-account",label:"Driver Account / Hisaab",module:"transport"},

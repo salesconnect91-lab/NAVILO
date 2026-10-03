@@ -24,11 +24,12 @@ beforeEach(() => localStorage.setItem("navilo-sidebar-collapsed", "true"));
 afterEach(() => { cleanup(); localStorage.clear(); });
 
 describe("collapsed navigation", () => {
-  it("places the six Transport destinations and reports in the sidebar with only one active query link", () => {
+  it("places Transport destinations and reports in the sidebar with only one active query link", () => {
     render(<MemoryRouter initialEntries={["/transport?view=audit"]}><Layout><div>Audit workspace</div></Layout></MemoryRouter>);
     fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
-    for(const name of ["Trips","New Trip","Trip Audit","Driver Expense Upload","Driver Account / Hisaab","Vehicle Account / Gari Hisaab"])
+    for(const name of ["Trips","Trip Audit","Driver Expense Upload","Driver Account / Hisaab","Vehicle Account / Gari Hisaab"])
       expect(screen.getByRole("link",{name})).toBeTruthy();
+    expect(screen.queryByRole("link",{name:"New Trip"})).toBeNull();
     expect(screen.getByRole("link",{name:"Trip Audit"}).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link",{name:"Trips"}).getAttribute("aria-current")).toBe("false");
     fireEvent.click(screen.getByRole("button",{name:"Reports & Allocation"}));
