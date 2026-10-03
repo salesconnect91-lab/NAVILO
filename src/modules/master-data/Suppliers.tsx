@@ -50,7 +50,7 @@ export default function Suppliers({ quickCreate }: { quickCreate?: MasterQuickCr
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [hardDeleteId, setHardDeleteId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
-  const [form, setForm] = useState(EMPTY);
+  const [form, setForm] = useState(() => ({ ...EMPTY, name: quickCreate?.initialName ?? "" }));
   const [urduTouched, setUrduTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const submitting = useRef(false);
