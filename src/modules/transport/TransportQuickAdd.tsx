@@ -5,11 +5,11 @@ import TransportFoundationMaster from '@/modules/master-data/TransportFoundation
 import type { QuickAddKind } from './transportTripEntry';
 
 // Use the canonical Master editor so fields, validation and persistence agree.
-export default function TransportQuickAdd({kind,truckTypeId,supplierId,onCreated,onClose}:{
-  kind:QuickAddKind;truckTypeId:string;supplierId:string;truckTypes:any[];suppliers:any[];
+export default function TransportQuickAdd({kind,truckTypeId,supplierId,initialName,onCreated,onClose}:{
+  kind:QuickAddKind;truckTypeId:string;supplierId:string;initialName?:string;truckTypes:any[];suppliers:any[];
   onCreated:(record:any)=>Promise<void>;onClose:()=>void;
 }) {
-  const quickCreate={onCreated,onClose,truckTypeId,supplierId};
+  const quickCreate={onCreated,onClose,truckTypeId,supplierId,initialName};
   if(kind==='customer')return <Customers quickCreate={quickCreate}/>;
   if(kind==='supplier')return <Suppliers quickCreate={quickCreate}/>;
   if(kind==='vehicle'||kind==='driver')return <TransportMaster kind={kind==='vehicle'?'vehicles':'drivers'} quickCreate={quickCreate}/>;
