@@ -48,9 +48,9 @@ jobs:
         run: |
           set -o pipefail
           if [ "$TEST_MODE" = historical-20000 ]; then
-            NAVILO_HISTORY_SCALE=20000 node --expose-gc supabase/tests/replay_transport_isolated.mjs | tee transport-rehearsal.log
+            NAVILO_HISTORY_SCALE=20000 node --expose-gc supabase/tests/replay_transport_isolated.mjs 2>&1 | tee transport-rehearsal.log
           else
-            node supabase/tests/replay_transport_isolated.mjs | tee transport-rehearsal.log
+            node supabase/tests/replay_transport_isolated.mjs 2>&1 | tee transport-rehearsal.log
           fi
       - name: Preserve acceptance evidence
         if: always()

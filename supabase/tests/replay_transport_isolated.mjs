@@ -8,7 +8,7 @@ let db;
 if(process.env.NAVILO_NATIVE_REHEARSAL==='1'){
  const driver=process.env.NAVILO_PG_DRIVER;
  if(process.env.GITHUB_ACTIONS!=='true'||!driver||!path.isAbsolute(driver))throw new Error('Native rehearsal is restricted to the isolated CI service');
- const {Client}=await import(pathToFileURL(driver).href);
+ const pg=await import(pathToFileURL(driver).href);const Client=pg.Client??pg.default.Client;
  const client=new Client({host:'127.0.0.1',port:6543,user:'postgres',password:'navilo-rehearsal-only',database:'navilo_transport_rehearsal'});
  await client.connect();
  const check=await client.query("select current_database() name,(select count(*)::integer from pg_tables where schemaname in ('public','auth','storage')) tables");
