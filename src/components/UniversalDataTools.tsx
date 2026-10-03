@@ -117,7 +117,7 @@ export default function UniversalDataTools(){
   useEffect(()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main||!standardPath||genericReport||transportWorkspace){setHasCustomizableTable(false);return;}const scan=()=>{const next=Boolean(main.querySelector("[data-navilo-data-table],[data-navilo-customizable='true']"));setHasCustomizableTable(prev=>prev===next?prev:next)};scan();const o=new MutationObserver(scan);o.observe(main,{childList:true,subtree:true});return()=>{o.disconnect();setHasCustomizableTable(false)}},[pathname,standardPath,genericReport,transportWorkspace]);
   useEffect(()=>{const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main||!standardPath||genericReport||transportWorkspace){setHasLocalDocumentOutput(false);return;}const hidden=new Set<HTMLElement>();const scan=()=>{let documentOutput=false;main.querySelectorAll<HTMLElement>("button,a,[role='button']").forEach(el=>{if(el.closest("[data-navilo-global-data-tools]"))return;if(el.dataset.naviloKeepLocalAction==="true")return;if(isDocumentOutputAction(el)){documentOutput=true;return;}const label=labelOf(el);if(isTemplateAction(label)||isUploadAction(label)||isExportDuplicate(label)){el.style.setProperty("display","none","important");el.dataset.naviloDuplicateGlobalAction="true";hidden.add(el)}});setHasLocalDocumentOutput(prev=>prev===documentOutput?prev:documentOutput)};scan();const o=new MutationObserver(scan);o.observe(main,{childList:true,subtree:true});return()=>{o.disconnect();hidden.forEach(el=>{el.style.removeProperty("display");delete el.dataset.naviloDuplicateGlobalAction});setHasLocalDocumentOutput(false)}},[pathname,standardPath,genericReport]);
   useLayoutEffect(()=>{
-    if(!standardPath||transportWorkspace){setStandardHost(null);return;}
+    if(!standardPath){setStandardHost(null);return;}
     const attach=()=>{
       const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return false;
       const explicit=main.querySelector<HTMLElement>("[data-navilo-standard-tools-host]");
@@ -148,7 +148,7 @@ export default function UniversalDataTools(){
     });
     observer.observe(document.querySelector("#navilo-main-content")??document.body,{childList:true,subtree:true});
     return()=>{observer.disconnect()};
-  },[standardPath,pathname,transportWorkspace]);
+  },[standardPath,pathname]);
   useEffect(()=>{if(!open)return;const place=()=>{const r=exportButtonRef.current?.getBoundingClientRect();if(r)setMenuPos({top:r.bottom+6,right:Math.max(8,window.innerWidth-r.right)})};place();const close=(e:MouseEvent)=>{const target=e.target as Node;if(ref.current?.contains(target)||exportButtonRef.current?.contains(target))return;setOpen(false)};document.addEventListener("mousedown",close);window.addEventListener("resize",place);window.addEventListener("scroll",place,true);return()=>{document.removeEventListener("mousedown",close);window.removeEventListener("resize",place);window.removeEventListener("scroll",place,true)}},[open]);
 
   const exp=(t:"excel"|"csv"|"word"|"pdf")=>{if(!canExport)return;const root=currentExportRoot();if(!root)return;const title=currentPageTitle(),file=cleanTitle(title);if(t==="excel")exportDomReportToExcel(file,root,title);if(t==="csv")exportDomReportToCSV(file,root,title);if(t==="word")exportDomReportToWord(file,root,title);if(t==="pdf")exportDomReportToPDF(file,root,title);setOpen(false)};
