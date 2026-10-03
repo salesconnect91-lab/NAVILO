@@ -233,6 +233,7 @@ export default function TransportWorkspace(){
   const [editingOriginalAssignment,setEditingOriginalAssignment]=useState({vehicle_id:"",driver_id:""});
 
   const [quickAdd,setQuickAdd]=useState<QuickAddKind|null>(null);
+  const [bulkFixRowNo,setBulkFixRowNo]=useState<number|null>(null);
   const [quickSupplierId,setQuickSupplierId]=useState('');
   const selectedVehicle=tripMasters.vehicles.find(v=>v.id===form.vehicle_id);
   const selectedDriver=tripMasters.drivers.find(d=>d.id===form.driver_id);
@@ -277,6 +278,11 @@ export default function TransportWorkspace(){
   };
   async function quickMasterCreated(created:any){
     await loadTripMasters();
+    if(bulkFixRowNo!==null){
+      const current=bulkRows.find(row=>row.rowNo===bulkFixRowNo);
+      if(current){const validated=await validateBulkMasters([current],true);setBulkRows(rows=>rows.map(row=>row.rowNo===bulkFixRowNo?validated[0]:row));}
+      setBulkFixRowNo(null);setQuickAdd(null);return;
+    }
     if(quickAdd==='supplier'){setQuickSupplierId(created.id);return;}
     setForm(previous=>{
       if(quickAdd==='customer')return {...previous,customer_id:created.id,customer_name_snapshot:created.name};
@@ -1486,6 +1492,9 @@ export default function TransportWorkspace(){
 
   {newTripMode==="bulk"&&
   <div className="space-y-3 p-4">
+
+    {quickAdd&&bulkFixRowNo!==null&&<TransportQuickAdd key={`${scopeKey}/bulk/${bulkFixRowNo}/${quickAdd}`} kind={quickAdd} truckTypeId={bulkRows.find(r=>r.rowNo===bulkFixRowNo)?.payload?.truck_type_id as string||""} supplierId={quickSupplierId}
+      truckTypes={tripMasters.truckTypes} suppliers={tripMasters.suppliers} onCreated={quickMasterCreated} onClose={()=>{setQuickAdd(null);setBulkFixRowNo(null)}}/>}
     <p className="text-xs">Daily operational upload: creates Trips and agreed charges only. Historical receipts and paid rent require the separate One-time Historical Import.</p>
 
     <div className="flex flex-wrap items-center gap-2">
@@ -1649,12 +1658,14 @@ export default function TransportWorkspace(){
                 <td className="px-2 py-2">
 
                   {row.errors.length
-                    ? <span
-                        className="font-semibold text-red-700"
+                    ? <button
+                        type="button"
+                        className="font-semibold text-red-700 underline decoration-dotted underline-offset-2"
                         title={row.errors.join("; ")}
+                        onClick={()=>setBulkFixRowNo(current=>current===row.rowNo?null:row.rowNo)}
                       >
                         Rejected
-                      </span>
+                      </button>
 
                     : <span className="font-semibold text-emerald-700">
                         Valid
@@ -1681,6 +1692,22 @@ export default function TransportWorkspace(){
                 <td className="px-2 py-2">{row.ppr_employee}</td><td className="px-2 py-2">{row.ppr_date}</td>
 
               </tr>
+              {bulkFixRowNo===row.rowNo&&row.errors.length>0&&
+                <tr className="border-t border-red-100 bg-red-50/60">
+                  <td colSpan={BULK_TRIP_HEADERS.length+2} className="px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                      <span className="font-semibold text-red-800">Fix rejected row:</span>
+                      {row.errors.map((message,index)=><span key={index} className="rounded border border-red-200 bg-white px-2 py-1 text-red-700">{message}</span>)}
+                      {entryPermissions.master&&row.errors.some(e=>e.startsWith('Customer is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('customer')}}>+ Customer</button>}
+                      {entryPermissions.master&&row.errors.some(e=>e.startsWith('Driver is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('driver')}}>+ Driver</button>}
+                      {entryPermissions.master&&row.errors.some(e=>e.startsWith('From is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('locationFrom')}}>+ From</button>}
+                      {entryPermissions.master&&row.errors.some(e=>e.startsWith('To is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('locationTo')}}>+ To</button>}
+                      {entryPermissions.master&&row.errors.some(e=>e.startsWith('Truck Type is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('truckType')}}>+ Truck Type</button>}
+                      {entryPermissions.master&&entryPermissions.owner&&row.errors.some(e=>e.startsWith('Vehicle is missing'))&&<button className="btn" onClick={()=>{setBulkFixRowNo(row.rowNo);openQuickAdd('vehicle')}}>+ Vehicle</button>}
+                      <button className="btn" disabled={bulkValidating} onClick={async()=>{const validated=await validateBulkMasters([row],true);setBulkRows(rows=>rows.map(item=>item.rowNo===row.rowNo?validated[0]:item));}}>Re-validate</button>
+                    </div>
+                  </td>
+                </tr>}
             )}
 
           </tbody>
