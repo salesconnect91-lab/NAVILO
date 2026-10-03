@@ -1493,7 +1493,7 @@ export default function TransportWorkspace(){
   {newTripMode==="bulk"&&
   <div className="space-y-3 p-4">
 
-    {quickAdd&&bulkFixRowNo!==null&&<TransportQuickAdd key={`${scopeKey}/bulk/${bulkFixRowNo}/${quickAdd}`} kind={quickAdd} truckTypeId={bulkRows.find(r=>r.rowNo===bulkFixRowNo)?.payload?.truck_type_id as string||""} supplierId={quickSupplierId}
+    {quickAdd&&bulkFixRowNo!==null&&<TransportQuickAdd key={`${scopeKey}/bulk/${bulkFixRowNo}/${quickAdd}`} kind={quickAdd} truckTypeId={String(bulkRows.find(r=>r.rowNo===bulkFixRowNo)?.payload?.truck_type_id??"")} supplierId={quickSupplierId}
       truckTypes={tripMasters.truckTypes} suppliers={tripMasters.suppliers} onCreated={quickMasterCreated} onClose={()=>{setQuickAdd(null);setBulkFixRowNo(null)}}/>}
     <p className="text-xs">Daily operational upload: creates Trips and agreed charges only. Historical receipts and paid rent require the separate One-time Historical Import.</p>
 
