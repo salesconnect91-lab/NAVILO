@@ -1347,8 +1347,8 @@ export default function TransportWorkspace(){
                         onClick={()=>setInvoiceTrip(r)}>
                         {r.invoice_no||''}
                       </button>
-                    :key==='rent_driver'&&r.customer_rate_state!==undefined&&Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)<=0
-                      ?<button type="button" className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[8px] leading-none text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`Add Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}} />
+                    :key==='rent_driver'&&r.customer_rate_state!==undefined
+                      ?<button type="button" className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[8px] leading-none text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
                     :key==='paper_received_by'
                       ?r.ppr_status==='received'
                         ?<span className="inline-flex items-baseline gap-1"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[7px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
@@ -1876,7 +1876,7 @@ export default function TransportWorkspace(){
     </div>}
     {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={load}/>}
     {invoiceTrip&&<TransportInvoiceNumber trip={invoiceTrip} onClose={()=>setInvoiceTrip(null)} onChanged={load}/>}
-    {showBulkSupplierRent&&<TransportBulkSupplierRent initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={async()=>{await load(true)}}/>}
+    {showBulkSupplierRent&&<TransportBulkSupplierRent compact={Boolean(bulkSupplierRentTrip)} initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={async()=>{await load(true)}}/>}
       {showBulkCustomerRate&&<TransportBulkCustomerRate onClose={()=>setShowBulkCustomerRate(false)} onChanged={async()=>{await load(true)}}/>}
 
   </div>

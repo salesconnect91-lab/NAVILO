@@ -35,6 +35,36 @@ beforeEach(()=>{
  });
 });
 afterEach(cleanup);
+describe('Compact supplier rate popup',()=>{
+ it('keeps Save Rate disabled without the existing rent permissions',async()=>{
+  mock.allowed=false;render(<TransportBulkSupplierRent compact initialTripId="trip" initialSupplierName="Supplier A" onClose={vi.fn()} onChanged={async()=>{}}/>);
+  await screen.findByLabelText('Supplier rate excluding VAT');
+  fireEvent.change(screen.getByLabelText('Supplier rate excluding VAT'),{target:{value:'75'}});fireEvent.change(screen.getByLabelText('Reason'),{target:{value:'Rate change'}});
+  expect((screen.getByRole('button',{name:'Save Rate'}) as HTMLButtonElement).disabled).toBe(true);
+ });
+ it('saves the selected Trip rent without opening a bulk table or posting an invoice',async()=>{
+  const close=vi.fn();render(<TransportBulkSupplierRent compact initialTripId="trip" initialSupplierName="Supplier A" onClose={close} onChanged={async()=>{}}/>);
+  const input=await screen.findByLabelText('Supplier rate excluding VAT');
+  expect(screen.getByRole('dialog').className).toContain('max-w-sm');
+  expect(screen.queryByRole('table')).toBeNull();
+  fireEvent.change(input,{target:{value:'75'}});fireEvent.change(screen.getByLabelText('Reason'),{target:{value:'Agreed revised rent'}});
+  fireEvent.click(screen.getByRole('button',{name:'Save Rate'}));
+  await waitFor(()=>expect(close).toHaveBeenCalled());
+  expect(mock.rpc).toHaveBeenCalledWith('transport_finalize_supplier_rent',{p_rent_id:'rent-a',p_amount:75,p_reason:'Agreed revised rent'});
+  expect(mock.rpc.mock.calls.some(([name])=>name.startsWith('transport_post_supplier_bill'))).toBe(false);
+  expect(mock.rpc.mock.calls.filter(([name])=>name==='transport_bulk_rate_page').every(([,args])=>args.p_filters.initialTrip==='trip')).toBe(true);
+ });
+ it('keeps multiple supplier rents separate and corrects only the selected posted rent',async()=>{
+  mock.tables.transport_supplier_document_rents=[{id:'link-a',rent_id:'rent-a'},{id:'link-b',rent_id:'rent-b'}];
+  render(<TransportBulkSupplierRent compact initialTripId="trip" initialSupplierName="Supplier A" onClose={vi.fn()} onChanged={async()=>{}}/>);
+  await screen.findByLabelText('Supplier rate excluding VAT');
+  fireEvent.change(screen.getByLabelText('Supplier rent'),{target:{value:'rent-b'}});
+  await waitFor(()=>expect((screen.getByLabelText('Supplier rate excluding VAT') as HTMLInputElement).value).toBe('30'));
+  fireEvent.change(screen.getByLabelText('Supplier rate excluding VAT'),{target:{value:'35'}});fireEvent.change(screen.getByLabelText('Reason'),{target:{value:'Supplier B correction'}});
+  fireEvent.click(screen.getByRole('button',{name:'Post Correction'}));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_adjust_rate',expect.objectContaining({p_trip_id:'trip',p_rent_id:'rent-b',p_side:'supplier',p_new_rate:35})));
+ });
+});
 describe('Transport Customer / Supplier bulk parity',()=>{
  it('loads beyond the first 1000 Trips',async()=>{
   mock.trips=Array.from({length:1001},(_,i)=>({...trip,id:String(i)}));
