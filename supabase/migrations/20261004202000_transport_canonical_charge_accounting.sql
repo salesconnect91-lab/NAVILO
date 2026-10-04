@@ -204,10 +204,10 @@ begin
  if t.customer_rate_state is distinct from 'finalized' or t.customer_rate_snapshot is null or t.customer_rate_snapshot is distinct from t.customer_rate then raise exception 'Consistent finalized customer rate snapshot required';end if;
  if t.sales_order_id is not null then raise exception 'Trip already references a canonical Sales document; reconcile its existing posted linkage before billing';end if;
  if t.sale_type is null or t.customer_id is null or t.customer_rate<=0 or exists(select 1 from public.transport_customer_document_trips where trip_id=t.id and not is_adjustment) then raise exception 'Unbilled Trip, Cash/Credit classification, customer and positive finalized rate required';end if;
- base:=coalesce(t.customer_base_rate,t.customer_rate)-coalesce(t.customer_manual_adjustment,0);
+ base:=coalesce(t.customer_base_rate,t.customer_rate)+coalesce(t.customer_manual_adjustment,0);
  r:=public.transport_create_charged_service_document('customer',t.customer_id,p_date,base,p_with_tax,null,
  concat_ws(E'\n',nullif(btrim(p_description),''),public.transport_trip_service_description(t.id)),null,p_invoice_no,t.id,null);
- if round(coalesce((r->>'net')::numeric,0)+coalesce(t.customer_manual_adjustment,0),2) is distinct from round(t.customer_rate_snapshot,2) then raise exception 'Customer base + charges does not reconcile to finalized Trip rate';end if;
+ if round(coalesce((r->>'net')::numeric,0),2) is distinct from round(t.customer_rate_snapshot,2) then raise exception 'Customer base + charges does not reconcile to finalized Trip rate';end if;
  insert into public.transport_customer_documents(company_id,business_unit_id,operating_location_id,customer_id,document_kind,sales_order_id,journal_entry_id,created_by)
  values(t.company_id,t.business_unit_id,public.current_operating_location_id(),t.customer_id,case when t.sale_type='cash' then 'cash_hand_bill' else 'credit' end,(r->>'document_id')::uuid,(r->>'journal_entry_id')::uuid,auth.uid()) returning id into d;
  insert into public.transport_customer_document_trips(company_id,business_unit_id,document_id,trip_id,rate_snapshot,vat_snapshot)
@@ -236,5 +236,23 @@ begin
  values(x.company_id,x.business_unit_id,d,x.id,t.id,x.finalized_amount_snapshot,(r->>'vat')::numeric);
  perform public.transport_financial_audit(t.id,'supplier_bill_posted',r||jsonb_build_object('rent_id',x.id,'transport_document_id',d));return r;
 end$body$;
+
+
+create or replace function public.transport_post_customer_bill(p_trip_id uuid,p_date date,p_with_tax boolean default false)
+returns jsonb language sql security definer set search_path=public,pg_temp as $body$
+ select public.transport_post_customer_bill_described(p_trip_id,p_date,p_with_tax,null,null)
+$body$;
+create or replace function public.transport_post_customer_bill_numbered(p_trip_id uuid,p_date date,p_with_tax boolean default false,p_invoice_no text default null)
+returns jsonb language sql security definer set search_path=public,pg_temp as $body$
+ select public.transport_post_customer_bill_described(p_trip_id,p_date,p_with_tax,p_invoice_no,null)
+$body$;
+create or replace function public.transport_post_supplier_bill(p_rent_id uuid,p_date date,p_cost_account_id uuid,p_with_tax boolean default false,p_reference text default null)
+returns jsonb language sql security definer set search_path=public,pg_temp as $body$
+ select public.transport_post_supplier_bill_described(p_rent_id,p_date,p_cost_account_id,p_with_tax,p_reference,null,null)
+$body$;
+create or replace function public.transport_post_supplier_bill_numbered(p_rent_id uuid,p_date date,p_cost_account_id uuid,p_with_tax boolean default false,p_reference text default null,p_invoice_no text default null)
+returns jsonb language sql security definer set search_path=public,pg_temp as $body$
+ select public.transport_post_supplier_bill_described(p_rent_id,p_date,p_cost_account_id,p_with_tax,p_reference,p_invoice_no,null)
+$body$;
 
 commit;
