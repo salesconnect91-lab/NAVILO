@@ -31,9 +31,9 @@ describe('Transport canonical finance controls',()=>{
  render(<TransportFinancialPanel trip={trip} onClose={vi.fn()} onChanged={async()=>{}}/>);
  await screen.findByText('S-A');
  expect(screen.queryByRole('button',{name:'Post Customer Bill'})).toBeNull();
- fireEvent.click(screen.getByRole('button',{name:'Credit / Debit Note'}));
- expect((screen.getByRole('button',{name:'Save Note'}) as HTMLButtonElement).disabled).toBe(true);
- expect(screen.getByText(/Original posted rate: 100.00/)).toBeTruthy();
+ const noteButton=screen.getByRole('button',{name:'Credit / Debit Note'}) as HTMLButtonElement;
+ expect(noteButton.disabled).toBe(true);
+ expect(screen.queryByRole('button',{name:'Save Note'})).toBeNull();
  });
  it('posts selected VAT-inclusive amount only against the selected canonical invoice',async()=>{
  mock.allowed=true;render(<TransportFinancialPanel trip={trip} onClose={vi.fn()} onChanged={async()=>{}}/>);await screen.findByText('S-A');
@@ -47,7 +47,10 @@ describe('Transport canonical finance controls',()=>{
   mock.allowed=true;mock.supplier=true;
   render(<TransportFinancialPanel trip={trip} onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByText('S-A');fireEvent.click(screen.getByRole('button',{name:'Supplier'}));
-  await waitFor(()=>expect(screen.getAllByText('Supplier A').length).toBeGreaterThan(0));fireEvent.click(screen.getByRole('button',{name:'Credit / Debit Note'}));
+  await waitFor(()=>expect(screen.getAllByText('Supplier A').length).toBeGreaterThan(0));
+  expect(screen.queryByRole('button',{name:'Credit / Debit Note'})).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Customer'}));
+  fireEvent.click(screen.getByRole('button',{name:'Credit / Debit Note'}));
   fireEvent.change(screen.getByLabelText('Rate side'),{target:{value:'supplier'}});
   fireEvent.change(screen.getByLabelText('Supplier rent'),{target:{value:'rent-a'}});
   fireEvent.change(screen.getByLabelText('New rate excluding VAT'),{target:{value:'75'}});
