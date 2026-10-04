@@ -14,23 +14,24 @@ vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{
 }}}));
 beforeEach(()=>{mock.allowed=false;mock.cash=false;mock.failCash=false;mock.supplier=false;mock.failSettlement=false;mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_finance_allowed'?mock.allowed:{success:true},error:(name==='transport_post_cash_bill_receive'&&mock.failCash)||(name==='transport_correct_settlement'&&mock.failSettlement)?{message:'Network interrupted'}:null}))});afterEach(cleanup);
 describe('Transport canonical finance controls',()=>{
- it('posts a Cash Trip invoice without collecting payment or requiring a cash account',async()=>{
+ it('posts a Cash Trip invoice with an atomic full canonical receipt',async()=>{
  mock.allowed=true;mock.cash=true;
  const rpc=mock.rpc.getMockImplementation()!;
  mock.rpc.mockImplementation((name:string,args:any)=>name==='transport_finance_allowed'&&args.p_action==='settlement'?Promise.resolve({data:false,error:null}):rpc(name,args));
  render(<TransportFinancialPanel trip={{...trip,customer_rate_locked:false,customer_rate_state:'finalized',sale_type:'cash'}} onClose={vi.fn()} onChanged={async()=>{}}/>);
+ await screen.findByLabelText('Cash / Bank');
+ expect((screen.getByRole('button',{name:'Post Customer Bill'}) as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.change(screen.getByLabelText('Cash / Bank'),{target:{value:'cash-a'}});
  await waitFor(()=>expect((screen.getByRole('button',{name:'Post Customer Bill'}) as HTMLButtonElement).disabled).toBe(false));
- expect(screen.queryByLabelText('Cash / Bank')).toBeNull();
  fireEvent.click(screen.getByRole('button',{name:'Post Customer Bill'}));
- await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_customer_bill',expect.objectContaining({p_trip_id:'trip-a',p_with_tax:false})));
- expect(mock.rpc.mock.calls.some(([name])=>/cash_bill_receive|settle|receive_customer_payment/.test(name))).toBe(false);
+ await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_customer_bill_settled',expect.objectContaining({p_trip_id:'trip-a',p_with_tax:false,p_account_id:'cash-a'})));
  });
 
  it('keeps financial actions disabled without server permissions and original billing protected',async()=>{
  render(<TransportFinancialPanel trip={trip} onClose={vi.fn()} onChanged={async()=>{}}/>);
  await screen.findByText('S-A');
  expect(screen.queryByRole('button',{name:'Post Customer Bill'})).toBeNull();
- fireEvent.click(screen.getByRole('button',{name:'Correct Rate'}));
+ fireEvent.click(screen.getByRole('button',{name:'Credit / Debit Note'}));
  expect((screen.getByRole('button',{name:'Post Rate Adjustment'}) as HTMLButtonElement).disabled).toBe(true);
  expect(screen.getByText(/Original posted rate: 100.00/)).toBeTruthy();
  });
@@ -45,7 +46,8 @@ describe('Transport canonical finance controls',()=>{
  it('saves unposted Supplier rent through finalization instead of posted adjustment',async()=>{
   mock.allowed=true;mock.supplier=true;
   render(<TransportFinancialPanel trip={trip} onClose={vi.fn()} onChanged={async()=>{}}/>);
-  await screen.findByText('S-A');fireEvent.click(screen.getByRole('button',{name:'Correct Rate'}));
+  await screen.findByText('S-A');fireEvent.click(screen.getByRole('button',{name:'Supplier'}));
+  await screen.findByText('Supplier A');fireEvent.click(screen.getByRole('button',{name:'Credit / Debit Note'}));
   fireEvent.change(screen.getByLabelText('Rate side'),{target:{value:'supplier'}});
   fireEvent.change(screen.getByLabelText('Supplier rent'),{target:{value:'rent-a'}});
   fireEvent.change(screen.getByLabelText('New rate excluding VAT'),{target:{value:'75'}});
