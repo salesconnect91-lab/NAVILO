@@ -26,8 +26,8 @@
 /* Scoped register density wins over shared ERP table/control defaults. */
 .erp-shell main [data-navilo-transport-register] table td {
   padding: 1px 3px !important;
-  font-size: 10px !important;
-  line-height: 11px !important;
+  font-size: 11px !important;
+  line-height: 12px !important;
   height: 23px !important;
   max-height: none !important;
 }
@@ -40,10 +40,42 @@
   min-height: 0 !important;
   height: 18px !important;
   padding: 0 2px !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   line-height: 11px !important;
 }
 .erp-shell main [data-navilo-transport-register] table td span.text-\[7px\] {
-  font-size: 9px !important;
-  line-height: 10px !important;
+  font-size: 10px !important;
+  line-height: 11px !important;
+}
+
+/* Consistent toolbar controls, including the portaled Export action. */
+.erp-shell main [data-navilo-transport-register] .navilo-transport-register-toolbar > div:not(.relative),
+.erp-shell main [data-navilo-transport-register] .navilo-transport-register-toolbar > button,
+.erp-shell main [data-navilo-transport-register] .navilo-transport-register-toolbar > input,
+.erp-shell main [data-navilo-transport-register] .navilo-transport-register-toolbar > .relative > button,
+.erp-shell main [data-navilo-transport-register] .navilo-transport-register-toolbar > div > button {
+  height: 28px !important;
+  min-height: 28px !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding-block: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.erp-shell main [data-navilo-transport-register] .navilo-transport-register-toolbar > div > span {
+  font-size: 11px !important;
+}
+.erp-shell main [data-navilo-transport-register] .navilo-transport-register-toolbar > button,
+.erp-shell main [data-navilo-transport-register] .navilo-transport-register-toolbar > div > button {
+  padding-inline: 8px !important;
+}
+
+.erp-shell main [data-navilo-transport-register] .navilo-report-tool {
+  height: 28px !important;
+  min-height: 28px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
 }

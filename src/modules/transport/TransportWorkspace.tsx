@@ -1133,7 +1133,7 @@ export default function TransportWorkspace(){
         </div>
       </div>
       <div className="relative z-[80] shrink-0 border-b border-slate-200 bg-white px-1.5 py-1">
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="navilo-transport-register-toolbar flex flex-wrap items-center gap-1.5">
 
           <div className="flex h-7 min-w-[92px] items-center justify-between rounded-md border border-cyan-200 bg-cyan-50 px-2">
             <span className="text-[9px] font-bold uppercase text-cyan-700">Total Trips</span>
@@ -1261,7 +1261,9 @@ export default function TransportWorkspace(){
               {orderedGridColumns.map(([key,label],i)=>{
                 const active=(columnFilters[key]?.length??0)>0;
                 const sorted=sortColumn===key;
-                const columnWidth=tripColumnWidths[key]??compactTripColumnWidths[key]??60;
+                const requestedWidth=tripColumnWidths[key]??compactTripColumnWidths[key]??60;
+                const totalText=amountGridKeys.has(key)?financialNumber(gridTotal(key)):null;
+                const columnWidth=Math.max(requestedWidth,totalText?totalText.length*7+10:0);
 
                 return <th key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
@@ -1277,7 +1279,6 @@ export default function TransportWorkspace(){
                       className={`flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden rounded px-0.5 py-0 text-left leading-none hover:bg-slate-200 ${sorted?"text-blue-700":""}`}>
                       <span className="min-w-0 py-0.5" style={{lineHeight:1.2}}>
                         <span className="block max-w-[84px] whitespace-normal">{label}</span>
-                        {amountGridKeys.has(key)&&<span className="mt-0.5 block whitespace-nowrap font-extrabold tabular-nums text-slate-950">{financialNumber(gridTotal(key))}</span>}
                       </span>
                       {sorted&&<span className="shrink-0 text-[7px]" aria-label={sortDirection==="asc"?"Sorted ascending":"Sorted descending"}>{sortDirection==="asc"?"▲":"▼"}</span>}
                     </button>
@@ -1302,6 +1303,8 @@ export default function TransportWorkspace(){
                       </svg>
                     </button>
                   </div>
+
+                  {totalText!==null&&<div className="pb-1 text-right font-extrabold tabular-nums text-slate-950" style={{whiteSpace:"nowrap"}}>{totalText}</div>}
 
                   <div
                     role="separator"
