@@ -6,6 +6,15 @@ import { hasPermission, type ModuleKey } from "@/auth/permissions";
 import { supabase } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 
+type MasterKind="vehicles"|"drivers"|"truck_types"|"locations"|"vehicle_expense_types"|"vehicle_ownership";
+const masterDefs:Record<MasterKind,{title:string;headers:string[];sample:(string|number)[]}>={
+ vehicles:{title:"Vehicles",headers:["Vehicle No","Truck Type","Owner Type","Supplier","Effective From"],sample:["ABC-123","Flatbed","Company","","2026-10-04"]},
+ drivers:{title:"Drivers",headers:["Driver Name","Driver Code","Mobile","Driver Type","Supplier","Identity No","Licence No","Licence Expiry"],sample:["Driver A","DRV-001","0500000000","Company","","ID-001","LIC-001","2027-12-31"]},
+ truck_types:{title:"Truck Types",headers:["Name"],sample:["Flatbed"]},
+ locations:{title:"Locations",headers:["Name","City Area"],sample:["Dammam Port","Dammam"]},
+ vehicle_expense_types:{title:"Vehicle Expense Types",headers:["Name","Expense Scope"],sample:["Tyre","Vehicle"]},
+ vehicle_ownership:{title:"Vehicle Ownership History",headers:["Vehicle No","Owner Type","Supplier","Effective From","Effective To","Change Reason"],sample:["ABC-123","Supplier","Supplier A","2026-10-04","","Contract change"]}
+};
 type RateKind="customer"|"supplier"|"customer_charge";
 const defs:Record<RateKind,{title:string;headers:string[];sample:(string|number)[]}>={
  customer:{title:"Customer Route Rates",headers:["Company","Truck Type","From","To","Rate","Effective From","Effective To"],sample:["Customer A","Flatbed","Dammam","Khobar",600,"2026-01-01","2026-12-31"]},
@@ -14,6 +23,23 @@ const defs:Record<RateKind,{title:string;headers:string[];sample:(string|number)
 };
 const key=(v:string)=>v.trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
 const iso=(v:any)=>{if(v instanceof Date)return v.toISOString().slice(0,10);if(typeof v==="number"){const d=XLSX.SSF.parse_date_code(v);return d?String(d.y).padStart(4,"0")+"-"+String(d.m).padStart(2,"0")+"-"+String(d.d).padStart(2,"0"):"";}const s=String(v??"").trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;const d=new Date(s);return Number.isNaN(d.valueOf())?"":d.toISOString().slice(0,10)};
+
+function TransportMasterImports(){
+ const {activeCompany,activeBusinessUnit}=useAuth(); const input=useRef<HTMLInputElement>(null);
+ const [kind,setKind]=useState<MasterKind>("vehicles"),[rows,setRows]=useState<any[]>([]),[file,setFile]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
+ const def=masterDefs[kind];
+ const download=()=>{const ws=XLSX.utils.aoa_to_sheet([def.headers,def.sample]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Masters");XLSX.writeFile(wb,`NAVILO-Transport-${kind}-template.xlsx`)};
+ const choose=async(e:React.ChangeEvent<HTMLInputElement>)=>{const f=e.target.files?.[0];if(!f)return;setError("");setMessage("");try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array",cellDates:true});const data=XLSX.utils.sheet_to_json<any>(wb.Sheets[wb.SheetNames[0]],{defval:""});if(!data.length)throw new Error("File has no data rows.");const mapped=data.map((r:any)=>{const n=Object.fromEntries(Object.entries(r).map(([k,v])=>[key(k),v]));if(kind==="vehicles")return{vehicle_no:String(n.vehicle_no??"").trim(),truck_type:String(n.truck_type??"").trim(),owner_type:String(n.owner_type??"").trim(),supplier:String(n.supplier??"").trim(),effective_from:iso(n.effective_from)};if(kind==="drivers")return{driver_name:String(n.driver_name??"").trim(),driver_code:String(n.driver_code??"").trim(),mobile:String(n.mobile??"").trim(),driver_type:String(n.driver_type??"").trim(),supplier:String(n.supplier??"").trim(),identity_no:String(n.identity_no??"").trim(),licence_no:String(n.licence_no??"").trim(),licence_expiry:iso(n.licence_expiry)};if(kind==="truck_types")return{name:String(n.name??"").trim()};if(kind==="locations")return{name:String(n.name??"").trim(),city_area:String(n.city_area??"").trim()};if(kind==="vehicle_expense_types")return{name:String(n.name??"").trim(),expense_scope:String(n.expense_scope??"").trim()};return{vehicle_no:String(n.vehicle_no??"").trim(),owner_type:String(n.owner_type??"").trim(),supplier:String(n.supplier??"").trim(),effective_from:iso(n.effective_from),effective_to:iso(n.effective_to),change_reason:String(n.change_reason??"").trim()}});if(mapped.length>500)throw new Error("Maximum 500 rows per master import file.");setRows(mapped);setFile(f.name)}catch(x:any){setRows([]);setError(x.message||"Unable to read file.")}finally{e.target.value=""}};
+ const run=async()=>{if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){setError("Select active company and business unit.");return}if(!rows.length)return;setBusy(true);setError("");setMessage("");try{const r=await supabase.rpc("transport_import_master_rows",{p_kind:kind,p_rows:rows});if(r.error)throw r.error;setMessage(`${r.data?.imported??rows.length} master row(s) imported.`);setRows([]);setFile("")}catch(x:any){setError(x.message||"Import failed. No partial rows are kept from the failed transaction.")}finally{setBusy(false)}};
+ return <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+  <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-sm font-bold">Transport Master Imports</h2><p className="text-xs text-slate-600">Bulk-create Transport masters from Excel/CSV. Existing records and historical evidence are never overwritten.</p></div><Upload className="h-5 w-5 text-emerald-700"/></div>
+  <div className="mt-3 flex flex-wrap items-end gap-2"><label className="text-xs font-semibold">Master Type<select className="input mt-1 h-9 min-w-52" value={kind} disabled={busy} onChange={e=>{setKind(e.target.value as MasterKind);setRows([]);setFile("");setError("");setMessage("")}}>{(Object.keys(masterDefs) as MasterKind[]).map(k=><option key={k} value={k}>{masterDefs[k].title}</option>)}</select></label>
+   <button className="btn h-9" onClick={download} disabled={busy}>Download Template</button><button className="btn h-9" onClick={()=>input.current?.click()} disabled={busy}>Choose Excel / CSV</button><input ref={input} className="hidden" type="file" accept=".xlsx,.xls,.csv" onChange={choose}/><button className="btn-primary h-9" disabled={busy||!rows.length} onClick={()=>void run()}>{busy?"Importing…":`Import ${rows.length||""} Rows`}</button></div>
+  {file&&<p className="mt-2 text-xs text-slate-600">{file} · {rows.length} row(s) ready. The import is atomic: one invalid row rejects the whole file.</p>}
+  {error&&<p role="alert" className="mt-2 rounded bg-red-50 p-2 text-xs text-red-700">{error}</p>}{message&&<p role="status" className="mt-2 rounded bg-emerald-50 p-2 text-xs text-emerald-700">{message}</p>}
+  {rows.length>0&&<div className="mt-3 max-h-52 overflow-auto border"><table className="w-full text-left text-[11px]"><thead className="sticky top-0 bg-slate-100"><tr>{Object.keys(rows[0]).map(h=><th key={h} className="p-1">{h.replaceAll("_"," ")}</th>)}</tr></thead><tbody>{rows.slice(0,100).map((r,i)=><tr key={i} className="border-t">{Object.values(r).map((v:any,j)=><td key={j} className="p-1">{String(v??"")}</td>)}</tr>)}</tbody></table>{rows.length>100&&<p className="p-1 text-xs">Preview shows first 100 rows.</p>}</div>}
+ </section>
+}
 
 function TransportRateImports(){
  const {activeCompany,activeBusinessUnit}=useAuth(); const input=useRef<HTMLInputElement>(null);
@@ -45,6 +71,6 @@ export default function ImportCenter() {
     { title: "Invoices", detail: "Upload draft invoices using a CSV template.", icon: FileText, destinations: [...(canImport("sales") ? [{ label: "Sales", to: "/sales" }] : []),...(canImport("purchase") ? [{ label: "Purchase", to: "/purchase" }] : [])] },
   ];
   return <div className="mx-auto max-w-6xl space-y-5 py-3"><div><h1 className="text-xl font-bold text-slate-900">Import Center</h1><p className="mt-1 text-sm text-slate-600">Choose a data type, download its template and review records before posting.</p></div>
-   {canImport("transport")&&<TransportRateImports/>}
+   {canImport("transport")&&<><TransportMasterImports/><TransportRateImports/></>}
    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{cards.map(card=>{const Icon=card.icon;return <section key={card.title} className="flex min-h-52 flex-col items-center rounded-xl border border-slate-200 bg-white px-5 py-6 text-center shadow-sm"><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><Icon className="h-6 w-6"/></div><h2 className="mt-4 text-sm font-bold text-slate-900">{card.title}</h2><p className="mt-1 min-h-10 text-xs leading-5 text-slate-600">{card.detail}</p>{card.destinations.length?<div className="mt-auto flex flex-wrap justify-center gap-2 pt-3">{card.destinations.map(d=><Link key={d.to} to={d.to} className="inline-flex min-h-9 items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-800">{d.label}<ArrowRight className="h-3.5 w-3.5"/></Link>)}</div>:<span className="mt-auto pt-3 text-xs font-medium text-slate-500">{card.title==="Bank Data"?"Not available":"No import permission"}</span>}</section>})}</div></div>;
 }
