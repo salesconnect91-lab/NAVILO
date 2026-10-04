@@ -467,8 +467,16 @@ export default function TransportWorkspace(){
   // Canonical Trip Status options, narration and counts are supplied by the register RPC.
   const statusNarration=(option:any)=>String(option?.narration??'');
   const visibleStatusOptions=statusOptions.filter((option:any)=>!statusSearch||`${option.label} ${statusNarration(option)}`.toLowerCase().includes(statusSearch.toLowerCase()));
-  const completedTrips=registerMeta.completed??0;
-  const paperPending=registerMeta.paper_pending??0;
+  const dashboardSummary=registerMeta.summary??{};
+  const statusMark=(status?:string|null)=>{
+    const key=String(status??'').toLowerCase();
+    if(key==='draft')return {mark:'○',className:'text-slate-500',title:'Draft'};
+    if(key==='incomplete')return {mark:'◐',className:'text-amber-600',title:'Incomplete'};
+    if(key==='complete')return {mark:'✓',className:'text-emerald-600',title:'Complete'};
+    if(key==='locked')return {mark:'▣',className:'text-blue-700',title:'Locked'};
+    if(key==='settled')return {mark:'●',className:'text-emerald-700',title:'Settled'};
+    return {mark:'?',className:'text-slate-400',title:'Unknown'};
+  };
 
   const resetFilters=()=>{
     setRegisterSearch("");
@@ -1166,20 +1174,28 @@ export default function TransportWorkspace(){
       <div className="relative z-[80] shrink-0 border-b border-slate-200 bg-white px-1.5 py-1">
         <div className="navilo-transport-register-toolbar flex flex-wrap items-center gap-1.5">
 
-          <div className="flex h-7 min-w-[92px] items-center justify-between rounded-md border border-cyan-200 bg-cyan-50 px-2">
-            <span className="text-[9px] font-bold uppercase text-cyan-700">Total Trips</span>
+          <div className="flex h-7 min-w-[86px] items-center justify-between rounded-md border border-cyan-200 bg-cyan-50 px-2">
+            <span className="text-[9px] font-bold uppercase text-cyan-700">Trips</span>
             <span className="text-sm font-bold text-slate-950">{Number(registerMeta.count??0).toLocaleString()}</span>
           </div>
 
-          <div className="flex h-7 min-w-[100px] items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-2">
-            <span className="text-[9px] font-bold uppercase text-emerald-700">Completed</span>
-            <span className="text-sm font-bold text-slate-950">{completedTrips.toLocaleString()}</span>
+          <div className="flex h-7 min-w-[180px] items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2">
+            <span className="text-[9px] font-bold uppercase text-slate-700">Paper</span>
+            <span className="text-[9px] font-semibold text-emerald-700">Received <b>{Number(dashboardSummary.paper?.received??0).toLocaleString()}</b></span>
+            <span className="text-[9px] font-semibold text-amber-700">Not Received <b>{Number(dashboardSummary.paper?.not_received??0).toLocaleString()}</b></span>
           </div>
 
-          <div className="flex h-7 min-w-[108px] items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-2">
-            <span className="text-[9px] font-bold uppercase text-amber-700">Paper Pending</span>
-            <span className="text-sm font-bold text-slate-950">{paperPending.toLocaleString()}</span>
-          </div>
+          {readCustomer&&<div className="flex h-7 min-w-[205px] items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-2">
+            <span className="text-[9px] font-bold uppercase text-emerald-800">Collections</span>
+            <span className="text-[9px] font-semibold text-emerald-700">Received <b>{Number(dashboardSummary.collections?.received??0).toLocaleString()}</b></span>
+            <span className="text-[9px] font-semibold text-slate-600">Not Received <b>{Number(dashboardSummary.collections?.not_received??0).toLocaleString()}</b></span>
+          </div>}
+
+          {readSupplier&&<div className="flex h-7 min-w-[178px] items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2">
+            <span className="text-[9px] font-bold uppercase text-blue-800">Payment</span>
+            <span className="text-[9px] font-semibold text-emerald-700">Paid <b>{Number(dashboardSummary.payment?.paid??0).toLocaleString()}</b></span>
+            <span className="text-[9px] font-semibold text-slate-600">Not Paid <b>{Number(dashboardSummary.payment?.not_paid??0).toLocaleString()}</b></span>
+          </div>}
 
           <div className="relative">
             <button type="button" onClick={()=>setStatusOpen(v=>!v)} className="flex h-7 min-w-[190px] items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700">
@@ -1364,8 +1380,7 @@ export default function TransportWorkspace(){
     className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
   </button>
-  {tripHasPostedAccounting(r)&&<span title="Locked: posted accounting exists. Financial party/rate changes require controlled correction." aria-label={`Locked ${r.trip_no}`} className="ml-0.5 inline-flex align-middle text-amber-700"><LockKeyhole className="h-2.5 w-2.5"/></span>}
-  <span title={`Trip status: ${r.status??"Unknown"}`} aria-label={`Trip status ${r.status??"Unknown"}`} className="ml-0.5 inline-flex h-3 w-3 items-center justify-center align-middle text-[9px] font-bold leading-none text-slate-500">{["complete","completed","closed"].includes(String(r.status??"").toLowerCase())?"✓":["cancelled","canceled"].includes(String(r.status??"").toLowerCase())?"×":["draft"].includes(String(r.status??"").toLowerCase())?"○":"◐"}</span>
+  <span title={`Trip status: ${statusMark(r.status).title}`} aria-label={`Trip status ${statusMark(r.status).title}`} className={`ml-0.5 inline-flex h-3 w-3 items-center justify-center align-middle text-[9px] font-bold leading-none ${statusMark(r.status).className}`}>{statusMark(r.status).mark}</span>
 </td>
 
               {/* Transport operational register order - one canonical mapping for display/filter/sort */}
