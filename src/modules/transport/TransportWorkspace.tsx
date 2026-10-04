@@ -125,6 +125,7 @@ export default function TransportWorkspace(){
   const [registerLoading,setRegisterLoading]=useState(false);
   const tripsGridRef=useRef<HTMLDivElement|null>(null);
   const tripsSectionRef=useRef<HTMLElement|null>(null);
+  const compactTripColumnWidths:Record<string,number>={trip_no:82,trip_date:58,truck_type:58,job_no:72,company:128,driver:64,owner:64,plate:50,from:58,to:58,paper_received_by:72,rent_driver:66,supplier_paid:66,supplier_balance:70,supplier_credit:76,driver_pay:58,driver_paid:58,driver_balance:64,payment_date:64,amount:62,company_rate:72,received_company:76,remaining_company:80,customer_credit:78,profit:62,commission:76,invoice_no:76,sale_type:58};
   const [tripColumnWidths,setTripColumnWidths]=useState<Record<string,number>>({});
   const [tripColumnOrder,setTripColumnOrder]=useState<string[]>([]);
   const [hiddenTripColumns,setHiddenTripColumns]=useState<string[]>([]);
@@ -1260,7 +1261,7 @@ export default function TransportWorkspace(){
               {orderedGridColumns.map(([key,label],i)=>{
                 const active=(columnFilters[key]?.length??0)>0;
                 const sorted=sortColumn===key;
-                const columnWidth=tripColumnWidths[key];
+                const columnWidth=tripColumnWidths[key]??compactTripColumnWidths[key]??60;
 
                 return <th key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
