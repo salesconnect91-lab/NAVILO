@@ -88,6 +88,7 @@ begin
  result:=public.transport_document_trip_detail_query('customer',jsonb_build_object('party',customer));
  if jsonb_array_length(result)<>1 or result->0->>'trip_no' is null then raise exception 'Filtered document Trip details missing';end if;
  if public.transport_document_trip_detail_query('customer',jsonb_build_object('party',gen_random_uuid()))<>'[]'::jsonb then raise exception 'Document Trip party filter ignored';end if;
+ if has_function_privilege('authenticated','public._transport_mask_financial_row(jsonb,boolean,boolean)','execute') or has_function_privilege('anon','public._transport_mask_financial_row(jsonb,boolean,boolean)','execute') then raise exception 'Private cached-capability mask is exposed';end if;
  -- Customer-only: operational rows + own financial data; no opposite raw/table/RPC/totals.
  update public.business_unit_memberships set permissions='{"transport_actions":{"customer_finance_view":true,"supplier_finance_view":false}}' where business_unit_id=b and user_id=u;
  execute 'set local role authenticated';
