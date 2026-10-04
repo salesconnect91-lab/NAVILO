@@ -7,7 +7,7 @@ create or replace function public.transport_canonical_trip_status(
   p_supplier_outstanding numeric
 ) returns text
 language plpgsql stable security definer set search_path=public,pg_temp
-as $
+as $status$
 declare
   t public.transport_trips%rowtype;
   customer_ready boolean;
@@ -51,7 +51,7 @@ begin
   else
     return 'draft';
   end if;
-end $;
+end $status$;
 revoke all on function public.transport_canonical_trip_status(uuid,boolean,boolean,numeric,numeric) from public,anon,authenticated;
 
 -- Complete dashboard global search including the visible Charge column.
