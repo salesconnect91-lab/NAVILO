@@ -1,4 +1,5 @@
-import {useEffect,useState} from 'react';
+import TransportVatPreview from './TransportVatPreview';
+import {useEffect,useMemo,useState} from 'react';
 import {supabase} from '@/lib/supabase';
 import {useAuth} from '@/auth/AuthContext';
 import {fetchAllPages} from '@/lib/fetchAllPages';
@@ -7,6 +8,7 @@ type Row={trip_id:string;trip_no:string;amount:number;date:string;reference:stri
 export default function TransportCostUpload({trips,onChanged}:{trips:FinancialTrip[];onChanged:()=>Promise<void>}){
  const {activeCompany,activeBusinessUnit}=useAuth();const [rows,setRows]=useState<Row[]>([]);const [completed,setCompleted]=useState(0);const [requestId,setRequestId]=useState('');const [supplier,setSupplier]=useState('');const [account,setAccount]=useState('');
  const [suppliers,setSuppliers]=useState<Array<{id:string;name:string}>>([]);const [accounts,setAccounts]=useState<Array<{id:string;name:string}>>([]);
+ const [vatReady,setVatReady]=useState<Record<string,boolean>>({});
  const [kind,setKind]=useState('driver_expense');const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [allowed,setAllowed]=useState(false);const [withTax,setWithTax]=useState(false);
  useEffect(()=>{let live=true;setAllowed(false);setRows([]);setRequestId('');setSupplier('');setAccount('');const company=activeCompany?.company_id;if(!company)return;
  void Promise.all([
@@ -27,15 +29,17 @@ export default function TransportCostUpload({trips,onChanged}:{trips:FinancialTr
   setRows(parsed);setRequestId(crypto.randomUUID());
  }catch(e){setError(e instanceof Error?e.message:'Unable to read upload')}}
  async function template(){const x=await import('xlsx');const w=x.utils.book_new();x.utils.book_append_sheet(w,x.utils.aoa_to_sheet([['Trip No','Amount','Date','Reference'],['TRIP-0001',100,'2026-10-01','Expense reference']]),'Trip costs');x.writeFile(w,'Transport-Expenses-Template.xlsx')}
- async function post(){setBusy(true);setError('');try{
+ const dateGroups=useMemo(()=>[...new Set(rows.map(r=>r.date))].map(date=>({date,amounts:rows.filter(r=>r.date===date).map(r=>r.amount)})),[rows]);
+ async function post(){if(withTax&&(rows.some(r=>!r.reference.trim())||dateGroups.some(g=>!vatReady[`${activeCompany?.company_id}:${g.date}`]))){setError('VAT posting requires valid date previews and original supplier invoice references.');return;}setBusy(true);setError('');try{
   for(let start=completed;start<rows.length;start+=25){
    const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(requestId+':'+start));const hex=Array.from(new Uint8Array(digest)).map(n=>n.toString(16).padStart(2,'0')).join('');const batchId=`${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
    const result=await supabase.rpc('transport_reviewed_cost_upload',{p_request_id:batchId,p_rows:rows.slice(start,start+25).map(r=>({trip_id:r.trip_id,amount:r.amount,date:r.date,reference:r.reference})),p_supplier_id:supplier,p_cost_account_id:account,p_with_tax:withTax,p_kind:kind});if(result.error)throw result.error;setCompleted(Math.min(start+25,rows.length));
   }setRows([]);setCompleted(0);await onChanged();
  }catch(e){setError(e&&typeof e==='object'&&'message' in e?String(e.message):'Posting failed')}finally{setBusy(false)}}
- return <section className="rounded-lg border bg-white p-3 text-xs"><h2 className="mb-2 font-semibold">Trip / Vehicle Expense Upload</h2><p className="mb-3">Upload CSV or Excel with columns: Trip No, Amount, Date (YYYY-MM-DD or Excel date cell), Reference. Amounts exclude VAT. Review rows before creating supplier expense bills.</p>
+ return <section className="rounded-lg border bg-white p-3 text-xs"><h2 className="mb-2 font-semibold">Trip / Vehicle Expense Upload</h2><p className="mb-3">Upload CSV or Excel with columns: Trip No, Amount, Date (YYYY-MM-DD or Excel date cell), Reference. Amounts exclude VAT. Review rows before creating supplier expense bills. With VAT, Reference must identify the original supplier invoice; each row date selects its VAT rate.</p>
  {completed>0&&<p>{completed} costs posted. Resume the remaining rows with the same request; posted chunks are retained.</p>}
  {error&&<p role="alert" className="mb-2 text-red-700">{error}</p>}
  <div className="flex flex-wrap items-center gap-2"><button className="btn" data-navilo-keep-local-action="true" onClick={()=>void template()}>Download template</button><label>Cost type<select className="input" disabled={busy||completed>0} value={kind} onChange={e=>setKind(e.target.value)}><option value="driver_expense">Driver expense</option><option value="vehicle_expense">Vehicle expense</option><option value="commission">Commission</option><option value="other">Other Trip cost</option></select></label><label>File <input type="file" accept=".csv,.xlsx,.xls" disabled={busy||completed>0} onChange={e=>{const f=e.target.files?.[0];if(f)void parse(f);e.target.value=''}}/></label><label>Payable to <select className="input" disabled={busy||completed>0} value={supplier} onChange={e=>setSupplier(e.target.value)}><option value="">Supplier / reimbursement party</option>{suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label>Expense account <select className="input" disabled={busy||completed>0} value={account} onChange={e=>setAccount(e.target.value)}><option value="">Select account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label><label><input type="checkbox" disabled={busy||completed>0} checked={withTax} onChange={e=>setWithTax(e.target.checked)}/> With VAT</label><button className="btn-primary" disabled={busy||!allowed||!supplier||!account||!rows.length||rows.some(r=>r.error)} onClick={()=>void post()}>{busy?`Posting ${completed} / ${rows.length}…`:completed?`Resume ${completed} / ${rows.length}`:'Post Reviewed Costs'}</button></div>
+ {dateGroups.map(g=><div key={g.date}><span className="text-[10px]">Invoice date: {g.date}</span><TransportVatPreview side="supplier" date={g.date} withTax={withTax} amounts={g.amounts} onReady={ready=>setVatReady(v=>v[`${activeCompany?.company_id}:${g.date}`]===ready?v:{...v,[`${activeCompany?.company_id}:${g.date}`]:ready})}/></div>)}
  <table className="mt-3 w-full text-left"><thead><tr><th>Trip</th><th>Amount excluding VAT</th><th>Date</th><th>Reference</th><th>Validation</th></tr></thead><tbody>{rows.map((r,i)=><tr key={i} className="border-t"><td>{r.trip_no}</td><td>{financialNumber(r.amount)}</td><td>{r.date}</td><td>{r.reference}</td><td className={r.error?'text-red-700':'text-emerald-700'}>{r.error||'Ready'}</td></tr>)}</tbody></table></section>;
 }

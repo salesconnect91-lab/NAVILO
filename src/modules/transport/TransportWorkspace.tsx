@@ -161,7 +161,7 @@ export default function TransportWorkspace(){
 
   const [error,setError]=useState("");
   const reportPanel=params.get('panel');
-  const showPartyReports=['customer-reports','supplier-reports','bulk-allocation'].includes(reportPanel??'');
+  const showPartyReports=['customer-reports','supplier-reports','bulk-allocation','vat-reports'].includes(reportPanel??'');
 
   const [fromDate,setFromDate]=useState("");
   const [toDate,setToDate]=useState("");
@@ -978,18 +978,18 @@ export default function TransportWorkspace(){
     ["from","From"],
     ["to","To"],
     ["paper_received_by","PPR Received By"],
-    ["rent_driver","Supplier Rent"],
-    ["supplier_paid","Supplier Paid"],
-    ["supplier_balance","Supplier Balance"],
+    ["rent_driver","Supplier Rent (net)"],
+    ["supplier_paid","Supplier Paid (net)"],
+    ["supplier_balance","Supplier Balance (incl. VAT)"],
     ["supplier_credit","Supplier Credit / Advance"],
     ["driver_pay","Driver Pay"],
     ["driver_paid","Driver Paid"],
     ["driver_balance","Driver Balance"],
     ["payment_date","Payment Date"],
     ["amount","Amount"],
-    ["company_rate","Rate With Company"],
-    ["received_company","Received From Company"],
-    ["remaining_company","Remaining With Company"],
+    ["company_rate","Customer Rate (net)"],
+    ["received_company","Customer Received (incl. VAT)"],
+    ["remaining_company","Customer Balance (incl. VAT)"],
     ["customer_credit","Customer Credit / Advance"],
     ["profit","Profit"],
     ["commission","Paid Commission For Trip"],
@@ -1193,6 +1193,7 @@ export default function TransportWorkspace(){
             className="h-7 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-[10px] font-bold text-amber-800 hover:bg-amber-100">
             Bulk Supplier Rent
           </button><button type="button" onClick={()=>setShowBulkCustomerRate(true)} className="rounded border border-blue-300 bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 hover:bg-blue-100">Bulk Customer Rate</button>
+          <button type="button" onClick={()=>{const p=new URLSearchParams(params);p.set('panel','vat-reports');setParams(p)}} className="h-7 rounded-md border border-blue-200 bg-blue-50 px-2 text-[11px] font-semibold text-blue-800">VAT &amp; Corrections</button>
           <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)}
             className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50">
             Columns

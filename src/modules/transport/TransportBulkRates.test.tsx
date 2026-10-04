@@ -211,3 +211,15 @@ describe('Bulk rate filter typing',()=>{
   finish();
  });
 });
+
+it('requires supplier VAT source reference and posts the reference separately from NAVILO numbering',async()=>{
+ const original=mock.rpc.getMockImplementation()!;mock.rpc.mockImplementation((name:string,args:any)=>name==='fixed_tax_rate_on'?Promise.resolve({data:18,error:null}):original(name,args));
+ render(<TransportBulkSupplierRent onClose={vi.fn()} onChanged={async()=>{}}/>);await screen.findByRole('option',{name:'Supplier B'});
+ fireEvent.change(screen.getByLabelText('Supplier'),{target:{value:'supplier-b'}});await waitFor(()=>expect(screen.getByLabelText('Rent TRP-1 Supplier B')).toBeTruthy());
+ fireEvent.click(screen.getByRole('button',{name:'Select Page Unposted'}));fireEvent.change(screen.getByLabelText('Expense account'),{target:{value:'expense'}});fireEvent.click(screen.getByLabelText('With VAT'));
+ await screen.findByText(/VAT 18%: 5.40/);fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
+ await screen.findByText(/original supplier invoice reference required/);expect(mock.rpc.mock.calls.some(([n])=>n==='transport_post_supplier_bill')).toBe(false);
+ fireEvent.change(screen.getByLabelText('Supplier invoice reference TRP-1 Supplier B'),{target:{value:'SUP-VAT-77'}});
+ fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
+ await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_supplier_bill',expect.objectContaining({p_rent_id:'rent-b',p_with_tax:true,p_reference:'SUP-VAT-77'})));
+});

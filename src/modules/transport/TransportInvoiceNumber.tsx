@@ -1,3 +1,4 @@
+import TransportVatPreview from './TransportVatPreview';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import {useEffect,useRef,useState} from 'react';
 import {supabase} from '@/lib/supabase';
@@ -9,7 +10,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
  const posted=Boolean(trip.invoiced||trip.customer_rate_locked||trip.invoice_no||Number(trip.billed_customer_net??0)>0);
  const [invoiceNo,setInvoiceNo]=useState(trip.invoice_no??'');
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
- const [withTax,setWithTax]=useState(false);
+ const [withTax,setWithTax]=useState(false);const [vatReady,setVatReady]=useState(true);
  const [allowed,setAllowed]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');
  const dialog=useRef<HTMLElement>(null);const input=useRef<HTMLInputElement>(null);
 
@@ -22,7 +23,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
 
  const number=invoiceNo.trim();
  const rateReady=trip.customer_rate_state==='finalized'&&Number(trip.customer_rate??0)>0;
- const canPost=!posted&&allowed&&rateReady&&Boolean(date)&&!busy;
+ const canPost=!posted&&allowed&&rateReady&&Boolean(date)&&!busy&&(!withTax||vatReady);
 
  async function post(){
   if(!canPost)return;setBusy(true);setError('');
@@ -38,7 +39,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
  return <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/40 p-3" onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const items=dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled)');if(items?.length){const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}}>
   <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="trip-invoice-title" className="w-full max-w-sm rounded bg-white p-4 text-sm shadow-xl">
    <h2 id="trip-invoice-title" className="font-semibold">Customer Invoice · {trip.trip_no}</h2>
-   <p className="my-2 text-xs text-slate-600">{trip.customer_name}<br/>{trip.from_location} → {trip.to_location}<br/>Company Rate: {trip.customer_rate==null?'—':Number(trip.customer_rate).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
+   <p className="my-2 text-xs text-slate-600">{trip.customer_name}<br/>{trip.from_location} → {trip.to_location}<br/>Company Rate excluding VAT: {trip.customer_rate==null?'—':Number(trip.customer_rate).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
    <label className="block text-xs font-semibold">Invoice Number
     <input ref={input} className="input mt-1 w-full" value={invoiceNo} readOnly={posted} disabled={busy} onChange={e=>setInvoiceNo(e.target.value)} placeholder="Blank = automatic NAVILO number"/>
    </label>
@@ -49,6 +50,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
        <NaviloDateInput className="input mt-1 w-full" type="date" value={date} disabled={busy} onChange={e=>setDate(e.target.value)}/>
       </label>
       <label className="mt-2 inline-flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={withTax} disabled={busy} onChange={e=>setWithTax(e.target.checked)}/> With VAT</label>
+      <TransportVatPreview side="customer" date={date} withTax={withTax} amounts={[Number(trip.customer_rate??0)]} onReady={setVatReady}/>
       {!rateReady&&<p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">Finalize a positive Company Rate first. Invoice posting remains disabled until then.</p>}
       <p className="mt-2 text-xs text-slate-600">Save here posts the canonical Sales/service invoice. Blank Invoice Number uses NAVILO automatic numbering.</p>
     </>}

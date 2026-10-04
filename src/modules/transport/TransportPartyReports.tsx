@@ -1,3 +1,4 @@
+import TransportVatGuide from './TransportVatGuide';
 import ConfigurableReport from './ConfigurableReport';
 import TransportTripReports from './TransportTripReports';
 import {formatNaviloDate} from '@/lib/naviloDate';
@@ -84,6 +85,7 @@ export default function TransportPartyReports({onClose,onChanged,initialSide='cu
  return <section className="rounded-lg border bg-white p-3 text-xs" aria-label="Transport party reports">
  <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">{allocationEntry?"Bulk Allocation":`${side==='supplier'?'Supplier':'Customer'} Reports`}</h2><div className="flex gap-2"><button className="btn" disabled={busy||loading} onClick={()=>void load()}>Refresh reports</button><button className="btn" disabled={busy} onClick={onClose}>Close reports</button></div></div>
  <p className="my-2">Scope: current Company / Business Unit / active branch. Amounts are in company base currency. Outstanding uses the As of date; From applies to statements and allocation movements. Historical allocations deleted by reversals before this update cannot be reconstructed automatically.</p>
+ <TransportVatGuide/>
  <fieldset disabled={busy} className="flex flex-wrap items-end gap-2"><label>Party side<select aria-label="Party side" className="input" value={side} onChange={e=>{setSide(e.target.value as PartySide);setParty('');setSettlement(false)}}><option value="customer" disabled={!readSides.customer}>Customer</option><option value="supplier" disabled={!readSides.supplier}>Supplier / Owner</option></select></label>
  <label>Party<select aria-label="Party" className="input" value={party} onChange={e=>{setParty(e.target.value);setSettlement(false)}}><option value="">All parties</option>{parties.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
  <label>Report<select aria-label="Report" className="input" value={mode} onChange={e=>setMode(e.target.value as Mode)}><option value="trips">Trip-wise statement / all trips</option><option value="outstanding">Invoice-wise outstanding</option><option value="trip-statement">Trip-wise posted statement</option><option value="trip-ledger">Trip-wise posted ledger</option><option value="statement">Invoice-wise posted statement / ledger</option><option value="allocations">Receipt / payment allocations</option><option value="canonical" disabled={!canLedger}>Complete canonical party ledger</option><option value="reconciliation">Document reconciliation</option></select></label>
