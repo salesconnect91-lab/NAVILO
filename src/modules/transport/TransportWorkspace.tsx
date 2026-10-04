@@ -992,8 +992,12 @@ export default function TransportWorkspace(){
     }
   };
 
-  const supplierGridKeys=["owner","rent_driver","supplier_paid","supplier_balance","supplier_credit","payment_date","amount"] as const;
-  const customerGridKeys=["company","charge","company_rate","received_company","remaining_company","customer_credit","invoice_no","sale_type"] as const;
+  const tripDataGridKeys=["trip_no","trip_date","truck_type","job_no","from","to","charge"] as const;
+  const vehicleDriverGridKeys=["driver","plate","owner","driver_pay","driver_paid","driver_balance"] as const;
+  const supplierGridKeys=["rent_driver","supplier_paid","supplier_balance","payment_date","amount","supplier_credit"] as const;
+  const customerGridKeys=["invoice_no","company","company_rate","received_company","remaining_company","sale_type","customer_credit"] as const;
+  const pprGridKeys=["paper_received_by"] as const;
+  const profitCommissionGridKeys=["commission","profit"] as const;
   const isSupplierGridKey=(key:string)=>(supplierGridKeys as readonly string[]).includes(key);
   const isCustomerGridKey=(key:string)=>(customerGridKeys as readonly string[]).includes(key);
 
@@ -1075,8 +1079,12 @@ export default function TransportWorkspace(){
     }
   },[tripGridStorageKey]);
 
+  const tripDataVisible=tripDataGridKeys.some(key=>!hiddenTripColumns.includes(key));
+  const vehicleDriverDataVisible=vehicleDriverGridKeys.some(key=>!hiddenTripColumns.includes(key));
   const supplierDataVisible=supplierGridKeys.some(key=>!hiddenTripColumns.includes(key));
   const customerDataVisible=customerGridKeys.some(key=>!hiddenTripColumns.includes(key));
+  const pprDataVisible=pprGridKeys.some(key=>!hiddenTripColumns.includes(key));
+  const profitCommissionDataVisible=profitCommissionGridKeys.some(key=>!hiddenTripColumns.includes(key));
   const setGridGroupVisible=(keys:readonly string[],show:boolean)=>{
     setHiddenTripColumns(current=>show
       ?current.filter(key=>!keys.includes(key))
@@ -1243,18 +1251,32 @@ export default function TransportWorkspace(){
               <button type="button" onClick={saveTripGridLayout} className="h-5 rounded border border-blue-200 bg-blue-50 px-2 text-[9px] font-semibold text-blue-700">Save as Default</button>
             </div>
           </div>
-          <div className="mb-1 flex flex-wrap items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1">
+          <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 rounded border border-slate-300 bg-white px-2 py-1">
+            <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-slate-800">
+              <input type="checkbox" checked={tripDataVisible} onChange={e=>setGridGroupVisible(tripDataGridKeys,e.target.checked)}/>
+              Show Trip Data
+            </label>
+            <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-violet-800">
+              <input type="checkbox" checked={vehicleDriverDataVisible} onChange={e=>setGridGroupVisible(vehicleDriverGridKeys,e.target.checked)}/>
+              Show Vehicle & Driver
+            </label>
             <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-amber-800">
-              <input type="checkbox" checked={supplierDataVisible}
-                onChange={e=>setGridGroupVisible(supplierGridKeys,e.target.checked)}/>
+              <input type="checkbox" checked={supplierDataVisible} onChange={e=>setGridGroupVisible(supplierGridKeys,e.target.checked)}/>
               Show Supplier Data
             </label>
             <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-blue-800">
-              <input type="checkbox" checked={customerDataVisible}
-                onChange={e=>setGridGroupVisible(customerGridKeys,e.target.checked)}/>
+              <input type="checkbox" checked={customerDataVisible} onChange={e=>setGridGroupVisible(customerGridKeys,e.target.checked)}/>
               Show Customer Data
             </label>
-            <span className="text-[9px] text-slate-500">Hide either group to keep the Trips dashboard compact.</span>
+            <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-teal-800">
+              <input type="checkbox" checked={pprDataVisible} onChange={e=>setGridGroupVisible(pprGridKeys,e.target.checked)}/>
+              Show PPR Data
+            </label>
+            <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-emerald-800">
+              <input type="checkbox" checked={profitCommissionDataVisible} onChange={e=>setGridGroupVisible(profitCommissionGridKeys,e.target.checked)}/>
+              Show Profit & Commission
+            </label>
+            <span className="text-[9px] text-slate-500">Toggle a group or tick individual columns below.</span>
           </div>
           <div className="flex flex-wrap gap-1">
             {allOrderedGridColumns.map(([key])=>{
