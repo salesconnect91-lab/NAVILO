@@ -1,5 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fetchAllPages, fetchByIdChunks } from "@/lib/fetchAllPages";
 import { supabase } from "@/lib/supabase";
 import {
@@ -91,6 +91,20 @@ export default function Ledgers() {
   const [transportDetails, setTransportDetails] = useState<TransportDetail[]>([]);
   const [transportMovements, setTransportMovements] = useState<TransportMovementLink[]>([]);
   const [showColumns, setShowColumns] = useState(false);
+  const partyColumnDragKey = useRef<PartyColumnKey | null>(null);
+  const [partyColumnOrder, setPartyColumnOrder] = useState<PartyColumnKey[]>(() => {
+    try {
+      const saved = localStorage.getItem("navilo-ledger-party-column-order");
+      if (saved) {
+        const parsed = JSON.parse(saved) as PartyColumnKey[];
+        const allowed = new Set(PARTY_COLUMNS.map(([key]) => key));
+        const valid = parsed.filter((key) => allowed.has(key));
+        const missing = PARTY_COLUMNS.map(([key]) => key).filter((key) => !valid.includes(key));
+        if (valid.length) return [...valid, ...missing];
+      }
+    } catch {}
+    return PARTY_COLUMNS.map(([key]) => key);
+  });
   const [visiblePartyColumns, setVisiblePartyColumns] = useState<PartyColumnKey[]>(() => {
     try {
       const saved = localStorage.getItem("navilo-ledger-party-columns");
@@ -229,8 +243,9 @@ export default function Ledgers() {
   useEffect(() => {
     try {
       localStorage.setItem("navilo-ledger-party-columns", JSON.stringify(visiblePartyColumns));
+      localStorage.setItem("navilo-ledger-party-column-order", JSON.stringify(partyColumnOrder));
     } catch {}
-  }, [visiblePartyColumns]);
+  }, [visiblePartyColumns, partyColumnOrder]);
 
   useEffect(() => {
     let mounted = true;
@@ -459,7 +474,20 @@ export default function Ledgers() {
     };
   }, [transportDetails, transportMovements]);
 
+  const orderedPartyColumns = partyColumnOrder
+    .map((key) => PARTY_COLUMNS.find(([candidate]) => candidate === key))
+    .filter((column): column is (typeof PARTY_COLUMNS)[number] => Boolean(column));
+  const displayedPartyColumns = orderedPartyColumns.filter(([key]) => visiblePartyColumns.includes(key));
   const partyColumnVisible = (key: PartyColumnKey) => visiblePartyColumns.includes(key);
+  const movePartyColumn = (source: PartyColumnKey, target: PartyColumnKey) => {
+    if (source === target) return;
+    setPartyColumnOrder((current) => {
+      const next = current.filter((key) => key !== source);
+      const index = next.indexOf(target);
+      next.splice(index < 0 ? next.length : index, 0, source);
+      return next;
+    });
+  };
   const togglePartyColumn = (key: PartyColumnKey) => {
     setVisiblePartyColumns((current) =>
       current.includes(key) ? current.filter((item) => item !== key) : PARTY_COLUMNS.map(([item]) => item).filter((item) => item === key || current.includes(item))
@@ -513,7 +541,7 @@ export default function Ledgers() {
       return;
     }
 
-    const exportColumns = PARTY_COLUMNS.filter(([key]) => partyColumnVisible(key));
+    const exportColumns = displayedPartyColumns;
     const header = exportColumns.map(([, label]) => escapeCsv(label)).join(",") + "\n";
     const body = partyRowsWithBalance.map((row) => {
       const transport = transportInfoByJournal(row);
@@ -758,7 +786,7 @@ export default function Ledgers() {
                   <div className="absolute right-0 z-40 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-xl">
                     <div className="mb-2 flex items-center justify-between">
                       <strong className="text-xs">Statement columns</strong>
-                      <button type="button" className="text-xs text-blue-700" onClick={() => setVisiblePartyColumns(DEFAULT_PARTY_COLUMNS)}>Reset</button>
+                      <button type="button" className="text-xs text-blue-700" onClick={() => { setVisiblePartyColumns(DEFAULT_PARTY_COLUMNS); setPartyColumnOrder(PARTY_COLUMNS.map(([key]) => key)); }}>Reset</button>
                     </div>
                     <div className="max-h-64 space-y-1 overflow-auto">
                       {PARTY_COLUMNS.map(([key, label]) => (
@@ -877,8 +905,8 @@ export default function Ledgers() {
             <table className="w-full text-sm min-w-max">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                  {PARTY_COLUMNS.filter(([key]) => partyColumnVisible(key)).map(([key, label]) => (
-                    <th key={key} className={`py-2 px-2 font-medium whitespace-nowrap ${["debit","credit","balance"].includes(key) ? "text-right" : "text-left"}`}>{label}</th>
+                  {displayedPartyColumns.map(([key, label]) => (
+                    <th key={key} draggable onDragStart={(e) => { partyColumnDragKey.current = key; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", key); }} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }} onDrop={(e) => { e.preventDefault(); const source = partyColumnDragKey.current || e.dataTransfer.getData("text/plain") as PartyColumnKey; partyColumnDragKey.current = null; if (source) movePartyColumn(source, key); }} onDragEnd={() => { partyColumnDragKey.current = null; }} title="Drag left or right to reorder" className={`cursor-grab select-none py-2 px-2 font-medium whitespace-nowrap active:cursor-grabbing ${["debit","credit","balance"].includes(key) ? "text-right" : "text-left"}`}>{label}</th>
                   ))}
                 </tr>
               </thead>
@@ -902,7 +930,7 @@ export default function Ledgers() {
                   };
                   return (
                     <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                      {PARTY_COLUMNS.filter(([key]) => partyColumnVisible(key)).map(([key]) => (
+                      {displayedPartyColumns.map(([key]) => (
                         <td key={key} className={`py-2 px-2 whitespace-nowrap ${["debit","credit","balance"].includes(key) ? "text-right" : "text-left"} ${key === "balance" ? "font-semibold text-slate-900" : "text-slate-700"}`}>
                           {cells[key]}
                         </td>
@@ -914,7 +942,7 @@ export default function Ledgers() {
               {partyRowsWithBalance.length > 0 && (
                 <tfoot>
                   <tr className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-200">
-                    {PARTY_COLUMNS.filter(([key]) => partyColumnVisible(key)).map(([key], index) => (
+                    {displayedPartyColumns.map(([key], index) => (
                       <td key={key} className={`py-2 px-2 ${["debit","credit","balance"].includes(key) ? "text-right" : ""}`}>
                         {key === "debit" ? formatCurrency(totalDebit) : key === "credit" ? formatCurrency(totalCredit) : key === "balance" ? (selectedPartyKey ? signedBalanceLabel(statementBalance) : "Per Party") : index === 0 ? "Total:" : ""}
                       </td>
