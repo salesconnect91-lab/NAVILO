@@ -2,7 +2,7 @@
 begin;
 do $$
 declare u uuid:=gen_random_uuid();code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
- c uuid;b uuid;loc uuid;customer uuid;supplier uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;
+ c uuid;b uuid;loc uuid;from_loc uuid;to_loc uuid;customer uuid;supplier uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;
  trip uuid;trip2 uuid;sales_id uuid;sales2 uuid;rent uuid;rent2 uuid;bill uuid;bill2 uuid;
  result jsonb;again jsonb;payload jsonb;request_id uuid:=gen_random_uuid();payment_id uuid;receipt_id uuid;
  count_before bigint;rejected boolean;other_bu uuid;other_loc uuid;other_c uuid;v numeric;
@@ -40,10 +40,13 @@ begin
  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Service Customer',ar) returning id into customer;
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
 
- insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
- values(c,b,'',current_date,customer,'A','B',1000,400,'credit') returning id into trip;
- insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
- values(c,b,'',current_date,customer,'A','B',1000,300,'credit') returning id into trip2;
+ insert into public.transport_locations(company_id,business_unit_id,name,is_active) values(c,b,'A',true) returning id into from_loc;
+ insert into public.transport_locations(company_id,business_unit_id,name,is_active) values(c,b,'B',true) returning id into to_loc;
+
+ insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,from_location_id,to_location_id,customer_rate,owner_rent,sale_type)
+ values(c,b,'',current_date,customer,'A','B',from_loc,to_loc,1000,400,'credit') returning id into trip;
+ insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,from_location_id,to_location_id,customer_rate,owner_rent,sale_type)
+ values(c,b,'',current_date,customer,'A','B',from_loc,to_loc,1000,300,'credit') returning id into trip2;
  -- Direct posting must fail before approval on EVERY exposed numbering/description route.
  select count(*) into count_before from public.journal_entries;
  rejected:=false;begin perform public.transport_post_customer_bill(trip,current_date,false);exception when others then rejected:=sqlerrm like '%finalized%';end;
