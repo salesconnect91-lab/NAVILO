@@ -199,6 +199,7 @@ export default function TransportWorkspace(){
   useEffect(()=>{importStop.current=true;setImportJob(null);void storedImport(importScope).then(job=>{if(importScopeRef.current===importScope)setImportJob(job)}).catch(()=>{});return()=>{importStop.current=true}},[importScope]);
   const [page,setPage]=useState(0);
   const [registerSearch,setRegisterSearch]=useState('');
+  const [registerSearchDraft,setRegisterSearchDraft]=useState('');
   const [registerMeta,setRegisterMeta]=useState<any>({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
   const readGeneration=useRef(0);
   const registerRequest=useRef<AbortController|null>(null);
@@ -463,12 +464,14 @@ export default function TransportWorkspace(){
   const toOptions=fromOptions;
   const pprOptions=['pending','received','not_required'];
   const statusOptions=registerMeta.statuses??[];
-  const visibleStatusOptions=statusOptions.filter((option:any)=>!statusSearch||option.label.toLowerCase().includes(statusSearch.toLowerCase()));
+  const statusNarration=(key:string)=>({draft:'Trip entered; operational work is still open.',ready:'Operational requirements are complete; ready for billing.',ready_to_invoice:'Operational requirements are complete; ready for billing.',invoiced:'Customer invoice has been posted.',paid:'Posted customer billing has been fully settled.',completed:'Trip operations are complete.',cancelled:'Trip was cancelled; retained for audit history.'}[key]??'Current operational Trip status.');
+  const visibleStatusOptions=statusOptions.filter((option:any)=>!statusSearch||`${option.label} ${statusNarration(option.key)}`.toLowerCase().includes(statusSearch.toLowerCase()));
   const completedTrips=registerMeta.completed??0;
   const paperPending=registerMeta.paper_pending??0;
 
   const resetFilters=()=>{
     setRegisterSearch("");
+    setRegisterSearchDraft("");
     setFromDate("");
     setToDate("");
     setCustomerFilter("");
@@ -1153,7 +1156,10 @@ export default function TransportWorkspace(){
       <div className="relative z-[90] flex h-9 shrink-0 items-center justify-between bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 px-3 text-white">
         <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
         <div className="flex items-center gap-1">
-          <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-6 items-center gap-1 rounded border border-slate-600 px-2 text-[9px] font-semibold text-slate-200 hover:bg-slate-800"><RefreshCw className="h-3 w-3"/>Refresh</button>
+          <button type="button" onClick={resetGrid} className="flex h-6 items-center rounded border border-slate-600 bg-slate-900 px-2 text-[9px] font-semibold text-slate-200 hover:bg-slate-800">Reset</button>
+          <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-6 items-center gap-1 rounded border border-sky-700/70 bg-sky-950/70 px-2 text-[9px] font-semibold text-sky-100 hover:bg-sky-900"><RefreshCw className="h-3 w-3"/>Refresh</button>
+          <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)} className="flex h-6 items-center rounded border border-slate-600 bg-slate-900 px-2 text-[9px] font-semibold text-slate-200 hover:bg-slate-800">Columns</button>
+          <span data-navilo-standard-tools-host="true" className="contents" />
         </div>
       </div>
       <div className="relative z-[80] shrink-0 border-b border-slate-200 bg-white px-1.5 py-1">
@@ -1190,7 +1196,7 @@ export default function TransportWorkspace(){
                 </label>
                 {visibleStatusOptions.map(option=><label key={option.key} className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[10px] hover:bg-slate-50 ${statusFilters.includes(option.key)?"bg-blue-50 font-bold text-blue-800":""}`}>
                   <input type="checkbox" checked={statusFilters.includes(option.key)} onChange={()=>setStatusFilters(current=>current.includes(option.key)?current.filter(key=>key!==option.key):[...current,option.key])}/>
-                  <span>{option.label}</span>
+                  <span className="min-w-0"><span className="block">{option.label}</span><span className="block text-[8px] font-normal leading-tight text-slate-500">{statusNarration(option.key)}</span></span>
                 </label>)}
                 {visibleStatusOptions.length===0&&<div className="px-2 py-2 text-[10px] text-slate-500">No matching status</div>}
               </div>
@@ -1201,24 +1207,12 @@ export default function TransportWorkspace(){
             </div>}
           </div>
 
-          <input aria-label="Search all Trips" placeholder="Trip / job / invoice / customer" className="input h-7 w-52 text-[11px]" value={registerSearch} onChange={e=>setRegisterSearch(e.target.value)}/>
-          <button type="button" onClick={resetGrid}
-            className="h-7 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
-            Reset
-          </button>
-
-          <button type="button" onClick={()=>void load()} disabled={registerLoading}
-            className="flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
-            <RefreshCw className="h-3.5 w-3.5"/>
-            Refresh
-          </button>
-          <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)}
-            className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50">
-            Columns
-          </button>
+          <form className="flex h-7 w-80 items-stretch" onSubmit={e=>{e.preventDefault();setPage(0);setRegisterSearch(registerSearchDraft.trim())}}>
+            <input aria-label="Search all Trip data" placeholder="Search all Trip data…" className="input h-7 min-w-0 flex-1 rounded-r-none text-[11px]" value={registerSearchDraft} onChange={e=>setRegisterSearchDraft(e.target.value)}/>
+            <button type="submit" aria-label="Search Trips" className="flex h-7 w-8 items-center justify-center rounded-r-md border border-l-0 border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100"><Search className="h-3.5 w-3.5"/></button>
+          </form>
           <div className="flex shrink-0 items-center gap-1.5">
           <button type="button" onClick={()=>setTab("new")} className="flex h-7 items-center gap-1 rounded-md border border-blue-300 bg-blue-50 px-2 text-[11px] font-semibold text-blue-800 hover:bg-blue-100"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
-          <span data-navilo-standard-tools-host="true" className="contents" />
           </div>
           <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=supplier&allocation=transport")} className="h-7 rounded-md border border-amber-200 bg-amber-50 px-2 text-[11px] font-semibold text-amber-800 hover:bg-amber-100">Pay Rent to Suppliers</button>
           <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=customer&allocation=transport")} className="h-7 rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100">Receive Customer Payment</button>
