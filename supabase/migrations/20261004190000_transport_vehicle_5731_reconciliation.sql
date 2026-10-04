@@ -9,6 +9,12 @@ declare
   c uuid := '38054e27-ceb6-485e-8001-4f2bfd6ff0d1';
   b uuid := 'c66aedd1-3bf6-475b-a502-1bc9b5316383';
 begin
+  -- This is a production-data reconciliation, not schema seed data. Fresh isolated
+  -- databases legitimately do not contain the two audited production UUIDs.
+  if not exists(select 1 from public.transport_vehicles where id in (legacy_id,current_id)) then
+    return;
+  end if;
+
   if (select count(*) from public.transport_vehicles
       where company_id=c and business_unit_id=b
         and public.transport_master_normalized_key(vehicle_no)=public.transport_master_normalized_key('5731')) <> 2 then
