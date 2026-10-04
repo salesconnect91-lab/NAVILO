@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
+import ApplicationErrorBoundary from "./components/ApplicationErrorBoundary";
 import { AuthProvider } from "./auth/AuthContext";
 import GlobalLanguageRuntime from "./components/GlobalLanguageRuntime";
 import LanguageVisibilityRuntime from "./components/LanguageVisibilityRuntime";
@@ -31,7 +32,7 @@ createRoot(document.getElementById("root")!).render(
         <GlobalLanguageRuntime />
         <LanguageVisibilityRuntime />
         <JurisdictionRuntime />
-        <App />
+        <ApplicationErrorBoundary><App /></ApplicationErrorBoundary>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>

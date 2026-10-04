@@ -1,14 +1,19 @@
 // @vitest-environment jsdom
+import {StrictMode} from 'react';
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import TransportWorkspace from './TransportWorkspace';
+import UniversalDataTools from '@/components/UniversalDataTools';
+import GlobalLanguageRuntime from '@/components/GlobalLanguageRuntime';
+import LanguageRuntime from '@/components/LanguageRuntime';
+import JurisdictionRuntime from '@/components/JurisdictionRuntime';
 import {MemoryRouter} from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {webcrypto} from 'node:crypto';
 vi.mock('./transportTripImport',async original=>({...await original<any>(),saveImport:async()=>{},storedImport:async()=>null}));
 const mock=vi.hoisted(()=>({rpc:vi.fn(),tables:{} as Record<string,any[]>,allow:true}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'c',membership_role:'company_owner',enabled_modules:['transport']},activeBusinessUnit:{business_unit_id:'b',membership_role:'company_owner',business_unit_type:'transport',enabled_modules:['transport']}})}));
-vi.mock('@/lib/supabase',()=>({supabase:{rpc:(...args:any[])=>{const request=mock.rpc(...args);request.abortSignal=()=>request;return request;},from:(table:string)=>{const q:any={select:()=>q,eq:()=>q,in:()=>q,order:()=>q,update:()=>q,
+vi.mock('@/lib/supabase',()=>({supabase:{auth:{getUser:async()=>({data:{user:null}}),getSession:async()=>({data:{session:null}})},rpc:(...args:any[])=>{const request=mock.rpc(...args);request.abortSignal=()=>request;return request;},from:(table:string)=>{const q:any={select:()=>q,eq:()=>q,in:()=>q,order:()=>q,update:()=>q,
  insert:(values:any)=>{const row={...values,id:'added',is_active:true};(mock.tables[table]??=[]).push(row);return {select:()=>({single:async()=>({data:row,error:null})})};},range:()=>Promise.resolve({data:mock.tables[table]??[],error:null}),then:(resolve:any)=>Promise.resolve({data:mock.tables[table]??[],error:null}).then(resolve)};return q;}}}));
 vi.mock('./TransportFinancialPanel',()=>({default:()=>null}));vi.mock('./TransportInitialRate',()=>({default:()=>null}));
 vi.mock('./TransportCostUpload',()=>({default:()=>null}));vi.mock('./TransportAudit',()=>({default:()=>null}));
@@ -176,5 +181,23 @@ describe('Transport register interactions',()=>{
   expect(horizontal.defaultPrevented).toBe(true);expect(grid.scrollLeft).toBe(80);
   const vertical=new WheelEvent('wheel',{deltaY:60,bubbles:true,cancelable:true});fireEvent(table.querySelector('tbody')!,vertical);
   expect(vertical.defaultPrevented).toBe(false);expect(grid.scrollLeft).toBe(80);
+ });
+});
+
+
+describe('Trip edit transition',()=>{
+ it('opens an existing Trip from the register with global toolbar active',async()=>{
+  await import('@/accountNameDisplayRuntime');
+  await import('@/documentLanguageIsolationRuntime');
+  const trip={id:'trip-edit',trip_no:'EDIT-1',trip_date:'2026-10-01',customer_id:'c1',truck_type_id:'tt',vehicle_id:'v',driver_id:'d',from_location:'From',to_location:'To',sale_type:'credit',ppr_status:'pending',customer_rate:100,supplier_rent_total:70,driver_pay:10};
+  mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_register_query'?{rows:[trip],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:name==='transport_edit_trip_read'?trip:true,error:null}));
+  render(<MemoryRouter initialEntries={['/transport']}><main id="navilo-main-content"><StrictMode><GlobalLanguageRuntime/><LanguageRuntime/><JurisdictionRuntime/><UniversalDataTools/><TransportWorkspace/></StrictMode></main></MemoryRouter>);
+  const edit=await screen.findByRole('button',{name:'EDIT-1'});
+  fireEvent.click(edit);
+  await screen.findByRole('button',{name:'Save Changes'});
+  expect((screen.getByPlaceholderText('Search Customer') as HTMLInputElement).value).toBe('Customer');
+  expect((screen.getByLabelText('Trip Date') as HTMLInputElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
+  await screen.findByRole('button',{name:'EDIT-1'});
  });
 });
