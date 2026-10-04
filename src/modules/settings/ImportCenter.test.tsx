@@ -14,8 +14,10 @@ afterEach(cleanup);
 describe("import center", () => {
   it("shows centralized Transport rate imports and implemented destinations", () => {
     render(<MemoryRouter><ImportCenter /></MemoryRouter>);
+    expect(screen.getByRole("heading", { name: "Transport Master Imports" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Transport Rate Imports" })).toBeTruthy();
-    expect(screen.getAllByRole("heading", { level: 2 }).map(node => node.textContent)).toEqual(["Transport Rate Imports","Bank Data","Customers","Suppliers","Invoices"]);
+    for (const name of ["Vehicles","Drivers","Truck Types","Locations","Vehicle Expense Types","Vehicle Ownership History"]) expect(screen.getByRole("option", { name })).toBeTruthy();
+    expect(screen.getAllByRole("heading", { level: 2 }).map(node => node.textContent)).toEqual(["Transport Master Imports","Transport Rate Imports","Bank Data","Customers","Suppliers","Invoices"]);
     expect(screen.getByRole("option", { name: "Customer Route Rates" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Supplier Route Rates" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Customer Additional Charges" })).toBeTruthy();
