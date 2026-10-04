@@ -1292,11 +1292,11 @@ export default function TransportWorkspace(){
                         e.stopPropagation();
                         if(openColumnFilter===key){setOpenColumnFilter(null);return;}
                         const rect=e.currentTarget.getBoundingClientRect();
-                        const width=160,gap=8;
+                        const width=240,gap=8;
                         let left=Math.max(gap,rect.right-width);
                         if(left+width>window.innerWidth-gap)left=Math.max(gap,window.innerWidth-width-gap);
                         let top=rect.bottom+4;
-                        if(top+260>window.innerHeight-gap)top=Math.max(gap,rect.top-260);
+                        if(top+270>window.innerHeight-gap)top=Math.max(gap,rect.top-270);
                         setColumnMenuPosition({top,left});
                         setOpenColumnFilter(key);
                       }}
@@ -1927,8 +1927,9 @@ function ColumnFilterMenu({
   const shown=options;
 
   return <div
-    className="fixed z-[9999] w-40 rounded-md border border-slate-200 bg-white p-1.5 text-[10px] normal-case shadow-lg"
-    style={{top,left}}
+    className="fixed z-[9999] flex flex-col rounded-md border border-slate-200 bg-white p-1.5 text-[10px] normal-case shadow-lg"
+    aria-label={`${label} filter popup`}
+    style={{top,left,width:240,height:270,minWidth:160,minHeight:180,maxWidth:`calc(100vw - ${left+8}px)`,maxHeight:`calc(100vh - ${top+8}px)`,resize:'both',overflow:'hidden'}}
     onClick={e=>e.stopPropagation()}
   >
     <div className="mb-0.5 flex items-center justify-between leading-none">
@@ -1959,7 +1960,7 @@ function ColumnFilterMenu({
       </button>
     </div>
 
-    <div className="mt-1 max-h-40 overflow-y-auto border-t border-slate-100 pt-0.5">
+    <div className="mt-1 min-h-0 flex-1 overflow-y-auto border-t border-slate-100 pt-0.5">
       {loading&&<p>Loading values…</p>}
       <p className="text-slate-500">Up to 200 matches. Search for more.</p>
       {shown.map(value=>
@@ -1969,7 +1970,7 @@ function ColumnFilterMenu({
             checked={selected.includes(value)}
             onChange={()=>onToggle(value)}
           />
-          <span className="min-w-0 flex-1 truncate text-[9px]">{value}</span>
+          <span title={value} className="min-w-0 flex-1 truncate text-[9px]">{value}</span>
         </label>
       )}
 
@@ -1977,6 +1978,7 @@ function ColumnFilterMenu({
         <div className="px-1 py-3 text-center text-slate-400">No values</div>
       }
     </div>
+    <div className="shrink-0 pt-1 pr-3 text-right text-[9px] leading-3 text-slate-400">Drag corner to resize ↘</div>
   </div>
 }
 
