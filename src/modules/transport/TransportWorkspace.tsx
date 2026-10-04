@@ -10,7 +10,6 @@ import { supabase } from "@/lib/supabase";
 import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportBulkCustomerRate from './TransportBulkCustomerRate';
 import TransportInitialRate from './TransportInitialRate';
-import TransportRateList from './TransportRateList';
 import TransportTripCharges from './TransportTripCharges';
 import TransportInvoiceNumber from './TransportInvoiceNumber';
 import TransportCostUpload from './TransportCostUpload';
@@ -1138,7 +1137,6 @@ export default function TransportWorkspace(){
   return <div className="relative w-full max-w-none space-y-1" style={{width:"100%",maxWidth:"none",marginInline:0}}>
 
 
-    {showRateList&&<TransportRateList onClose={()=>setShowRateList(false)} onChanged={async()=>{await loadTripMasters();await load()}}/>}
     {chargeTrip&&<TransportTripCharges tripId={chargeTrip.id} onClose={()=>setChargeTrip(null)} onChanged={load}/>} 
 
     {showPartyReports&&<TransportPartyReports key={`${scopeKey}:${reportPanel}`} initialSide={reportPanel==='supplier-reports'?'supplier':'customer'} allocationEntry={reportPanel==='bulk-allocation'} onClose={()=>setTab('trips')} onChanged={load}/>}
@@ -1146,7 +1144,7 @@ export default function TransportWorkspace(){
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
     {!showPartyReports&&tab==="trips"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className="relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden rounded-lg border border-slate-700 bg-white shadow-sm shadow-slate-300" data-navilo-customizable="true">
-      <div className="relative z-[90] flex h-9 shrink-0 items-center justify-between bg-slate-900 px-3 text-white">
+      <div className="relative z-[90] flex h-9 shrink-0 items-center justify-between bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 px-3 text-white">
         <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
         <div className="flex items-center gap-1">
           <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-6 items-center gap-1 rounded border border-slate-600 px-2 text-[9px] font-semibold text-slate-200 hover:bg-slate-800"><RefreshCw className="h-3 w-3"/>Refresh</button>
@@ -1208,11 +1206,8 @@ export default function TransportWorkspace(){
             <RefreshCw className="h-3.5 w-3.5"/>
             Refresh
           </button>
-          <button type="button" onClick={()=>setShowRateList(true)} className="h-7 rounded-md border border-cyan-200 bg-cyan-50 px-2.5 text-[10px] font-bold text-cyan-800 hover:bg-cyan-100">Rate List</button>
           <button type="button" onClick={()=>setShowBulkSupplierRent(true)}
             className="h-7 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-[10px] font-bold text-amber-800 hover:bg-amber-100">
-            Bulk Supplier Rent
-          </button><button type="button" onClick={()=>setShowBulkCustomerRate(true)} className="rounded border border-blue-300 bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 hover:bg-blue-100">Bulk Customer Rate</button>
           <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)}
             className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50">
             Columns
@@ -1276,9 +1271,9 @@ export default function TransportWorkspace(){
       >
         <table className="w-max min-w-full table-auto whitespace-nowrap text-[8px] leading-none">
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
-          <thead className="sticky top-0 z-40 bg-slate-800 text-left text-[8px] uppercase tracking-normal text-white shadow-[0_1px_2px_rgba(15,23,42,0.12)]">
+          <thead className="sticky top-0 z-40 bg-slate-900 text-left text-[8px] uppercase tracking-normal text-white shadow-[0_1px_2px_rgba(15,23,42,0.12)]">
             <tr className="h-5">
-              {orderedGridColumns.map(([key])=><th key={'group-'+key} className={`border-b border-r px-1 py-0 text-center text-[7px] font-extrabold tracking-wide ${isSupplierGridKey(key)?"border-rose-300 bg-rose-200 text-rose-950":isCustomerGridKey(key)?"border-sky-300 bg-sky-200 text-sky-950":"border-slate-600 bg-slate-800 text-slate-300"}`}>{key===orderedGridColumns.find(([k])=>isSupplierGridKey(k))?.[0]?"SUPPLIER · OUR COST":key===orderedGridColumns.find(([k])=>isCustomerGridKey(k))?.[0]?"CUSTOMER · OUR REVENUE":""}</th>)}
+              {orderedGridColumns.map(([key])=><th key={'group-'+key} className={`border-b border-r px-1 py-0 text-center text-[7px] font-extrabold tracking-wide ${isSupplierGridKey(key)?"border-rose-300 bg-rose-200 text-rose-950":isCustomerGridKey(key)?"border-sky-300 bg-sky-200 text-sky-950":"border-slate-700 bg-slate-900 text-slate-200"}`}>{key===orderedGridColumns.find(([k])=>isSupplierGridKey(k))?.[0]?"SUPPLIER · OUR COST":key===orderedGridColumns.find(([k])=>isCustomerGridKey(k))?.[0]?"CUSTOMER · OUR REVENUE":""}</th>)}
             </tr>
             <tr>
               {orderedGridColumns.map(([key,label],i)=>{
@@ -1290,7 +1285,7 @@ export default function TransportWorkspace(){
 
                 return <th key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`sticky top-0 border-b border-r px-0.5 !py-0 font-bold leading-none ${isSupplierGridKey(key)?"border-rose-300 bg-rose-800 text-white":isCustomerGridKey(key)?"border-sky-400 bg-sky-800 text-white":"border-slate-600 bg-slate-800 text-white"} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
+                  className={`sticky top-0 border-b border-r px-0.5 !py-0 font-bold leading-none ${isSupplierGridKey(key)?"border-rose-300 bg-rose-800 text-white":isCustomerGridKey(key)?"border-sky-400 bg-sky-800 text-white":"border-slate-700 bg-slate-900 text-white"} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
                   <div className="flex min-h-[28px] w-full min-w-0 items-center gap-0.5">
                     <button type="button"
                       title={`Sort ${label} ${sorted&&sortDirection==="asc"?"descending":"ascending"}`}
@@ -1583,7 +1578,6 @@ export default function TransportWorkspace(){
         </TripField>
 
         <TripField label="Supplier / Owner Rent">
-          <input type="number" min="0" step="0.01" aria-label="Supplier / Owner Rent" readOnly={Boolean(editingTripId)||!entryPermissions.rent||!supplierOwned} title={editingTripId?"Rent is a financial field. Use Bulk Supplier Rent / Finance for unposted changes or correction after posting.":""} value={form.supplier_rent}
             onChange={e=>{setError("");setForm({...form,supplier_rent:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-right text-xs outline-none"/>
         </TripField>
