@@ -4,7 +4,7 @@ import './transportScrolling.css';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { formatNaviloDate } from "@/lib/naviloDate";
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment} from "react";
-import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw } from "lucide-react";
+import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw, LockKeyhole } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 import TransportBulkSupplierRent from './TransportBulkSupplierRent';
