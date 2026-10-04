@@ -1118,7 +1118,7 @@ export default function TransportWorkspace(){
     if(tripsGridRef.current)tripsGridRef.current.scrollLeft=0;
   };
 
-  return <div className="relative w-[calc(100vw-var(--navilo-sidebar-width,226px)-8px)] max-w-none space-y-1 px-1">
+  return <div className="relative left-1/2 w-[calc(100vw-8px)] max-w-none -translate-x-1/2 space-y-1 px-1">
 
 
     {showPartyReports&&<TransportPartyReports key={`${scopeKey}:${reportPanel}`} initialSide={reportPanel==='supplier-reports'?'supplier':'customer'} allocationEntry={reportPanel==='bulk-allocation'} onClose={()=>setTab('trips')} onChanged={load}/>}
