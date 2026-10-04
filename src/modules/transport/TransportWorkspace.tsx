@@ -886,7 +886,13 @@ export default function TransportWorkspace(){
         if(replaceError)throw replaceError;
       }
 
-      const safePayload={...payload};
+      const originalTripDate=(await supabase.rpc('transport_edit_trip_read',{p_trip_id:editingTripId})).data?.trip_date;
+      let correctionReason:string|null=null;
+      if(originalTripDate&&form.trip_date!==originalTripDate){
+        correctionReason=window.prompt("Trip Date correction reason is required for audit history:","")?.trim()||null;
+        if(!correctionReason){setError("Trip Date correction cancelled. A reason is required.");return;}
+      }
+      const safePayload={...payload,...(correctionReason?{correction_reason:correctionReason}:{})};
       delete (safePayload as any).vehicle_id;
       delete (safePayload as any).driver_id;
       delete (safePayload as any).owner_name_snapshot;
