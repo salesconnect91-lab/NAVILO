@@ -8,6 +8,7 @@ type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, "children"> & {
   wrapperClassName?: string;
   searchPlaceholder?: string;
   emptyText?: string;
+  preserveLabel?: boolean;
 };
 
 type Option = { value: string; label: string; searchText: string; disabled: boolean };
@@ -66,7 +67,7 @@ function displayLabel(raw: string): string {
   return value;
 }
 
-function collectOptions(children: ReactNode): Option[] {
+function collectOptions(children: ReactNode, preserveLabel = false): Option[] {
   const result: Option[] = [];
   Children.forEach(children, child => {
     if (!isValidElement(child)) return;
@@ -74,10 +75,10 @@ function collectOptions(children: ReactNode): Option[] {
     if (element.type === "option") {
       const rawLabel = textOf(element.props.children).trim() || String(element.props.value ?? "");
       const hiddenSearch = String(element.props["data-search"] ?? "").trim();
-      result.push({ value: String(element.props.value ?? ""), label: displayLabel(rawLabel), searchText: `${rawLabel} ${hiddenSearch}`.trim(), disabled: Boolean(element.props.disabled) });
+      result.push({ value: String(element.props.value ?? ""), label: preserveLabel ? rawLabel : displayLabel(rawLabel), searchText: `${rawLabel} ${hiddenSearch}`.trim(), disabled: Boolean(element.props.disabled) });
       return;
     }
-    if (element.type === "optgroup") result.push(...collectOptions(element.props.children));
+    if (element.type === "optgroup") result.push(...collectOptions(element.props.children, preserveLabel));
   });
   return result;
 }
@@ -94,9 +95,10 @@ export default function SearchableSelect({
   id,
   searchPlaceholder = "Type to search...",
   emptyText = "No matching option",
+  preserveLabel = false,
   ...props
 }: Props) {
-  const options = useMemo(() => collectOptions(children), [children]);
+  const options = useMemo(() => collectOptions(children, preserveLabel), [children, preserveLabel]);
   const controlled = value !== undefined;
   const [internalValue, setInternalValue] = useState(String(defaultValue ?? ""));
   const selectedValue = controlled ? String(value ?? "") : internalValue;

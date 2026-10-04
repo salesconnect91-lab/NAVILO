@@ -1,3 +1,5 @@
+import {useAuth} from "@/auth/AuthContext";
+import TransportCashSettlement from "./TransportCashSettlement";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useMemo, useState } from "react";
@@ -27,6 +29,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 const money = (value: number) => new Intl.NumberFormat("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0));
 
 export default function SupplierPaymentPanel() {
+  const {activeBusinessUnit}=useAuth();
+  const [transportMode,setTransportMode]=useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -44,8 +48,8 @@ export default function SupplierPaymentPanel() {
   const [success, setSuccess] = useState<string | null>(null);
   const [lastPaymentReceipt, setLastPaymentReceipt] = useState<SupplierPaymentReceipt | null>(null);
 
-  const loadData = async () => {
-    setLoading(true); setError(null);
+  const loadData = async (quiet=false) => {
+    if(!quiet)setLoading(true); setError(null);
     const [supplierResult, orderResult, accountResult] = await Promise.all([
       supabase.from("suppliers").select("id,name").eq("is_active", true).order("name"),
       supabase.from("purchase_orders").select("id,order_no,order_date,supplier_id,total,paid_amount,outstanding_amount,payment_status,status").eq("status", "posted").gt("outstanding_amount", 0).neq("payment_status", "paid").order("order_date", { ascending: true }),
@@ -133,7 +137,8 @@ export default function SupplierPaymentPanel() {
 
   return <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
     <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="font-bold text-slate-900">New Supplier Payment</h2><p className="mt-0.5 text-xs text-slate-500">Supplier → Purchase Invoice → Payment Account → Pay & Post</p></div><button type="button" onClick={() => void loadData()} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold"><RefreshCw className="h-4 w-4"/>Refresh</button></div>
-    <div className="space-y-5 p-5">
+    {activeBusinessUnit?.business_unit_type==="transport"&&<div className="flex gap-2 px-5 pt-3"><button type="button" className={transportMode?"btn-secondary":"btn-primary"} disabled={saving} onClick={()=>setTransportMode(false)}>Single invoice</button><button type="button" className={transportMode?"btn-primary":"btn-secondary"} disabled={saving} onClick={()=>setTransportMode(true)}>Transport invoices / Trips</button></div>}
+    {transportMode?<div className="space-y-3 p-5"><label className="block text-xs font-semibold">Supplier<SearchableSelect value={supplierId} disabled={saving} onChange={e=>setSupplierId(e.target.value)} className="input w-full"><option value="">Select supplier</option>{suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</SearchableSelect></label><TransportCashSettlement side="supplier" party={supplierId} onBusyChange={setSaving} onPosted={()=>loadData(true)}/></div>:<div className="space-y-5 p-5">
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {success && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">{success}</div>}
       {lastPaymentReceipt && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3"><span className="mr-2 text-xs font-bold text-slate-500">Payment Tools</span><button type="button" onClick={() => printPaymentReceipt(lastPaymentReceipt)} className="btn-secondary text-sm">Print</button><button type="button" onClick={() => downloadPaymentPdf(lastPaymentReceipt)} className="btn-secondary text-sm">PDF</button></div>}
@@ -142,10 +147,10 @@ export default function SupplierPaymentPanel() {
         <div><label className="mb-1.5 block text-xs font-semibold">Payment Method</label><SearchableSelect value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="Cash">Cash</option><option value="Bank">Bank</option><option value="Cheque">Cheque</option><option value="Online">Online</option><option value="Other">Other</option></SearchableSelect></div>
         <div><label className="mb-1.5 block text-xs font-semibold">Payment Account</label><SearchableSelect value={accountId} onChange={(e) => setAccountId(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select payment account</option>{accounts.map((account) => <option key={account.id} value={account.id} data-search={account.code}>{account.name}</option>)}</SearchableSelect></div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2"><div><label className="mb-1.5 block text-xs font-semibold">Supplier</label><SearchableSelect value={supplierId} onChange={(e) => { setSupplierId(e.target.value); setOrderId(""); setAmount(""); setSuccess(null); }} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</SearchableSelect></div><div><label className="mb-1.5 block text-xs font-semibold">Open Purchase Invoice</label><SearchableSelect value={orderId} disabled={!supplierId} onChange={(e) => selectOrder(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3 disabled:bg-slate-50"><option value="">Select open invoice</option>{supplierOrders.map((order) => <option key={order.id} value={order.id}>{order.order_no} — Outstanding Rs. {money(order.outstanding_amount)}</option>)}</SearchableSelect></div></div>
+      <div className="grid gap-4 md:grid-cols-2"><div><label className="mb-1.5 block text-xs font-semibold">Supplier</label><SearchableSelect value={supplierId} onChange={(e) => { setSupplierId(e.target.value); setOrderId(""); setAmount(""); setSuccess(null); }} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</SearchableSelect></div><div><label className="mb-1.5 block text-xs font-semibold">Open Purchase Invoice</label><SearchableSelect preserveLabel value={orderId} disabled={!supplierId} onChange={(e) => selectOrder(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3 disabled:bg-slate-50"><option value="">Select open invoice</option>{supplierOrders.map((order) => <option key={order.id} value={order.id}>{order.order_no} — Outstanding Rs. {money(order.outstanding_amount)}</option>)}</SearchableSelect></div></div>
       {selectedOrder && <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3"><div><div className="text-xs text-slate-500">Invoice Total</div><div className="font-bold">Rs. {money(selectedOrder.total)}</div></div><div><div className="text-xs text-slate-500">Paid</div><div className="font-bold">Rs. {money(selectedOrder.paid_amount)}</div></div><div><div className="text-xs text-slate-500">Outstanding</div><div className="font-bold text-amber-700">Rs. {money(selectedOrder.outstanding_amount)}</div></div></div>}
       <div className="grid gap-4 md:grid-cols-3"><div><label className="mb-1.5 block text-xs font-semibold">Amount Paid</label><input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3" placeholder="0.00"/></div><div><label className="mb-1.5 block text-xs font-semibold">Reference</label><input value={reference} onChange={(e) => setReference(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3" placeholder="Optional"/></div><div><label className="mb-1.5 block text-xs font-semibold">Notes</label><input value={notes} onChange={(e) => setNotes(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3" placeholder="Optional"/></div></div>
       <div className="flex justify-end border-t border-slate-200 pt-4"><button type="button" disabled={saving || !supplierId || !selectedOrder || !accountId || amountNumber <= 0} onClick={() => void handlePost()} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50">{saving ? <><Loader2 className="h-4 w-4 animate-spin"/>Posting...</> : <><CheckCircle2 className="h-4 w-4"/>Pay & Post</>}</button></div>
-    </div>
+    </div>}
   </section>;
 }

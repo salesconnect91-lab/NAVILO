@@ -24,3 +24,10 @@ describe("SearchableSelect global interaction contract",()=>{
   expect(change.mock.calls[0][0].target.value).toBe("beam");
  });
 });
+
+ it("preserves invoice numbers when requested and leaves master labels unchanged",()=>{
+  const {rerender}=render(<SearchableSelect preserveLabel value="invoice"><option value="invoice">TR-000001 — Outstanding Rs. 1,500.00</option></SearchableSelect>);
+  expect(screen.getByRole("button",{name:/TR-000001/})).toBeTruthy();
+  rerender(<SearchableSelect value="invoice"><option value="invoice">TR-000001 — Outstanding Rs. 1,500.00</option></SearchableSelect>);
+  expect(screen.getByRole("button",{name:/Outstanding Rs/}).textContent).not.toContain("TR-000001");
+ });

@@ -32,6 +32,8 @@ import {
 import { useSearchParams } from "react-router-dom";
 import { ErrorBanner, formatDate } from "@/components/ui";
 import SupplierPaymentPanel from "./SupplierPaymentPanel";
+import TransportCashSettlement from "./TransportCashSettlement";
+import {useAuth} from "@/auth/AuthContext";
 import PaymentBalanceControls from "./PaymentBalanceControls";
 import PaymentVoucherHistory from "./PaymentVoucherHistory";
 import GeneralCashBankPanel from "./GeneralCashBankPanel";
@@ -60,7 +62,7 @@ type Account = {
   name: string;
 };
 
-type PaymentType = "invoice" | "advance";
+type PaymentType = "invoice" | "advance" | "transport";
 
 type Receipt = {
   entry_no: string;
@@ -98,6 +100,7 @@ const escapeHtml = (value: unknown) =>
     .replace(/'/g, "&#039;");
 
 export default function CashCounter() {
+  const {activeBusinessUnit}=useAuth();
   const [searchParams] = useSearchParams();
   const [counterMode, setCounterMode] = useState<"customer" | "supplier" | "general">("customer");
   const customerInputRef =
@@ -170,8 +173,8 @@ export default function CashCounter() {
     useState<any[]>([]);
 
   const loadMasterData = useCallback(
-    async () => {
-      setLoading(true);
+    async (quiet=false) => {
+      if(!quiet)setLoading(true);
       setError(null);
 
       const [
@@ -190,6 +193,7 @@ export default function CashCounter() {
           .select(
             "id,order_no,order_date,total,paid_amount,outstanding_amount,payment_status,customer_id"
           )
+          .eq("status", "posted")
           .gt("outstanding_amount", 0)
           .neq("payment_status", "paid")
           .order("order_date", {
@@ -370,6 +374,7 @@ export default function CashCounter() {
   const selectCustomer = (
     customer: Customer
   ) => {
+    if(saving)return;
     setSelectedCustomerId(
       customer.id
     );
@@ -403,11 +408,9 @@ export default function CashCounter() {
       );
 
     if (invoice) {
-      setAllocation(
-        String(
-          invoice.outstanding_amount
-        )
-      );
+      const received=toNumber(amount);
+      setAllocation(String(received>0?Math.min(received,invoice.outstanding_amount):invoice.outstanding_amount));
+      if(received<=0)setAmount(String(invoice.outstanding_amount));
     }
 
     setTimeout(() => {
@@ -1389,6 +1392,7 @@ export default function CashCounter() {
       return;
     }
 
+    if (paymentType === "transport") return;
     setSaving(true);
 
     try {
@@ -1638,6 +1642,7 @@ export default function CashCounter() {
       <div className="flex w-fit rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
         <button
           type="button"
+          disabled={saving}
           onClick={() => setCounterMode("customer")}
           className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
             counterMode === "customer"
@@ -1649,6 +1654,7 @@ export default function CashCounter() {
 
         <button
           type="button"
+          disabled={saving}
           onClick={() => setCounterMode("supplier")}
           className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
             counterMode === "supplier"
@@ -1660,6 +1666,7 @@ export default function CashCounter() {
 
         <button
           type="button"
+          disabled={saving}
           onClick={() => setCounterMode("general")}
           className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
             counterMode === "general"
@@ -1704,6 +1711,7 @@ export default function CashCounter() {
           </div>
 
           <div className="space-y-5 p-5">
+            {paymentType!=="transport"&&<>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
                 <label className="mb-1.5 block text-xs font-semibold text-slate-600">Payment Date</label>
@@ -1767,6 +1775,7 @@ export default function CashCounter() {
               </div>
             </div>
 
+            </>}
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-slate-600">Customer</label>
 
@@ -1774,6 +1783,7 @@ export default function CashCounter() {
                 <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
 
                 <input
+                  disabled={saving}
                   ref={
                     customerInputRef
                   }
@@ -1864,6 +1874,7 @@ export default function CashCounter() {
 
                   <button
                     type="button"
+                    disabled={saving}
                     onClick={() => {
                       setSelectedCustomerId(
                         ""
@@ -1885,9 +1896,10 @@ export default function CashCounter() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
+            <div className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
               <button
                 type="button"
+                disabled={saving}
                 onClick={() =>
                   changePaymentType(
                     "invoice"
@@ -1905,6 +1917,7 @@ export default function CashCounter() {
 
               <button
                 type="button"
+                disabled={saving}
                 onClick={() =>
                   changePaymentType(
                     "advance"
@@ -1919,8 +1932,11 @@ export default function CashCounter() {
               >
                 Advance Payment
               </button>
+              {activeBusinessUnit?.business_unit_type==="transport"&&<button type="button" disabled={saving} onClick={()=>changePaymentType("transport")} className={`rounded-md px-4 py-2.5 text-sm font-bold ${paymentType==="transport"?"bg-white text-emerald-700 shadow-sm":"text-slate-500"}`}>Transport invoices / Trips</button>}
             </div>
 
+            {paymentType === "transport" && <TransportCashSettlement side="customer" party={selectedCustomerId} onBusyChange={setSaving} onPosted={async()=>{await loadMasterData(true);await loadRecentPayments()}}/>}
+            {paymentType !== "transport" && <>
             {paymentType ===
               "invoice" && (
               <div>
@@ -1929,6 +1945,7 @@ export default function CashCounter() {
                 </label>
 
                 <SearchableSelect
+                  preserveLabel
                   value={
                     selectedInvoiceId
                   }
@@ -1966,6 +1983,7 @@ export default function CashCounter() {
                   )}
                 </SearchableSelect>
 
+                {selectedCustomerId&&customerInvoices.length===0&&<p className="mt-2 text-sm text-amber-800">No posted outstanding invoices for this customer. For Transport, post the bill first or use Advance Payment.</p>}
                 {selectedInvoice && (
                   <div className="mt-2 grid grid-cols-3 gap-2">
                     <div className="rounded-lg bg-slate-50 p-2.5">
@@ -2032,9 +2050,7 @@ export default function CashCounter() {
                       paymentType ===
                       "invoice"
                     ) {
-                      setAllocation(
-                        value
-                      );
+                      setAllocation(value);
                     }
                   }}
                   placeholder="0.00"
@@ -2197,6 +2213,7 @@ export default function CashCounter() {
                 )}
               </button>
             </div>
+            </>}
           </div>
         </section>
 
