@@ -4,6 +4,9 @@ begin;
 alter table public.transport_trip_customer_charges
   add column if not exists charge_master_id uuid references public.charge_master(id) on delete restrict;
 alter table public.transport_trip_customer_charges alter column charge_type_id drop not null;
+alter table public.transport_customer_charge_rates
+  add column if not exists charge_master_id uuid references public.charge_master(id) on delete restrict;
+alter table public.transport_customer_charge_rates alter column charge_type_id drop not null;
 
 create table if not exists public.transport_trip_supplier_charges(
  id uuid primary key default gen_random_uuid(),
