@@ -40,9 +40,9 @@
   line-height: 13px !important;
   overflow-wrap: anywhere;
 }
-.erp-shell main [data-navilo-bulk-rates] fieldset input,
+.erp-shell main [data-navilo-bulk-rates] fieldset input:not([type="checkbox"]),
 .erp-shell main [data-navilo-bulk-rates] fieldset select,
-[data-navilo-bulk-rates][data-navilo-bulk-rates] fieldset input,
+[data-navilo-bulk-rates][data-navilo-bulk-rates] fieldset input:not([type="checkbox"]),
 [data-navilo-bulk-rates][data-navilo-bulk-rates] fieldset select {
   height: 28px !important;
   min-height: 28px !important;
