@@ -129,7 +129,7 @@ export default function TransportWorkspace(){
   const [registerLoading,setRegisterLoading]=useState(false);
   const tripsGridRef=useRef<HTMLDivElement|null>(null);
   const tripsSectionRef=useRef<HTMLElement|null>(null);
-  const compactTripColumnWidths:Record<string,number>={trip_no:96,trip_date:68,truck_type:68,job_no:82,company:138,driver:88,owner:82,plate:70,from:78,to:78,charge:72,paper_received_by:100,rent_driver:112,supplier_paid:112,supplier_balance:126,supplier_credit:126,driver_pay:100,driver_paid:100,driver_balance:108,payment_date:82,amount:104,company_rate:112,received_company:126,remaining_company:126,customer_credit:126,profit:104,commission:116,invoice_no:100,sale_type:72};
+  const compactTripColumnWidths:Record<string,number>={trip_no:96,trip_date:68,truck_type:68,job_no:82,company:138,driver:88,owner:82,plate:70,from:78,to:78,charge:72,paper_received_by:100,rent_driver:112,supplier_charges:112,supplier_paid:112,supplier_balance:126,supplier_credit:126,driver_pay:100,driver_paid:100,driver_balance:108,payment_date:82,amount:104,company_rate:112,received_company:126,remaining_company:126,customer_credit:126,profit:104,commission:116,invoice_no:100,sale_type:72};
   const [tripColumnWidths,setTripColumnWidths]=useState<Record<string,number>>({});
   const [tripColumnOrder,setTripColumnOrder]=useState<string[]>([]);
   const [hiddenTripColumns,setHiddenTripColumns]=useState<string[]>([]);
@@ -994,7 +994,7 @@ export default function TransportWorkspace(){
 
   const tripDataGridKeys=["trip_no","trip_date","truck_type","job_no","from","to","charge"] as const;
   const vehicleDriverGridKeys=["driver","plate","owner","driver_pay","driver_paid","driver_balance"] as const;
-  const supplierGridKeys=["rent_driver","supplier_paid","supplier_balance","payment_date","amount","supplier_credit"] as const;
+  const supplierGridKeys=["rent_driver","supplier_charges","supplier_paid","supplier_balance","payment_date","amount","supplier_credit"] as const;
   const customerGridKeys=["invoice_no","company","company_rate","received_company","remaining_company","sale_type","customer_credit"] as const;
   const pprGridKeys=["paper_received_by"] as const;
   const profitCommissionGridKeys=["commission","profit"] as const;
@@ -1013,8 +1013,9 @@ export default function TransportWorkspace(){
     ["owner","Vehicle Owner"],
     ["from","From"],
     ["to","To"],
-    ["charge","Trip Charges"],
+    ["charge","Customer Charges"],
     ["rent_driver","Supplier Rent (Net)"],
+    ["supplier_charges","Supplier Charges"],
     ["supplier_paid","Supplier Rent Paid (Net)"],
     ["supplier_balance","Supplier Rent Balance (Incl. VAT)"],
     ["payment_date","Supplier Payment Date"],
@@ -1132,7 +1133,7 @@ export default function TransportWorkspace(){
   },[openColumnFilter,columnSearch,registerKey]);
   const columnOptions=(_key:string)=>columnValues;
   const gridRows=rows;
-  const amountGridKeys=new Set(['rent_driver','supplier_paid','supplier_balance','supplier_credit','driver_pay','driver_paid','driver_balance','amount','company_rate','received_company','remaining_company','customer_credit','profit','commission']);
+  const amountGridKeys=new Set(['rent_driver','supplier_charges','supplier_paid','supplier_balance','supplier_credit','driver_pay','driver_paid','driver_balance','amount','company_rate','received_company','remaining_company','customer_credit','profit','commission']);
   const gridTotal=(key:string)=>Number(registerMeta.totals?.[key]??0);
 
   const toggleColumnValue=(key:string,value:string)=>{
@@ -1407,7 +1408,7 @@ export default function TransportWorkspace(){
               {/* Transport operational register order - one canonical mapping for display/filter/sort */}
               {orderedGridColumns.slice(1).map(([key])=>{
                 const value=tripCellValue(r,key);
-                const numeric=["rent_driver","supplier_paid","supplier_balance","supplier_credit","customer_credit","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
+                const numeric=["rent_driver","supplier_charges","supplier_paid","supplier_balance","supplier_credit","customer_credit","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
