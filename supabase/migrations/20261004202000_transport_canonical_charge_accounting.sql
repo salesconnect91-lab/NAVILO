@@ -38,11 +38,9 @@ alter table public.transport_trip_supplier_rents
  add column if not exists base_amount numeric(18,2),
  add column if not exists finalized_base_amount_snapshot numeric(18,2);
 
--- Existing rows had no Transport supplier charges; their current rent is therefore the base rent.
-update public.transport_trip_supplier_rents
-set base_amount=coalesce(base_amount,amount),
-    finalized_base_amount_snapshot=case when state='finalized' then coalesce(finalized_base_amount_snapshot,finalized_amount_snapshot,amount) else finalized_base_amount_snapshot end
-where base_amount is null or (state='finalized' and finalized_base_amount_snapshot is null);
+-- Do not rewrite historical Transport financial evidence during migration.
+-- Legacy rows intentionally keep these new snapshot columns null; runtime readers/posting
+-- functions fall back to finalized_amount_snapshot/amount. New writes populate the columns.
 
 create or replace function public.transport_replace_trip_customer_charges(p_trip_id uuid,p_lines jsonb,p_reason text default null)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $body$
