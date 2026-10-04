@@ -1,5 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { fetchAllPages, fetchByIdChunks } from "@/lib/fetchAllPages";
 import { supabase } from "@/lib/supabase";
 import {
@@ -28,6 +28,35 @@ type LedgerRow = Ledger & {
 type PartyLedgerRow = PartyLedger & {
   party_name?: string | null;
 };
+
+type TransportDetail = {
+  order_no?: string | null;
+  trip_no?: string | null;
+  trip_date?: string | null;
+  from_location?: string | null;
+  to_location?: string | null;
+  vehicle_no?: string | null;
+  driver_name?: string | null;
+  owner_name?: string | null;
+  po_do_job_no?: string | null;
+};
+
+type TransportMovementLink = {
+  journal_entry_id?: string | null;
+  order_no?: string | null;
+  trip_no?: string | null;
+};
+
+const PARTY_COLUMNS = [
+  ["date", "Date"], ["party", "Party"], ["reference", "Reference"],
+  ["trip", "Trip"], ["from", "From"], ["to", "To"], ["vehicle", "Vehicle"],
+  ["driver", "Driver"], ["owner", "Owner"], ["job", "Job / PO / DO"],
+  ["description", "Description"], ["debit", "Debit"], ["credit", "Credit"], ["balance", "Balance"],
+] as const;
+type PartyColumnKey = (typeof PARTY_COLUMNS)[number][0];
+const DEFAULT_PARTY_COLUMNS: PartyColumnKey[] = [
+  "date","party","reference","trip","from","to","vehicle","description","debit","credit","balance",
+];
 
 const escapeCsv = (value: unknown) => {
   const text = value === null || value === undefined ? "" : String(value);
@@ -59,6 +88,21 @@ export default function Ledgers() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [transportDetails, setTransportDetails] = useState<TransportDetail[]>([]);
+  const [transportMovements, setTransportMovements] = useState<TransportMovementLink[]>([]);
+  const [showColumns, setShowColumns] = useState(false);
+  const [visiblePartyColumns, setVisiblePartyColumns] = useState<PartyColumnKey[]>(() => {
+    try {
+      const saved = localStorage.getItem("navilo-ledger-party-columns");
+      if (saved) {
+        const parsed = JSON.parse(saved) as PartyColumnKey[];
+        const allowed = new Set(PARTY_COLUMNS.map(([key]) => key));
+        const valid = parsed.filter((key) => allowed.has(key));
+        if (valid.length) return valid;
+      }
+    } catch {}
+    return DEFAULT_PARTY_COLUMNS;
+  });
 
   const fetchMasterData = useCallback(async () => {
     const [accountsResult, customersResult, suppliersResult] =
@@ -141,6 +185,53 @@ export default function Ledgers() {
     setPartyRows(data);
   }, [partyFilterType, selectedPartyKey]);
 
+  const fetchTransportContext = useCallback(async () => {
+    const selected = selectedPartyKey ? selectedPartyKey.split(":") as [PartyType, string] : null;
+    const sides: PartyType[] = selected ? [selected[0]] : partyFilterType === "all" ? ["customer", "supplier"] : [partyFilterType];
+    const details: TransportDetail[] = [];
+    const movements: TransportMovementLink[] = [];
+
+    await Promise.all(sides.map(async (side) => {
+      try {
+        const allowed = await supabase.rpc("transport_financial_read_allowed", { p_side: side });
+        if (allowed.error || allowed.data !== true) return;
+        const party = selected?.[0] === side ? selected[1] : "";
+        const [detailRows, movementRows] = await Promise.all([
+          fetchAllPages<TransportDetail>((fromRow, toRow) =>
+            supabase.rpc("transport_document_trip_detail_query", {
+              p_side: side,
+              p_filters: { party, to: "", search: "" },
+              p_limit: toRow - fromRow + 1,
+              p_offset: fromRow,
+            })
+          ),
+          fetchAllPages<TransportMovementLink>((fromRow, toRow) =>
+            supabase.rpc("transport_party_report_query", {
+              p_kind: "movements",
+              p_side: side,
+              p_filters: { party, to: "", search: "" },
+              p_limit: toRow - fromRow + 1,
+              p_offset: fromRow,
+            })
+          ),
+        ]);
+        details.push(...detailRows);
+        movements.push(...movementRows);
+      } catch {
+        // Ledger remains usable for companies/business units without Transport access.
+      }
+    }));
+
+    setTransportDetails(details);
+    setTransportMovements(movements);
+  }, [partyFilterType, selectedPartyKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("navilo-ledger-party-columns", JSON.stringify(visiblePartyColumns));
+    } catch {}
+  }, [visiblePartyColumns]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -169,9 +260,9 @@ export default function Ledgers() {
         setError(null);
 
         if (viewMode === "general") {
-          await fetchGeneralLedger();
+          await Promise.all([fetchGeneralLedger(), fetchTransportContext()]);
         } else {
-          await fetchPartyLedger();
+          await Promise.all([fetchPartyLedger(), fetchTransportContext()]);
         }
       } catch (err: any) {
         if (mounted) {
@@ -187,7 +278,7 @@ export default function Ledgers() {
     return () => {
       mounted = false;
     };
-  }, [viewMode, fetchGeneralLedger, fetchPartyLedger]);
+  }, [viewMode, fetchGeneralLedger, fetchPartyLedger, fetchTransportContext]);
 
   const selectedAccountObj = useMemo(
     () => accounts.find((account) => account.id === selectedAccount) ?? null,
@@ -331,6 +422,50 @@ export default function Ledgers() {
     });
   }, [partyRows, getPartyName]);
 
+  const transportInfoByJournal = useMemo(() => {
+    const detailsByOrder = new Map<string, TransportDetail[]>();
+    for (const detail of transportDetails) {
+      if (!detail.order_no) continue;
+      const list = detailsByOrder.get(detail.order_no) || [];
+      list.push(detail);
+      detailsByOrder.set(detail.order_no, list);
+    }
+    const ordersByJournal = new Map<string, Set<string>>();
+    for (const movement of transportMovements) {
+      if (!movement.journal_entry_id || !movement.order_no) continue;
+      const set = ordersByJournal.get(movement.journal_entry_id) || new Set<string>();
+      set.add(movement.order_no);
+      ordersByJournal.set(movement.journal_entry_id, set);
+    }
+    const unique = (values: Array<string | null | undefined>) =>
+      [...new Set(values.filter((value): value is string => !!value))].join(" / ");
+    return (row: PartyLedgerRow | LedgerRow) => {
+      const reference = "reference" in row ? row.reference : null;
+      const orderNos = new Set<string>();
+      if (reference && detailsByOrder.has(reference)) orderNos.add(reference);
+      if (row.journal_entry_id) {
+        for (const orderNo of ordersByJournal.get(row.journal_entry_id) || []) orderNos.add(orderNo);
+      }
+      const details = [...orderNos].flatMap((orderNo) => detailsByOrder.get(orderNo) || []);
+      return {
+        trip: unique(details.map((d) => d.trip_no)),
+        from: unique(details.map((d) => d.from_location)),
+        to: unique(details.map((d) => d.to_location)),
+        vehicle: unique(details.map((d) => d.vehicle_no)),
+        driver: unique(details.map((d) => d.driver_name)),
+        owner: unique(details.map((d) => d.owner_name)),
+        job: unique(details.map((d) => d.po_do_job_no)),
+      };
+    };
+  }, [transportDetails, transportMovements]);
+
+  const partyColumnVisible = (key: PartyColumnKey) => visiblePartyColumns.includes(key);
+  const togglePartyColumn = (key: PartyColumnKey) => {
+    setVisiblePartyColumns((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : PARTY_COLUMNS.map(([item]) => item).filter((item) => item === key || current.includes(item))
+    );
+  };
+
   const totalDebit = useMemo(() => {
     const source = viewMode === "general" ? ledgerRows : partyRows;
     return source.reduce((sum, row) => sum + (Number(row.debit) || 0), 0);
@@ -378,23 +513,19 @@ export default function Ledgers() {
       return;
     }
 
-    const header =
-      "Date,Party Type,Party Name,Reference,Description,Debit,Credit,Balance\n";
-
-    const body = partyRowsWithBalance
-      .map((row) =>
-        [
-          escapeCsv(row.entry_date),
-          escapeCsv(row.party_type),
-          escapeCsv(row.party_name || ""),
-          escapeCsv(row.reference || ""),
-          escapeCsv(row.description || ""),
-          Number(row.debit) || 0,
-          Number(row.credit) || 0,
-          escapeCsv(signedBalanceLabel(Number(row.displayBalance) || 0)),
-        ].join(",")
-      )
-      .join("\n");
+    const exportColumns = PARTY_COLUMNS.filter(([key]) => partyColumnVisible(key));
+    const header = exportColumns.map(([, label]) => escapeCsv(label)).join(",") + "\n";
+    const body = partyRowsWithBalance.map((row) => {
+      const transport = transportInfoByJournal(row);
+      const values: Record<PartyColumnKey, unknown> = {
+        date: row.entry_date, party: row.party_name || "", reference: row.reference || "",
+        trip: transport.trip, from: transport.from, to: transport.to, vehicle: transport.vehicle,
+        driver: transport.driver, owner: transport.owner, job: transport.job,
+        description: row.description || "", debit: Number(row.debit) || "", credit: Number(row.credit) || "",
+        balance: signedBalanceLabel(Number(row.displayBalance) || 0),
+      };
+      return exportColumns.map(([key]) => escapeCsv(values[key])).join(",");
+    }).join("\n");
 
     const blob = new Blob([header + body], {
       type: "text/csv;charset=utf-8;",
@@ -442,14 +573,14 @@ export default function Ledgers() {
               onClick={exportToExcel}
               className="px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
             >
-              ≡ƒôè Export Excel
+              Export
             </button>
 
             <button
               onClick={exportToPDF}
               className="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5"
             >
-              ≡ƒôÑ Print / PDF
+              Print / PDF
             </button>
           </div>
         }
@@ -485,7 +616,7 @@ export default function Ledgers() {
                 value={selectedAccount}
                 onChange={(e) => setSelectedAccount(e.target.value)}
               >
-                <option value="">ΓÇö All Accounts ΓÇö</option>
+                <option value=""> All Accounts </option>
 
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
@@ -592,7 +723,7 @@ export default function Ledgers() {
                   ? selectedAccountObj.name
                   : "General Ledger Statement"
                 : selectedParty
-                  ? `${selectedParty.name} ΓÇö ${
+                  ? `${selectedParty.name}  ${
                       selectedParty.type === "customer"
                         ? "Customer Statement"
                         : "Supplier Statement"
@@ -617,10 +748,33 @@ export default function Ledgers() {
             </p>
           </div>
 
-          <div className="text-right">
-            <div className="text-xs text-slate-400">Steel Mill ERP</div>
-            <div className="text-xs text-slate-500 mt-1">
-              Read-only posted accounting records
+          <div className="flex items-start gap-3">
+            {viewMode === "party" && (
+              <div className="relative print:hidden">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowColumns((value) => !value)}>
+                  Columns
+                </button>
+                {showColumns && (
+                  <div className="absolute right-0 z-40 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-xl">
+                    <div className="mb-2 flex items-center justify-between">
+                      <strong className="text-xs">Statement columns</strong>
+                      <button type="button" className="text-xs text-blue-700" onClick={() => setVisiblePartyColumns(DEFAULT_PARTY_COLUMNS)}>Reset</button>
+                    </div>
+                    <div className="max-h-64 space-y-1 overflow-auto">
+                      {PARTY_COLUMNS.map(([key, label]) => (
+                        <label key={key} className="flex items-center gap-2 py-1 text-xs">
+                          <input type="checkbox" checked={partyColumnVisible(key)} onChange={() => togglePartyColumn(key)} />
+                          <span>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="text-right">
+              <div className="text-xs text-slate-400">Steel Mill ERP</div>
+              <div className="text-xs text-slate-500 mt-1">Read-only posted accounting records</div>
             </div>
           </div>
         </div>
@@ -669,23 +823,23 @@ export default function Ledgers() {
                       </td>
 
                       <td className="py-2.5 px-3 font-medium text-slate-900">
-                        {row.account?.name || "ΓÇö"}
+                        {row.account?.name || ""}
                       </td>
 
                       <td className="py-2.5 px-3 text-slate-700">
-                        {row.description ?? "ΓÇö"}
+                        {row.description ?? ""}
                       </td>
 
                       <td className="py-2.5 px-3 text-right text-slate-700">
                         {Number(row.debit) > 0
                           ? formatCurrency(Number(row.debit))
-                          : "ΓÇö"}
+                          : ""}
                       </td>
 
                       <td className="py-2.5 px-3 text-right text-slate-700">
                         {Number(row.credit) > 0
                           ? formatCurrency(Number(row.credit))
-                          : "ΓÇö"}
+                          : ""}
                       </td>
 
                       <td className="py-2.5 px-3 text-right font-semibold text-slate-900">
@@ -720,104 +874,51 @@ export default function Ledgers() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[1050px]">
+            <table className="w-full text-sm min-w-max">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                  <th className="text-left py-2.5 px-3 font-medium">Date</th>
-                  <th className="text-left py-2.5 px-3 font-medium">
-                    Party
-                  </th>
-                  <th className="text-left py-2.5 px-3 font-medium">Reference</th>
-                  <th className="text-left py-2.5 px-3 font-medium">Description</th>
-                  <th className="text-right py-2.5 px-3 font-medium">Debit</th>
-                  <th className="text-right py-2.5 px-3 font-medium">Credit</th>
-                  <th className="text-right py-2.5 px-3 font-medium">Balance</th>
+                  {PARTY_COLUMNS.filter(([key]) => partyColumnVisible(key)).map(([key, label]) => (
+                    <th key={key} className={`py-2 px-2 font-medium whitespace-nowrap ${["debit","credit","balance"].includes(key) ? "text-right" : "text-left"}`}>{label}</th>
+                  ))}
                 </tr>
               </thead>
-
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="text-center py-8 text-slate-400"
-                    >
-                      Loading Party Statement...
-                    </td>
-                  </tr>
+                  <tr><td colSpan={visiblePartyColumns.length} className="text-center py-8 text-slate-400">Loading Party Statement...</td></tr>
                 ) : partyRowsWithBalance.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="text-center py-8 text-slate-400"
-                    >
-                      No party ledger entries found for this selection.
-                    </td>
-                  </tr>
-                ) : (
-                  partyRowsWithBalance.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-b border-slate-100 hover:bg-slate-50/50"
-                    >
-                      <td className="py-2.5 px-3 text-slate-600">
-                        {formatDate(row.entry_date)}
-                      </td>
-
-                      <td className="py-2.5 px-3">
-                        <div className="font-medium text-slate-900">
-                          {row.party_name || "ΓÇö"}
-                        </div>
-                        <div className="text-[12px] text-slate-400 capitalize">
-                          {row.party_type}
-                        </div>
-                      </td>
-
-                      <td className="py-2.5 px-3 text-slate-600">
-                        {row.reference || "ΓÇö"}
-                      </td>
-
-                      <td className="py-2.5 px-3 text-slate-700">
-                        {row.description || "ΓÇö"}
-                      </td>
-
-                      <td className="py-2.5 px-3 text-right text-slate-700">
-                        {Number(row.debit) > 0
-                          ? formatCurrency(Number(row.debit))
-                          : "ΓÇö"}
-                      </td>
-
-                      <td className="py-2.5 px-3 text-right text-slate-700">
-                        {Number(row.credit) > 0
-                          ? formatCurrency(Number(row.credit))
-                          : "ΓÇö"}
-                      </td>
-
-                      <td className="py-2.5 px-3 text-right font-semibold text-slate-900">
-                        {signedBalanceLabel(Number(row.displayBalance) || 0)}
-                      </td>
+                  <tr><td colSpan={visiblePartyColumns.length} className="text-center py-8 text-slate-400">No party ledger entries found for this selection.</td></tr>
+                ) : partyRowsWithBalance.map((row) => {
+                  const transport = transportInfoByJournal(row);
+                  const cells: Record<PartyColumnKey, ReactNode> = {
+                    date: formatDate(row.entry_date),
+                    party: <><div className="font-medium text-slate-900">{row.party_name || ""}</div><div className="text-[11px] text-slate-400 capitalize">{row.party_type}</div></>,
+                    reference: row.reference || "",
+                    trip: transport.trip, from: transport.from, to: transport.to, vehicle: transport.vehicle,
+                    driver: transport.driver, owner: transport.owner, job: transport.job,
+                    description: row.description || "",
+                    debit: Number(row.debit) > 0 ? formatCurrency(Number(row.debit)) : "",
+                    credit: Number(row.credit) > 0 ? formatCurrency(Number(row.credit)) : "",
+                    balance: signedBalanceLabel(Number(row.displayBalance) || 0),
+                  };
+                  return (
+                    <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                      {PARTY_COLUMNS.filter(([key]) => partyColumnVisible(key)).map(([key]) => (
+                        <td key={key} className={`py-2 px-2 whitespace-nowrap ${["debit","credit","balance"].includes(key) ? "text-right" : "text-left"} ${key === "balance" ? "font-semibold text-slate-900" : "text-slate-700"}`}>
+                          {cells[key]}
+                        </td>
+                      ))}
                     </tr>
-                  ))
-                )}
+                  );
+                })}
               </tbody>
-
               {partyRowsWithBalance.length > 0 && (
                 <tfoot>
                   <tr className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-200">
-                    <td colSpan={4} className="py-3 px-3 text-right">
-                      Total:
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      {formatCurrency(totalDebit)}
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      {formatCurrency(totalCredit)}
-                    </td>
-                    <td className="py-3 px-3 text-right text-primary-700">
-                      {selectedPartyKey
-                        ? signedBalanceLabel(statementBalance)
-                        : "Per Party"}
-                    </td>
+                    {PARTY_COLUMNS.filter(([key]) => partyColumnVisible(key)).map(([key], index) => (
+                      <td key={key} className={`py-2 px-2 ${["debit","credit","balance"].includes(key) ? "text-right" : ""}`}>
+                        {key === "debit" ? formatCurrency(totalDebit) : key === "credit" ? formatCurrency(totalCredit) : key === "balance" ? (selectedPartyKey ? signedBalanceLabel(statementBalance) : "Per Party") : index === 0 ? "Total:" : ""}
+                      </td>
+                    ))}
                   </tr>
                 </tfoot>
               )}
