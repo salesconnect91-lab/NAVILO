@@ -17,7 +17,7 @@ describe('Transport canonical finance controls',()=>{
  it('posts a Cash Trip invoice with an atomic full canonical receipt',async()=>{
  mock.allowed=true;mock.cash=true;
  const rpc=mock.rpc.getMockImplementation()!;
- mock.rpc.mockImplementation((name:string,args:any)=>name==='transport_finance_allowed'&&args.p_action==='settlement'?Promise.resolve({data:false,error:null}):rpc(name,args));
+ mock.rpc.mockImplementation((name:string,args:any)=>rpc(name,args));
  render(<TransportFinancialPanel trip={{...trip,customer_rate_locked:false,customer_rate_state:'finalized',sale_type:'cash'}} onClose={vi.fn()} onChanged={async()=>{}}/>);
  await screen.findByLabelText('Cash / Bank');
  expect((screen.getByRole('button',{name:'Post Customer Bill'}) as HTMLButtonElement).disabled).toBe(true);
@@ -32,7 +32,7 @@ describe('Transport canonical finance controls',()=>{
  await screen.findByText('S-A');
  expect(screen.queryByRole('button',{name:'Post Customer Bill'})).toBeNull();
  fireEvent.click(screen.getByRole('button',{name:'Credit / Debit Note'}));
- expect((screen.getByRole('button',{name:'Post Rate Adjustment'}) as HTMLButtonElement).disabled).toBe(true);
+ expect((screen.getByRole('button',{name:'Save Note'}) as HTMLButtonElement).disabled).toBe(true);
  expect(screen.getByText(/Original posted rate: 100.00/)).toBeTruthy();
  });
  it('posts selected VAT-inclusive amount only against the selected canonical invoice',async()=>{
@@ -47,7 +47,7 @@ describe('Transport canonical finance controls',()=>{
   mock.allowed=true;mock.supplier=true;
   render(<TransportFinancialPanel trip={trip} onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByText('S-A');fireEvent.click(screen.getByRole('button',{name:'Supplier'}));
-  await screen.findByText('Supplier A');fireEvent.click(screen.getByRole('button',{name:'Credit / Debit Note'}));
+  await waitFor(()=>expect(screen.getAllByText('Supplier A').length).toBeGreaterThan(0));fireEvent.click(screen.getByRole('button',{name:'Credit / Debit Note'}));
   fireEvent.change(screen.getByLabelText('Rate side'),{target:{value:'supplier'}});
   fireEvent.change(screen.getByLabelText('Supplier rent'),{target:{value:'rent-a'}});
   fireEvent.change(screen.getByLabelText('New rate excluding VAT'),{target:{value:'75'}});
