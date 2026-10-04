@@ -9,3 +9,5 @@ Forward recovery restores missing tables, triggers, immutable helper access and 
 Validation: fresh ordered migration replay; canonical financial, tenant isolation and FX rehearsals; complete 501/1,000/20,000-row export tests; frontend typecheck/unit tests/build. Native PostgreSQL CI adds concurrent creators, posting, same-intent costs, competing settlements, assignment replacements and the 20,000 operational Trip import/reader fixture.
 
 The migration inventory is a provenance crosswalk, not permission to rewrite production migration history. Four historical route identifiers with free-text locations require evidence before linking; no historical financial data or audit sources are invented. Full historical 20,000-document accounting timing and all viewport acceptance remain separate measurements until evidence is recorded in the release audit.
+
+The final reader corrections reuse checked permissions for a single database call, calculate totals using typed numeric values, and aggregate scoped agreed rents once. The private mask accepts only server-verified flags and is denied to authenticated and anonymous callers. Financial visibility is unchanged.
