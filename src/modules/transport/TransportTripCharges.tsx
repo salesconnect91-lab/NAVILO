@@ -11,7 +11,7 @@ export default function TransportTripCharges({tripId,onClose,onChanged}:{tripId:
   if(tr.error)throw tr.error;
   const [ct,cr,ln,posted]=await Promise.all([
    supabase.from('transport_charge_types').select('*').eq('company_id',tr.data.company_id).eq('business_unit_id',tr.data.business_unit_id).eq('is_active',true).order('code'),
-   supabase.from('transport_customer_charge_rates').select('*,transport_charge_types(code,name)').eq('company_id',tr.data.company_id).eq('business_unit_id',tr.data.business_unit_id).eq('customer_id',tr.data.customer_id).eq('is_active',true),
+   supabase.from('transport_customer_charge_rates').select('*,transport_charge_types!transport_customer_charge_rates_charge_type_id_fkey(code,name)').eq('company_id',tr.data.company_id).eq('business_unit_id',tr.data.business_unit_id).eq('customer_id',tr.data.customer_id).eq('is_active',true),
    supabase.from('transport_trip_customer_charges').select('*').eq('trip_id',tripId).order('sort_order').order('id'),
    supabase.rpc('transport_customer_side_posted',{p_trip_id:tripId})
   ]);for(const r of [ct,cr,ln,posted])if(r.error)throw r.error;
