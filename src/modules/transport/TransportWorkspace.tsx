@@ -129,7 +129,7 @@ export default function TransportWorkspace(){
   const [registerLoading,setRegisterLoading]=useState(false);
   const tripsGridRef=useRef<HTMLDivElement|null>(null);
   const tripsSectionRef=useRef<HTMLElement|null>(null);
-  const compactTripColumnWidths:Record<string,number>={trip_no:82,trip_date:58,truck_type:58,job_no:72,company:128,driver:64,owner:64,plate:50,from:58,to:58,charge:58,paper_received_by:72,rent_driver:66,supplier_paid:66,supplier_balance:70,supplier_credit:76,driver_pay:58,driver_paid:58,driver_balance:64,payment_date:64,amount:62,company_rate:72,received_company:76,remaining_company:80,customer_credit:78,profit:62,commission:76,invoice_no:76,sale_type:58};
+  const compactTripColumnWidths:Record<string,number>={trip_no:96,trip_date:68,truck_type:68,job_no:82,company:138,driver:88,owner:82,plate:70,from:78,to:78,charge:72,paper_received_by:100,rent_driver:112,supplier_paid:112,supplier_balance:126,supplier_credit:126,driver_pay:100,driver_paid:100,driver_balance:108,payment_date:82,amount:104,company_rate:112,received_company:126,remaining_company:126,customer_credit:126,profit:104,commission:116,invoice_no:100,sale_type:72};
   const [tripColumnWidths,setTripColumnWidths]=useState<Record<string,number>>({});
   const [tripColumnOrder,setTripColumnOrder]=useState<string[]>([]);
   const [hiddenTripColumns,setHiddenTripColumns]=useState<string[]>([]);
@@ -145,7 +145,7 @@ export default function TransportWorkspace(){
     const startWidth=header.getBoundingClientRect().width;
 
     const onMove=(event:MouseEvent)=>{
-      const width=Math.max(44,Math.round(startWidth+event.clientX-startX));
+      const width=Math.max(amountGridKeys.has(key)?96:52,Math.round(startWidth+event.clientX-startX));
       setTripColumnWidths(current=>({...current,[key]:width}));
     };
 
@@ -1281,7 +1281,7 @@ export default function TransportWorkspace(){
       {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
       <div
         ref={tripsGridRef}
-        className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-200 bg-white"
+        className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-400 bg-white"
       >
         <table className="w-max min-w-full table-auto whitespace-nowrap text-[8px] leading-none">
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
@@ -1295,7 +1295,7 @@ export default function TransportWorkspace(){
                 const sorted=sortColumn===key;
                 const requestedWidth=tripColumnWidths[key]??compactTripColumnWidths[key]??60;
                 const totalText=amountGridKeys.has(key)?financialNumber(gridTotal(key)):null;
-                const columnWidth=Math.max(requestedWidth,totalText?totalText.length*7+10:0);
+                const columnWidth=Math.max(requestedWidth,totalText?totalText.length*7+18:0,amountGridKeys.has(key)?96:52);
 
                 return <th key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
@@ -1310,7 +1310,7 @@ export default function TransportWorkspace(){
                       }}
                       className={`flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden rounded px-0.5 py-0 text-left leading-none hover:bg-slate-200 ${sorted?"text-blue-700":""}`}>
                       <span className="min-w-0 py-0.5" style={{lineHeight:1.2}}>
-                        <span className="block max-w-[84px] whitespace-normal">{label}</span>
+                        <span className="block whitespace-normal">{label}</span>
                       </span>
                       {sorted&&<span className="shrink-0 text-[7px]" aria-label={sortDirection==="asc"?"Sorted ascending":"Sorted descending"}>{sortDirection==="asc"?"▲":"▼"}</span>}
                     </button>
@@ -1343,7 +1343,7 @@ export default function TransportWorkspace(){
                     aria-orientation="vertical"
                     title={`Resize ${label}`}
                     onMouseDown={e=>startTripColumnResize(e,key)}
-                    className="absolute -right-[2px] top-0 z-40 h-full w-[5px] cursor-col-resize select-none border-r border-slate-300 hover:border-blue-500 hover:bg-blue-100"
+                    className="absolute -right-[2px] top-0 z-40 h-full w-[5px] cursor-col-resize select-none border-r border-slate-400 hover:border-blue-500 hover:bg-blue-100"
                   />
 
                   {openColumnFilter===key&&
@@ -1389,7 +1389,7 @@ export default function TransportWorkspace(){
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`h-[17px] max-h-[17px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-slate-100 px-0.5 !py-0 leading-none ${isSupplierGridKey(key)?"bg-rose-50/80":isCustomerGridKey(key)?"bg-sky-50/80":""} ${numeric?"text-right":""}`}>
+                  className={`h-[17px] max-h-[17px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-slate-300 px-0.5 !py-0 leading-none ${isSupplierGridKey(key)?"bg-rose-50/80":isCustomerGridKey(key)?"bg-sky-50/80":""} ${numeric?"text-right":""}`}>
                   {key==='charge'
                     ?<button type="button" className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-left text-[8px] font-semibold leading-none text-blue-700 hover:bg-blue-100" aria-label={`Open Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
                     :key==='company_rate'
