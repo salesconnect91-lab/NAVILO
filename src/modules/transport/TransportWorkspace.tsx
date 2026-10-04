@@ -464,6 +464,7 @@ export default function TransportWorkspace(){
   const toOptions=fromOptions;
   const pprOptions=['pending','received','not_required'];
   const statusOptions=registerMeta.statuses??[];
+  // Canonical Trip Status options, narration and counts are supplied by the register RPC.
   const statusNarration=(option:any)=>String(option?.narration??'');
   const visibleStatusOptions=statusOptions.filter((option:any)=>!statusSearch||`${option.label} ${statusNarration(option)}`.toLowerCase().includes(statusSearch.toLowerCase()));
   const completedTrips=registerMeta.completed??0;
