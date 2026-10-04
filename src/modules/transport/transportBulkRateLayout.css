@@ -1,0 +1,51 @@
+/* Shared compact layout for both bulk dialogs; excludes single-rate popups. */
+.erp-shell main [data-navilo-bulk-rates] table th,
+[data-navilo-bulk-rates][data-navilo-bulk-rates] table th {
+  padding: 3px 4px !important;
+  font-size: 11px !important;
+  line-height: 13px !important;
+  white-space: normal !important;
+}
+.erp-shell main [data-navilo-bulk-rates] table td,
+[data-navilo-bulk-rates][data-navilo-bulk-rates] table td {
+  height: 56px !important;
+  padding: 2px 4px !important;
+  font-size: 11px !important;
+  line-height: 13px !important;
+  vertical-align: middle !important;
+  overflow: hidden;
+}
+.erp-shell main [data-navilo-bulk-rates] table tbody tr,
+[data-navilo-bulk-rates][data-navilo-bulk-rates] table tbody tr {
+  height: 56px !important;
+}
+.erp-shell main [data-navilo-bulk-rates] table input:not([type="checkbox"]),
+[data-navilo-bulk-rates][data-navilo-bulk-rates] table input:not([type="checkbox"]) {
+  height: 18px !important;
+  min-height: 18px !important;
+  margin-top: 1px !important;
+  padding: 0 3px !important;
+  font-size: 11px !important;
+  line-height: 16px !important;
+  border-radius: 3px !important;
+}
+.erp-shell main [data-navilo-bulk-rates] table thead input:not([type="checkbox"]),
+[data-navilo-bulk-rates][data-navilo-bulk-rates] table thead input:not([type="checkbox"]) {
+  height: 22px !important;
+  min-height: 22px !important;
+}
+.erp-shell main [data-navilo-bulk-rates] table tbody span,
+[data-navilo-bulk-rates][data-navilo-bulk-rates] table tbody span {
+  font-size: 11px !important;
+  line-height: 13px !important;
+  overflow-wrap: anywhere;
+}
+.erp-shell main [data-navilo-bulk-rates] fieldset input,
+.erp-shell main [data-navilo-bulk-rates] fieldset select,
+[data-navilo-bulk-rates][data-navilo-bulk-rates] fieldset input,
+[data-navilo-bulk-rates][data-navilo-bulk-rates] fieldset select {
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 6px !important;
+  font-size: 11px !important;
+}

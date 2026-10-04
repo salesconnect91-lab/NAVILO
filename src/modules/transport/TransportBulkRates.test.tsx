@@ -191,3 +191,23 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   expect(rows.map(r=>[r.key,r.posted])).toEqual([['rent-a',true],['rent-b',false]]);
  });
 });
+
+
+describe('Bulk rate filter typing',()=>{
+ it.each(['customer','supplier'] as const)('keeps %s filters usable during a pending reload',async side=>{
+  render(side==='customer'?<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>:<TransportBulkSupplierRent onClose={vi.fn()} onChanged={async()=>{}}/>);
+  await screen.findByLabelText(side==='customer'?'Rate TRP-1':'Rent TRP-1 Supplier A');
+  const rpc=mock.rpc.getMockImplementation()!;
+  let finish:()=>void=()=>{};
+  const pending=new Promise<any>(resolve=>{finish=()=>resolve({data:{rows:[],count:0,statuses:['completed'],amount:0},error:null})});
+  mock.rpc.mockImplementation((name:string,args:any)=>name==='transport_bulk_rate_page'?pending:rpc(name,args));
+  const filter=screen.getByLabelText('Filter trip') as HTMLInputElement;
+  fireEvent.change(filter,{target:{value:'TR'}});
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_bulk_rate_page',expect.objectContaining({p_filters:expect.objectContaining({columns:expect.objectContaining({trip:'TR'})})})));
+  expect(filter.disabled).toBe(false);
+  fireEvent.change(filter,{target:{value:'TRP-1'}});
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_bulk_rate_page',expect.objectContaining({p_filters:expect.objectContaining({columns:expect.objectContaining({trip:'TRP-1'})})})));
+  expect(filter.value).toBe('TRP-1');
+  finish();
+ });
+});
