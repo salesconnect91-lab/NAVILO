@@ -4,7 +4,7 @@ import './transportScrolling.css';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { formatNaviloDate } from "@/lib/naviloDate";
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment} from "react";
-import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw, LockKeyhole } from "lucide-react";
+import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 import TransportBulkSupplierRent from './TransportBulkSupplierRent';
@@ -954,7 +954,6 @@ export default function TransportWorkspace(){
     finally{submissionRef.current=false;setLoading(false)}
   }
 
-  const tripHasPostedAccounting=(r:Trip)=>Boolean(r.customer_rate_locked||r.supplier_rate_locked||r.invoiced||Number(r.billed_customer_net??0)>0||Number(r.billed_supplier_net??0)>0);
 
   const tripCellValue=(r:Trip,key:string):string=>{
     switch(key){
