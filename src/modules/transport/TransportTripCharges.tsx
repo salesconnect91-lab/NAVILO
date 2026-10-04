@@ -16,7 +16,7 @@ export default function TransportTripCharges({tripId,onClose,onChanged}:{tripId:
    supabase.rpc('transport_customer_side_posted',{p_trip_id:tripId})
   ]);for(const r of [ct,cr,ln,posted])if(r.error)throw r.error;
   setTrip({...tr.data,posted:posted.data===true});setTypes(ct.data??[]);setRates(cr.data??[]);
-  setLines((ln.data??[]).map((x:any)=>({id:x.id,charge_type_id:x.charge_type_id,code:x.code_snapshot,name:x.name_snapshot,amount:String(x.amount),source_rate_id:x.source_rate_id})));
+  setLines((ln.data??[]).map((x:any)=>({id:x.id,charge_type_id:x.charge_master_id,code:x.code_snapshot,name:x.name_snapshot,amount:String(x.amount),source_rate_id:x.source_rate_id})));
  }
  useEffect(()=>{void load().catch(e=>setError(e.message))},[tripId]);
  const applicable=(chargeTypeId:string)=>rates.filter(r=>r.charge_type_id===chargeTypeId&&r.effective_from<=trip?.trip_date&&(!r.effective_to||r.effective_to>=trip?.trip_date)).sort((a,b)=>b.effective_from.localeCompare(a.effective_from))[0];
