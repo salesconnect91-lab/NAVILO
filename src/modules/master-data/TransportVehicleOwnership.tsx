@@ -13,7 +13,7 @@ export default function TransportVehicleOwnership(){
  const{activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
  const supabase=useTransportMasterClient();
  const[busy,setBusy]=useState(false);
- const allowed=canTransportAction(activeBusinessUnit?.membership_role??activeCompany?.membership_role,activeBusinessUnit?.permissions??activeCompany?.permissions,"vehicle_owner_change",isPlatformOwner);
+ const allowed=canTransportAction(activeBusinessUnit?.membership_role??activeCompany?.membership_role,{...activeCompany?.permissions,...activeBusinessUnit?.permissions,transport_actions:{...((activeCompany?.permissions?.transport_actions??{}) as Record<string,boolean>),...((activeBusinessUnit?.permissions?.transport_actions??{}) as Record<string,boolean>)}},"vehicle_owner_change",isPlatformOwner);
  const[vehicles,setVehicles]=useState<Vehicle[]>([]),[suppliers,setSuppliers]=useState<Supplier[]>([]),[periods,setPeriods]=useState<Period[]>([]);
  const[vehicle,setVehicle]=useState(""),[ownerType,setOwnerType]=useState("company"),[supplier,setSupplier]=useState(""),[start,setStart]=useState(""),[end,setEnd]=useState(""),[error,setError]=useState("");
  const load=async()=>{try{const[v,s,p]=await Promise.all([

@@ -16,6 +16,8 @@ import TransportHistoricalImport from './TransportHistoricalImport';
 import TransportAudit from './TransportAudit';
 import TransportPartyReports from './TransportPartyReports';
 import TransportAccountStatement from './TransportAccountStatement';
+import {collectRegisterExport} from './transportRegisterExport';
+import {exportMatrixToCSV,exportMatrixToExcel,exportMatrixToWord,exportPackageToPDF,type ExportMatrix} from '@/lib/exportUtils';
 import {fetchAllPages} from '@/lib/fetchAllPages';
 import {financialNumber, type FinancialTrip} from './transportFinancialTypes';
 import * as XLSX from "xlsx";
@@ -380,7 +382,7 @@ export default function TransportWorkspace(){
       if(result.error)throw result.error;
       if(scopeRef.current!==scopeKey||generation!==readGeneration.current)return;
       const data=result.data;
-      setRows((data.rows??[]).map((r:any)=>({...r,truck_type:r.truck_type_name??r.truck_type})));
+      setRows((data.rows??[]).map((r:any)=>({...r,status:r.lifecycle_status??r.status,truck_type:r.truck_type_name??r.truck_type})));
       setRegisterMeta(data);
       if(page>Math.max(0,Math.ceil(data.count/500)-1))setPage(Math.max(0,Math.ceil(data.count/500)-1));
     }catch(e:any){if(generation===readGeneration.current){setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});setError(e?.message||'Unable to load trips.');}}
@@ -749,11 +751,8 @@ export default function TransportWorkspace(){
     if(!quickPprEmployee||!quickPprDate){setError("Select Received By employee and PPR date.");return;}
     setLoading(true);setError("");
     try{
-      const {data,error}=await supabase.from("transport_trips")
-        .update({ppr_status:"received",ppr_received_by_employee_id:quickPprEmployee,ppr_received_date:quickPprDate})
-        .eq("id",quickPprTrip.id).eq("company_id",activeCompany.company_id).eq("business_unit_id",activeBusinessUnit.business_unit_id)
-        .eq("ppr_status","pending").select("id").single();
-      if(error)throw error;if(!data)throw new Error("PPR is no longer pending.");
+      const {data,error}=await supabase.rpc('transport_update_operational_trip',{p_trip_id:quickPprTrip.id,p_changes:{ppr_status:'received',ppr_received_by_employee_id:quickPprEmployee,ppr_received_date:quickPprDate}});
+      if(error)throw error;if(!data)throw new Error('PPR is no longer pending.');
       setQuickPprTrip(null);setQuickPprEmployee("");await load();
     }catch(e:any){setError(e?.message||"Unable to receive PPR.");}finally{setLoading(false);}
   }
@@ -763,16 +762,9 @@ export default function TransportWorkspace(){
     setError("");
     try{
       await loadTripMasters();
-      const {data,error}=await supabase
-        .from("transport_trips")
-        .select("id,trip_no,trip_date,customer_id,customer_name_snapshot,truck_type_id,vehicle_id,driver_id,from_location,to_location,po_do_job_no,ppr_status,ppr_received_date,ppr_received_by_employee_id,ppr_attachment_path,customer_rate,owner_rent,driver_pay,notes,sale_type")
-        .eq("id",row.id)
-        .eq("company_id",activeCompany?.company_id)
-        .eq("business_unit_id",activeBusinessUnit?.business_unit_id)
-        .single();
+      const {data,error}=await supabase.rpc('transport_edit_trip_read',{p_trip_id:row.id});
       if(error)throw error;
-
-      const savedRents=await fetchAllPages<any>((start,end)=>supabase.from('transport_trip_supplier_rents').select('id,amount,finalized_amount_snapshot').eq('company_id',activeCompany?.company_id).eq('business_unit_id',activeBusinessUnit?.business_unit_id).eq('trip_id',data.id).order('id').range(start,end));
+      const savedRents:Array<{amount:number;finalized_amount_snapshot:number}>=data.supplier_rent_total==null?[]:[{amount:Number(data.supplier_rent_total),finalized_amount_snapshot:Number(data.supplier_rent_total)}];
       setForm({
         trip_date:data.trip_date||new Date().toISOString().slice(0,10),
         customer_id:data.customer_id||"",
@@ -814,7 +806,7 @@ export default function TransportWorkspace(){
       const {data:branch,error:branchError}=await supabase.rpc('current_operating_location_id');if(branchError)throw branchError;if(!branch)throw new Error('Select an active branch before attaching PPR.');
       const path=`${activeCompany.company_id}/${activeBusinessUnit.business_unit_id}/${branch}/${editingTripId}/${crypto.randomUUID()}.${file.type==='application/pdf'?'pdf':file.type.split('/')[1]}`;
       const {error:uploadError}=await supabase.storage.from('transport-ppr').upload(path,file,{upsert:false});if(uploadError)throw uploadError;
-      const {data,error}=await supabase.from('transport_trips').update({ppr_attachment_path:path}).eq('id',editingTripId).eq('company_id',activeCompany.company_id).eq('business_unit_id',activeBusinessUnit.business_unit_id).eq('ppr_status','received').select('id').single();
+      const {data,error}=await supabase.rpc('transport_update_operational_trip',{p_trip_id:editingTripId,p_changes:{ppr_attachment_path:path}});
       if(error||!data){await supabase.storage.from('transport-ppr').remove([path]);throw error||new Error('Save the Received employee and date before attaching PPR.');}
       setForm(previous=>({...previous,ppr_attachment_path:path}));await load();
     }catch(e:any){setError(e?.message||'Unable to attach PPR.')}finally{setLoading(false)}
@@ -890,11 +882,7 @@ export default function TransportWorkspace(){
         delete (safePayload as any).sale_type;
       }
 
-      const {error}=await supabase.from("transport_trips")
-        .update(safePayload)
-        .eq("id",editingTripId)
-        .eq("company_id",activeCompany.company_id)
-        .eq("business_unit_id",activeBusinessUnit.business_unit_id);
+      const {error}=await supabase.rpc('transport_update_operational_trip',{p_trip_id:editingTripId,p_changes:safePayload});
       if(error)throw error;
 
       setEditingTripId(null);
@@ -963,7 +951,7 @@ export default function TransportWorkspace(){
       case "company_rate": return financialNumber(r.billed_customer_net??r.customer_rate);
       case "received_company": return financialNumber(r.received_from_company??0);
       case "remaining_company": return financialNumber(Math.max(0,Number(r.customer_outstanding_gross??r.remaining_with_company??0)));
-      case "profit": return financialNumber(r.trip_profit??0);
+      case "profit": return financialNumber(r.trip_profit);
       case "commission": return financialNumber(r.commission_paid_net??0);
       case "invoice_no": return String(r.invoice_no??"");
       case "sale_type": return String(r.sale_type??"");
@@ -1015,7 +1003,28 @@ export default function TransportWorkspace(){
     for(const column of gridColumns)if(!arranged.some(item=>item[0]===column[0]))arranged.push(column);
     return arranged;
   },[tripColumnOrder]);
-  const orderedGridColumns=allOrderedGridColumns.filter(column=>!hiddenTripColumns.includes(column[0]));
+  const readCustomer=registerMeta.permissions?.customer===true;
+  const readSupplier=registerMeta.permissions?.supplier===true;
+  const columnAuthorized=(key:string)=>key==='profit'?readCustomer&&readSupplier:
+    ['company_rate','received_company','remaining_company','customer_credit','invoice_no','sale_type','invoiced'].includes(key)?readCustomer:
+    ['owner','rent_driver','supplier_paid','supplier_balance','supplier_credit','payment_date','amount','driver_pay','driver_paid','driver_balance','commission'].includes(key)?readSupplier:true;
+  const orderedGridColumns=allOrderedGridColumns.filter(column=>columnAuthorized(column[0])&&!hiddenTripColumns.includes(column[0]));
+  const [exportProgress,setExportProgress]=useState('');
+  const exportRequest=useRef<AbortController|null>(null);
+  useEffect(()=>{
+    const handle=(event:Event)=>{const format=(event as CustomEvent<{format:string}>).detail?.format;if(!['excel','csv','word','pdf'].includes(format)||tab!=='trips'||showPartyReports||exportRequest.current)return;
+      const controller=new AbortController();exportRequest.current=controller;const savedScope=scopeKey;const columns=[...orderedGridColumns];const filters=JSON.parse(JSON.stringify({...registerFilters,snapshot:'true'}));const sort=sortColumn,direction=sortDirection;
+      setExportProgress('Preparing all filtered Trips…');
+      void (async()=>{try{
+        const {rows,totals}=await collectRegisterExport(async offset=>{if(scopeRef.current!==savedScope)throw new Error('Workspace changed. Export cancelled.');const r=await supabase.rpc('transport_register_query',{p_limit:500,p_offset:offset,p_filters:filters,p_sort:sort,p_direction:direction}).abortSignal(controller.signal);if(r.error)throw r.error;return r.data},controller.signal,(loaded,count)=>setExportProgress(`Export ${loaded.toLocaleString()} / ${count.toLocaleString()} Trips`));
+        if(scopeRef.current!==savedScope)throw new Error('Workspace changed. Export cancelled.');
+        const matrix:ExportMatrix=[columns.map(c=>c[1]),...rows.map(r=>columns.map(([key])=>tripCellValue({...r,truck_type:r.truck_type_name??r.truck_type} as Trip,key))),columns.map(([key],i)=>i===0?'TOTAL · full filter':key in totals?financialNumber(totals[key]):'')];
+        const name='navilo-transport-trips';if(format==='excel')exportMatrixToExcel(name,matrix);else if(format==='csv')exportMatrixToCSV(name,matrix);else if(format==='word')exportMatrixToWord(name,matrix,'Transport Trips');else exportPackageToPDF(name,{title:'Transport Trips',sheets:[{name:'All filtered Trips',rows:matrix}]});
+      }catch(e:any){if(e?.name!=='AbortError')setError(e?.message||'Export failed.');}finally{if(exportRequest.current===controller){exportRequest.current=null;setExportProgress('');}}})();
+    };
+    window.addEventListener('navilo:transport-export',handle);return()=>{window.removeEventListener('navilo:transport-export',handle)};
+  },[registerKey,tab,showPartyReports,JSON.stringify(orderedGridColumns)]);
+  useEffect(()=>()=>{exportRequest.current?.abort()},[scopeKey]);
 
   useEffect(()=>{
     try{
@@ -1229,7 +1238,7 @@ export default function TransportWorkspace(){
           {gridRows.length.toLocaleString()} shown / {Number(registerMeta.count??0).toLocaleString()} filtered trips
         </div>
       </div>
-      {registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
+      {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
       <div
         ref={tripsGridRef}
         className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-200 bg-white"

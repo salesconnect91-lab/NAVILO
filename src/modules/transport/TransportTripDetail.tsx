@@ -15,7 +15,7 @@ type Audit = { id:number; action:string; occurred_at:string; reason:string|null;
 export default function TransportTripDetail({tripId,onClose,onSaved}:{tripId:string;onClose:()=>void;onSaved:()=>void}){
   const {activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role;
-  const permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
+  const permissions={...activeCompany?.permissions,...activeBusinessUnit?.permissions,transport_actions:{...((activeCompany?.permissions?.transport_actions??{}) as Record<string,boolean>),...((activeBusinessUnit?.permissions?.transport_actions??{}) as Record<string,boolean>)}};
   const can=(action:TransportAction)=>canTransportAction(role,permissions,action,isPlatformOwner);
   const [trip,setTrip]=useState<Trip|null>(null),[rents,setRents]=useState<Rent[]>([]),[audit,setAudit]=useState<Audit[]>([]);
   const [employees,setEmployees]=useState<Person[]>([]),[suppliers,setSuppliers]=useState<Person[]>([]);

@@ -2,7 +2,7 @@ name: Transport accounting acceptance
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, release/transport-audit]
     paths:
       - '.github/workflows/transport-accounting-scale.yml'
       - 'supabase/tests/replay_transport_isolated.mjs'
@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: ${{ (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[transport-full-scale]')) && fromJSON('["reconciliation","historical-20000"]') || fromJSON('["reconciliation"]') }}
+        mode: ${{ (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[transport-full-scale]')) && fromJSON('["reconciliation","historical-20000"]') || fromJSON('["reconciliation","operational-20000"]') }}
     services:
       postgres:
         image: postgres:17
@@ -63,6 +63,8 @@ jobs:
             NAVILO_PROFILE_REHEARSAL=1 NAVILO_HISTORY_SCALE=25 node --expose-gc supabase/tests/replay_transport_isolated.mjs 2>&1 | tee transport-rehearsal.log
           elif [ "$TEST_MODE" = historical-20000 ]; then
             NAVILO_HISTORY_SCALE=20000 node --expose-gc supabase/tests/replay_transport_isolated.mjs 2>&1 | tee transport-rehearsal.log
+          elif [ "$TEST_MODE" = operational-20000 ]; then
+            NAVILO_SCALE_TEST=1 node supabase/tests/replay_transport_isolated.mjs 2>&1 | tee transport-rehearsal.log
           else
             node supabase/tests/replay_transport_isolated.mjs 2>&1 | tee transport-rehearsal.log
           fi

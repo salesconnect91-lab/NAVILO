@@ -69,8 +69,8 @@ begin
   exception when others then v_failed:=true; end;
   if not v_failed then raise exception 'Draft FX date changed after lines were booked'; end if;
 
-  insert into public.company_exchange_rates(company_id,foreign_currency_code,base_currency_code,effective_on,rate,source)
-  values(v_company,'USD','EUR',current_date,0.95,'later correction');
+  insert into public.company_exchange_rates(company_id,foreign_currency_code,base_currency_code,effective_on,rate,source,recorded_at)
+  values(v_company,'USD','EUR',current_date,0.95,'later correction',clock_timestamp());
   select exchange_rate into v_rate from public.journal_entries where id=v_entry;
   if v_rate<>0.91 or public.company_exchange_rate_on(v_company,'USD',current_date)<>0.95 then
     raise exception 'Journal rate snapshot changed after rate history was appended';

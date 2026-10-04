@@ -44,11 +44,15 @@ begin
  values(c,b,'',current_date,customer,'A','B',1000,400,'credit') returning id into trip;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
  values(c,b,'',current_date,customer,'A','B',1000,300,'credit') returning id into trip2;
+ perform public.transport_finalize_customer_rate(trip,1000,'manual');
  result:=public.transport_post_customer_bill(trip,current_date,false);sales_id:=(result->>'document_id')::uuid;
+ perform public.transport_finalize_customer_rate(trip2,1000,'manual');
  result:=public.transport_post_customer_bill(trip2,current_date,false);sales2:=(result->>'document_id')::uuid;
  rent:=public.transport_add_supplier_rent(trip,supplier,400,'Report rent');
  rent2:=public.transport_add_supplier_rent(trip2,supplier,300,'Report second rent');
+ perform public.transport_finalize_supplier_rent(rent,400);
  result:=public.transport_post_supplier_bill(rent,current_date,acct,false);bill:=(result->>'document_id')::uuid;
+ perform public.transport_finalize_supplier_rent(rent2,300);
  result:=public.transport_post_supplier_bill(rent2,current_date,acct,false);bill2:=(result->>'document_id')::uuid;
  payload:=jsonb_build_array(jsonb_build_object('document_id',bill,'amount',100),jsonb_build_object('document_id',bill2,'amount',50));
  execute 'set local role authenticated';

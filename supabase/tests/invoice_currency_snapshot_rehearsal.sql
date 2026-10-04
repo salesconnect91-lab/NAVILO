@@ -3,7 +3,7 @@
 begin;
 do $$
 declare
-  v_pkr uuid; v_eur uuid; v_code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
+  v_user uuid:=gen_random_uuid();v_unit uuid;v_pkr uuid; v_eur uuid; v_code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
   v_table text; v_rejected boolean; v_currency text; v_rate numeric; v_legacy_id integer;
 begin
   insert into public.companies(name,code,status)
@@ -16,27 +16,13 @@ begin
     (company_id,foreign_currency_code,base_currency_code,effective_on,rate,source)
   values(v_eur,'USD','EUR',current_date,0.91,'rehearsal');
 
-  -- The production helper intentionally requires active tenant access. This
-  -- synthetic trigger rehearsal runs as direct local SQL, so emulate the
-  -- exact effective-rate lookup in a temp shadow helper only for this
-  -- transaction. Production function remains unchanged.
-  create temporary table fx_rehearsal_context(company_id uuid primary key);
-  insert into fx_rehearsal_context values(v_eur);
-  execute $sql$
-    create or replace function pg_temp.company_exchange_rate_on_local(
-      p_company_id uuid,p_currency_code text,p_on date
-    ) returns numeric language sql stable as $
-      select case when p_currency_code=c.base_currency_code then 1::numeric
-        else (select r.rate from public.company_exchange_rates r
-              where r.company_id=c.id
-                and r.base_currency_code=c.base_currency_code
-                and r.foreign_currency_code=p_currency_code
-                and r.effective_on<=p_on
-              order by r.effective_on desc,r.recorded_at desc,r.id desc limit 1)
-        end
-      from public.companies c where c.id=p_company_id
-    $
-  $sql$;
+  -- Exercise the real tenant-checked lookup under a valid isolated context.
+  insert into auth.users(id,role,email,created_at,updated_at) values(v_user,'authenticated','invoice-fx-'||v_code||'@navilo.test',now(),now());
+  select id into v_unit from public.business_units where company_id=v_eur and is_default;
+  insert into public.user_profiles(id,user_id,email,role,platform_role,is_active,last_company_id,last_business_unit_id) values(v_user,v_user,'invoice-fx-'||v_code||'@navilo.test','admin','user',true,v_eur,v_unit);
+  insert into public.company_memberships(company_id,user_id,role,is_active) values(v_eur,v_user,'company_owner',true);
+  insert into public.business_unit_memberships(company_id,business_unit_id,user_id,role,is_active) values(v_eur,v_unit,v_user,'company_owner',true) on conflict(business_unit_id,user_id) do update set role='company_owner',is_active=true;
+  perform set_config('request.jwt.claim.sub',v_user::text,true);
 
   foreach v_table in array array[
     'sales_orders','purchase_orders',

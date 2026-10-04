@@ -40,7 +40,7 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
   const initialForm={...EMPTY,name:quickCreate?.initialName??"",truckTypeId:quickCreate?.truckTypeId??"",supplierId:quickCreate?.supplierId??""};
   const [form, setForm] = useState(initialForm);
   const role = activeBusinessUnit?.membership_role ?? activeCompany?.membership_role;
-  const permissions = activeBusinessUnit?.permissions ?? activeCompany?.permissions;
+  const permissions = {...activeCompany?.permissions,...activeBusinessUnit?.permissions,transport_actions:{...((activeCompany?.permissions?.transport_actions??{}) as Record<string,boolean>),...((activeBusinessUnit?.permissions?.transport_actions??{}) as Record<string,boolean>)}};
   const allowed = canTransportAction(role, permissions, "master_manage", isPlatformOwner);
   const canAddOwner = canTransportAction(role, permissions, "vehicle_owner_change", isPlatformOwner);
 

@@ -38,12 +38,10 @@ begin
     exception when raise_exception then v_rejected:=true;
     end;
     if not v_rejected then raise exception '% accepted foreign invoice without conversion',v_table; end if;
-    v_rejected:=false;
-    begin
-      execute format('update pg_temp.%I set exchange_rate=0.91 where id=2',v_table);
-    exception when raise_exception then v_rejected:=true;
-    end;
-    if not v_rejected then raise exception '% accepted non-base rate',v_table; end if;
+    execute format('update pg_temp.%I set exchange_rate=0.91 where id=2',v_table);
+    execute format('select exchange_rate from pg_temp.%I where id=2',v_table) into v_rate;
+    if v_rate<>1 then raise exception '% trusted a non-base client rate for a base document',v_table;end if;
+
 
     execute format('update pg_temp.%I set status=''posted'' where id=1',v_table);
     v_rejected:=false;
@@ -77,6 +75,6 @@ begin
     end if;
     execute format('drop table pg_temp.%I',v_table);
   end loop;
-  raise notice 'PASS: four invoice types snapshot company base; foreign posting blocked; posted company and history unchanged';
+  raise notice 'PASS: four invoice types snapshot company base; missing foreign rate rejected; client base rate replaced; posted company and history unchanged';
 end $$;
 rollback;

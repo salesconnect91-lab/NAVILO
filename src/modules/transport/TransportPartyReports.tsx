@@ -20,30 +20,30 @@ export default function TransportPartyReports({onClose,onChanged,initialSide='cu
  const [partyMasters,setPartyMasters]=useState<Array<{side:PartySide;party_id:string;party_name:string}>>([]);
  const [tripDetails,setTripDetails]=useState<any[]>([]);const [documents,setDocuments]=useState<PartyDocument[]>([]);const [movements,setMovements]=useState<PartyMovement[]>([]);
  const [canonical,setCanonical]=useState<PartyMovement[]>([]);const [accounts,setAccounts]=useState<Array<{id:string;name:string;detail_type:string}>>([]);
- const [canLedger,setCanLedger]=useState(false);const [from,setFrom]=useState('');const [to,setTo]=useState(new Date().toISOString().slice(0,10));
+ const [readSides,setReadSides]=useState({customer:false,supplier:false});const [canLedger,setCanLedger]=useState(false);const [from,setFrom]=useState('');const [to,setTo]=useState(new Date().toISOString().slice(0,10));
  const [tripSearch,setTripSearch]=useState('');const [status,setStatus]=useState('all');const [settlement,setSettlement]=useState(false);const [showAdvances,setShowAdvances]=useState(false);
- const [busy,setBusy]=useState(false);const [loading,setLoading]=useState(false);const [error,setError]=useState('');const generation=useRef(0);
+ const [busy,setBusy]=useState(false);const [loading,setLoading]=useState(true);const [error,setError]=useState('');const generation=useRef(0);
  const load=useCallback(async()=>{
  if(!company||!unit)return false;const request=++generation.current;setLoading(true);setError('');
  try{
  const permission=await supabase.rpc('has_module_permission',{p_company_id:company,p_module:'accounting',p_action:'view'});
- if(permission.error)throw permission.error;const ledgerAllowed=permission.data===true;
+ if(permission.error)throw permission.error;const ledgerAllowed=permission.data===true;const sideReads=await Promise.all(['customer','supplier'].map(p_side=>supabase.rpc('transport_financial_read_allowed',{p_side})));for(const r of sideReads)if(r.error)throw r.error;const permitted={customer:sideReads[0].data===true,supplier:sideReads[1].data===true};const selectedSide=permitted[side]?side:permitted.customer?'customer':'supplier';setReadSides(permitted);if(!permitted[side]){if(permitted.customer)setSide('customer');else if(permitted.supplier)setSide('supplier');else throw new Error('Transport financial view permission required');}
  const [d,m,c,a,ct,st,customers,suppliers]=await Promise.all([
- fetchAllPages<PartyDocument>((start,end)=>supabase.rpc('transport_party_report_page',{p_kind:'documents',p_limit:end-start+1,p_offset:start})),
- fetchAllPages<PartyMovement>((start,end)=>supabase.rpc('transport_party_report_page',{p_kind:'movements',p_limit:end-start+1,p_offset:start})),
- ledgerAllowed?fetchAllPages<PartyMovement>((start,end)=>supabase.rpc('transport_party_report_page',{p_kind:'canonical',p_limit:end-start+1,p_offset:start})):Promise.resolve([]),
+ fetchAllPages<PartyDocument>((start,end)=>supabase.rpc('transport_party_report_query',{p_kind:'documents',p_side:selectedSide,p_filters:{party,to,search:mode==='canonical'?'':tripSearch},p_limit:end-start+1,p_offset:start})),
+ fetchAllPages<PartyMovement>((start,end)=>supabase.rpc('transport_party_report_query',{p_kind:'movements',p_side:selectedSide,p_filters:{party,to,search:mode==='canonical'?'':tripSearch},p_limit:end-start+1,p_offset:start})),
+ ledgerAllowed?fetchAllPages<PartyMovement>((start,end)=>supabase.rpc('transport_party_report_query',{p_kind:'canonical',p_side:selectedSide,p_filters:{party,to,search:mode==='canonical'?'':tripSearch},p_limit:end-start+1,p_offset:start})):Promise.resolve([]),
  fetchAllPages<{id:string;name:string;detail_type:string}>((start,end)=>supabase.from('chart_of_accounts').select('id,name,detail_type').eq('company_id',company).eq('is_active',true).eq('is_group',false).in('detail_type',['Cash on Hand','Bank Account']).order('id').range(start,end)),
- fetchAllPages<any>((start,end)=>supabase.rpc('transport_document_trip_details',{p_side:'customer',p_limit:end-start+1,p_offset:start})),
- fetchAllPages<any>((start,end)=>supabase.rpc('transport_document_trip_details',{p_side:'supplier',p_limit:end-start+1,p_offset:start})),
- fetchAllPages<{id:string;name:string}>((start,end)=>supabase.from('customers').select('id,name').eq('company_id',company).order('id').range(start,end)),
- fetchAllPages<{id:string;name:string}>((start,end)=>supabase.from('suppliers').select('id,name').eq('company_id',company).order('id').range(start,end))
+ permitted.customer&&['trip-statement','trip-ledger','reconciliation'].includes(mode)?fetchAllPages<any>((start,end)=>supabase.rpc('transport_document_trip_details',{p_side:'customer',p_limit:end-start+1,p_offset:start})):Promise.resolve([]),
+ permitted.supplier&&['trip-statement','trip-ledger','reconciliation'].includes(mode)?fetchAllPages<any>((start,end)=>supabase.rpc('transport_document_trip_details',{p_side:'supplier',p_limit:end-start+1,p_offset:start})):Promise.resolve([]),
+ permitted.customer?fetchAllPages<{id:string;name:string}>((start,end)=>supabase.from('customers').select('id,name').eq('company_id',company).order('id').range(start,end)):Promise.resolve([]),
+ permitted.supplier?fetchAllPages<{id:string;name:string}>((start,end)=>supabase.from('suppliers').select('id,name').eq('company_id',company).order('id').range(start,end)):Promise.resolve([])
  ]);
  if(request===generation.current){setPartyMasters([...customers.map(r=>({side:'customer' as const,party_id:r.id,party_name:r.name})),...suppliers.map(r=>({side:'supplier' as const,party_id:r.id,party_name:r.name}))]);setDocuments(d);setTripDetails([...ct.map(r=>({...r,side:'customer'})),...st.map(r=>({...r,side:'supplier'}))]);setMovements(m);setCanonical(c);setAccounts(a);setCanLedger(ledgerAllowed);return true;}
  return false;
  }catch(e){if(request===generation.current){setError(e&&typeof e==='object'&&'message' in e?String(e.message):'Unable to load reports');setDocuments([]);setMovements([]);setCanonical([]);}return false;}
  finally{if(request===generation.current)setLoading(false)}
- },[company,unit]);
- useEffect(()=>{void load();return()=>{generation.current++}},[load]);
+ },[company,unit,side,party,to,tripSearch,mode]);
+ useEffect(()=>{setLoading(true);const timer=window.setTimeout(()=>void load(),200);return()=>{window.clearTimeout(timer);generation.current++}},[load]);
  const parties=useMemo(()=>Array.from(new Map([...partyMasters,...documents,...canonical].filter(r=>r.side===side).map(r=>[r.party_id,r.party_name])).entries()).sort((a,b)=>a[1].localeCompare(b[1])),[partyMasters,documents,canonical,side]);
  const filter=(r:{side:PartySide;party_id:string;trip_no?:string;order_no?:string})=>r.side===side&&(!party||r.party_id===party)&&(!tripSearch||`${r.trip_no??''} ${r.order_no??''}`.toLowerCase().includes(tripSearch.toLowerCase()));
  const matchingDocs=documents.filter(filter);const matchingEvents=movements.filter(filter);
@@ -84,7 +84,7 @@ export default function TransportPartyReports({onClose,onChanged,initialSide='cu
  return <section className="rounded-lg border bg-white p-3 text-xs" aria-label="Transport party reports">
  <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">{allocationEntry?"Bulk Allocation":`${side==='supplier'?'Supplier':'Customer'} Reports`}</h2><div className="flex gap-2"><button className="btn" disabled={busy||loading} onClick={()=>void load()}>Refresh reports</button><button className="btn" disabled={busy} onClick={onClose}>Close reports</button></div></div>
  <p className="my-2">Scope: current Company / Business Unit / active branch. Amounts are in company base currency. Outstanding uses the As of date; From applies to statements and allocation movements. Historical allocations deleted by reversals before this update cannot be reconstructed automatically.</p>
- <fieldset disabled={busy} className="flex flex-wrap items-end gap-2"><label>Party side<select aria-label="Party side" className="input" value={side} onChange={e=>{setSide(e.target.value as PartySide);setParty('');setSettlement(false)}}><option value="customer">Customer</option><option value="supplier">Supplier / Owner</option></select></label>
+ <fieldset disabled={busy} className="flex flex-wrap items-end gap-2"><label>Party side<select aria-label="Party side" className="input" value={side} onChange={e=>{setSide(e.target.value as PartySide);setParty('');setSettlement(false)}}><option value="customer" disabled={!readSides.customer}>Customer</option><option value="supplier" disabled={!readSides.supplier}>Supplier / Owner</option></select></label>
  <label>Party<select aria-label="Party" className="input" value={party} onChange={e=>{setParty(e.target.value);setSettlement(false)}}><option value="">All parties</option>{parties.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
  <label>Report<select aria-label="Report" className="input" value={mode} onChange={e=>setMode(e.target.value as Mode)}><option value="trips">Trip-wise statement / all trips</option><option value="outstanding">Invoice-wise outstanding</option><option value="trip-statement">Trip-wise posted statement</option><option value="trip-ledger">Trip-wise posted ledger</option><option value="statement">Invoice-wise posted statement / ledger</option><option value="allocations">Receipt / payment allocations</option><option value="canonical" disabled={!canLedger}>Complete canonical party ledger</option><option value="reconciliation">Document reconciliation</option></select></label>
  <label>From<NaviloDateInput className="input" type="date" value={from} disabled={mode==='outstanding'||mode==='reconciliation'} onChange={e=>setFrom(e.target.value)}/></label><label>As of / To<NaviloDateInput className="input" type="date" value={to} onChange={e=>setTo(e.target.value)}/></label>

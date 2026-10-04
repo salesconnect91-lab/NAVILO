@@ -28,7 +28,7 @@ export type PermissionMatrix = Partial<Record<ModuleKey, Partial<ModulePermissio
   transport_actions?: Partial<Record<TransportAction, boolean>>;
 };
 
-export type TransportAction = "trip_create" | "trip_edit" | "trip_cancel" | "trip_delete" |
+export type TransportAction = "customer_finance_view" | "supplier_finance_view" | "trip_create" | "trip_edit" | "trip_cancel" | "trip_delete" |
   "customer_rate_finalize" | "customer_rate_override" | "rent_finalize" | "rent_correct" |
   "vehicle_owner_change" | "assignment_replace" | "ppr_receive" | "master_manage" | "number_config" |
   "settlement_post" | "settlement_unpost" | "billing_adjust" | "payment_correct" |

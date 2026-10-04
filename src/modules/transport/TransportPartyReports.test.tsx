@@ -11,7 +11,7 @@ vi.mock('@/lib/supabase',()=>{const from=(table:string)=>{
  const receipt={...bill,event_id:'p',event_date:'2026-09-02',created_at:'2026-09-02',event_type:'receipt',debit:0,credit:59,amount:-59,net_amount:-50};
  const rows:Record<string,unknown[]>={transport_party_documents:[doc],transport_party_movements:[bill,receipt],transport_canonical_party_movements:[bill,receipt],chart_of_accounts:[],customers:[{id:'unposted',name:'Unposted Customer'}],suppliers:[]};
  const q:any={};for(const m of ['select','eq','in','order','range'])q[m]=()=>q;q.then=(resolve:any)=>Promise.resolve({data:rows[table]??[],error:mock.fail?{message:'API unavailable'}:null}).then(resolve);return q;
-};return {supabase:{from,rpc:async(name:string,args?:{p_kind:string})=>name==='transport_document_trip_details'?{data:[],error:null}:name==='transport_party_report_page'?await from('transport_'+(args?.p_kind==='canonical'?'canonical_party_movements':args?.p_kind==='documents'?'party_documents':'party_movements')):{data:mock.ledger,error:null}}};});
+};return {supabase:{from,rpc:async(name:string,args?:{p_kind:string})=>name==='transport_financial_read_allowed'?{data:true,error:null}:name==='transport_document_trip_details'?{data:[],error:null}:name==='transport_party_report_query'?await from('transport_'+(args?.p_kind==='canonical'?'canonical_party_movements':args?.p_kind==='documents'?'party_documents':'party_movements')):{data:mock.ledger,error:null}}};});
 beforeEach(()=>{mock.export.mockReset();mock.ledger=true;mock.fail=false});afterEach(cleanup);
 function setup(){render(<TransportPartyReports onClose={()=>{}} onChanged={async()=>{}}/>)}
 describe('Separate Transport party reporting',()=>{
@@ -20,10 +20,10 @@ describe('Separate Transport party reporting',()=>{
  const table=mock.export.mock.calls[0][0];expect(table.rows[0].slice(0,12)).toEqual(['Customer A','Trip-1','INV-A','01-Sep-26','credit',100,18,118,59,0,59,0]);expect(table.rows[1][10]).toBe(59);
  });
  it('includes customer masters that have no posted invoices yet',async()=>{
- setup();await screen.findByText('TOTAL');expect(screen.getByRole('option',{name:'Unposted Customer'})).toBeTruthy();
+ setup();await screen.findByRole('option',{name:'Unposted Customer'});expect(screen.getByRole('option',{name:'Unposted Customer'})).toBeTruthy();
  });
  it('requires a party and includes historical opening in statements',async()=>{
- setup();await screen.findByText('TOTAL');fireEvent.change(screen.getByLabelText('Report'),{target:{value:'statement'}});expect(screen.queryByRole('button',{name:'PDF'})).toBeNull();
+ setup();await screen.findByRole('option',{name:'Customer A'});fireEvent.change(screen.getByLabelText('Report'),{target:{value:'statement'}});expect(screen.queryByRole('button',{name:'PDF'})).toBeNull();
  fireEvent.change(screen.getByLabelText('Party'),{target:{value:'customer'}});fireEvent.change(screen.getByLabelText('From'),{target:{value:'2026-09-02'}});await waitFor(()=>expect((screen.getByRole('button',{name:'PDF'}) as HTMLButtonElement).disabled).toBe(false));fireEvent.click(screen.getByRole('button',{name:'PDF'}));await waitFor(()=>expect(mock.export).toHaveBeenCalled());
  const table=mock.export.mock.calls[0][0];expect(table.rows[0][8]).toBe(118);expect(table.rows[1][8]).toBe(59);expect(table.rows[2][8]).toBe(59);
  });

@@ -22,3 +22,28 @@
     display: block;
   }
 }
+
+/* Scoped register density wins over shared ERP table/control defaults. */
+.erp-shell main [data-navilo-transport-register] table td {
+  padding: 1px 3px !important;
+  font-size: 10px !important;
+  line-height: 11px !important;
+  height: 23px !important;
+  max-height: none !important;
+}
+.erp-shell main [data-navilo-transport-register] table th {
+  padding: 2px 3px !important;
+  font-size: 9px !important;
+  line-height: 11px !important;
+}
+.erp-shell main [data-navilo-transport-register] table td button {
+  min-height: 0 !important;
+  height: 18px !important;
+  padding: 0 2px !important;
+  font-size: 10px !important;
+  line-height: 11px !important;
+}
+.erp-shell main [data-navilo-transport-register] table td span.text-\[7px\] {
+  font-size: 9px !important;
+  line-height: 10px !important;
+}

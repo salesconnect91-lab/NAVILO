@@ -15,7 +15,7 @@ vi.mock('./TransportCostUpload',()=>({default:()=>null}));vi.mock('./TransportAu
 vi.mock('./TransportPartyReports',()=>({default:()=>null}));vi.mock('./TransportAccountStatement',()=>({default:()=>null}));
 beforeEach(()=>{
  Object.defineProperty(globalThis,'crypto',{value:webcrypto,configurable:true});
- mock.allow=true;mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[],count:0,statuses:[],totals:{}}:name==='transport_prepare_trip_import'?{id:'job',completed:0}:name==='transport_import_trip_batch'?args.p_rows.map(()=>({id:'trip',trip_no:'OIC-1'})):name==='transport_create_trips'?[{id:'trip',trip_no:'OIC-1'}]:mock.allow,error:null}));
+ mock.allow=true;mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[],count:0,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:name==='transport_prepare_trip_import'?{id:'job',completed:0}:name==='transport_import_trip_batch'?args.p_rows.map(()=>({id:'trip',trip_no:'OIC-1'})):name==='transport_create_trips'?[{id:'trip',trip_no:'OIC-1'}]:mock.allow,error:null}));
  mock.tables={customers:[{id:'c1',name:'Customer',is_active:true}],suppliers:[{id:'s',name:'Supplier',is_active:true}],employees:[{id:'e',name:'Employee',is_active:true}],
  transport_truck_types:[{id:'tt',name:'Flatbed',is_active:true},{id:'tt2',name:'Tanker',is_active:true}],
  transport_locations:[{id:'f',name:'From',is_active:true},{id:'t',name:'To',is_active:true}],
@@ -114,7 +114,7 @@ describe('New Trip master integration',()=>{
 
 describe('Transport register server pagination',()=>{
  it('navigates directly to Last and keeps whole filtered totals',async()=>{
-  mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[{id:'trip-'+args.p_offset,trip_no:'TRP-'+args.p_offset,trip_date:'2026-10-01',customer_rate:10,status:'draft'}],count:50000,statuses:[],totals:{company_rate:800000},completed:0,paper_pending:50000}:true,error:null}));
+  mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[{id:'trip-'+args.p_offset,trip_no:'TRP-'+args.p_offset,trip_date:'2026-10-01',customer_rate:10,status:'draft'}],count:50000,statuses:[],permissions:{customer:true,supplier:true},totals:{company_rate:800000},completed:0,paper_pending:50000}:true,error:null}));
   render(<MemoryRouter><TransportWorkspace/></MemoryRouter>);
   await screen.findByText('TRP-0');expect(screen.getByText(/800,000.00/)).toBeTruthy();
   fireEvent.click(screen.getByRole('button',{name:'Last'}));await screen.findByText('TRP-49500');
@@ -122,7 +122,7 @@ describe('Transport register server pagination',()=>{
   expect(screen.getByText(/800,000.00/)).toBeTruthy();expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_financial_register_page')).toBe(false);
  });
  it('resets to first page and sends searches to the server',async()=>{
-  mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:args.p_filters?.search?[{id:'found',trip_no:'OFF-PAGE-TRIP',trip_date:'2026-10-01',customer_rate:50,status:'draft'}]:[],count:args.p_filters?.search?1:50000,statuses:[],totals:{company_rate:args.p_filters?.search?50:800000},completed:0,paper_pending:1}:true,error:null}));
+  mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:args.p_filters?.search?[{id:'found',trip_no:'OFF-PAGE-TRIP',trip_date:'2026-10-01',customer_rate:50,status:'draft'}]:[],count:args.p_filters?.search?1:50000,statuses:[],permissions:{customer:true,supplier:true},totals:{company_rate:args.p_filters?.search?50:800000},completed:0,paper_pending:1}:true,error:null}));
   render(<MemoryRouter><TransportWorkspace/></MemoryRouter>);
   await waitFor(()=>expect((screen.getByRole('button',{name:'Last'}) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'Last'}));await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({p_offset:49500})));
@@ -158,7 +158,7 @@ describe('Transport register interactions',()=>{
    expect(supplier.querySelector('input')).toBeTruthy();
    expect((customer.querySelector('input') as HTMLInputElement).checked).toBe(false);
    fireEvent.click(customer.querySelector('input')!);
-   expect(screen.getByTitle('Sort Customer Credit / Advance ascending')).toBeTruthy();
+   expect(await screen.findByTitle('Sort Customer Credit / Advance ascending')).toBeTruthy();
   }finally{localStorage.removeItem(key);}
  });
  it('toggles header ASC/DESC through the server query while retaining the 500 row page limit',async()=>{

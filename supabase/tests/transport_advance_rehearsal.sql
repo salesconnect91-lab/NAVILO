@@ -42,8 +42,9 @@ begin
 
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,sale_type,customer_rate)
  values(c,b,'',current_date,customer,'A','B','credit',1000) returning id into trip;
+ perform public.transport_finalize_customer_rate(trip,1000,'manual');
  result:=public.transport_post_customer_bill(trip,current_date,false);sales_id:=(result->>'document_id')::uuid;
- rent:=public.transport_add_supplier_rent(trip,supplier,600,'Rent');result:=public.transport_post_supplier_bill(rent,current_date,acct,false);bill:=(result->>'document_id')::uuid;
+ rent:=public.transport_add_supplier_rent(trip,supplier,600,'Rent');perform public.transport_finalize_supplier_rent(rent,600);result:=public.transport_post_supplier_bill(rent,current_date,acct,false);bill:=(result->>'document_id')::uuid;
  result:=public.transport_manage_advance(request_id,'customer','record',customer,current_date-1,500,cash_id,'cash',null,null,'ADV-C');receipt_id:=(result->>'journal_entry_id')::uuid;
  again:=public.transport_manage_advance(request_id,'customer','record',customer,current_date-1,500,cash_id,'cash',null,null,'ADV-C');
  if again<>result or (select available from public.transport_party_advances where journal_entry_id=receipt_id)<>500 then raise exception 'Customer advance retry or available amount incorrect';end if;

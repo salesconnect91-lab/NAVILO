@@ -49,6 +49,9 @@ begin
  values(c,b,'',current_date,customer,'A','B',200,0,'credit') returning id into trip2;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
  values(c,b,'',current_date,customer,'A','B',100,0,'cash') returning id into cash_trip;
+ perform public.transport_finalize_customer_rate(trip,1000,'manual');
+ perform public.transport_finalize_customer_rate(trip2,200,'manual');
+ perform public.transport_finalize_customer_rate(cash_trip,100,'manual');
  update public.customers set account_id=null where id=customer;
  result:=public.transport_register_query(500,0,'{}','','asc','company_rate',' 1000 ');
  if not (result->'options') @> '["1,000.00"]'::jsonb then raise exception 'Numeric register dropdown search failed';end if;
@@ -92,6 +95,8 @@ begin
  or (select customer_received_gross from public.transport_trip_financial_summary where id=trip2)<>0 then raise exception 'Receipt cross-attribution';end if;
  rent:=public.transport_add_supplier_rent(trip,supplier,300,'Owner rent split');
  rent2:=public.transport_add_supplier_rent(trip,supplier2,100,'Second supplier rent');
+ perform public.transport_finalize_supplier_rent(rent,300);
+ perform public.transport_finalize_supplier_rent(rent2,100);
  result:=public.transport_post_supplier_bill_described(rent,current_date,acct,false,'ORIGINAL-SUPPLIER-REF','CUSTOM-P-'||code,'Supplier hire instructions');bill:=(result->>'document_id')::uuid;
  if not exists(select 1 from public.purchase_service_lines where order_id=bill and description like 'Supplier hire instructions%' and description like '%Supplier rent%') then raise exception 'Supplier description or automatic Trip detail missing';end if;
  if not exists(select 1 from public.purchase_orders where id=bill and order_no='CUSTOM-P-'||code and supplier_invoice_no='ORIGINAL-SUPPLIER-REF') then raise exception 'Custom purchase number changed source reference';end if;
@@ -137,7 +142,7 @@ begin
  result:=public.transport_adjust_rate(trip,'supplier',200,'Owner overpaid after close',current_date,rent);
  if (select supplier_credit_gross from public.transport_trip_financial_summary where id=trip)<>50 then raise exception 'Supplier credit after full payment';end if;
  result:=public.transport_refund_service_credit('supplier',bill,current_date,cash_id,50,'Recover supplier overpayment');
- result:=public.transport_post_cost(trip,'commission',supplier,20,current_date,acct,false);
+ result:=public.transport_post_cost_request(gen_random_uuid(),trip,'commission',supplier,20,current_date,acct,false);
  j:=(result->>'document_id')::uuid;
  if (select financial_status from public.transport_trip_financial_summary where id=trip)<>'Under Settlement' then raise exception 'Unpaid approved cost must reopen settlement';end if;
  result:=public.transport_settle_documents('supplier',supplier,current_date,cash_id,'cash',jsonb_build_array(jsonb_build_object('document_id',j,'amount',20)));
@@ -160,8 +165,9 @@ begin
  update public.suppliers set tax_registration_status='registered',strn='SUPPLIER-VAT' where id=supplier;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
  values(c,b,'',current_date,customer,'VAT A','VAT B',100,40,'credit') returning id into vat_trip;
+ perform public.transport_finalize_customer_rate(vat_trip,100,'manual');
  result:=public.transport_post_customer_bill(vat_trip,current_date,true);vat_bill:=(result->>'document_id')::uuid;
- vat_rent:=public.transport_add_supplier_rent(vat_trip,supplier,40,'Taxable rent');result:=public.transport_post_supplier_bill(vat_rent,current_date,acct,true);vat_purchase:=(result->>'document_id')::uuid;
+ vat_rent:=public.transport_add_supplier_rent(vat_trip,supplier,40,'Taxable rent');perform public.transport_finalize_supplier_rent(vat_rent,40);result:=public.transport_post_supplier_bill(vat_rent,current_date,acct,true);vat_purchase:=(result->>'document_id')::uuid;
  result:=public.transport_settle_documents('customer',customer,current_date,cash_id,'cash',jsonb_build_array(jsonb_build_object('document_id',vat_bill,'amount',59)));
  if (select received_from_company from public.transport_financial_register where id=vat_trip)<>50
  or (select remaining_with_company from public.transport_financial_register where id=vat_trip)<>50
@@ -183,6 +189,7 @@ begin
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,driver_id,from_location,to_location,customer_rate,owner_rent,sale_type)
  values(c,b,'',current_date,customer,driver,'Driver A','Driver B',200,0,'credit') returning id into driver_trip;
  perform public.transport_set_driver_pay(driver_trip,60,'Agreed Trip pay');
+ perform public.transport_finalize_customer_rate(driver_trip,200,'manual');
  result:=public.transport_post_customer_bill(driver_trip,current_date,true);j:=(result->>'document_id')::uuid;
  result:=public.transport_settle_documents('customer',customer,current_date,cash_id,'cash',jsonb_build_array(jsonb_build_object('document_id',j,'amount',236)));
  update public.transport_trips set po_do_job_no='FIN-JOB-DRIVER' where id=driver_trip;
@@ -215,6 +222,7 @@ begin
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
  values(c,b,'',current_date,customer,'Auth A','Auth B',20,0,'credit') returning id into auth_trip;
  execute 'set local role authenticated';
+ perform public.transport_finalize_customer_rate(auth_trip,20,'manual');
  result:=public.transport_post_customer_bill(auth_trip,current_date,true);
  if (select customer_net from public.transport_trip_financial_summary where id=auth_trip)<>20 then raise exception 'Authorized financial evidence hidden';end if;
  rejected:=false;begin update public.transport_customer_document_trips set rate_snapshot=1 where trip_id=auth_trip;exception when insufficient_privilege then rejected:=true;end;
