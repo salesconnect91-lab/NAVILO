@@ -999,36 +999,36 @@ export default function TransportWorkspace(){
 
   const gridColumns:ReadonlyArray<readonly [string,string]>=[
     ["trip_no","Trip No"],
-    ["trip_date","Date"],
+    ["trip_date","Trip Date"],
     ["truck_type","Truck Type"],
     ["job_no","PO/DO/Job No."],
-    ["company","Company Name"],
-    ["driver","Driver Name"],
-    ["owner","Owner"],
-    ["plate","Plate #"],
+    ["invoice_no","Customer Invoice No."],
+    ["company","Customer"],
+    ["driver","Driver"],
+    ["plate","Vehicle No."],
+    ["owner","Vehicle Owner"],
     ["from","From"],
     ["to","To"],
-    ["charge","Charge"],
+    ["charge","Trip Charges"],
+    ["rent_driver","Supplier Rent (Net)"],
+    ["supplier_paid","Supplier Rent Paid (Net)"],
+    ["supplier_balance","Supplier Rent Balance (Incl. VAT)"],
+    ["payment_date","Supplier Payment Date"],
     ["paper_received_by","PPR Received By"],
-    ["rent_driver","Supplier Rent (net)"],
-    ["supplier_paid","Supplier Paid (net)"],
-    ["supplier_balance","Supplier Balance (incl. VAT)"],
-    ["supplier_credit","Supplier Credit / Advance"],
+    ["company_rate","Customer Rate (Net)"],
+    ["received_company","Customer Collection (Incl. VAT)"],
+    ["remaining_company","Customer Balance (Incl. VAT)"],
     ["driver_pay","Driver Pay"],
     ["driver_paid","Driver Paid"],
     ["driver_balance","Driver Balance"],
-    ["payment_date","Payment Date"],
-    ["amount","Amount"],
-    ["company_rate","Customer Rate (net)"],
-    ["received_company","Customer Received (incl. VAT)"],
-    ["remaining_company","Customer Balance (incl. VAT)"],
-    ["customer_credit","Customer Credit / Advance"],
-    ["profit","Profit"],
-    ["commission","Paid Commission For Trip"],
-    ["invoice_no","Invoice Number"],
-    ["sale_type","Sale Type"]
+    ["amount","Supplier Payment Amount"],
+    ["commission","Trip Commission Paid"],
+    ["profit","Trip Profit"],
+    ["sale_type","Sale Type"],
+    ["supplier_credit","Supplier Credit / Advance"],
+    ["customer_credit","Customer Credit / Advance"]
   ] as const;
-
+  const defaultTripColumnOrder=gridColumns.map(column=>column[0]);
   const tripGridStorageKey=`navilo:transport:trip-grid:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
   const allOrderedGridColumns=useMemo(()=>{
     const byKey=new Map(gridColumns.map(column=>[column[0],column] as const));
@@ -1063,13 +1063,13 @@ export default function TransportWorkspace(){
   useEffect(()=>{
     try{
       const saved=localStorage.getItem(tripGridStorageKey);
-      if(!saved){setTripColumnOrder([]);setHiddenTripColumns([]);setTripColumnWidths({});return;}
+      if(!saved){setTripColumnOrder([...defaultTripColumnOrder]);setHiddenTripColumns([]);setTripColumnWidths({});return;}
       const parsed=JSON.parse(saved);
       setTripColumnOrder(Array.isArray(parsed.order)?parsed.order:[]);
       setHiddenTripColumns(Array.isArray(parsed.hidden)?parsed.hidden:[]);
       setTripColumnWidths(parsed.widths&&typeof parsed.widths==="object"?parsed.widths:{});
     }catch{
-      setTripColumnOrder([]);
+      setTripColumnOrder([...defaultTripColumnOrder]);
       setHiddenTripColumns([]);
       setTripColumnWidths({});
     }
@@ -1085,7 +1085,7 @@ export default function TransportWorkspace(){
 
   const saveTripGridLayout=()=>{
     localStorage.setItem(tripGridStorageKey,JSON.stringify({
-      order:tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0]),
+      order:tripColumnOrder.length?tripColumnOrder:defaultTripColumnOrder,
       hidden:hiddenTripColumns,
       widths:tripColumnWidths
     }));
@@ -1094,7 +1094,7 @@ export default function TransportWorkspace(){
 
   const resetTripGridLayout=()=>{
     localStorage.removeItem(tripGridStorageKey);
-    setTripColumnOrder([]);
+    setTripColumnOrder([...defaultTripColumnOrder]);
     setHiddenTripColumns([]);
     setTripColumnWidths({});
   };
