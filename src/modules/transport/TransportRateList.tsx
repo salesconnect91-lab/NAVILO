@@ -26,7 +26,7 @@ export default function TransportRateList({onClose,onChanged}:Props){
    supabase.from('transport_locations').select('id,name,is_active').eq('company_id',c).eq('business_unit_id',b).eq('is_active',true).order('name'),
    supabase.from('transport_charge_types').select('*').eq('company_id',c).eq('business_unit_id',b).order('code'),
    supabase.from('transport_customer_rates').select('*,customers(name),transport_truck_types(name),from:transport_locations!transport_customer_rates_company_id_business_unit_id_from__fkey(name),to:transport_locations!transport_customer_rates_company_id_business_unit_id_to_lo_fkey(name)').eq('company_id',c).eq('business_unit_id',b).order('effective_from',{ascending:false}).limit(500),
-   supabase.from('transport_customer_charge_rates').select('*,customers(name),transport_charge_types(code,name)').eq('company_id',c).eq('business_unit_id',b).order('effective_from',{ascending:false}).limit(500)
+   supabase.from('transport_customer_charge_rates').select('*,customers(name),transport_charge_types!transport_customer_charge_rates_charge_type_id_fkey(code,name)').eq('company_id',c).eq('business_unit_id',b).order('effective_from',{ascending:false}).limit(500)
   ]);
   for(const r of [cu,tr,lo,ch,rr,cr])if(r.error)throw r.error;
   setCustomers(cu.data??[]);setTrucks(tr.data??[]);setLocations(lo.data??[]);setCharges(ch.data??[]);setRouteRates(rr.data??[]);setChargeRates(cr.data??[]);
