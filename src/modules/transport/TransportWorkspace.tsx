@@ -1206,8 +1206,6 @@ export default function TransportWorkspace(){
             <RefreshCw className="h-3.5 w-3.5"/>
             Refresh
           </button>
-          <button type="button" onClick={()=>setShowBulkSupplierRent(true)}
-            className="h-7 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-[10px] font-bold text-amber-800 hover:bg-amber-100">
           <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)}
             className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50">
             Columns
