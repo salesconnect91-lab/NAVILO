@@ -10,6 +10,8 @@ import { supabase } from "@/lib/supabase";
 import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportBulkCustomerRate from './TransportBulkCustomerRate';
 import TransportInitialRate from './TransportInitialRate';
+import TransportRateList from './TransportRateList';
+import TransportTripCharges from './TransportTripCharges';
 import TransportInvoiceNumber from './TransportInvoiceNumber';
 import TransportCostUpload from './TransportCostUpload';
 import TransportHistoricalImport from './TransportHistoricalImport';
@@ -49,6 +51,8 @@ type Trip=FinancialTrip & {
   ppr_received_date:string|null;
   sale_type:string|null;
   sales_order_id:string|null;
+  customer_base_rate?:number|null;
+  customer_manual_adjustment?:number|null;
   invoice_no:string|null;
 };
 
@@ -126,7 +130,7 @@ export default function TransportWorkspace(){
   const [registerLoading,setRegisterLoading]=useState(false);
   const tripsGridRef=useRef<HTMLDivElement|null>(null);
   const tripsSectionRef=useRef<HTMLElement|null>(null);
-  const compactTripColumnWidths:Record<string,number>={trip_no:82,trip_date:58,truck_type:58,job_no:72,company:128,driver:64,owner:64,plate:50,from:58,to:58,paper_received_by:72,rent_driver:66,supplier_paid:66,supplier_balance:70,supplier_credit:76,driver_pay:58,driver_paid:58,driver_balance:64,payment_date:64,amount:62,company_rate:72,received_company:76,remaining_company:80,customer_credit:78,profit:62,commission:76,invoice_no:76,sale_type:58};
+  const compactTripColumnWidths:Record<string,number>={trip_no:82,trip_date:58,truck_type:58,job_no:72,company:128,driver:64,owner:64,plate:50,from:58,to:58,charge:58,paper_received_by:72,rent_driver:66,supplier_paid:66,supplier_balance:70,supplier_credit:76,driver_pay:58,driver_paid:58,driver_balance:64,payment_date:64,amount:62,company_rate:72,received_company:76,remaining_company:80,customer_credit:78,profit:62,commission:76,invoice_no:76,sale_type:58};
   const [tripColumnWidths,setTripColumnWidths]=useState<Record<string,number>>({});
   const [tripColumnOrder,setTripColumnOrder]=useState<string[]>([]);
   const [hiddenTripColumns,setHiddenTripColumns]=useState<string[]>([]);
@@ -240,6 +244,9 @@ export default function TransportWorkspace(){
   const [quickPprEmployee,setQuickPprEmployee]=useState("");
   const [quickPprDate,setQuickPprDate]=useState(new Date().toISOString().slice(0,10));
   const [initialRateTrip,setInitialRateTrip]=useState<Trip|null>(null);
+  const [chargeTrip,setChargeTrip]=useState<Trip|null>(null);
+  const [showRateList,setShowRateList]=useState(false);
+  const [tripChargeSummary,setTripChargeSummary]=useState<Record<string,string>>({});
   const [invoiceTrip,setInvoiceTrip]=useState<Trip|null>(null);
   const [editingRateLocks,setEditingRateLocks]=useState({customer:false,supplier:false});
   const [editingTripId,setEditingTripId]=useState<string|null>(null);
@@ -249,6 +256,13 @@ export default function TransportWorkspace(){
   const [quickAdd,setQuickAdd]=useState<QuickAddKind|null>(null);
   const [bulkFixRowNo,setBulkFixRowNo]=useState<number|null>(null);
   const [quickSupplierId,setQuickSupplierId]=useState('');
+  useEffect(()=>{
+    let live=true;const ids=rows.map(r=>r.id);if(!ids.length){setTripChargeSummary({});return()=>{live=false};}
+    void supabase.from('transport_trip_customer_charges').select('trip_id,code_snapshot,sort_order,id').in('trip_id',ids).order('sort_order').then(({data,error})=>{
+      if(!live)return;if(error){setError(error.message);return;}const grouped:Record<string,string[]>={};for(const x of data??[])(grouped[x.trip_id]??=[]).push(x.code_snapshot);const next:Record<string,string>={};for(const [id,codes] of Object.entries(grouped)){const counts=new Map<string,number>();for(const code of codes)counts.set(code,(counts.get(code)??0)+1);next[id]=[...counts].map(([code,n])=>n>1?code+'×'+n:code).join(' + ');}setTripChargeSummary(next);
+    });return()=>{live=false};
+  },[rows]);
+
   const selectedVehicle=tripMasters.vehicles.find(v=>v.id===form.vehicle_id);
   const selectedDriver=tripMasters.drivers.find(d=>d.id===form.driver_id);
   const selectedOwnership=ownershipOnDate(tripMasters.ownership,form.vehicle_id,form.trip_date);
@@ -938,6 +952,7 @@ export default function TransportWorkspace(){
       case "plate": return String(r.vehicle_no??"");
       case "from": return String(r.from_location??"");
       case "to": return String(r.to_location??"");
+      case "charge": return tripChargeSummary[r.id]??"";
       case "paper_received_by": return r.ppr_status==="received"?[String(r.ppr_received_by_name??"—"),r.ppr_received_date?formatNaviloDate(r.ppr_received_date):""].filter(Boolean).join(" · "):"Pending";
       case "supplier_paid": return financialNumber(r.supplier_paid_net??r.supplier_paid_gross??0);
       case "supplier_balance": return financialNumber(Math.max(0,Number(r.supplier_outstanding_gross??r.remaining_with_us??0)));
@@ -962,7 +977,7 @@ export default function TransportWorkspace(){
   };
 
   const supplierGridKeys=["owner","rent_driver","supplier_paid","supplier_balance","supplier_credit","payment_date","amount"] as const;
-  const customerGridKeys=["company","company_rate","received_company","remaining_company","customer_credit","invoice_no","sale_type"] as const;
+  const customerGridKeys=["company","charge","company_rate","received_company","remaining_company","customer_credit","invoice_no","sale_type"] as const;
   const isSupplierGridKey=(key:string)=>(supplierGridKeys as readonly string[]).includes(key);
   const isCustomerGridKey=(key:string)=>(customerGridKeys as readonly string[]).includes(key);
 
@@ -977,6 +992,7 @@ export default function TransportWorkspace(){
     ["plate","Plate #"],
     ["from","From"],
     ["to","To"],
+    ["charge","Charge"],
     ["paper_received_by","PPR Received By"],
     ["rent_driver","Supplier Rent (net)"],
     ["supplier_paid","Supplier Paid (net)"],
@@ -1008,7 +1024,7 @@ export default function TransportWorkspace(){
   const readCustomer=registerMeta.permissions?.customer===true;
   const readSupplier=registerMeta.permissions?.supplier===true;
   const columnAuthorized=(key:string)=>key==='profit'?readCustomer&&readSupplier:
-    ['company_rate','received_company','remaining_company','customer_credit','invoice_no','sale_type','invoiced'].includes(key)?readCustomer:
+    ['charge','company_rate','received_company','remaining_company','customer_credit','invoice_no','sale_type','invoiced'].includes(key)?readCustomer:
     ['owner','rent_driver','supplier_paid','supplier_balance','supplier_credit','payment_date','amount','driver_pay','driver_paid','driver_balance','commission'].includes(key)?readSupplier:true;
   const orderedGridColumns=allOrderedGridColumns.filter(column=>columnAuthorized(column[0])&&!hiddenTripColumns.includes(column[0]));
   const [exportProgress,setExportProgress]=useState('');
@@ -1122,6 +1138,9 @@ export default function TransportWorkspace(){
   return <div className="relative w-full max-w-none space-y-1" style={{width:"100%",maxWidth:"none",marginInline:0}}>
 
 
+    {showRateList&&<TransportRateList onClose={()=>setShowRateList(false)} onChanged={async()=>{await loadTripMasters();await load()}}/>}
+    {chargeTrip&&<TransportTripCharges tripId={chargeTrip.id} onClose={()=>setChargeTrip(null)} onChanged={load}/>} 
+
     {showPartyReports&&<TransportPartyReports key={`${scopeKey}:${reportPanel}`} initialSide={reportPanel==='supplier-reports'?'supplier':'customer'} allocationEntry={reportPanel==='bulk-allocation'} onClose={()=>setTab('trips')} onChanged={load}/>}
 
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
@@ -1189,6 +1208,7 @@ export default function TransportWorkspace(){
             <RefreshCw className="h-3.5 w-3.5"/>
             Refresh
           </button>
+          <button type="button" onClick={()=>setShowRateList(true)} className="h-7 rounded-md border border-cyan-200 bg-cyan-50 px-2.5 text-[10px] font-bold text-cyan-800 hover:bg-cyan-100">Rate List</button>
           <button type="button" onClick={()=>setShowBulkSupplierRent(true)}
             className="h-7 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-[10px] font-bold text-amber-800 hover:bg-amber-100">
             Bulk Supplier Rent
@@ -1363,7 +1383,9 @@ export default function TransportWorkspace(){
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
                   className={`h-[17px] max-h-[17px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-slate-100 px-0.5 !py-0 leading-none ${isSupplierGridKey(key)?"bg-rose-50/80":isCustomerGridKey(key)?"bg-sky-50/80":""} ${numeric?"text-right":""}`}>
-                  {key==='company_rate'
+                  {key==='charge'
+                    ?<button type="button" className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-left text-[8px] font-semibold leading-none text-blue-700 hover:bg-blue-100" aria-label={`Open Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
+                    :key==='company_rate'
                     ?<button type="button"
                       className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[8px] font-semibold leading-none text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
                       aria-label={`${r.customer_rate_state==='pending'?'Add':'Open'} Company Rate ${r.trip_no}`}
