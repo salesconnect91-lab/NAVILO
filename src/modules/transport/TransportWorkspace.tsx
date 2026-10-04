@@ -1118,7 +1118,7 @@ export default function TransportWorkspace(){
     if(tripsGridRef.current)tripsGridRef.current.scrollLeft=0;
   };
 
-  return <div className="relative -ml-[calc((100vw-100%)/2-4px)] -mr-[calc((100vw-100%)/2-4px)] w-auto max-w-none space-y-1 px-1">
+  return <div className="relative w-full max-w-none space-y-1" style={{width:"100%",maxWidth:"none",marginInline:0}}>
 
 
     {showPartyReports&&<TransportPartyReports key={`${scopeKey}:${reportPanel}`} initialSide={reportPanel==='supplier-reports'?'supplier':'customer'} allocationEntry={reportPanel==='bulk-allocation'} onClose={()=>setTab('trips')} onChanged={load}/>}
