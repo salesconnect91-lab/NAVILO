@@ -42,6 +42,8 @@ begin
 
  insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,b,'Original') returning id into vehicle;
  insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,b,'Replacement') returning id into vehicle2;
+ insert into public.transport_vehicle_ownership(company_id,business_unit_id,vehicle_id,owner_type,owner_name_snapshot,effective_from,change_reason,created_by)
+ values(c,b,vehicle2,'company','Service rehearsal',current_date,'Replacement fixture',u);
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,vehicle_id,from_location,to_location,sale_type)
  values(c,b,'',current_date,customer,vehicle,'A','B','credit') returning id into trip;
  rejected:=false;begin perform public.transport_finalize_initial_customer_rate(trip,100.123);exception when others then rejected:=true;end;
