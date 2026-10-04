@@ -64,7 +64,9 @@ export default function AccountMappingSetup() {
     [currentSelections, selections]
   );
 
-  const configuredCount = DEFAULT_MAPPINGS.filter(([key]) => currentSelections[key]).length;
+  const mappedAccountValid = (key: MappingKey) => accounts.some(account =>
+    account.id === currentSelections[key] && account.is_active && !account.is_group && account.type === ACCOUNT_MAPPING_TYPES[key]);
+  const configuredCount = DEFAULT_MAPPINGS.filter(([key]) => mappedAccountValid(key)).length;
 
   async function loadData(showLoader = true) {
     if (showLoader) setLoading(true);
@@ -196,8 +198,10 @@ export default function AccountMappingSetup() {
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-slate-900">{MAPPING_LABELS[key]}</p>
-                        {currentSelections[key] ? (
+                        {mappedAccountValid(key) ? (
                           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">Mapped</span>
+                        ) : currentSelections[key] ? (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">Invalid</span>
                         ) : (
                           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">Missing</span>
                         )}

@@ -1,3 +1,4 @@
+import { fetchAllPages } from "@/lib/fetchAllPages";
 import { masterDeleteError } from "@/lib/masterDeleteError";
 import { supabase } from "@/lib/supabase";
 import { AccountMapping, ChartOfAccount } from "@/types";
@@ -395,16 +396,9 @@ type SaveAccountInput = {
 /* -------------------------------------------------------------------------- */
 
 export async function listAccounts(): Promise<ChartOfAccount[]> {
-  const { data, error } = await supabase
-    .from("chart_of_accounts")
-    .select("*")
-    .order("code", { ascending: true });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data ?? []) as ChartOfAccount[];
+  return fetchAllPages<ChartOfAccount>((from,to)=>supabase
+    .from("chart_of_accounts").select("*")
+    .order("code",{ascending:true}).order("id",{ascending:true}).range(from,to));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -960,18 +954,9 @@ export async function deleteAccount(
 export async function listMappings(): Promise<
   AccountMapping[]
 > {
-  const { data, error } = await supabase
-    .from("account_mappings")
-    .select(
-      "*, account:chart_of_accounts(*)"
-    )
-    .order("mapping_key");
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data ?? []) as AccountMapping[];
+  return fetchAllPages<AccountMapping>((from,to)=>supabase
+    .from("account_mappings").select("*, account:chart_of_accounts(*)")
+    .order("mapping_key").order("id").range(from,to));
 }
 
 /* -------------------------------------------------------------------------- */
