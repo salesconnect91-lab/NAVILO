@@ -1213,7 +1213,6 @@ export default function TransportWorkspace(){
             className="h-7 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-[10px] font-bold text-amber-800 hover:bg-amber-100">
             Bulk Supplier Rent
           </button><button type="button" onClick={()=>setShowBulkCustomerRate(true)} className="rounded border border-blue-300 bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 hover:bg-blue-100">Bulk Customer Rate</button>
-          <button type="button" onClick={()=>{const p=new URLSearchParams(params);p.set('panel','vat-reports');setParams(p)}} className="h-7 rounded-md border border-blue-200 bg-blue-50 px-2 text-[11px] font-semibold text-blue-800">VAT &amp; Corrections</button>
           <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)}
             className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50">
             Columns
