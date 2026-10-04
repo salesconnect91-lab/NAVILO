@@ -1576,6 +1576,7 @@ export default function TransportWorkspace(){
         </TripField>
 
         <TripField label="Supplier / Owner Rent">
+          <input type="number" min="0" step="0.01" aria-label="Supplier / Owner Rent" readOnly={Boolean(editingTripId)||!entryPermissions.rent||!supplierOwned} value={form.supplier_rent}
             onChange={e=>{setError("");setForm({...form,supplier_rent:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-right text-xs outline-none"/>
         </TripField>
