@@ -2,7 +2,7 @@
 
 This release blocks billing until rates/rents are explicitly finalized and the finalized snapshots agree. It separates customer and supplier financial reads, restores Business Unit gating, protects expense retries with persistent intent IDs, and retains canonical Sales/Purchase/Accounting posting paths.
 
-Register export reads every filtered page and verifies a common revision and totals before producing the file. Financial fields are masked before filtering/sorting and customer/supplier reporting filters are applied at the server. Operational editing uses scoped RPCs for restricted roles. Lifecycle filters use the authoritative lifecycle value. New audit events include their real request/database source; historical unknown sources are retained.
+Register export reads every filtered page and verifies a common revision and totals before producing the file. Financial fields are masked before filtering/sorting and customer/supplier reporting filters and document Trip details are applied at the server. Full-finance register reads skip masking serialization before filtering. Operational editing uses scoped RPCs for restricted roles. Lifecycle filters use the authoritative lifecycle value. New audit events include their real request/database source; historical unknown sources are retained.
 
 Forward recovery restores missing tables, triggers, immutable helper access and legacy reporting view. Settlement increases retain the audited live contract. Document scope/actor constraints refuse missing historical values; the production preflight found no nulls. Exact duplicate indexes are removed while preserving constraints and replica identity. Anonymous Transport ACLs are removed.
 

@@ -4633,7 +4633,18 @@
     {
       "file": "20261004065138_transport_filtered_reporting_and_grants.sql",
       "sha256": "1f882d5bcd142bcc7bec3a3ba554041d02b44115a9b4228d03ca3a787aad613d"
+    },
+    {
+      "file": "20261004071544_transport_release_report_efficiency.sql",
+      "sha256": "0f10aa3afc2795ae4eb556cb340f10674dc600fe46dbe8804a67635ce6c2bc83"
     }
   ],
-  "policy": "Preserve existing migration IDs and historical accounting. Apply the four audited forward migrations in filename order. Remote application timestamps may differ; map by name and SQL digest. No replay of renamed historical migrations into production."
+  "policy": "Preserve existing migration IDs and historical accounting. Apply the five audited forward migrations in filename order. Remote application timestamps may differ; map by name and SQL digest. No replay of renamed historical migrations into production.",
+  "applied_forward_versions": {
+    "20261004062903_transport_release_audit_controls.sql": "20261004071100",
+    "20261004063053_transport_financial_read_boundaries.sql": "20261004071109",
+    "20261004064135_transport_recovery_parity.sql": "20261004071120",
+    "20261004065138_transport_filtered_reporting_and_grants.sql": "20261004071130",
+    "20261004071544_transport_release_report_efficiency.sql": "20261004071912"
+  }
 }

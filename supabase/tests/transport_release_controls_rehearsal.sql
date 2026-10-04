@@ -85,6 +85,9 @@ begin
  if jsonb_array_length(result)<>1 or result->0->>'side'<>'customer' then raise exception 'Selected side/party reader failed';end if;
  if public.transport_party_report_query('documents','customer',jsonb_build_object('party',gen_random_uuid()))<>'[]'::jsonb then raise exception 'Party filter ignored';end if;
  if public.transport_party_report_query('documents','customer',jsonb_build_object('to',current_date-1))<>'[]'::jsonb then raise exception 'As-of filter ignored';end if;
+ result:=public.transport_document_trip_detail_query('customer',jsonb_build_object('party',customer));
+ if jsonb_array_length(result)<>1 or result->0->>'trip_no' is null then raise exception 'Filtered document Trip details missing';end if;
+ if public.transport_document_trip_detail_query('customer',jsonb_build_object('party',gen_random_uuid()))<>'[]'::jsonb then raise exception 'Document Trip party filter ignored';end if;
  -- Customer-only: operational rows + own financial data; no opposite raw/table/RPC/totals.
  update public.business_unit_memberships set permissions='{"transport_actions":{"customer_finance_view":true,"supplier_finance_view":false}}' where business_unit_id=b and user_id=u;
  execute 'set local role authenticated';

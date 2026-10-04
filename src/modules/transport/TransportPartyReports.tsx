@@ -33,12 +33,12 @@ export default function TransportPartyReports({onClose,onChanged,initialSide='cu
  fetchAllPages<PartyMovement>((start,end)=>supabase.rpc('transport_party_report_query',{p_kind:'movements',p_side:selectedSide,p_filters:{party,to:mode==='reconciliation'?'':to,search:mode==='canonical'?'':tripSearch},p_limit:end-start+1,p_offset:start})),
  ledgerAllowed?fetchAllPages<PartyMovement>((start,end)=>supabase.rpc('transport_party_report_query',{p_kind:'canonical',p_side:selectedSide,p_filters:{party,to:mode==='reconciliation'?'':to,search:mode==='canonical'?'':tripSearch},p_limit:end-start+1,p_offset:start})):Promise.resolve([]),
  fetchAllPages<{id:string;name:string;detail_type:string}>((start,end)=>supabase.from('chart_of_accounts').select('id,name,detail_type').eq('company_id',company).eq('is_active',true).eq('is_group',false).in('detail_type',['Cash on Hand','Bank Account']).order('id').range(start,end)),
- permitted.customer&&['trip-statement','trip-ledger','reconciliation'].includes(mode)?fetchAllPages<any>((start,end)=>supabase.rpc('transport_document_trip_details',{p_side:'customer',p_limit:end-start+1,p_offset:start})):Promise.resolve([]),
- permitted.supplier&&['trip-statement','trip-ledger','reconciliation'].includes(mode)?fetchAllPages<any>((start,end)=>supabase.rpc('transport_document_trip_details',{p_side:'supplier',p_limit:end-start+1,p_offset:start})):Promise.resolve([]),
+ fetchAllPages<any>((start,end)=>supabase.rpc('transport_document_trip_detail_query',{p_side:selectedSide,p_filters:{party,to:mode==='reconciliation'?'':to,search:mode==='canonical'?'':tripSearch},p_limit:end-start+1,p_offset:start})),
+ Promise.resolve([]),
  permitted.customer?fetchAllPages<{id:string;name:string}>((start,end)=>supabase.from('customers').select('id,name').eq('company_id',company).order('id').range(start,end)):Promise.resolve([]),
  permitted.supplier?fetchAllPages<{id:string;name:string}>((start,end)=>supabase.from('suppliers').select('id,name').eq('company_id',company).order('id').range(start,end)):Promise.resolve([])
  ]);
- if(request===generation.current){setPartyMasters([...customers.map(r=>({side:'customer' as const,party_id:r.id,party_name:r.name})),...suppliers.map(r=>({side:'supplier' as const,party_id:r.id,party_name:r.name}))]);setDocuments(d);setTripDetails([...ct.map(r=>({...r,side:'customer'})),...st.map(r=>({...r,side:'supplier'}))]);setMovements(m);setCanonical(c);setAccounts(a);setCanLedger(ledgerAllowed);return true;}
+ if(request===generation.current){setPartyMasters([...customers.map(r=>({side:'customer' as const,party_id:r.id,party_name:r.name})),...suppliers.map(r=>({side:'supplier' as const,party_id:r.id,party_name:r.name}))]);setDocuments(d);setTripDetails([...ct.map(r=>({...r,side:selectedSide})),...st.map(r=>({...r,side:'supplier'}))]);setMovements(m);setCanonical(c);setAccounts(a);setCanLedger(ledgerAllowed);return true;}
  return false;
  }catch(e){if(request===generation.current){setError(e&&typeof e==='object'&&'message' in e?String(e.message):'Unable to load reports');setDocuments([]);setMovements([]);setCanonical([]);}return false;}
  finally{if(request===generation.current)setLoading(false)}
