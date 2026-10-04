@@ -15,7 +15,7 @@ if(process.env.NAVILO_NATIVE_REHEARSAL==='1'){
  if(check.rows[0].name!=='navilo_transport_rehearsal'||check.rows[0].tables!==0){await client.end();throw new Error('Rehearsal requires a fresh empty dedicated CI database');}
  client.on('notice',n=>{if(process.env.NAVILO_PROFILE_REHEARSAL==='1'||/Trips|50,000|20,000/.test(n.message))console.log('SCALE',n.message)});
  db={exec:sql=>client.query(sql),query:(sql,params)=>client.query(sql,params),close:()=>client.end()};
- console.log('NATIVE POSTGRES ISOLATED CI');
+ await client.query('set jit=off');console.log('NATIVE POSTGRES ISOLATED CI; jit=off matches verified production setting');
 }else db=await PGlite.create();
 await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
 create schema auth;create schema storage;

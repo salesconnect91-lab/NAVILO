@@ -11,7 +11,7 @@ export async function runTransportConcurrency(db, Client) {
   const clients=await Promise.all([0,1].map(async()=>{
     const c=new Client({host:'127.0.0.1',port:6543,user:'postgres',password:'navilo-rehearsal-only',database:'navilo_transport_rehearsal'});
     await c.connect();await c.query("select set_config('request.jwt.claim.sub',$1,false)",[f.user]);
-    await c.query("set statement_timeout='30s';set role authenticated");return c;
+    await c.query("set jit=off;set statement_timeout='30s';set role authenticated");return c;
   }));
   const pair=(sql,args)=>Promise.allSettled(clients.map((c,i)=>c.query(sql,typeof args==='function'?args(i):args)));
   try {
