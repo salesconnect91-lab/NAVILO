@@ -28,9 +28,10 @@ type SupplierPaymentReceipt = {
 const today = () => new Date().toISOString().slice(0, 10);
 const money = (value: number) => new Intl.NumberFormat("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0));
 
-export default function SupplierPaymentPanel() {
+export default function SupplierPaymentPanel({initialTransport=false}:{initialTransport?:boolean}) {
   const {activeBusinessUnit}=useAuth();
-  const [transportMode,setTransportMode]=useState(false);
+  const [transportMode,setTransportMode]=useState(initialTransport);
+  useEffect(()=>setTransportMode(initialTransport),[initialTransport]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);

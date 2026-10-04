@@ -1,4 +1,4 @@
-import {useSearchParams} from 'react-router-dom';
+import {useNavigate,useSearchParams} from 'react-router-dom';
 import TransportHorizontalScroll from './TransportHorizontalScroll';
 import './transportScrolling.css';
 import NaviloDateInput from '@/components/NaviloDateInput';
@@ -109,6 +109,7 @@ const TRANSPORT_TRIP_HEADERS=[
 ] as const;
 
 export default function TransportWorkspace(){
+  const navigate=useNavigate();
   const {user,activeCompany,activeBusinessUnit}=useAuth();
   const scopeKey=`${activeCompany?.company_id}/${activeBusinessUnit?.business_unit_id}`;
   const scopeRef=useRef(scopeKey);scopeRef.current=scopeKey;
@@ -1200,6 +1201,8 @@ export default function TransportWorkspace(){
           <button type="button" onClick={()=>setTab("new")} className="flex h-7 items-center gap-1 rounded-md border border-blue-300 bg-blue-50 px-2 text-[11px] font-semibold text-blue-800 hover:bg-blue-100"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
           <span data-navilo-standard-tools-host="true" className="contents" />
           </div>
+          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=supplier&allocation=transport")} className="h-7 rounded-md border border-amber-200 bg-amber-50 px-2 text-[11px] font-semibold text-amber-800 hover:bg-amber-100">Pay Rent to Suppliers</button>
+          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=customer&allocation=transport")} className="h-7 rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100">Receive Customer Payment</button>
 
         </div>
 
