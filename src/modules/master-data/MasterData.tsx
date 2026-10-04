@@ -36,7 +36,7 @@ export default function MasterData() {
         <Route path="/employees" element={<Employees />} />
         <Route path="/warehouses" element={<Warehouses />} />
         <Route path="/uom" element={<Uom />} />
-        <Route path="/transporters" element={<Transporters />} />
+        <Route path="/transporters" element={isDedicatedTransportContext(activeCompany, activeBusinessUnit) ? <Navigate to="/master-data/vehicles" replace /> : <Transporters />} />
         <Route path="/vehicles" element={<TransportMasterOnly><TransportMaster kind="vehicles" /></TransportMasterOnly>} />
         <Route path="/drivers" element={<TransportMasterOnly><TransportMaster kind="drivers" /></TransportMasterOnly>} />
         <Route path="/truck-types" element={<TransportMasterOnly><TransportFoundationMaster kind="truck_types" /></TransportMasterOnly>} />
