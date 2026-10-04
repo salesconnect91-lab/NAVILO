@@ -1128,12 +1128,22 @@ export default function TransportWorkspace(){
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
     {!showPartyReports&&tab==="trips"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className={`relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden rounded-lg border bg-white shadow-sm ${theme2?"border-slate-700 shadow-slate-300":"border-slate-200"}`} data-navilo-customizable="true">
+      {theme2&&<div className="relative z-[90] flex h-9 shrink-0 items-center justify-between bg-slate-900 px-3 text-white">
+        <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
+        <div className="flex items-center gap-1">
+          <div className="flex h-6 overflow-hidden rounded border border-slate-600">
+            <button type="button" onClick={()=>setTheme(1)} className="px-2 text-[9px] font-bold text-slate-300 hover:bg-slate-800">Theme 1</button>
+            <button type="button" onClick={()=>setTheme(2)} className="border-l border-slate-600 bg-blue-600 px-2 text-[9px] font-bold text-white">Theme 2</button>
+          </div>
+          <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-6 items-center gap-1 rounded border border-slate-600 px-2 text-[9px] font-semibold text-slate-200 hover:bg-slate-800"><RefreshCw className="h-3 w-3"/>Refresh</button>
+        </div>
+      </div>}
       <div className="relative z-[80] shrink-0 border-b border-slate-200 bg-white px-1.5 py-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <div className="flex h-7 overflow-hidden rounded-md border border-slate-300">
-            <button type="button" onClick={()=>setTheme(1)} className={`px-2 text-[9px] font-bold ${!theme2?"bg-slate-900 text-white":"bg-white text-slate-600 hover:bg-slate-50"}`}>Theme 1</button>
-            <button type="button" onClick={()=>setTheme(2)} className={`border-l border-slate-300 px-2 text-[9px] font-bold ${theme2?"bg-blue-600 text-white":"bg-white text-slate-600 hover:bg-slate-50"}`}>Theme 2</button>
-          </div>
+          {!theme2&&<div className="flex h-7 overflow-hidden rounded-md border border-slate-300">
+            <button type="button" onClick={()=>setTheme(1)} className="bg-slate-900 px-2 text-[9px] font-bold text-white">Theme 1</button>
+            <button type="button" onClick={()=>setTheme(2)} className="border-l border-slate-300 bg-white px-2 text-[9px] font-bold text-slate-600 hover:bg-slate-50">Theme 2</button>
+          </div>}
           <div className="flex h-7 min-w-[92px] items-center justify-between rounded-md border border-cyan-200 bg-cyan-50 px-2">
             <span className="text-[9px] font-bold uppercase text-cyan-700">Total Trips</span>
             <span className="text-sm font-bold text-slate-950">{Number(registerMeta.count??0).toLocaleString()}</span>
@@ -1241,7 +1251,7 @@ export default function TransportWorkspace(){
           </div>
         </div>}
 
-        <div className="flex h-3.5 items-center justify-end text-[9px] font-semibold text-slate-600">
+        <div className={`flex h-3.5 items-center justify-end text-[9px] font-semibold ${theme2?"text-slate-700":"text-slate-600"}`}>
           {gridRows.length.toLocaleString()} shown / {Number(registerMeta.count??0).toLocaleString()} filtered trips
         </div>
       </div>
@@ -1252,7 +1262,10 @@ export default function TransportWorkspace(){
       >
         <table className="w-max min-w-full table-auto whitespace-nowrap text-[8px] leading-none">
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
-          <thead className="sticky top-0 z-40 bg-slate-50 text-left text-[8px] uppercase tracking-normal text-slate-600 shadow-[0_1px_2px_rgba(15,23,42,0.12)]">
+          <thead className={`sticky top-0 z-40 text-left text-[8px] uppercase tracking-normal shadow-[0_1px_2px_rgba(15,23,42,0.12)] ${theme2?"bg-slate-800 text-white":"bg-slate-50 text-slate-600"}`}>
+            {theme2&&<tr className="h-5">
+              {orderedGridColumns.map(([key])=><th key={'group-'+key} className={`border-b border-r px-1 py-0 text-center text-[7px] font-extrabold tracking-wide ${isSupplierGridKey(key)?"border-rose-300 bg-rose-200 text-rose-950":isCustomerGridKey(key)?"border-sky-300 bg-sky-200 text-sky-950":"border-slate-600 bg-slate-800 text-slate-300"}`}>{key===orderedGridColumns.find(([k])=>isSupplierGridKey(k))?.[0]?"SUPPLIER · OUR COST":key===orderedGridColumns.find(([k])=>isCustomerGridKey(k))?.[0]?"CUSTOMER · OUR REVENUE":""}</th>)}
+            </tr>}
             <tr>
               {orderedGridColumns.map(([key,label],i)=>{
                 const active=(columnFilters[key]?.length??0)>0;
@@ -1382,7 +1395,7 @@ export default function TransportWorkspace(){
       
       <TransportHorizontalScroll gridRef={tripsGridRef} revision={registerKey+String(page)+hiddenTripColumns.join()+JSON.stringify(tripColumnWidths)}/>
       <TransportPagination page={page} pageSize={500} count={Number(registerMeta.count??0)} busy={registerLoading} onPage={setPage}/>
-      <p className="shrink-0 px-2 text-[10px] text-slate-500">Header totals cover all filtered Trips, across every page.</p>
+      <p className={`shrink-0 border-t px-2 py-0.5 text-[10px] font-medium ${theme2?"border-slate-300 bg-slate-100 text-slate-700":"border-transparent text-slate-500"}`}>Header totals cover all filtered Trips, across every page.</p>
       {!registerLoading&&!visible.length&&<div className="p-10 text-center text-sm text-slate-500">No trips found.</div>}
     </section>}
 
