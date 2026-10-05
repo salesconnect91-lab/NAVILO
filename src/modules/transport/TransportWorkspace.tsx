@@ -1061,6 +1061,7 @@ export default function TransportWorkspace(){
     ["paper_received_by","PPR Received By"]
   ] as const;
   const defaultTripColumnOrder=gridColumns.map(column=>column[0]);
+  const legacyTripGridStorageKey=`navilo:transport:trip-grid:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
   const tripGridStorageKey=`navilo:transport:trip-grid:v2:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
   const allOrderedGridColumns=useMemo(()=>{
     const byKey=new Map(gridColumns.map(column=>[column[0],column] as const));
@@ -1100,7 +1101,7 @@ export default function TransportWorkspace(){
 
   useEffect(()=>{
     try{
-      const saved=localStorage.getItem(tripGridStorageKey);
+      const saved=localStorage.getItem(tripGridStorageKey)??localStorage.getItem(legacyTripGridStorageKey);
       if(!saved){setTripColumnOrder([...defaultTripColumnOrder]);setHiddenTripColumns([]);setTripColumnWidths({});return;}
       const parsed=JSON.parse(saved);
       setTripColumnOrder(Array.isArray(parsed.order)?parsed.order:[]);
