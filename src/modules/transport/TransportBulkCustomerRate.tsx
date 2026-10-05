@@ -39,10 +39,10 @@ export default function TransportBulkCustomerRate({onClose,onChanged}:{onClose:(
   if(request!==generation.current)return;
   if(result.error)throw result.error;
   const tripIds=result.data.rows.map((r:any)=>r.id).filter(Boolean);
-  const chargeResult=tripIds.length?await supabase.from('transport_trip_customer_charges').select('trip_id,amount,charge_name_snapshot').in('trip_id',tripIds):{data:[],error:null};
+  const chargeResult=tripIds.length?await supabase.from('transport_trip_customer_charges').select('trip_id,amount,name_snapshot').in('trip_id',tripIds):{data:[],error:null};
   if(chargeResult.error)throw chargeResult.error;
   const chargesByTrip=new Map<string,{amount:number;names:string[]}>();
-  for(const x of chargeResult.data??[]){const v=chargesByTrip.get(x.trip_id)??{amount:0,names:[]};v.amount+=Number(x.amount||0);if(x.charge_name_snapshot)v.names.push(x.charge_name_snapshot);chargesByTrip.set(x.trip_id,v);}
+  for(const x of chargeResult.data??[]){const v=chargesByTrip.get(x.trip_id)??{amount:0,names:[]};v.amount+=Number(x.amount||0);if(x.name_snapshot)v.names.push(x.name_snapshot);chargesByTrip.set(x.trip_id,v);}
   const enrichedRows=result.data.rows.map((r:any)=>{const x=chargesByTrip.get(r.id);return {...r,customer_charges:x?.amount??0,customer_charge_names:x?.names.join(', ')??''};});
   setRows(enrichedRows);setSelected(current=>current.filter(id=>enrichedRows.some((r:any)=>r.id===id)));setPageMeta(result.data);if(page>Math.max(0,Math.ceil(result.data.count/500)-1))setPage(Math.max(0,Math.ceil(result.data.count/500)-1));setCustomers(people.sort((a,b)=>a.name.localeCompare(b.name)));setPermissions(Object.fromEntries(grants));
   }finally{if(request===generation.current)setLoading(false);}
