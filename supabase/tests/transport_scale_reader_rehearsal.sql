@@ -39,6 +39,12 @@ begin
  insert into public.business_unit_modules(company_id,business_unit_id,module_key,enabled)
   values(c,b,'sales',true),(c,b,'purchase',true),(c,b,'accounting',true),(c,b,'transport',true),(c,b,'settings',true),(c,b,'master',true)
  on conflict(business_unit_id,module_key) do update set enabled=true;
+ -- This reconciliation fixture intentionally creates/posts manual journals below.
+ -- Enable the governed Journal feature explicitly so the fixture exercises the
+ -- accounting report, not an authorization bypass.
+ insert into public.company_feature_entitlements(company_id,feature_key,enabled,action_overrides)
+ values(c,'journal',true,'{}'::jsonb)
+ on conflict(company_id,feature_key) do update set enabled=true,action_overrides='{}'::jsonb;
  insert into public.operating_locations(company_id,business_unit_id,code,name,location_type,is_active)
  values(c,b,'SV','Service branch','branch',true) returning id into loc;
  insert into public.operating_location_memberships(company_id,business_unit_id,operating_location_id,user_id,role,is_active)
