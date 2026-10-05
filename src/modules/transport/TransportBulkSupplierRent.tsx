@@ -51,10 +51,10 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
   if(request!==generation.current)return;if(result.error)throw result.error;
   const data=result.data;
   const rentIds=data.rows.map((r:any)=>r.rent?.id).filter(Boolean);
-  const chargeResult=rentIds.length?await supabase.from('transport_trip_supplier_charges').select('rent_id,amount,charge_name_snapshot').in('rent_id',rentIds):{data:[],error:null};
+  const chargeResult=rentIds.length?await supabase.from('transport_trip_supplier_charges').select('rent_id,amount,name_snapshot').in('rent_id',rentIds):{data:[],error:null};
   if(chargeResult.error)throw chargeResult.error;
   const chargesByRent=new Map<string,{amount:number;names:string[]}>();
-  for(const x of chargeResult.data??[]){const v=chargesByRent.get(x.rent_id)??{amount:0,names:[]};v.amount+=Number(x.amount||0);if(x.charge_name_snapshot)v.names.push(x.charge_name_snapshot);chargesByRent.set(x.rent_id,v);}
+  for(const x of chargeResult.data??[]){const v=chargesByRent.get(x.rent_id)??{amount:0,names:[]};v.amount+=Number(x.amount||0);if(x.name_snapshot)v.names.push(x.name_snapshot);chargesByRent.set(x.rent_id,v);}
   const enrichedRows=data.rows.map((r:any)=>{const x=chargesByRent.get(r.rent?.id);return {...r,supplier_charges:x?.amount??0,supplier_charge_names:x?.names.join(', ')??''};});
   setRows(enrichedRows);setSelected(current=>current.filter(id=>enrichedRows.some((r:any)=>r.id===id)));setPageMeta(data);
   if(page>Math.max(0,Math.ceil(data.count/500)-1))setPage(Math.max(0,Math.ceil(data.count/500)-1));
