@@ -79,7 +79,7 @@ begin
  with agreed_rents as materialized (select trip_id,sum(coalesce(finalized_amount_snapshot,amount)) amount from public.transport_trip_supplier_rents where company_id=c and business_unit_id=b group by trip_id), scoped as materialized (
   select r.id,r.trip_date,r.payment_date,r.trip_no,
   public.transport_canonical_trip_status(r.id,r.customer_rate_locked,r.supplier_rate_locked,r.customer_outstanding_gross,r.supplier_outstanding_gross) status,
-  r.financial_status,r.ppr_status,r.customer_name,r.driver_name,r.vehicle_no,r.po_do_job_no,r.from_location,r.to_location,coalesce(r.billed_supplier_net,case when sv then ar.amount end,r.supplier_rent,r.owner_rent,0) n_rent_driver,coalesce((select sum(sc.amount) from public.transport_trip_supplier_charges sc where sv and sc.trip_id=r.id),0) n_supplier_charges,coalesce(r.supplier_paid_net,0) n_supplier_paid,greatest(coalesce(r.supplier_outstanding_gross,r.remaining_with_us,0),0) n_supplier_balance,greatest(coalesce(r.supplier_credit_gross,0),0) n_supplier_credit,coalesce(r.driver_accrued,r.driver_pay,0) n_driver_pay,coalesce(r.driver_paid,0) n_driver_paid,coalesce(r.driver_outstanding,0) n_driver_balance,coalesce(r.payment_amount,0) n_amount,coalesce(r.billed_customer_net,r.customer_rate,0) n_company_rate,coalesce(r.received_from_company,0) n_received_company,greatest(coalesce(r.customer_outstanding_gross,r.remaining_with_company,0),0) n_remaining_company,greatest(coalesce(r.customer_credit_gross,0),0) n_customer_credit,coalesce(r.trip_profit,0) n_profit,coalesce(r.commission_paid_net,0) n_commission,jsonb_build_object('cells',case when needs_cells then jsonb_build_object(
+  r.financial_status,r.ppr_status,r.customer_name,r.driver_name,r.vehicle_no,r.po_do_job_no,r.from_location,r.to_location,coalesce((select sum(tc.amount) from public.transport_trip_customer_charges tc where cv and tc.trip_id=r.id),0) n_customer_charges,coalesce(r.billed_supplier_net,case when sv then ar.amount end,r.supplier_rent,r.owner_rent,0) n_rent_driver,coalesce((select sum(sc.amount) from public.transport_trip_supplier_charges sc where sv and sc.trip_id=r.id),0) n_supplier_charges,coalesce(r.supplier_paid_net,0) n_supplier_paid,greatest(coalesce(r.supplier_outstanding_gross,r.remaining_with_us,0),0) n_supplier_balance,greatest(coalesce(r.supplier_credit_gross,0),0) n_supplier_credit,coalesce(r.driver_accrued,r.driver_pay,0) n_driver_pay,coalesce(r.driver_paid,0) n_driver_paid,coalesce(r.driver_outstanding,0) n_driver_balance,coalesce(r.payment_amount,0) n_amount,coalesce(r.billed_customer_net,r.customer_rate,0) n_company_rate,coalesce(r.received_from_company,0) n_received_company,greatest(coalesce(r.customer_outstanding_gross,r.remaining_with_company,0),0) n_remaining_company,greatest(coalesce(r.customer_credit_gross,0),0) n_customer_credit,coalesce(r.trip_profit,0) n_profit,coalesce(r.commission_paid_net,0) n_commission,jsonb_build_object('cells',case when needs_cells then jsonb_build_object(
 'trip_no',coalesce(nullif(r.trip_no,''),'?'),
 'trip_date',coalesce(nullif(to_char(r.trip_date,'DD-Mon-YY'),''),'?'),
 'truck_type',coalesce(nullif(r.truck_type_name,''),'?'),
@@ -91,7 +91,7 @@ begin
 'plate',coalesce(nullif(r.vehicle_no,''),'?'),
 'from',coalesce(nullif(r.from_location,''),'?'),
 'to',coalesce(nullif(r.to_location,''),'?'),
-'charge',coalesce(nullif((select string_agg(tc.code_snapshot,' + ' order by tc.sort_order,tc.id) from public.transport_trip_customer_charges tc where tc.trip_id=r.id),''),'?'),
+'charge',to_char(coalesce((select sum(tc.amount) from public.transport_trip_customer_charges tc where cv and tc.trip_id=r.id),0),'FM999,999,999,999,999,990.00'),
 'supplier_charge',coalesce(nullif((select string_agg(sc.charge_key_snapshot,' + ' order by sc.sort_order,sc.id) from public.transport_trip_supplier_charges sc where sv and sc.trip_id=r.id),''),'?'),
 'paper_received_by',coalesce(nullif(case when r.ppr_status='received' then coalesce(nullif(r.ppr_received_by_name,''),'—')||coalesce(' · '||to_char(r.ppr_received_date,'DD-Mon-YY'),'') else 'Pending' end,''),'?'),
 'payment_date',coalesce(nullif(to_char(r.payment_date,'DD-Mon-YY'),''),'?'),
@@ -112,6 +112,7 @@ begin
 'customer_credit',to_char(greatest(coalesce(r.customer_credit_gross,0),0),'FM999,999,999,999,999,990.00'),
 'profit',to_char(coalesce(r.trip_profit,0),'FM999,999,999,999,999,990.00'),
 'commission',to_char(coalesce(r.commission_paid_net,0),'FM999,999,999,999,999,990.00')) else '{}'::jsonb end, 'numbers',case when needs_cells then jsonb_build_object(
+'charge',coalesce((select sum(tc.amount) from public.transport_trip_customer_charges tc where cv and tc.trip_id=r.id),0),
 'rent_driver',coalesce(r.billed_supplier_net,case when sv then ar.amount end,r.supplier_rent,r.owner_rent,0),
 'supplier_paid',coalesce(r.supplier_paid_net,0),
 'supplier_balance',greatest(coalesce(r.supplier_outstanding_gross,r.remaining_with_us,0),0),
