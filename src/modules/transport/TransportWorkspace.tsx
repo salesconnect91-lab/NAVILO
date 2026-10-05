@@ -1025,41 +1025,43 @@ export default function TransportWorkspace(){
   const profitCommissionGridKeys=["commission","profit"] as const;
   const isSupplierGridKey=(key:string)=>(supplierGridKeys as readonly string[]).includes(key);
   const isCustomerGridKey=(key:string)=>(customerGridKeys as readonly string[]).includes(key);
+  const isPprGridKey=(key:string)=>(pprGridKeys as readonly string[]).includes(key);
+  const visualGridGroup=(key:string)=>isCustomerGridKey(key)?"customer":isSupplierGridKey(key)?"supplier":isPprGridKey(key)?"ppr":"trip";
 
   const gridColumns:ReadonlyArray<readonly [string,string]>=[
     ["trip_no","Trip No"],
-    ["trip_date","Trip Date"],
+    ["trip_date","Date"],
     ["truck_type","Truck Type"],
     ["job_no","PO/DO/Job No."],
-    ["invoice_no","Customer Invoice No."],
+    ["invoice_no","Invoice"],
     ["company","Customer"],
     ["driver","Driver"],
     ["plate","Vehicle No."],
     ["owner","Vehicle Owner"],
     ["from","From"],
     ["to","To"],
-    ["charge","Customer Charges"],
-    ["rent_driver","Supplier Rent (Net)"],
-    ["supplier_charges","Supplier Charges"],
-    ["supplier_paid","Supplier Rent Paid (Net)"],
-    ["supplier_balance","Supplier Rent Balance (Incl. VAT)"],
-    ["payment_date","Supplier Payment Date"],
-    ["paper_received_by","PPR Received By"],
-    ["company_rate","Customer Rate (Net)"],
-    ["received_company","Customer Collection (Incl. VAT)"],
-    ["remaining_company","Customer Balance (Incl. VAT)"],
+    ["sale_type","Sale Type"],
     ["driver_pay","Driver Pay"],
     ["driver_paid","Driver Paid"],
     ["driver_balance","Driver Balance"],
+    ["charge","Customer Charges"],
+    ["company_rate","Customer Rate (Net)"],
+    ["received_company","Collection (Incl. VAT)"],
+    ["remaining_company","Customer Balance (Incl. VAT)"],
+    ["customer_credit","Customer Credit / Advance"],
+    ["supplier_charges","Supplier Charges"],
+    ["rent_driver","Supplier Rent (Net)"],
+    ["supplier_paid","Supplier Rent Paid (Net)"],
+    ["supplier_balance","Supplier Balance (Incl. VAT)"],
+    ["payment_date","Supplier Payment Date"],
     ["amount","Supplier Payment Amount"],
+    ["supplier_credit","Supplier Credit / Advance"],
     ["commission","Trip Commission Paid"],
     ["profit","Trip Profit"],
-    ["sale_type","Sale Type"],
-    ["supplier_credit","Supplier Credit / Advance"],
-    ["customer_credit","Customer Credit / Advance"]
+    ["paper_received_by","PPR Received By"]
   ] as const;
   const defaultTripColumnOrder=gridColumns.map(column=>column[0]);
-  const tripGridStorageKey=`navilo:transport:trip-grid:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
+  const tripGridStorageKey=`navilo:transport:trip-grid:v2:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
   const allOrderedGridColumns=useMemo(()=>{
     const byKey=new Map(gridColumns.map(column=>[column[0],column] as const));
     const order=tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0]);
@@ -1073,6 +1075,12 @@ export default function TransportWorkspace(){
     ['charge','company_rate','received_company','remaining_company','customer_credit','invoice_no','sale_type','invoiced'].includes(key)?readCustomer:
     ['owner','rent_driver','supplier_paid','supplier_balance','supplier_credit','payment_date','amount','driver_pay','driver_paid','driver_balance','commission'].includes(key)?readSupplier:true;
   const orderedGridColumns=allOrderedGridColumns.filter(column=>columnAuthorized(column[0])&&!hiddenTripColumns.includes(column[0]));
+  const gridGroupSegments=orderedGridColumns.reduce<Array<{group:string;count:number}>>((segments,[key])=>{
+    const group=visualGridGroup(key);
+    const last=segments[segments.length-1];
+    if(last?.group===group)last.count+=1;else segments.push({group,count:1});
+    return segments;
+  },[]);
   const [exportProgress,setExportProgress]=useState('');
   const exportRequest=useRef<AbortController|null>(null);
   useEffect(()=>{
@@ -1323,8 +1331,11 @@ export default function TransportWorkspace(){
         <table className="w-max min-w-full table-auto whitespace-nowrap text-[9px] leading-none">
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
           <thead className="sticky top-0 z-40 bg-slate-900 text-left text-[9px] uppercase tracking-normal text-white shadow-[0_1px_2px_rgba(15,23,42,0.12)]">
-            <tr className="h-5">
-              {orderedGridColumns.map(([key])=><th key={'group-'+key} className={`border-b border-r px-1 py-0 text-center text-[7px] font-extrabold tracking-wide ${isSupplierGridKey(key)?"border-rose-300 bg-rose-200 text-rose-950":isCustomerGridKey(key)?"border-sky-300 bg-sky-200 text-sky-950":"border-slate-700 bg-slate-900 text-slate-200"}`}>{key===orderedGridColumns.find(([k])=>isSupplierGridKey(k))?.[0]?"SUPPLIER · OUR COST":key===orderedGridColumns.find(([k])=>isCustomerGridKey(k))?.[0]?"CUSTOMER · OUR REVENUE":""}</th>)}
+            <tr className="h-7">
+              {gridGroupSegments.map((segment,index)=><th key={segment.group+index} colSpan={segment.count}
+                className={`border-b border-r px-2 py-0 text-center text-[9px] font-extrabold tracking-wide ${segment.group==="supplier"?"border-rose-200 bg-rose-100 text-rose-800":segment.group==="customer"?"border-blue-200 bg-blue-100 text-blue-800":segment.group==="ppr"?"border-emerald-200 bg-emerald-100 text-emerald-800":"border-slate-300 bg-slate-100 text-slate-700"}`}>
+                {segment.group==="supplier"?"🚚  SUPPLIER · OUR COST":segment.group==="customer"?"●  CUSTOMER · OUR REVENUE":segment.group==="ppr"?"▣  PPR":"🚚  TRIP DETAILS"}
+              </th>)}
             </tr>
             <tr>
               {orderedGridColumns.map(([key,label],i)=>{
@@ -1336,7 +1347,7 @@ export default function TransportWorkspace(){
 
                 return <th key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`sticky top-0 border-b border-r px-0.5 !py-0 font-bold leading-none ${isSupplierGridKey(key)?"border-rose-300 bg-rose-800 text-white":isCustomerGridKey(key)?"border-sky-400 bg-sky-800 text-white":"border-slate-700 bg-slate-900 text-white"} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
+                  className={`sticky top-0 border-b border-r px-0.5 !py-0 font-bold leading-none ${isSupplierGridKey(key)?"border-rose-200 bg-rose-50 text-slate-800":isCustomerGridKey(key)?"border-blue-200 bg-blue-50 text-slate-800":isPprGridKey(key)?"border-emerald-200 bg-emerald-50 text-slate-800":"border-slate-300 bg-white text-slate-700"} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
                   <div className="flex min-h-[28px] w-full min-w-0 items-center gap-0.5">
                     <button type="button"
                       title={`Sort ${label} ${sorted&&sortDirection==="asc"?"descending":"ascending"}`}
@@ -1426,7 +1437,7 @@ export default function TransportWorkspace(){
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`h-[20px] max-h-[20px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-slate-300 px-0.5 !py-0 leading-none ${isSupplierGridKey(key)?"bg-rose-50/80":isCustomerGridKey(key)?"bg-sky-50/80":""} ${numeric?"text-right":""}`}>
+                  className={`h-[20px] max-h-[20px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-slate-300 px-0.5 !py-0 leading-none ${isSupplierGridKey(key)?"bg-rose-50/70":isCustomerGridKey(key)?"bg-blue-50/60":isPprGridKey(key)?"bg-emerald-50/60":""} ${numeric?"text-right":""}`}>
                   {key==='charge'
                     ?<button type="button" className="h-[17px] w-full cursor-pointer rounded px-0.5 py-0 text-left text-[9px] font-semibold leading-none text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
                     :key==='supplier_charges'
