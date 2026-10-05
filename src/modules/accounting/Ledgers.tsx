@@ -39,6 +39,11 @@ type TransportDetail = {
   driver_name?: string | null;
   owner_name?: string | null;
   po_do_job_no?: string | null;
+  base_amount?: number | null;
+  charge_amount?: number | null;
+  tax_amount?: number | null;
+  total_amount?: number | null;
+  charge_breakdown?: string | null;
 };
 
 type TransportMovementLink = {
@@ -51,11 +56,11 @@ const PARTY_COLUMNS = [
   ["date", "Date"], ["party", "Party"], ["reference", "Reference"],
   ["trip", "Trip"], ["from", "From"], ["to", "To"], ["vehicle", "Vehicle"],
   ["driver", "Driver"], ["owner", "Owner"], ["job", "Job / PO / DO"],
-  ["description", "Description"], ["debit", "Debit"], ["credit", "Credit"], ["balance", "Balance"],
+  ["description", "Description"], ["base", "Base Amount"], ["charges", "Charges"], ["tax", "VAT / Tax"], ["postedTotal", "Posted Total"], ["debit", "Debit"], ["credit", "Credit"], ["balance", "Balance"],
 ] as const;
 type PartyColumnKey = (typeof PARTY_COLUMNS)[number][0];
 const DEFAULT_PARTY_COLUMNS: PartyColumnKey[] = [
-  "date","party","reference","trip","from","to","vehicle","description","debit","credit","balance",
+  "date","party","reference","trip","from","to","vehicle","description","base","charges","tax","postedTotal","debit","credit","balance",
 ];
 
 const escapeCsv = (value: unknown) => {
@@ -470,6 +475,11 @@ export default function Ledgers() {
         driver: unique(details.map((d) => d.driver_name)),
         owner: unique(details.map((d) => d.owner_name)),
         job: unique(details.map((d) => d.po_do_job_no)),
+        base: details.reduce((sum,d)=>sum+(Number(d.base_amount)||0),0),
+        charges: details.reduce((sum,d)=>sum+(Number(d.charge_amount)||0),0),
+        tax: details.reduce((sum,d)=>sum+(Number(d.tax_amount)||0),0),
+        postedTotal: details.reduce((sum,d)=>sum+(Number(d.total_amount)||0),0),
+        chargeBreakdown: unique(details.map((d)=>d.charge_breakdown)),
       };
     };
   }, [transportDetails, transportMovements]);
@@ -549,7 +559,7 @@ export default function Ledgers() {
         date: row.entry_date, party: row.party_name || "", reference: row.reference || "",
         trip: transport.trip, from: transport.from, to: transport.to, vehicle: transport.vehicle,
         driver: transport.driver, owner: transport.owner, job: transport.job,
-        description: row.description || "", debit: Number(row.debit) || "", credit: Number(row.credit) || "",
+        description: row.description || "", base: transport.base || "", charges: transport.charges || "", tax: transport.tax || "", postedTotal: transport.postedTotal || "", debit: Number(row.debit) || "", credit: Number(row.credit) || "",
         balance: signedBalanceLabel(Number(row.displayBalance) || 0),
       };
       return exportColumns.map(([key]) => escapeCsv(values[key])).join(",");
@@ -906,7 +916,7 @@ export default function Ledgers() {
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
                   {displayedPartyColumns.map(([key, label]) => (
-                    <th key={key} draggable onDragStart={(e) => { partyColumnDragKey.current = key; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", key); }} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }} onDrop={(e) => { e.preventDefault(); const source = partyColumnDragKey.current || e.dataTransfer.getData("text/plain") as PartyColumnKey; partyColumnDragKey.current = null; if (source) movePartyColumn(source, key); }} onDragEnd={() => { partyColumnDragKey.current = null; }} title="Drag left or right to reorder" className={`cursor-grab select-none py-2 px-2 font-medium whitespace-nowrap active:cursor-grabbing ${["debit","credit","balance"].includes(key) ? "text-right" : "text-left"}`}>{label}</th>
+                    <th key={key} draggable onDragStart={(e) => { partyColumnDragKey.current = key; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", key); }} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }} onDrop={(e) => { e.preventDefault(); const source = partyColumnDragKey.current || e.dataTransfer.getData("text/plain") as PartyColumnKey; partyColumnDragKey.current = null; if (source) movePartyColumn(source, key); }} onDragEnd={() => { partyColumnDragKey.current = null; }} title="Drag left or right to reorder" className={`cursor-grab select-none py-2 px-2 font-medium whitespace-nowrap active:cursor-grabbing ${["base","charges","tax","postedTotal","debit","credit","balance"].includes(key) ? "text-right" : "text-left"}`}>{label}</th>
                   ))}
                 </tr>
               </thead>
@@ -924,6 +934,10 @@ export default function Ledgers() {
                     trip: transport.trip, from: transport.from, to: transport.to, vehicle: transport.vehicle,
                     driver: transport.driver, owner: transport.owner, job: transport.job,
                     description: row.description || "",
+                    base: transport.base ? formatCurrency(transport.base) : "",
+                    charges: transport.charges ? <span title={transport.chargeBreakdown || undefined}>{formatCurrency(transport.charges)}</span> : "",
+                    tax: transport.tax ? formatCurrency(transport.tax) : "",
+                    postedTotal: transport.postedTotal ? formatCurrency(transport.postedTotal) : "",
                     debit: Number(row.debit) > 0 ? formatCurrency(Number(row.debit)) : "",
                     credit: Number(row.credit) > 0 ? formatCurrency(Number(row.credit)) : "",
                     balance: signedBalanceLabel(Number(row.displayBalance) || 0),
@@ -931,7 +945,7 @@ export default function Ledgers() {
                   return (
                     <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50/50">
                       {displayedPartyColumns.map(([key]) => (
-                        <td key={key} className={`py-2 px-2 whitespace-nowrap ${["debit","credit","balance"].includes(key) ? "text-right" : "text-left"} ${key === "balance" ? "font-semibold text-slate-900" : "text-slate-700"}`}>
+                        <td key={key} className={`py-2 px-2 whitespace-nowrap ${["base","charges","tax","postedTotal","debit","credit","balance"].includes(key) ? "text-right" : "text-left"} ${key === "balance" ? "font-semibold text-slate-900" : "text-slate-700"}`}>
                           {cells[key]}
                         </td>
                       ))}
@@ -943,7 +957,7 @@ export default function Ledgers() {
                 <tfoot>
                   <tr className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-200">
                     {displayedPartyColumns.map(([key], index) => (
-                      <td key={key} className={`py-2 px-2 ${["debit","credit","balance"].includes(key) ? "text-right" : ""}`}>
+                      <td key={key} className={`py-2 px-2 ${["base","charges","tax","postedTotal","debit","credit","balance"].includes(key) ? "text-right" : ""}`}>
                         {key === "debit" ? formatCurrency(totalDebit) : key === "credit" ? formatCurrency(totalCredit) : key === "balance" ? (selectedPartyKey ? signedBalanceLabel(statementBalance) : "Per Party") : index === 0 ? "Total:" : ""}
                       </td>
                     ))}
