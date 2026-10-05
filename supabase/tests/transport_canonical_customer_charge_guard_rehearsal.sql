@@ -3,7 +3,7 @@ begin;
 
 do $$
 declare
-  u uuid:=gen_random_uuid(); c uuid; b uuid; customer uuid; trip uuid; ar uuid; revenue uuid; cm uuid; other_c uuid; other_cm uuid;
+  u uuid:=gen_random_uuid(); c uuid; b uuid; customer uuid; trip uuid; ar uuid; revenue uuid; cm uuid; other_c uuid; other_b uuid; other_cm uuid;
   code text:=substr(replace(gen_random_uuid()::text,'-',''),1,10);
   result jsonb; rejected boolean;
 begin
@@ -25,7 +25,7 @@ begin
   perform public.initialize_default_coa();
 
   select account_id into ar from public.account_mappings where company_id=c and mapping_key='accounts_receivable';
-  select id into revenue from public.chart_of_accounts where company_id=c and type='income' and is_active and not is_group order by id limit 1;
+  select id into revenue from public.chart_of_accounts where company_id=c and type='revenue' and is_active and not is_group order by id limit 1;
   if ar is null or revenue is null then raise exception 'Accounting fixture missing'; end if;
 
   insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Guard Customer',ar) returning id into customer;
@@ -46,9 +46,15 @@ begin
     raise exception 'Canonical customer charge row not stored correctly';
   end if;
 
+  -- Create the foreign synthetic master as the fixture administrator, then restore the tenant identity.
   insert into public.companies(name,code,status) values('Other charge company','OC'||code,'active') returning id into other_c;
+  select id into other_b from public.business_units where company_id=other_c and is_default;
+  insert into public.company_memberships(company_id,user_id,role,is_active) values(other_c,u,'company_owner',true);
+  update public.user_profiles set last_company_id=other_c,last_business_unit_id=other_b where id=u;
   insert into public.charge_master(user_id,company_id,charge_key,charge_name,applies_to,tax_applicable,revenue_account_id,is_active)
   values(u,other_c,'bad-'||code,'Wrong company','sales',false,null,true) returning id into other_cm;
+  update public.user_profiles set last_company_id=c,last_business_unit_id=b where id=u;
+  perform set_config('request.jwt.claim.sub',u::text,true);
   rejected:=false;
   begin
     perform public.transport_replace_trip_customer_charges(trip,jsonb_build_array(jsonb_build_object('charge_master_id',other_cm,'amount',1)),'Reject cross-company');
