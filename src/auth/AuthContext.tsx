@@ -72,7 +72,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const AUTH_BOOT_TIMEOUT_MS = 12000;
-async function withBootTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+async function withBootTimeout<T>(promise: PromiseLike<T>, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
