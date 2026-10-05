@@ -479,7 +479,7 @@ export default function TransportWorkspace(){
     if(key==='draft')return {mark:'○',className:'text-slate-500',title:'Draft'};
     if(key==='incomplete')return {mark:'◐',className:'text-amber-600',title:'Incomplete'};
     if(key==='complete')return {mark:'✓',className:'text-emerald-600',title:'Complete'};
-    if(key==='locked')return {mark:'▣',className:'text-blue-700',title:'Locked'};
+    if(key==='locked')return {mark:'🔒',className:'text-blue-700',title:'Locked'};
     if(key==='settled')return {mark:'●',className:'text-emerald-700',title:'Settled'};
     return {mark:'?',className:'text-slate-400',title:'Unknown'};
   };
