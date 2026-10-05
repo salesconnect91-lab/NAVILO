@@ -19,11 +19,11 @@ describe("import center", () => {
     expect(screen.getByRole("heading", { name: "Transport Master Imports" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Transport Rate Imports" })).toBeTruthy();
     for (const name of ["Vehicles","Drivers","Truck Types","Locations","Vehicle Expense Types","Vehicle Ownership History"]) expect(screen.getByRole("option", { name })).toBeTruthy();
-    expect(screen.getAllByRole("heading", { level: 2 }).map(node => node.textContent)).toEqual(["Transport Master Imports","Transport Rate Imports","Transport Trip Expense Import","NAVILO → NAVILO Transport Transfer","Transport Driver Pay Import","Transport Receipts / Payments Import","Transport Sales Invoice Import","Bank Data","Customers","Suppliers","Invoices"]);
+    expect(screen.getAllByRole("heading", { level: 2 }).map(node => node.textContent)).toEqual(["NAVILO → NAVILO Transport Transfer","Transport Master Imports","Transport Rate Imports","Transport Driver Pay Import","Transport Trip Expense Import","Transport Receipts / Payments Import","Transport Sales Invoice Import","Receipts / Payments","Customers","Suppliers","Invoices"]);
     expect(screen.getByRole("option", { name: "Customer Route Rates" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Supplier Route Rates" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Customer Additional Charges" })).toBeTruthy();
-    expect(screen.getByText("Not available")).toBeTruthy();
+    expect(screen.getByText("No import permission")).toBeTruthy();
     expect(screen.getByRole("link", { name: /Open customer import/ }).getAttribute("href")).toBe("/master-data/customers");
     expect(screen.getByRole("link", { name: /Open supplier import/ }).getAttribute("href")).toBe("/master-data/suppliers");
   });
