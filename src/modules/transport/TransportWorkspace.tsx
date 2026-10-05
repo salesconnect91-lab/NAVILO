@@ -1203,7 +1203,7 @@ export default function TransportWorkspace(){
 
           <div className="relative">
             <button type="button" onClick={()=>setStatusOpen(v=>!v)} className="flex h-7 min-w-[190px] items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700">
-              <span>Status</span><span className="max-w-[135px] truncate text-slate-900">{statusFilters.length===0?"All Statuses":statusFilters.length===1?(statusOptions.find(option=>option.key===statusFilters[0])?.label??"1 selected"):`${statusFilters.length} selected`}</span>
+              <span>Status</span><span className="max-w-[135px] truncate text-slate-900">{statusFilters.length===0?"All Statuses":statusFilters.length===1?<> <span className={statusMark(statusFilters[0].replace(/^status:/,'')).className}>{statusMark(statusFilters[0].replace(/^status:/,'')).mark}</span> {statusOptions.find(option=>option.key===statusFilters[0])?.label??"1 selected"}</>:`${statusFilters.length} selected`}</span>
               <span aria-hidden>⌄</span>
             </button>
             {statusOpen&&<div className="absolute left-0 top-8 z-[100] w-[240px] overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xl">
@@ -1217,7 +1217,7 @@ export default function TransportWorkspace(){
                 </label>
                 {visibleStatusOptions.map(option=><label key={option.key} className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[10px] hover:bg-slate-50 ${statusFilters.includes(option.key)?"bg-blue-50 font-bold text-blue-800":""}`}>
                   <input type="checkbox" checked={statusFilters.includes(option.key)} onChange={()=>setStatusFilters(current=>current.includes(option.key)?current.filter(key=>key!==option.key):[...current,option.key])}/>
-                  <span className="flex min-w-0 flex-1 items-start justify-between gap-2"><span className="min-w-0"><span className="block">{option.label}</span><span className="block text-[8px] font-normal leading-tight text-slate-500">{statusNarration(option)}</span></span><span className="shrink-0 tabular-nums text-[10px] font-bold text-slate-600">{Number(option.count??0).toLocaleString()}</span></span>
+                  <span className="flex min-w-0 flex-1 items-start justify-between gap-2"><span className="flex min-w-0 items-start gap-1.5"><span title={statusMark(String(option.key).replace(/^status:/,'')).title} className={`mt-px inline-flex w-3 shrink-0 justify-center text-[11px] font-bold ${statusMark(String(option.key).replace(/^status:/,'')).className}`}>{statusMark(String(option.key).replace(/^status:/,'')).mark}</span><span className="min-w-0"><span className="block">{option.label}</span><span className="block text-[8px] font-normal leading-tight text-slate-500">{statusNarration(option)}</span></span></span><span className="shrink-0 tabular-nums text-[10px] font-bold text-slate-600">{Number(option.count??0).toLocaleString()}</span></span>
                 </label>)}
                 {visibleStatusOptions.length===0&&<div className="px-2 py-2 text-[10px] text-slate-500">No matching status</div>}
               </div>
