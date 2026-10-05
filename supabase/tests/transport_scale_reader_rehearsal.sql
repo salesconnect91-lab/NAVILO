@@ -40,8 +40,12 @@ begin
   values(c,b,'sales',true),(c,b,'purchase',true),(c,b,'accounting',true),(c,b,'transport',true),(c,b,'settings',true),(c,b,'master',true)
  on conflict(business_unit_id,module_key) do update set enabled=true;
  -- This reconciliation fixture intentionally creates/posts manual journals below.
- -- Enable the governed Journal feature explicitly so the fixture exercises the
- -- accounting report, not an authorization bypass.
+ -- The isolated replay does not seed the Owner Control feature registry from production,
+ -- so seed the canonical Journal feature key before granting the synthetic company entitlement.
+ insert into public.platform_features(feature_key,module_key,label,category,route_pattern,supported_actions,default_enabled,core_locked,sort_order,is_active,source)
+ values('journal','accounting','Journal Entries','transaction','/accounting',
+        array['view','create','edit','post','delete','print','export']::text[],true,false,700,true,'registry')
+ on conflict(feature_key) do nothing;
  insert into public.company_feature_entitlements(company_id,feature_key,enabled,action_overrides)
  values(c,'journal',true,'{}'::jsonb)
  on conflict(company_id,feature_key) do update set enabled=true,action_overrides='{}'::jsonb;
