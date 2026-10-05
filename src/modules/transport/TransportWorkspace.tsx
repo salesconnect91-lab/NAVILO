@@ -397,7 +397,9 @@ export default function TransportWorkspace(){
   const registerFilters={fromDate,toDate,customer:customerFilter,driver:driverFilter,vehicle:vehicleFilter,from:fromFilter,to:toFilter,ppr:pprFilter,statuses:statusFilters,columns:columnFilters,search:registerSearch};
   const registerKey=JSON.stringify({scopeKey,registerFilters,sortColumn,sortDirection});
   async function load(silent=false){
-    if(silent&&registerRequest.current)return;
+    // A successful rent save must refresh the register immediately. A previous
+    // in-flight register read is stale at this point, so cancel it instead of
+    // silently skipping the refresh (which left Supplier Balance unchanged).
     registerRequest.current?.abort();const controller=new AbortController();registerRequest.current=controller;
     const generation=++readGeneration.current;
     if(!silent)setRegisterLoading(true);setError('');
