@@ -11,7 +11,7 @@ it('applies parent filters to server queries and shows whole filtered totals ins
  const view=render(<TransportTripReports party="customer" externalFilters={{from:'2026-09-01',to:'2026-10-03',search:'INV-1'}}/>);
  await screen.findByText('Report ready');
  expect(mock.rpc).toHaveBeenCalledWith('transport_trip_report',expect.objectContaining({p_filters:expect.objectContaining({party:'customer',from:'2026-09-01',to:'2026-10-03',search:'INV-1'})}));
- const total=mock.report.rows.at(-1);expect(total[0]).toBe('TOTAL · full filter');expect(total[16]).toBe(50000);
+ const total=mock.report.rows.at(-1);expect(total[0]).toBe('TOTAL · full filter');const postedRevenue=mock.report.columns.indexOf('Posted revenue net');expect(total[postedRevenue]).toBe(50000);
  const received=mock.report.columns.indexOf('Customer received gross');expect(total[received]).toBe(20000);expect(mock.report.rows[0][received]).toBe(300);
  view.rerender(<TransportTripReports party="customer" externalFilters={{from:'2026-09-01',to:'2026-10-03',search:'INV-2'}}/>);
  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_trip_report',expect.objectContaining({p_offset:0,p_filters:expect.objectContaining({search:'INV-2'})})));
