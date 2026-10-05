@@ -850,7 +850,7 @@ export default function TransportWorkspace(){
   }
   async function updateTrip(){
     if(!editingTripId||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
-    if(editingTripLocked){setError("Locked Trip is read-only. Use controlled correction / reversal.");return;}
+    
     if(!form.customer_id){setError("Customer is required.");return}
     if(!form.sale_type){setError("Sale Type Cash or Credit is required.");return}
     if(!form.from_location.trim()||!form.to_location.trim()){setError("From and To locations are required.");return}
@@ -1489,11 +1489,10 @@ export default function TransportWorkspace(){
 
   {newTripMode==="single"&&
   <div className="p-3">
-    <fieldset disabled={editingTripLocked} className={editingTripLocked?"opacity-80":""}>
     <div className="overflow-visible rounded-lg border border-blue-300 bg-white">
       <div className="grid grid-cols-1 border-b border-slate-300 md:grid-cols-2 xl:grid-cols-7">
         <TripField label="Date">
-          <NaviloDateInput aria-label="Trip Date" type="date" disabled={Boolean(editingTripId)} value={form.trip_date}
+          <NaviloDateInput aria-label="Trip Date" type="date" disabled={Boolean(editingTripId)||editingTripLocked} value={form.trip_date}
             onChange={e=>{setError("");setForm({...form,trip_date:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-xs outline-none"/>
         </TripField>
@@ -1502,6 +1501,7 @@ export default function TransportWorkspace(){
           <SearchMasterInput value={tripMasters.truckTypes.find((r:any)=>r.id===form.truck_type_id)?.name||""}
             options={tripMasters.truckTypes.map((r:any)=>({value:r.id,label:r.name}))}
             placeholder="Search Truck Type"
+            disabled={editingTripLocked}
             onSelect={truckTypeId=>{
               const vehicle=tripMasters.vehicles.find((v:any)=>v.id===form.vehicle_id);
               setError("");
@@ -1510,7 +1510,7 @@ export default function TransportWorkspace(){
         </TripField>
 
         <TripField label="PO/DO/Job No.">
-          <input value={form.po_do_job_no}
+          <input value={form.po_do_job_no} disabled={editingTripLocked}
             onChange={e=>{setError("");setForm({...form,po_do_job_no:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-xs outline-none"/>
         </TripField>
@@ -1519,7 +1519,7 @@ export default function TransportWorkspace(){
           <SearchMasterInput value={tripMasters.customers.find((r:any)=>r.id===form.customer_id)?.name||""}
             options={tripMasters.customers.map((r:any)=>({value:r.id,label:r.name}))}
             placeholder="Search Customer"
-            disabled={Boolean(editingTripId&&editingRateLocks.customer)}
+            disabled={editingTripLocked||Boolean(editingTripId&&editingRateLocks.customer)}
             onSelect={customerId=>{
               const customer=tripMasters.customers.find((r:any)=>r.id===customerId);
               setError("");
@@ -1531,6 +1531,7 @@ export default function TransportWorkspace(){
           <SearchMasterInput value={selectedDriver?.driver_name||""}
             options={tripMasters.drivers.map((r:any)=>({value:r.id,label:r.driver_name}))}
             placeholder="Search Driver"
+            disabled={editingTripLocked}
             onSelect={driverId=>{setError("");setForm({...form,driver_id:driverId})}}/>
         </TripField>
 
@@ -1549,6 +1550,7 @@ export default function TransportWorkspace(){
               return {value:r.id,label:owner?`${r.vehicle_no} - ${owner}`:r.vehicle_no};
             })}
             placeholder="Search Plate"
+            disabled={editingTripLocked}
             onSelect={vehicleId=>{
               const vehicle=tripMasters.vehicles.find((r:any)=>r.id===vehicleId);
               setError("");
@@ -1567,6 +1569,7 @@ export default function TransportWorkspace(){
           <SearchMasterInput value={form.from_location}
             options={tripMasters.locations.map((r:any)=>({value:r.id,label:r.name}))}
             placeholder="Search From"
+            disabled={editingTripLocked}
             onSelect={locationId=>{
               const location=tripMasters.locations.find((r:any)=>r.id===locationId);
               setError("");
@@ -1578,6 +1581,7 @@ export default function TransportWorkspace(){
           <SearchMasterInput value={form.to_location}
             options={tripMasters.locations.map((r:any)=>({value:r.id,label:r.name}))}
             placeholder="Search To"
+            disabled={editingTripLocked}
             onSelect={locationId=>{
               const location=tripMasters.locations.find((r:any)=>r.id===locationId);
               setError("");
@@ -1615,19 +1619,19 @@ export default function TransportWorkspace(){
         </TripField>
 
         <TripField label="Supplier / Owner Rent">
-          <input type="number" min="0" step="0.01" aria-label="Supplier / Owner Rent" readOnly={Boolean(editingTripId)||!entryPermissions.rent||!supplierOwned} value={form.supplier_rent}
+          <input type="number" min="0" step="0.01" aria-label="Supplier / Owner Rent" readOnly={editingTripLocked||Boolean(editingTripId)||!entryPermissions.rent||!supplierOwned} value={form.supplier_rent}
             onChange={e=>{setError("");setForm({...form,supplier_rent:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-right text-xs outline-none"/>
         </TripField>
 
         <TripField label="Customer Rate">
-          <input type="number" min="0" step="0.01" aria-label="Customer Rate" readOnly={Boolean(editingTripId)||!entryPermissions.rate} title={editingTripId?"Customer Rate is a financial field. Use Finance for controlled changes.":""} value={form.customer_rate}
+          <input type="number" min="0" step="0.01" aria-label="Customer Rate" readOnly={editingTripLocked||Boolean(editingTripId)||!entryPermissions.rate} title={editingTripId?"Customer Rate is a financial field. Use Finance for controlled changes.":""} value={form.customer_rate}
             onChange={e=>{setRateTouched(true);setError("");setForm({...form,customer_rate:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-right text-xs outline-none"/>
         </TripField>
 
         <TripField label="Driver Pay">
-          <input aria-label="Driver Pay" type="number" min="0" step="0.01" readOnly={Boolean(editingTripId)||!entryPermissions.driver} value={form.driver_pay} onChange={e=>setForm({...form,driver_pay:e.target.value})} className="h-8 w-full border-0 px-2 text-right text-xs"/>
+          <input aria-label="Driver Pay" type="number" min="0" step="0.01" readOnly={editingTripLocked||Boolean(editingTripId)||!entryPermissions.driver} value={form.driver_pay} onChange={e=>setForm({...form,driver_pay:e.target.value})} className="h-8 w-full border-0 px-2 text-right text-xs"/>
         </TripField>
         <TripField label="Estimated Operational Margin">
           <input aria-label="Estimated Operational Margin" value={estimatedMargin(form.customer_rate,form.supplier_rent,form.driver_pay,supplierOwned)} readOnly className="h-8 w-full border-0 bg-slate-50 px-2 text-right text-xs font-semibold"/>
@@ -1639,7 +1643,7 @@ export default function TransportWorkspace(){
     <div className="mt-3 grid gap-3 xl:grid-cols-[180px_1fr_auto]">
       <label className="text-[11px] font-semibold text-slate-700">
         Sale Type
-        <select aria-label="Sale Type" disabled={Boolean(editingTripId&&editingRateLocks.customer)} value={form.sale_type}
+        <select aria-label="Sale Type" disabled={editingTripLocked||Boolean(editingTripId&&editingRateLocks.customer)} value={form.sale_type}
           onChange={e=>{setError("");setForm({...form,sale_type:e.target.value})}}
           className="mt-1 h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-blue-400">
           <option value="">Select</option>
@@ -1662,8 +1666,6 @@ export default function TransportWorkspace(){
         </button>
       </div>
     </div>
-
-    </fieldset>
 
     {quickAdd&&<TransportQuickAdd key={`${scopeKey}/${quickAdd}`} kind={quickAdd} truckTypeId={form.truck_type_id} supplierId={quickSupplierId}
       truckTypes={tripMasters.truckTypes} suppliers={tripMasters.suppliers} onCreated={quickMasterCreated} onClose={()=>setQuickAdd(null)}/>}
