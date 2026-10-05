@@ -5,6 +5,15 @@
 alter table public.items
   add column if not exists is_stock_item boolean not null default true;
 
+-- Preserve the original closed Item type domain while adding Service explicitly.
+-- Do not drop validation: extend it from the three inventory types to four canonical types.
+alter table public.items
+  drop constraint if exists items_type_check;
+
+alter table public.items
+  add constraint items_type_check
+  check (type in ('raw','component','finished','service'));
+
 update public.items
 set is_stock_item = false,
     grade = null,
