@@ -248,7 +248,7 @@ export default function TransportWorkspace(){
   const [chargeTrip,setChargeTrip]=useState<Trip|null>(null);
   const [supplierChargeTarget,setSupplierChargeTarget]=useState<{rentId:string;tripNo:string}|null>(null);
   const [showRateList,setShowRateList]=useState(false);
-  const [tripChargeSummary,setTripChargeSummary]=useState<Record<string,string>>({});
+  
   const [invoiceTrip,setInvoiceTrip]=useState<Trip|null>(null);
   const [editingRateLocks,setEditingRateLocks]=useState({customer:false,supplier:false});
   const [editingTripId,setEditingTripId]=useState<string|null>(null);
@@ -258,13 +258,6 @@ export default function TransportWorkspace(){
   const [quickAdd,setQuickAdd]=useState<QuickAddKind|null>(null);
   const [bulkFixRowNo,setBulkFixRowNo]=useState<number|null>(null);
   const [quickSupplierId,setQuickSupplierId]=useState('');
-  useEffect(()=>{
-    let live=true;const ids=rows.map(r=>r.id);if(!ids.length){setTripChargeSummary({});return()=>{live=false};}
-    void supabase.from('transport_trip_customer_charges').select('trip_id,code_snapshot,sort_order,id').in('trip_id',ids).order('sort_order').then(({data,error})=>{
-      if(!live)return;if(error){setError(error.message);return;}const grouped:Record<string,string[]>={};for(const x of data??[])(grouped[x.trip_id]??=[]).push(x.code_snapshot);const next:Record<string,string>={};for(const [id,codes] of Object.entries(grouped)){const counts=new Map<string,number>();for(const code of codes)counts.set(code,(counts.get(code)??0)+1);next[id]=[...counts].map(([code,n])=>n>1?code+'×'+n:code).join(' + ');}setTripChargeSummary(next);
-    });return()=>{live=false};
-  },[rows]);
-
   const openSupplierCharges=async(r:Trip)=>{
     setError("");
     const q=await supabase.from('transport_trip_supplier_rents').select('id,state,amount,created_at').eq('trip_id',r.id).order('created_at',{ascending:true});
@@ -980,7 +973,7 @@ export default function TransportWorkspace(){
       case "plate": return String(r.vehicle_no??"");
       case "from": return String(r.from_location??"");
       case "to": return String(r.to_location??"");
-      case "charge": return tripChargeSummary[r.id]??"";
+      case "charge": return financialNumber(Number((r as any).customer_charges??(r as any).cells?.charge??0));
       case "paper_received_by": return r.ppr_status==="received"?[String(r.ppr_received_by_name??"—"),r.ppr_received_date?formatNaviloDate(r.ppr_received_date):""].filter(Boolean).join(" · "):"Pending";
       case "supplier_paid": return financialNumber(r.supplier_paid_net??r.supplier_paid_gross??0);
       case "supplier_balance": return financialNumber(Math.max(0,Number(r.supplier_outstanding_gross??r.remaining_with_us??0)));
@@ -1145,7 +1138,7 @@ export default function TransportWorkspace(){
   },[openColumnFilter,columnSearch,registerKey]);
   const columnOptions=(_key:string)=>columnValues;
   const gridRows=rows;
-  const amountGridKeys=new Set(['rent_driver','supplier_charges','supplier_paid','supplier_balance','supplier_credit','driver_pay','driver_paid','driver_balance','amount','company_rate','received_company','remaining_company','customer_credit','profit','commission']);
+  const amountGridKeys=new Set(['charge','rent_driver','supplier_charges','supplier_paid','supplier_balance','supplier_credit','driver_pay','driver_paid','driver_balance','amount','company_rate','received_company','remaining_company','customer_credit','profit','commission']);
   const gridTotal=(key:string)=>Number(registerMeta.totals?.[key]??0);
 
   const toggleColumnValue=(key:string,value:string)=>{
@@ -1421,7 +1414,7 @@ export default function TransportWorkspace(){
               {/* Transport operational register order - one canonical mapping for display/filter/sort */}
               {orderedGridColumns.slice(1).map(([key])=>{
                 const value=tripCellValue(r,key);
-                const numeric=["rent_driver","supplier_charges","supplier_paid","supplier_balance","supplier_credit","customer_credit","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
+                const numeric=["charge","rent_driver","supplier_charges","supplier_paid","supplier_balance","supplier_credit","customer_credit","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
