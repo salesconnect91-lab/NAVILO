@@ -467,6 +467,9 @@ export default function Ledgers() {
         for (const orderNo of ordersByJournal.get(row.journal_entry_id) || []) orderNos.add(orderNo);
       }
       const details = [...orderNos].flatMap((orderNo) => detailsByOrder.get(orderNo) || []);
+      // Financial fields returned by transport_document_trip_detail_query are document-level
+      // snapshots repeated on each Trip row. Sum each order once; Trip context remains multi-row.
+      const financialDetails = [...orderNos].map((orderNo) => (detailsByOrder.get(orderNo) || [])[0]).filter((d): d is TransportDetail => Boolean(d));
       return {
         trip: unique(details.map((d) => d.trip_no)),
         from: unique(details.map((d) => d.from_location)),
@@ -475,10 +478,10 @@ export default function Ledgers() {
         driver: unique(details.map((d) => d.driver_name)),
         owner: unique(details.map((d) => d.owner_name)),
         job: unique(details.map((d) => d.po_do_job_no)),
-        base: details.reduce((sum,d)=>sum+(Number(d.base_amount)||0),0),
-        charges: details.reduce((sum,d)=>sum+(Number(d.charge_amount)||0),0),
-        tax: details.reduce((sum,d)=>sum+(Number(d.tax_amount)||0),0),
-        postedTotal: details.reduce((sum,d)=>sum+(Number(d.total_amount)||0),0),
+        base: financialDetails.reduce((sum,d)=>sum+(Number(d.base_amount)||0),0),
+        charges: financialDetails.reduce((sum,d)=>sum+(Number(d.charge_amount)||0),0),
+        tax: financialDetails.reduce((sum,d)=>sum+(Number(d.tax_amount)||0),0),
+        postedTotal: financialDetails.reduce((sum,d)=>sum+(Number(d.total_amount)||0),0),
         chargeBreakdown: unique(details.map((d)=>d.charge_breakdown)),
       };
     };
