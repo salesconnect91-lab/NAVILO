@@ -1204,31 +1204,31 @@ export default function TransportWorkspace(){
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
     {!showPartyReports&&tab==="trips"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className="relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden rounded-lg border border-slate-700 bg-white shadow-sm shadow-slate-300" data-navilo-customizable="true">
-      <div className="relative z-[90] flex h-9 shrink-0 items-center justify-between bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 px-3 text-white">
+      <div className="relative z-[90] flex h-10 shrink-0 items-center justify-between bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855] px-3 text-white">
         <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
         <div className="flex items-center gap-1">
-          <button type="button" onClick={resetGrid} className="flex h-6 items-center rounded border border-slate-600 bg-slate-900 px-2 text-[9px] font-semibold text-slate-200 hover:bg-slate-800">Reset</button>
-          <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-6 items-center gap-1 rounded border border-sky-700/70 bg-sky-950/70 px-2 text-[9px] font-semibold text-sky-100 hover:bg-sky-900"><RefreshCw className="h-3 w-3"/>Refresh</button>
-          <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)} className="flex h-6 items-center rounded border border-slate-600 bg-slate-900 px-2 text-[9px] font-semibold text-slate-200 hover:bg-slate-800">Columns</button>
+          <button type="button" onClick={resetGrid} className="flex h-7 items-center rounded-md border border-slate-500 bg-slate-900/70 px-2.5 text-[10px] font-semibold text-white hover:bg-slate-800">Reset</button>
+          <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-7 items-center gap-1 rounded-md border border-blue-500 bg-blue-600 px-2.5 text-[10px] font-semibold text-white hover:bg-blue-700"><RefreshCw className="h-3 w-3"/>Refresh</button>
+          <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)} className="flex h-7 items-center rounded-md border border-slate-500 bg-slate-900/70 px-2.5 text-[10px] font-semibold text-white hover:bg-slate-800">Columns</button>
           <span data-navilo-standard-tools-host="true" className="contents" />
         </div>
       </div>
-      <div className="relative z-[80] shrink-0 border-b border-slate-200 bg-white px-1.5 py-1">
-        <div className="navilo-transport-register-toolbar flex flex-wrap items-center gap-1.5">
+      <div className="relative z-[80] shrink-0 border-b border-slate-200 bg-white px-2 py-2">
+        <div className="navilo-transport-register-toolbar flex flex-wrap items-center gap-2">
 
-          <div className="flex h-7 min-w-[86px] items-center justify-between rounded-md border border-cyan-200 bg-cyan-50 px-2">
-            <span className="text-[9px] font-bold uppercase text-cyan-700">Trips</span>
+          <div className="flex h-9 min-w-[104px] items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 shadow-sm">
+            <span className="text-[10px] font-extrabold uppercase text-blue-700">🚚 Trips</span>
             <span className="text-sm font-bold text-slate-950">{Number(registerMeta.count??0).toLocaleString()}</span>
           </div>
 
-          <div className="flex h-7 min-w-[180px] items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2">
-            <span className="text-[9px] font-bold uppercase text-slate-700">Paper</span>
+          <div className="flex h-9 min-w-[215px] items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 shadow-sm">
+            <span className="text-[10px] font-extrabold uppercase text-slate-700">▣ Paper</span>
             <span className="text-[9px] font-semibold text-emerald-700">Received <b>{Number(dashboardSummary.paper?.received??0).toLocaleString()}</b></span>
             <span className="text-[9px] font-semibold text-amber-700">Not Received <b>{Number(dashboardSummary.paper?.not_received??0).toLocaleString()}</b></span>
           </div>
 
           <div className="relative">
-            <button type="button" onClick={()=>setStatusOpen(v=>!v)} className="flex h-7 min-w-[190px] items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700">
+            <button type="button" onClick={()=>setStatusOpen(v=>!v)} className="flex h-9 min-w-[200px] items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-semibold text-slate-700 shadow-sm">
               <span>Status</span><span className="max-w-[135px] truncate text-slate-900">{statusFilters.length===0?"All Statuses":statusFilters.length===1?<> <span className={statusMark(statusFilters[0].replace(/^status:/,'')).className}>{statusMark(statusFilters[0].replace(/^status:/,'')).mark}</span> {statusOptions.find(option=>option.key===statusFilters[0])?.label??"1 selected"}</>:`${statusFilters.length} selected`}</span>
               <span aria-hidden>⌄</span>
             </button>
@@ -1254,15 +1254,15 @@ export default function TransportWorkspace(){
             </div>}
           </div>
 
-          <form className="flex h-7 w-80 items-stretch" onSubmit={e=>{e.preventDefault();setPage(0);setRegisterSearch(registerSearchDraft.trim())}}>
-            <input aria-label="Search all Trip data" placeholder="Search all Trip data…" className="input h-7 min-w-0 flex-1 rounded-r-none text-[11px]" value={registerSearchDraft} onChange={e=>setRegisterSearchDraft(e.target.value)}/>
-            <button type="submit" aria-label="Search Trips" className="flex h-7 w-8 items-center justify-center rounded-r-md border border-l-0 border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100"><Search className="h-3.5 w-3.5"/></button>
+          <form className="flex h-9 w-80 items-stretch" onSubmit={e=>{e.preventDefault();setPage(0);setRegisterSearch(registerSearchDraft.trim())}}>
+            <input aria-label="Search all Trip data" placeholder="Search all Trip data…" className="input h-9 min-w-0 flex-1 rounded-l-lg rounded-r-none border-slate-200 text-[11px] shadow-sm" value={registerSearchDraft} onChange={e=>setRegisterSearchDraft(e.target.value)}/>
+            <button type="submit" aria-label="Search Trips" className="flex h-9 w-9 items-center justify-center rounded-r-lg border border-l-0 border-blue-300 bg-white text-blue-700 shadow-sm hover:bg-blue-50"><Search className="h-3.5 w-3.5"/></button>
           </form>
           <div className="flex shrink-0 items-center gap-1.5">
-          <button type="button" onClick={()=>setTab("new")} className="flex h-7 items-center gap-1 rounded-md border border-blue-300 bg-blue-50 px-2 text-[11px] font-semibold text-blue-800 hover:bg-blue-100"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
+          <button type="button" onClick={()=>setTab("new")} className="flex h-9 items-center gap-1 rounded-lg border border-blue-500 bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
           </div>
-          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=supplier&allocation=transport")} className="h-7 rounded-md border border-amber-200 bg-amber-50 px-2 text-[11px] font-semibold text-amber-800 hover:bg-amber-100">Pay Rent to Suppliers</button>
-          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=customer&allocation=transport")} className="h-7 rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100">Receive Customer Payment</button>
+          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=supplier&allocation=transport")} className="h-9 rounded-lg border border-amber-300 bg-amber-50 px-3 text-[11px] font-semibold text-amber-900 shadow-sm hover:bg-amber-100">Pay Rent to Suppliers</button>
+          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=customer&allocation=transport")} className="h-9 rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100">Receive Customer Payment</button>
 
         </div>
 
@@ -1319,7 +1319,7 @@ export default function TransportWorkspace(){
           </div>
         </div>}
 
-        <div className="flex h-3.5 items-center justify-end text-[9px] font-semibold text-slate-700">
+        <div className="flex h-4 items-center justify-end text-[9px] font-bold text-slate-700">
           {gridRows.length.toLocaleString()} shown / {Number(registerMeta.count??0).toLocaleString()} filtered trips
         </div>
       </div>
