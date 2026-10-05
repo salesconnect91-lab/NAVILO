@@ -24,7 +24,6 @@ export function onboardingModules(requested: unknown, defaults: unknown, busines
     throw new Error("Select valid licensed modules");
   }
   const modules = [...new Set<string>(selected)];
-  if (!modules.includes("dashboard")) throw new Error("Dashboard must be enabled");
   if (businessType === "transport" && modules.includes("production")) throw new Error("Production is unavailable for a transport workspace");
   if (businessType !== "transport" && modules.includes("transport")) throw new Error("Transport requires a transport workspace");
   return modules;
