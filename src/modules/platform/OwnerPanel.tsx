@@ -24,7 +24,7 @@ import BillingLedgerControl from "./BillingLedgerControl";
 
 type Company = {
   id: string; name: string; code: string; status: string; subscription_expires_at: string | null; max_users: number;
-  contact_email: string | null; contact_phone: string | null; address: string | null; notes: string | null;
+  contact_email: string | null; contact_phone: string | null; address: string | null; notes: string | null; is_test_company: boolean;
 };
 type Membership = { id: string; company_id: string; user_id: string; role: string; is_active: boolean };
 type Profile = { id: string; email: string | null; full_name: string | null };
@@ -277,7 +277,7 @@ export default function OwnerPanel() {
       </section>
       <section className="rounded-xl border bg-white p-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">Migration & Onboarding</h2><p className="mt-1 text-xs text-slate-500">Controlled tools for bringing opening balances and legacy operational data into NAVILO.</p></div><Link className="btn-secondary" to="/owner/opening-balances"><FileSpreadsheet className="h-4 w-4"/>Opening Balance Migration</Link></div></section>
       {selected&&<OwnerOrderBookMigration companyId={selected.id} companyName={selected.name}/>}
-      <section className="rounded-xl border border-red-200 bg-red-50/40 p-4"><div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-5 w-5 text-red-700"/><div><h2 className="font-semibold text-red-900">Danger Zone</h2><p className="text-xs text-red-700">Destructive lifecycle actions belong here. Use Suspend for normal company access control. Permanent deletion and transaction reset require deliberate confirmation.</p></div></div>{selected&&<div className="mt-4"><CompanyDeleteControl companyId={selected.id} companyName={selected.name} companyCode={selected.code} onDeleted={async () => { await load(); await refreshAccess(); }}/></div>}</section>
+      <section className="rounded-xl border border-red-200 bg-red-50/40 p-4"><div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-5 w-5 text-red-700"/><div><h2 className="font-semibold text-red-900">Danger Zone</h2><p className="text-xs text-red-700">Destructive lifecycle actions belong here. Use Suspend for normal company access control. Permanent deletion and transaction reset require deliberate confirmation.</p></div></div>{selected&&<div className="mt-4"><CompanyDeleteControl companyId={selected.id} companyName={selected.name} companyCode={selected.code} isTestCompany={selected.is_test_company===true} onDeleted={async () => { await load(); await refreshAccess(); }}/></div>}</section>
       {selected&&<TransactionResetControl companyId={selected.id} companyName={selected.name} companyCode={selected.code}/>}
     </>}
   </div>;
