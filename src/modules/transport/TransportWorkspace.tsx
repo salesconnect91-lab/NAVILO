@@ -205,6 +205,7 @@ export default function TransportWorkspace(){
   const [registerMeta,setRegisterMeta]=useState<any>({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
   const readGeneration=useRef(0);
   const registerRequest=useRef<AbortController|null>(null);
+  const columnOptionsRequest=useRef<AbortController|null>(null);
 
 
   const [tripMasters,setTripMasters]=useState<{
@@ -417,7 +418,9 @@ export default function TransportWorkspace(){
   const previousRegisterKey=useRef(registerKey);
   useEffect(()=>{
     const changed=previousRegisterKey.current!==registerKey;previousRegisterKey.current=registerKey;
-    readGeneration.current++;setRows([]);setRegisterLoading(true);
+    // Keep the current page visible while a filter request is in flight.
+    // Clearing rows made every header-filter click look like a dashboard hang.
+    readGeneration.current++;setRegisterLoading(true);
     if(changed&&page!==0){setPage(0);return;}
     if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){setRegisterLoading(false);return;}
     const timer=window.setTimeout(()=>void load(),200);
@@ -1163,12 +1166,35 @@ export default function TransportWorkspace(){
   const [columnValuesLoading,setColumnValuesLoading]=useState(false);
   useEffect(()=>{setColumnSearch('');},[openColumnFilter]);
   useEffect(()=>{
-    let live=true;setColumnValues([]);if(!openColumnFilter)return;
+    let live=true;
+    columnOptionsRequest.current?.abort();
+    columnOptionsRequest.current=null;
+    setColumnValues([]);
+    if(!openColumnFilter){setColumnValuesLoading(false);return;}
     setColumnValuesLoading(true);
     const timer=window.setTimeout(()=>{
-      void (async()=>{try{const r=await supabase.rpc('transport_register_query',{p_filters:registerFilters,p_option_key:openColumnFilter,p_option_search:columnSearch});if(!live)return;if(r.error){setError(r.error.message);return;}setColumnValues(r.data.options??[]);}finally{if(live)setColumnValuesLoading(false)}})();
-    },200);
-    return()=>{live=false;window.clearTimeout(timer)};
+      const controller=new AbortController();
+      columnOptionsRequest.current=controller;
+      void (async()=>{
+        try{
+          const r=await supabase.rpc('transport_register_query',{p_filters:registerFilters,p_option_key:openColumnFilter,p_option_search:columnSearch}).abortSignal(controller.signal);
+          if(!live||controller.signal.aborted)return;
+          if(r.error){setError(r.error.message);return;}
+          setColumnValues(r.data.options??[]);
+        }catch(e:any){
+          if(live&&!controller.signal.aborted)setError(e?.message||'Unable to load filter values.');
+        }finally{
+          if(columnOptionsRequest.current===controller)columnOptionsRequest.current=null;
+          if(live&&!controller.signal.aborted)setColumnValuesLoading(false);
+        }
+      })();
+    },300);
+    return()=>{
+      live=false;
+      window.clearTimeout(timer);
+      columnOptionsRequest.current?.abort();
+      columnOptionsRequest.current=null;
+    };
   },[openColumnFilter,columnSearch,registerKey]);
   const columnOptions=(_key:string)=>columnValues;
   const gridRows=rows;
