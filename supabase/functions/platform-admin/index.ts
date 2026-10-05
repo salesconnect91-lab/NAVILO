@@ -598,6 +598,30 @@ Deno.serve(async (request) => {
       return json(data);
     }
 
+    if (action === "purge_test_company_preview") {
+      const { data, error } = await admin.rpc("platform_preview_test_company_purge", {
+        p_company_id: String(body.company_id),
+      });
+      if (error) throw error;
+      return json(data);
+    }
+
+    if (action === "purge_test_company") {
+      const companyId = String(body.company_id);
+      const { data: company } = await admin.from("companies").select("code,is_test_company").eq("id", companyId).single();
+      if (!company) return json({ error: "Company not found" }, 404);
+      if (company.is_test_company !== true) return json({ error: "Only an explicitly marked Test Company can be purged" }, 409);
+      if (String(body.confirmation) !== `PURGE ${company.code}` || body.acknowledge !== true) {
+        return json({ error: `Type PURGE ${company.code} exactly and acknowledge` }, 400);
+      }
+      const { data, error } = await admin.rpc("platform_purge_test_company", {
+        p_company_id: companyId,
+        p_actor_id: actor.id,
+      });
+      if (error) throw error;
+      return json(data);
+    }
+
     if (action === "reset_company_preview") {
       const { data, error } = await admin.rpc("platform_preview_company_transaction_reset", {
         p_company_id: String(body.company_id),
