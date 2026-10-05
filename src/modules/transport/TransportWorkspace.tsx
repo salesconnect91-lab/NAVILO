@@ -982,7 +982,8 @@ export default function TransportWorkspace(){
       case "driver_pay": return financialNumber(r.driver_accrued??r.driver_pay);
       case "driver_paid": return financialNumber(r.driver_paid??0);
       case "driver_balance": return financialNumber(r.driver_outstanding??0);
-      case "rent_driver": return financialNumber(r.billed_supplier_net??r.supplier_rent??r.owner_rent);\n      case "supplier_charges": return financialNumber(r.supplier_charges??0);
+      case "rent_driver": return financialNumber(r.billed_supplier_net??r.supplier_rent??r.owner_rent);
+      case "supplier_charges": return financialNumber(r.supplier_charges??0);
       case "remaining_us": return financialNumber(r.remaining_with_us??0);
       case "payment_date": return r.payment_date?formatNaviloDate(r.payment_date):"";
       case "amount": return financialNumber(r.payment_amount??0);
