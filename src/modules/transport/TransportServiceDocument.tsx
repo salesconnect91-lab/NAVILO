@@ -30,7 +30,7 @@ export default function TransportServiceDocument({side,id,canPrint=true}:{side:'
  company={{name:company.company_name,address:company.address,phone:company.phone,email:company.email,logoUrl:company.logo_url,taxId:[company.ntn,company.strn].filter(Boolean).join(' / ')}}
  party={{name:order.party?.name??'—',address:order.party?.address,phone:order.party?.phone,ntn:order.party?.ntn,strn:order.party?.strn}}
  items={lines.map(l=>({name:'Transport service',description:l.description,qty:1,unitPrice:Number(l.amount),lineTotal:Number(l.amount),taxPercent:Number(l.tax_percent),taxAmount:Math.round(Number(l.amount)*Number(l.tax_percent))/100,unit:'Service'}))}
- chargeBreakdown={charges.map(x=>({label:x.charge_label||x.charge_key,amount:Number(x.amount)}))} itemsTotal={baseNet} chargesTotal={chargesNet} taxAmount={vat} showTaxSummary={vat>0} grandTotal={Number(order.total)}
+ chargeBreakdown={charges.map(x=>({label:x.charge_label||x.charge_key,amount:Number(x.amount)}))} itemsTotal={baseNet} chargesTotal={chargesNet} taxAmount={vat} showTaxSummary={vat>0} grandTotal={Number(order.total)} discountAmount={Number(order.discount_amount??0)}
  extraFields={side==='supplier'?[{label:'Supplier Invoice',value:order.supplier_invoice_no||'—'},{label:'Supplier Invoice Date',value:order.supplier_invoice_date||'—'}]:[]}
  documentNotice="Service document. Posted source amounts remain historical; later credits and rate adjustments are separate documents."/>
  </div></div>;
