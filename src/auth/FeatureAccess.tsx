@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useLocation, Navigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthContext";
-import { FEATURE_BY_KEY, matchFeatureForPath, type FeatureAction } from "@/config/featureRegistry";
+import { FEATURE_BY_KEY, FEATURE_REGISTRY, matchFeatureForPath, type FeatureAction } from "@/config/featureRegistry";
 
 type Entitlement = { feature_key:string; enabled:boolean; action_overrides:Record<string,boolean> };
 type FeatureAccessContextValue = {
@@ -77,5 +77,7 @@ export function FeaturePathGuard({children}:{children:ReactNode}){
   if(loading)return <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-500">Checking feature access…</div>;
   const feature=matchFeatureForPath(pathname);
   if(!feature)return <Navigate to="/" replace/>;
-  return isFeatureEnabled(feature.key,"view")?<>{children}</>:<Navigate to="/" replace/>;
+  if(isFeatureEnabled(feature.key,"view"))return <>{children}</>;
+  const fallback=FEATURE_REGISTRY.find(candidate=>candidate.route!=="/"&&isFeatureEnabled(candidate.key,"view"))?.route??"/owner";
+  return <Navigate to={fallback} replace/>;
 }
