@@ -1332,10 +1332,13 @@ export default function TransportWorkspace(){
         <table className="w-max min-w-full table-auto whitespace-nowrap text-[9px] leading-none">
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
           <thead className="sticky top-0 z-40 bg-slate-900 text-left text-[9px] uppercase tracking-normal text-white shadow-[0_1px_2px_rgba(15,23,42,0.12)]">
-            <tr className="h-7">
+            <tr className="h-11">
               {gridGroupSegments.map((segment,index)=><th key={segment.group+index} colSpan={segment.count}
-                className={`border-b border-r px-2 py-0 text-center text-[9px] font-extrabold tracking-wide ${segment.group==="supplier"?"border-rose-200 bg-rose-100 text-rose-800":segment.group==="customer"?"border-blue-200 bg-blue-100 text-blue-800":segment.group==="ppr"?"border-emerald-200 bg-emerald-100 text-emerald-800":"border-slate-300 bg-slate-100 text-slate-700"}`}>
-                {segment.group==="supplier"?"🚚  SUPPLIER · OUR COST":segment.group==="customer"?"●  CUSTOMER · OUR REVENUE":segment.group==="ppr"?"▣  PPR":"🚚  TRIP DETAILS"}
+                className={`border-b border-r px-3 py-0 text-center text-[13px] font-black tracking-[0.025em] ${segment.group==="supplier"?"border-rose-300 bg-rose-100 text-rose-800":segment.group==="customer"?"border-blue-300 bg-blue-100 text-blue-800":segment.group==="ppr"?"border-emerald-300 bg-emerald-100 text-emerald-800":"border-slate-300 bg-slate-100 text-slate-800"}`}>
+                <span className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
+                  <span aria-hidden="true" className="text-[17px] leading-none">{segment.group==="supplier"?"🚚":segment.group==="customer"?"👤":segment.group==="ppr"?"📄":"🚚"}</span>
+                  <span>{segment.group==="supplier"?"SUPPLIER · OUR COST":segment.group==="customer"?"CUSTOMER · OUR REVENUE":segment.group==="ppr"?"PPR":"TRIP DETAILS"}</span>
+                </span>
               </th>)}
             </tr>
             <tr>
