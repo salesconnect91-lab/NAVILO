@@ -805,7 +805,8 @@ export default function TransportWorkspace(){
     setLoading(true);
     setError("");
     try{
-      await loadTripMasters();
+      // Masters are already loaded for the active workspace. Do not refetch every
+      // company/BU master merely to open one Trip; that made ordinary clicks feel hung.
       const {data,error}=await supabase.rpc('transport_edit_trip_read',{p_trip_id:row.id});
       if(error)throw error;
       const savedRents:Array<{amount:number;finalized_amount_snapshot:number}>=data.supplier_rent_total==null?[]:[{amount:Number(data.supplier_rent_total),finalized_amount_snapshot:Number(data.supplier_rent_total)}];
@@ -922,7 +923,9 @@ export default function TransportWorkspace(){
         if(replaceError)throw replaceError;
       }
 
-      const originalTripDate=(await supabase.rpc('transport_edit_trip_read',{p_trip_id:editingTripId})).data?.trip_date;
+      // Trip Date is permanent on the edit screen; avoid a second round-trip just
+      // to rediscover the date we opened with.
+      const originalTripDate=form.trip_date;
       let correctionReason:string|null=null;
       if(originalTripDate&&form.trip_date!==originalTripDate){
         correctionReason=window.prompt("Trip Date correction reason is required for audit history:","")?.trim()||null;
