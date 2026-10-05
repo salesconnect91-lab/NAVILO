@@ -67,6 +67,7 @@ export interface PrintLayoutProps {
   taxAmount?: number;
   showTaxSummary?: boolean;
   grandTotal: number;
+  discountAmount?: number;
   extraFields?: { label: string; value: string }[];
   hawalaDocuments?: { id: string; invoiceNo: string; invoiceDate?: string | null; referenceName?: string | null; referenceNo?: string | null; referenceNotes?: string | null; amount: number }[];
   normalInvoiceTotal?: number;
@@ -135,7 +136,7 @@ function mapStoredVisibility(row: any): PrintVisibility {
 
 export default function PrintLayout({
   voucherTitle, voucherNo, voucherDate, company, party, items, chargeBreakdown, itemsTotal, chargesTotal,
-  taxAmount = 0, showTaxSummary = false, grandTotal, extraFields, hawalaDocuments = [], normalInvoiceTotal,
+  taxAmount = 0, showTaxSummary = false, grandTotal, discountAmount, extraFields, hawalaDocuments = [], normalInvoiceTotal,
   documentNotice, documentNoticeUrdu, paymentSummary, bilingual,
   signatureLabels = ["Authorized Signature", "Customer Signature"],
   visibility: visibilityProp = {}, documentHeader, documentHeaderUrdu, documentFooter, documentFooterUrdu,
@@ -253,7 +254,7 @@ export default function PrintLayout({
   const chargeVat = Math.max(n(taxAmount) - itemVat, 0);
   const consolidatedTotal = hawalaDocuments.reduce((sum, row) => sum + n(row.amount), 0);
   const beforeDiscount = n(itemsTotal) + n(chargesTotal) + n(taxAmount) + consolidatedTotal;
-  const inferredDiscount = Math.max(beforeDiscount - n(grandTotal), 0);
+  const inferredDiscount = discountAmount === undefined ? Math.max(beforeDiscount - n(grandTotal), 0) : Math.max(n(discountAmount), 0);
   const cleanTaxId = cleanCompanyTaxId(company.taxId);
   const itemGridClass = showTaxSummary ? "invoice-items-grid invoice-items-grid-tax" : "invoice-items-grid invoice-items-grid-no-tax";
   const itemGridStyle = {
