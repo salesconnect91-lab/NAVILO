@@ -1199,18 +1199,6 @@ export default function TransportWorkspace(){
             <span className="text-[9px] font-semibold text-amber-700">Not Received <b>{Number(dashboardSummary.paper?.not_received??0).toLocaleString()}</b></span>
           </div>
 
-          {readCustomer&&<div className="flex h-7 min-w-[205px] items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-2">
-            <span className="text-[9px] font-bold uppercase text-emerald-800">Collections</span>
-            <span className="text-[9px] font-semibold text-emerald-700">Received <b>{Number(dashboardSummary.collections?.received??0).toLocaleString()}</b></span>
-            <span className="text-[9px] font-semibold text-slate-600">Not Received <b>{Number(dashboardSummary.collections?.not_received??0).toLocaleString()}</b></span>
-          </div>}
-
-          {readSupplier&&<div className="flex h-7 min-w-[178px] items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2">
-            <span className="text-[9px] font-bold uppercase text-blue-800">Payment</span>
-            <span className="text-[9px] font-semibold text-emerald-700">Paid <b>{Number(dashboardSummary.payment?.paid??0).toLocaleString()}</b></span>
-            <span className="text-[9px] font-semibold text-slate-600">Not Paid <b>{Number(dashboardSummary.payment?.not_paid??0).toLocaleString()}</b></span>
-          </div>}
-
           <div className="relative">
             <button type="button" onClick={()=>setStatusOpen(v=>!v)} className="flex h-7 min-w-[190px] items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700">
               <span>Status</span><span className="max-w-[135px] truncate text-slate-900">{statusFilters.length===0?"All Statuses":statusFilters.length===1?(statusOptions.find(option=>option.key===statusFilters[0])?.label??"1 selected"):`${statusFilters.length} selected`}</span>
@@ -1312,9 +1300,9 @@ export default function TransportWorkspace(){
         ref={tripsGridRef}
         className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-400 bg-white"
       >
-        <table className="w-max min-w-full table-auto whitespace-nowrap text-[8px] leading-none">
+        <table className="w-max min-w-full table-auto whitespace-nowrap text-[9px] leading-none">
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
-          <thead className="sticky top-0 z-40 bg-slate-900 text-left text-[8px] uppercase tracking-normal text-white shadow-[0_1px_2px_rgba(15,23,42,0.12)]">
+          <thead className="sticky top-0 z-40 bg-slate-900 text-left text-[9px] uppercase tracking-normal text-white shadow-[0_1px_2px_rgba(15,23,42,0.12)]">
             <tr className="h-5">
               {orderedGridColumns.map(([key])=><th key={'group-'+key} className={`border-b border-r px-1 py-0 text-center text-[7px] font-extrabold tracking-wide ${isSupplierGridKey(key)?"border-rose-300 bg-rose-200 text-rose-950":isCustomerGridKey(key)?"border-sky-300 bg-sky-200 text-sky-950":"border-slate-700 bg-slate-900 text-slate-200"}`}>{key===orderedGridColumns.find(([k])=>isSupplierGridKey(k))?.[0]?"SUPPLIER · OUR COST":key===orderedGridColumns.find(([k])=>isCustomerGridKey(k))?.[0]?"CUSTOMER · OUR REVENUE":""}</th>)}
             </tr>
@@ -1400,10 +1388,10 @@ export default function TransportWorkspace(){
           </thead>
 
           <tbody>
-            {gridRows.map(r=><tr key={r.id} className={`h-[17px] align-middle hover:bg-slate-100 odd:bg-white even:bg-slate-50/70`}>
+            {gridRows.map(r=><tr key={r.id} className={`h-[20px] align-middle hover:bg-slate-100 odd:bg-white even:bg-slate-50/70`}>
               <td
                 style={tripColumnWidths[orderedGridColumns[0]?.[0]??""]?{width:tripColumnWidths[orderedGridColumns[0]?.[0]??""],minWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""]}:undefined}
-                className="!sticky left-0 z-30 h-[17px] max-h-[17px] overflow-hidden whitespace-nowrap border-b border-r border-slate-200 bg-white px-0.5 !py-0 font-bold leading-none text-slate-900 shadow-[2px_0_3px_rgba(15,23,42,0.08)]">
+                className="!sticky left-0 z-30 h-[20px] max-h-[20px] overflow-hidden whitespace-nowrap border-b border-r border-slate-200 bg-white px-0.5 !py-0 font-bold leading-none text-slate-900 shadow-[2px_0_3px_rgba(15,23,42,0.08)]">
   <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
     className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
@@ -1418,31 +1406,31 @@ export default function TransportWorkspace(){
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`h-[17px] max-h-[17px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-slate-300 px-0.5 !py-0 leading-none ${isSupplierGridKey(key)?"bg-rose-50/80":isCustomerGridKey(key)?"bg-sky-50/80":""} ${numeric?"text-right":""}`}>
+                  className={`h-[20px] max-h-[20px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-slate-300 px-0.5 !py-0 leading-none ${isSupplierGridKey(key)?"bg-rose-50/80":isCustomerGridKey(key)?"bg-sky-50/80":""} ${numeric?"text-right":""}`}>
                   {key==='charge'
-                    ?<button type="button" className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-left text-[8px] font-semibold leading-none text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
+                    ?<button type="button" className="h-[17px] w-full cursor-pointer rounded px-0.5 py-0 text-left text-[9px] font-semibold leading-none text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
                     :key==='supplier_charges'
-                    ?<button type="button" className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[8px] font-semibold leading-none text-rose-700 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500" aria-label={`Open Supplier Charges ${r.trip_no}`} onClick={()=>void openSupplierCharges(r)}>{value||''}</button>
+                    ?<button type="button" className="h-[17px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[9px] font-semibold leading-none text-rose-700 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500" aria-label={`Open Supplier Charges ${r.trip_no}`} onClick={()=>void openSupplierCharges(r)}>{value||''}</button>
                     :key==='company_rate'
                     ?<button type="button"
-                      className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[8px] font-semibold leading-none text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
+                      className="h-[17px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[9px] font-semibold leading-none text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
                       aria-label={`${r.customer_rate_state==='pending'?'Add':'Open'} Company Rate ${r.trip_no}`}
                       onClick={()=>setInitialRateTrip(r)}>
                       {r.customer_rate_state==='pending'&&!r.customer_rate_locked?'':value||'0.00'}
                     </button>
                     :key==='invoice_no'
                       ?<button type="button"
-                        className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-left text-[8px] font-semibold leading-none text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
+                        className="h-[17px] w-full cursor-pointer rounded px-0.5 py-0 text-left text-[9px] font-semibold leading-none text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
                         aria-label={`${r.invoice_no?'Open':'Add'} Invoice Number ${r.trip_no}`}
                         onClick={()=>setInvoiceTrip(r)}>
                         {r.invoice_no||''}
                       </button>
                     :key==='rent_driver'&&r.customer_rate_state!==undefined
-                      ?<button type="button" className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[8px] leading-none text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
+                      ?<button type="button" className="h-[17px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[8px] leading-none text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
                     :key==='paper_received_by'
                       ?r.ppr_status==='received'
-                        ?<span className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[7px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
-                        :<button type="button" onClick={()=>void openQuickPpr(r)} className="h-[14px] rounded border border-amber-300 bg-amber-50 px-1 py-0 text-[8px] font-semibold leading-none text-amber-800">Receive PPR</button>
+                        ?<span className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[8px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
+                        :<button type="button" onClick={()=>void openQuickPpr(r)} className="h-[17px] rounded border border-amber-300 bg-amber-50 px-1 py-0 text-[9px] font-semibold leading-none text-amber-800">Receive PPR</button>
                       :value||""}
                 </td>;
               })}            </tr>)}
@@ -2011,7 +1999,7 @@ function ColumnFilterMenu({
 
     <div className="mt-0.5 flex gap-px">
       <button type="button" onClick={onSelectAll}
-        className="h-5 flex-1 rounded border border-slate-200 px-1 py-0 text-[8px] font-semibold leading-none hover:bg-slate-50">
+        className="h-5 flex-1 rounded border border-slate-200 px-1 py-0 text-[9px] font-semibold leading-none hover:bg-slate-50">
         Select Shown
       </button>
 
