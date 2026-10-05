@@ -11,6 +11,7 @@ type Party = { id: string; name: string; account_id: string | null; is_active?: 
 type Mapping = { mapping_key: string; account_id: string };
 type Row = { key: string; accountId: string; partyType: "customer" | "supplier" | ""; partyId: string; debit: string; credit: string };
 type Batch = { id: string; opening_year: number; opening_date: string; total_debit: number; total_credit: number; journal_entry_id: string };
+type CutoverBatch = { id: string; cutover_date: string; total_debit: number; total_credit: number; journal_entry_id: string };
 
 const row = (): Row => ({ key: crypto.randomUUID(), accountId: "", partyType: "", partyId: "", debit: "", credit: "" });
 const amount = (value: unknown) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
@@ -24,6 +25,8 @@ export default function OpeningBalances() {
   const [rows, setRows] = useState<Row[]>([row(), row()]);
   const [openingDate, setOpeningDate] = useState(`${new Date().getFullYear()}-01-01`);
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [cutoverBatches, setCutoverBatches] = useState<CutoverBatch[]>([]);
+  const [mode, setMode] = useState<"annual"|"cutover">("annual");
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +36,7 @@ export default function OpeningBalances() {
   const arId = mappings.find((x) => x.mapping_key === "accounts_receivable")?.account_id ?? "";
   const apId = mappings.find((x) => x.mapping_key === "accounts_payable")?.account_id ?? "";
   const year = Number(openingDate.slice(0, 4));
-  const existing = batches.find((x) => x.opening_year === year);
+  const existing = mode==="annual" ? batches.find((x) => x.opening_year === year) : cutoverBatches[0];
 
   const postingAccounts = useMemo(
     () => accounts.filter((x) => x.is_active && !x.is_group && !["revenue", "expense"].includes(x.type)),
@@ -49,14 +52,15 @@ export default function OpeningBalances() {
 
   const load = async () => {
     setLoading(true); setError(null);
-    const [a, c, s, m, b] = await Promise.all([
+    const [a, c, s, m, b, cb] = await Promise.all([
       supabase.from("chart_of_accounts").select("id,code,name,type,is_active,is_group").eq("is_active", true).order("code"),
       supabase.from("customers").select("id,name,account_id,is_active").eq("is_active", true).order("name"),
       supabase.from("suppliers").select("id,name,account_id,is_active").eq("is_active", true).order("name"),
       supabase.from("account_mappings").select("mapping_key,account_id").in("mapping_key", ["accounts_receivable", "accounts_payable"]),
       supabase.from("opening_balance_batches").select("id,opening_year,opening_date,total_debit,total_credit,journal_entry_id").order("opening_year", { ascending: false }),
+      supabase.from("cutover_opening_balance_batches").select("id,cutover_date,total_debit,total_credit,journal_entry_id").order("created_at", { ascending: false }),
     ]);
-    const firstError = a.error || c.error || s.error || m.error || b.error;
+    const firstError = a.error || c.error || s.error || m.error || b.error || cb.error;
     if (firstError) setError(firstError.message);
     else {
       setAccounts((a.data ?? []) as Account[]);
@@ -64,6 +68,7 @@ export default function OpeningBalances() {
       setSuppliers((s.data ?? []) as Party[]);
       setMappings((m.data ?? []) as Mapping[]);
       setBatches((b.data ?? []) as Batch[]);
+      setCutoverBatches((cb.data ?? []) as CutoverBatch[]);
     }
     setLoading(false);
   };
@@ -80,8 +85,8 @@ export default function OpeningBalances() {
   const setCredit = (item: Row, value: string) => update(item.key, { credit: value, debit: Number(value) > 0 ? "" : item.debit });
 
   const validate = () => {
-    if (!/^\d{4}-01-01$/.test(openingDate)) return "Opening date must be January 1 of the opening year.";
-    if (existing) return `Opening balances for ${year} are already posted.`;
+    if (mode==="annual" && !/^\d{4}-01-01$/.test(openingDate)) return "Opening date must be January 1 of the opening year.";
+    if (existing) return mode==="annual" ? `Opening balances for ${year} are already posted.` : "Cut-over opening balances are already posted for this business unit.";
     if (rows.length < 2) return "At least two opening lines are required.";
     for (let i = 0; i < rows.length; i++) {
       const item = rows[i];
@@ -98,7 +103,7 @@ export default function OpeningBalances() {
   const post = async () => {
     setError(null); setSuccess(null);
     const problem = validate(); if (problem) return setError(problem);
-    if (!confirm(`Post opening balances for ${year}? After posting, use accounting correction/reversal workflow instead of editing history.`)) return;
+    if (!confirm(mode==="annual" ? `Post opening balances for ${year}? After posting, use accounting correction/reversal workflow instead of editing history.` : `Post one-time cut-over opening balances on ${openingDate}? This is only for a clean business unit and cannot be repeated.`)) return;
     setPosting(true);
     const payload = rows.map((item) => ({
       account_id: item.accountId,
@@ -107,10 +112,10 @@ export default function OpeningBalances() {
       debit: amount(item.debit),
       credit: amount(item.credit),
     }));
-    const { data, error: rpcError } = await supabase.rpc("post_opening_balances", { p_opening_date: openingDate, p_lines: payload });
+    const { data, error: rpcError } = mode==="annual" ? await supabase.rpc("post_opening_balances", { p_opening_date: openingDate, p_lines: payload }) : await supabase.rpc("post_cutover_opening_balances", { p_cutover_date: openingDate, p_lines: payload });
     setPosting(false);
     if (rpcError) return setError(rpcError.message);
-    setSuccess(`Opening balances posted successfully. Journal ${String(data?.journal_entry_id ?? "created")}.`);
+    setSuccess(`${mode==="annual"?"Opening":"Cut-over opening"} balances posted successfully. Journal ${String(data?.journal_entry_id ?? "created")}.`);
     setRows([row(), row()]);
     await load();
   };
@@ -181,6 +186,7 @@ export default function OpeningBalances() {
 
     {error && <ErrorBanner message={error}/>} {success && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{success}</div>}
 
+    <div className="flex gap-2" data-no-print data-no-export><button className={mode==="annual"?"btn-primary":"btn-secondary"} onClick={()=>{setMode("annual");setOpeningDate(`${new Date().getFullYear()}-01-01`)}}>Annual Opening</button><button className={mode==="cutover"?"btn-primary":"btn-secondary"} onClick={()=>setMode("cutover")}>Migration Cut-over</button></div>
     <div className="grid gap-3 md:grid-cols-4" data-no-print data-no-export>
       <label className="rounded-xl border bg-white p-4 text-xs font-bold text-slate-600">OPENING DATE<NaviloDateInput type="date" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} className="input mt-2 w-full"/></label>
       <div className="rounded-xl border bg-white p-4"><div className="text-xs font-bold text-slate-500">TOTAL DEBIT</div><div className="mt-2 text-xl font-bold">{formatCurrency(totals.debit)}</div></div>
@@ -188,7 +194,7 @@ export default function OpeningBalances() {
       <div className="rounded-xl border bg-white p-4"><div className="text-xs font-bold text-slate-500">DIFFERENCE</div><div className={`mt-2 text-xl font-bold ${Math.abs(difference) < .01 ? "text-emerald-700" : "text-rose-700"}`}>{formatCurrency(Math.abs(difference))}</div></div>
     </div>
 
-    {existing && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><b>{year} opening balances are already posted and locked.</b> Debit {formatCurrency(existing.total_debit)} = Credit {formatCurrency(existing.total_credit)}. Use accounting correction/reversal controls rather than editing posted history.</div>}
+    {existing && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><b>{mode==="annual"?`${year} opening balances`:"Cut-over opening balances"} are already posted and locked.</b> Debit {formatCurrency(existing.total_debit)} = Credit {formatCurrency(existing.total_credit)}. Use accounting correction/reversal controls rather than editing posted history.</div>}
 
     <div className="overflow-hidden rounded-xl border bg-white shadow-sm" data-report-content>
       <div className="flex items-center justify-between border-b bg-slate-50 px-4 py-3">
