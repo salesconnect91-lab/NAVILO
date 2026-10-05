@@ -873,7 +873,13 @@ export default function TransportWorkspace(){
     setLoading(true);
     setError("");
     try{
-      const payload={
+      const payload=editingTripLocked?{
+        ppr_status:form.ppr_status,
+        ppr_received_date:form.ppr_status==="received"?(form.ppr_received_date||null):null,
+        ppr_received_by_employee_id:form.ppr_status==="received"?form.ppr_received_by_employee_id:null,
+        ppr_attachment_path:form.ppr_status==="received"?(form.ppr_attachment_path||null):null,
+        notes:form.notes||null
+      }:{
         trip_date:form.trip_date,
         customer_id:customer.id,
         customer_name_snapshot:customer.name,
@@ -893,9 +899,9 @@ export default function TransportWorkspace(){
         notes:form.notes||null
       };
 
-      const assignmentChanged=
+      const assignmentChanged=!editingTripLocked&&(
         form.vehicle_id!==editingOriginalAssignment.vehicle_id ||
-        form.driver_id!==editingOriginalAssignment.driver_id;
+        form.driver_id!==editingOriginalAssignment.driver_id);
 
       if(assignmentChanged){
         const reason=window.prompt(
@@ -1507,7 +1513,7 @@ export default function TransportWorkspace(){
             className="h-8 w-full border-0 bg-white px-2 text-xs outline-none"/>
         </TripField>
 
-        <TripField label="Truck Type" onAdd={entryPermissions.master?()=>openQuickAdd("truckType"):undefined}>
+        <TripField label="Truck Type" onAdd={!editingTripLocked&&entryPermissions.master?()=>openQuickAdd("truckType"):undefined}>
           <SearchMasterInput value={tripMasters.truckTypes.find((r:any)=>r.id===form.truck_type_id)?.name||""}
             options={tripMasters.truckTypes.map((r:any)=>({value:r.id,label:r.name}))}
             placeholder="Search Truck Type"
@@ -1525,7 +1531,7 @@ export default function TransportWorkspace(){
             className="h-8 w-full border-0 bg-white px-2 text-xs outline-none"/>
         </TripField>
 
-        <TripField label="Customer" onAdd={entryPermissions.master?()=>openQuickAdd("customer"):undefined}>
+        <TripField label="Customer" onAdd={!editingTripLocked&&entryPermissions.master?()=>openQuickAdd("customer"):undefined}>
           <SearchMasterInput value={tripMasters.customers.find((r:any)=>r.id===form.customer_id)?.name||""}
             options={tripMasters.customers.map((r:any)=>({value:r.id,label:r.name}))}
             placeholder="Search Customer"
@@ -1537,7 +1543,7 @@ export default function TransportWorkspace(){
             }}/>
         </TripField>
 
-        <TripField label="Driver Name" onAdd={entryPermissions.master?()=>openQuickAdd("driver"):undefined}>
+        <TripField label="Driver Name" onAdd={!editingTripLocked&&entryPermissions.master?()=>openQuickAdd("driver"):undefined}>
           <SearchMasterInput value={selectedDriver?.driver_name||""}
             options={tripMasters.drivers.map((r:any)=>({value:r.id,label:r.driver_name}))}
             placeholder="Search Driver"
@@ -1545,13 +1551,13 @@ export default function TransportWorkspace(){
             onSelect={driverId=>{setError("");setForm({...form,driver_id:driverId})}}/>
         </TripField>
 
-        <TripField label="Owner / Supplier" onAdd={entryPermissions.master?()=>openQuickAdd('supplier'):undefined}>
+        <TripField label="Owner / Supplier" onAdd={!editingTripLocked&&entryPermissions.master?()=>openQuickAdd('supplier'):undefined}>
           <input aria-label="Trip Owner / Supplier" readOnly value={ownerDisplay} placeholder={form.vehicle_id?'No ownership for Trip Date':'Select Plate first'} className="h-8 w-full border-0 px-2 text-xs"/>
-          <a className="px-2 text-[10px] text-blue-700 underline" href="/master-data/vehicle-ownership">Vehicle Ownership History</a>
+          {!editingTripLocked&&<a className="px-2 text-[10px] text-blue-700 underline" href="/master-data/vehicle-ownership">Vehicle Ownership History</a>}
           {quickSupplierId&&<small className="block px-2">Supplier selected: {tripMasters.suppliers.find(s=>s.id===quickSupplierId)?.name}. Available for new Vehicle / dated ownership.</small>}
         </TripField>
 
-        <TripField label="Plate #" onAdd={entryPermissions.master&&entryPermissions.owner?()=>openQuickAdd("vehicle"):undefined}>
+        <TripField label="Plate #" onAdd={!editingTripLocked&&entryPermissions.master&&entryPermissions.owner?()=>openQuickAdd("vehicle"):undefined}>
           <SearchMasterInput value={selectedVehicle
               ? `${selectedVehicle.vehicle_no}${ownerDisplay?` - ${ownerDisplay}`:""}`
               : ""}
@@ -1575,7 +1581,7 @@ export default function TransportWorkspace(){
             className="h-8 w-full border-0 bg-white px-2 text-xs text-slate-900 outline-none"/>
         </TripField>
 
-        <TripField label="From" onAdd={entryPermissions.master?()=>openQuickAdd("locationFrom"):undefined}>
+        <TripField label="From" onAdd={!editingTripLocked&&entryPermissions.master?()=>openQuickAdd("locationFrom"):undefined}>
           <SearchMasterInput value={form.from_location}
             options={tripMasters.locations.map((r:any)=>({value:r.id,label:r.name}))}
             placeholder="Search From"
@@ -1587,7 +1593,7 @@ export default function TransportWorkspace(){
             }}/>
         </TripField>
 
-        <TripField label="To" onAdd={entryPermissions.master?()=>openQuickAdd("locationTo"):undefined}>
+        <TripField label="To" onAdd={!editingTripLocked&&entryPermissions.master?()=>openQuickAdd("locationTo"):undefined}>
           <SearchMasterInput value={form.to_location}
             options={tripMasters.locations.map((r:any)=>({value:r.id,label:r.name}))}
             placeholder="Search To"
