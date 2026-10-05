@@ -112,13 +112,20 @@ begin
  if jsonb_array_length(result->'rows')<>2 or result->'totals' <> '{}'::jsonb then raise exception 'Operational-only financial leak';end if;
  result:=public.transport_edit_trip_read(trip);
  if result ? 'customer_rate' or result ? 'owner_rent' or result ? 'supplier_rent_total' then raise exception 'Operational detail financial leak';end if;
- perform public.transport_update_operational_trip(trip,'{"po_do_job_no":"OPERATIONS"}');
+ rejected:=false;
+ begin
+  perform public.transport_update_operational_trip(trip,'{"po_do_job_no":"OPERATIONS"}');
+ exception when others then
+  rejected:=sqlerrm like '%Locked Trip allows only PPR and Remarks updates%';
+ end;
+ if not rejected then raise exception 'Locked Trip operational edit bypass';end if;
+ perform public.transport_update_operational_trip(trip,'{"notes":"Locked Trip remarks remain editable"}');
  execute 'reset role';
  update public.business_unit_memberships set permissions='{}' where business_unit_id=b and user_id=u;
  update public.business_unit_modules set enabled=false where business_unit_id=b and module_key='transport';
  if public.has_module_permission(c,'transport','view') or public.transport_finance_allowed('billing') or public.transport_financial_read_allowed('customer') then raise exception 'Disabled BU module allowed';end if;
  update public.business_unit_modules set enabled=true where business_unit_id=b and module_key='transport';
  if exists(select 1 from public.transport_trip_audit where trip_id=trip and source is null) then raise exception 'New audit source missing';end if;
- raise notice 'Release controls PASS: pending/alternate posting, finalize-only/no-op, cost intent retries, fresh master ACL, masked/direct reads, operational edits and disabled module';
+ raise notice 'Release controls PASS: pending/alternate posting, finalize-only/no-op, cost intent retries, fresh master ACL, masked/direct reads, locked Trip edit guard and disabled module';
 end $$;
 rollback;
