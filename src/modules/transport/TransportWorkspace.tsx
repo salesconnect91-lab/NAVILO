@@ -54,6 +54,7 @@ type Trip=FinancialTrip & {
   customer_base_rate?:number|null;
   customer_manual_adjustment?:number|null;
   invoice_no:string|null;
+  supplier_charges?:number|null;
 };
 
 const tabs:{key:Tab;label:string;icon:any}[]=[
