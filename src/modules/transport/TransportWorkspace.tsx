@@ -252,6 +252,7 @@ export default function TransportWorkspace(){
   
   const [invoiceTrip,setInvoiceTrip]=useState<Trip|null>(null);
   const [editingRateLocks,setEditingRateLocks]=useState({customer:false,supplier:false});
+  const editingTripLocked=Boolean(editingTripId&&editingRateLocks.customer&&editingRateLocks.supplier);
   const [editingTripId,setEditingTripId]=useState<string|null>(null);
   const [editingTripNo,setEditingTripNo]=useState("");
   const [editingOriginalAssignment,setEditingOriginalAssignment]=useState({vehicle_id:"",driver_id:""});
@@ -849,6 +850,7 @@ export default function TransportWorkspace(){
   }
   async function updateTrip(){
     if(!editingTripId||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
+    if(editingTripLocked){setError("Locked Trip is read-only. Use controlled correction / reversal.");return;}
     if(!form.customer_id){setError("Customer is required.");return}
     if(!form.sale_type){setError("Sale Type Cash or Credit is required.");return}
     if(!form.from_location.trim()||!form.to_location.trim()){setError("From and To locations are required.");return}
@@ -1453,11 +1455,11 @@ export default function TransportWorkspace(){
   <div className="border-b border-slate-200">
     <div className="px-4 pb-2 pt-3">
       <h2 className="font-bold text-slate-950">
-        {editingTripId?<span className="inline-flex items-center gap-1.5">Edit Trip - {editingTripNo}{(editingRateLocks.customer||editingRateLocks.supplier)&&<span title="Locked: posted accounting exists. Operational fields remain editable; posted financial identity/rates require controlled correction." className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"><LockKeyhole className="h-3 w-3"/>Locked</span>}</span>:"New Trip"}
+        {editingTripId?<span className="inline-flex items-center gap-1.5">Edit Trip - {editingTripNo}{editingTripLocked&&<span title="Locked: customer and supplier financial sides are posted. Normal Trip editing is disabled; use controlled correction." className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"><LockKeyhole className="h-3 w-3"/>Locked</span>}</span>:"New Trip"}
       </h2>
 
       <p className="text-xs text-slate-500">
-        {editingTripId?"Trip No and Trip Date are permanent. Operational fields below remain editable; posted financial fields stay protected.":"Trip number is generated automatically by NAVILO."}
+        {editingTripLocked?"Locked Trip is read-only. Use the controlled correction / reversal workflow for later changes.":editingTripId?"Trip No and Trip Date are permanent. Posted financial fields stay protected.":"Trip number is generated automatically by NAVILO."}
       </p>
     </div>
 
@@ -1487,6 +1489,7 @@ export default function TransportWorkspace(){
 
   {newTripMode==="single"&&
   <div className="p-3">
+    <fieldset disabled={editingTripLocked} className={editingTripLocked?"opacity-80":""}>
     <div className="overflow-visible rounded-lg border border-blue-300 bg-white">
       <div className="grid grid-cols-1 border-b border-slate-300 md:grid-cols-2 xl:grid-cols-7">
         <TripField label="Date">
@@ -1659,6 +1662,8 @@ export default function TransportWorkspace(){
         </button>
       </div>
     </div>
+
+    </fieldset>
 
     {quickAdd&&<TransportQuickAdd key={`${scopeKey}/${quickAdd}`} kind={quickAdd} truckTypeId={form.truck_type_id} supplierId={quickSupplierId}
       truckTypes={tripMasters.truckTypes} suppliers={tripMasters.suppliers} onCreated={quickMasterCreated} onClose={()=>setQuickAdd(null)}/>}
