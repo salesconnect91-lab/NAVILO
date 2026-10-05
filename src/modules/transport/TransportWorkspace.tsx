@@ -1329,9 +1329,9 @@ export default function TransportWorkspace(){
         ref={tripsGridRef}
         className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-400 bg-white"
       >
-        <table className="w-max min-w-full table-auto whitespace-nowrap text-[9px] leading-none">
+        <table className="w-max min-w-full table-auto whitespace-nowrap text-[10.5px] leading-none">
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
-          <thead className="sticky top-0 z-40 bg-slate-900 text-left text-[9px] uppercase tracking-normal text-white shadow-[0_1px_2px_rgba(15,23,42,0.12)]">
+          <thead className="sticky top-0 z-40 bg-slate-900 text-left text-[10.5px] uppercase tracking-normal text-white shadow-[0_1px_2px_rgba(15,23,42,0.12)]">
             <tr className="h-11">
               {gridGroupSegments.map((segment,index)=><th key={segment.group+index} colSpan={segment.count}
                 className={`border-b border-r px-3 py-0 text-center text-[13px] font-black tracking-[0.025em] ${segment.group==="supplier"?"border-rose-300 bg-rose-100 text-rose-800":segment.group==="customer"?"border-blue-300 bg-blue-100 text-blue-800":segment.group==="ppr"?"border-emerald-300 bg-emerald-100 text-emerald-800":"border-slate-300 bg-slate-100 text-slate-800"}`}>
@@ -1388,7 +1388,7 @@ export default function TransportWorkspace(){
                     </button>
                   </div>
 
-                  {totalText!==null&&<div className="pb-1 text-right font-extrabold tabular-nums text-slate-950" style={{whiteSpace:"nowrap"}}>{totalText}</div>}
+                  {totalText!==null&&<div className="pb-1 pr-0.5 text-right text-[11px] font-black leading-none tabular-nums text-slate-950" style={{whiteSpace:"nowrap"}}>{totalText}</div>}
 
                   <div
                     role="separator"
@@ -1990,9 +1990,11 @@ export default function TransportWorkspace(){
           <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={loading} onChange={e=>setQuickPprFile(e.target.files?.[0]??null)} className="mt-1 block w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs"/>
           <span className="mt-1 block text-[10px] font-normal text-slate-500">Choose photo or PDF · max 10 MB</span>
         </label>
+        {error&&<div role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] font-semibold text-red-700">{error}</div>}
+        {!quickPprEmployee&&<div className="mt-2 text-[10px] font-medium text-amber-700">Select Received By employee, then click Mark Received.</div>}
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={()=>setQuickPprTrip(null)} className="rounded border px-3 py-2 text-xs font-semibold">Cancel</button>
-          <button type="button" disabled={loading||!quickPprEmployee||!quickPprDate} onClick={()=>void saveQuickPpr()} className="rounded bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Mark Received</button>
+          <button type="button" disabled={loading} onClick={()=>void saveQuickPpr()} className="rounded bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60">Mark Received</button>
         </div>
       </div>
     </div>}
