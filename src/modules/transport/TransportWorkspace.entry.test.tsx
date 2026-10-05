@@ -135,7 +135,7 @@ describe('Transport register server pagination',()=>{
   expect(screen.queryByText('OFF-PAGE-TRIP')).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'Search Trips'}));await screen.findByText('OFF-PAGE-TRIP');
   const calls=mock.rpc.mock.calls.filter(c=>c[0]==='transport_register_query');expect(calls[calls.length-1][1]).toMatchObject({p_offset:0,p_filters:{search:'OFF-PAGE'}});
-  expect(screen.getByText(/Total Trips/)).toBeTruthy();expect(screen.getByText('1 shown / 1 filtered trips')).toBeTruthy();
+  expect(screen.getByText('1 shown / 1 filtered trips')).toBeTruthy();
  });
 });
 

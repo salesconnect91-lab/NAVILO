@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { MemoryRouter } from "react-router-dom";
 import Reports from "./Reports";
 import ReportSurface from "@/components/reports/ReportSurface";
+const paging=vi.hoisted(()=>({enabled:false,fail:false,calls:[] as number[]}));
 
 vi.mock("@/auth/AuthContext", () => ({ useAuth: () => ({
   user: { id: "synthetic-user" }, isPlatformOwner: true,
@@ -16,15 +17,32 @@ vi.mock("@/lib/exportUtils", () => ({
 vi.mock("@/lib/supabase", () => ({ supabase: { from: (table:string) => {
   const result = table === "customers" ? { data: [{ name: "Synthetic Customer" }], error: null } :
     { data: [{ id: "row-1", invoice_no: "INV-1", invoice_date: "2026-09-24", customer_name: "Synthetic Customer", net_sales_amount: 100 }], error: null };
-  const query = { select: () => query, limit: () => query, eq: () => query, order: async () => result };
+  const query = { select: () => query, limit: () => query, eq: () => query, order: () => query, range: async (start:number) => {
+    if(table!=="sales_margin_report"||!paging.enabled)return result;
+    paging.calls.push(start);
+    if(start===0)return {data:Array.from({length:1000},(_,i)=>({id:`row-${i}`,invoice_no:`PAGE-${i}`,invoice_date:"2026-09-24",customer_name:"Synthetic Customer",net_sales_amount:1})),error:null};
+    if(paging.fail)return {data:null,error:{message:"Second page failed"}};
+    return {data:[{id:"last",invoice_no:"BEYOND-FIRST-PAGE",invoice_date:"2026-09-24",customer_name:"Synthetic Customer",net_sales_amount:7}],error:null};
+  }, then: (resolve:any) => Promise.resolve(result).then(resolve) };
   return query;
 } } }));
 
 const showReport = () => render(<MemoryRouter initialEntries={["/reports/sales-margin"]}><ReportSurface><Reports /></ReportSurface></MemoryRouter>);
-beforeEach(() => localStorage.clear());
+beforeEach(() => {localStorage.clear();paging.enabled=false;paging.fail=false;paging.calls=[]});
 afterEach(cleanup);
 
 describe("generic report workspace", () => {
+  it("includes rows beyond the API page limit in the report",async()=>{
+    paging.enabled=true;showReport();
+    await screen.findByText("BEYOND-FIRST-PAGE");
+    expect(paging.calls).toEqual([0,1000]);
+  });
+  it("shows an error instead of incomplete financial results after a later page fails",async()=>{
+    paging.enabled=true;paging.fail=true;showReport();
+    await screen.findByText("Second page failed");
+    expect(screen.queryByText("PAGE-0")).toBeNull();
+    expect(paging.calls).toEqual([0,1000]);
+  });
   it("keeps filters and primary actions compact and exposes only real output actions", async () => {
     showReport();
     expect(screen.getByRole<HTMLSelectElement>("combobox", { name: "Accounting method" }).disabled).toBe(true);

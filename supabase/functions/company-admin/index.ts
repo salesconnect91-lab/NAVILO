@@ -57,6 +57,13 @@ Deno.serve(async(request)=>{
   const {data:actorMembership}=await admin.from("company_memberships").select("role,is_active").eq("company_id",companyId).eq("user_id",actor.id).maybeSingle();
   const actorRole=isPlatformOwner?"platform_owner":String(actorMembership?.role||"");
   if(!isPlatformOwner&&(!actorMembership?.is_active||!["company_owner","admin"].includes(actorRole)))return json({error:"Company Owner or Administrator access required"},403);
+  if(!isPlatformOwner){
+    const {data:company,error:companyError}=await admin.from("companies").select("status,subscription_expires_at").eq("id",companyId).maybeSingle();
+    if(companyError||!company||!["active","trial"].includes(company.status)
+      ||(company.subscription_expires_at&&new Date(company.subscription_expires_at).getTime()<=Date.now())){
+      return json({error:"Active company subscription required"},403);
+    }
+  }
 
   const canAssignRole=(role:string)=>{
     if(isPlatformOwner)return ["company_owner",...STANDARD_ROLES].includes(role);
@@ -181,6 +188,8 @@ Deno.serve(async(request)=>{
       const {data:target}=await admin.from("company_memberships").select("role,is_active").eq("company_id",companyId).eq("user_id",userId).maybeSingle();
       if(!target)return json({error:"User is not assigned to this company."},404);
       if(!isPlatformOwner){
+        const {data:targetProfile,error:targetProfileError}=await admin.from("user_profiles").select("platform_role").eq("id",userId).maybeSingle();
+        if(targetProfileError||!targetProfile||targetProfile.platform_role==="super_admin")return json({error:"Platform Owner logins can only be managed by the NAVILO Platform Owner."},403);
         if(userId===actor.id&&(body.is_active===false||body.role!==undefined||body.permissions!==undefined))return json({error:"You cannot disable or change your own role or permissions."},403);
         if(actorRole==="admin"&&["company_owner","admin"].includes(target.role))return json({error:"Administrators cannot manage Company Owner or Administrator accounts."},403);
         if(target.role==="company_owner"&&(body.role!==undefined||body.permissions!==undefined||body.is_active!==undefined||body.business_unit_id!==undefined||body.operating_location_id!==undefined))return json({error:"Company Owner access is controlled by the NAVILO Platform Owner."},403);
@@ -218,6 +227,13 @@ Deno.serve(async(request)=>{
       const {data:target}=await admin.from("company_memberships").select("role").eq("company_id",companyId).eq("user_id",userId).maybeSingle();
       if(!target)return json({error:"User is not assigned to this company."},404);
       if(!isPlatformOwner){
+        const [{data:targetProfile,error:targetProfileError},{count:sharedCount,error:sharedError}]=await Promise.all([
+          admin.from("user_profiles").select("platform_role").eq("id",userId).maybeSingle(),
+          admin.from("company_memberships").select("id",{count:"exact",head:true}).eq("user_id",userId).neq("company_id",companyId),
+        ]);
+        if(targetProfileError||sharedError||!targetProfile||targetProfile.platform_role==="super_admin"||(sharedCount??0)>0){
+          return json({error:"Shared and Platform Owner logins can only be reset by the NAVILO Platform Owner."},403);
+        }
         if(actorRole==="admin"&&["company_owner","admin"].includes(target.role))return json({error:"Administrators cannot reset this account."},403);
         if(target.role==="company_owner"&&userId!==actor.id)return json({error:"Company Owner password is Platform Owner controlled."},403);
       }

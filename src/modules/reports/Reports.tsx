@@ -1,8 +1,9 @@
 import NaviloDateInput from '@/components/NaviloDateInput';
-import { useCallback,useEffect,useMemo,useState } from "react";
+import { useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { useLocation } from "react-router-dom";
 import { BarChart3,Download,Mail,Printer,RefreshCw,RotateCcw,Save,Settings2,Sparkles,Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 import { ErrorBanner,formatCurrency,formatDate } from "@/components/ui";
 import SearchableSelect from "@/components/SearchableSelect";
 import { useAuth } from "@/auth/AuthContext";
@@ -55,6 +56,7 @@ function show(v:any,k?:Kind){if(v===null||v===undefined||v==="")return"—";if(k
 type SavedReportView={name:string;filters:{q:string;from:string;to:string;party:string;item:string;category:string;status:string;groupBy:string;range:string;inventoryView?:string;godown?:string}};
 function localDate(date:Date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`}
 export default function Reports(){
+ const reportRequest=useRef(0);
  const loc=useLocation();const def=defs[loc.pathname]??defs["/reports/sales-margin"];
  const{user,isPlatformOwner,activeCompany,activeBusinessUnit}=useAuth();
  const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role,permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
@@ -75,14 +77,27 @@ export default function Reports(){
  const restoreView=()=>{if(!savedView)return;const f=savedView.filters;setQ(f.q??"");setFrom(f.from??"");setTo(f.to??"");setParty(f.party??"");setItem(f.item??"");setCategory(f.category??"");setStatus(f.status??"");setGroupBy(f.groupBy??"");setRange(f.range??"all");setInventoryView(f.inventoryView==="categories"?"categories":"items");setGodown(f.godown??"")};
  const deleteSavedView=()=>{try{localStorage.removeItem(viewKey)}finally{setSavedView(null);setViewName("");setSaveOpen(false)}};
  const load=useCallback(async()=>{
+  const request=++reportRequest.current;
   setLoading(true);setError(null);
   if(!canViewReport){setData([]);setError(`This report requires the ${requiredModule} module to be enabled for this workspace.`);setLoading(false);return;}
-  let r:any;
-  if(def.rpc) r=await supabase.rpc(def.rpc,{p_from:from||null,p_to:to||null});
-  else {let query=supabase.from(def.view!).select("*").limit(10000);if(def.order)query=query.order(def.order,{ascending:false});r=await query;}
-  if(r.error)setError(r.error.message);setData(r.data??[]);setLoading(false);
- },[def.rpc,def.view,def.order,from,to,canViewReport,requiredModule]);
- useEffect(()=>{void load()},[load]);
+  try {
+   let r:any;
+   if(def.rpc) r=await supabase.rpc(def.rpc,{p_from:from||null,p_to:to||null});
+   else {
+    const rows=await fetchAllPages<any>((start,end)=>{
+     let query=supabase.from(def.view!).select("*");
+     if(def.order)query=query.order(def.order,{ascending:false});
+     for(const column of def.cols)if(column.key!==def.order)query=query.order(column.key,{ascending:true,nullsFirst:false});
+     return query.range(start,end);
+    });
+    r={data:rows,error:null};
+   }
+   if(r.error)throw r.error;
+   if(request===reportRequest.current)setData(r.data??[]);
+  } catch(caught:any){if(request===reportRequest.current){setData([]);setError(caught.message||"Report load failed.");}}
+  finally{if(request===reportRequest.current)setLoading(false);}
+ },[def.rpc,def.view,def.order,from,to,canViewReport,requiredModule,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
+ useEffect(()=>{void load();return()=>{reportRequest.current++}},[load]);
  useEffect(()=>{
   let cancelled=false;
   const loadMasterParties=async()=>{
