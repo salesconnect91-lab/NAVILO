@@ -22,6 +22,15 @@ begin
   insert into public.business_unit_modules(business_unit_id,company_id,module_key,enabled)
   values(v_unit,v_company,'accounting',true),(v_unit,v_company,'master',true)
   on conflict(business_unit_id,module_key) do update set enabled=true;
+  -- Manual FX posting is governed by the Owner Control Journal feature.
+  -- Seed the canonical feature in isolated CI and explicitly entitle this synthetic company.
+  insert into public.platform_features(feature_key,module_key,label,category,route_pattern,supported_actions,default_enabled,core_locked,sort_order,is_active,source)
+  values('journal','accounting','Journal Entries','transaction','/accounting',
+         array['view','create','edit','post','delete','print','export']::text[],true,false,700,true,'registry')
+  on conflict(feature_key) do nothing;
+  insert into public.company_feature_entitlements(company_id,feature_key,enabled,action_overrides)
+  values(v_company,'journal',true,'{}'::jsonb)
+  on conflict(company_id,feature_key) do update set enabled=true,action_overrides='{}'::jsonb;
   insert into public.operating_locations(company_id,business_unit_id,code,name,location_type,is_active)
   values(v_company,v_unit,'FP-BR','FX posting branch','branch',true) returning id into v_location;
   insert into public.operating_location_memberships
