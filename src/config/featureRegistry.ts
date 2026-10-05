@@ -20,7 +20,7 @@ const report: FeatureAction[] = ["view", "print", "export"];
 const setup: FeatureAction[] = ["view", "edit", "print", "export"];
 
 export const FEATURE_REGISTRY: FeatureDefinition[] = [
-  { key:"dashboard", module:"dashboard", label:"Dashboard", category:"core", route:"/", actions:["view","print","export"], defaultEnabled:true, coreLocked:true, sortOrder:10 },
+  { key:"dashboard", module:"dashboard", label:"Dashboard", category:"core", route:"/", actions:["view","print","export"], defaultEnabled:true, coreLocked:false, sortOrder:10 },
   { key:"items", module:"master", label:"Items", category:"master", route:"/master-data", actions:master, sortOrder:100 },
   { key:"categories", module:"master", label:"Categories", category:"master", route:"/master-data/categories", actions:master, sortOrder:110 },
   { key:"customers", module:"master", label:"Customers", category:"master", route:"/master-data/customers", actions:master, sortOrder:120 },
