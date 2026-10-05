@@ -11,10 +11,11 @@ describe("first workspace module provisioning", () => {
     expect(() => onboardingModules(["dashboard", "transport"], [], "retail")).toThrow();
     expect(onboardingModules(["dashboard", "transport"], [], "transport")).toContain("transport");
   });
-  it("rejects unknown modules, business types and a missing dashboard", () => {
+  it("allows Dashboard to be omitted while rejecting unknown modules and business types", () => {
     expect(() => onboardingModules(["dashboard", "owner"], [], "custom")).toThrow();
     expect(() => onboardingModules(["dashboard"], [], "unknown")).toThrow();
-    expect(() => onboardingModules(["sales"], [], "custom")).toThrow();
+    expect(onboardingModules(["transport", "master", "accounting"], [], "transport"))
+      .toEqual(["transport", "master", "accounting"]);
   });
 });
 
