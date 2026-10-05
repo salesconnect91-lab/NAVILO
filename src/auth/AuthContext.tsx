@@ -71,6 +71,21 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+const AUTH_BOOT_TIMEOUT_MS = 12000;
+async function withBootTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out. Check your connection and retry.`)), AUTH_BOOT_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -83,7 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accountingSetup, setAccountingSetup] = useState<AccountingSetupState>({ userId: null, companyId: null, status: "idle", error: null });
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setAuthLoading(false); });
+    void withBootTimeout(supabase.auth.getSession(), "Session check")
+      .then(({ data }) => setSession(data.session))
+      .catch((error) => setAccessError(error instanceof Error ? error.message : "Session check failed."))
+      .finally(() => setAuthLoading(false));
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => setSession(newSession));
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -91,11 +109,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadAccess = async (): Promise<AccessContext | null> => {
     if (!session?.user.id) { setAccessContext(null); setAccessError(null); return null; }
     setAccessLoading(true); setAccessError(null);
-    const { data, error } = await supabase.rpc("get_my_access_context");
-    if (error) { setAccessContext(null); setAccessError(error.message); setAccessLoading(false); return null; }
-    if (!data) { setAccessContext(null); setAccessError("Your login profile has not been provisioned by the software owner."); setAccessLoading(false); return null; }
-    const next = data as AccessContext;
-    setAccessContext(next); setAccessLoading(false); return next;
+    try {
+      const { data, error } = await withBootTimeout(supabase.rpc("get_my_access_context"), "Access context");
+      if (error) { setAccessContext(null); setAccessError(error.message); return null; }
+      if (!data) { setAccessContext(null); setAccessError("Your login profile has not been provisioned by the software owner."); return null; }
+      const next = data as AccessContext;
+      setAccessContext(next); return next;
+    } catch (error) {
+      setAccessContext(null);
+      setAccessError(error instanceof Error ? error.message : "Access context failed.");
+      return null;
+    } finally {
+      setAccessLoading(false);
+    }
   };
 
   useEffect(() => { void loadAccess(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [session?.user.id]);
@@ -118,15 +144,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     setAccountingSetup({ userId, companyId, status: "loading", error: null });
     void (async () => {
-      const { count, error: countError } = await supabase.from("chart_of_accounts").select("id", { count: "exact", head: true });
+      try {
+      const { count, error: countError } = await withBootTimeout(
+        supabase.from("chart_of_accounts").select("id", { count: "exact", head: true }),
+        "Accounting setup check",
+      );
       if (cancelled) return;
       if (countError) { setAccountingSetup({ userId, companyId, status: "error", error: countError.message }); return; }
       if ((count ?? 0) === 0) {
-        const { error } = await supabase.rpc("initialize_default_coa");
+        const { error } = await withBootTimeout(supabase.rpc("initialize_default_coa"), "Accounting initialization");
         if (cancelled) return;
         if (error) { setAccountingSetup({ userId, companyId, status: "error", error: error.hint || error.details || error.message }); return; }
       }
       setAccountingSetup({ userId, companyId, status: "ready", error: null });
+      } catch (error) {
+        if (!cancelled) setAccountingSetup({ userId, companyId, status: "error", error: error instanceof Error ? error.message : "Accounting setup failed." });
+      }
     })();
     return () => { cancelled = true; };
   }, [session?.user.id, accessContext, accessLoading, activeCompany?.company_id, accountingAttempt]);
