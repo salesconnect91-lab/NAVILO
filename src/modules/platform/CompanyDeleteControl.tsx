@@ -2,58 +2,22 @@ import { useState } from "react";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 
-type Props = {
-  companyId: string;
-  companyName: string;
-  companyCode: string;
-  onDeleted: () => Promise<void> | void;
-};
+type Preview={total_rows:number;counts:Record<string,number>;preserved:string[]};
+type Props={companyId:string;companyName:string;companyCode:string;isTestCompany:boolean;onDeleted:()=>Promise<void>|void};
 
-export default function CompanyDeleteControl({ companyId, companyName, companyCode, onDeleted }: Props) {
-  const [open, setOpen] = useState(false);
-  const [confirmation, setConfirmation] = useState("");
-  const [acknowledge, setAcknowledge] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const expected = `DELETE ${companyCode}`;
-
-  const remove = async () => {
-    if (confirmation !== expected || !acknowledge) return;
-    if (!window.confirm(`Permanently delete unused company ${companyName}? This works only when no protected financial or operational evidence exists and cannot be undone.`)) return;
-
-    setBusy(true);
-    setError("");
-    try {
-      await invokeEdgeFunction("platform-admin", {
-        action: "delete_company",
-        company_id: companyId,
-        confirmation,
-        acknowledge: true,
-      });
-      setOpen(false);
-      setConfirmation("");
-      setAcknowledge(false);
-      await onDeleted();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Company deletion failed.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (!open) {
-    return <button type="button" className="btn-secondary border-red-200 text-red-700 hover:bg-red-50" onClick={() => setOpen(true)}><Trash2 className="h-4 w-4"/>Delete</button>;
-  }
-
-  return <div className="mt-3 w-full rounded-lg border border-red-200 bg-red-50 p-3">
-    <div className="flex items-start gap-2 text-red-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0"/><div><div className="text-sm font-semibold">Permanently delete {companyName}</div><div className="mt-1 text-xs">Only an unused company can be permanently deleted. Financial or operational evidence blocks deletion; use Suspend/Close instead. Platform Owner login is not deleted.</div></div></div>
-    <div className="mt-3 text-xs text-red-700">Type <strong>{expected}</strong> to confirm:</div>
-    <input className="input mt-1 w-full" value={confirmation} onChange={event => setConfirmation(event.target.value)} placeholder={expected}/>
-    <label className="mt-2 flex items-start gap-2 text-xs text-red-800"><input type="checkbox" className="mt-0.5" checked={acknowledge} onChange={event => setAcknowledge(event.target.checked)}/><span>I understand this permanently deletes only an unused company and cannot be undone.</span></label>
-    {error && <div className="mt-2 text-xs font-medium text-red-700">{error}</div>}
-    <div className="mt-3 flex gap-2">
-      <button type="button" className="btn-primary bg-red-700 hover:bg-red-800" disabled={busy || confirmation !== expected || !acknowledge} onClick={() => void remove()}>{busy ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4"/>}Delete Permanently</button>
-      <button type="button" className="btn-secondary" disabled={busy} onClick={() => { setOpen(false); setConfirmation(""); setAcknowledge(false); setError(""); }}>Cancel</button>
-    </div>
-  </div>;
+export default function CompanyDeleteControl({companyId,companyName,companyCode,isTestCompany,onDeleted}:Props){
+ const [mode,setMode]=useState<"delete"|"purge"|null>(null),[confirmation,setConfirmation]=useState(""),[ack,setAck]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(""),[preview,setPreview]=useState<Preview|null>(null);
+ const expected=mode==="purge"?`PURGE ${companyCode}`:`DELETE ${companyCode}`;
+ const reset=()=>{setMode(null);setConfirmation("");setAck(false);setError("");setPreview(null)};
+ const openPurge=async()=>{setMode("purge");setBusy(true);setError("");setPreview(null);try{const p=await invokeEdgeFunction<Preview>("platform-admin",{action:"purge_test_company_preview",company_id:companyId});setPreview(p)}catch(e){setError(e instanceof Error?e.message:"Could not preview test company purge.")}finally{setBusy(false)}};
+ const run=async()=>{if(confirmation!==expected||!ack)return;const purge=mode==="purge";if(!window.confirm(purge?`Permanently purge ALL company-owned test data and delete ${companyName}? This cannot be undone.`:`Permanently delete unused company ${companyName}? This cannot be undone.`))return;setBusy(true);setError("");try{await invokeEdgeFunction("platform-admin",{action:purge?"purge_test_company":"delete_company",company_id:companyId,confirmation,acknowledge:true});reset();await onDeleted()}catch(e){setError(e instanceof Error?e.message:"Company deletion failed.")}finally{setBusy(false)}};
+ if(!mode)return <div className="flex flex-wrap gap-2"><button type="button" className="btn-secondary border-red-200 text-red-700 hover:bg-red-50" onClick={()=>setMode("delete")}><Trash2 className="h-4 w-4"/>Delete Empty Company</button>{isTestCompany&&<button type="button" className="btn-secondary border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100" onClick={()=>void openPurge()}><AlertTriangle className="h-4 w-4"/>Purge & Delete Test Company</button>}</div>;
+ return <div className="mt-3 w-full rounded-lg border border-red-200 bg-red-50 p-3">
+  <div className="flex items-start gap-2 text-red-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0"/><div><div className="text-sm font-semibold">{mode==="purge"?"Purge & delete test company":"Permanently delete empty company"}: {companyName}</div><div className="mt-1 text-xs">{mode==="purge"?"All company-owned test data will be removed atomically. Global login/auth users and platform audit history are preserved. Any unresolved dependency blocks and rolls back the whole purge.":"Only an unused company can be deleted; protected evidence blocks deletion."}</div></div></div>
+  {mode==="purge"&&<div className="mt-3 rounded border border-rose-200 bg-white p-2 text-xs">{busy&&!preview?"Loading purge preview…":preview?<><b>{preview.total_rows.toLocaleString()} company-owned row(s)</b> detected across {Object.keys(preview.counts).length} table(s).<div className="mt-1 max-h-28 overflow-auto">{Object.entries(preview.counts).filter(([,n])=>n>0).map(([k,n])=><div key={k} className="flex justify-between gap-3"><span>{k.replaceAll("_"," ")}</span><b>{n.toLocaleString()}</b></div>)}</div></>:error?"Preview failed. Purge is disabled.":"Preview required."}</div>}
+  <div className="mt-3 text-xs text-red-700">Type <strong>{expected}</strong> exactly:</div><input className="input mt-1 w-full" value={confirmation} onChange={e=>setConfirmation(e.target.value)} placeholder={expected}/>
+  <label className="mt-2 flex items-start gap-2 text-xs text-red-800"><input type="checkbox" className="mt-0.5" checked={ack} onChange={e=>setAck(e.target.checked)}/><span>I understand this action is permanent and cannot be undone.</span></label>
+  {error&&<div role="alert" className="mt-2 text-xs font-medium text-red-700">{error}</div>}
+  <div className="mt-3 flex gap-2"><button type="button" className="btn-primary bg-red-700 hover:bg-red-800" disabled={busy||confirmation!==expected||!ack||(mode==="purge"&&!preview)} onClick={()=>void run()}>{busy?<Loader2 className="h-4 w-4 animate-spin"/>:<Trash2 className="h-4 w-4"/>}{mode==="purge"?"Purge & Delete Permanently":"Delete Permanently"}</button><button type="button" className="btn-secondary" disabled={busy} onClick={reset}>Cancel</button></div>
+ </div>;
 }
