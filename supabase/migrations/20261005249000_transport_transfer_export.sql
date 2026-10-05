@@ -11,7 +11,7 @@ begin
   select t.trip_date,t.trip_no,jsonb_build_object(
    'source_company',company_name,'source_trip_id',t.id::text,'source_trip_no',t.trip_no,'trip_date',t.trip_date,
    'customer_id',t.customer_id,'customer',coalesce(cu.name,t.customer_name_snapshot),
-   'vehicle_id',t.vehicle_id,'vehicle_no',v.vehicle_no,'driver_id',t.driver_id,'driver',d.driver_name,
+   'vehicle_id',t.vehicle_id,'vehicle_no',v.vehicle_no,'driver_id',t.driver_id,'driver',d.driver_name,'driver_code',d.driver_code,
    'truck_type_id',t.truck_type_id,'truck_type',tt.name,
    'from_location',coalesce(fl.name,t.from_location),'to_location',coalesce(tl.name,t.to_location),
    'from_location_id',t.from_location_id,'to_location_id',t.to_location_id,'job_no',t.po_do_job_no,
