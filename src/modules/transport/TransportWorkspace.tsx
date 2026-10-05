@@ -1423,10 +1423,10 @@ export default function TransportWorkspace(){
           </thead>
 
           <tbody>
-            {gridRows.map(r=><tr key={r.id} className={`h-[20px] align-middle hover:bg-slate-100 odd:bg-white even:bg-slate-50/70`}>
+            {gridRows.map(r=><tr key={r.id} className={`h-[26px] align-middle odd:bg-white even:bg-slate-50/45 hover:bg-blue-50/45 transition-colors`}>
               <td
                 style={tripColumnWidths[orderedGridColumns[0]?.[0]??""]?{width:tripColumnWidths[orderedGridColumns[0]?.[0]??""],minWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""]}:undefined}
-                className="!sticky left-0 z-30 h-[20px] max-h-[20px] overflow-hidden whitespace-nowrap border-b border-r border-slate-200 bg-white px-0.5 !py-0 font-bold leading-none text-slate-900 shadow-[2px_0_3px_rgba(15,23,42,0.08)]">
+                className="!sticky left-0 z-30 h-[26px] max-h-[26px] overflow-hidden whitespace-nowrap border-b border-r border-slate-200 bg-white px-1.5 !py-0 font-bold leading-tight text-slate-900 shadow-[2px_0_3px_rgba(15,23,42,0.06)]">
   <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
     className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
@@ -1441,31 +1441,31 @@ export default function TransportWorkspace(){
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`h-[20px] max-h-[20px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-slate-300 px-0.5 !py-0 leading-none ${isSupplierGridKey(key)?"bg-rose-50/70":isCustomerGridKey(key)?"bg-blue-50/60":isPprGridKey(key)?"bg-emerald-50/60":""} ${numeric?"text-right":""}`}>
+                  className={`h-[26px] max-h-[26px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-slate-200 px-1.5 !py-0 leading-tight ${isSupplierGridKey(key)?"bg-rose-50/55":isCustomerGridKey(key)?"bg-blue-50/45":isPprGridKey(key)?"bg-emerald-50/50":""} ${numeric?"text-right font-medium":""}`}>
                   {key==='charge'
-                    ?<button type="button" className="h-[17px] w-full cursor-pointer rounded px-0.5 py-0 text-left text-[9px] font-semibold leading-none text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
+                    ?<button type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
                     :key==='supplier_charges'
-                    ?<button type="button" className="h-[17px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[9px] font-semibold leading-none text-rose-700 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500" aria-label={`Open Supplier Charges ${r.trip_no}`} onClick={()=>void openSupplierCharges(r)}>{value||''}</button>
+                    ?<button type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-semibold leading-tight text-rose-700 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500" aria-label={`Open Supplier Charges ${r.trip_no}`} onClick={()=>void openSupplierCharges(r)}>{value||''}</button>
                     :key==='company_rate'
                     ?<button type="button"
-                      className="h-[17px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[9px] font-semibold leading-none text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
+                      className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
                       aria-label={`${r.customer_rate_state==='pending'?'Add':'Open'} Company Rate ${r.trip_no}`}
                       onClick={()=>setInitialRateTrip(r)}>
                       {r.customer_rate_state==='pending'&&!r.customer_rate_locked?'':value||'0.00'}
                     </button>
                     :key==='invoice_no'
                       ?<button type="button"
-                        className="h-[17px] w-full cursor-pointer rounded px-0.5 py-0 text-left text-[9px] font-semibold leading-none text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
+                        className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
                         aria-label={`${r.invoice_no?'Open':'Add'} Invoice Number ${r.trip_no}`}
                         onClick={()=>setInvoiceTrip(r)}>
                         {r.invoice_no||''}
                       </button>
                     :key==='rent_driver'&&r.customer_rate_state!==undefined
-                      ?<button type="button" className="h-[17px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[8px] leading-none text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
+                      ?<button type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-medium leading-tight text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
                     :key==='paper_received_by'
                       ?r.ppr_status==='received'
                         ?<span className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[8px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
-                        :<button type="button" onClick={()=>void openQuickPpr(r)} className="h-[17px] rounded border border-amber-300 bg-amber-50 px-1 py-0 text-[9px] font-semibold leading-none text-amber-800">Receive PPR</button>
+                        :<button type="button" onClick={()=>void openQuickPpr(r)} className="h-[22px] rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0 text-[9px] font-semibold leading-tight text-amber-800 hover:bg-amber-100">Receive PPR</button>
                       :value||""}
                 </td>;
               })}            </tr>)}
@@ -1476,7 +1476,7 @@ export default function TransportWorkspace(){
       
       <TransportHorizontalScroll gridRef={tripsGridRef} revision={registerKey+String(page)+hiddenTripColumns.join()+JSON.stringify(tripColumnWidths)}/>
       <TransportPagination page={page} pageSize={500} count={Number(registerMeta.count??0)} busy={registerLoading} onPage={setPage}/>
-      <p className="shrink-0 border-t border-slate-300 bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">Header totals cover all filtered Trips, across every page.</p>
+      <p className="shrink-0 border-t border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-600">Header totals cover all filtered Trips, across every page.</p>
       {!registerLoading&&!visible.length&&<div className="p-10 text-center text-sm text-slate-500">No trips found.</div>}
     </section>}
 
