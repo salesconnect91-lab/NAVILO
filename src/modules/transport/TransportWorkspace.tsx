@@ -252,8 +252,8 @@ export default function TransportWorkspace(){
   
   const [invoiceTrip,setInvoiceTrip]=useState<Trip|null>(null);
   const [editingRateLocks,setEditingRateLocks]=useState({customer:false,supplier:false});
-  const editingTripLocked=Boolean(editingTripId&&editingRateLocks.customer&&editingRateLocks.supplier);
   const [editingTripId,setEditingTripId]=useState<string|null>(null);
+  const editingTripLocked=Boolean(editingTripId&&editingRateLocks.customer&&editingRateLocks.supplier);
   const [editingTripNo,setEditingTripNo]=useState("");
   const [editingOriginalAssignment,setEditingOriginalAssignment]=useState({vehicle_id:"",driver_id:""});
 
