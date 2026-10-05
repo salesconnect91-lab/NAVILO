@@ -11,6 +11,7 @@ import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportBulkCustomerRate from './TransportBulkCustomerRate';
 import TransportInitialRate from './TransportInitialRate';
 import TransportTripCharges from './TransportTripCharges';
+import TransportSupplierCharges from './TransportSupplierCharges';
 import TransportInvoiceNumber from './TransportInvoiceNumber';
 import TransportCostUpload from './TransportCostUpload';
 import TransportHistoricalImport from './TransportHistoricalImport';
@@ -245,6 +246,7 @@ export default function TransportWorkspace(){
   const [quickPprDate,setQuickPprDate]=useState(new Date().toISOString().slice(0,10));
   const [initialRateTrip,setInitialRateTrip]=useState<Trip|null>(null);
   const [chargeTrip,setChargeTrip]=useState<Trip|null>(null);
+  const [supplierChargeTarget,setSupplierChargeTarget]=useState<{rentId:string;tripNo:string}|null>(null);
   const [showRateList,setShowRateList]=useState(false);
   const [tripChargeSummary,setTripChargeSummary]=useState<Record<string,string>>({});
   const [invoiceTrip,setInvoiceTrip]=useState<Trip|null>(null);
@@ -262,6 +264,16 @@ export default function TransportWorkspace(){
       if(!live)return;if(error){setError(error.message);return;}const grouped:Record<string,string[]>={};for(const x of data??[])(grouped[x.trip_id]??=[]).push(x.code_snapshot);const next:Record<string,string>={};for(const [id,codes] of Object.entries(grouped)){const counts=new Map<string,number>();for(const code of codes)counts.set(code,(counts.get(code)??0)+1);next[id]=[...counts].map(([code,n])=>n>1?code+'×'+n:code).join(' + ');}setTripChargeSummary(next);
     });return()=>{live=false};
   },[rows]);
+
+  const openSupplierCharges=async(r:Trip)=>{
+    setError("");
+    const q=await supabase.from('transport_trip_supplier_rents').select('id,state,amount,created_at').eq('trip_id',r.id).order('created_at',{ascending:true});
+    if(q.error){setError(q.error.message);return;}
+    const rents=q.data??[];
+    if(!rents.length){setError(`No supplier rent exists for ${r.trip_no}. Add/finalize Supplier Rent first.`);return;}
+    if(rents.length>1){setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true);return;}
+    setSupplierChargeTarget({rentId:rents[0].id,tripNo:r.trip_no});
+  };
 
   const selectedVehicle=tripMasters.vehicles.find(v=>v.id===form.vehicle_id);
   const selectedDriver=tripMasters.drivers.find(d=>d.id===form.driver_id);
@@ -1163,7 +1175,8 @@ export default function TransportWorkspace(){
   return <div className="relative w-full max-w-none space-y-1" style={{width:"100%",maxWidth:"none",marginInline:0}}>
 
 
-    {chargeTrip&&<TransportTripCharges tripId={chargeTrip.id} onClose={()=>setChargeTrip(null)} onChanged={load}/>} 
+    {chargeTrip&&<TransportTripCharges tripId={chargeTrip.id} onClose={()=>setChargeTrip(null)} onChanged={load}/>}
+    {supplierChargeTarget&&<TransportSupplierCharges rentId={supplierChargeTarget.rentId} tripNo={supplierChargeTarget.tripNo} onClose={()=>setSupplierChargeTarget(null)} onChanged={load}/>} 
 
     {showPartyReports&&<TransportPartyReports key={`${scopeKey}:${reportPanel}`} initialSide={reportPanel==='supplier-reports'?'supplier':'customer'} allocationEntry={reportPanel==='bulk-allocation'} onClose={()=>setTab('trips')} onChanged={load}/>}
 
@@ -1414,7 +1427,9 @@ export default function TransportWorkspace(){
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
                   className={`h-[17px] max-h-[17px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-slate-300 px-0.5 !py-0 leading-none ${isSupplierGridKey(key)?"bg-rose-50/80":isCustomerGridKey(key)?"bg-sky-50/80":""} ${numeric?"text-right":""}`}>
                   {key==='charge'
-                    ?<button type="button" className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-left text-[8px] font-semibold leading-none text-blue-700 hover:bg-blue-100" aria-label={`Open Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
+                    ?<button type="button" className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-left text-[8px] font-semibold leading-none text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
+                    :key==='supplier_charges'
+                    ?<button type="button" className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[8px] font-semibold leading-none text-rose-700 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500" aria-label={`Open Supplier Charges ${r.trip_no}`} onClick={()=>void openSupplierCharges(r)}>{value||''}</button>
                     :key==='company_rate'
                     ?<button type="button"
                       className="h-[14px] w-full cursor-pointer rounded px-0.5 py-0 text-right text-[8px] font-semibold leading-none text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
