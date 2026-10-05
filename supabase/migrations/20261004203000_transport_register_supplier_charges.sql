@@ -159,7 +159,7 @@ begin
     where f.key is distinct from p_option_key and jsonb_array_length(f.value)>0
      and not f.value @> jsonb_build_array(x.vals->'cells'->>f.key))
  ), chosen as materialized (
-  select x.id,x.status,x.n_rent_driver rent,x.n_supplier_charges supplier_charges,row_number() over(order by case when p_direction='asc' and p_sort='trip_date' then x.trip_date end asc,
+  select x.id,x.status,x.n_customer_charges customer_charges,x.n_rent_driver rent,x.n_supplier_charges supplier_charges,row_number() over(order by case when p_direction='asc' and p_sort='trip_date' then x.trip_date end asc,
    case when p_direction='desc' and p_sort='trip_date' then x.trip_date end desc,
    case when p_direction='asc' and p_sort='payment_date' then x.payment_date end asc,
    case when p_direction='desc' and p_sort='payment_date' then x.payment_date end desc,
@@ -181,11 +181,11 @@ begin
    x.trip_date desc,x.trip_no desc,x.id
   limit greatest(1,least(coalesce(p_limit,500),500)) offset greatest(coalesce(p_offset,0),0)
  ), page as (
-  select public._transport_mask_financial_row(to_jsonb(r),cv,sv)||jsonb_build_object('status',chosen.status,'supplier_rent',chosen.rent,'supplier_charges',chosen.supplier_charges,'invoice_no',coalesce(
+  select public._transport_mask_financial_row(to_jsonb(r),cv,sv)||jsonb_build_object('status',chosen.status,'customer_charges',chosen.customer_charges,'supplier_rent',chosen.rent,'supplier_charges',chosen.supplier_charges,'invoice_no',coalesce(
    (select so.order_no from public.transport_customer_document_trips l join public.transport_customer_documents d on d.id=l.document_id join public.sales_orders so on so.id=d.sales_order_id where cv and l.trip_id=r.id and not l.is_adjustment order by l.id limit 1),
    (select nullif(btrim(t.source_invoice_no),'') from public.transport_trips t where cv and t.id=r.id))) row,chosen.ordinal
   from chosen join (select fr.* from public.transport_financial_register fr where cv and sv and fr.company_id=c and fr.business_unit_id=b union all select masked.* from public.transport_financial_register fr cross join lateral jsonb_populate_record(null::public.transport_financial_register,public._transport_mask_financial_row(to_jsonb(fr),cv,sv)) masked where not (cv and sv) and fr.company_id=c and fr.business_unit_id=b) r on r.id=chosen.id and r.company_id=c and r.business_unit_id=b
- ), sums as (select jsonb_build_object('rent_driver',coalesce(sum(x.n_rent_driver),0),'supplier_charges',coalesce(sum(x.n_supplier_charges),0),'supplier_paid',coalesce(sum(x.n_supplier_paid),0),'supplier_balance',coalesce(sum(x.n_supplier_balance),0),'supplier_credit',coalesce(sum(x.n_supplier_credit),0),'driver_pay',coalesce(sum(x.n_driver_pay),0),'driver_paid',coalesce(sum(x.n_driver_paid),0),'driver_balance',coalesce(sum(x.n_driver_balance),0),'amount',coalesce(sum(x.n_amount),0),'company_rate',coalesce(sum(x.n_company_rate),0),'received_company',coalesce(sum(x.n_received_company),0),'remaining_company',coalesce(sum(x.n_remaining_company),0),'customer_credit',coalesce(sum(x.n_customer_credit),0),'profit',coalesce(sum(x.n_profit),0),'commission',coalesce(sum(x.n_commission),0)) totals from filtered x),
+ ), sums as (select jsonb_build_object('charge',coalesce(sum(x.n_customer_charges),0),'rent_driver',coalesce(sum(x.n_rent_driver),0),'supplier_charges',coalesce(sum(x.n_supplier_charges),0),'supplier_paid',coalesce(sum(x.n_supplier_paid),0),'supplier_balance',coalesce(sum(x.n_supplier_balance),0),'supplier_credit',coalesce(sum(x.n_supplier_credit),0),'driver_pay',coalesce(sum(x.n_driver_pay),0),'driver_paid',coalesce(sum(x.n_driver_paid),0),'driver_balance',coalesce(sum(x.n_driver_balance),0),'amount',coalesce(sum(x.n_amount),0),'company_rate',coalesce(sum(x.n_company_rate),0),'received_company',coalesce(sum(x.n_received_company),0),'remaining_company',coalesce(sum(x.n_remaining_company),0),'customer_credit',coalesce(sum(x.n_customer_credit),0),'profit',coalesce(sum(x.n_profit),0),'commission',coalesce(sum(x.n_commission),0)) totals from filtered x),
  options as (select distinct x.vals->'cells'->>p_option_key value from filtered x
   where position(
  lower(case when x.vals->'numbers' ? p_option_key then replace(btrim(coalesce(p_option_search,'')),',','') else btrim(coalesce(p_option_search,'')) end)
