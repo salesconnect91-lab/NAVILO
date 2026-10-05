@@ -2022,9 +2022,9 @@ function ColumnFilterMenu({
   const shown=options;
 
   return <div
-    className="fixed z-[9999] flex flex-col rounded-md border border-slate-200 bg-white p-1.5 text-[10px] normal-case shadow-lg"
+    className="fixed z-[9999] flex flex-col rounded-md border border-slate-200 bg-white p-1 text-[9px] normal-case shadow-lg"
     aria-label={`${label} filter popup`}
-    style={{top,left,width:240,height:270,minWidth:160,minHeight:180,maxWidth:`calc(100vw - ${left+8}px)`,maxHeight:`calc(100vh - ${top+8}px)`,resize:'both',overflow:'hidden'}}
+    style={{top,left,width:190,height:190,minWidth:150,minHeight:140,maxWidth:`calc(100vw - ${left+8}px)`,maxHeight:`calc(100vh - ${top+8}px)`,resize:'both',overflow:'hidden'}}
     onClick={e=>e.stopPropagation()}
   >
     <div className="mb-0.5 flex items-center justify-between leading-none">
@@ -2039,18 +2039,18 @@ function ColumnFilterMenu({
         value={search}
         onChange={e=>onSearch(e.target.value)}
         placeholder="Search all values..."
-        className="h-6 w-full rounded border border-slate-200 pl-5 pr-1.5 text-[10px]"
+        className="h-5 w-full rounded border border-slate-200 pl-5 pr-1.5 text-[9px]"
       />
     </div>
 
     <div className="mt-0.5 flex gap-px">
       <button type="button" onClick={onSelectAll}
-        className="h-5 flex-1 rounded border border-slate-200 px-1 py-0 text-[9px] font-semibold leading-none hover:bg-slate-50">
+        className="h-[18px] flex-1 rounded border border-slate-200 px-1 py-0 text-[8px] font-semibold leading-none hover:bg-slate-50">
         Select Shown
       </button>
 
       <button type="button" onClick={onClear}
-        className="flex-1 rounded border border-slate-200 px-1 py-0.5 font-semibold hover:bg-slate-50">
+        className="h-[18px] flex-1 rounded border border-slate-200 px-1 py-0 text-[8px] font-semibold leading-none hover:bg-slate-50">
         Clear
       </button>
     </div>
@@ -2059,7 +2059,7 @@ function ColumnFilterMenu({
       {loading&&<p>Loading values…</p>}
       <p className="text-slate-500">Up to 200 matches. Search for more.</p>
       {shown.map(value=>
-        <label key={value} className="flex h-5 cursor-pointer items-center gap-1 rounded px-0.5 py-0 hover:bg-slate-50">
+        <label key={value} className="flex h-[18px] cursor-pointer items-center gap-1 rounded px-0.5 py-0 hover:bg-slate-50">
           <input
             type="checkbox"
             checked={selected.includes(value)}
@@ -2073,7 +2073,7 @@ function ColumnFilterMenu({
         <div className="px-1 py-3 text-center text-slate-400">No values</div>
       }
     </div>
-    <div className="shrink-0 pt-1 pr-3 text-right text-[9px] leading-3 text-slate-400">Drag corner to resize ↘</div>
+    <div className="shrink-0 pt-0.5 pr-3 text-right text-[8px] leading-3 text-slate-400">Drag corner to resize ↘</div>
   </div>
 }
 
