@@ -8,8 +8,8 @@ import { supabase } from "@/lib/supabase";
 import { toUrduName } from "@/lib/urdu";
 import { Package, Plus, Search, Pencil, Trash2, Power, CheckCircle2, XCircle, Layers3 } from "lucide-react";
 
-type ItemType = "raw" | "component" | "finished";
-type Item = { id:string; sku:string; name:string; name_urdu:string|null; type:string|null; grade:string|null; size:string|null; unit:string|null; hs_code:string|null; cost:number|null; price:number|null; category_id:string|null; is_active:boolean };
+type ItemType = "raw" | "component" | "finished" | "service";
+type Item = { id:string; sku:string; name:string; name_urdu:string|null; type:string|null; grade:string|null; size:string|null; unit:string|null; hs_code:string|null; cost:number|null; price:number|null; category_id:string|null; is_active:boolean; is_stock_item:boolean };
 type Category={id:string;name:string;name_urdu:string|null};
 type Uom={id:string;name:string;name_urdu:string|null;symbol:string};
 type ColumnKey="sku"|"item"|"urdu"|"type"|"category"|"hs"|"unit"|"size"|"grade"|"cost"|"price";
@@ -24,7 +24,7 @@ const DEFAULT_COLUMNS:Record<ColumnKey,boolean>={sku:false,item:true,urdu:true,t
 const COLUMN_LABELS:Record<ColumnKey,string>={sku:"SKU",item:"Item",urdu:"Urdu Name",type:"Type",category:"Category",hs:"HS/PCT",unit:"UOM",size:"Size",grade:"Grade",cost:"Cost",price:"Sale Price"};
 const n=(v:unknown)=>String(v??"").trim().toLowerCase();
 const num=(v:string)=>Number.isFinite(Number(v))?Number(v):0;
-const prefix=(t:ItemType)=>t==="raw"?"RAW":t==="component"?"CMP":"FG";
+const prefix=(t:ItemType)=>t==="raw"?"RAW":t==="component"?"CMP":t==="service"?"SVC":"FG";
 
 async function nextSku(t:ItemType, client = supabase){
   const p=prefix(t),{data,error}=await client.from("items").select("sku").ilike("sku",`${p}-%`);if(error)throw error;
@@ -41,7 +41,7 @@ export default function Items(){
   const[columns,setColumns]=useState<Record<ColumnKey,boolean>>(()=>{try{return{...DEFAULT_COLUMNS,...JSON.parse(localStorage.getItem("navilo-items-columns")||"{}")}}catch{return DEFAULT_COLUMNS}});
   const[error,setError]=useState(""),[saving,setSaving]=useState(false),[languageVersion,setLanguageVersion]=useState(0),[nameManual,setNameManual]=useState(false);
 
-  const load=async()=>{const[i,c,u]=await Promise.all([supabase.from("items").select("id,sku,name,name_urdu,type,grade,size,unit,hs_code,cost,price,category_id,is_active").order("name"),supabase.from("categories").select("id,name,name_urdu").order("name"),supabase.from("uom").select("id,name,name_urdu,symbol").order("name")]);if(i.error||c.error||u.error)setError(i.error?.message||c.error?.message||u.error?.message||"Load failed");else{setItems((i.data??[]) as Item[]);setCategories((c.data??[]) as Category[]);setUoms((u.data??[]) as Uom[])}};
+  const load=async()=>{const[i,c,u]=await Promise.all([supabase.from("items").select("id,sku,name,name_urdu,type,grade,size,unit,hs_code,cost,price,category_id,is_active,is_stock_item").order("name"),supabase.from("categories").select("id,name,name_urdu").order("name"),supabase.from("uom").select("id,name,name_urdu,symbol").order("name")]);if(i.error||c.error||u.error)setError(i.error?.message||c.error?.message||u.error?.message||"Load failed");else{setItems((i.data??[]) as Item[]);setCategories((c.data??[]) as Category[]);setUoms((u.data??[]) as Uom[])}};
   useEffect(()=>{void load()},[supabase]);
   useEffect(()=>{const h=()=>setCustomizeOpen(true);window.addEventListener("navilo:report-customize",h);return()=>window.removeEventListener("navilo:report-customize",h)},[]);
   useEffect(()=>{const h=()=>setLanguageVersion(v=>v+1);window.addEventListener("navilo-language-changed",h);window.addEventListener("navilo:language-changed",h);return()=>{window.removeEventListener("navilo-language-changed",h);window.removeEventListener("navilo:language-changed",h)}},[]);
@@ -92,14 +92,14 @@ export default function Items(){
   const save=async(e:FormEvent)=>{
     e.preventDefault();setSaving(true);setError("");
     try{
-      const resolvedName=(form.name.trim()||buildItemName(form.category_id,form.size,form.grade)).trim();
-      if(!resolvedName)throw new Error("Item name is required. Select a category and enter size/grade, or type a manual name.");
+      const resolvedName=(form.name.trim()||(form.type==="service"?"":buildItemName(form.category_id,form.size,form.grade))).trim();
+      if(!resolvedName)throw new Error(form.type==="service"?"Service name is required.":"Item name is required. Select a category and enter size/grade, or type a manual name.");
       const duplicateName=items.find(x=>x.id!==edit?.id&&n(x.name)===n(resolvedName));
       if(duplicateName)throw new Error(`Duplicate item name: ${duplicateName.name}.`);
       const sku=edit?edit.sku:await nextSku(form.type, supabase);
       const duplicateSku=items.find(x=>x.id!==edit?.id&&n(x.sku)===n(sku));
       if(duplicateSku)throw new Error(`Duplicate SKU: ${sku}.`);
-      const p={sku,name:resolvedName,name_urdu:showUrdu?(form.name_urdu.trim()||toUrduName(resolvedName)):(edit?.name_urdu??null),type:form.type,grade:form.grade.trim()||null,size:form.size.trim()||null,unit:form.unit.trim()||null,hs_code:form.hs_code.trim()||null,cost:num(form.cost),price:num(form.price),category_id:form.category_id||null};
+      const service=form.type==="service";const p={sku,name:resolvedName,name_urdu:showUrdu?(form.name_urdu.trim()||toUrduName(resolvedName)):(edit?.name_urdu??null),type:form.type,grade:service?null:(form.grade.trim()||null),size:service?null:(form.size.trim()||null),unit:form.unit.trim()||null,hs_code:form.hs_code.trim()||null,cost:num(form.cost),price:num(form.price),category_id:form.category_id||null,is_stock_item:!service};
       const q=edit?await supabase.from("items").update(p).eq("id",edit.id):await supabase.from("items").insert(p);if(q.error)throw q.error;
       setOpen(false);setEdit(null);setNameManual(false);setForm(EMPTY);await load();
     }catch(x){setError(x instanceof Error?x.message:"Save failed")}finally{setSaving(false)}
@@ -134,7 +134,7 @@ export default function Items(){
         <SearchableSelect wrapperClassName="w-[125px] shrink-0" className="input !h-10" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">All Status</option><option value="active">Active</option><option value="inactive">Inactive</option></SearchableSelect>
         <SearchableSelect wrapperClassName="w-[145px] shrink-0" className="input !h-10" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="all">All Categories</option>{categories.map(c=><option key={c.id} value={c.id}>{masterLabel(c.name,c.name_urdu)}</option>)}</SearchableSelect>
         <SearchableSelect wrapperClassName="w-[115px] shrink-0" className="input !h-10" value={uomFilter} onChange={e=>setUomFilter(e.target.value)}><option value="all">All UOM</option>{uoms.map(u=><option key={u.id} value={u.symbol}>{masterLabel(u.name,u.name_urdu,u.symbol)}</option>)}</SearchableSelect>
-        <SearchableSelect wrapperClassName="w-[120px] shrink-0" className="input !h-10" value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}><option value="all">All Types</option><option value="raw">Raw</option><option value="component">Component</option><option value="finished">Finished</option></SearchableSelect>
+        <SearchableSelect wrapperClassName="w-[120px] shrink-0" className="input !h-10" value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}><option value="all">All Types</option><option value="raw">Raw</option><option value="component">Component</option><option value="finished">Finished</option><option value="service">Service</option></SearchableSelect>
         {(search||typeFilter!=="all"||categoryFilter!=="all"||statusFilter!=="all"||uomFilter!=="all")&&<button type="button" className="btn-secondary !h-10 px-3" onClick={()=>{setSearch("");clearFilters()}}>Clear</button>}
         <button type="button" className="btn-primary !h-10 whitespace-nowrap px-4" onClick={()=>void start()}><Plus className="h-4 w-4"/>Add Item</button>
       </div>
@@ -146,12 +146,13 @@ export default function Items(){
 
     {open&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 p-4" data-no-print data-no-export><form onSubmit={save} className="max-h-[90vh] w-full max-w-2xl space-y-3 overflow-visible rounded-xl bg-white p-6 shadow-xl"><h2 className="text-lg font-bold">{edit?"Edit Item":"Add Item"}</h2><div className="grid gap-3 sm:grid-cols-2">
       
-      <div><label className="label">Type</label><SearchableSelect className="input" value={form.type} onChange={async e=>{const type=e.target.value as ItemType;if(edit){setForm(x=>({...x,type}));return;}try{const sku=await nextSku(type, supabase);setForm(x=>({...x,type,sku}))}catch(x){setError(x instanceof Error?x.message:"SKU generation failed")}}}><option value="raw">Raw</option><option value="component">Component</option><option value="finished">Finished</option></SearchableSelect></div>
-      <div><div className="flex items-center justify-between"><label className="label">Item Name (English)</label><button type="button" className="text-xs font-semibold text-primary-600" onClick={()=>{setNameManual(false);setForm(x=>applyGeneratedName(x))}}>Auto Name</button></div><input className="input" value={form.name} onChange={e=>{setNameManual(true);setForm(x=>({...x,name:e.target.value,name_urdu:(!x.name_urdu||x.name_urdu===toUrduName(x.name))?toUrduName(e.target.value):x.name_urdu}))}} placeholder="Auto from Category + Size + Grade"/></div>
+      <div><label className="label">Type</label><SearchableSelect className="input" value={form.type} onChange={async e=>{const type=e.target.value as ItemType;if(edit){setForm(x=>({...x,type}));return;}try{const sku=await nextSku(type, supabase);setForm(x=>({...x,type,sku}))}catch(x){setError(x instanceof Error?x.message:"SKU generation failed")}}}><option value="raw">Raw</option><option value="component">Component</option><option value="finished">Finished</option><option value="service">Service (Non-stock)</option></SearchableSelect></div>
+      <div><div className="flex items-center justify-between"><label className="label">{form.type==="service"?"Service Name (English)":"Item Name (English)"}</label>{form.type!=="service"&&<button type="button" className="text-xs font-semibold text-primary-600" onClick={()=>{setNameManual(false);setForm(x=>applyGeneratedName(x))}}>Auto Name</button>}</div><input className="input" value={form.name} onChange={e=>{setNameManual(true);setForm(x=>({...x,name:e.target.value,name_urdu:(!x.name_urdu||x.name_urdu===toUrduName(x.name))?toUrduName(e.target.value):x.name_urdu}))}} placeholder={form.type==="service"?"e.g. Transport Freight, Loading, Workshop Service":"Auto from Category + Size + Grade"}/></div>
       {showUrdu&&<div><div className="flex items-center justify-between"><label className="label">Urdu Name</label><button type="button" className="text-xs font-semibold text-primary-600" onClick={()=>setForm(x=>({...x,name_urdu:toUrduName(x.name)}))}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.name_urdu} onChange={e=>setForm(x=>({...x,name_urdu:e.target.value}))}/></div>}
       <div><label className="label">Category</label><SearchableSelect className="input" value={form.category_id} onChange={e=>updateStructuredField({category_id:e.target.value})}><option value="">None</option>{categories.map(c=><option key={c.id} value={c.id}>{masterLabel(c.name,c.name_urdu)}</option>)}</SearchableSelect></div>
-      <div><label className="label">Grade</label><input className="input" value={form.grade} onChange={e=>updateStructuredField({grade:e.target.value})}/></div>
-      <div><label className="label">Size</label><input className="input" value={form.size} onChange={e=>updateStructuredField({size:e.target.value})}/></div>
+      {form.type!=="service"&&<><div><label className="label">Grade</label><input className="input" value={form.grade} onChange={e=>updateStructuredField({grade:e.target.value})}/></div>
+      <div><label className="label">Size</label><input className="input" value={form.size} onChange={e=>updateStructuredField({size:e.target.value})}/></div></>}
+      {form.type==="service"&&<div className="sm:col-span-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800"><span className="font-bold">Non-stock service:</span> no warehouse, stock quantity, valuation layer or inventory movement. Existing COA/account mappings are unchanged.</div>}
       <div><label className="label">Unit</label><SearchableSelect className="input" value={form.unit} onChange={e=>setForm(x=>({...x,unit:e.target.value}))}><option value="">None</option>{uoms.map(u=><option key={u.id} value={u.symbol}>{masterLabel(u.name,u.name_urdu,u.symbol)}</option>)}</SearchableSelect></div>
       <div><label className="label">HS/PCT Code</label><input className="input" value={form.hs_code} onChange={e=>setForm(x=>({...x,hs_code:e.target.value}))} placeholder="Applicable statutory code"/></div>
       <div><label className="label">Cost</label><input type="number" step="any" className="input" value={form.cost} onChange={e=>setForm(x=>({...x,cost:e.target.value}))}/></div>
