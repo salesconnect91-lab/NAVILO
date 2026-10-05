@@ -245,6 +245,7 @@ export default function TransportWorkspace(){
   const [quickPprTrip,setQuickPprTrip]=useState<Trip|null>(null);
   const [quickPprEmployee,setQuickPprEmployee]=useState("");
   const [quickPprDate,setQuickPprDate]=useState(new Date().toISOString().slice(0,10));
+  const [quickPprFile,setQuickPprFile]=useState<File|null>(null);
   const [initialRateTrip,setInitialRateTrip]=useState<Trip|null>(null);
   const [chargeTrip,setChargeTrip]=useState<Trip|null>(null);
   const [supplierChargeTarget,setSupplierChargeTarget]=useState<{rentId:string;tripNo:string}|null>(null);
@@ -777,18 +778,27 @@ export default function TransportWorkspace(){
 
   async function openQuickPpr(row:Trip){
     setError("");setLoading(true);
-    try{await loadTripMasters();setQuickPprEmployee("");setQuickPprDate(new Date().toISOString().slice(0,10));setQuickPprTrip(row);}
+    try{await loadTripMasters();setQuickPprEmployee("");setQuickPprDate(new Date().toISOString().slice(0,10));setQuickPprFile(null);setQuickPprTrip(row);}
     catch(e:any){setError(e?.message||"Unable to load PPR employees.");}finally{setLoading(false);}
   }
   async function saveQuickPpr(){
     if(!quickPprTrip||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
     if(!quickPprEmployee||!quickPprDate){setError("Select Received By employee and PPR date.");return;}
+    if(quickPprFile&&(quickPprFile.size>10*1024*1024||!['application/pdf','image/jpeg','image/png','image/webp'].includes(quickPprFile.type))){setError('Choose a PDF, JPEG, PNG or WebP up to 10 MB.');return;}
     setLoading(true);setError("");
+    let uploadedPath="";
     try{
-      const {data,error}=await supabase.rpc('transport_update_operational_trip',{p_trip_id:quickPprTrip.id,p_changes:{ppr_status:'received',ppr_received_by_employee_id:quickPprEmployee,ppr_received_date:quickPprDate}});
-      if(error)throw error;if(!data)throw new Error('PPR is no longer pending.');
-      setQuickPprTrip(null);setQuickPprEmployee("");await load();
-    }catch(e:any){setError(e?.message||"Unable to receive PPR.");}finally{setLoading(false);}
+      if(quickPprFile){
+        const {data:branch,error:branchError}=await supabase.rpc('current_operating_location_id');if(branchError)throw branchError;if(!branch)throw new Error('Select an active branch before attaching PPR.');
+        uploadedPath=`${activeCompany.company_id}/${activeBusinessUnit.business_unit_id}/${branch}/${quickPprTrip.id}/${crypto.randomUUID()}.${quickPprFile.type==='application/pdf'?'pdf':quickPprFile.type.split('/')[1]}`;
+        const {error:uploadError}=await supabase.storage.from('transport-ppr').upload(uploadedPath,quickPprFile,{upsert:false});if(uploadError)throw uploadError;
+      }
+      const changes:any={ppr_status:'received',ppr_received_by_employee_id:quickPprEmployee,ppr_received_date:quickPprDate};
+      if(uploadedPath)changes.ppr_attachment_path=uploadedPath;
+      const {data,error}=await supabase.rpc('transport_update_operational_trip',{p_trip_id:quickPprTrip.id,p_changes:changes});
+      if(error||!data){if(uploadedPath)await supabase.storage.from('transport-ppr').remove([uploadedPath]);throw error||new Error('PPR is no longer pending.');}
+      setQuickPprTrip(null);setQuickPprEmployee("");setQuickPprFile(null);await load();
+    }catch(e:any){if(uploadedPath)await supabase.storage.from('transport-ppr').remove([uploadedPath]);setError(e?.message||"Unable to receive PPR.");}finally{setLoading(false);}
   }
 
   async function startEditTrip(row:Trip){
@@ -1955,6 +1965,10 @@ export default function TransportWorkspace(){
             <NaviloDateInput aria-label="PPR Received Date" type="date" value={quickPprDate} onChange={e=>setQuickPprDate(e.target.value)} className="mt-1 h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs"/>
           </label>
         </div>
+        <label className="mt-3 block text-xs font-semibold">PPR Photo / Attachment (optional)
+          <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={loading} onChange={e=>setQuickPprFile(e.target.files?.[0]??null)} className="mt-1 block w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs"/>
+          <span className="mt-1 block text-[10px] font-normal text-slate-500">Choose photo or PDF · max 10 MB</span>
+        </label>
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={()=>setQuickPprTrip(null)} className="rounded border px-3 py-2 text-xs font-semibold">Cancel</button>
           <button type="button" disabled={loading||!quickPprEmployee||!quickPprDate} onClick={()=>void saveQuickPpr()} className="rounded bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Mark Received</button>
