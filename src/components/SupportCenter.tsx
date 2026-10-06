@@ -1,5 +1,5 @@
 import { useEffect,useState } from "react";
-import { ChevronLeft, Headphones, Inbox, LifeBuoy, MessageCircle, Plus, Send, X } from "lucide-react";
+import { Bell, ChevronLeft, Headphones, Inbox, LifeBuoy, MessageCircle, Plus, Send, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthContext";
 
@@ -11,21 +11,23 @@ const label=(v:string)=>v.replaceAll("_"," ").replace(/\b\w/g,c=>c.toUpperCase()
 export default function SupportCenter({owner=false}:{owner?:boolean}){
  const{activeCompany}=useAuth();
  const[open,setOpen]=useState(owner),[tickets,setTickets]=useState<Ticket[]>([]),[selected,setSelected]=useState<string|null>(null);
- const[messages,setMessages]=useState<Msg[]>([]),[subject,setSubject]=useState(""),[body,setBody]=useState(""),[category,setCategory]=useState("issue"),[busy,setBusy]=useState(false),[error,setError]=useState("");
+ const[messages,setMessages]=useState<Msg[]>([]),[unread,setUnread]=useState(0),[subject,setSubject]=useState(""),[body,setBody]=useState(""),[category,setCategory]=useState("issue"),[busy,setBusy]=useState(false),[error,setError]=useState("");
+ const loadUnread=async()=>{const{data}=await supabase.rpc("support_unread_summary");setUnread(Number((data as {count?:number}|null)?.count??0))};
  const load=async()=>{let q=supabase.from("support_tickets").select("id,ticket_no,subject,category,priority,status,updated_at").order("updated_at",{ascending:false}).limit(100);if(!owner&&activeCompany?.company_id)q=q.eq("company_id",activeCompany.company_id);const{data,error:e}=await q;if(e)setError("Support tickets could not be loaded.");else setTickets((data??[]) as Ticket[])};
  const loadMessages=async(id:string)=>{const{data,error:e}=await supabase.from("support_messages").select("id,body,is_owner_reply,created_at").eq("ticket_id",id).order("created_at");if(e)setError("Conversation could not be loaded.");else setMessages((data??[]) as Msg[])};
+ useEffect(()=>{void loadUnread();const timer=window.setInterval(()=>{void loadUnread();if(open||owner)void load()},15000);return()=>window.clearInterval(timer)},[open,owner,activeCompany?.company_id]);
  useEffect(()=>{if(open||owner)void load()},[open,owner,activeCompany?.company_id]);
- useEffect(()=>{if(!selected){setMessages([]);return}void loadMessages(selected)},[selected]);
+ useEffect(()=>{if(!selected){setMessages([]);return}void (async()=>{await supabase.rpc("mark_support_ticket_read",{p_ticket_id:selected});await Promise.all([loadMessages(selected),loadUnread()])})()},[selected]);
  const resetNew=()=>{setSelected(null);setSubject("");setBody("");setCategory("issue");setError("")};
  const create=async()=>{if(!subject.trim()||!body.trim())return;setBusy(true);setError("");const{data,error:e}=await supabase.rpc("create_support_ticket",{p_subject:subject,p_category:category,p_message:body});setBusy(false);if(e){setError("Ticket could not be submitted. Please try again.");return}setSubject("");setBody("");await load();setSelected(data as string)};
- const reply=async()=>{if(!selected||!body.trim())return;setBusy(true);setError("");const{error:e}=await supabase.rpc("reply_support_ticket",{p_ticket_id:selected,p_message:body,p_status:owner?"waiting_for_client":null});setBusy(false);if(e){setError("Reply could not be sent. Please try again.");return}setBody("");await Promise.all([loadMessages(selected),load()])};
+ const reply=async()=>{if(!selected||!body.trim())return;setBusy(true);setError("");const{error:e}=await supabase.rpc("reply_support_ticket",{p_ticket_id:selected,p_message:body,p_status:owner?"waiting_for_client":null});setBusy(false);if(e){setError("Reply could not be sent. Please try again.");return}setBody("");await Promise.all([loadMessages(selected),load(),loadUnread()])};
  const active=tickets.find(t=>t.id===selected);
- if(!open&&!owner)return <button type="button" onClick={()=>setOpen(true)} className="fixed bottom-5 right-5 z-[200] flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 py-2.5 text-[13px] font-extrabold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800"><Headphones className="h-4 w-4"/>Support</button>;
+ if(!open&&!owner)return <button type="button" onClick={()=>setOpen(true)} className="fixed bottom-5 right-5 z-[200] flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 py-2.5 text-[13px] font-extrabold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800"><Headphones className="h-4 w-4"/>Support{unread>0&&<span className="ml-1 grid min-w-5 place-items-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white">{unread>99?"99+":unread}</span>}</button>;
 
  const shell=<div className="flex h-full min-h-0 w-full overflow-hidden bg-white">
   <aside className="flex w-[260px] shrink-0 flex-col border-r border-slate-200 bg-slate-50/80">
    <div className="border-b border-slate-200 px-4 py-4">
-    <div className="flex items-center justify-between"><div className="flex items-center gap-2.5"><div className="grid h-9 w-9 place-items-center rounded-lg bg-slate-900 text-white"><Headphones className="h-4.5 w-4.5"/></div><div><div className="text-[15px] font-black text-slate-900">Support {owner?"Inbox":"Center"}</div><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{owner?"Client assistance":"NAVILO Help Desk"}</div></div></div>{!owner&&<button onClick={()=>setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-700"><X className="h-4 w-4"/></button>}</div>
+    <div className="flex items-center justify-between"><div className="flex items-center gap-2.5"><div className="grid h-9 w-9 place-items-center rounded-lg bg-slate-900 text-white"><Headphones className="h-4.5 w-4.5"/></div><div><div className="flex items-center gap-2 text-[15px] font-black text-slate-900">Support {owner?"Inbox":"Center"}{unread>0&&<span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[9px] font-black text-red-600"><Bell className="h-3 w-3"/>{unread} new</span>}</div><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{owner?"Client assistance":"NAVILO Help Desk"}</div></div></div>{!owner&&<button onClick={()=>setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-700"><X className="h-4 w-4"/></button>}</div>
     {!owner&&<button onClick={resetNew} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2.5 text-xs font-extrabold text-white shadow-sm hover:bg-blue-700"><Plus className="h-4 w-4"/>New Support Ticket</button>}
    </div>
    <div className="flex items-center justify-between px-4 pb-2 pt-4"><span className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-500"><Inbox className="h-3.5 w-3.5"/>{owner?"All tickets":"My tickets"}</span><span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-black text-slate-600">{tickets.length}</span></div>
