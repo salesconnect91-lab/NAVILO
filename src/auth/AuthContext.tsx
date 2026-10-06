@@ -75,6 +75,7 @@ const AUTH_BOOT_TIMEOUT_MS = 12000;
 const OWNER_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 const USER_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const ABSOLUTE_SESSION_TIMEOUT_MS = 12 * 60 * 60 * 1000;
+const SESSION_WARNING_MS = 5 * 60 * 1000;
 const ACTIVITY_STORAGE_PREFIX = "navilo.auth.activity.";
 const START_STORAGE_PREFIX = "navilo.auth.started.";
 
@@ -104,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accountingAttempt, setAccountingAttempt] = useState(0);
   const [accountingSetup, setAccountingSetup] = useState<AccountingSetupState>({ userId: null, companyId: null, status: "idle", error: null });
   const lastActivityWrite = useRef(0);
+  const [sessionWarning, setSessionWarning] = useState<{ remainingMs: number; absolute: boolean } | null>(null);
 
   useEffect(() => {
     void withBootTimeout(supabase.auth.getSession(), "Session check")
@@ -144,6 +146,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!localStorage.getItem(activityKey)) localStorage.setItem(activityKey, String(now));
 
     const recordActivity = () => {
+      // Once the warning is visible, incidental pointer/keyboard activity must not
+      // silently extend the session. The user must explicitly choose Continue.
+      if (sessionWarning) return;
       const at = Date.now();
       if (at - lastActivityWrite.current < 15_000) return;
       lastActivityWrite.current = at;
@@ -157,16 +162,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const lastActivity = Number(localStorage.getItem(activityKey) || at);
       const started = Number(localStorage.getItem(startKey) || at);
       const idleLimit = accessContext.is_platform_owner ? OWNER_IDLE_TIMEOUT_MS : USER_IDLE_TIMEOUT_MS;
-      if (at - lastActivity >= idleLimit || at - started >= ABSOLUTE_SESSION_TIMEOUT_MS) {
+      const idleRemaining = idleLimit - (at - lastActivity);
+      const absoluteRemaining = ABSOLUTE_SESSION_TIMEOUT_MS - (at - started);
+      const absolute = absoluteRemaining <= idleRemaining;
+      const remaining = Math.min(idleRemaining, absoluteRemaining);
+      if (remaining <= 0) {
         localStorage.removeItem(activityKey);
         localStorage.removeItem(startKey);
+        setSessionWarning(null);
         await supabase.auth.signOut({ scope: "local" });
         setAccessContext(null);
-        setAccessError(at - started >= ABSOLUTE_SESSION_TIMEOUT_MS ? "Your 12-hour NAVILO session expired. Please sign in again." : "You were signed out after a period of inactivity.");
+        setAccessError(absoluteRemaining <= 0 ? "Your 12-hour NAVILO session expired. Please sign in again." : "You were signed out after a period of inactivity.");
+      } else if (remaining <= SESSION_WARNING_MS) {
+        setSessionWarning({ remainingMs: remaining, absolute });
+      } else {
+        setSessionWarning(null);
       }
     };
     void check();
-    const timer = window.setInterval(() => void check(), 30_000);
+    const timer = window.setInterval(() => void check(), 1_000);
     const visibility = () => { if (document.visibilityState === "visible") void check(); };
     document.addEventListener("visibilitychange", visibility);
     return () => {
@@ -174,7 +188,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       events.forEach((event) => window.removeEventListener(event, recordActivity));
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, [session?.user.id, accessContext]);
+  }, [session?.user.id, accessContext, sessionWarning]);
+
+  const continueSession = () => {
+    const userId = session?.user.id;
+    if (!userId || sessionWarning?.absolute) return;
+    localStorage.setItem(sessionKey(ACTIVITY_STORAGE_PREFIX, userId), String(Date.now()));
+    lastActivityWrite.current = Date.now();
+    setSessionWarning(null);
+  };
+
+  const warningLogout = async () => {
+    setSessionWarning(null);
+    await supabase.auth.signOut();
+    setAccessContext(null);
+  };
 
   const currentCompanyId = accessContext?.current_company_id ?? null;
   const activeCompany = accessContext?.companies.find((company) => company.company_id === currentCompanyId && company.access_allowed) ?? accessContext?.companies.find((company) => company.access_allowed) ?? null;
@@ -257,7 +285,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isPlatformOwner = Boolean(accessContext?.is_platform_owner);
   const loading = authLoading || accessLoading || switchingCompany || switchingBusinessUnit || accountingLoading;
 
-  return <AuthContext.Provider value={{ user: session?.user ?? null, session, loading, accessContext, accessError, isPlatformOwner, activeCompany, availableCompanies, activeBusinessUnit, availableBusinessUnits, switchingCompany, switchingBusinessUnit, accountingSetupError, retryAccountingSetup, refreshAccess, switchCompany, switchBusinessUnit, signIn, signUp, signOut }}>{children}</AuthContext.Provider>;
+  const warningSeconds = sessionWarning ? Math.max(0, Math.ceil(sessionWarning.remainingMs / 1000)) : 0;
+  const warningClock = `${String(Math.floor(warningSeconds / 60)).padStart(2, "0")}:${String(warningSeconds % 60).padStart(2, "0")}`;
+  return <AuthContext.Provider value={{ user: session?.user ?? null, session, loading, accessContext, accessError, isPlatformOwner, activeCompany, availableCompanies, activeBusinessUnit, availableBusinessUnits, switchingCompany, switchingBusinessUnit, accountingSetupError, retryAccountingSetup, refreshAccess, switchCompany, switchBusinessUnit, signIn, signUp, signOut }}>
+    {children}
+    {sessionWarning && <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/35 p-4" role="dialog" aria-modal="true" aria-labelledby="session-warning-title">
+      <div className="w-full max-w-md rounded-xl border border-amber-200 bg-white p-5 shadow-2xl">
+        <div id="session-warning-title" className="text-base font-bold text-slate-900">{sessionWarning.absolute ? "Session limit reached soon" : "Are you still working?"}</div>
+        <p className="mt-2 text-sm text-slate-600">{sessionWarning.absolute ? "NAVILO requires a fresh login after 12 hours for security." : "Your NAVILO session will sign out due to inactivity unless you continue."}</p>
+        <div className="my-4 text-center font-mono text-3xl font-black tabular-nums text-amber-700">{warningClock}</div>
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn-secondary" onClick={() => void warningLogout()}>Log Out Now</button>
+          {!sessionWarning.absolute && <button type="button" className="btn-primary" onClick={continueSession}>Continue Session</button>}
+        </div>
+      </div>
+    </div>}
+  </AuthContext.Provider>;
 }
 
 export function useAuth() { const ctx = useContext(AuthContext); if (!ctx) throw new Error("useAuth must be used within AuthProvider"); return ctx; }
