@@ -4,6 +4,11 @@ import { checkOnboardingLookups } from "./onboardingPreflight.ts";
 import { onboardingFiscalSettings, onboardingModules } from "./onboardingModules.ts";
 
 const HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 const transportMobilePermissions=(canCreate=true,canEdit=true)=>({
   dashboard:{view:false,create:false,edit:false,delete:false,post:false,print:false,export:false},
   master:{view:false,create:false,edit:false,delete:false,post:false,print:false,export:false},
@@ -17,10 +22,6 @@ const transportMobilePermissions=(canCreate=true,canEdit=true)=>({
   settings:{view:false,create:false,edit:false,delete:false,post:false,print:false,export:false},
   transport_actions:{trip_create:canCreate,trip_edit:canEdit}
 });
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
