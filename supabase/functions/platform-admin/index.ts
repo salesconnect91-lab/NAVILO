@@ -4,6 +4,19 @@ import { checkOnboardingLookups } from "./onboardingPreflight.ts";
 import { onboardingFiscalSettings, onboardingModules } from "./onboardingModules.ts";
 
 const HEADERS = {
+const transportMobilePermissions=(canCreate=true,canEdit=true)=>({
+  dashboard:{view:false,create:false,edit:false,delete:false,post:false,print:false,export:false},
+  master:{view:false,create:false,edit:false,delete:false,post:false,print:false,export:false},
+  sales:{view:false,create:false,edit:false,delete:false,post:false,print:false,export:false},
+  purchase:{view:false,create:false,edit:false,delete:false,post:false,print:false,export:false},
+  inventory:{view:false,create:false,edit:false,delete:false,post:false,print:false,export:false},
+  production:{view:false,create:false,edit:false,delete:false,post:false,print:false,export:false},
+  transport:{view:true,create:canCreate,edit:canEdit,delete:false,post:false,print:false,export:false},
+  accounting:{view:false,create:false,edit:false,delete:false,post:false,print:false,export:false},
+  reports:{view:false,create:false,edit:false,delete:false,post:false,print:false,export:false},
+  settings:{view:false,create:false,edit:false,delete:false,post:false,print:false,export:false},
+  transport_actions:{trip_create:canCreate,trip_edit:canEdit}
+});
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -228,10 +241,14 @@ Deno.serve(async (request) => {
       const businessUnitId = body.business_unit_id ? String(body.business_unit_id) : null;
       const operatingLocationId = body.operating_location_id ? String(body.operating_location_id) : null;
       const role = String(body.role || "viewer");
+      const mobileOnly = role === "transport_mobile";
+      const mobileCanCreate = body.mobile_can_create !== false;
+      const mobileCanEdit = body.mobile_can_edit !== false;
       const password = String(body.password || "");
       const fullName = String(body.full_name || "").trim();
 
       if (!email || !companyId) return json({ error: "Email and company are required" }, 400);
+      if (mobileOnly && !businessUnitId) return json({ error: "Transport Mobile login requires a Transport business unit." }, 400);
       if (password.length < 8) return json({ error: "Password must be at least 8 characters" }, 400);
 
       if (businessUnitId) {
@@ -243,6 +260,10 @@ Deno.serve(async (request) => {
           .eq("is_active", true)
           .maybeSingle();
         if (!businessUnit) return json({ error: "Invalid business workspace" }, 400);
+        if (mobileOnly) {
+          const { data: transportUnit } = await admin.from("business_units").select("id").eq("id",businessUnitId).eq("company_id",companyId).eq("unit_type","transport").eq("is_active",true).maybeSingle();
+          if (!transportUnit) return json({ error: "Transport Mobile login requires an active Transport business unit." }, 400);
+        }
       }
 
       if (operatingLocationId) {
@@ -295,7 +316,9 @@ Deno.serve(async (request) => {
 
       const userId = created.user.id;
       try {
-        const profileRole = role === "company_owner"
+        const profileRole = mobileOnly
+          ? "viewer"
+          : role === "company_owner"
           ? "admin"
           : role === "accounts"
           ? "accountant"
@@ -320,12 +343,13 @@ Deno.serve(async (request) => {
         }, { onConflict: "id" });
         if (result.error) throw new Error(`Profile: ${result.error.message}`);
 
+        const effectivePermissions = mobileOnly ? transportMobilePermissions(mobileCanCreate,mobileCanEdit) : (body.permissions || {});
         result = await admin.from("company_memberships").upsert({
           company_id: companyId,
           user_id: userId,
           role,
           is_active: true,
-          permissions: body.permissions || {},
+          permissions: effectivePermissions,
           invited_by: actor.id,
         }, { onConflict: "company_id,user_id" });
         if (result.error) throw new Error(`Company access: ${result.error.message}`);
@@ -336,6 +360,7 @@ Deno.serve(async (request) => {
             business_unit_id: businessUnitId,
             user_id: userId,
             role,
+            permissions: effectivePermissions,
             is_active: true,
           }, { onConflict: "business_unit_id,user_id" });
           if (result.error) throw new Error(`Business access: ${result.error.message}`);
@@ -387,6 +412,28 @@ Deno.serve(async (request) => {
       }).select("*").single();
       if (error) throw error;
       return json({ company: data });
+    }
+
+    if (action === "update_transport_mobile_access") {
+      const companyId = String(body.company_id || "");
+      const userId = String(body.user_id || "");
+      if (!companyId || !userId) return json({ error: "Company and mobile user are required." }, 400);
+      const { data: unitMembership, error: unitMembershipError } = await admin.from("business_unit_memberships")
+        .select("id,business_unit_id,role").eq("company_id",companyId).eq("user_id",userId).eq("role","transport_mobile").maybeSingle();
+      if (unitMembershipError) throw unitMembershipError;
+      if (!unitMembership) return json({ error: "Transport Mobile access not found for this user." }, 404);
+      const isActive = body.is_active !== false;
+      const canCreate = body.can_create !== false;
+      const canEdit = body.can_edit !== false;
+      const permissions = transportMobilePermissions(canCreate,canEdit);
+      const writes = await Promise.all([
+        admin.from("company_memberships").update({role:"transport_mobile",permissions,is_active:isActive,updated_at:new Date().toISOString()}).eq("company_id",companyId).eq("user_id",userId),
+        admin.from("business_unit_memberships").update({role:"transport_mobile",permissions,is_active:isActive,updated_at:new Date().toISOString()}).eq("id",unitMembership.id),
+        admin.from("operating_location_memberships").update({role:"transport_mobile",is_active:isActive,updated_at:new Date().toISOString()}).eq("company_id",companyId).eq("user_id",userId),
+      ]);
+      const writeError = writes.find(item=>item.error)?.error;
+      if (writeError) throw writeError;
+      return json({ success:true,user_id:userId,business_unit_id:unitMembership.business_unit_id,is_active:isActive,can_create:canCreate,can_edit:canEdit });
     }
 
     if (action === "update_user_identity") {

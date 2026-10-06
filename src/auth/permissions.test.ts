@@ -53,6 +53,18 @@ describe("ERP permission model", () => {
     }
   });
 
+  it("keeps Transport Mobile Only inside the mobile transport permission surface", () => {
+    const permissions=defaultRolePermissions("transport_mobile");
+    expect(permissions.transport?.view).toBe(true);
+    expect(permissions.transport?.create).toBe(true);
+    expect(permissions.transport?.edit).toBe(true);
+    expect(permissions.transport?.post).toBe(false);
+    expect(permissions.dashboard?.view).toBe(false);
+    expect(permissions.reports?.view).toBe(false);
+    expect(permissions.transport_actions?.trip_create).toBe(true);
+    expect(permissions.transport_actions?.trip_edit).toBe(true);
+  });
+
   it("keeps viewers read-only and custom denies authoritative", () => {
     for (const action of ["create","edit","delete","post"] as const) expect(hasPermission("viewer","reports",action)).toBe(false);
     expect(hasPermission("accounts","accounting","post",{accounting:{post:false}})).toBe(false);

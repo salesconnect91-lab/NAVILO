@@ -64,6 +64,7 @@ const VIEW_MODULES: Record<string, ModuleKey[]> = {
   store: ["dashboard", "inventory", "reports", "master"],
   production: ["dashboard", "production", "inventory", "reports", "master"],
   transport: ["dashboard", "transport", "accounting", "reports", "master", "settings"],
+  transport_mobile: ["transport"],
   viewer: ["dashboard", "reports"],
 };
 
@@ -84,6 +85,12 @@ export function canViewModule(role: CompanyRole | null | undefined, module: Modu
 
 export function defaultRolePermissions(role: CompanyRole | null | undefined): PermissionMatrix {
   const matrix: PermissionMatrix = {};
+  if (role === "transport_mobile") {
+    for (const module of ALL_MODULES) matrix[module] = { view:false, create:false, edit:false, delete:false, post:false, print:false, export:false };
+    matrix.transport = { view:true, create:true, edit:true, delete:false, post:false, print:false, export:false };
+    matrix.transport_actions = { trip_create:true, trip_edit:true };
+    return matrix;
+  }
   for (const module of ALL_MODULES) {
     const canView = canViewModule(role, module, false);
     const fullAccess = role === "company_owner" || role === "admin";
@@ -137,5 +144,6 @@ export function canPerformModule(
 
 export function roleLabel(role: CompanyRole | null | undefined) {
   if (!role) return "No role";
+  if (role === "transport_mobile") return "Transport Mobile Only";
   return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }

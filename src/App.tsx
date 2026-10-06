@@ -78,6 +78,18 @@ function BusinessTypeOnly({ type, children }: { type: string; children: ReactNod
   return !activeBusinessUnit || activeBusinessUnit.business_unit_type === type ? <>{children}</> : <Navigate to="/" replace />;
 }
 
+function MobileOnlyAccessGate({ children }: { children: ReactNode }) {
+  const { activeCompany, activeBusinessUnit } = useAuth();
+  const { loading, isFeatureEnabled } = useFeatureAccess();
+  const { pathname } = useLocation();
+  const mobileOnly = activeBusinessUnit?.membership_role === "transport_mobile" || activeCompany?.membership_role === "transport_mobile";
+  if (!mobileOnly) return <>{children}</>;
+  if (pathname !== "/transport/mobile") return <Navigate to="/transport/mobile" replace />;
+  if (loading) return <div className="flex min-h-dvh items-center justify-center bg-slate-100 text-sm text-slate-500">Checking mobile access…</div>;
+  if (!isFeatureEnabled("transport-mobile-quick-entry","view")) return <div className="flex min-h-dvh items-center justify-center bg-slate-100 p-5"><div className="max-w-sm rounded-xl border border-amber-200 bg-white p-5 text-sm text-amber-900 shadow-sm"><div className="font-bold">Mobile Quick Entry is disabled</div><p className="mt-2 text-slate-600">The Platform Owner must enable Mobile Quick Entry for this company / business unit.</p></div></div>;
+  return <>{children}</>;
+}
+
 function WorkspaceSwitchers() {
   const { pathname } = useLocation();
   if (pathname.startsWith("/owner") || pathname === "/transport/mobile") return null;
@@ -102,7 +114,7 @@ export default function App() {
   return <><GlobalExperience /><Routes>
     <Route path="/login" element={<Login />} />
     <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/*" element={<ProtectedRoute><FeatureAccessProvider><><WorkspaceSwitchers /><FeaturePathGuard><Layout key={workspaceKey}><Suspense fallback={<div role="status" className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">Loading workspace…</div>}><Routes>
+      <Route path="/*" element={<ProtectedRoute><FeatureAccessProvider><MobileOnlyAccessGate><><WorkspaceSwitchers /><FeaturePathGuard><Layout key={workspaceKey}><Suspense fallback={<div role="status" className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">Loading workspace…</div>}><Routes>
       <Route path="/" element={<ModuleOnly module="dashboard"><DashboardHome /></ModuleOnly>} />
       <Route path="/owner" element={<OwnerOnly />} />
       <Route path="/owner/opening-balances" element={<OwnerOnly><OpeningBalanceMigration /></OwnerOnly>} />
@@ -132,6 +144,6 @@ export default function App() {
       <Route path="/reports/*" element={<ModuleOnly module="reports"><ReportSurface><Reports /></ReportSurface></ModuleOnly>} />
       <Route path="/settings/*" element={<ModuleOnly module="settings"><Settings /></ModuleOnly>} />
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes></Suspense></Layout></FeaturePathGuard></></FeatureAccessProvider></ProtectedRoute>} />
+    </Routes></Suspense></Layout></FeaturePathGuard></></MobileOnlyAccessGate></FeatureAccessProvider></ProtectedRoute>} />
   </Routes></>;
 }

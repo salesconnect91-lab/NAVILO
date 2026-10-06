@@ -4,7 +4,7 @@ import './transportScrolling.css';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { formatNaviloDate } from "@/lib/naviloDate";
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment} from "react";
-import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw, LockKeyhole } from "lucide-react";
+import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw, LockKeyhole, Mic, Trash2 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { useOptionalFeatureAccess } from "@/auth/FeatureAccess";
 import { supabase } from "@/lib/supabase";
@@ -29,6 +29,7 @@ import TransportPagination from './TransportPagination';
 import TransportQuickAdd from './TransportQuickAdd';
 import {compatibleVehicles,ownershipOnDate,matchingCustomerRate,estimatedMargin,masterKey,validMoney,type QuickAddKind,type OwnershipPeriod} from './transportTripEntry';
 
+type MobileVoiceDraft={id:string;created_at:string;transcript:string;patch:Record<string,string>};
 type Tab="trips"|"new"|"mobile"|"audit"|"driver-expenses"|"driver-account"|"vehicle-account";
 type Trip=FinancialTrip & {
   id:string;
@@ -278,6 +279,15 @@ export default function TransportWorkspace(){
     sale_type:"",
     notes:""
   });
+  const [voiceDrafts,setVoiceDrafts]=useState<MobileVoiceDraft[]>([]);
+  const [voiceListening,setVoiceListening]=useState(false);
+  const [voiceStatus,setVoiceStatus]=useState("");
+  const [currentVoiceDraftId,setCurrentVoiceDraftId]=useState<string|null>(null);
+  const voiceRecognitionRef=useRef<any>(null);
+  const voiceStorageKey=`navilo.transport.mobile.voiceDrafts.${user?.id??"user"}.${scopeKey}`;
+  useEffect(()=>{try{const parsed=JSON.parse(localStorage.getItem(voiceStorageKey)||"[]");setVoiceDrafts(Array.isArray(parsed)?parsed:[]);}catch{setVoiceDrafts([])}setCurrentVoiceDraftId(null)},[voiceStorageKey]);
+  const persistVoiceDrafts=(next:MobileVoiceDraft[])=>{setVoiceDrafts(next);localStorage.setItem(voiceStorageKey,JSON.stringify(next.slice(0,30)))};
+  const removeVoiceDraft=(id:string)=>{persistVoiceDrafts(voiceDrafts.filter(d=>d.id!==id));if(currentVoiceDraftId===id)setCurrentVoiceDraftId(null)};
   const [showBulkSupplierRent,setShowBulkSupplierRent]=useState(false);
   const [showBulkCustomerRate,setShowBulkCustomerRate]=useState(false);
   const [bulkSupplierRentTrip,setBulkSupplierRentTrip]=useState<Trip|null>(null);
@@ -1029,6 +1039,73 @@ export default function TransportWorkspace(){
       setLoading(false);
     }
   }
+  const normalizedVoice=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  const voiceMasterMatch=(items:any[],label:(item:any)=>string,text:string)=>{
+    const hay=normalizedVoice(text);
+    return [...items].sort((a,b)=>label(b).length-label(a).length).find(item=>{const needle=normalizedVoice(label(item));return needle.length>=2&&hay.includes(needle)})||null;
+  };
+  const voiceLocationMatch=(segment:string)=>{
+    const value=normalizedVoice(segment);
+    return [...tripMasters.locations].sort((a:any,b:any)=>String(b.name).length-String(a.name).length).find((item:any)=>{const name=normalizedVoice(String(item.name||""));return name&&((value.includes(name))||(name.includes(value)&&value.length>=3))})||null;
+  };
+  const voiceMoney=(text:string,labels:string[])=>{
+    for(const label of labels){const match=normalizedVoice(text).match(new RegExp(`(?:^| )${label.replace(/ /g,"\\s+")}\\s+(\\d+(?:\\.\\d+)?)`));if(match)return match[1];}
+    return "";
+  };
+  const parseVoiceTrip=(transcript:string)=>{
+    const lower=normalizedVoice(transcript);
+    const customer=voiceMasterMatch(tripMasters.customers,(x:any)=>String(x.name||""),transcript);
+    const driver=voiceMasterMatch(tripMasters.drivers,(x:any)=>String(x.driver_name||""),transcript);
+    const vehicle=voiceMasterMatch(tripMasters.vehicles,(x:any)=>String(x.vehicle_no||""),transcript);
+    const truck=voiceMasterMatch(tripMasters.truckTypes,(x:any)=>String(x.name||""),transcript);
+    const route=lower.match(/(?:^| )from (.+?) to (.+?)(?= (?:po|do|job|customer rate|company rate|supplier rent|rent|driver pay|cash|credit)(?: |$)|$)/);
+    const from=route?voiceLocationMatch(route[1]):null;
+    const to=route?voiceLocationMatch(route[2]):null;
+    const po=lower.match(/(?:^| )(?:po|do|job)(?: no| number)? ([a-z0-9-]+)/)?.[1]||"";
+    const patch:Record<string,string>={
+      trip_date:new Date().toISOString().slice(0,10),
+      customer_id:customer?.id||"",
+      customer_name_snapshot:customer?.name||"",
+      driver_id:driver?.id||"",
+      vehicle_id:vehicle?.id||"",
+      truck_type_id:vehicle?.truck_type_id||truck?.id||"",
+      from_location:from?.name||"",
+      to_location:to?.name||"",
+      po_do_job_no:po.toUpperCase(),
+      customer_rate:voiceMoney(transcript,["customer rate","company rate"]),
+      supplier_rent:voiceMoney(transcript,["supplier rent","rent"]),
+      driver_pay:voiceMoney(transcript,["driver pay"]),
+      sale_type:/\bcash\b/.test(lower)?"cash":/\bcredit\b/.test(lower)?"credit":"",
+      ppr_status:"pending",
+    };
+    return patch;
+  };
+  const openVoiceDraft=(draft:MobileVoiceDraft)=>{
+    setCurrentVoiceDraftId(draft.id);setVoiceStatus(`Voice draft · ${draft.transcript}`);
+    setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setNewTripMode("single");
+    setForm(previous=>({...previous,...draft.patch,notes:previous.notes}));entryReturnTab.current="mobile";setTab("new");
+  };
+  const captureVoiceTrip=()=>{
+    if(!mobileCanCreate){setError("Mobile Trip creation is disabled in Owner Control.");return;}
+    const Recognition=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;
+    if(!Recognition){setError("Voice entry is not supported by this browser. Use Chrome on Android or a browser with speech recognition.");return;}
+    try{
+      voiceRecognitionRef.current?.stop?.();
+      const recognition=new Recognition();voiceRecognitionRef.current=recognition;
+      recognition.lang="en-US";recognition.interimResults=false;recognition.maxAlternatives=1;
+      recognition.onstart=()=>{setVoiceListening(true);setVoiceStatus("Listening… Say customer, vehicle, driver, From, To, PO/DO, and Cash/Credit.")};
+      recognition.onerror=(event:any)=>{setVoiceListening(false);setError(event?.error==="not-allowed"?"Microphone permission is required for Voice Trip.":"Voice recognition failed. Try again.")};
+      recognition.onend=()=>setVoiceListening(false);
+      recognition.onresult=(event:any)=>{
+        const transcript=String(event?.results?.[0]?.[0]?.transcript||"").trim();
+        if(!transcript){setVoiceStatus("No speech detected.");return;}
+        const draft:MobileVoiceDraft={id:crypto.randomUUID(),created_at:new Date().toISOString(),transcript,patch:parseVoiceTrip(transcript)};
+        const next=[draft,...voiceDrafts.filter(item=>item.transcript!==transcript)].slice(0,30);persistVoiceDrafts(next);openVoiceDraft(draft);
+      };
+      recognition.start();
+    }catch(e:any){setVoiceListening(false);setError(e?.message||"Could not start microphone.");}
+  };
+
   async function createTrip(){
     if(entryReturnTab.current==="mobile"&&!mobileCanCreate){setError("Mobile Trip creation is disabled in Owner Control.");return;}
     if(submissionRef.current)return;
@@ -1051,6 +1128,7 @@ export default function TransportWorkspace(){
       setForm(previous=>({...previous,customer_id:'',vehicle_id:'',driver_id:'',truck_type_id:'',from_location:'',to_location:'',
         customer_rate:'',supplier_rent:'',driver_pay:'',po_do_job_no:'',ppr_status:'pending',ppr_received_date:'',ppr_received_by_employee_id:'',ppr_attachment_path:'',sale_type:'',notes:''}));
       setRateTouched(false);setEditingTripId(null);
+      if(currentVoiceDraftId){removeVoiceDraft(currentVoiceDraftId);setVoiceStatus("Voice Trip created successfully.");}
       const returnTo=entryReturnTab.current;
       setTab(returnTo);
       if(returnTo==="mobile")await loadMobileTrips(mobileSearch);else await load();
@@ -1593,6 +1671,7 @@ export default function TransportWorkspace(){
         {editingTripId?<span className="inline-flex items-center gap-1.5">Edit Trip - {editingTripNo}{editingTripLocked&&<span title="Locked: customer and supplier financial sides are posted. Normal Trip editing is disabled; use controlled correction." className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"><LockKeyhole className="h-3 w-3"/>Locked</span>}</span>:"New Trip"}
       </h2>
 
+      {standaloneMobile&&currentVoiceDraftId&&<div className="mb-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900"><strong>Voice draft ready.</strong> Check the matched Customer, Vehicle, Driver, route and amounts, then tap Create Trip. If anything was not recognized, select it manually.</div>}
       <p className="text-xs text-slate-500">
         {editingTripLocked?"Locked Trip is read-only. Use the controlled correction / reversal workflow for later changes.":editingTripId?"Trip No and Trip Date are permanent. Posted financial fields stay protected.":"Trip number is generated automatically by NAVILO."}
       </p>
@@ -2081,9 +2160,9 @@ export default function TransportWorkspace(){
               <h2 className="text-base font-black text-slate-950">Transport Mobile</h2>
               <p className="mt-0.5 text-xs text-slate-500">Fast entry and recent Trip search · last 30 days only.</p>
             </div>
-            {mobileCanCreate&&<button type="button" onClick={()=>{entryReturnTab.current="mobile";setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setNewTripMode("single");setTab("new")}} className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-blue-700">
+            {mobileCanCreate&&<div className="flex shrink-0 gap-2"><button type="button" onClick={captureVoiceTrip} disabled={voiceListening} className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-violet-300 bg-violet-50 px-3 text-sm font-bold text-violet-800 shadow-sm disabled:opacity-60"><Mic className="h-4 w-4"/>{voiceListening?"Listening…":"Voice Trip"}</button><button type="button" onClick={()=>{setCurrentVoiceDraftId(null);entryReturnTab.current="mobile";setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setNewTripMode("single");setTab("new")}} className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-blue-700">
               <Plus className="h-4 w-4"/>New Trip
-            </button>}
+            </button></div>}
           </div>
           <form className="mt-4 flex gap-2" onSubmit={e=>{e.preventDefault();void loadMobileTrips(mobileSearch)}}>
             <div className="relative min-w-0 flex-1">
@@ -2098,6 +2177,8 @@ export default function TransportWorkspace(){
           </div>
           {(!mobileCanCreate||!mobileCanEdit)&&<div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">Owner Control access: {mobileCanCreate?"New Trip allowed":"New Trip disabled"} · {mobileCanEdit?"Edit allowed":"Edit disabled"}.</div>}
         </div>
+        {voiceStatus&&<div className="border-b border-violet-100 bg-violet-50 px-4 py-2 text-[11px] font-semibold text-violet-800">{voiceStatus}</div>}
+        {voiceDrafts.length>0&&<div className="border-b border-amber-200 bg-amber-50 p-3"><div className="mb-2 flex items-center justify-between"><div className="text-xs font-black text-amber-900">Voice Inbox · {voiceDrafts.length} saved draft{voiceDrafts.length===1?"":"s"}</div><div className="text-[10px] text-amber-700">Saved on this phone until created or deleted</div></div><div className="space-y-2">{voiceDrafts.slice(0,5).map(draft=><div key={draft.id} className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-white p-2"><button type="button" onClick={()=>openVoiceDraft(draft)} className="min-w-0 flex-1 text-left"><div className="truncate text-xs font-semibold text-slate-900">{draft.transcript}</div><div className="text-[10px] text-slate-500">{new Date(draft.created_at).toLocaleString()}</div></button><button type="button" aria-label="Delete voice draft" onClick={()=>removeVoiceDraft(draft.id)} className="rounded-lg border border-slate-200 p-2 text-slate-500"><Trash2 className="h-4 w-4"/></button></div>)}</div></div>}
         <div className="divide-y divide-slate-100">
           {!mobileLoading&&mobileRows.length===0&&<div className="p-6 text-center text-sm text-slate-500">No Trips found in the last 30 days.</div>}
           {mobileRows.map(row=><article key={row.id} className="p-4">
