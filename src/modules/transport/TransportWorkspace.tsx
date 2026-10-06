@@ -29,7 +29,7 @@ import TransportPagination from './TransportPagination';
 import TransportQuickAdd from './TransportQuickAdd';
 import {compatibleVehicles,ownershipOnDate,matchingCustomerRate,estimatedMargin,masterKey,validMoney,type QuickAddKind,type OwnershipPeriod} from './transportTripEntry';
 
-type Tab="trips"|"new"|"audit"|"driver-expenses"|"driver-account"|"vehicle-account";
+type Tab="trips"|"new"|"mobile"|"audit"|"driver-expenses"|"driver-account"|"vehicle-account";
 type Trip=FinancialTrip & {
   id:string;
   trip_no:string;
@@ -59,7 +59,7 @@ type Trip=FinancialTrip & {
 };
 
 const tabs:{key:Tab;label:string;icon:any}[]=[
-  {key:"trips",label:"Trips",icon:Route},{key:"new",label:"New Trip",icon:Plus},{key:"audit",label:"Trip Audit",icon:History},
+  {key:"trips",label:"Trips",icon:Route},{key:"new",label:"New Trip",icon:Plus},{key:"mobile",label:"Mobile Quick Entry",icon:Search},{key:"audit",label:"Trip Audit",icon:History},
   {key:"driver-expenses",label:"Driver Expense Upload",icon:ReceiptText},{key:"driver-account",label:"Driver Account / Hisaab",icon:UserRound},
   {key:"vehicle-account",label:"Vehicle Account / Gari Hisaab",icon:Truck},
 ];
@@ -131,12 +131,13 @@ export default function TransportWorkspace(){
   const tabFeature:Record<Tab,string>={
     trips:"transport-trips-register",
     new:"transport-trips-register",
+    mobile:"transport-trips-register",
     audit:"transport-audit",
     "driver-expenses":"transport-driver-expenses",
     "driver-account":"transport-driver-account",
     "vehicle-account":"transport-vehicle-account",
   };
-  const firstAllowedTab=():Tab=>(["trips","driver-expenses","driver-account","vehicle-account","audit"] as Tab[])
+  const firstAllowedTab=():Tab=>(["trips","mobile","driver-expenses","driver-account","vehicle-account","audit"] as Tab[])
     .find(candidate=>canViewFeature(tabFeature[candidate]))??"trips";
   const tab:Tab=canViewFeature(tabFeature[requestedTab])?requestedTab:firstAllowedTab();
   const setTab=(next:Tab)=>{
@@ -146,6 +147,10 @@ export default function TransportWorkspace(){
   const [rows,setRows]=useState<Trip[]>([]);
   const [loading,setLoading]=useState(false);
   const [registerLoading,setRegisterLoading]=useState(false);
+  const [mobileRows,setMobileRows]=useState<Trip[]>([]);
+  const [mobileSearch,setMobileSearch]=useState("");
+  const [mobileLoading,setMobileLoading]=useState(false);
+  const entryReturnTab=useRef<Tab>("trips");
   const tripsGridRef=useRef<HTMLDivElement|null>(null);
   const tripsSectionRef=useRef<HTMLElement|null>(null);
   const compactTripColumnWidths:Record<string,number>={trip_no:96,trip_date:68,truck_type:68,job_no:82,company:138,driver:88,owner:82,plate:70,from:78,to:78,charge:72,paper_received_by:100,rent_driver:112,supplier_charges:112,supplier_paid:112,supplier_balance:126,supplier_credit:126,driver_pay:100,driver_paid:100,driver_balance:108,payment_date:82,amount:104,company_rate:112,received_company:126,remaining_company:126,customer_credit:126,profit:104,commission:116,invoice_no:100,sale_type:72};
@@ -445,10 +450,36 @@ export default function TransportWorkspace(){
     // Clearing rows made every header-filter click look like a dashboard hang.
     readGeneration.current++;setRegisterLoading(true);
     if(changed&&page!==0){setPage(0);return;}
+    if(tab==="mobile"){setRegisterLoading(false);return;}
     if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){setRegisterLoading(false);return;}
     const timer=window.setTimeout(()=>void load(),200);
     return()=>{window.clearTimeout(timer);registerRequest.current?.abort();registerRequest.current=null;readGeneration.current++;};
-  },[registerKey,page]);
+  },[registerKey,page,tab]);
+
+  const mobileToday=new Date().toISOString().slice(0,10);
+  const mobileFromDate=new Date(Date.now()-29*24*60*60*1000).toISOString().slice(0,10);
+  async function loadMobileTrips(search=mobileSearch){
+    if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
+    setMobileLoading(true);setError("");
+    try{
+      const result=await supabase.rpc('transport_register_query',{
+        p_limit:50,
+        p_offset:0,
+        p_filters:{fromDate:mobileFromDate,toDate:mobileToday,search:search.trim()},
+        p_sort:'trip_date',
+        p_direction:'desc'
+      });
+      if(result.error)throw result.error;
+      setMobileRows((result.data?.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})));
+    }catch(e:any){
+      setMobileRows([]);
+      setError(e?.message||"Unable to search recent Trips.");
+    }finally{setMobileLoading(false);}
+  }
+  useEffect(()=>{
+    if(tab!=="mobile")return;
+    void loadMobileTrips("");
+  },[tab,scopeKey]);
 
   useEffect(()=>{
     let active=true;
@@ -829,7 +860,8 @@ export default function TransportWorkspace(){
     }catch(e:any){if(uploadedPath)await supabase.storage.from('transport-ppr').remove([uploadedPath]);setError(e?.message||"Unable to receive PPR.");}finally{setLoading(false);}
   }
 
-  async function startEditTrip(row:Trip){
+  async function startEditTrip(row:Trip,returnTo:Tab="trips"){
+    entryReturnTab.current=returnTo;
     setLoading(true);
     setError("");
     try{
@@ -976,8 +1008,9 @@ export default function TransportWorkspace(){
       setEditingTripId(null);
       setEditingTripNo("");
       setEditingOriginalAssignment({vehicle_id:"",driver_id:""});
-      setTab("trips");
-      await load();
+      const returnTo=entryReturnTab.current;
+      setTab(returnTo);
+      if(returnTo==="mobile")await loadMobileTrips(mobileSearch);else await load();
     }catch(e:any){
       setError(e?.message||"Unable to update Trip.");
     }finally{
@@ -1004,7 +1037,10 @@ export default function TransportWorkspace(){
         driver_pay:form.driver_pay!==''?Number(form.driver_pay):null,sale_type:form.sale_type,notes:form.notes||null}]);
       setForm(previous=>({...previous,customer_id:'',vehicle_id:'',driver_id:'',truck_type_id:'',from_location:'',to_location:'',
         customer_rate:'',supplier_rent:'',driver_pay:'',po_do_job_no:'',ppr_status:'pending',ppr_received_date:'',ppr_received_by_employee_id:'',ppr_attachment_path:'',sale_type:'',notes:''}));
-      setRateTouched(false);setEditingTripId(null);setTab('trips');await load();
+      setRateTouched(false);setEditingTripId(null);
+      const returnTo=entryReturnTab.current;
+      setTab(returnTo);
+      if(returnTo==="mobile")await loadMobileTrips(mobileSearch);else await load();
     }catch(e:any){setError(e.message||'Unable to create Trip.')}
     finally{submissionRef.current=false;setLoading(false)}
   }
@@ -1314,7 +1350,7 @@ export default function TransportWorkspace(){
             <button type="submit" aria-label="Search Trips" className="flex h-9 w-9 items-center justify-center rounded-r-lg border border-l-0 border-blue-300 bg-white text-blue-700 shadow-sm hover:bg-blue-50"><Search className="h-3.5 w-3.5"/></button>
           </form>
           <div className="flex shrink-0 items-center gap-1.5">
-          <button type="button" onClick={()=>setTab("new")} className="flex h-9 items-center gap-1 rounded-lg border border-blue-500 bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
+          <button type="button" onClick={()=>{entryReturnTab.current="trips";setEditingTripId(null);setTab("new")}} className="flex h-9 items-center gap-1 rounded-lg border border-blue-500 bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
           </div>
           <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=supplier&allocation=transport")} className="h-9 rounded-lg border border-amber-300 bg-amber-50 px-3 text-[11px] font-semibold text-amber-900 shadow-sm hover:bg-amber-100">Pay Rent to Suppliers</button>
           <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=customer&allocation=transport")} className="h-9 rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100">Receive Customer Payment</button>
@@ -1745,7 +1781,7 @@ export default function TransportWorkspace(){
       </label>
 
       <div className="flex items-end justify-end gap-2">
-        <button className="btn" onClick={()=>{setError("");setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setTab("trips")}}>Cancel</button>
+        <button className="btn" onClick={()=>{setError("");setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setTab(entryReturnTab.current)}}>Cancel</button>
         <button className="btn-primary" onClick={()=>void (editingTripId?updateTrip():createTrip())} disabled={loading}>
           {loading?(editingTripId?"Saving...":"Creating..."):(editingTripId?"Save Changes":"Create Trip")}
         </button>
@@ -2018,6 +2054,51 @@ export default function TransportWorkspace(){
   }
 
 </section>}
+
+    {!showPartyReports&&tab==="mobile"&&<section className="mx-auto w-full max-w-xl px-3 pb-6 pt-2 sm:px-4">
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-black text-slate-950">Transport Mobile</h2>
+              <p className="mt-0.5 text-xs text-slate-500">Fast entry and recent Trip search · last 30 days only.</p>
+            </div>
+            <button type="button" onClick={()=>{entryReturnTab.current="mobile";setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setTab("new")}} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-blue-700">
+              <Plus className="h-4 w-4"/>New Trip
+            </button>
+          </div>
+          <form className="mt-4 flex gap-2" onSubmit={e=>{e.preventDefault();void loadMobileTrips(mobileSearch)}}>
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400"/>
+              <input value={mobileSearch} onChange={e=>setMobileSearch(e.target.value)} placeholder="Trip No, vehicle, driver, customer, PO/DO…" className="h-10 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-blue-400"/>
+            </div>
+            <button type="submit" disabled={mobileLoading} className="h-10 rounded-xl border border-blue-600 bg-blue-600 px-4 text-xs font-bold text-white disabled:opacity-60">{mobileLoading?"Searching…":"Search"}</button>
+          </form>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+            <span>{formatNaviloDate(mobileFromDate)} — {formatNaviloDate(mobileToday)}</span>
+            <button type="button" onClick={()=>{setMobileSearch("");void loadMobileTrips("")}} className="font-semibold text-blue-700">Recent Trips</button>
+          </div>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {!mobileLoading&&mobileRows.length===0&&<div className="p-6 text-center text-sm text-slate-500">No Trips found in the last 30 days.</div>}
+          {mobileRows.map(row=><article key={row.id} className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-black text-slate-950">{row.trip_no}</span>
+                  <Badge value={row.status}/>
+                </div>
+                <div className="mt-1 text-xs font-semibold text-slate-700">{formatNaviloDate(row.trip_date)} · {row.customer_name||"No customer"}</div>
+                <div className="mt-1 text-xs text-slate-500">{row.vehicle_no||"No vehicle"}{row.driver_name?` · ${row.driver_name}`:""}</div>
+                <div className="mt-1 text-xs text-slate-600">{row.from_location||"—"} → {row.to_location||"—"}</div>
+                {row.po_do_job_no&&<div className="mt-1 text-[11px] text-slate-500">PO/DO/Job: {row.po_do_job_no}</div>}
+              </div>
+              <button type="button" disabled={loading} onClick={()=>void startEditTrip(row,"mobile")} className="h-9 shrink-0 rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-60">Edit</button>
+            </div>
+          </article>)}
+        </div>
+      </div>
+    </section>}
 
     {!showPartyReports&&tab==="audit"&&<TransportAudit trips={rows}/>}
     {!showPartyReports&&tab==="driver-expenses"&&<TransportCostUpload trips={rows} onChanged={load}/> }
