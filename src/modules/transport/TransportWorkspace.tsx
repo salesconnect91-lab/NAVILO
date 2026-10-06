@@ -1,4 +1,4 @@
-import {useNavigate,useSearchParams} from 'react-router-dom';
+import {useLocation,useNavigate,useSearchParams} from 'react-router-dom';
 import TransportHorizontalScroll from './TransportHorizontalScroll';
 import './transportScrolling.css';
 import NaviloDateInput from '@/components/NaviloDateInput';
@@ -116,6 +116,7 @@ const TRANSPORT_TRIP_HEADERS=[
 
 export default function TransportWorkspace(){
   const navigate=useNavigate();
+  const location=useLocation();
   const {user,activeCompany,activeBusinessUnit}=useAuth();
   const scopeKey=`${activeCompany?.company_id}/${activeBusinessUnit?.business_unit_id}`;
   const scopeRef=useRef(scopeKey);scopeRef.current=scopeKey;
@@ -125,13 +126,16 @@ export default function TransportWorkspace(){
 
   const [params,setParams]=useSearchParams();
   const featureAccess=useOptionalFeatureAccess();
+  const standaloneMobile=location.pathname==="/transport/mobile";
   const canViewFeature=(key:string)=>!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled(key,"view"));
-  const requestedView=params.get('view');
+  const mobileCanCreate=!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled("transport-mobile-quick-entry","create"));
+  const mobileCanEdit=!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled("transport-mobile-quick-entry","edit"));
+  const requestedView=params.get('view')??(standaloneMobile?'mobile':null);
   const requestedTab:Tab=tabs.some(t=>t.key===requestedView)?requestedView as Tab:'trips';
   const tabFeature:Record<Tab,string>={
     trips:"transport-trips-register",
-    new:"transport-trips-register",
-    mobile:"transport-trips-register",
+    new:standaloneMobile?"transport-mobile-quick-entry":"transport-trips-register",
+    mobile:"transport-mobile-quick-entry",
     audit:"transport-audit",
     "driver-expenses":"transport-driver-expenses",
     "driver-account":"transport-driver-account",
@@ -142,7 +146,9 @@ export default function TransportWorkspace(){
   const tab:Tab=canViewFeature(tabFeature[requestedTab])?requestedTab:firstAllowedTab();
   const setTab=(next:Tab)=>{
     if(!canViewFeature(tabFeature[next]))return;
-    const p=new URLSearchParams(params);p.set('view',next);p.delete('panel');setParams(p);
+    const p=new URLSearchParams(params);
+    if(standaloneMobile&&next==="mobile")p.delete('view');else p.set('view',next);
+    p.delete('panel');setParams(p);
   };
   const [rows,setRows]=useState<Trip[]>([]);
   const [loading,setLoading]=useState(false);
@@ -150,10 +156,14 @@ export default function TransportWorkspace(){
   const [mobileRows,setMobileRows]=useState<Trip[]>([]);
   const [mobileSearch,setMobileSearch]=useState("");
   const [mobileLoading,setMobileLoading]=useState(false);
-  const entryReturnTab=useRef<Tab>("trips");
+  const entryReturnTab=useRef<Tab>(standaloneMobile?"mobile":"trips");
   const tripsGridRef=useRef<HTMLDivElement|null>(null);
   const tripsSectionRef=useRef<HTMLElement|null>(null);
   const compactTripColumnWidths:Record<string,number>={trip_no:96,trip_date:68,truck_type:68,job_no:82,company:138,driver:88,owner:82,plate:70,from:78,to:78,charge:72,paper_received_by:100,rent_driver:112,supplier_charges:112,supplier_paid:112,supplier_balance:126,supplier_credit:126,driver_pay:100,driver_paid:100,driver_balance:108,payment_date:82,amount:104,company_rate:112,received_company:126,remaining_company:126,customer_credit:126,profit:104,commission:116,invoice_no:100,sale_type:72};
+  useEffect(()=>{
+    if(location.pathname==="/transport"&&params.get("view")==="mobile")navigate("/transport/mobile",{replace:true});
+  },[location.pathname,navigate,params]);
+
   const [tripColumnWidths,setTripColumnWidths]=useState<Record<string,number>>({});
   const [tripColumnOrder,setTripColumnOrder]=useState<string[]>([]);
   const [hiddenTripColumns,setHiddenTripColumns]=useState<string[]>([]);
@@ -861,6 +871,7 @@ export default function TransportWorkspace(){
   }
 
   async function startEditTrip(row:Trip,returnTo:Tab="trips"){
+    if(returnTo==="mobile"&&!mobileCanEdit){setError("Mobile Trip editing is disabled in Owner Control.");return;}
     entryReturnTab.current=returnTo;
     setLoading(true);
     setError("");
@@ -920,6 +931,7 @@ export default function TransportWorkspace(){
     try{const {data,error}=await supabase.storage.from('transport-ppr').createSignedUrl(form.ppr_attachment_path,60);if(error)throw error;window.open(data.signedUrl,'_blank','noopener,noreferrer')}catch(e:any){setError(e?.message||'Unable to open PPR.')}
   }
   async function updateTrip(){
+    if(entryReturnTab.current==="mobile"&&!mobileCanEdit){setError("Mobile Trip editing is disabled in Owner Control.");return;}
     if(!editingTripId||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
     
     if(!form.customer_id){setError("Customer is required.");return}
@@ -1018,6 +1030,7 @@ export default function TransportWorkspace(){
     }
   }
   async function createTrip(){
+    if(entryReturnTab.current==="mobile"&&!mobileCanCreate){setError("Mobile Trip creation is disabled in Owner Control.");return;}
     if(submissionRef.current)return;
     if(!form.customer_id||!form.trip_date||!['cash','credit'].includes(form.sale_type)){setError('Customer, Trip Date and Sale Type Cash or Credit are required.');return}
     const from=tripMasters.locations.find(l=>l.name===form.from_location),to=tripMasters.locations.find(l=>l.name===form.to_location);
@@ -1284,7 +1297,7 @@ export default function TransportWorkspace(){
     if(tripsGridRef.current)tripsGridRef.current.scrollLeft=0;
   };
 
-  return <div className="relative w-full max-w-none space-y-1" style={{width:"100%",maxWidth:"none",marginInline:0}}>
+  return <div className={standaloneMobile?"relative min-h-dvh w-full max-w-none bg-slate-100":"relative w-full max-w-none space-y-1"} style={{width:"100%",maxWidth:"none",marginInline:0}}>
 
 
     {chargeTrip&&<TransportTripCharges tripId={chargeTrip.id} onClose={()=>setChargeTrip(null)} onChanged={load}/>}
@@ -1571,10 +1584,11 @@ export default function TransportWorkspace(){
     </section>}
 
     {!showPartyReports&&tab==="new"&&
-<section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+<section className={standaloneMobile?"min-h-dvh border-0 bg-white shadow-none":"rounded-xl border border-slate-200 bg-white shadow-sm"}>
 
   <div className="border-b border-slate-200">
     <div className="px-4 pb-2 pt-3">
+      {standaloneMobile&&<button type="button" onClick={()=>{setError("");setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setTab("mobile")}} className="mb-2 inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700">← Recent Trips</button>}
       <h2 className="font-bold text-slate-950">
         {editingTripId?<span className="inline-flex items-center gap-1.5">Edit Trip - {editingTripNo}{editingTripLocked&&<span title="Locked: customer and supplier financial sides are posted. Normal Trip editing is disabled; use controlled correction." className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"><LockKeyhole className="h-3 w-3"/>Locked</span>}</span>:"New Trip"}
       </h2>
@@ -1584,7 +1598,7 @@ export default function TransportWorkspace(){
       </p>
     </div>
 
-    {!editingTripId&&<div className="flex items-center gap-1 px-4 pb-3">
+    {!editingTripId&&!standaloneMobile&&<div className="flex items-center gap-1 px-4 pb-3">
       <button
         type="button"
         onClick={()=>setNewTripMode("single")}
@@ -1606,7 +1620,7 @@ export default function TransportWorkspace(){
   </div>
 
 
-  {newTripMode==='historical'&&<TransportHistoricalImport key={importScope} validateMasters={rows=>validateBulkMasters(rows,true)} onChanged={load}/>}
+  {!standaloneMobile&&newTripMode==='historical'&&<TransportHistoricalImport key={importScope} validateMasters={rows=>validateBulkMasters(rows,true)} onChanged={load}/>}
 
   {newTripMode==="single"&&
   <div className="p-3">
@@ -1782,7 +1796,7 @@ export default function TransportWorkspace(){
 
       <div className="flex items-end justify-end gap-2">
         <button className="btn" onClick={()=>{setError("");setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setTab(entryReturnTab.current)}}>Cancel</button>
-        <button className="btn-primary" onClick={()=>void (editingTripId?updateTrip():createTrip())} disabled={loading}>
+        <button className="btn-primary" onClick={()=>void (editingTripId?updateTrip():createTrip())} disabled={loading||(entryReturnTab.current==="mobile"&&(editingTripId?!mobileCanEdit:!mobileCanCreate))}>
           {loading?(editingTripId?"Saving...":"Creating..."):(editingTripId?"Save Changes":"Create Trip")}
         </button>
       </div>
@@ -1794,7 +1808,7 @@ export default function TransportWorkspace(){
   </div>
   }
 
-  {newTripMode==="bulk"&&
+  {!standaloneMobile&&newTripMode==="bulk"&&
   <div className="space-y-3 p-4">
 
     {quickAdd&&bulkFixRowNo!==null&&<TransportQuickAdd key={`${scopeKey}/bulk/${bulkFixRowNo}/${quickAdd}`} kind={quickAdd} truckTypeId="" supplierId=""
@@ -2055,17 +2069,21 @@ export default function TransportWorkspace(){
 
 </section>}
 
-    {!showPartyReports&&tab==="mobile"&&<section className="mx-auto w-full max-w-xl px-3 pb-6 pt-2 sm:px-4">
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    {!showPartyReports&&tab==="mobile"&&<section className={standaloneMobile?"min-h-dvh w-full bg-slate-100 pb-6":"mx-auto w-full max-w-xl px-3 pb-6 pt-2 sm:px-4"}>
+      <div className={standaloneMobile?"min-h-dvh w-full bg-white":"rounded-2xl border border-slate-200 bg-white shadow-sm"}>
+        {standaloneMobile&&<div className="sticky top-0 z-20 flex min-h-14 items-center justify-between border-b border-slate-800 bg-slate-950 px-4 text-white shadow-sm">
+          <div className="min-w-0"><div className="text-sm font-black">NAVILO · Transport Mobile</div><div className="truncate text-[11px] text-slate-300">{activeCompany?.company_name??"Transport workspace"}</div></div>
+          <button type="button" onClick={()=>void loadMobileTrips(mobileSearch)} disabled={mobileLoading} className="h-9 rounded-lg border border-white/20 bg-white/10 px-3 text-xs font-bold disabled:opacity-60">Refresh</button>
+        </div>}
         <div className="border-b border-slate-200 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-black text-slate-950">Transport Mobile</h2>
               <p className="mt-0.5 text-xs text-slate-500">Fast entry and recent Trip search · last 30 days only.</p>
             </div>
-            <button type="button" onClick={()=>{entryReturnTab.current="mobile";setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setTab("new")}} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-blue-700">
+            {mobileCanCreate&&<button type="button" onClick={()=>{entryReturnTab.current="mobile";setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setNewTripMode("single");setTab("new")}} className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-blue-700">
               <Plus className="h-4 w-4"/>New Trip
-            </button>
+            </button>}
           </div>
           <form className="mt-4 flex gap-2" onSubmit={e=>{e.preventDefault();void loadMobileTrips(mobileSearch)}}>
             <div className="relative min-w-0 flex-1">
@@ -2078,6 +2096,7 @@ export default function TransportWorkspace(){
             <span>{formatNaviloDate(mobileFromDate)} — {formatNaviloDate(mobileToday)}</span>
             <button type="button" onClick={()=>{setMobileSearch("");void loadMobileTrips("")}} className="font-semibold text-blue-700">Recent Trips</button>
           </div>
+          {(!mobileCanCreate||!mobileCanEdit)&&<div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">Owner Control access: {mobileCanCreate?"New Trip allowed":"New Trip disabled"} · {mobileCanEdit?"Edit allowed":"Edit disabled"}.</div>}
         </div>
         <div className="divide-y divide-slate-100">
           {!mobileLoading&&mobileRows.length===0&&<div className="p-6 text-center text-sm text-slate-500">No Trips found in the last 30 days.</div>}
@@ -2093,7 +2112,7 @@ export default function TransportWorkspace(){
                 <div className="mt-1 text-xs text-slate-600">{row.from_location||"—"} → {row.to_location||"—"}</div>
                 {row.po_do_job_no&&<div className="mt-1 text-[11px] text-slate-500">PO/DO/Job: {row.po_do_job_no}</div>}
               </div>
-              <button type="button" disabled={loading} onClick={()=>void startEditTrip(row,"mobile")} className="h-9 shrink-0 rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-60">Edit</button>
+              {mobileCanEdit&&<button type="button" disabled={loading} onClick={()=>void startEditTrip(row,"mobile")} className="h-10 shrink-0 rounded-lg border border-slate-300 bg-white px-4 text-xs font-bold text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-60">Edit</button>}
             </div>
           </article>)}
         </div>

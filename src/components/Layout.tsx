@@ -24,7 +24,7 @@ const navigation:NavNode[]=[
   {key:"cutting",label:"Cutting & Loading / کٹنگ و لوڈنگ",icon:Lucide.Scissors,module:"production",steelOnly:true,children:[{key:"cutting-orders",to:"/cutting",label:"Cutting Orders / کٹنگ آرڈرز",end:true,module:"production",steelOnly:true},{key:"gate-pass",to:"/cutting/gate-pass",label:"Gate Pass & Weighbridge / گیٹ پاس و وزن کانٹا",module:"production",steelOnly:true}]},
   {key:"transport",label:"Transport",icon:Lucide.Truck,module:"transport",businessType:"transport",children:[
     {key:"transport-trips-register",to:"/transport?view=trips",label:"Trips",module:"transport"},
-    {key:"transport-mobile",to:"/transport?view=mobile",label:"Mobile Quick Entry",module:"transport"},
+    {key:"transport-mobile-quick-entry",to:"/transport/mobile",label:"Mobile Quick Entry",module:"transport"},
     {key:"transport-audit",to:"/transport?view=audit",label:"Trip Audit",module:"transport"},
     {key:"transport-driver-expenses",to:"/transport?view=driver-expenses",label:"Driver Expense Upload",module:"transport"},
     {key:"transport-driver-account",to:"/transport?view=driver-account",label:"Driver Account / Hisaab",module:"transport"},
@@ -108,6 +108,7 @@ function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],
 }
 function flatten(nodes:NavNode[]):NavNode[]{return nodes.flatMap(n=>[n,...(n.children?flatten(n.children):[])])}
 function title(pathname:string){
+  if(pathname==="/transport/mobile")return"Transport Mobile";
   if(pathname==="/transport")return"Transport";
   if(pathname==="/sales/new")return"New Sales Invoice";
   if(/^\/sales\/[^/]+\/edit$/.test(pathname))return"Edit Sales Invoice";
@@ -140,6 +141,7 @@ export default function Layout({children}:{children:ReactNode}){
   const visible=useMemo(()=>navigation.map(n=>filterNode(n,role,isPlatformOwner,mods,activeBusinessUnit?.business_unit_type,permissions,(key)=>isFeatureEnabled(key,"view"))).filter(Boolean) as NavNode[],[role,isPlatformOwner,enabledModulesKey,activeBusinessUnit?.business_unit_type,permissions,isFeatureEnabled]);
   const pageTitle=title(location.pathname);
   const ownerWorkspace=location.pathname.startsWith("/owner");
+  const standaloneTransportMobile=location.pathname==="/transport/mobile";
   const showSidebarBrand=branding.show_branding&&branding.show_in_sidebar;
   useEffect(()=>{
     if(ownerWorkspace||!activeCompany?.company_id){setCompanySidebarBrand({name:"",logoUrl:""});return;}
@@ -158,6 +160,9 @@ export default function Layout({children}:{children:ReactNode}){
     return <NavLink key={n.key} to={n.to} end={n.end} aria-current={n.to.startsWith("/transport?")?(active?"page":false):undefined} title={collapsed?shellLabel(n.label):undefined} aria-label={shellLabel(n.label)} onClick={()=>{if(mobileOpen)setMobileOpen(false)}} className={({isActive})=>`navilo-nav-link flex min-h-8 items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold transition-colors duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${(n.to?.startsWith("/transport?")?active:isActive)?"is-active bg-blue-600 text-white shadow-sm shadow-blue-950/20":"text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"}`}>{Icon&&<Icon className="h-4 w-4 shrink-0"/>}<span className={`truncate ${collapsed?"lg:hidden":""}`}>{shellLabel(n.label)}</span></NavLink>;
   };
   const side=collapsed?"lg:w-[68px]":"lg:w-[252px]",offset=collapsed?"lg:ml-[68px]":"lg:ml-[252px]";
+  if(standaloneTransportMobile)return <div className="min-h-dvh bg-slate-100 text-slate-900">
+    <main id="navilo-main-content" data-neus-route={location.pathname} data-i18n-skip="true" className="min-h-dvh w-full p-0">{children}</main>
+  </div>;
   return <div className="erp-shell min-h-screen bg-[#f6f7f9] text-slate-900">
     {mobileOpen&&<button type="button" aria-label="Close navigation" onClick={()=>setMobileOpen(false)} className="fixed inset-0 z-40 bg-slate-950/40 lg:hidden"/>}
     <aside id="navilo-sidebar" aria-label="Primary navigation" className={`navilo-sidebar fixed inset-y-0 left-0 z-50 flex w-[252px] flex-col border-r border-slate-800/80 bg-slate-950 text-slate-300 shadow-2xl shadow-slate-950/10 transition-all duration-200 ${side} ${mobileOpen?"translate-x-0":"invisible -translate-x-full lg:visible lg:translate-x-0"}`}>

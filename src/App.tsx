@@ -80,7 +80,7 @@ function BusinessTypeOnly({ type, children }: { type: string; children: ReactNod
 
 function WorkspaceSwitchers() {
   const { pathname } = useLocation();
-  if (pathname.startsWith("/owner")) return null;
+  if (pathname.startsWith("/owner") || pathname === "/transport/mobile") return null;
   return <><CompanySwitcher /><BusinessUnitSwitcher /></>;
 }
 
