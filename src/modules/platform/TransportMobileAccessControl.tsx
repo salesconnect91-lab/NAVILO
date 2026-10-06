@@ -28,9 +28,9 @@ export default function TransportMobileAccessControl({companyId}:{companyId:stri
     const ids=[...new Set(memberships.map(x=>x.user_id))];
     const profiles=ids.length?await supabase.from("user_profiles").select("id,email,full_name").in("id",ids):{data:[],error:null} as any;
     if(profiles.error){setError(profiles.error.message);setLoading(false);return;}
-    const profileMap=new Map((profiles.data??[]).map((p:any)=>[p.id,p]));
+    const profileMap=new Map<string,{email:string|null;full_name:string|null}>((profiles.data??[]).map((p:any)=>[String(p.id),{email:p.email??null,full_name:p.full_name??null}]));
     setUnits((unitResult.data??[]) as Unit[]);
-    setRows(memberships.map((m:any)=>({...m,...(profileMap.get(m.user_id)||{})})));
+    setRows(memberships.map((m:any)=>({...m,...(profileMap.get(String(m.user_id))??{email:null,full_name:null})})));
     setForm(current=>({...current,business_unit_id:(unitResult.data??[]).some((u:any)=>u.id===current.business_unit_id)?current.business_unit_id:((unitResult.data??[])[0]?.id||"")}));
     setLoading(false);
   },[companyId]);
