@@ -6,6 +6,7 @@ import { formatNaviloDate } from "@/lib/naviloDate";
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment} from "react";
 import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw, LockKeyhole, Mic, Trash2 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
+import { canPerformModule } from "@/auth/permissions";
 import { useOptionalFeatureAccess } from "@/auth/FeatureAccess";
 import { supabase } from "@/lib/supabase";
 import TransportBulkSupplierRent from './TransportBulkSupplierRent';
@@ -118,7 +119,7 @@ const TRANSPORT_TRIP_HEADERS=[
 export default function TransportWorkspace(){
   const navigate=useNavigate();
   const location=useLocation();
-  const {user,activeCompany,activeBusinessUnit}=useAuth();
+  const {user,activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
   const scopeKey=`${activeCompany?.company_id}/${activeBusinessUnit?.business_unit_id}`;
   const scopeRef=useRef(scopeKey);scopeRef.current=scopeKey;
   const submissionRef=useRef(false);
@@ -128,9 +129,13 @@ export default function TransportWorkspace(){
   const [params,setParams]=useSearchParams();
   const featureAccess=useOptionalFeatureAccess();
   const standaloneMobile=location.pathname==="/transport/mobile";
+  const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role;
+  const rolePermissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
   const canViewFeature=(key:string)=>!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled(key,"view"));
-  const mobileCanCreate=!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled("transport-mobile-quick-entry","create"));
-  const mobileCanEdit=!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled("transport-mobile-quick-entry","edit"));
+  const mobileCanCreate=(!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled("transport-mobile-quick-entry","create")))
+    &&canPerformModule(role,"transport","create",rolePermissions,isPlatformOwner);
+  const mobileCanEdit=(!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled("transport-mobile-quick-entry","edit")))
+    &&canPerformModule(role,"transport","edit",rolePermissions,isPlatformOwner);
   const requestedView=params.get('view')??(standaloneMobile?'mobile':null);
   const requestedTab:Tab=tabs.some(t=>t.key===requestedView)?requestedView as Tab:'trips';
   const tabFeature:Record<Tab,string>={
