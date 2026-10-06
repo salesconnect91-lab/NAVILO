@@ -1,24 +1,95 @@
 import { supabase } from "@/lib/supabase";
 
-async function extractInvokeError(error: unknown): Promise<string> {
-  const fallback = error instanceof Error ? error.message : "Edge Function request failed.";
-  const context = (error as { context?: Response } | null)?.context;
-  if (!context || typeof context.clone !== "function") return fallback;
+type InvokeErrorLike = {
+  context?: unknown;
+  cause?: unknown;
+  message?: unknown;
+  status?: unknown;
+};
 
-  try {
-    const payload = await context.clone().json() as { error?: unknown; message?: unknown };
-    if (payload?.error) return String(payload.error);
-    if (payload?.message) return String(payload.message);
-  } catch {
+function payloadMessage(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+  const value = payload as { error?: unknown; message?: unknown };
+  if (value.error) return String(value.error);
+  if (value.message) return String(value.message);
+  return "";
+}
+
+async function readErrorContext(context: unknown): Promise<string> {
+  if (!context || typeof context !== "object") return "";
+  const direct = payloadMessage(context);
+  if (direct) return direct;
+
+  const responseLike = context as {
+    clone?: () => unknown;
+    json?: () => Promise<unknown>;
+    text?: () => Promise<string>;
+  };
+
+  let readable = responseLike;
+  if (typeof responseLike.clone === "function") {
     try {
-      const text = await context.clone().text();
-      if (text.trim()) return text.trim();
+      readable = responseLike.clone() as typeof responseLike;
     } catch {
-      // Keep the SDK fallback message.
+      readable = responseLike;
     }
   }
 
+  if (typeof readable.json === "function") {
+    try {
+      const message = payloadMessage(await readable.json());
+      if (message) return message;
+    } catch {
+      // Fall through to text parsing.
+    }
+  }
+
+  if (typeof responseLike.clone === "function") {
+    try {
+      readable = responseLike.clone() as typeof responseLike;
+    } catch {
+      readable = responseLike;
+    }
+  }
+
+  if (typeof readable.text === "function") {
+    try {
+      const text = (await readable.text()).trim();
+      if (text) {
+        try {
+          const message = payloadMessage(JSON.parse(text));
+          if (message) return message;
+        } catch {
+          return text;
+        }
+      }
+    } catch {
+      // Keep the SDK fallback.
+    }
+  }
+
+  return "";
+}
+
+async function extractInvokeError(error: unknown): Promise<string> {
+  const fallback = error instanceof Error ? error.message : "Edge Function request failed.";
+  const value = (error || {}) as InvokeErrorLike;
+
+  for (const candidate of [value.context, value.cause]) {
+    const message = await readErrorContext(candidate);
+    if (message) return message;
+  }
+
   return fallback;
+}
+
+function invokeErrorStatus(error: unknown): number | null {
+  const value = (error || {}) as InvokeErrorLike;
+  const direct = Number(value.status);
+  if (Number.isInteger(direct) && direct > 0) return direct;
+
+  const contextStatus = Number((value.context as { status?: unknown } | null)?.status);
+  return Number.isInteger(contextStatus) && contextStatus > 0 ? contextStatus : null;
 }
 
 export async function invokeEdgeFunction<T = unknown>(
@@ -32,12 +103,17 @@ export async function invokeEdgeFunction<T = unknown>(
     ...(accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {}),
   });
 
-  // The Functions gateway can reject an otherwise valid request when the cached
-  // access token is being rotated. Refresh once on an auth/gateway failure and
-  // retry with the new bearer token; application errors remain fail-closed.
+  let errorMessage = error ? await extractInvokeError(error) : "";
+
+  // Retry only an explicit authentication failure. Generic HTTP 500/application
+  // errors must never be retried automatically, especially for destructive RPCs.
   if (error) {
-    const firstMessage = await extractInvokeError(error);
-    if (/request failed|invalid jwt|jwt expired|invalid session|unauthorized/i.test(firstMessage)) {
+    const status = invokeErrorStatus(error);
+    const authFailure =
+      status === 401 ||
+      /invalid jwt|jwt expired|invalid session|authentication required/i.test(errorMessage);
+
+    if (authFailure) {
       const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
       const refreshedToken = refreshed.session?.access_token;
       if (!refreshError && refreshedToken) {
@@ -47,11 +123,12 @@ export async function invokeEdgeFunction<T = unknown>(
         });
         data = retry.data;
         error = retry.error;
+        errorMessage = error ? await extractInvokeError(error) : "";
       }
     }
   }
 
-  if (error) throw new Error(await extractInvokeError(error));
+  if (error) throw new Error(errorMessage || "Edge Function request failed.");
 
   if (data && typeof data === "object" && "error" in data) {
     const message = (data as { error?: unknown }).error;

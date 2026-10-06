@@ -67,18 +67,35 @@ export default function TransactionResetControl({ companyId, companyName, compan
     if (!ok || companyRef.current !== targetCompany) return;
     setResetting(true); setError(""); setMessage("");
     try {
-      const result = await invokeEdgeFunction<{ deleted_rows?: number }>("platform-admin", {
+      const result = await invokeEdgeFunction<{ success?: boolean; deleted_rows?: number }>("platform-admin", {
         action: "reset_company_transactions", company_id: targetCompany,
         confirmation: targetConfirmation, acknowledge: true,
       });
       if (companyRef.current !== targetCompany) return;
-      setConfirmation(""); setAck(false);
-      // A successful reset response does not prove that the follow-up preview or reconciliation succeeded.
-      setMessage(`Server reported ${Number(result?.deleted_rows ?? 0).toLocaleString()} rows removed. Verify accounting, stock and backup before continuing.`);
-      await loadPreview();
-      if (companyRef.current === targetCompany) {
-        setMessage(`Server reported ${Number(result?.deleted_rows ?? 0).toLocaleString()} rows removed. Verify accounting, stock and backup before continuing.`);
+      if (result?.success === false) throw new Error("Reset backend did not confirm success.");
+
+      const verification = await invokeEdgeFunction<Preview>("platform-admin", {
+        action: "reset_company_preview", company_id: targetCompany,
+      });
+      if (!verification || !Number.isSafeInteger(verification.total_rows) || verification.total_rows < 0 || !verification.counts || !Array.isArray(verification.preserved)) {
+        throw new Error("Reset completed but post-reset verification was invalid. Refresh preview before continuing.");
       }
+      if (companyRef.current !== targetCompany) return;
+
+      setPreview(verification);
+      setPreviewCompanyId(targetCompany);
+      setConfirmation("");
+      setAck(false);
+
+      if (verification.total_rows !== 0) {
+        const remaining = Object.entries(verification.counts)
+          .filter(([, count]) => count > 0)
+          .map(([table, count]) => `${label(table)}: ${count.toLocaleString()}`)
+          .join(", ");
+        throw new Error(`Reset incomplete: ${verification.total_rows.toLocaleString()} resettable row(s) remain${remaining ? ` (${remaining})` : ""}. No success has been recorded.`);
+      }
+
+      setMessage(`Reset verified successfully. ${Number(result?.deleted_rows ?? 0).toLocaleString()} row(s) were removed and no resettable transaction rows remain.`);
     } catch (e) {
       if (companyRef.current !== targetCompany) return;
       setPreview(null); setPreviewCompanyId(null);
