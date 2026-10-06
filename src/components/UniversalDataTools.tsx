@@ -138,8 +138,11 @@ export default function UniversalDataTools(){
       setStandardHost(current=>current===host?current:host);return true;
     };
     if(transportWorkspace){
-      setStandardHost(null);
-      let frame=requestAnimationFrame(()=>{attach();});
+      // Transport already renders an explicit tools host. Attach synchronously so
+      // navigation never waits on a DOM observer/extra frame; keep one RAF only
+      // as a fallback for a just-mounted host.
+      if(attach())return;
+      const frame=requestAnimationFrame(()=>{attach();});
       return()=>cancelAnimationFrame(frame);
     }
     attach();
