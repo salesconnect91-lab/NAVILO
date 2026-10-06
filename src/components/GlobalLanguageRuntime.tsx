@@ -112,6 +112,8 @@ function processAttributes(element:Element,language:RuntimeLanguage){
   else if(element.hasAttribute("dir")&&element.matches("button,label,h1,h2,h3,h4,h5,h6,th,option,[role='button'],[role='menuitem'],[role='tab']"))element.removeAttribute("dir");
 }
 function translateTree(root:Node,language:RuntimeLanguage){
+  const element=root.nodeType===Node.ELEMENT_NODE?root as Element:root.parentElement;
+  if(element?.closest("[data-i18n-skip='true'],.print-document,[data-document-language-root]"))return;
   if(root.nodeType===Node.TEXT_NODE){processText(root as Text,language);return;}
   if(root.nodeType===Node.ELEMENT_NODE)processAttributes(root as Element,language);
   const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT);
@@ -127,14 +129,37 @@ export default function GlobalLanguageRuntime(){
     let titleSource=document.title,titleRendered=document.title;
     const apply=()=>{if(!active)return;cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{applying=true;applyRoot(language);translateTree(document.body,language);if(document.title!==titleRendered)titleSource=document.title;titleRendered=localize(titleSource,language,true);if(document.title!==titleRendered)document.title=titleRendered;queueMicrotask(()=>{applying=false;});});};
     const refresh=async()=>{try{language=await loadLanguage();}catch{language=ENGLISH_ONLY;}apply();};
-    const observer=new MutationObserver(mutations=>{if(!active)return;for(const mutation of mutations){const titleMutation=mutation.target.parentElement?.tagName==="TITLE"||mutation.target.nodeName==="TITLE";if(applying&&!titleMutation)continue;mutation.addedNodes.forEach(node=>{if(node.nodeType===Node.TEXT_NODE||node.nodeType===Node.ELEMENT_NODE)translateTree(node,language);});if(mutation.type==="characterData"&&mutation.target.nodeType===Node.TEXT_NODE)processText(mutation.target as Text,language);if(mutation.type==="attributes"&&mutation.target.nodeType===Node.ELEMENT_NODE)processAttributes(mutation.target as Element,language);}});
+    let mutationFrame=0;
+    const pendingRoots=new Set<Node>(),pendingText=new Set<Text>(),pendingElements=new Set<Element>();
+    const flushMutations=()=>{
+      mutationFrame=0;if(!active)return;
+      const roots=[...pendingRoots].filter(node=>{let parent=node.parentNode;while(parent){if(pendingRoots.has(parent))return false;parent=parent.parentNode;}return true;});
+      pendingRoots.clear();
+      applying=true;
+      roots.forEach(node=>translateTree(node,language));
+      pendingText.forEach(node=>processText(node,language));pendingText.clear();
+      pendingElements.forEach(element=>processAttributes(element,language));pendingElements.clear();
+      queueMicrotask(()=>{applying=false;});
+    };
+    const scheduleMutationFlush=()=>{if(!mutationFrame)mutationFrame=requestAnimationFrame(flushMutations);};
+    const observer=new MutationObserver(mutations=>{
+      if(!active)return;
+      for(const mutation of mutations){
+        const titleMutation=mutation.target.parentElement?.tagName==="TITLE"||mutation.target.nodeName==="TITLE";
+        if(applying&&!titleMutation)continue;
+        mutation.addedNodes.forEach(node=>{if(node.nodeType===Node.TEXT_NODE||node.nodeType===Node.ELEMENT_NODE)pendingRoots.add(node);});
+        if(mutation.type==="characterData"&&mutation.target.nodeType===Node.TEXT_NODE)pendingText.add(mutation.target as Text);
+        if(mutation.type==="attributes"&&mutation.target.nodeType===Node.ELEMENT_NODE)pendingElements.add(mutation.target as Element);
+      }
+      scheduleMutationFlush();
+    });
     // Observe the document root so route-driven <title> changes are localized
     // as well as visible body content.
     observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:[...TRANSLATABLE_ATTRIBUTES]});
     void refresh();
     const changed=()=>void refresh();
     window.addEventListener("navilo-language-changed",changed);window.addEventListener("navilo:language-changed",changed);window.addEventListener("navilo-workspace-changed",changed);
-    return()=>{active=false;observer.disconnect();cancelAnimationFrame(frame);window.removeEventListener("navilo-language-changed",changed);window.removeEventListener("navilo:language-changed",changed);window.removeEventListener("navilo-workspace-changed",changed);};
+    return()=>{active=false;observer.disconnect();cancelAnimationFrame(frame);cancelAnimationFrame(mutationFrame);pendingRoots.clear();pendingText.clear();pendingElements.clear();window.removeEventListener("navilo-language-changed",changed);window.removeEventListener("navilo:language-changed",changed);window.removeEventListener("navilo-workspace-changed",changed);};
   },[]);
   return null;
 }

@@ -104,7 +104,7 @@ function isDocumentOutputAction(el:HTMLElement){
 function findLocalAction(predicate:(label:string)=>boolean){const main=document.querySelector<HTMLElement>("#navilo-main-content");if(!main)return null;return Array.from(main.querySelectorAll<HTMLElement>("button,a,[role='button']")).find(el=>!el.closest("[data-navilo-global-data-tools]")&&!isDocumentOutputAction(el)&&predicate(labelOf(el)))??null}
 
 export default function UniversalDataTools(){
-  const{pathname}=useLocation(),{activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
+  const{pathname,search}=useLocation(),{activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
   const[open,setOpen]=useState(false),[standardHost,setStandardHost]=useState<HTMLElement|null>(null),[hasCustomizableTable,setHasCustomizableTable]=useState(false),[hasLocalDocumentOutput,setHasLocalDocumentOutput]=useState(false);
   const ref=useRef<HTMLDivElement|null>(null),exportButtonRef=useRef<HTMLButtonElement|null>(null);
   const[menuPos,setMenuPos]=useState<{top:number;right:number}|null>(null);
@@ -137,6 +137,11 @@ export default function UniversalDataTools(){
       if(!host){host=document.createElement("span");host.dataset.naviloStandardToolsHost="true";host.className="contents";actions.prepend(host)}
       setStandardHost(current=>current===host?current:host);return true;
     };
+    if(transportWorkspace){
+      setStandardHost(null);
+      let frame=requestAnimationFrame(()=>{attach();});
+      return()=>cancelAnimationFrame(frame);
+    }
     attach();
     const observer=new MutationObserver(()=>{
       setStandardHost(current=>{
@@ -148,7 +153,7 @@ export default function UniversalDataTools(){
     });
     observer.observe(document.querySelector("#navilo-main-content")??document.body,{childList:true,subtree:true});
     return()=>{observer.disconnect()};
-  },[standardPath,pathname]);
+  },[standardPath,pathname,search,transportWorkspace]);
   useEffect(()=>{if(!open)return;const place=()=>{const r=exportButtonRef.current?.getBoundingClientRect();if(r)setMenuPos({top:r.bottom+6,right:Math.max(8,window.innerWidth-r.right)})};place();const close=(e:MouseEvent)=>{const target=e.target as Node;if(ref.current?.contains(target)||exportButtonRef.current?.contains(target))return;setOpen(false)};document.addEventListener("mousedown",close);window.addEventListener("resize",place);window.addEventListener("scroll",place,true);return()=>{document.removeEventListener("mousedown",close);window.removeEventListener("resize",place);window.removeEventListener("scroll",place,true)}},[open]);
 
   const exp=(t:"excel"|"csv"|"word"|"pdf")=>{if(!canExport)return;if(pathname==="/transport"&&standardHost?.closest("[data-navilo-transport-register]")){setOpen(false);window.dispatchEvent(new CustomEvent("navilo:transport-export",{detail:{format:t}}));return;}const root=currentExportRoot();if(!root)return;const title=currentPageTitle(),file=cleanTitle(title);if(t==="excel")exportDomReportToExcel(file,root,title);if(t==="csv")exportDomReportToCSV(file,root,title);if(t==="word")exportDomReportToWord(file,root,title);if(t==="pdf")exportDomReportToPDF(file,root,title);setOpen(false)};

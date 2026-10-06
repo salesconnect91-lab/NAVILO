@@ -72,7 +72,7 @@ export default function LanguageVisibilityRuntime() {
     const apply = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        if (/language/i.test(window.location.pathname)) return;
+        if (/language/i.test(window.location.pathname) || window.location.pathname.startsWith("/transport")) return;
         updateLanguageFields(document.body, selectedLanguages());
       });
     };

@@ -116,13 +116,28 @@ export default function JurisdictionRuntime() {
       apply();
     };
 
+    let mutationFrame = 0;
+    const pendingRoots = new Set<Node>();
+    const flushMutations = () => {
+      mutationFrame = 0;
+      if (!active) return;
+      const roots = [...pendingRoots].filter((node) => {
+        let parent = node.parentNode;
+        while (parent) {
+          if (pendingRoots.has(parent)) return false;
+          parent = parent.parentNode;
+        }
+        return true;
+      });
+      pendingRoots.clear();
+      applying = true;
+      roots.forEach((node) => applyTree(node, currency, primaryTaxId, secondaryTaxId));
+      queueMicrotask(() => { applying = false; });
+    };
     observer = new MutationObserver((mutations) => {
       if (!active || applying) return;
-      for (const mutation of mutations) {
-        mutation.addedNodes.forEach((node) => applyTree(node, currency, primaryTaxId, secondaryTaxId));
-        if (mutation.type === "characterData" && mutation.target.nodeType === Node.TEXT_NODE) processTextNode(mutation.target as Text, currency, primaryTaxId, secondaryTaxId);
-        if (mutation.type === "attributes" && mutation.target.nodeType === Node.ELEMENT_NODE) processAttributes(mutation.target as Element, currency, primaryTaxId, secondaryTaxId);
-      }
+      for (const mutation of mutations) mutation.addedNodes.forEach((node) => pendingRoots.add(node));
+      if (!mutationFrame && pendingRoots.size) mutationFrame = requestAnimationFrame(flushMutations);
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
@@ -133,6 +148,8 @@ export default function JurisdictionRuntime() {
     return () => {
       active = false;
       observer?.disconnect();
+      cancelAnimationFrame(mutationFrame);
+      pendingRoots.clear();
       window.removeEventListener("navilo-jurisdiction-changed", handleChange);
       window.removeEventListener("navilo-workspace-changed", handleChange);
     };
