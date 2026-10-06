@@ -15,6 +15,7 @@ import PrintPreviewController from "@/components/PrintPreviewController";
 import GatePassSummaryPrintBridge from "@/components/GatePassSummaryPrintBridge";
 import GlobalModalManager from "@/components/GlobalModalManager";
 import DashboardGlobalSearch from "@/components/DashboardGlobalSearch";
+import SupportCenter from "@/components/SupportCenter";
 import ReportSurface from "@/components/reports/ReportSurface";
 const Dashboard = lazy(() => import("@/modules/Dashboard"));
 const MasterData = lazy(() => import("@/modules/master-data/MasterData"));
@@ -88,7 +89,7 @@ function GlobalExperience() {
 }
 
 function DashboardHome() {
-  return <><DashboardGlobalSearch /><Dashboard /></>;
+  return <><DashboardGlobalSearch /><Dashboard /><SupportCenter /></>;
 }
 
 export default function App() {
