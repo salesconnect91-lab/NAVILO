@@ -43,6 +43,37 @@ Deno.serve(async (request) => {
   const action = String(body.action || "");
 
   try {
+    if (action === "check_owner_login") {
+      const email = String(body.owner_email || "").trim().toLowerCase();
+      if (!email) return json({ error: "Owner email is required." }, 400);
+      let ownerUser = null;
+      for (let page = 1; !ownerUser; page += 1) {
+        const { data: listed, error: listError } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+        if (listError) throw listError;
+        ownerUser = listed.users.find(user => String(user.email || "").toLowerCase() === email) || null;
+        if (ownerUser || listed.users.length < 1000) break;
+      }
+      if (!ownerUser) return json({ exists: false, memberships: [] });
+      const { data: ownerProfile, error: profileError } = await admin.from("user_profiles")
+        .select("full_name,is_active,platform_role").eq("id", ownerUser.id).maybeSingle();
+      if (profileError) throw profileError;
+      const { data: memberships, error: membershipError } = await admin.from("company_memberships")
+        .select("role,is_active,companies(name,code)").eq("user_id", ownerUser.id);
+      if (membershipError) throw membershipError;
+      return json({
+        exists: true,
+        full_name: ownerProfile?.full_name || ownerUser.user_metadata?.full_name || "",
+        is_active: ownerProfile?.is_active !== false,
+        is_platform_owner: ownerProfile?.platform_role === "super_admin",
+        memberships: (memberships || []).map((item: any) => ({
+          company_name: item.companies?.name || "",
+          company_code: item.companies?.code || "",
+          role: item.role,
+          is_active: item.is_active,
+        })),
+      });
+    }
+
     if (action === "onboard_company") {
       const name = String(body.name || "").trim();
       const code = String(body.code || "").trim().toUpperCase();
@@ -62,7 +93,6 @@ Deno.serve(async (request) => {
       }
       if (unitName.length < 2 || !/[A-Za-z]/.test(unitName)) return json({ error: "Workspace name must be at least 2 characters and include a letter." }, 400);
       if (!/^[A-Z][A-Z0-9_-]{1,9}$/.test(unitCode)) return json({ error: "Workspace code must be 2-10 characters, start with a letter, and use only A-Z, 0-9, _ or -." }, 400);
-      if (password.length < 8) return json({ error: "Temporary password must be at least 8 characters." }, 400);
 
       const [codeLookup, nameLookup, planLookup] = await Promise.all([
         admin.from("companies").select("id").eq("code",code).limit(1).maybeSingle(),
@@ -127,8 +157,12 @@ Deno.serve(async (request) => {
         }
 
         if (ownerUser) {
+          if (body.reuse_existing_login !== true) {
+            throw new Error("This owner email already belongs to a NAVILO login. Confirm Reuse Existing Login before onboarding.");
+          }
           userId = ownerUser.id;
         } else {
+          if (password.length < 8) throw new Error("Temporary password must be at least 8 characters for a new owner login.");
           const { data: createdUser, error: userError } = await admin.auth.admin.createUser({
             email: ownerEmail, password, email_confirm: true, user_metadata: { full_name: ownerName || name },
           });
