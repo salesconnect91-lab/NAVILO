@@ -6,6 +6,7 @@ import { formatNaviloDate } from "@/lib/naviloDate";
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment} from "react";
 import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw, LockKeyhole } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
+import { useOptionalFeatureAccess } from "@/auth/FeatureAccess";
 import { supabase } from "@/lib/supabase";
 import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportBulkCustomerRate from './TransportBulkCustomerRate';
@@ -123,9 +124,25 @@ export default function TransportWorkspace(){
   const [entryPermissions,setEntryPermissions]=useState({master:false,owner:false,rate:false,rent:false,driver:false});
 
   const [params,setParams]=useSearchParams();
+  const featureAccess=useOptionalFeatureAccess();
+  const canViewFeature=(key:string)=>!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled(key,"view"));
   const requestedView=params.get('view');
-  const tab:Tab=tabs.some(t=>t.key===requestedView)?requestedView as Tab:'trips';
-  const setTab=(next:Tab)=>{const p=new URLSearchParams(params);p.set('view',next);p.delete('panel');setParams(p);};
+  const requestedTab:Tab=tabs.some(t=>t.key===requestedView)?requestedView as Tab:'trips';
+  const tabFeature:Record<Tab,string>={
+    trips:"transport-trips-register",
+    new:"transport-trips-register",
+    audit:"transport-audit",
+    "driver-expenses":"transport-driver-expenses",
+    "driver-account":"transport-driver-account",
+    "vehicle-account":"transport-vehicle-account",
+  };
+  const firstAllowedTab=():Tab=>(["trips","driver-expenses","driver-account","vehicle-account","audit"] as Tab[])
+    .find(candidate=>canViewFeature(tabFeature[candidate]))??"trips";
+  const tab:Tab=canViewFeature(tabFeature[requestedTab])?requestedTab:firstAllowedTab();
+  const setTab=(next:Tab)=>{
+    if(!canViewFeature(tabFeature[next]))return;
+    const p=new URLSearchParams(params);p.set('view',next);p.delete('panel');setParams(p);
+  };
   const [rows,setRows]=useState<Trip[]>([]);
   const [loading,setLoading]=useState(false);
   const [registerLoading,setRegisterLoading]=useState(false);
@@ -165,8 +182,14 @@ export default function TransportWorkspace(){
   };
 
   const [error,setError]=useState("");
-  const reportPanel=params.get('panel');
-  const showPartyReports=['customer-reports','supplier-reports','bulk-allocation','vat-reports'].includes(reportPanel??'');
+  const requestedPanel=params.get('panel');
+  const panelFeature:Record<string,string>={
+    "customer-reports":"transport-customer-reports",
+    "supplier-reports":"transport-supplier-reports",
+    "bulk-allocation":"transport-allocation",
+  };
+  const reportPanel=requestedPanel&&panelFeature[requestedPanel]&&canViewFeature(panelFeature[requestedPanel])?requestedPanel:null;
+  const showPartyReports=Boolean(reportPanel);
 
   const [fromDate,setFromDate]=useState("");
   const [toDate,setToDate]=useState("");
