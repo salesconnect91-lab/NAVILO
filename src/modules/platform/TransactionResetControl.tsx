@@ -20,7 +20,8 @@ export default function TransactionResetControl({ companyId, companyName, compan
   companyRef.current = companyId;
   const expected = `RESET ${companyCode}`;
   const validPreview = previewCompanyId === companyId && preview !== null;
-  const canReset = validPreview && !loading && !resetting && preview.total_rows > 0 && confirmation === expected && ack;
+  const resetEnabled = false; // Financial-history policy: destructive transaction reset is intentionally disabled.
+  const canReset = resetEnabled && validPreview && !loading && !resetting && preview.total_rows > 0 && confirmation === expected && ack;
   const activeCounts = useMemo(() => Object.entries(validPreview ? preview.counts : {}).filter(([, count]) => count > 0), [preview, validPreview]);
 
   const loadPreview = async () => {
@@ -80,7 +81,7 @@ export default function TransactionResetControl({ companyId, companyName, compan
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <div className="flex items-center gap-2"><Database className="h-5 w-5 text-rose-600"/><h2 className="font-semibold text-slate-900">Reset Company Transaction Data</h2></div>
-        <p className="mt-1 max-w-3xl text-xs text-slate-500">Company: <b>{companyName}</b>. This action is destructive. Verify the backend deletion scope and a restorable backup first.</p>
+        <p className="mt-1 max-w-3xl text-xs text-slate-500">Company: <b>{companyName}</b>. Preview is informational only. Destructive transaction reset is disabled to preserve financial history.</p>
       </div>
       <button type="button" className="btn-secondary" disabled={loading || resetting} onClick={() => void loadPreview()}>{loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4"/>}Refresh Preview</button>
     </div>
@@ -96,12 +97,12 @@ export default function TransactionResetControl({ companyId, companyName, compan
         <div className="mt-3 grid gap-1 text-xs text-emerald-800 sm:grid-cols-2">{(validPreview ? preview.preserved : []).map(x => <div key={x}>✓ {x}</div>)}</div>
       </div>
     </div>
-    <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4">
-      <div className="flex gap-2 text-sm font-semibold text-rose-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0"/>Permanent action — use only with a verified backup.</div>
-      <p className="mt-2 text-xs text-rose-700">Type <b>{expected}</b> exactly. Preview alone does not guarantee recoverability or backend safety.</p>
-      <input className="input mt-3 max-w-md border-rose-300" value={confirmation} onChange={e=>setConfirmation(e.target.value)} placeholder={expected}/>
-      <label className="mt-3 flex items-start gap-2 text-xs text-slate-700"><input type="checkbox" className="mt-0.5" checked={ack} onChange={e=>setAck(e.target.checked)}/><span>I understand this permanently removes the selected company&apos;s transactional/test entries.</span></label>
-      <button type="button" className="mt-3 inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40" disabled={!canReset} onClick={() => void reset()}>{resetting && <Loader2 className="h-4 w-4 animate-spin"/>}Reset Transaction Data</button>
+    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+      <div className="flex gap-2 text-sm font-semibold text-rose-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0"/>Transaction reset disabled — use correcting documents or deactivate the company.</div>
+      <p className="mt-2 text-xs text-rose-700">NAVILO preserves posted/financial history. The preview remains available for inspection, but destructive reset cannot be executed.</p>
+      <input className="input mt-3 max-w-md border-rose-300" value={confirmation} onChange={e=>setConfirmation(e.target.value)} placeholder={expected} disabled/>
+      <label className="mt-3 flex items-start gap-2 text-xs text-slate-700"><input type="checkbox" className="mt-0.5" checked={ack} onChange={e=>setAck(e.target.checked)} disabled/><span>I understand this permanently removes the selected company&apos;s transactional/test entries.</span></label>
+      <button type="button" className="mt-3 inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40" disabled={!canReset} onClick={() => void reset()}>{resetting && <Loader2 className="h-4 w-4 animate-spin"/>}Reset Disabled</button>
     </div>
   </section>;
 }
