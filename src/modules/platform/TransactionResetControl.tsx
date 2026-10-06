@@ -15,6 +15,7 @@ export default function TransactionResetControl({ companyId, companyName, compan
   const [ack, setAck] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [previewRetry, setPreviewRetry] = useState(false);
   const requestId = useRef(0);
   const companyRef = useRef(companyId);
   companyRef.current = companyId;
@@ -29,7 +30,18 @@ export default function TransactionResetControl({ companyId, companyName, compan
     setLoading(true); setPreview(null); setPreviewCompanyId(null);
     setConfirmation(""); setAck(false); setError(""); setMessage("");
     try {
-      const result = await invokeEdgeFunction<Preview>("platform-admin", { action: "reset_company_preview", company_id: targetCompany });
+      let result: Preview;
+      try {
+        result = await invokeEdgeFunction<Preview>("platform-admin", { action: "reset_company_preview", company_id: targetCompany });
+      } catch (firstError) {
+        // A freshly deployed Edge Function can transiently reject the first invoke while
+        // its worker/session is warming. Retry once; keep reset fail-closed if it still fails.
+        setPreviewRetry(true);
+        await new Promise(resolve => window.setTimeout(resolve, 500));
+        result = await invokeEdgeFunction<Preview>("platform-admin", { action: "reset_company_preview", company_id: targetCompany });
+      } finally {
+        setPreviewRetry(false);
+      }
       if (request !== requestId.current || companyRef.current !== targetCompany) return;
       if (!result || !Number.isSafeInteger(result.total_rows) || result.total_rows < 0 || !result.counts || !Array.isArray(result.preserved)) {
         throw new Error("Reset preview is incomplete. No reset is permitted.");
@@ -82,7 +94,7 @@ export default function TransactionResetControl({ companyId, companyName, compan
         <div className="flex items-center gap-2"><Database className="h-5 w-5 text-rose-600"/><h2 className="font-semibold text-slate-900">Reset Company Transaction Data</h2></div>
         <p className="mt-1 max-w-3xl text-xs text-slate-500">Company: <b>{companyName}</b>. TEST company only. Reset removes transactional/test data while preserving company setup, masters, users, security and protected opening baselines.</p>
       </div>
-      <button type="button" className="btn-secondary" disabled={loading || resetting} onClick={() => void loadPreview()}>{loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4"/>}Refresh Preview</button>
+      <button type="button" className="btn-secondary" disabled={loading || resetting} onClick={() => void loadPreview()}>{loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4"/>}{previewRetry ? "Retrying Preview" : "Refresh Preview"}</button>
     </div>
     {error && <div role="alert" className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
     {message && <div role="status" className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</div>}
