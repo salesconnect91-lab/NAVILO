@@ -46,6 +46,7 @@ export default function OwnerPanel() {
   const [companyModules, setCompanyModules] = useState<CompanyModule[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [lifecycleCompanyId, setLifecycleCompanyId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -84,6 +85,7 @@ export default function OwnerPanel() {
 
   useEffect(() => { void load(); }, [load]);
   const selected = companies.find(item => item.id === selectedCompanyId);
+  const lifecycleCompany = companies.find(item => item.id === lifecycleCompanyId);
   const profileMap = useMemo(() => new Map(profiles.map(profile => [profile.id, profile])), [profiles]);
   const selectedUsers = memberships.filter(m=>m.company_id===selectedCompanyId && m.is_active).length;
   const selectedActiveOwnerCount = memberships.filter(m=>m.company_id===selectedCompanyId && m.is_active && m.role==="company_owner").length;
@@ -281,8 +283,12 @@ export default function OwnerPanel() {
       </section>
       <section className="rounded-xl border bg-white p-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">Migration & Onboarding</h2><p className="mt-1 text-xs text-slate-500">Controlled tools for bringing opening balances and legacy operational data into NAVILO.</p></div><Link className="btn-secondary" to="/owner/opening-balances"><FileSpreadsheet className="h-4 w-4"/>Opening Balance Migration</Link></div></section>
       {selected&&<OwnerOrderBookMigration companyId={selected.id} companyName={selected.name}/>}
-      <section className="rounded-xl border border-red-200 bg-red-50/40 p-4"><div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-5 w-5 text-red-700"/><div><h2 className="font-semibold text-red-900">Danger Zone</h2><p className="text-xs text-red-700">Destructive lifecycle actions belong here. Use Suspend for normal company access control. Permanent deletion and transaction reset require deliberate confirmation.</p></div></div>{selected&&<div className="mt-4"><CompanyDeleteControl companyId={selected.id} companyName={selected.name} companyCode={selected.code} isTestCompany={selected.is_test_company===true} onDeleted={async () => { await load(); await refreshAccess(); }}/></div>}</section>
-      {selected&&!selected.is_test_company&&<TransactionResetControl companyId={selected.id} companyName={selected.name} companyCode={selected.code}/>}
+      <section className="rounded-xl border border-red-200 bg-red-50/40 p-4">
+        <div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-5 w-5 text-red-700"/><div><h2 className="font-semibold text-red-900">Company Lifecycle Control</h2><p className="text-xs text-red-700">Select the company again inside this protected area before any destructive action. The backend re-validates company type, ID and confirmation phrase.</p></div></div>
+        <div className="mt-4 max-w-xl"><label className="text-xs font-semibold text-red-900">Company to reset or delete</label><SearchableSelect className="input mt-1 w-full" value={lifecycleCompanyId} onChange={e=>setLifecycleCompanyId(e.target.value)}><option value="">Select company…</option>{companies.map(target=><option key={target.id} value={target.id} data-search={`${target.code} ${target.is_test_company?"test":"live"}`}>{target.name} ({target.code}) · {target.is_test_company?"TEST":"LIVE"}</option>)}</SearchableSelect></div>
+        {lifecycleCompany&&<div className="mt-3 rounded-lg border border-red-200 bg-white p-3"><div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900"><span>{lifecycleCompany.name} ({lifecycleCompany.code})</span><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${lifecycleCompany.is_test_company?"bg-amber-100 text-amber-800":"bg-emerald-100 text-emerald-800"}`}>{lifecycleCompany.is_test_company?"TEST COMPANY":"LIVE COMPANY"}</span></div><div className="mt-3"><CompanyDeleteControl companyId={lifecycleCompany.id} companyName={lifecycleCompany.name} companyCode={lifecycleCompany.code} isTestCompany={lifecycleCompany.is_test_company===true} onDeleted={async()=>{setLifecycleCompanyId("");await load();await refreshAccess();}}/></div></div>}
+      </section>
+      {lifecycleCompany?.is_test_company&&<TransactionResetControl companyId={lifecycleCompany.id} companyName={lifecycleCompany.name} companyCode={lifecycleCompany.code}/>}
     </>}
   </div>;
 }
