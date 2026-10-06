@@ -14,16 +14,16 @@ type FeatureAccessContextValue = {
 const FeatureAccessContext=createContext<FeatureAccessContextValue|undefined>(undefined);
 
 export function FeatureAccessProvider({children}:{children:ReactNode}){
-  const { isPlatformOwner, activeCompany, activeBusinessUnit }=useAuth();
+  const { activeCompany, activeBusinessUnit }=useAuth();
   const scope=`${activeCompany?.company_id??""}:${activeBusinessUnit?.business_unit_id??""}`;
   const requestId=useRef(0);
   const [rules,setRules]=useState<{scope:string;company:Map<string,Entitlement>;unit:Map<string,Entitlement>;valid:boolean}|null>(null);
-  const loading=!isPlatformOwner&&(!rules||rules.scope!==scope);
+  const loading=Boolean(activeCompany)&&(!rules||rules.scope!==scope);
 
   const refresh=useCallback(async()=>{
     const companyId=activeCompany?.company_id;
     const currentRequest=++requestId.current;
-    if(!companyId||isPlatformOwner){setRules(null);return;}
+    if(!companyId){setRules(null);return;}
     setRules(null);
     const [companyResult,unitResult]=await Promise.all([
       supabase.from("company_feature_entitlements").select("feature_key,enabled,action_overrides").eq("company_id",companyId),
@@ -35,12 +35,11 @@ export function FeatureAccessProvider({children}:{children:ReactNode}){
     setRules({scope,valid:!companyResult.error&&!unitResult.error,
       company:new Map(((companyResult.data??[]) as Entitlement[]).map(x=>[x.feature_key,x])),
       unit:new Map(((unitResult.data??[]) as Entitlement[]).map(x=>[x.feature_key,x]))});
-  },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,isPlatformOwner,scope]);
+  },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,scope]);
 
   useEffect(()=>{void refresh()},[refresh]);
 
   const isFeatureEnabled=useCallback((featureKey:string,action:FeatureAction="view")=>{
-    if(isPlatformOwner)return true;
     if(!activeCompany||!rules?.valid||rules.scope!==scope)return false;
     const feature=FEATURE_BY_KEY.get(featureKey);
     if(!feature)return false;
@@ -57,7 +56,7 @@ export function FeatureAccessProvider({children}:{children:ReactNode}){
     if(unitRule?.enabled===false)return false;
     if(unitRule?.action_overrides&&unitRule.action_overrides[action]===false)return false;
     return true;
-  },[activeBusinessUnit,activeCompany,isPlatformOwner,rules,scope]);
+  },[activeBusinessUnit,activeCompany,rules,scope]);
 
   const value=useMemo(()=>({loading,refresh,isFeatureEnabled}),[loading,refresh,isFeatureEnabled]);
   return <FeatureAccessContext.Provider value={value}>{children}</FeatureAccessContext.Provider>;
@@ -80,9 +79,8 @@ export function useOptionalFeatureAccess(){
 
 export function FeaturePathGuard({children}:{children:ReactNode}){
   const {pathname}=useLocation();
-  const {isPlatformOwner}=useAuth();
   const {loading,isFeatureEnabled}=useFeatureAccess();
-  if(isPlatformOwner||pathname.startsWith("/owner"))return <>{children}</>;
+  if(pathname.startsWith("/owner"))return <>{children}</>;
   if(loading)return <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-500">Checking feature access…</div>;
   const feature=matchFeatureForPath(pathname);
   if(!feature)return <Navigate to="/" replace/>;
