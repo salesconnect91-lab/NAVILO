@@ -25,7 +25,12 @@ export async function invokeEdgeFunction<T = unknown>(
   functionName: string,
   body: Record<string, unknown>,
 ): Promise<T> {
-  const { data, error } = await supabase.functions.invoke(functionName, { body });
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  const { data, error } = await supabase.functions.invoke(functionName, {
+    body,
+    ...(accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {}),
+  });
 
   if (error) throw new Error(await extractInvokeError(error));
 
