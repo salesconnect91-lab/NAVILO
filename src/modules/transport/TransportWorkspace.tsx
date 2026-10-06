@@ -6,7 +6,6 @@ import { formatNaviloDate } from "@/lib/naviloDate";
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment} from "react";
 import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw, LockKeyhole } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
-import { useFeatureAccess } from "@/auth/FeatureAccess";
 import { supabase } from "@/lib/supabase";
 import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportBulkCustomerRate from './TransportBulkCustomerRate';
@@ -117,8 +116,6 @@ const TRANSPORT_TRIP_HEADERS=[
 export default function TransportWorkspace(){
   const navigate=useNavigate();
   const {user,activeCompany,activeBusinessUnit}=useAuth();
-  const {isFeatureEnabled}=useFeatureAccess();
-  const tripsRegisterEnabled=isFeatureEnabled("transport-trips-register","view");
   const scopeKey=`${activeCompany?.company_id}/${activeBusinessUnit?.business_unit_id}`;
   const scopeRef=useRef(scopeKey);scopeRef.current=scopeKey;
   const submissionRef=useRef(false);
@@ -127,7 +124,7 @@ export default function TransportWorkspace(){
 
   const [params,setParams]=useSearchParams();
   const requestedView=params.get('view');
-  const tab:Tab=tabs.some(t=>t.key===requestedView)&&!(requestedView==='trips'&&!tripsRegisterEnabled)?requestedView as Tab:(tripsRegisterEnabled?'trips':'audit');
+  const tab:Tab=tabs.some(t=>t.key===requestedView)?requestedView as Tab:'trips';
   const setTab=(next:Tab)=>{const p=new URLSearchParams(params);p.set('view',next);p.delete('panel');setParams(p);};
   const [rows,setRows]=useState<Trip[]>([]);
   const [loading,setLoading]=useState(false);
