@@ -60,6 +60,8 @@ Deno.serve(async (request) => {
       if (!name || !code || !ownerName || !ownerEmail || !planId || !unitName || !unitCode || !branchName || !branchCode || !/^[A-Z]{2}$/.test(countryCode)) {
         return json({ error: "Company, owner, plan, business unit and branch details are required." }, 400);
       }
+      if (unitName.length < 2 || !/[A-Za-z]/.test(unitName)) return json({ error: "Workspace name must be at least 2 characters and include a letter." }, 400);
+      if (!/^[A-Z][A-Z0-9_-]{1,9}$/.test(unitCode)) return json({ error: "Workspace code must be 2-10 characters, start with a letter, and use only A-Z, 0-9, _ or -." }, 400);
       if (password.length < 8) return json({ error: "Temporary password must be at least 8 characters." }, 400);
 
       const [codeLookup, nameLookup, planLookup] = await Promise.all([
