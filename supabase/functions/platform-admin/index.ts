@@ -92,7 +92,7 @@ Deno.serve(async (request) => {
       try {
         const { data: createdCompany, error: companyError } = await admin.from("companies").insert({
           name, code, status, contact_email: ownerEmail, contact_phone: body.contact_phone || null,
-          address: body.address || null, notes: body.notes || null, created_by: actor.id,
+          address: body.address || null, notes: body.notes || null, is_test_company: body.is_test_company === true, created_by: actor.id,
           subscription_expires_at: expiresAt.toISOString(), max_users: Number(plan.max_users || 10),
           max_business_units: Number(plan.max_business_units || 1), max_branches: Number(plan.max_branches || 1),
           max_godowns: Number(plan.max_godowns || 1),
@@ -342,6 +342,7 @@ Deno.serve(async (request) => {
         contact_phone: body.contact_phone || null,
         address: body.address || null,
         notes: body.notes || null,
+        is_test_company: body.is_test_company === true,
         subscription_expires_at: body.subscription_expires_at || null,
         created_by: actor.id,
       }).select("*").single();
