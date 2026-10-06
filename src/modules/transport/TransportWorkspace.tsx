@@ -1707,8 +1707,8 @@ export default function TransportWorkspace(){
   {!standaloneMobile&&newTripMode==='historical'&&<TransportHistoricalImport key={importScope} validateMasters={rows=>validateBulkMasters(rows,true)} onChanged={load}/>}
 
   {newTripMode==="single"&&
-  <div className="p-3">
-    <div className="overflow-visible rounded-lg border border-blue-300 bg-white">
+  <div className={standaloneMobile?"transport-mobile-trip-form px-3 pb-8 pt-3":"p-3"}>
+    <div className={standaloneMobile?"overflow-visible bg-transparent":"overflow-visible rounded-lg border border-blue-300 bg-white"}>
       <div className="grid grid-cols-1 border-b border-slate-300 md:grid-cols-2 xl:grid-cols-7">
         <TripField label="Date">
           <NaviloDateInput aria-label="Trip Date" type="date" disabled={Boolean(editingTripId)||editingTripLocked} value={form.trip_date}
@@ -2429,8 +2429,8 @@ function SearchMasterInput({value,options,onSelect,placeholder,disabled=false}:{
   </div>
 }
 function TripField({label,children,onAdd}:{label:string;children:React.ReactNode;onAdd?:()=>void}){
-  return <div className="min-w-0 border-b border-r border-slate-300 last:border-r-0">
-    <div className="relative flex h-7 items-center justify-center bg-slate-200 px-1 text-center text-[9px] font-bold uppercase text-slate-800">
+  return <div className="transport-trip-field min-w-0 border-b border-r border-slate-300 last:border-r-0">
+    <div className="transport-trip-field-label relative flex h-7 items-center justify-center bg-slate-200 px-1 text-center text-[9px] font-bold uppercase text-slate-800">
       {label}
       {onAdd&&
         <button type="button" aria-label={`Add ${label}`} title={`Add ${label}`}
@@ -2440,7 +2440,7 @@ function TripField({label,children,onAdd}:{label:string;children:React.ReactNode
         </button>
       }
     </div>
-    <div className="block min-h-8">{children}</div>
+    <div className="transport-trip-field-control block min-h-8">{children}</div>
   </div>
 }
 
