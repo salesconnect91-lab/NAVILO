@@ -566,6 +566,14 @@ Deno.serve(async (request) => {
       return json({ company: data });
     }
 
+    if (action === "sign_out_user_all_devices") {
+      const userId = String(body.user_id || "");
+      if (!userId) return json({ error: "User is required" }, 400);
+      const { error } = await admin.auth.admin.signOut(userId, "global");
+      if (error) throw error;
+      return json({ success: true, user_id: userId });
+    }
+
     if (action === "set_user_access") {
       const { error } = await admin
         .from("company_memberships")
