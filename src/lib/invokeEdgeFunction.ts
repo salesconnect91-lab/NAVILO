@@ -27,10 +27,29 @@ export async function invokeEdgeFunction<T = unknown>(
 ): Promise<T> {
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
-  const { data, error } = await supabase.functions.invoke(functionName, {
+  let { data, error } = await supabase.functions.invoke(functionName, {
     body,
     ...(accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {}),
   });
+
+  // The Functions gateway can reject an otherwise valid request when the cached
+  // access token is being rotated. Refresh once on an auth/gateway failure and
+  // retry with the new bearer token; application errors remain fail-closed.
+  if (error) {
+    const firstMessage = await extractInvokeError(error);
+    if (/request failed|invalid jwt|jwt expired|invalid session|unauthorized/i.test(firstMessage)) {
+      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+      const refreshedToken = refreshed.session?.access_token;
+      if (!refreshError && refreshedToken) {
+        const retry = await supabase.functions.invoke(functionName, {
+          body,
+          headers: { Authorization: `Bearer ${refreshedToken}` },
+        });
+        data = retry.data;
+        error = retry.error;
+      }
+    }
+  }
 
   if (error) throw new Error(await extractInvokeError(error));
 
