@@ -59,6 +59,7 @@ interface AuthContextValue {
   availableBusinessUnits: BusinessUnitAccess[];
   switchingCompany: boolean;
   switchingBusinessUnit: boolean;
+  requiresCompanySelection: boolean;
   accountingSetupError: string | null;
   retryAccountingSetup: () => void;
   refreshAccess: () => Promise<void>;
@@ -106,13 +107,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accountingSetup, setAccountingSetup] = useState<AccountingSetupState>({ userId: null, companyId: null, status: "idle", error: null });
   const lastActivityWrite = useRef(0);
   const [sessionWarning, setSessionWarning] = useState<{ remainingMs: number; absolute: boolean } | null>(null);
+  const [requiresCompanySelection, setRequiresCompanySelection] = useState(false);
+  const freshLoginUser = useRef<string | null>(null);
 
   useEffect(() => {
     void withBootTimeout(supabase.auth.getSession(), "Session check")
       .then(({ data }) => setSession(data.session))
       .catch((error) => setAccessError(error instanceof Error ? error.message : "Session check failed."))
       .finally(() => setAuthLoading(false));
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => setSession(newSession));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => { if (event === "SIGNED_IN" && newSession?.user.id) freshLoginUser.current = newSession.user.id; setSession(newSession); });
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -124,6 +127,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) { setAccessContext(null); setAccessError(error.message); return null; }
       if (!data) { setAccessContext(null); setAccessError("Your login profile has not been provisioned by the software owner."); return null; }
       const next = data as AccessContext;
+      const allowedCompanies = next.companies.filter((company) => company.access_allowed);
+      if (freshLoginUser.current === session.user.id) {
+        setRequiresCompanySelection(allowedCompanies.length > 1);
+        freshLoginUser.current = null;
+      } else if (allowedCompanies.length <= 1) {
+        setRequiresCompanySelection(false);
+      }
       setAccessContext(next); return next;
     } catch (error) {
       setAccessContext(null);
@@ -205,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const currentCompanyId = accessContext?.current_company_id ?? null;
-  const activeCompany = accessContext?.companies.find((company) => company.company_id === currentCompanyId && company.access_allowed) ?? accessContext?.companies.find((company) => company.access_allowed) ?? null;
+  const activeCompany = requiresCompanySelection ? null : accessContext?.companies.find((company) => company.company_id === currentCompanyId && company.access_allowed) ?? accessContext?.companies.find((company) => company.access_allowed) ?? null;
   const availableCompanies = accessContext?.companies.filter((company) => company.access_allowed) ?? [];
   const availableBusinessUnits = activeCompany?.business_units?.filter((unit) => unit.access_allowed) ?? [];
   const activeBusinessUnit = availableBusinessUnits.find((unit) => unit.business_unit_id === accessContext?.current_business_unit_id) ?? availableBusinessUnits.find((unit) => unit.is_default) ?? availableBusinessUnits[0] ?? null;
@@ -246,13 +256,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshAccess = async () => { await loadAccess(); };
 
   const switchCompany = async (companyId: string) => {
-    if (!companyId || companyId === activeCompany?.company_id) return { error: null };
+    if (!companyId) return { error: "Select a company." };
+    if (!requiresCompanySelection && companyId === activeCompany?.company_id) return { error: null };
     setSwitchingCompany(true); setAccessError(null);
     setAccountingSetup({ userId: session?.user.id ?? null, companyId, status: "idle", error: null });
     const { error } = await supabase.rpc("set_current_company", { p_company_id: companyId });
     if (error) { setSwitchingCompany(false); setAccessError(error.message); return { error: error.message }; }
     const next = await loadAccess(); setSwitchingCompany(false);
     if (!next || next.current_company_id !== companyId) { const message = "Company switch could not be confirmed."; setAccessError(message); return { error: message }; }
+    setRequiresCompanySelection(false);
     return { error: null };
   };
 
@@ -275,7 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(sessionKey(ACTIVITY_STORAGE_PREFIX, userId));
       localStorage.removeItem(sessionKey(START_STORAGE_PREFIX, userId));
     }
-    setAccessContext(null); setAccessError(null);
+    setAccessContext(null); setAccessError(null); setRequiresCompanySelection(false);
   };
 
   const currentUserId = session?.user.id ?? null;
@@ -287,7 +299,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const warningSeconds = sessionWarning ? Math.max(0, Math.ceil(sessionWarning.remainingMs / 1000)) : 0;
   const warningClock = `${String(Math.floor(warningSeconds / 60)).padStart(2, "0")}:${String(warningSeconds % 60).padStart(2, "0")}`;
-  return <AuthContext.Provider value={{ user: session?.user ?? null, session, loading, accessContext, accessError, isPlatformOwner, activeCompany, availableCompanies, activeBusinessUnit, availableBusinessUnits, switchingCompany, switchingBusinessUnit, accountingSetupError, retryAccountingSetup, refreshAccess, switchCompany, switchBusinessUnit, signIn, signUp, signOut }}>
+  return <AuthContext.Provider value={{ user: session?.user ?? null, session, loading, accessContext, accessError, isPlatformOwner, activeCompany, availableCompanies, activeBusinessUnit, availableBusinessUnits, switchingCompany, switchingBusinessUnit, requiresCompanySelection, accountingSetupError, retryAccountingSetup, refreshAccess, switchCompany, switchBusinessUnit, signIn, signUp, signOut }}>
     {children}
     {sessionWarning && <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/35 p-4" role="dialog" aria-modal="true" aria-labelledby="session-warning-title">
       <div className="w-full max-w-md rounded-xl border border-amber-200 bg-white p-5 shadow-2xl">
