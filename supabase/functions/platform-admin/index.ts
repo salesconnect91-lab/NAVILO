@@ -643,8 +643,9 @@ Deno.serve(async (request) => {
 
     if (action === "reset_company_transactions") {
       const companyId = String(body.company_id);
-      const { data: company } = await admin.from("companies").select("code").eq("id", companyId).single();
+      const { data: company } = await admin.from("companies").select("code,is_test_company").eq("id", companyId).single();
       if (!company) return json({ error: "Company not found" }, 404);
+      if (company.is_test_company !== true) return json({ error: "Transaction reset is allowed only for an explicitly marked Test Company" }, 409);
       if (String(body.confirmation) !== `RESET ${company.code}` || body.acknowledge !== true) {
         return json({ error: `Type RESET ${company.code} exactly and acknowledge` }, 400);
       }
