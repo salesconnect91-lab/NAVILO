@@ -48,6 +48,7 @@ export const FEATURE_REGISTRY: FeatureDefinition[] = [
   { key:"cutting-orders", module:"production", label:"Cutting Orders", category:"transaction", route:"/cutting", actions:operational, businessUnitTypes:["steel"], sortOrder:520 },
   { key:"gate-pass", module:"production", label:"Gate Pass & Weighbridge", category:"transaction", route:"/cutting/gate-pass", actions:operational, businessUnitTypes:["steel"], sortOrder:530 },
   { key:"transport-workspace", module:"transport", label:"Transport Workspace", category:"transaction", route:"/transport", actions:operational, businessUnitTypes:["transport"], sortOrder:600 },
+  { key:"transport-trips-register", module:"transport", label:"Trips / Register", category:"transaction", route:"/transport", actions:operational, businessUnitTypes:["transport"], sortOrder:601 },
   { key:"journal", module:"accounting", label:"Journal Entries", category:"transaction", route:"/accounting", actions:operational, sortOrder:700 },
   { key:"cash-counter", module:"accounting", label:"Cash Counter", category:"transaction", route:"/accounting/cash-counter", actions:operational, sortOrder:710 },
   { key:"payment-reversals", module:"accounting", label:"Payment Reversals", category:"transaction", route:"/accounting/payment-reversals", actions:["view","post","print","export"], sortOrder:720 },
