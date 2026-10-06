@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase", () => ({ supabase: { rpc: vi.fn() } }));
 
 vi.mock("@/auth/AuthContext", () => ({ useAuth: () => ({
   activeCompany: { membership_role: "company_owner", enabled_modules: ["master", "sales", "purchase", "accounting", "transport"] },
-  activeBusinessUnit: { membership_role: "company_owner", enabled_modules: ["master", "sales", "purchase", "accounting", "transport"] },
+  activeBusinessUnit: { membership_role: "company_owner", enabled_modules: ["master", "sales", "purchase", "accounting", "transport"], business_unit_type: "transport" },
   isPlatformOwner: true,
 }) }));
 afterEach(cleanup);
