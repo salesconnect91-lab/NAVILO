@@ -250,6 +250,7 @@ Deno.serve(async (request) => {
 
       if (!email || !companyId) return json({ error: "Email and company are required" }, 400);
       if (mobileOnly && !businessUnitId) return json({ error: "Transport Mobile login requires a Transport business unit." }, 400);
+      if (mobileOnly && !operatingLocationId) return json({ error: "Transport Mobile login requires an active operating location." }, 400);
       if (password.length < 8) return json({ error: "Password must be at least 8 characters" }, 400);
 
       if (businessUnitId) {
@@ -419,22 +420,36 @@ Deno.serve(async (request) => {
       const companyId = String(body.company_id || "");
       const userId = String(body.user_id || "");
       if (!companyId || !userId) return json({ error: "Company and mobile user are required." }, 400);
-      const { data: unitMembership, error: unitMembershipError } = await admin.from("business_unit_memberships")
-        .select("id,business_unit_id,role").eq("company_id",companyId).eq("user_id",userId).eq("role","transport_mobile").maybeSingle();
-      if (unitMembershipError) throw unitMembershipError;
+      const [{data:unitMembership,error:unitMembershipError},{data:userProfile,error:userProfileError}]=await Promise.all([
+        admin.from("business_unit_memberships").select("id,business_unit_id,role").eq("company_id",companyId).eq("user_id",userId).eq("role","transport_mobile").maybeSingle(),
+        admin.from("user_profiles").select("locked_operating_location_id").eq("id",userId).maybeSingle(),
+      ]);
+      if (unitMembershipError||userProfileError) throw unitMembershipError||userProfileError;
       if (!unitMembership) return json({ error: "Transport Mobile access not found for this user." }, 404);
       const isActive = body.is_active !== false;
       const canCreate = body.can_create !== false;
       const canEdit = body.can_edit !== false;
+      const requestedLocation = body.operating_location_id === undefined ? userProfile?.locked_operating_location_id : (body.operating_location_id ? String(body.operating_location_id) : null);
+      if(isActive&&!requestedLocation)return json({error:"Active operating location required for Transport Mobile access."},400);
+      if(requestedLocation){
+        const {data:location,error:locationError}=await admin.from("operating_locations").select("id").eq("id",requestedLocation).eq("company_id",companyId).eq("business_unit_id",unitMembership.business_unit_id).eq("is_active",true).maybeSingle();
+        if(locationError)throw locationError;
+        if(!location)return json({error:"Invalid or inactive operating location for this Transport business unit."},400);
+      }
       const permissions = transportMobilePermissions(canCreate,canEdit);
       const writes = await Promise.all([
         admin.from("company_memberships").update({role:"transport_mobile",permissions,is_active:isActive,updated_at:new Date().toISOString()}).eq("company_id",companyId).eq("user_id",userId),
         admin.from("business_unit_memberships").update({role:"transport_mobile",permissions,is_active:isActive,updated_at:new Date().toISOString()}).eq("id",unitMembership.id),
-        admin.from("operating_location_memberships").update({role:"transport_mobile",is_active:isActive,updated_at:new Date().toISOString()}).eq("company_id",companyId).eq("user_id",userId),
+        admin.from("operating_location_memberships").update({is_active:false,updated_at:new Date().toISOString()}).eq("company_id",companyId).eq("user_id",userId),
+        admin.from("user_profiles").update({last_company_id:companyId,last_business_unit_id:unitMembership.business_unit_id,locked_business_unit_id:unitMembership.business_unit_id,locked_operating_location_id:requestedLocation,updated_at:new Date().toISOString()}).eq("id",userId),
       ]);
       const writeError = writes.find(item=>item.error)?.error;
       if (writeError) throw writeError;
-      return json({ success:true,user_id:userId,business_unit_id:unitMembership.business_unit_id,is_active:isActive,can_create:canCreate,can_edit:canEdit });
+      if(isActive&&requestedLocation){
+        const locationWrite=await admin.from("operating_location_memberships").upsert({company_id:companyId,business_unit_id:unitMembership.business_unit_id,operating_location_id:requestedLocation,user_id:userId,role:"transport_mobile",is_active:true,updated_at:new Date().toISOString()},{onConflict:"operating_location_id,user_id"});
+        if(locationWrite.error)throw locationWrite.error;
+      }
+      return json({ success:true,user_id:userId,business_unit_id:unitMembership.business_unit_id,operating_location_id:requestedLocation,is_active:isActive,can_create:canCreate,can_edit:canEdit });
     }
 
     if (action === "update_user_identity") {
