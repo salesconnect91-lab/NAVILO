@@ -213,7 +213,7 @@ begin
  data:=public.accounting_report_balances(current_date-1,current_date,false);
  if (select sum((x->>'debit')::numeric-(x->>'credit')::numeric) from jsonb_array_elements(data) x)<>0 then raise exception 'Aggregated Trial Balance unbalanced';end if;
  data:=public.transport_contribution_summary(current_date-1,current_date);
- if not exists(select 1 from jsonb_array_elements(data) x where x->>'ownership'='company' and (x->>'revenue')::numeric=1000) then raise exception 'Company fleet attribution failed';end if;
+ if not exists(select 1 from jsonb_array_elements(data) x where x->>'ownership'='company' and (x->>'revenue')::numeric=1000) then raise exception 'Company fleet attribution failed: %',data;end if;
  if (select sum((x->>'revenue')::numeric) from jsonb_array_elements(data) x)<>1000 or (select sum((x->>'cost')::numeric) from jsonb_array_elements(data) x)<>25 then raise exception 'Ownership comparison omitted posted sources';end if;
  -- Server file lock prevents another user from importing the same file again.
  perform public.transport_prepare_trip_import(repeat('b',64),'same-workspace.xlsx','[[2]]');
