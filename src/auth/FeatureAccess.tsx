@@ -69,6 +69,15 @@ export function useFeatureAccess(){
   return context;
 }
 
+/**
+ * Feature-aware leaf screens can use this without making isolated component tests
+ * depend on the application provider. Production is wrapped by FeatureAccessProvider;
+ * outside it we preserve legacy component behaviour rather than weakening runtime rules.
+ */
+export function useOptionalFeatureAccess(){
+  return useContext(FeatureAccessContext);
+}
+
 export function FeaturePathGuard({children}:{children:ReactNode}){
   const {pathname}=useLocation();
   const {isPlatformOwner}=useAuth();
