@@ -11,6 +11,7 @@ import {invoiceNumberError} from './transportInvoiceNumbers';
 import TransportPagination from './TransportPagination';
 import {financialNumber} from './transportFinancialTypes';
 import TransportSupplierCharges from './TransportSupplierCharges';
+import {SUPPLIER_RATE_REASON_OPTIONS} from './transportRateReasons';
 
 type Row={invoice_no?:string|null;id:string;party_id?:string;trip_id?:string;posted?:boolean;legacyBlocked?:boolean;trip_no:string;trip_date:string;trip_status?:string|null;financial_status?:string|null;customer_name?:string|null;vehicle_no?:string|null;driver_name?:string|null;from_location?:string|null;to_location?:string|null;po_do_job_no?:string|null;owner_name?:string|null;supplier_rent?:number|null;owner_rent?:number|null;billed_supplier_net?:number|null;supplier_charges?:number|null;supplier_charge_names?:string|null};
 type LegacyRent={id:string;rent_state?:string|null;rent_finalized_at?:string|null};
@@ -24,6 +25,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
  const [rows,setRows]=useState<Row[]>([]),[legacyRents,setLegacyRents]=useState<LegacyRent[]>([]),[suppliers,setSuppliers]=useState<Supplier[]>([]),[rents,setRents]=useState<Rent[]>([]),[accounts,setAccounts]=useState<Account[]>([]);
  const [supplier,setSupplier]=useState(''),[tripStatus,setTripStatus]=useState(''),[search,setSearch]=useState(''),[columnFilters,setColumnFilters]=useState<Record<string,string>>({}),[selected,setSelected]=useState<string[]>([]),[amounts,setAmounts]=useState<Record<string,string>>({});
  const [account,setAccount]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[reason,setReason]=useState(compact?'':'Bulk supplier rent'),[withTax,setWithTax]=useState(false);const [vatReady,setVatReady]=useState(true);
+ const [compactReasonPreset,setCompactReasonPreset]=useState('');
  const [permissions,setPermissions]=useState<Record<string,boolean>>({}),[loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  const [correctionTrip,setCorrectionTrip]=useState<Row|null>(null),[correctionRent,setCorrectionRent]=useState<Rent|null>(null),[correctionAmount,setCorrectionAmount]=useState('');
@@ -145,10 +147,11 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
    <h2 id="supplier-rate-title" className="font-semibold">{singlePosted?'Correct':'Update'} Supplier Rate · {singleRow?.trip_no||''}</h2>
    {loading?<p role="status">Loading supplier rate…</p>:singleRow?<>
     <p className="my-2 text-xs text-slate-600">{singleRow.customer_name}<br/>{singleRow.from_location} → {singleRow.to_location}<br/>{singleRow.vehicle_no} · {singleRow.owner_name}</p>
-    {singleRows.length>1&&<label className="block text-xs font-semibold">Supplier rent<select className="input mt-1 w-full" disabled={busy} value={singleRow.id} onChange={e=>{setSingleRowKey(e.target.value);setReason('');setError('')}}>{singleRows.map(r=><option key={r.id} value={r.id}>{r.owner_name} · {financialNumber(r.billed_supplier_net??r.supplier_rent)}</option>)}</select></label>}
+    {singleRows.length>1&&<label className="block text-xs font-semibold">Supplier rent<select className="input mt-1 w-full" disabled={busy} value={singleRow.id} onChange={e=>{setSingleRowKey(e.target.value);setCompactReasonPreset('');setReason('');setError('')}}>{singleRows.map(r=><option key={r.id} value={r.id}>{r.owner_name} · {financialNumber(r.billed_supplier_net??r.supplier_rent)}</option>)}</select></label>}
     <label className="block text-xs font-semibold">Supplier rate excluding VAT<input autoFocus className="input mt-1 w-full" type="number" min="0" step="0.01" disabled={busy||singleBlocked} value={singleAmount} onChange={e=>setAmounts(v=>({...v,[singleRow.id]:e.target.value}))}/></label>
     {singlePosted&&<label className="mt-2 block text-xs font-semibold">Correction Date<NaviloDateInput className="input mt-1 w-full" type="date" disabled={busy} value={date} onChange={e=>setDate(e.target.value)}/></label>}
-    <label className="mt-2 block text-xs font-semibold">Reason<input className="input mt-1 w-full" disabled={busy} value={reason} onChange={e=>setReason(e.target.value)} placeholder="Required for supplier rate change"/></label>
+    <label className="mt-2 block text-xs font-semibold">Reason<select className="input mt-1 w-full" disabled={busy} value={compactReasonPreset} onChange={e=>{const value=e.target.value;setCompactReasonPreset(value);setReason(value==="__other__"?"":value)}}><option value="">Select reason</option>{SUPPLIER_RATE_REASON_OPTIONS.map(option=><option key={option} value={option}>{option}</option>)}<option value="__other__">Other</option></select></label>
+    {compactReasonPreset==="__other__"&&<label className="mt-2 block text-xs font-semibold">Other reason<input className="input mt-1 w-full" disabled={busy} value={reason} onChange={e=>setReason(e.target.value)} placeholder="Enter supplier rate change reason"/></label>}
     <p className="my-2 text-xs text-slate-600">{singleBlocked?'Legacy rent requires controlled correction before structured supplier rents.':singlePosted?'Posted rent is never overwritten. Saving creates the controlled canonical AP adjustment.':'Saving finalizes the supplier rate. Post the supplier invoice separately from Bulk Supplier Rent.'}</p>
    </>:<p>No supplier rent is available for this Trip.</p>}
    {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}

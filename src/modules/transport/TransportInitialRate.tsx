@@ -3,6 +3,7 @@ import {useEffect,useRef,useState} from 'react';
 import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
 import {type FinancialTrip} from './transportFinancialTypes';
+import {CUSTOMER_RATE_REASON_OPTIONS} from './transportRateReasons';
 
 export default function TransportInitialRate({trip,onClose,onChanged}:{trip:FinancialTrip;onClose:()=>void;onChanged:()=>Promise<void>}){
  const {activeCompany,activeBusinessUnit}=useAuth();
@@ -10,6 +11,7 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
  const finalized=trip.customer_rate_state==='finalized';
  const [amount,setAmount]=useState(trip.billed_customer_net==null?(trip.customer_rate==null?'':String(trip.customer_rate)):String(trip.billed_customer_net));
  const [reason,setReason]=useState('');
+ const [reasonPreset,setReasonPreset]=useState('');
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
  const [allowed,setAllowed]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');
  const [saved,setSaved]=useState(false);const input=useRef<HTMLInputElement>(null);const dialog=useRef<HTMLElement>(null);
@@ -42,7 +44,7 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
  }
 
  const title=posted?'Correct Company Rate':finalized?'Update Company Rate':'Add Company Rate';
- return <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/40 p-3" onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const items=dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled)');if(items?.length){const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}}>
+ return <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/40 p-3" onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const items=dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)');if(items?.length){const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}}>
  <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="initial-rate-title" className="w-full max-w-sm rounded bg-white p-4 text-sm shadow-xl">
   <h2 id="initial-rate-title" className="font-semibold">{title} · {trip.trip_no}</h2>
   <p className="my-2 text-xs text-slate-600">{trip.customer_name}<br/>{trip.from_location} → {trip.to_location}<br/>{trip.vehicle_no}</p>
@@ -52,9 +54,18 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
   {posted&&<label className="mt-2 block text-xs font-semibold">Correction Date
    <NaviloDateInput className="input mt-1 w-full" type="date" value={date} disabled={busy||saved} onChange={e=>setDate(e.target.value)}/>
   </label>}
-  {reasonRequired&&<label className="mt-2 block text-xs font-semibold">Reason
-   <input className="input mt-1 w-full" value={reason} disabled={busy||saved} onChange={e=>setReason(e.target.value)} placeholder={posted?'Required for posted accounting correction':'Required for rate override'}/>
-  </label>}
+  {reasonRequired&&<>
+   <label className="mt-2 block text-xs font-semibold">Reason
+    <select className="input mt-1 w-full" value={reasonPreset} disabled={busy||saved} onChange={e=>{const value=e.target.value;setReasonPreset(value);setReason(value==="__other__"?"":value)}}>
+     <option value="">Select reason</option>
+     {CUSTOMER_RATE_REASON_OPTIONS.map(option=><option key={option} value={option}>{option}</option>)}
+     <option value="__other__">Other</option>
+    </select>
+   </label>
+   {reasonPreset==="__other__"&&<label className="mt-2 block text-xs font-semibold">Other reason
+    <input className="input mt-1 w-full" value={reason} disabled={busy||saved} onChange={e=>setReason(e.target.value)} placeholder={posted?'Enter posted correction reason':'Enter rate override reason'}/>
+   </label>}
+  </>}
   <p className="my-2 text-xs text-slate-600">{posted?'Posted billing is never overwritten. Saving creates the controlled canonical AR adjustment.':finalized?'This changes the finalized unposted Trip rate and records the override reason.':'Finalizing the initial rate records it in the Trip audit.'}</p>
   {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}
   <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={onClose}>Cancel</button><button className="btn-primary" disabled={!allowed||!valid||!changed||busy||saved||(reasonRequired&&!reason.trim())||(posted&&!date)} onClick={()=>void save()}>{saved?'Saved':posted?'Post Correction':'Save Rate'}</button></div>
