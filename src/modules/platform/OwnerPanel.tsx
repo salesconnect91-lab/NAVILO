@@ -21,6 +21,7 @@ import OwnerLanguageControl from "./OwnerLanguageControl";
 import OwnerFeatureControl from "./OwnerFeatureControl";
 import CustomerOnboardingWizard from "./CustomerOnboardingWizard";
 import BillingLedgerControl from "./BillingLedgerControl";
+import SupportCenter from "@/components/SupportCenter";
 
 type Company = {
   id: string; name: string; code: string; status: string; subscription_expires_at: string | null; max_users: number;
@@ -48,7 +49,7 @@ export default function OwnerPanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [ownerView, setOwnerView] = useState<"overview"|"customers"|"access"|"commercial"|"advanced">("overview");
+  const [ownerView, setOwnerView] = useState<"overview"|"customers"|"access"|"commercial"|"support"|"advanced">("overview");
   const [company, setCompany] = useState({ name: "", code: "", contact_email: "", contact_phone: "", address: "", notes: "", subscription_expires_at: "", max_users: "10" });
   const [user, setUser] = useState({ full_name: "", email: "", password: "", role: "viewer" });
   const [showNewCompanyUser, setShowNewCompanyUser] = useState(false);
@@ -211,12 +212,13 @@ export default function OwnerPanel() {
     </section>
 
     <section className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
         {([
           ["overview","Overview",LayoutDashboard,"Platform snapshot and branding"],
           ["customers","Customers",Building2,"Onboard and manage customers"],
           ["access","Users & Access",Users,"Users, businesses and branches"],
           ["commercial","Plans & Billing",CreditCard,"Licence, limits and billing"],
+          ["support","Support Inbox",ShieldCheck,"Client issues, requests and replies"],
           ["advanced","Advanced",Settings2,"Governance, migration and lifecycle"],
         ] as const).map(([key,label,Icon,help])=><button key={key} type="button" onClick={()=>setOwnerView(key)} className={`rounded-lg border px-3 py-2 text-left transition ${ownerView===key?"border-blue-300 bg-blue-50 text-blue-900":"border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}><div className="flex items-center gap-2 text-sm font-semibold"><Icon className="h-4 w-4"/>{label}</div><div className="mt-0.5 text-[11px] text-slate-500">{help}</div></button>)}
       </div>
@@ -256,6 +258,8 @@ export default function OwnerPanel() {
       <SubscriptionControl companyId={selectedCompanyId} onSaved={async () => { await load(); await refreshAccess(); }}/>
       <BillingLedgerControl companyId={selectedCompanyId}/>
     </>}
+
+    {ownerView==="support"&&<SupportCenter owner/>}
 
     {ownerView==="advanced"&&<>
       {selectedCompanyId&&<OwnerLanguageControl companyId={selectedCompanyId}/>}
