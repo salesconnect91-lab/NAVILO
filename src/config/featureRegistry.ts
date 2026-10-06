@@ -49,7 +49,7 @@ export const FEATURE_REGISTRY: FeatureDefinition[] = [
   { key:"gate-pass", module:"production", label:"Gate Pass & Weighbridge", category:"transaction", route:"/cutting/gate-pass", actions:operational, businessUnitTypes:["steel"], sortOrder:530 },
   { key:"transport-workspace", module:"transport", label:"Transport Workspace", category:"transaction", route:"/transport", actions:operational, businessUnitTypes:["transport"], sortOrder:600 },
   { key:"transport-trips-register", module:"transport", label:"Trips / Register", category:"transaction", route:"/transport", actions:operational, businessUnitTypes:["transport"], sortOrder:601 },
-  { key:"transport-audit", module:"transport", label:"Trip Audit", category:"audit", route:"/transport", actions:["view","export"], businessUnitTypes:["transport"], sortOrder:602 },
+  { key:"transport-audit", module:"transport", label:"Trip Audit", category:"report", route:"/transport", actions:["view","export"], businessUnitTypes:["transport"], sortOrder:602 },
   { key:"transport-driver-expenses", module:"transport", label:"Driver Expense Upload", category:"transaction", route:"/transport", actions:operational, businessUnitTypes:["transport"], sortOrder:603 },
   { key:"transport-driver-account", module:"transport", label:"Driver Account / Hisaab", category:"report", route:"/transport", actions:["view","print","export"], businessUnitTypes:["transport"], sortOrder:604 },
   { key:"transport-vehicle-account", module:"transport", label:"Vehicle Account / Gari Hisaab", category:"report", route:"/transport", actions:["view","print","export"], businessUnitTypes:["transport"], sortOrder:605 },
