@@ -1,4 +1,4 @@
-import { useEffect, useState, createContext, useContext, ReactNode } from "react";
+import { useEffect, useRef, useState, createContext, useContext, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
@@ -72,6 +72,13 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const AUTH_BOOT_TIMEOUT_MS = 12000;
+const OWNER_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+const USER_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const ABSOLUTE_SESSION_TIMEOUT_MS = 12 * 60 * 60 * 1000;
+const ACTIVITY_STORAGE_PREFIX = "navilo.auth.activity.";
+const START_STORAGE_PREFIX = "navilo.auth.started.";
+
+const sessionKey = (prefix: string, userId: string) => `${prefix}${userId}`;
 async function withBootTimeout<T>(promise: PromiseLike<T>, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -96,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessError, setAccessError] = useState<string | null>(null);
   const [accountingAttempt, setAccountingAttempt] = useState(0);
   const [accountingSetup, setAccountingSetup] = useState<AccountingSetupState>({ userId: null, companyId: null, status: "idle", error: null });
+  const lastActivityWrite = useRef(0);
 
   useEffect(() => {
     void withBootTimeout(supabase.auth.getSession(), "Session check")
@@ -125,6 +133,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => { void loadAccess(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [session?.user.id]);
+
+  useEffect(() => {
+    const userId = session?.user.id;
+    if (!userId || !accessContext) return;
+    const activityKey = sessionKey(ACTIVITY_STORAGE_PREFIX, userId);
+    const startKey = sessionKey(START_STORAGE_PREFIX, userId);
+    const now = Date.now();
+    if (!localStorage.getItem(startKey)) localStorage.setItem(startKey, String(now));
+    if (!localStorage.getItem(activityKey)) localStorage.setItem(activityKey, String(now));
+
+    const recordActivity = () => {
+      const at = Date.now();
+      if (at - lastActivityWrite.current < 15_000) return;
+      lastActivityWrite.current = at;
+      localStorage.setItem(activityKey, String(at));
+    };
+    const events: (keyof WindowEventMap)[] = ["pointerdown", "keydown", "scroll", "touchstart"];
+    events.forEach((event) => window.addEventListener(event, recordActivity, { passive: true }));
+
+    const check = async () => {
+      const at = Date.now();
+      const lastActivity = Number(localStorage.getItem(activityKey) || at);
+      const started = Number(localStorage.getItem(startKey) || at);
+      const idleLimit = accessContext.is_platform_owner ? OWNER_IDLE_TIMEOUT_MS : USER_IDLE_TIMEOUT_MS;
+      if (at - lastActivity >= idleLimit || at - started >= ABSOLUTE_SESSION_TIMEOUT_MS) {
+        localStorage.removeItem(activityKey);
+        localStorage.removeItem(startKey);
+        await supabase.auth.signOut({ scope: "local" });
+        setAccessContext(null);
+        setAccessError(at - started >= ABSOLUTE_SESSION_TIMEOUT_MS ? "Your 12-hour NAVILO session expired. Please sign in again." : "You were signed out after a period of inactivity.");
+      }
+    };
+    void check();
+    const timer = window.setInterval(() => void check(), 30_000);
+    const visibility = () => { if (document.visibilityState === "visible") void check(); };
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      window.clearInterval(timer);
+      events.forEach((event) => window.removeEventListener(event, recordActivity));
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, [session?.user.id, accessContext]);
 
   const currentCompanyId = accessContext?.current_company_id ?? null;
   const activeCompany = accessContext?.companies.find((company) => company.company_id === currentCompanyId && company.access_allowed) ?? accessContext?.companies.find((company) => company.access_allowed) ?? null;
@@ -190,7 +240,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => { const { error } = await supabase.auth.signInWithPassword({ email, password }); return { error: error?.message ?? null }; };
   const signUp = async (email: string, password: string) => { const { error } = await supabase.auth.signUp({ email, password }); return { error: error?.message ?? null }; };
-  const signOut = async () => { await supabase.auth.signOut(); setAccessContext(null); setAccessError(null); };
+  const signOut = async () => {
+    const userId = session?.user.id;
+    await supabase.auth.signOut();
+    if (userId) {
+      localStorage.removeItem(sessionKey(ACTIVITY_STORAGE_PREFIX, userId));
+      localStorage.removeItem(sessionKey(START_STORAGE_PREFIX, userId));
+    }
+    setAccessContext(null); setAccessError(null);
+  };
 
   const currentUserId = session?.user.id ?? null;
   const accountingStateMatchesContext = accountingSetup.userId === currentUserId && accountingSetup.companyId === (activeCompany?.company_id ?? null);
