@@ -84,12 +84,13 @@ Deno.serve(async (request) => {
       const planId = String(body.plan_id || "");
       const unitName = String(body.business_unit_name || name).trim();
       const unitCode = String(body.business_unit_code || code).trim().toUpperCase();
+      const createFirstBranch = body.create_first_branch !== false;
       const branchName = String(body.branch_name || "Head Office").trim();
       const branchCode = String(body.branch_code || "HO").trim().toUpperCase();
       const status = body.status === "active" ? "active" : "trial";
       const businessType = String(body.business_unit_type || "custom");
-      if (!name || !code || !ownerName || !ownerEmail || !planId || !unitName || !unitCode || !branchName || !branchCode || !/^[A-Z]{2}$/.test(countryCode)) {
-        return json({ error: "Company, owner, plan, business unit and branch details are required." }, 400);
+      if (!name || !code || !ownerName || !ownerEmail || !planId || !unitName || !unitCode || (createFirstBranch && (!branchName || !branchCode)) || !/^[A-Z]{2}$/.test(countryCode)) {
+        return json({ error: createFirstBranch ? "Company, owner, plan, business unit and branch details are required." : "Company, owner, plan and business unit details are required." }, 400);
       }
       if (unitName.length < 2 || !/[A-Za-z]/.test(unitName)) return json({ error: "Workspace name must be at least 2 characters and include a letter." }, 400);
       if (!/^[A-Z][A-Z0-9_-]{1,9}$/.test(unitCode)) return json({ error: "Workspace code must be 2-10 characters, start with a letter, and use only A-Z, 0-9, _ or -." }, 400);
@@ -140,10 +141,14 @@ Deno.serve(async (request) => {
               company_id: companyId, name: unitName, code: unitCode, unit_type: businessType, is_default: true,
             }).select("id").single();
         if (unitError || !unit) throw unitError || new Error("Business unit creation failed");
-        const { data: branch, error: branchError } = await admin.from("operating_locations").insert({
-          company_id: companyId, business_unit_id: unit.id, name: branchName, code: branchCode, location_type: "branch", is_active: true,
-        }).select("id").single();
-        if (branchError || !branch) throw branchError || new Error("Branch creation failed");
+        let branch: { id: string } | null = null;
+        if (createFirstBranch) {
+          const { data: createdBranch, error: branchError } = await admin.from("operating_locations").insert({
+            company_id: companyId, business_unit_id: unit.id, name: branchName, code: branchCode, location_type: "branch", is_active: true,
+          }).select("id").single();
+          if (branchError || !createdBranch) throw branchError || new Error("Branch creation failed");
+          branch = createdBranch;
+        }
 
         // Reuse an existing Auth login when the owner email is already registered.
         // This supports one person owning multiple NAVILO companies and, critically,
@@ -200,7 +205,7 @@ Deno.serve(async (request) => {
             updated_by: actor.id,
             updated_at: new Date().toISOString(),
           }).eq("company_id", companyId),
-          admin.from("operating_location_memberships").insert({ company_id:companyId,business_unit_id:unit.id,operating_location_id:branch.id,user_id:userId,role:"company_owner",is_active:true }),
+          ...(branch ? [admin.from("operating_location_memberships").insert({ company_id:companyId,business_unit_id:unit.id,operating_location_id:branch.id,user_id:userId,role:"company_owner",is_active:true })] : []),
           admin.from("company_subscriptions").insert({ company_id:companyId,plan_id:planId,billing_cycle:plan.billing_cycle,status,starts_at:startsAt.toISOString(),expires_at:expiresAt.toISOString(),amount:Number(plan.price||0),currency_code:plan.currency_code||"USD",created_by:actor.id,notes:"Created through Platform Owner onboarding" }),
           admin.from("company_modules").insert(modules.map(module_key=>({company_id:companyId,module_key,enabled:true,updated_by:actor.id}))),
           admin.from("business_unit_modules").insert(modules.map(module_key=>({company_id:companyId,business_unit_id:unit.id,module_key,enabled:true}))),
@@ -209,7 +214,7 @@ Deno.serve(async (request) => {
         ]);
         const writeError = writes.find(result => result.error)?.error;
         if (writeError) throw writeError;
-        return json({ company_id:companyId,user_id:userId,business_unit_id:unit.id,branch_id:branch.id,status,expires_at:expiresAt.toISOString() }, 201);
+        return json({ company_id:companyId,user_id:userId,business_unit_id:unit.id,branch_id:branch?.id ?? null,status,expires_at:expiresAt.toISOString() }, 201);
       } catch (error) {
         if (createdNewUser && userId) await admin.auth.admin.deleteUser(userId);
         if (companyId) await admin.from("companies").delete().eq("id", companyId);
