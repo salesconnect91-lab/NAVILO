@@ -79,3 +79,69 @@
   font-size: 11px !important;
   font-weight: 600 !important;
 }
+
+
+/* Phone-first Trip entry: large touch targets without changing desktop density. */
+@media (max-width: 767px) {
+  .transport-mobile-trip-form {
+    background: #f8fafc;
+  }
+  .transport-mobile-trip-form > div > .grid {
+    display: block !important;
+    border: 0 !important;
+  }
+  .transport-mobile-trip-form .transport-trip-field {
+    margin-bottom: 10px;
+    overflow: visible;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+  }
+  .transport-mobile-trip-form .transport-trip-field-label {
+    height: 38px !important;
+    justify-content: flex-start !important;
+    border-radius: 11px 11px 0 0;
+    background: #e9eff6 !important;
+    padding: 0 14px !important;
+    text-align: left !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    letter-spacing: .025em;
+  }
+  .transport-mobile-trip-form .transport-trip-field-label > button {
+    right: 8px !important;
+    min-width: 36px;
+    min-height: 36px;
+    font-size: 24px !important;
+  }
+  .transport-mobile-trip-form .transport-trip-field-control {
+    min-height: 56px !important;
+  }
+  .transport-mobile-trip-form .transport-trip-field-control input:not([type="file"]),
+  .transport-mobile-trip-form .transport-trip-field-control select,
+  .transport-mobile-trip-form .transport-trip-field-control textarea {
+    min-height: 56px !important;
+    padding-left: 14px !important;
+    padding-right: 44px !important;
+    font-size: 16px !important;
+    line-height: 1.3 !important;
+  }
+  .transport-mobile-trip-form .transport-trip-field-control input[type="file"] {
+    min-height: 52px !important;
+    padding: 12px !important;
+    font-size: 14px !important;
+  }
+  .transport-mobile-trip-form .transport-trip-field-control small,
+  .transport-mobile-trip-form .transport-trip-field-control a {
+    display: block;
+    padding: 0 14px 10px !important;
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+  }
+  .transport-mobile-trip-form .transport-trip-field-control .absolute.top-full button {
+    min-height: 48px !important;
+    padding: 10px 14px !important;
+    font-size: 15px !important;
+  }
+}
