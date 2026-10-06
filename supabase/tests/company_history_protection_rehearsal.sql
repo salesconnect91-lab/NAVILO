@@ -1,23 +1,38 @@
 begin;
 do $test$
-declare fn text; blocked boolean;
+declare blocked boolean;
 begin
-  foreach fn in array array['platform_reset_company_transactions','platform_delete_company'] loop
-    if has_function_privilege('anon','public.'||fn||'(uuid,uuid)','execute')
-      or has_function_privilege('authenticated','public.'||fn||'(uuid,uuid)','execute') then
-      raise exception 'Destructive control-plane function is exposed: %',fn;
-    end if;
-    perform set_config('request.jwt.claim.role','service_role',true);
-    perform set_config('request.jwt.claims','{"role":"service_role"}',true);
-    blocked:=false;
-    begin
-      execute format('select public.%I($1,$2)',fn) using gen_random_uuid(),gen_random_uuid();
-    exception when raise_exception then
-      if sqlerrm not like '%disabled%' then raise; end if;
-      blocked:=true;
-    end;
-    if not blocked then raise exception 'History removal unexpectedly permitted: %',fn; end if;
-  end loop;
+  -- Transaction-history reset remains permanently disabled and service-role only.
+  if has_function_privilege('anon','public.platform_reset_company_transactions(uuid,uuid)','execute')
+    or has_function_privilege('authenticated','public.platform_reset_company_transactions(uuid,uuid)','execute') then
+    raise exception 'Destructive transaction reset is exposed';
+  end if;
+  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
+  blocked:=false;
+  begin
+    perform public.platform_reset_company_transactions(gen_random_uuid(),gen_random_uuid());
+  exception when raise_exception then
+    if sqlerrm not like '%disabled%' then raise; end if;
+    blocked:=true;
+  end;
+  if not blocked then raise exception 'Transaction history reset unexpectedly permitted'; end if;
+
+  -- Company deletion is intentionally available only through the guarded
+  -- service-role control plane. A missing UUID must fail without mutation.
+  if has_function_privilege('anon','public.platform_delete_company(uuid,uuid)','execute')
+    or has_function_privilege('authenticated','public.platform_delete_company(uuid,uuid)','execute') then
+    raise exception 'Company deletion control is exposed to client roles';
+  end if;
+  blocked:=false;
+  begin
+    perform public.platform_delete_company(gen_random_uuid(),gen_random_uuid());
+  exception when raise_exception then
+    if sqlerrm not like '%Company not found%' then raise; end if;
+    blocked:=true;
+  end;
+  if not blocked then raise exception 'Missing-company deletion unexpectedly succeeded'; end if;
+
   if not exists(select 1 from pg_trigger where tgrelid='public.companies'::regclass
     and tgname='protect_company_financial_history' and tgenabled='O') then
     raise exception 'Company history deletion guard missing';
