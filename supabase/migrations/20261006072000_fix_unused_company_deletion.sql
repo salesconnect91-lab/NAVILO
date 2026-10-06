@@ -40,11 +40,6 @@ begin
     raise exception 'Company not found.';
   end if;
 
-  -- Run the evidence guard before touching bootstrap configuration.
-  perform public.protect_company_financial_history()
-  from public.companies
-  where false;
-
   if exists(select 1 from public.journal_entries where company_id=p_company_id)
     or exists(select 1 from public.ledgers where company_id=p_company_id)
     or exists(select 1 from public.party_ledgers where company_id=p_company_id)
