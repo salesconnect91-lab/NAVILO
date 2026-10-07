@@ -127,7 +127,19 @@ begin
  result:=public.transport_settle_documents('supplier',supplier2,current_date,cash_id,'cash',null,100);
  update public.transport_trips set po_do_job_no='FIN-JOB-1' where id=trip;
  perform public.transport_complete_operations(trip,'Job completed');
- if (select financial_status from public.transport_trip_financial_summary where id=trip)<>'Closed' then raise exception 'Fully settled Trip did not close';end if;
+ if (select financial_status from public.transport_trip_financial_summary where id=trip)<>'Closed' then
+ raise exception 'Fully settled Trip did not close: status=%, customer_out=%, customer_credit=%, supplier_out=%, supplier_credit=%, driver_out=%, driver_accrued=%, agreed_driver=%, unbilled_rent=%, required_cost_out=%',
+ (select financial_status from public.transport_trip_financial_summary where id=trip),
+ (select customer_outstanding_gross from public.transport_trip_financial_summary where id=trip),
+ (select customer_credit_gross from public.transport_trip_financial_summary where id=trip),
+ (select supplier_outstanding_gross from public.transport_trip_financial_summary where id=trip),
+ (select supplier_credit_gross from public.transport_trip_financial_summary where id=trip),
+ (select driver_outstanding from public.transport_trip_financial_summary where id=trip),
+ (select driver_accrued from public.transport_trip_financial_summary where id=trip),
+ (select agreed_driver_pay from public.transport_trip_financial_summary where id=trip),
+ (select unbilled_rent from public.transport_trip_financial_summary where id=trip),
+ (select required_cost_outstanding from public.transport_trip_financial_summary where id=trip);
+end if;
  select jsonb_agg(to_jsonb(a) order by id) into initial_alloc from public.invoice_payment_allocations a where sales_order_id=sales_id;
  select to_jsonb(je) into newer from public.journal_entries je where id=paid_j;
  result:=public.transport_adjust_rate(trip,'customer',850,'Correction after Closed');
