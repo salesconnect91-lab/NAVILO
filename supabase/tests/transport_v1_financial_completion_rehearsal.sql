@@ -121,7 +121,12 @@ begin
  result:=public.transport_adjust_rate(trip,'supplier',250,'Correct supplier rent',current_date,rent);
  if (select supplier_net from public.transport_trip_financial_summary where id=trip)<>250
  or (select supplier_paid_gross from public.transport_trip_financial_summary where id=trip)<>100
- or (select supplier_outstanding_gross from public.transport_trip_financial_summary where id=trip)<>150 then raise exception 'Supplier corrections after partial payment';end if;
+ or (select supplier_outstanding_gross from public.transport_trip_financial_summary where id=trip)<>150 then
+ raise exception 'Supplier corrections after partial payment: net=%, paid=%, outstanding=%',
+  (select supplier_net from public.transport_trip_financial_summary where id=trip),
+  (select supplier_paid_gross from public.transport_trip_financial_summary where id=trip),
+  (select supplier_outstanding_gross from public.transport_trip_financial_summary where id=trip);
+ end if;
  result:=public.transport_settle_documents('customer',customer,current_date,cash_id,'cash',jsonb_build_array(jsonb_build_object('document_id',sales_id,'amount',600),jsonb_build_object('document_id',sales2,'amount',200),jsonb_build_object('document_id',cashbill,'amount',100)));
  result:=public.transport_settle_documents('supplier',supplier,current_date,cash_id,'cash',null,150);
  result:=public.transport_settle_documents('supplier',supplier2,current_date,cash_id,'cash',null,100);
