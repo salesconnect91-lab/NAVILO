@@ -368,6 +368,10 @@ export default function TransportWorkspace(){
   const canQuickAddMaster=entryPermissions.master||(standaloneMobile&&mobileCanCreate);
   const canQuickAddVehicle=canQuickAddMaster&&entryPermissions.owner;
   const openQuickAdd=(kind:QuickAddKind)=>{
+    if(standaloneMobile&&kind==='driver'&&!entryPermissions.master){
+      setError('Company drivers must be linked to an employee in Master Data. Select an existing driver or ask an authorized user to create one.');
+      return;
+    }
     if(!canQuickAddMaster||kind==='vehicle'&&!canQuickAddVehicle){setError('Master / ownership permission required.');return;}
     setError('');setQuickAdd(kind);
   };
