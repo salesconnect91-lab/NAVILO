@@ -62,8 +62,6 @@ begin
 end $$;
 
 alter table public.transport_trips alter column operating_location_id set not null;
-alter table public.transport_trips enable trigger trg_transport_trips_scope;
-alter table public.transport_trips enable trigger trg_transport_trip_audit;
 
 update public.transport_trip_audit a set operating_location_id=t.operating_location_id
 from public.transport_trips t where a.trip_id=t.id and a.operating_location_id is null;
