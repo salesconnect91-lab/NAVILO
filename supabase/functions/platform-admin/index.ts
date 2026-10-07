@@ -625,6 +625,7 @@ Deno.serve(async (request) => {
           contact_phone: String(body.contact_phone || "").trim() || null,
           address: String(body.address || "").trim() || null,
           notes: String(body.notes || "").trim() || null,
+          is_test_company: body.is_test_company === true,
           updated_at: new Date().toISOString(),
         })
         .eq("id", companyId)
