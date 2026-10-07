@@ -45,9 +45,11 @@ begin
     where rn>1
     order by trip_id,supplier_id,created_at,id
   loop
-    perform public.transport_financial_audit(
-      v.trip_id,
-      'supplier_rent_duplicate_reconciled',
+    insert into public.transport_trip_audit(
+      company_id,business_unit_id,trip_id,event_type,new_data
+    )
+    values(
+      v.company_id,v.business_unit_id,v.trip_id,'supplier_rent_duplicate_reconciled',
       jsonb_build_object(
         'removed_rent_id',v.id,
         'canonical_rent_id',v.keeper_id,
