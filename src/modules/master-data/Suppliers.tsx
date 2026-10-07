@@ -4,7 +4,7 @@ import useTransportMasterClient from "./useTransportMasterClient";
 import SearchableSelect from "@/components/SearchableSelect";
 import MasterSummaryStrip from "@/components/MasterSummaryStrip";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { supabase as supabaseClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { masterDeleteError } from "@/lib/masterDeleteError";
 import { toUrduName } from "@/lib/urdu";
 import * as XLSX from "xlsx";
@@ -136,7 +136,7 @@ export default function Suppliers({ quickCreate, transportEnglishOnly = false }:
     }
 
     if (quickCreate?.allowTransportMobileCreate && !canSetOpeningBalance && !quickCreatedId.current) {
-      const { data, error } = await (supabaseClient as any).rpc("transport_mobile_quick_create_party", {
+      const { data, error } = await (supabase as any).rpc("transport_mobile_quick_create_party", {
         p_party_type: "supplier", p_name: payload.name, p_email: payload.email, p_phone: payload.phone,
         p_address: payload.address, p_ntn: payload.ntn, p_strn: payload.strn, p_cnic: payload.cnic,
         p_tax_registration_status: payload.tax_registration_status,
