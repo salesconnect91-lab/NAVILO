@@ -153,14 +153,14 @@ describe('Transport register interactions',()=>{
    expect(theme3.getAttribute('aria-pressed')).toBe('true');expect(localStorage.getItem(key)).toBe('theme3');
    expect(document.querySelector('[data-navilo-transport-register]')?.getAttribute('data-navilo-theme')).toBe('theme3');
    const scopedThemeCss=document.querySelector('[data-navilo-transport-register] style')?.textContent??'';
-   expect(scopedThemeCss).toContain('Theme 2 — compact blue operations console');
-   expect(scopedThemeCss).toContain('Theme 3 — modern executive charcoal + emerald');
-   expect(scopedThemeCss).toContain('height: 20px !important');
-   expect(scopedThemeCss).toContain('height: 34px !important');
+   expect(scopedThemeCss).toContain('Theme 2 — BLUE OPERATIONS / spreadsheet console');
+   expect(scopedThemeCss).toContain('Theme 3 — MODERN EXECUTIVE / spacious cards + pills');
+   expect(scopedThemeCss).toContain('height: 29px !important');
+   expect(scopedThemeCss).toContain('height: 38px !important');
    const theme4=screen.getByRole('button',{name:'Theme 4'});fireEvent.click(theme4);
    expect(theme4.getAttribute('aria-pressed')).toBe('true');expect(localStorage.getItem(key)).toBe('theme4');
    expect(document.querySelector('[data-navilo-transport-register]')?.getAttribute('data-navilo-theme')).toBe('theme4');
-   expect(scopedThemeCss).toContain('Theme 4 — premium warm ledger: ink + ivory + brass');
+   expect(scopedThemeCss).toContain('Theme 4 — CLASSIC LEDGER / serif + ivory + brass');
   }finally{localStorage.removeItem(key);}
  });
  it('shows customer and supplier invoice numbers in their own financial groups',async()=>{
