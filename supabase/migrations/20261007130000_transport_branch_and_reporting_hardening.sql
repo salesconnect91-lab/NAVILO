@@ -30,6 +30,7 @@ select set_config('app.maintenance_reset','1',true);
 alter table public.transport_trips add column if not exists operating_location_id uuid references public.operating_locations(id);
 alter table public.transport_trip_audit add column if not exists operating_location_id uuid references public.operating_locations(id);
 alter table public.transport_trip_expenses add column if not exists operating_location_id uuid references public.operating_locations(id);
+alter table public.transport_trips disable trigger user;
 
 with evidence as (
   select l.trip_id,(array_agg(d.operating_location_id order by d.operating_location_id::text))[1] loc
@@ -54,6 +55,7 @@ do $$ begin
  end if;
 end $$;
 alter table public.transport_trips alter column operating_location_id set not null;
+alter table public.transport_trips enable trigger user;
 select set_config('app.maintenance_reset','0',true);
 
 update public.transport_trip_audit a set operating_location_id=t.operating_location_id
