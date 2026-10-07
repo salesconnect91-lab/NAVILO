@@ -146,7 +146,16 @@ export default function Customers({ quickCreate, transportEnglishOnly = false }:
       return setError("Opening date is required.");
     }
 
-    if (quickCreate && quickCreatedId.current) {
+    if (quickCreate?.allowTransportMobileCreate && !quickCreatedId.current) {
+      const { data, error } = await (supabase as any).rpc("transport_mobile_quick_create_party", {
+        p_party_type: "customer", p_name: payload.name, p_email: payload.email, p_phone: payload.phone,
+        p_address: payload.address, p_ntn: payload.ntn, p_strn: payload.strn, p_cnic: payload.cnic,
+        p_tax_registration_status: payload.tax_registration_status,
+      });
+      if (error) return setError(error.message);
+      const created = Array.isArray(data) ? data[0] : data;
+      if (created?.id) { selectedCreatedId = created.id; quickCreatedId.current = created.id; }
+    } else if (quickCreate && quickCreatedId.current) {
       const {error: retryError} = await supabase.from("customers").update(payload).eq("id",quickCreatedId.current);
       if(retryError) return setError(retryError.message);
     } else if (editing) {
