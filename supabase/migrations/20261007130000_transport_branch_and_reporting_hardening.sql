@@ -4,19 +4,19 @@ alter table public.transport_trip_audit add column if not exists operating_locat
 alter table public.transport_trip_expenses add column if not exists operating_location_id uuid references public.operating_locations(id);
 
 with evidence as (
-  select l.trip_id,min(d.operating_location_id) loc
+  select l.trip_id,(array_agg(d.operating_location_id order by d.operating_location_id::text))[1] loc
   from public.transport_customer_document_trips l join public.transport_customer_documents d on d.id=l.document_id
   where not l.is_adjustment and d.operating_location_id is not null group by l.trip_id
   having count(distinct d.operating_location_id)=1
 ) update public.transport_trips t set operating_location_id=e.loc from evidence e where t.id=e.trip_id and t.operating_location_id is null;
 with evidence as (
-  select l.trip_id,min(d.operating_location_id) loc
+  select l.trip_id,(array_agg(d.operating_location_id order by d.operating_location_id::text))[1] loc
   from public.transport_supplier_document_rents l join public.transport_supplier_documents d on d.id=l.document_id
   where not l.is_adjustment and d.operating_location_id is not null group by l.trip_id
   having count(distinct d.operating_location_id)=1
 ) update public.transport_trips t set operating_location_id=e.loc from evidence e where t.id=e.trip_id and t.operating_location_id is null;
 with only_loc as (
- select company_id,business_unit_id,min(id) loc from public.operating_locations where is_active
+ select company_id,business_unit_id,(array_agg(id order by id::text))[1] loc from public.operating_locations where is_active
  group by company_id,business_unit_id having count(*)=1
 ) update public.transport_trips t set operating_location_id=o.loc from only_loc o
 where t.operating_location_id is null and t.company_id=o.company_id and t.business_unit_id=o.business_unit_id;
@@ -30,7 +30,7 @@ alter table public.transport_trips alter column operating_location_id set not nu
 update public.transport_trip_audit a set operating_location_id=t.operating_location_id
 from public.transport_trips t where a.trip_id=t.id and a.operating_location_id is null;
 with only_loc as (
- select company_id,business_unit_id,min(id) loc from public.operating_locations where is_active
+ select company_id,business_unit_id,(array_agg(id order by id::text))[1] loc from public.operating_locations where is_active
  group by company_id,business_unit_id having count(*)=1
 ) update public.transport_trip_audit a set operating_location_id=o.loc from only_loc o
 where a.operating_location_id is null and a.company_id=o.company_id and a.business_unit_id=o.business_unit_id;
