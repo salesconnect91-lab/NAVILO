@@ -71,7 +71,6 @@ describe('New Trip master integration',()=>{
  it.each([
   ['Add Truck Type','truckType','Search Truck Type','transport_truck_types'],
   ['Add Customer','customer','Search Customer','customers'],
-  ['Add Driver Name','driver','Search Driver','transport_drivers'],
   ['Add From','locationFrom','Search From','transport_locations'],
   ['Add To','locationTo','Search To','transport_locations'],
  ] as const)('refreshes and auto-selects %s',async(button,kind,placeholder,table)=>{
@@ -82,6 +81,12 @@ describe('New Trip master integration',()=>{
   fireEvent.click(screen.getByRole('button',{name:button}));fireEvent.change(screen.getByLabelText(kind==='driver'?'Driver Name *':kind==='customer'?'English Name':'Name'),{target:{value:'Added'}});
   fireEvent.submit(document.querySelectorAll('form')[document.querySelectorAll('form').length-1]);await waitFor(()=>expect(document.querySelector('form')).toBeNull());
   expect((screen.getByPlaceholderText(placeholder) as HTMLInputElement).value).toBe('Added');
+ });
+ it('blocks restricted quick Driver creation and directs users to Master Data',async()=>{
+  await view();
+  fireEvent.click(screen.getByRole('button',{name:'Add Driver Name'}));
+  expect(screen.queryByLabelText('Driver Name *')).toBeNull();
+  expect(screen.getByText('Company drivers must be linked to an employee in Master Data. Select an existing driver or ask an authorized user to create one.')).toBeTruthy();
  });
  it('selects created Supplier without changing the selected Vehicle owner',async()=>{
   await view();choose('Search Truck Type','Flatbed');choose('Search Plate','FLAT-1 - Company');
