@@ -1,6 +1,6 @@
 begin;
 create or replace function public.transport_v1_stamp()
-returns trigger language plpgsql security definer set search_path=public,pg_temp as $
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $stamp$
 begin
  if coalesce(current_setting('app.maintenance_reset',true),'')='1' then return new; end if;
  if tg_op='INSERT' then
@@ -25,7 +25,7 @@ begin
   new.updated_by:=auth.uid();new.updated_at:=now();
  end if;
  return new;
-end $;
+end $stamp$;
 select set_config('app.maintenance_reset','1',true);
 alter table public.transport_trips add column if not exists operating_location_id uuid references public.operating_locations(id);
 alter table public.transport_trip_audit add column if not exists operating_location_id uuid references public.operating_locations(id);
