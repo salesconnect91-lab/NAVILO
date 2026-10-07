@@ -22,6 +22,8 @@ begin
  select id into b from public.business_units where company_id=c and is_default;
  select id into b2 from public.business_units where company_id=c2 and is_default;
  update public.business_units set unit_type='transport' where id=b;
+ insert into public.operating_locations(company_id,business_unit_id,code,name,location_type,is_active)
+ values(c,b,'HO','Head Office','branch',true);
  insert into public.business_units(company_id,code,name,unit_type,is_active) values(c,'TM2','Other Transport BU','transport',true) returning id into other_bu;
  insert into public.company_memberships(company_id,user_id,role,is_active) values(c,u,'company_owner',true),(c2,u,'company_owner',true);
  insert into public.business_unit_memberships(company_id,business_unit_id,user_id,role,is_active)
