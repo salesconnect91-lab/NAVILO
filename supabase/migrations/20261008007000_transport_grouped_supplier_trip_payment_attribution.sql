@@ -8,8 +8,8 @@ select
  round(l.amount_snapshot+coalesce(l.vat_snapshot,0),2) billed_gross,
  round(
    least(greatest(b.paid_gross-b.refunded_gross,0),b.billed_gross)
-   * (l.amount_snapshot+coalesce(l.vat_snapshot,0))
-   / nullif(sum(l.amount_snapshot+coalesce(l.vat_snapshot,0)) over(partition by d.purchase_order_id),0)
+   * greatest(l.amount_snapshot+coalesce(l.vat_snapshot,0)-coalesce(adj.adjustment_gross,0),0)
+   / nullif(sum(greatest(l.amount_snapshot+coalesce(l.vat_snapshot,0)-coalesce(adj.adjustment_gross,0),0)) over(partition by d.purchase_order_id),0)
  ,2) paid_gross,
  round(
    least(greatest(b.paid_net,0),b.billed_net)
@@ -29,6 +29,11 @@ select
  b.last_payment_date
 from public.transport_supplier_document_rents l
 join public.transport_supplier_documents d on d.id=l.document_id
+left join lateral(
+ select coalesce(sum(a.amount_snapshot+coalesce(a.vat_snapshot,0)),0) adjustment_gross
+ from public.transport_supplier_document_rents a
+ where a.document_id=l.document_id and a.trip_id=l.trip_id and a.rent_id=l.rent_id and a.is_adjustment
+) adj on true
 join public.transport_service_document_balances b
   on b.side='supplier' and b.order_id=d.purchase_order_id
 where not l.is_adjustment;
