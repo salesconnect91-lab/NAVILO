@@ -50,7 +50,8 @@ describe('Compact supplier rate popup',()=>{
   fireEvent.change(input,{target:{value:'75'}});fireEvent.change(screen.getByLabelText('Reason'),{target:{value:'Supplier agreed rent revised'}});
   fireEvent.click(screen.getByRole('button',{name:'Save Rate'}));
   await waitFor(()=>expect(close).toHaveBeenCalled());
-  expect(mock.rpc).toHaveBeenCalledWith('transport_finalize_supplier_rent',{p_rent_id:'rent-a',p_amount:75,p_reason:'Supplier agreed rent revised'});\n  expect(mock.rpc.mock.calls.some(([name])=>name==='transport_add_supplier_rent')).toBe(false);
+  expect(mock.rpc).toHaveBeenCalledWith('transport_finalize_supplier_rent',{p_rent_id:'rent-a',p_amount:75,p_reason:'Supplier agreed rent revised'});
+  expect(mock.rpc.mock.calls.some(([name])=>name==='transport_add_supplier_rent')).toBe(false);
   expect(mock.rpc.mock.calls.some(([name])=>name.startsWith('transport_post_supplier_bill'))).toBe(false);
   expect(mock.rpc.mock.calls.filter(([name])=>name==='transport_bulk_rate_page').every(([,args])=>args.p_filters.initialTrip==='trip')).toBe(true);
  });
