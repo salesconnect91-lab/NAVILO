@@ -14,7 +14,7 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
  const [reasonPreset,setReasonPreset]=useState('');
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
  const [allowed,setAllowed]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');
- const [saved,setSaved]=useState(false);const input=useRef<HTMLInputElement>(null);const dialog=useRef<HTMLElement>(null);
+ const [saved,setSaved]=useState(false);const [correctionMode,setCorrectionMode]=useState(false);const [confirmFinancialPost,setConfirmFinancialPost]=useState(false);const input=useRef<HTMLInputElement>(null);const dialog=useRef<HTMLElement>(null);
 
  useEffect(()=>{
   let active=true;setAllowed(false);input.current?.focus();
@@ -30,7 +30,7 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
  const reasonRequired=posted||finalized;
 
  async function save(){
-  if(!allowed||!valid||busy||saved||!changed||(reasonRequired&&!reason.trim())||(posted&&!date))return;
+  if(!allowed||!valid||busy||saved||!changed||(reasonRequired&&!reason.trim())||(posted&&(!date||!correctionMode||!confirmFinancialPost)))return;
   setBusy(true);setError('');
   try{
    const result=posted
@@ -43,18 +43,18 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
   }catch(e:any){setError(e?.message||'Unable to save company rate. Refresh the Trip before retrying.')}finally{setBusy(false)}
  }
 
- const title=posted?'Correct Company Rate':finalized?'Update Company Rate':'Add Company Rate';
+ const title=posted?'Posted Company Rate':finalized?'Update Company Rate':'Add Company Rate';
  return <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/40 p-3" onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const items=dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)');if(items?.length){const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}}>
  <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="initial-rate-title" className="w-full max-w-sm rounded bg-white p-4 text-sm shadow-xl">
   <h2 id="initial-rate-title" className="font-semibold">{title} · {trip.trip_no}</h2>
   <p className="my-2 text-xs text-slate-600">{trip.customer_name}<br/>{trip.from_location} → {trip.to_location}<br/>{trip.vehicle_no}</p>
   <label className="block text-xs font-semibold">Company rate excluding VAT
-   <input ref={input} className="input mt-1 w-full" type="number" min="0" step="0.01" value={amount} disabled={busy||saved} onChange={e=>setAmount(e.target.value)}/>
+   <input ref={input} className="input mt-1 w-full" type="number" min="0" step="0.01" value={amount} disabled={busy||saved||(posted&&!correctionMode)} onChange={e=>setAmount(e.target.value)}/>
   </label>
-  {posted&&<label className="mt-2 block text-xs font-semibold">Correction Date
+  {posted&&correctionMode&&<label className="mt-2 block text-xs font-semibold">Correction Date
    <NaviloDateInput className="input mt-1 w-full" type="date" value={date} disabled={busy||saved} onChange={e=>setDate(e.target.value)}/>
   </label>}
-  {reasonRequired&&<>
+  {(finalized||(posted&&correctionMode))&&<>
    <label className="mt-2 block text-xs font-semibold">Reason
     <select className="input mt-1 w-full" value={reasonPreset} disabled={busy||saved} onChange={e=>{const value=e.target.value;setReasonPreset(value);setReason(value==="__other__"?"":value)}}>
      <option value="">Select reason</option>
@@ -66,8 +66,17 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
     <input className="input mt-1 w-full" value={reason} disabled={busy||saved} onChange={e=>setReason(e.target.value)} placeholder={posted?'Enter posted correction reason':'Enter rate override reason'}/>
    </label>}
   </>}
-  <p className="my-2 text-xs text-slate-600">{posted?'Posted billing is never overwritten. Saving creates the controlled canonical AR adjustment.':finalized?'This changes the finalized unposted Trip rate and records the override reason.':'Finalizing the initial rate records it in the Trip audit.'}</p>
+  <p className="my-2 text-xs text-slate-600">{posted?(correctionMode?'This is a financial correction. Posting creates a separate canonical debit/credit adjustment; the original invoice stays unchanged.':'This Trip already has posted billing. Direct rate editing is locked here and will never post an invoice silently. Use the explicit financial correction action only when accounting must change.'):finalized?'This changes the finalized unposted Trip rate and records the override reason.':'Finalizing the initial rate records it in the Trip audit.'}</p>
+  {posted&&correctionMode&&<label className="my-2 flex items-start gap-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+   <input aria-label="Confirm financial correction posting" className="mt-0.5" type="checkbox" checked={confirmFinancialPost} disabled={busy||saved} onChange={e=>setConfirmFinancialPost(e.target.checked)}/>
+   <span>I understand this posts a separate accounting debit/credit adjustment and does not overwrite the original invoice.</span>
+  </label>}
   {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}
-  <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={onClose}>Cancel</button><button className="btn-primary" disabled={!allowed||!valid||!changed||busy||saved||(reasonRequired&&!reason.trim())||(posted&&!date)} onClick={()=>void save()}>{saved?'Saved':posted?'Post Correction':'Save Rate'}</button></div>
+  <div className="mt-3 flex justify-end gap-2">
+   {posted&&!correctionMode?<><button className="btn" disabled={busy} onClick={onClose}>Close</button><button className="btn-primary" disabled={!allowed||busy} onClick={()=>{setCorrectionMode(true);setConfirmFinancialPost(false);window.setTimeout(()=>input.current?.focus(),0)}}>Create Debit/Credit Note</button></>:<>
+    <button className="btn" disabled={busy} onClick={()=>{if(posted){setCorrectionMode(false);setConfirmFinancialPost(false);setReason('');setReasonPreset('');setAmount(String(trip.billed_customer_net??trip.customer_rate??''))}else onClose()}}>{posted?'Back':'Cancel'}</button>
+    <button className="btn-primary" disabled={!allowed||!valid||!changed||busy||saved||(reasonRequired&&!reason.trim())||(posted&&(!date||!confirmFinancialPost))} onClick={()=>void save()}>{saved?'Saved':posted?'Post Debit/Credit Note':'Save Rate'}</button>
+   </>}
+  </div>
  </section></div>;
 }
