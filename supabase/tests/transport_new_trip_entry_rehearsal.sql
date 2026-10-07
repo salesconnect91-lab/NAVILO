@@ -169,7 +169,10 @@ begin
  execute 'reset role';
  update public.transport_financial_permissions set allowed=true where company_id=c and business_unit_id=b and user_id=u and action='driver';
  -- Each server permission denial is tested even if the UI hides its action.
- update public.business_unit_memberships set permissions=jsonb_build_object('transport_actions',jsonb_build_object('master_manage',false)) where business_unit_id=b and user_id=u;
+ update public.business_unit_memberships set permissions=jsonb_build_object(
+   'transport_actions',jsonb_build_object('master_manage',false),
+   'transport',jsonb_build_object('create',false)
+ ) where business_unit_id=b and user_id=u;
  execute 'set local role authenticated';
  perform pg_temp.entry_rejected('select public.create_customer_with_ar(''Denied Customer'',null,null,null)','master permission');
  perform pg_temp.entry_rejected('select public.create_supplier_with_ap(''Denied Supplier'',null,null,null)','master permission');
