@@ -41,15 +41,20 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 window.addEventListener("load", () => window.setTimeout(() => sessionStorage.removeItem(DEPLOY_RELOAD_KEY), 5_000), { once: true });
 
-createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("NAVILO root element is missing");
+
+createRoot(rootElement).render(
   <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <GlobalLanguageRuntime />
-        <LanguageVisibilityRuntime />
-        <JurisdictionRuntime />
-        <ApplicationErrorBoundary><App /></ApplicationErrorBoundary>
-      </AuthProvider>
-    </BrowserRouter>
+    <ApplicationErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <GlobalLanguageRuntime />
+          <LanguageVisibilityRuntime />
+          <JurisdictionRuntime />
+          <App />
+        </AuthProvider>
+      </BrowserRouter>
+    </ApplicationErrorBoundary>
   </StrictMode>
 );
