@@ -57,6 +57,7 @@ type Trip=FinancialTrip & {
   customer_base_rate?:number|null;
   customer_manual_adjustment?:number|null;
   invoice_no:string|null;
+  supplier_invoice_no?:string|null;
   supplier_charges?:number|null;
 };
 
@@ -165,7 +166,7 @@ export default function TransportWorkspace(){
   const entryReturnTab=useRef<Tab>(standaloneMobile?"mobile":"trips");
   const tripsGridRef=useRef<HTMLDivElement|null>(null);
   const tripsSectionRef=useRef<HTMLElement|null>(null);
-  const compactTripColumnWidths:Record<string,number>={trip_no:96,trip_date:68,truck_type:68,job_no:82,company:138,driver:88,owner:82,plate:70,from:78,to:78,charge:72,paper_received_by:100,rent_driver:112,supplier_charges:112,supplier_paid:112,supplier_balance:126,supplier_credit:126,driver_pay:100,driver_paid:100,driver_balance:108,payment_date:82,amount:104,company_rate:112,received_company:126,remaining_company:126,customer_credit:126,profit:104,commission:116,invoice_no:100,sale_type:72};
+  const compactTripColumnWidths:Record<string,number>={trip_no:96,trip_date:68,truck_type:68,job_no:82,company:138,driver:88,owner:82,plate:70,from:78,to:78,charge:72,paper_received_by:100,rent_driver:112,supplier_charges:112,supplier_paid:112,supplier_balance:126,supplier_credit:126,driver_pay:100,driver_paid:100,driver_balance:108,payment_date:82,amount:104,company_rate:112,received_company:126,remaining_company:126,customer_credit:126,profit:104,commission:116,invoice_no:100,supplier_invoice_no:110,sale_type:72};
   useEffect(()=>{
     if(location.pathname==="/transport"&&params.get("view")==="mobile")navigate("/transport/mobile",{replace:true});
   },[location.pathname,navigate,params]);
@@ -1175,6 +1176,7 @@ export default function TransportWorkspace(){
       case "profit": return financialNumber(r.trip_profit);
       case "commission": return financialNumber(r.commission_paid_net??0);
       case "invoice_no": return String(r.invoice_no??"");
+      case "supplier_invoice_no": return String(r.supplier_invoice_no??"");
       case "sale_type": return String(r.sale_type??"");
       default:return "";
     }
@@ -1182,7 +1184,7 @@ export default function TransportWorkspace(){
 
   const tripDataGridKeys=["trip_no","trip_date","truck_type","job_no","from","to","charge"] as const;
   const vehicleDriverGridKeys=["driver","plate","owner","driver_pay","driver_paid","driver_balance"] as const;
-  const supplierGridKeys=["rent_driver","supplier_charges","supplier_paid","supplier_balance","payment_date","amount","supplier_credit"] as const;
+  const supplierGridKeys=["supplier_invoice_no","rent_driver","supplier_charges","supplier_paid","supplier_balance","payment_date","amount","supplier_credit"] as const;
   const customerGridKeys=["invoice_no","company","company_rate","received_company","remaining_company","sale_type","customer_credit"] as const;
   const pprGridKeys=["paper_received_by"] as const;
   const profitCommissionGridKeys=["commission","profit"] as const;
@@ -1212,6 +1214,7 @@ export default function TransportWorkspace(){
     ["received_company","Collection (Incl. VAT)"],
     ["remaining_company","Customer Balance (Incl. VAT)"],
     ["customer_credit","Customer Credit / Advance"],
+    ["supplier_invoice_no","Supplier Invoice"],
     ["supplier_charges","Supplier Charges"],
     ["rent_driver","Supplier Rent (Net)"],
     ["supplier_paid","Supplier Rent Paid (Net)"],
@@ -1237,7 +1240,7 @@ export default function TransportWorkspace(){
   const readSupplier=registerMeta.permissions?.supplier===true;
   const columnAuthorized=(key:string)=>key==='profit'?readCustomer&&readSupplier:
     ['charge','company_rate','received_company','remaining_company','customer_credit','invoice_no','sale_type','invoiced'].includes(key)?readCustomer:
-    ['owner','rent_driver','supplier_paid','supplier_balance','supplier_credit','payment_date','amount','driver_pay','driver_paid','driver_balance','commission'].includes(key)?readSupplier:true;
+    ['owner','supplier_invoice_no','rent_driver','supplier_paid','supplier_balance','supplier_credit','payment_date','amount','driver_pay','driver_paid','driver_balance','commission'].includes(key)?readSupplier:true;
   const orderedGridColumns=allOrderedGridColumns.filter(column=>columnAuthorized(column[0])&&!hiddenTripColumns.includes(column[0]));
   const gridGroupSegments=orderedGridColumns.reduce<Array<{group:string;count:number}>>((segments,[key])=>{
     const group=visualGridGroup(key);
