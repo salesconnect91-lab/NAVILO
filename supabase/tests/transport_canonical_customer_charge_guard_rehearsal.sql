@@ -14,6 +14,8 @@ begin
   insert into public.companies(name,code,status) values('Charge guard','CG'||code,'active') returning id into c;
   select id into strict b from public.business_units where company_id=c and is_default;
   update public.business_units set unit_type='transport' where id=b;
+  insert into public.operating_locations(company_id,business_unit_id,code,name,location_type,is_active)
+  values(c,b,'HO','Head Office','branch',true);
   insert into public.company_memberships(company_id,user_id,role,is_active) values(c,u,'company_owner',true);
   insert into public.business_unit_memberships(company_id,business_unit_id,user_id,role,is_active)
   values(c,b,u,'company_owner',true) on conflict(business_unit_id,user_id) do update set is_active=true;
