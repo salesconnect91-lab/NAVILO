@@ -139,8 +139,8 @@ export default function DayBook() {
     { key: "entry_date", label: "Date", render: (row) => formatDate(row.entry_date) },
     { key: "description", label: "Description" },
     { key: "account", label: "Account", render: (row) => <span className="font-medium text-slate-700">{row.account}</span> },
-    { key: "debit", label: "Debit", className: "text-right tabular-nums", render: (row) => row.debit > 0 ? formatCurrency(row.debit) : "ΓÇö" },
-    { key: "credit", label: "Credit", className: "text-right tabular-nums", render: (row) => row.credit > 0 ? formatCurrency(row.credit) : "ΓÇö" },
+    { key: "debit", label: "Debit", className: "text-right tabular-nums", render: (row) => row.debit > 0 ? formatCurrency(row.debit) : "0" },
+    { key: "credit", label: "Credit", className: "text-right tabular-nums", render: (row) => row.credit > 0 ? formatCurrency(row.credit) : "0" },
   ];
 
   const exportRows = rows as unknown as Record<string, unknown>[];
@@ -149,7 +149,7 @@ export default function DayBook() {
     <div>
       <PageHeader
         title="Day Book"
-        subtitle="Posted journal transactions only ΓÇö draft and incomplete entries are excluded."
+        subtitle="Posted journal transactions only — draft and incomplete entries are excluded."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <button className="btn-primary" onClick={() => navigate("/accounting")}>
