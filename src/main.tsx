@@ -7,9 +7,6 @@ import { AuthProvider } from "./auth/AuthContext";
 import GlobalLanguageRuntime from "./components/GlobalLanguageRuntime";
 import LanguageVisibilityRuntime from "./components/LanguageVisibilityRuntime";
 import JurisdictionRuntime from "./components/JurisdictionRuntime";
-import "./printTargetRuntime";
-import "./accountNameDisplayRuntime";
-import "./documentLanguageIsolationRuntime";
 import "./index.css";
 import "./contrast.css";
 import "./reportPrint.css";
@@ -58,3 +55,16 @@ createRoot(rootElement).render(
     </ApplicationErrorBoundary>
   </StrictMode>
 );
+
+const startOptionalRuntime = (label: string, loader: () => Promise<unknown>) => {
+  void loader().catch((error) => {
+    console.error(`[NAVILO startup] ${label} runtime failed`, error);
+  });
+};
+
+// These DOM enhancement runtimes are not required to mount the application.
+// Start them only after React has been mounted so a runtime import failure can
+// never leave #root completely blank.
+startOptionalRuntime("print target", () => import("./printTargetRuntime"));
+startOptionalRuntime("account name display", () => import("./accountNameDisplayRuntime"));
+startOptionalRuntime("document language isolation", () => import("./documentLanguageIsolationRuntime"));
