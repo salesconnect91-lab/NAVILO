@@ -1,0 +1,15 @@
+begin;
+create or replace function public.transport_driver_month_preview(p_employee_id uuid,p_month date) returns jsonb language plpgsql stable security definer set search_path=public,pg_temp as $$
+declare c uuid:=public.current_company_id();b uuid:=public.current_business_unit_id();loc uuid:=public.current_operating_location_id();m date:=date_trunc('month',p_month)::date;op numeric:=0;tp numeric:=0;al numeric:=0;bo numeric:=0;oe numeric:=0;ld numeric:=0;od numeric:=0;pa numeric:=0;locked jsonb;
+begin
+ if auth.uid() is null or not public.has_module_permission(c,'transport','view') then raise exception 'Transport view permission required';end if;
+ if not exists(select 1 from public.transport_drivers d where d.company_id=c and d.business_unit_id=b and d.employee_id=p_employee_id and d.is_active and lower(coalesce(d.driver_type,''))='company' and d.supplier_id is null) then raise exception 'Driver Khata is available only for active company employee-drivers';end if;
+ select to_jsonb(x) into locked from public.transport_driver_month_closings x where x.company_id=c and x.business_unit_id=b and x.operating_location_id=loc and x.employee_id=p_employee_id and x.month=m;if locked is not null then return locked||jsonb_build_object('locked',true);end if;
+ select coalesce((select closing_balance from public.transport_driver_month_closings x where x.company_id=c and x.business_unit_id=b and x.operating_location_id=loc and x.employee_id=p_employee_id and x.month<m order by month desc limit 1),0) into op;
+ select coalesce(sum(coalesce(t.driver_pay,0)),0) into tp from public.transport_trips t join public.transport_drivers d on d.id=t.driver_id and d.employee_id=p_employee_id and d.company_id=c and d.business_unit_id=b and lower(coalesce(d.driver_type,''))='company' and d.supplier_id is null where t.company_id=c and t.business_unit_id=b and t.operating_location_id=loc and t.trip_date>=m and t.trip_date<(m+interval '1 month')::date;
+ select coalesce(sum(amount) filter(where kind='allowance'),0),coalesce(sum(amount) filter(where kind='bonus'),0),coalesce(sum(amount) filter(where kind='other_earning'),0),coalesce(sum(amount) filter(where kind='loan_deduction'),0),coalesce(sum(amount) filter(where kind='other_deduction'),0) into al,bo,oe,ld,od from public.transport_driver_month_adjustments where company_id=c and business_unit_id=b and operating_location_id=loc and employee_id=p_employee_id and month=m;
+ select coalesce(sum(amount),0) into pa from public.employee_salary_payments where company_id=c and business_unit_id=b and employee_id=p_employee_id and salary_month=m;
+ return jsonb_build_object('month',m,'opening_balance',op,'trip_pay',tp,'allowance',al,'bonus',bo,'other_earning',oe,'loan_deduction',ld,'other_deduction',od,'payments',pa,'closing_balance',op+tp+al+bo+oe-ld-od-pa,'locked',false);
+end $$;
+grant execute on function public.transport_driver_month_preview(uuid,date) to authenticated;
+commit;
