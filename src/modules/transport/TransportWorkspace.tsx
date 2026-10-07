@@ -1405,6 +1405,92 @@ export default function TransportWorkspace(){
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
     {!showPartyReports&&tab==="trips"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className={`relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden bg-white ${tripTheme==='theme3'?'rounded-xl border border-slate-200 shadow-[0_10px_30px_rgba(15,23,42,0.10)] [&_tbody_tr:nth-child(even)>td]:bg-slate-50/70 [&_tbody_tr:hover>td]:bg-emerald-50/70':tripTheme==='theme2'?'rounded-md border border-slate-300 shadow-[0_1px_4px_rgba(15,23,42,0.08)]':'rounded-lg border border-slate-700 shadow-sm shadow-slate-300'}`} data-navilo-theme={tripTheme} data-navilo-customizable="true">
+      <style>{`
+        /* Theme 2 — compact blue operations console */
+        [data-navilo-transport-register][data-navilo-theme="theme2"] {
+          font-family: Arial, "Helvetica Neue", sans-serif;
+          background: #f8fbff;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar {
+          background: #eef5ff;
+          border: 1px solid #bfdbfe;
+          border-radius: 4px;
+          padding: 3px;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar > button,
+        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar > div > button {
+          border-radius: 3px !important;
+          box-shadow: none !important;
+          font-size: 9px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] table {
+          font-size: 9px !important;
+          letter-spacing: -0.01em;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] tbody tr,
+        [data-navilo-transport-register][data-navilo-theme="theme2"] tbody td {
+          height: 20px !important;
+          max-height: 20px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] tbody td {
+          padding-left: 4px !important;
+          padding-right: 4px !important;
+          border-color: #bfdbfe !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] tbody button {
+          height: 18px !important;
+          font-size: 9px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] thead tr:first-child { height: 28px !important; }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] thead tr:nth-child(2) th { min-height: 30px; }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-trips-scrollport {
+          scrollbar-color: #60a5fa #eaf2ff;
+        }
+
+        /* Theme 3 — modern executive charcoal + emerald */
+        [data-navilo-transport-register][data-navilo-theme="theme3"] {
+          font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+          background: #f4f7f6;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar {
+          background: linear-gradient(90deg,#f0fdf4 0%,#ffffff 48%,#fff7ed 100%);
+          border: 1px solid #d1d5db;
+          border-radius: 10px;
+          padding: 6px;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar > button,
+        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar > div > button {
+          border-radius: 8px !important;
+          font-size: 10.5px !important;
+          font-weight: 700 !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] table {
+          font-size: 11px !important;
+          letter-spacing: 0;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] tbody tr,
+        [data-navilo-transport-register][data-navilo-theme="theme3"] tbody td {
+          height: 34px !important;
+          max-height: 34px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] tbody td {
+          padding-left: 8px !important;
+          padding-right: 8px !important;
+          border-bottom-color: #dbe7e3 !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] tbody button {
+          height: 28px !important;
+          font-size: 10.5px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] thead tr:first-child { height: 38px !important; }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] thead tr:nth-child(2) th {
+          min-height: 38px;
+          box-shadow: inset 0 -1px 0 rgba(255,255,255,.10);
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-trips-scrollport {
+          scrollbar-color: #0f766e #e7efed;
+        }
+      `}</style>
       <div className={`relative z-[90] flex shrink-0 items-center justify-between px-3 text-white ${tripTheme==='theme3'?'h-10 bg-gradient-to-r from-[#111827] via-[#16302b] to-[#0f3d34]':tripTheme==='theme2'?'h-9 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950':'h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]'}`}>
         <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
         <div className="flex items-center gap-1">
