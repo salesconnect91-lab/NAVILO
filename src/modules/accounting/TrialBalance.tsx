@@ -1,5 +1,6 @@
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
+import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -81,6 +82,7 @@ export default function TrialBalance() {
   const [fromDate, setFromDate] = useState(getYearStart);
   const [toDate, setToDate] = useState(getLocalToday);
   const [hideZeroBalances, setHideZeroBalances] = useState(true);
+  const [scope,setScope]=useState<AccountingReportScope>('branch');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reportPrintSettings, setReportPrintSettings] = useState<any>(null);
@@ -111,7 +113,7 @@ export default function TrialBalance() {
             .order("id", { ascending: true })
             .range(from, to)
         ),
-        (async()=>{const r=await supabase.rpc('accounting_report_balances',{p_from:fromDate,p_to:toDate,p_exclude_closing:false});if(r.error)throw r.error;return r.data||[]})(),
+        (async()=>{const r=await supabase.rpc('accounting_report_balances_scoped',{p_from:fromDate,p_to:toDate,p_exclude_closing:false,p_scope:scope});if(r.error)throw r.error;return r.data||[]})(),
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load Trial Balance.");
@@ -209,7 +211,7 @@ export default function TrialBalance() {
     setRows(nextRows);
     setLastUpdated(new Date());
     setLoading(false);
-  }, [fromDate, toDate, hideZeroBalances]);
+  }, [fromDate, toDate, hideZeroBalances, scope]);
 
   useEffect(() => {
     void loadDocumentPrintSettings("reports")
@@ -326,7 +328,7 @@ export default function TrialBalance() {
     Math.abs(amount) >= 0.005 ? formatCurrency(amount) : "—";
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 pb-12"><details className="no-print"><summary>Customize Trial Balance headers / export</summary><ConfigurableReport module="accounting" preferenceKey="accounting-trial-balance" report={{title:'Trial Balance',description:`${fromDate} to ${toDate} · Canonical posted ledger`,columns:['Code','Account','Opening debit','Opening credit','Period debit','Period credit','Closing debit','Closing credit'],rows:[...rows.map(r=>[r.code,r.name,r.openingDebit,r.openingCredit,r.periodDebit,r.periodCredit,r.closingDebit,r.closingCredit]),['TOTAL','',totals.openingDebit,totals.openingCredit,totals.periodDebit,totals.periodCredit,totals.closingDebit,totals.closingCredit]]}}/></details>
+    <div className="mx-auto max-w-[1500px] space-y-6 pb-12"><AccountingReportScopeSelect value={scope} onChange={setScope}/><details className="no-print"><summary>Customize Trial Balance headers / export</summary><ConfigurableReport module="accounting" preferenceKey="accounting-trial-balance" report={{title:'Trial Balance',description:`${fromDate} to ${toDate} · Canonical posted ledger`,columns:['Code','Account','Opening debit','Opening credit','Period debit','Period credit','Closing debit','Closing credit'],rows:[...rows.map(r=>[r.code,r.name,r.openingDebit,r.openingCredit,r.periodDebit,r.periodCredit,r.closingDebit,r.closingCredit]),['TOTAL','',totals.openingDebit,totals.openingCredit,totals.periodDebit,totals.periodCredit,totals.closingDebit,totals.closingCredit]]}}/></details>
       <style>{`
         @media print {
           body * { visibility: hidden; }
