@@ -151,7 +151,9 @@ begin
  from generate_series(20001,50000) i;
  alter table public.transport_trips enable trigger user;
  analyze public.transport_trips;
+ perform set_config('request.jwt.claim.sub',u::text,true);
  execute 'set local role authenticated';
+ if public.current_operating_location_id() is distinct from loc then raise exception 'Scale fixture lost active branch context';end if;
  started:=clock_timestamp();
  data:=public.transport_register_query();first_page:=data;
  if (data->>'count')::integer<>50000 or jsonb_array_length(data->'rows')<>500 or (data->'totals'->>'company_rate')::numeric<>800000
@@ -179,6 +181,7 @@ begin
  if (data->>'count')::integer<>50000 or jsonb_array_length(data->'rows')<>500 then raise exception 'Bulk Supplier pagination failed';end if;
  execute 'reset role';
  update public.user_profiles set last_company_id=other_c,last_business_unit_id=(select id from public.business_units where company_id=other_c and is_default) where id=u;
+ perform set_config('request.jwt.claim.sub',u::text,true);
  execute 'set local role authenticated';
  data:=public.transport_register_query();if (data->>'count')::integer<>0 then raise exception 'Reader leaked another tenant';end if;
  perform pg_temp.entry_rejected(format('select public.transport_import_trip_batch(%L,0,%L::jsonb)',job_id,batch_payload),'does not belong');
