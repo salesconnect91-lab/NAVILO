@@ -106,6 +106,7 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
           const fields = { driver_name: form.name.trim(), driver_code: form.detail.trim() || null,
             mobile: form.mobile.trim() || null, driver_type: form.driverType,
             supplier_id: form.driverType === "supplier" ? form.supplierId : null,
+            employee_id: form.driverType === "company" ? form.employeeId : null,
             identity_no: form.identityNo.trim() || null, driving_licence_no: form.licenceNo.trim() || null,
             licence_expiry: form.licenceExpiry || null };
           return editing ? supabase.from("transport_drivers").update(fields).eq("id", editing.id).select("id").single()
