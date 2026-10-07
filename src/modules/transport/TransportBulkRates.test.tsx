@@ -24,7 +24,7 @@ beforeEach(()=>{
  mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>{
   if(name==='transport_bulk_rate_page'){
    const f=args.p_filters;let rows=mock.trips.map(t=>({...t,posted:!!(t.customer_rate_locked||t.invoiced||t.sales_order_id)}));
-   if(args.p_side==='supplier')rows=bulkLines('supplier',mock.trips,mock.tables.transport_trip_supplier_rents,new Set(mock.tables.transport_supplier_document_rents.map(l=>l.rent_id)),mock.tables.transport_rate_adjustments,mock.tables.suppliers).map(l=>({...l.trip,id:l.key,trip_id:l.trip.id,party_id:l.partyId,owner_name:l.partyName,posted:l.posted,legacyBlocked:l.legacyBlocked,supplier_rent:l.amount,billed_supplier_net:l.posted?l.amount:null,rent:l.rent?{...l.rent,trip_id:l.key,amount:l.amount,finalized_amount_snapshot:l.amount}:null}));
+   if(args.p_side==='supplier')rows=bulkLines('supplier',mock.trips,mock.tables.transport_trip_supplier_rents,new Set(mock.tables.transport_supplier_document_rents.map(l=>l.rent_id)),mock.tables.transport_rate_adjustments,mock.tables.suppliers).map(l=>({...l.trip,id:l.key,trip_id:l.trip.id,party_id:l.partyId,owner_name:l.partyName,posted:l.posted,legacyBlocked:l.legacyBlocked,supplier_rent:l.amount,billed_supplier_net:l.posted?l.amount:null,rent:l.rent?{...l.rent,trip_id:l.trip.id,amount:l.amount,finalized_amount_snapshot:l.amount}:null}));
    const statuses=[...new Set(rows.map(r=>r.trip_status))];
    rows=rows.filter(r=>(!f.party||(args.p_side==='customer'?r.customer_id:r.party_id)===f.party)&&(!f.status||r.trip_status===f.status)&&(!f.columns?.trip||r.trip_no.toLowerCase().includes(f.columns.trip.toLowerCase())));
    return {data:{rows:rows.slice(args.p_offset,args.p_offset+args.p_limit),count:rows.length,statuses,amount:rows.reduce((s,r)=>s+Number(r.supplier_rent??r.customer_rate??0),0)},error:null};
@@ -50,7 +50,7 @@ describe('Compact supplier rate popup',()=>{
   fireEvent.change(input,{target:{value:'75'}});fireEvent.change(screen.getByLabelText('Reason'),{target:{value:'Supplier agreed rent revised'}});
   fireEvent.click(screen.getByRole('button',{name:'Save Rate'}));
   await waitFor(()=>expect(close).toHaveBeenCalled());
-  expect(mock.rpc).toHaveBeenCalledWith('transport_finalize_supplier_rent',{p_rent_id:'rent-a',p_amount:75,p_reason:'Supplier agreed rent revised'});
+  expect(mock.rpc).toHaveBeenCalledWith('transport_finalize_supplier_rent',{p_rent_id:'rent-a',p_amount:75,p_reason:'Supplier agreed rent revised'});\n  expect(mock.rpc.mock.calls.some(([name])=>name==='transport_add_supplier_rent')).toBe(false);
   expect(mock.rpc.mock.calls.some(([name])=>name.startsWith('transport_post_supplier_bill'))).toBe(false);
   expect(mock.rpc.mock.calls.filter(([name])=>name==='transport_bulk_rate_page').every(([,args])=>args.p_filters.initialTrip==='trip')).toBe(true);
  });
