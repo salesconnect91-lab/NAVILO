@@ -4,4 +4,5 @@ export type MasterQuickCreate = {
   truckTypeId?: string;
   supplierId?: string;
   initialName?: string;
+  allowTransportMobileCreate?: boolean;
 };
