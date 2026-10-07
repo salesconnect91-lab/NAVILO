@@ -1413,9 +1413,9 @@ export default function TransportWorkspace(){
             <button type="button" aria-pressed={tripTheme==='theme2'} onClick={()=>chooseTripTheme('theme2')} className={`h-6 rounded px-2 text-[9px] font-bold ${tripTheme==='theme2'?'bg-blue-500 text-white shadow-sm':'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Theme 2</button>
             <button type="button" aria-pressed={tripTheme==='theme3'} onClick={()=>chooseTripTheme('theme3')} className={`h-6 rounded px-2 text-[9px] font-bold ${tripTheme==='theme3'?'bg-emerald-500 text-white shadow-sm':'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Theme 3</button>
           </div>
-          <button type="button" onClick={resetGrid} className="flex h-7 items-center rounded-md border border-slate-500 bg-slate-900/70 px-2.5 text-[10px] font-semibold text-white hover:bg-slate-800">Reset</button>
-          <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-7 items-center gap-1 rounded-md border border-blue-500 bg-blue-600 px-2.5 text-[10px] font-semibold text-white hover:bg-blue-700"><RefreshCw className="h-3 w-3"/>Refresh</button>
-          <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)} className="flex h-7 items-center rounded-md border border-slate-500 bg-slate-900/70 px-2.5 text-[10px] font-semibold text-white hover:bg-slate-800">Columns</button>
+          <button type="button" onClick={resetGrid} className={`flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white ${tripTheme==='theme3'?'border border-emerald-600 bg-emerald-900/80 hover:bg-emerald-800':'border border-slate-500 bg-slate-900/70 hover:bg-slate-800'}`}>Reset</button>
+          <button type="button" onClick={()=>void load()} disabled={registerLoading} className={`flex h-7 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold text-white ${tripTheme==='theme3'?'border border-emerald-400 bg-emerald-600 hover:bg-emerald-500':'border border-blue-500 bg-blue-600 hover:bg-blue-700'}`}><RefreshCw className="h-3 w-3"/>Refresh</button>
+          <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)} className={`flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white ${tripTheme==='theme3'?'border border-emerald-600 bg-emerald-900/80 hover:bg-emerald-800':'border border-slate-500 bg-slate-900/70 hover:bg-slate-800'}`}>Columns</button>
           <span data-navilo-standard-tools-host="true" className="contents" />
         </div>
       </div>
@@ -1532,7 +1532,7 @@ export default function TransportWorkspace(){
       {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
       <div
         ref={tripsGridRef}
-        className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-400 bg-white"
+        className={`navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t ${tripTheme==='theme3'?'border-emerald-800 bg-[#f7faf9]':tripTheme==='theme2'?'border-blue-300 bg-slate-50':'border-slate-400 bg-white'}`}
       >
         <table className={`w-max min-w-full table-auto whitespace-nowrap leading-none ${tripTheme==='theme3'?'text-[10.5px]':tripTheme==='theme2'?'text-[10px]':'text-[10.5px]'}`}>
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
@@ -1556,7 +1556,7 @@ export default function TransportWorkspace(){
 
                 return <th key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`sticky top-0 border-b border-r px-0.5 !py-0 font-bold leading-none ${isSupplierGridKey(key)?"border-rose-200 bg-rose-50 text-slate-800":isCustomerGridKey(key)?"border-blue-200 bg-blue-50 text-slate-800":isPprGridKey(key)?"border-emerald-200 bg-emerald-50 text-slate-800":"border-slate-300 bg-white text-slate-700"} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
+                  className={`sticky top-0 border-b border-r px-0.5 !py-0 font-bold leading-none ${tripTheme==='theme3'?(isSupplierGridKey(key)?"border-orange-700 bg-[#7c2d12] text-white":isCustomerGridKey(key)?"border-emerald-800 bg-[#065f46] text-white":isPprGridKey(key)?"border-teal-800 bg-[#115e59] text-white":"border-slate-700 bg-[#1f2937] text-white"):tripTheme==='theme2'?(isSupplierGridKey(key)?"border-amber-200 bg-amber-100 text-amber-950":isCustomerGridKey(key)?"border-sky-200 bg-sky-100 text-sky-950":isPprGridKey(key)?"border-emerald-200 bg-emerald-100 text-emerald-950":"border-slate-200 bg-slate-100 text-slate-800"):(isSupplierGridKey(key)?"border-rose-200 bg-rose-50 text-slate-800":isCustomerGridKey(key)?"border-blue-200 bg-blue-50 text-slate-800":isPprGridKey(key)?"border-emerald-200 bg-emerald-50 text-slate-800":"border-slate-300 bg-white text-slate-700")} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
                   <div className="flex min-h-[28px] w-full min-w-0 items-center gap-0.5">
                     <button type="button"
                       title={`Sort ${label} ${sorted&&sortDirection==="asc"?"descending":"ascending"}`}
@@ -1628,10 +1628,10 @@ export default function TransportWorkspace(){
           </thead>
 
           <tbody>
-            {gridRows.map(r=><tr key={r.id} className={`h-[26px] align-middle odd:bg-white even:bg-slate-50/45 hover:bg-blue-50/45 transition-colors`}>
+            {gridRows.map(r=><tr key={r.id} className={`align-middle transition-colors ${tripTheme==='theme3'?'h-[30px] odd:bg-white even:bg-emerald-50/35 hover:bg-emerald-100/70':tripTheme==='theme2'?'h-[22px] odd:bg-white even:bg-sky-50/55 hover:bg-sky-100/70':'h-[26px] odd:bg-white even:bg-slate-50/45 hover:bg-blue-50/45'}`}>
               <td
                 style={tripColumnWidths[orderedGridColumns[0]?.[0]??""]?{width:tripColumnWidths[orderedGridColumns[0]?.[0]??""],minWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""]}:undefined}
-                className="!sticky left-0 z-30 h-[26px] max-h-[26px] overflow-hidden whitespace-nowrap border-b border-r border-slate-200 bg-white px-1.5 !py-0 font-bold leading-tight text-slate-900 shadow-[2px_0_3px_rgba(15,23,42,0.06)]">
+                className={`!sticky left-0 z-30 overflow-hidden whitespace-nowrap border-b border-r px-1.5 !py-0 font-bold leading-tight shadow-[2px_0_3px_rgba(15,23,42,0.06)] ${tripTheme==='theme3'?'h-[30px] max-h-[30px] border-emerald-200 bg-[#ecfdf5] text-emerald-950':tripTheme==='theme2'?'h-[22px] max-h-[22px] border-sky-200 bg-[#eff6ff] text-slate-900':'h-[26px] max-h-[26px] border-slate-200 bg-white text-slate-900'}`}>
   <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
     className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
@@ -1646,7 +1646,7 @@ export default function TransportWorkspace(){
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`h-[26px] max-h-[26px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-slate-200 px-1.5 !py-0 leading-tight ${isSupplierGridKey(key)?"bg-rose-50/55":isCustomerGridKey(key)?"bg-blue-50/45":isPprGridKey(key)?"bg-emerald-50/50":""} ${numeric?"text-right font-medium":""}`}>
+                  className={`overflow-hidden text-ellipsis whitespace-nowrap border-b border-r px-1.5 !py-0 leading-tight ${tripTheme==='theme3'?(isSupplierGridKey(key)?"h-[30px] max-h-[30px] border-orange-100 bg-orange-50/80":isCustomerGridKey(key)?"h-[30px] max-h-[30px] border-emerald-100 bg-emerald-50/80":isPprGridKey(key)?"h-[30px] max-h-[30px] border-teal-100 bg-teal-50/80":"h-[30px] max-h-[30px] border-slate-200 bg-white/80"):tripTheme==='theme2'?(isSupplierGridKey(key)?"h-[22px] max-h-[22px] border-amber-100 bg-amber-50":isCustomerGridKey(key)?"h-[22px] max-h-[22px] border-sky-100 bg-sky-50":isPprGridKey(key)?"h-[22px] max-h-[22px] border-emerald-100 bg-emerald-50":"h-[22px] max-h-[22px] border-slate-200 bg-white"):(isSupplierGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-rose-50/55":isCustomerGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-blue-50/45":isPprGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-emerald-50/50":"h-[26px] max-h-[26px] border-slate-200")} ${numeric?"text-right font-medium":""}`}>
                   {key==='charge'
                     ?<button type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
                     :key==='supplier_charges'
