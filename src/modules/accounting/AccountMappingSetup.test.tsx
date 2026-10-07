@@ -8,9 +8,9 @@ vi.mock('@/lib/accountService',async original=>({...await original<any>(),listAc
 afterEach(cleanup);
 it('marks an invalid mapped account and excludes it from configured count',async()=>{
  mock.account.is_active=false;render(<AccountMappingSetup/>);
- await screen.findByText('Invalid');expect(screen.getByText('0 / 17')).toBeTruthy();expect(screen.queryByText('Mapped')).toBeNull();
+ await screen.findByText('Invalid');expect(screen.getByText('0 / 19')).toBeTruthy();expect(screen.queryByText('Mapped')).toBeNull();
 });
 it('counts a valid active posting account as configured',async()=>{
  mock.account.is_active=true;render(<AccountMappingSetup/>);
- await screen.findByText('Mapped');expect(screen.getByText('1 / 17')).toBeTruthy();expect(screen.queryByText('Invalid')).toBeNull();
+ await screen.findByText('Mapped');expect(screen.getByText('1 / 19')).toBeTruthy();expect(screen.queryByText('Invalid')).toBeNull();
 });
