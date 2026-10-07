@@ -84,12 +84,16 @@ function shellLabel(label:string):string{
   return label.replace(/\s\/\s(?=[\u0600-\u06FF]).*$/u,"").trim();
 }
 function matches(n:NavNode,path:string):boolean {
-  const [pathname,search='']=path.split('?');
+  const question=path.indexOf('?'),pathname=question>=0?path.slice(0,question):path,search=question>=0?path.slice(question+1):'';
   let active=false;
-  if(n.to?.startsWith('/transport?')&&pathname==='/transport') {
-    const target=new URLSearchParams(n.to.split('?')[1]),current=new URLSearchParams(search);
-    active=target.has('panel')?current.get('panel')===target.get('panel'):!current.has('panel')&&(current.get('view')??'trips')===target.get('view');
-  } else if(n.to) active=pathname===n.to||(!n.end&&n.to!=='/'&&pathname.startsWith(n.to+'/'));
+  if(n.to){
+    const targetQuestion=n.to.indexOf('?'),targetPath=targetQuestion>=0?n.to.slice(0,targetQuestion):n.to,targetSearch=targetQuestion>=0?n.to.slice(targetQuestion+1):'';
+    const pathMatch=pathname===targetPath||(!n.end&&targetPath!=='/'&&pathname.startsWith(targetPath+'/'));
+    if(pathMatch&&targetSearch){
+      const target=new URLSearchParams(targetSearch),current=new URLSearchParams(search);
+      active=[...target.entries()].every(([key,value])=>current.get(key)===value);
+    }else active=pathMatch;
+  }
   return active||Boolean(n.children?.some(child=>matches(child,path)));
 }
 function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],unitType:string|undefined,permissions:PermissionMatrix|undefined,isFeatureEnabled:(key:string)=>boolean):NavNode|null{
@@ -157,7 +161,7 @@ export default function Layout({children}:{children:ReactNode}){
     const active=matches(n,location.pathname+location.search),has=Boolean(n.children?.length),expanded=open[n.key]??active,Icon=n.icon;
     if(has)return <div key={n.key}><button type="button" title={collapsed?shellLabel(n.label):undefined} aria-label={shellLabel(n.label)} aria-expanded={expanded&&(!collapsed||mobileOpen)} onClick={()=>{if(collapsed&&!mobileOpen){setCollapsed(false);setOpen(v=>({...v,[n.key]:true}));}else setOpen(v=>({...v,[n.key]:!expanded}));}} className={`navilo-nav-group flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${d===0?"text-[13px] font-bold":"text-[12.5px] font-semibold"} ${active?"is-active bg-white/[0.10] text-white":"text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"}`}>{Icon&&<Icon className="h-4 w-4 shrink-0"/>}<span className={`min-w-0 flex-1 truncate ${collapsed?"lg:hidden":""}`}>{shellLabel(n.label)}</span><Lucide.ChevronDown className={`h-3.5 w-3.5 shrink-0 ${collapsed?"lg:hidden":""} ${expanded?"rotate-180":""}`}/></button>{expanded&&(!collapsed||mobileOpen)&&<div className={`${d===0?"ml-4":"ml-3"} mt-1 border-l border-white/10 pl-2`}>{n.children?.map(c=>render(c,d+1))}</div>}</div>;
     if(!n.to)return null;
-    return <NavLink key={n.key} to={n.to} end={n.end} aria-current={n.to.startsWith("/transport?")?(active?"page":false):undefined} title={collapsed?shellLabel(n.label):undefined} aria-label={shellLabel(n.label)} onClick={()=>{if(mobileOpen)setMobileOpen(false)}} className={({isActive})=>`navilo-nav-link flex min-h-8 items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold transition-colors duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${(n.to?.startsWith("/transport?")?active:isActive)?"is-active bg-blue-600 text-white shadow-sm shadow-blue-950/20":"text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"}`}>{Icon&&<Icon className="h-4 w-4 shrink-0"/>}<span className={`truncate ${collapsed?"lg:hidden":""}`}>{shellLabel(n.label)}</span></NavLink>;
+    return <NavLink key={n.key} to={n.to} end={n.end} aria-current={n.to.includes("?")?(active?"page":false):undefined} title={collapsed?shellLabel(n.label):undefined} aria-label={shellLabel(n.label)} onClick={()=>{if(mobileOpen)setMobileOpen(false)}} className={({isActive})=>`navilo-nav-link flex min-h-8 items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold transition-colors duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${(n.to?.includes("?")?active:isActive)?"is-active bg-blue-600 text-white shadow-sm shadow-blue-950/20":"text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"}`}>{Icon&&<Icon className="h-4 w-4 shrink-0"/>}<span className={`truncate ${collapsed?"lg:hidden":""}`}>{shellLabel(n.label)}</span></NavLink>;
   };
   const side=collapsed?"lg:w-[68px]":"lg:w-[252px]",offset=collapsed?"lg:ml-[68px]":"lg:ml-[252px]";
   if(standaloneTransportMobile)return <div className="min-h-dvh bg-slate-100 text-slate-900">
