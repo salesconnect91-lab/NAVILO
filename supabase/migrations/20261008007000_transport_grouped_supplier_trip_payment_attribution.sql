@@ -1,6 +1,6 @@
 -- Fix grouped Supplier invoice payment/balance attribution at Trip level.
 -- Canonical AP/payment allocations remain document-level; this view only apportions them for Transport reporting.
-create or replace view public.transport_supplier_trip_document_balances
+create view public.transport_supplier_trip_document_balances
 with (security_invoker=true) as
 select
  l.company_id,l.business_unit_id,l.trip_id,l.rent_id,d.purchase_order_id,
