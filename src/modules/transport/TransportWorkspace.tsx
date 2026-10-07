@@ -1198,7 +1198,7 @@ export default function TransportWorkspace(){
     ["trip_date","Date"],
     ["truck_type","Truck Type"],
     ["job_no","PO/DO/Job No."],
-    ["invoice_no","Invoice"],
+    ["invoice_no","Customer Invoice"],
     ["company","Customer"],
     ["driver","Driver"],
     ["plate","Vehicle No."],
@@ -1233,7 +1233,14 @@ export default function TransportWorkspace(){
     const byKey=new Map(gridColumns.map(column=>[column[0],column] as const));
     const order=tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0]);
     const arranged=order.map(key=>byKey.get(key)).filter((column):column is readonly [string,string]=>Boolean(column));
-    for(const column of gridColumns)if(!arranged.some(item=>item[0]===column[0]))arranged.push(column);
+    for(const column of gridColumns){
+      if(arranged.some(item=>item[0]===column[0]))continue;
+      if(column[0]==='supplier_invoice_no'){
+        const before=arranged.findIndex(item=>item[0]==='supplier_charges'||item[0]==='rent_driver');
+        if(before>=0){arranged.splice(before,0,column);continue;}
+      }
+      arranged.push(column);
+    }
     return arranged;
   },[tripColumnOrder]);
   const readCustomer=registerMeta.permissions?.customer===true;
