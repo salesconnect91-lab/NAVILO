@@ -14,7 +14,22 @@
     <title>ERP</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="navilo-boot-fallback" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f7f9;color:#475569;font:500 14px Inter,Arial,sans-serif">
+        Loading NAVILO…
+      </div>
+    </div>
+    <script>
+      window.__NAVILO_BOOT_STARTED__ = Date.now();
+      window.addEventListener("error", function () {
+        window.setTimeout(function () {
+          var root = document.getElementById("root");
+          if (root && !root.querySelector("[data-navilo-react-mounted]")) {
+            root.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f7f9;padding:24px;font:500 14px Arial,sans-serif;color:#334155"><div style="max-width:520px;border:1px solid #fecaca;background:#fff;padding:18px;border-radius:10px"><strong style="display:block;color:#991b1b;margin-bottom:8px">NAVILO could not start</strong><span>Please reload the page. If this remains visible, the application startup file failed to load.</span></div></div>';
+          }
+        }, 0);
+      }, true);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
