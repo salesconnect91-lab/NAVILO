@@ -15,10 +15,10 @@ import useTransportMasterClient from "./useTransportMasterClient";
 type Kind = "vehicles" | "drivers";
 type Row = { id: string; name: string; detail: string; mobile: string; owner: string; active: boolean;
   truckTypeId: string; ownerType: string; supplierId: string; driverType: string;
-  identityNo: string; licenceNo: string; licenceExpiry: string };
+  identityNo: string; licenceNo: string; licenceExpiry: string; employeeId: string };
 type Option = { id: string; name: string; is_active: boolean };
 const EMPTY = { name: "", detail: "", mobile: "", truckTypeId: "", ownerType: "company", supplierId: "",
-  driverType: "company", identityNo: "", licenceNo: "", licenceExpiry: "", effectiveFrom: "" };
+  driverType: "company", employeeId: "", identityNo: "", licenceNo: "", licenceExpiry: "", effectiveFrom: "" };
 
 export default function TransportMaster({ kind, quickCreate }: { kind: Kind; quickCreate?: MasterQuickCreate }) {
   const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
@@ -26,7 +26,7 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
   const vehicle = kind === "vehicles";
   const [rows, setRows] = useState<Row[]>([]);
   const [truckTypes, setTruckTypes] = useState<Option[]>([]);
-  const [suppliers, setSuppliers] = useState<Option[]>([]);
+  const [suppliers, setSuppliers] = useState<Option[]>([]);\n  const [employees, setEmployees] = useState<Option[]>([]);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [error, setError] = useState("");
@@ -47,7 +47,7 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
   const load = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const [records, types, parties, history] = await Promise.all([
+      const [records, types, parties, history, employeeRows] = await Promise.all([
         fetchAllPages<any>((start, end) => supabase.from(vehicle ? "transport_vehicles" : "transport_drivers")
           .select("*").order("id").range(start, end)),
         vehicle ? fetchAllPages<Option>((start, end) => supabase.from("transport_truck_types")
@@ -66,7 +66,7 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
         detail: vehicle ? x.truck_type ?? "" : x.driver_code ?? "", mobile: x.mobile ?? "",
         owner: current?.owner_name_snapshot ?? (saved.length ? "No current ownership period" : x.owner_name ?? ""), active: x.is_active, truckTypeId: x.truck_type_id ?? "",
         ownerType: current ? (current.owner_type === "third_party" ? "supplier" : "company") : saved.length ? "" : x.ownership_type ?? "", supplierId: current ? current.supplier_id ?? "" : saved.length ? "" : x.supplier_id ?? "", driverType: x.driver_type ?? "",
-        identityNo: x.identity_no ?? "", licenceNo: x.driving_licence_no ?? "", licenceExpiry: x.licence_expiry ?? "" }; }));
+        identityNo: x.identity_no ?? "", licenceNo: x.driving_licence_no ?? "", licenceExpiry: x.licence_expiry ?? "", employeeId: x.employee_id ?? "" }; }));
     } catch (failure: any) { setRows([]); setTruckTypes([]); setSuppliers([]); setError(failure.message ?? "Unable to load masters."); }
     finally { setLoading(false); }
   }, [supabase, vehicle]);
@@ -88,7 +88,7 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
     if (vehicle && !editing && (!canAddOwner || !form.effectiveFrom)) return setError("Owner-history permission and actual Effective From date are required.");
     const supplierRequired = vehicle ? !editing && form.ownerType === "supplier" : form.driverType === "supplier";
     if (supplierRequired && !form.supplierId) return setError("Select the Supplier.");
-    if (!vehicle && !form.driverType) return setError("Select Company Driver or Supplier Driver.");
+    if (!vehicle && !form.driverType) return setError("Select Company Driver or Supplier Driver.");\n    if (!vehicle && form.driverType === "company" && !form.employeeId) return setError("Select the Employee for a Company Driver.");
     submitting.current=true; setSaving(true);
     try {
       const result = createdRecord.current ? {data:createdRecord.current.id,error:null} : vehicle
@@ -150,9 +150,9 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
           {vehicle ? <label className="text-xs font-semibold">Truck Type<select className="input mt-1 w-full" value={form.truckTypeId} onChange={e => setForm({ ...form, truckTypeId: e.target.value })}><option value="">Select Truck Type</option>{truckTypes.filter(t => t.is_active || t.id === form.truckTypeId).map(t => <option key={t.id} value={t.id}>{t.name}{!t.is_active ? " (Inactive)" : ""}</option>)}</select></label>
             : <label className="text-xs font-semibold">Driver Code<input className="input mt-1 w-full" value={form.detail} onChange={e => setForm({ ...form, detail: e.target.value })} /></label>}
           {vehicle && editing ? <div className="text-xs sm:col-span-2">Owner: {partyName(editing) || "Legacy / not classified"}. <Link className="text-blue-700 underline" to="/master-data/vehicle-ownership">Change through Vehicle Ownership History</Link></div>
-            : <><label className="text-xs font-semibold">{vehicle ? "Ownership Type" : "Driver Type"}<select required className="input mt-1 w-full" value={vehicle ? form.ownerType : form.driverType} onChange={e => setForm({ ...form, ...(vehicle ? { ownerType: e.target.value } : { driverType: e.target.value }), supplierId: "" })}>
+            : <><label className="text-xs font-semibold">{vehicle ? "Ownership Type" : "Driver Type"}<select required className="input mt-1 w-full" value={vehicle ? form.ownerType : form.driverType} onChange={e => setForm({ ...form, ...(vehicle ? { ownerType: e.target.value } : { driverType: e.target.value, employeeId: "" }), supplierId: "" })}>
               <option value="">Select type</option><option value="company">{vehicle ? "Company Owned" : "Company Driver"}</option><option value="supplier">{vehicle ? "Supplier Owned" : "Supplier Driver"}</option></select></label>
-              {(vehicle ? form.ownerType : form.driverType) === "supplier" && <label className="text-xs font-semibold">Supplier *<select required className="input mt-1 w-full" value={form.supplierId} onChange={e => setForm({ ...form, supplierId: e.target.value })}><option value="">Select Supplier</option>{supplierOptions.map(s => <option key={s.id} value={s.id}>{s.name}{!s.is_active ? " (Inactive)" : ""}</option>)}</select></label>}</>}
+              {!vehicle && form.driverType === "company" && <label className="text-xs font-semibold">Employee *<select required className="input mt-1 w-full" value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}><option value="">Select Employee</option>{employees.filter(e => e.is_active || e.id === form.employeeId).map(e => <option key={e.id} value={e.id}>{e.name}{!e.is_active ? " (Inactive)" : ""}</option>)}</select></label>}\n              {(vehicle ? form.ownerType : form.driverType) === "supplier" && <label className="text-xs font-semibold">Supplier *<select required className="input mt-1 w-full" value={form.supplierId} onChange={e => setForm({ ...form, supplierId: e.target.value })}><option value="">Select Supplier</option>{supplierOptions.map(s => <option key={s.id} value={s.id}>{s.name}{!s.is_active ? " (Inactive)" : ""}</option>)}</select></label>}</>}
           {vehicle && !editing && <label className="text-xs font-semibold">Ownership Effective From *<NaviloDateInput required type="date" className="input mt-1 w-full" value={form.effectiveFrom} onChange={e => setForm({ ...form, effectiveFrom: e.target.value })} /></label>}
           {!vehicle && <><label className="text-xs font-semibold">Mobile<input className="input mt-1 w-full" value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} /></label>
             <label className="text-xs font-semibold">ID / CNIC / Iqama<input className="input mt-1 w-full" value={form.identityNo} onChange={e => setForm({ ...form, identityNo: e.target.value })} /></label>
