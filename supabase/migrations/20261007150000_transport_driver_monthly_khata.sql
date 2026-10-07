@@ -57,4 +57,21 @@ begin perform public.transport_finance_assert('driver');perform public.assert_mo
  return v||jsonb_build_object('locked',true,'journal_entry_id',je,'entry_no',jno);
 end $$;
 grant execute on function public.transport_driver_post_month(uuid,date) to authenticated;
-create or replace function public.transport_driver_locked_month_guard() returns trigger language plpgsql set search_path=public,pg_temp as $\ndeclare old_emp uuid; new_emp uuid;\nbegin\n select employee_id into old_emp from public.transport_drivers where id=old.driver_id;select employee_id into new_emp from public.transport_drivers where id=new.driver_id;\n if (old.trip_date is distinct from new.trip_date or old.driver_id is distinct from new.driver_id or old.driver_pay is distinct from new.driver_pay) and (exists(select 1 from public.transport_driver_month_closings c where c.company_id=old.company_id and c.business_unit_id=old.business_unit_id and c.operating_location_id=old.operating_location_id and c.employee_id=old_emp and c.month=date_trunc('month',old.trip_date)::date) or exists(select 1 from public.transport_driver_month_closings c where c.company_id=new.company_id and c.business_unit_id=new.business_unit_id and c.operating_location_id=new.operating_location_id and c.employee_id=new_emp and c.month=date_trunc('month',new.trip_date)::date)) then raise exception 'Driver month is posted and locked. Reverse/correct the monthly closing before changing Trip date, driver or Driver Pay.';end if;return new;end $;\ndrop trigger if exists transport_driver_locked_month_guard on public.transport_trips;create trigger transport_driver_locked_month_guard before update of trip_date,driver_id,driver_pay on public.transport_trips for each row execute function public.transport_driver_locked_month_guard();\ncommit;
+create or replace function public.transport_driver_locked_month_guard() returns trigger
+language plpgsql set search_path=public,pg_temp as $$
+declare old_emp uuid; new_emp uuid;
+begin
+ select employee_id into old_emp from public.transport_drivers where id=old.driver_id;
+ select employee_id into new_emp from public.transport_drivers where id=new.driver_id;
+ if (old.trip_date is distinct from new.trip_date or old.driver_id is distinct from new.driver_id or old.driver_pay is distinct from new.driver_pay)
+ and (
+   exists(select 1 from public.transport_driver_month_closings c where c.company_id=old.company_id and c.business_unit_id=old.business_unit_id and c.operating_location_id=old.operating_location_id and c.employee_id=old_emp and c.month=date_trunc('month',old.trip_date)::date)
+   or exists(select 1 from public.transport_driver_month_closings c where c.company_id=new.company_id and c.business_unit_id=new.business_unit_id and c.operating_location_id=new.operating_location_id and c.employee_id=new_emp and c.month=date_trunc('month',new.trip_date)::date)
+ ) then
+   raise exception 'Driver month is posted and locked. Reverse/correct the monthly closing before changing Trip date, driver or Driver Pay.';
+ end if;
+ return new;
+end $$;
+drop trigger if exists transport_driver_locked_month_guard on public.transport_trips;
+create trigger transport_driver_locked_month_guard before update of trip_date,driver_id,driver_pay on public.transport_trips for each row execute function public.transport_driver_locked_month_guard();
+commit;
