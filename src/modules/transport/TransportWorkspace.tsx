@@ -1719,6 +1719,100 @@ export default function TransportWorkspace(){
           font-size: 10.5px !important;
           border-radius: 2px !important;
         }
+
+        /* Theme layout identities: 2/3/4 intentionally change composition, not only palette. */
+        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-topbar {
+          justify-content: flex-start !important;
+          gap: 18px !important;
+          padding: 0 8px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-topbar > div:last-child {
+          margin-left: auto !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar {
+          display: grid !important;
+          grid-template-columns: 92px 112px minmax(190px,1fr) 190px minmax(250px,1.35fr) auto auto auto !important;
+          align-items: center !important;
+          margin: 0 !important;
+          padding: 5px 6px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar > * {
+          min-width: 0 !important;
+          width: 100% !important;
+          height: 30px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar > form {
+          width: 100% !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-trips-scrollport {
+          margin: 0 !important;
+          border-left: 5px solid #1d4ed8 !important;
+        }
+
+        [data-navilo-transport-register][data-navilo-theme="theme3"] {
+          padding: 10px !important;
+          gap: 8px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-topbar {
+          margin: 0 !important;
+          border-radius: 14px !important;
+          box-shadow: 0 8px 22px rgba(6,78,59,.18) !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar {
+          display: flex !important;
+          justify-content: center !important;
+          align-items: center !important;
+          margin: 0 !important;
+          padding: 10px 12px !important;
+          min-height: 58px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar > form {
+          order: -1 !important;
+          flex: 1 1 390px !important;
+          max-width: 520px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar > div:first-child {
+          min-width: 112px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-trips-scrollport {
+          margin: 0 !important;
+          border-radius: 14px !important;
+          box-shadow: 0 8px 22px rgba(15,23,42,.08) !important;
+        }
+
+        [data-navilo-transport-register][data-navilo-theme="theme4"] {
+          padding: 6px !important;
+          gap: 4px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-topbar {
+          margin: 0 0 4px !important;
+          padding: 0 12px !important;
+          justify-content: space-between !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar {
+          display: grid !important;
+          grid-template-columns: 110px 130px minmax(250px,1fr) 210px minmax(280px,1.2fr) 150px 190px !important;
+          align-items: stretch !important;
+          margin: 0 0 4px !important;
+          padding: 8px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar > * {
+          min-width: 0 !important;
+          width: 100% !important;
+          height: 34px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar > form {
+          grid-column: span 2 !important;
+          width: 100% !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-trips-scrollport {
+          margin: 0 !important;
+          border: 2px solid #8b6b32 !important;
+          border-top: 5px double #8b6b32 !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] thead {
+          letter-spacing: .045em !important;
+        }
       `}</style>
       <div className={`navilo-transport-topbar relative z-[90] flex shrink-0 items-center justify-between px-3 text-white ${tripTheme==='theme3'?'h-10 bg-gradient-to-r from-[#111827] via-[#16302b] to-[#0f3d34]':tripTheme==='theme2'?'h-9 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950':'h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]'}`}>
         <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
