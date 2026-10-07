@@ -1,5 +1,6 @@
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
+import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -179,6 +180,7 @@ export default function BalanceSheet() {
   const [reportPrintSettings, setReportPrintSettings] = useState<any>(null);
   const [asOfDate, setAsOfDate] = useState(getLocalToday);
   const [hideZeroBalances, setHideZeroBalances] = useState(true);
+  const [scope,setScope]=useState<AccountingReportScope>('branch');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchBalanceSheet = useCallback(async () => {
@@ -197,7 +199,7 @@ export default function BalanceSheet() {
             .order("id",{ascending:true})
             .range(fromRow,toRow)
         ),
-        (async()=>{const r=await supabase.rpc('accounting_report_balances',{p_from:null,p_to:asOfDate,p_exclude_closing:false});if(r.error)throw r.error;return r.data||[]})(),
+        (async()=>{const r=await supabase.rpc('accounting_report_balances_scoped',{p_from:null,p_to:asOfDate,p_exclude_closing:false,p_scope:scope});if(r.error)throw r.error;return r.data||[]})(),
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load balance sheet.");
@@ -376,7 +378,7 @@ export default function BalanceSheet() {
     setEquity({ total: equityList.reduce((sum, item) => sum + item.amount, 0), items: equityList });
     setLastUpdated(new Date());
     setLoading(false);
-  }, [asOfDate, hideZeroBalances]);
+  }, [asOfDate, hideZeroBalances, scope]);
 
   useEffect(() => {
     void loadDocumentPrintSettings("reports")
