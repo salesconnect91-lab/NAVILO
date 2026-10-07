@@ -109,6 +109,7 @@ export const FEATURE_REGISTRY: FeatureDefinition[] = [
   { key:"exceptions-report", module:"reports", label:"Exceptions", category:"report", route:"/reports/exceptions", actions:report, sortOrder:1250 },
   { key:"service-charges-report", module:"reports", label:"Service Charges", category:"report", route:"/reports/service-charges", actions:report, sortOrder:1260 },
   { key:"gate-pass-report", module:"reports", label:"Gate Pass Report", category:"report", route:"/reports/gate-pass", actions:report, sortOrder:1270 },
+  { key:"transport-reports", module:"reports", label:"Transport Reports", category:"report", route:"/reports/transport", actions:report, businessUnitTypes:["transport"], defaultEnabled:true, sortOrder:1280 },
   { key:"company-settings", module:"settings", label:"Company Settings", category:"settings", route:"/settings", actions:setup, sortOrder:1300 },
   { key:"access-settings", module:"settings", label:"Users & Branches", category:"settings", route:"/settings/access", description:"Company user, role, permission and branch access management.", actions:["view","create","edit","delete"], sortOrder:1305 },
   { key:"approval-settings", module:"settings", label:"Approval Workflows", category:"settings", route:"/settings/approvals", description:"Maker-checker workflow, threshold and decision controls.", actions:["view","create","edit","delete","post"], sortOrder:1307 },
