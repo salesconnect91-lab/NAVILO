@@ -1,6 +1,7 @@
 import TransportContributionSummary from '../transport/TransportContributionSummary';
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
+import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -143,6 +144,7 @@ export default function ProfitLoss() {
   const [fromDate, setFromDate] = useState(getYearStart);
   const [toDate, setToDate] = useState(getLocalToday);
   const [hideZeroBalances, setHideZeroBalances] = useState(true);
+  const [scope,setScope]=useState<AccountingReportScope>('branch');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reportPrintSettings, setReportPrintSettings] = useState<any>(null);
@@ -171,7 +173,7 @@ export default function ProfitLoss() {
             .order("id",{ascending:true})
             .range(fromRow,toRow)
         ),
-        (async()=>{const r=await supabase.rpc('accounting_report_balances',{p_from:fromDate,p_to:toDate,p_exclude_closing:true});if(r.error)throw r.error;return r.data||[]})(),
+        (async()=>{const r=await supabase.rpc('accounting_report_balances_scoped',{p_from:fromDate,p_to:toDate,p_exclude_closing:true,p_scope:scope});if(r.error)throw r.error;return r.data||[]})(),
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load Profit & Loss statement.");
@@ -279,7 +281,7 @@ export default function ProfitLoss() {
     setData(next);
     setLastUpdated(new Date());
     setLoading(false);
-  }, [fromDate, toDate, hideZeroBalances]);
+  }, [fromDate, toDate, hideZeroBalances, scope]);
 
   useEffect(() => {
     void loadDocumentPrintSettings("reports").then(setReportPrintSettings).catch(() => setReportPrintSettings(null));
@@ -315,7 +317,7 @@ export default function ProfitLoss() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-12">
+    <div className="mx-auto max-w-5xl space-y-6 pb-12"><AccountingReportScopeSelect value={scope} onChange={setScope}/>
       <style>{`@media print{body *{visibility:hidden}#printable-profit-loss,#printable-profit-loss *{visibility:visible}#printable-profit-loss{position:absolute;left:0;top:0;width:100%}.no-print{display:none!important}}`}</style>
 
       <div id="printable-profit-loss" className="space-y-6">
