@@ -140,6 +140,15 @@ describe('Transport register server pagination',()=>{
 });
 
 describe('Transport register interactions',()=>{
+ it('shows customer and supplier invoice numbers in their own financial groups',async()=>{
+  mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_register_query'?{rows:[{id:'invoice-trip',trip_no:'INV-TRIP',trip_date:'2026-10-01',status:'locked',invoice_no:'TR-S000010',supplier_invoice_no:'TR-P000010'}],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:true,error:null}));
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText('INV-TRIP');
+  expect(screen.getByTitle('Sort Customer Invoice ascending')).toBeTruthy();
+  expect(screen.getByTitle('Sort Supplier Invoice ascending')).toBeTruthy();
+  expect(screen.getByRole('button',{name:'Open Invoice Number INV-TRIP'}).textContent).toContain('TR-S000010');
+  expect(screen.getByText('TR-P000010')).toBeTruthy();
+ });
  it('fits the register to remaining viewport height and recalculates after resize',async()=>{
   const height=window.innerHeight;
   const rect=vi.spyOn(HTMLElement.prototype,'getBoundingClientRect').mockImplementation(function(this:HTMLElement){
