@@ -1887,6 +1887,27 @@ export default function TransportWorkspace(){
             gap: 0 !important;
           }
         }
+
+        /* Theme 1: slightly stronger grid definition and one-step larger trip rows/type. */
+        [data-navilo-transport-register][data-navilo-theme="theme1"] .navilo-transport-trips-scrollport {
+          border-color: #94a3b8 !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme1"] .navilo-transport-trips-scrollport table {
+          font-size: 11px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme1"] .navilo-transport-trips-scrollport th,
+        [data-navilo-transport-register][data-navilo-theme="theme1"] .navilo-transport-trips-scrollport td {
+          border-color: #94a3b8 !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme1"] .navilo-transport-trips-scrollport tbody tr {
+          height: 26px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme1"] .navilo-transport-trips-scrollport tbody td {
+          height: 26px !important;
+          padding-top: 3px !important;
+          padding-bottom: 3px !important;
+          font-size: 11px !important;
+        }
       `}</style>
       <div className={`navilo-transport-topbar relative z-[90] flex shrink-0 items-center justify-between px-3 text-white ${tripTheme==='theme3'?'h-10 bg-gradient-to-r from-[#111827] via-[#16302b] to-[#0f3d34]':tripTheme==='theme2'?'h-9 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950':'h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]'}`}>
         <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
