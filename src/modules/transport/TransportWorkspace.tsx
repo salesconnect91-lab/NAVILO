@@ -15,6 +15,7 @@ import TransportInitialRate from './TransportInitialRate';
 import TransportTripCharges from './TransportTripCharges';
 import TransportSupplierCharges from './TransportSupplierCharges';
 import TransportInvoiceNumber from './TransportInvoiceNumber';
+import TransportDriverPayEditor from './TransportDriverPayEditor';
 import TransportCostUpload from './TransportCostUpload';
 import TransportHistoricalImport from './TransportHistoricalImport';
 import TransportAudit from './TransportAudit';
@@ -302,6 +303,7 @@ export default function TransportWorkspace(){
   const [quickPprDate,setQuickPprDate]=useState(new Date().toISOString().slice(0,10));
   const [quickPprFile,setQuickPprFile]=useState<File|null>(null);
   const [initialRateTrip,setInitialRateTrip]=useState<Trip|null>(null);
+  const [driverPayTrip,setDriverPayTrip]=useState<Trip|null>(null);
   const [chargeTrip,setChargeTrip]=useState<Trip|null>(null);
   const [supplierChargeTarget,setSupplierChargeTarget]=useState<{rentId:string;tripNo:string}|null>(null);
   const [showRateList,setShowRateList]=useState(false);
@@ -1417,7 +1419,8 @@ export default function TransportWorkspace(){
   return <div className={standaloneMobile?"relative min-h-dvh w-full max-w-none bg-slate-100":"relative w-full max-w-none space-y-1"} style={{width:"100%",maxWidth:"none",marginInline:0}}>
 
 
-    {chargeTrip&&<TransportTripCharges tripId={chargeTrip.id} onClose={()=>setChargeTrip(null)} onChanged={load}/>}
+    {driverPayTrip&&<TransportDriverPayEditor trip={driverPayTrip} onClose={()=>setDriverPayTrip(null)} onSaved={()=>{setDriverPayTrip(null);void load()}}/>}
+      {chargeTrip&&<TransportTripCharges tripId={chargeTrip.id} onClose={()=>setChargeTrip(null)} onChanged={load}/>}
     {supplierChargeTarget&&<TransportSupplierCharges rentId={supplierChargeTarget.rentId} tripNo={supplierChargeTarget.tripNo} onClose={()=>setSupplierChargeTarget(null)} onChanged={load}/>} 
 
     {showPartyReports&&<TransportPartyReports key={`${scopeKey}:${reportPanel}`} initialSide={reportPanel==='supplier-reports'?'supplier':'customer'} allocationEntry={reportPanel==='bulk-allocation'} onClose={()=>setTab('trips')} onChanged={load}/>}
@@ -2190,6 +2193,8 @@ export default function TransportWorkspace(){
                       </button>
                     :key==='rent_driver'&&r.customer_rate_state!==undefined
                       ?<button type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-medium leading-tight text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
+                    :key==='driver_pay'
+                      ?<button type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-semibold leading-tight text-violet-700 hover:bg-violet-100 focus-visible:outline focus-visible:outline-violet-500" aria-label={`Open Driver Pay ${r.trip_no}`} onClick={()=>setDriverPayTrip(r)}>{value||'0.00'}</button>
                     :key==='paper_received_by'
                       ?r.ppr_status==='received'
                         ?<span className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[8px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
