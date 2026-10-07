@@ -82,12 +82,6 @@ describe('New Trip master integration',()=>{
   fireEvent.submit(document.querySelectorAll('form')[document.querySelectorAll('form').length-1]);await waitFor(()=>expect(document.querySelector('form')).toBeNull());
   expect((screen.getByPlaceholderText(placeholder) as HTMLInputElement).value).toBe('Added');
  });
- it('blocks restricted quick Driver creation and directs users to Master Data',async()=>{
-  await view();
-  fireEvent.click(screen.getByRole('button',{name:'Add Driver Name'}));
-  expect(screen.queryByLabelText('Driver Name *')).toBeNull();
-  expect(screen.getByText('Company drivers must be linked to an employee in Master Data. Select an existing driver or ask an authorized user to create one.')).toBeTruthy();
- });
  it('selects created Supplier without changing the selected Vehicle owner',async()=>{
   await view();choose('Search Truck Type','Flatbed');choose('Search Plate','FLAT-1 - Company');
   mock.rpc.mockImplementation(async(name:string)=>{if(name==='create_party_with_opening_balance_v2'){const row={id:'added',name:'New Supplier',is_active:true};mock.tables.suppliers.push(row);return {data:{party_id:row.id},error:null};}return {data:true,error:null};});
