@@ -1,4 +1,32 @@
 begin;
+create or replace function public.transport_v1_stamp()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $
+begin
+ if coalesce(current_setting('app.maintenance_reset',true),'')='1' then return new; end if;
+ if tg_op='INSERT' then
+  new.company_id:=coalesce(new.company_id,public.current_company_id());
+  new.business_unit_id:=coalesce(new.business_unit_id,public.current_business_unit_id());
+  new.created_by:=coalesce(new.created_by,auth.uid());
+ end if;
+ if new.company_id is distinct from public.current_company_id() or new.business_unit_id is distinct from public.current_business_unit_id()
+ then raise exception 'Transport record must belong to active company and business unit';end if;
+ if not exists(select 1 from public.business_units where id=new.business_unit_id and company_id=new.company_id and unit_type='transport' and is_active)
+ then raise exception 'Active Transport business unit required';end if;
+ if tg_table_name='transport_trips' then
+  if tg_op='INSERT' then
+   if new.trip_no is null or btrim(new.trip_no)='' then new.trip_no:=public.next_transport_trip_no();end if;
+   new.customer_rate:=coalesce(new.customer_rate,0);
+   new.owner_rent:=coalesce(new.supplier_rent,new.owner_rent,0);
+   new.supplier_rent:=new.owner_rent;
+  else
+   if new.owner_rent is distinct from old.owner_rent then new.supplier_rent:=new.owner_rent;
+   elsif new.supplier_rent is distinct from old.supplier_rent then new.owner_rent:=coalesce(new.supplier_rent,0);end if;
+  end if;
+  new.updated_by:=auth.uid();new.updated_at:=now();
+ end if;
+ return new;
+end $;
+select set_config('app.maintenance_reset','1',true);
 alter table public.transport_trips add column if not exists operating_location_id uuid references public.operating_locations(id);
 alter table public.transport_trip_audit add column if not exists operating_location_id uuid references public.operating_locations(id);
 alter table public.transport_trip_expenses add column if not exists operating_location_id uuid references public.operating_locations(id);
@@ -26,6 +54,7 @@ do $$ begin
  end if;
 end $$;
 alter table public.transport_trips alter column operating_location_id set not null;
+select set_config('app.maintenance_reset','0',true);
 
 update public.transport_trip_audit a set operating_location_id=t.operating_location_id
 from public.transport_trips t where a.trip_id=t.id and a.operating_location_id is null;
