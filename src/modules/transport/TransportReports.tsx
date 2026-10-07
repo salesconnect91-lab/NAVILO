@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useState} from 'react';
 import {useSearchParams} from 'react-router-dom';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import TransportPartyReports from './TransportPartyReports';
@@ -12,14 +12,13 @@ const validModes=new Set<Mode>(['party','driver','vehicle','trips','profit']);
 export default function TransportReports(){
  const [params,setParams]=useSearchParams();
  const requested=params.get('mode') as Mode|null;
+ const mode:Mode=requested&&validModes.has(requested)?requested:'party';
  const requestedSide=params.get('side')==='supplier'?'supplier':'customer';
- const [mode,setMode]=useState<Mode>(requested&&validModes.has(requested)?requested:'party');
  const [from,setFrom]=useState('');const [to,setTo]=useState(new Date().toISOString().slice(0,10));
- useEffect(()=>{if(requested&&validModes.has(requested))setMode(requested)},[requested]);
  function choose(next:Mode,side?:'customer'|'supplier'){
-   setMode(next);const q=new URLSearchParams(params);q.set('mode',next);
+   const q=new URLSearchParams(params);q.set('mode',next);
    if(next==='party')q.set('side',side??requestedSide);else q.delete('side');
-   setParams(q,{replace:true});
+   setParams(q,{replace:false});
  }
  return <div className="space-y-3"><h1 className="text-xl font-bold">Transport Reports</h1>
  <p className="text-xs text-slate-600">Company / Business Unit scoped Transport reporting. Financial reports use canonical posted Sales, Purchase and accounting evidence; operational reports do not create accounting entries.</p>
