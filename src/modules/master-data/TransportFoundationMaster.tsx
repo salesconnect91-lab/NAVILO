@@ -68,7 +68,7 @@ export default function TransportFoundationMaster({ kind, quickCreate }: { kind:
       <button className="btn-primary" disabled={busy}>{editing ? "Save Changes" : "Add"}</button>
       {editing && <button type="button" className="btn-secondary" onClick={reset}>Cancel</button>}
     </form>;
-  if(quickCreate)return <Modal open title={kind==="locations"?"Add Location":"Add Truck Type"} onClose={quickCreate.onClose}>{error&&<p role="alert" className="text-red-700">{error}</p>}{allowed?editor:<p role="alert">Master permission required.</p>}</Modal>;
+  if(quickCreate)return <Modal englishOnly={Boolean(quickCreate)} open title={kind==="locations"?"Add Location":"Add Truck Type"} onClose={quickCreate.onClose}>{error&&<p role="alert" className="text-red-700">{error}</p>}{allowed?editor:<p role="alert">Master permission required.</p>}</Modal>;
   return <section className="space-y-4 rounded-xl border bg-white p-4">
     <h1 className="text-xl font-bold">{names[kind]}</h1>
     {kind === "vehicle_expense_types" && <p className="text-xs text-slate-600">Trip costs affect Trip profitability. Vehicle costs belong to Vehicle accounts. Both allows either context; record each cost once. Existing unclassified types require review.</p>}
