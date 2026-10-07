@@ -1230,9 +1230,9 @@ export default function TransportWorkspace(){
   const legacyTripGridStorageKey=`navilo:transport:trip-grid:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
   const tripGridStorageKey=`navilo:transport:trip-grid:v2:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
   const tripThemeStorageKey=`navilo:transport:trip-theme:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
-  const [tripTheme,setTripTheme]=useState<'theme1'|'theme2'|'theme3'>(()=>{try{const saved=localStorage.getItem(tripThemeStorageKey);return saved==='theme2'||saved==='theme3'?saved:'theme1'}catch{return 'theme1'}});
-  useEffect(()=>{try{const saved=localStorage.getItem(tripThemeStorageKey);setTripTheme(saved==='theme2'||saved==='theme3'?saved:'theme1')}catch{setTripTheme('theme1')}},[tripThemeStorageKey]);
-  const chooseTripTheme=(next:'theme1'|'theme2'|'theme3')=>{setTripTheme(next);try{localStorage.setItem(tripThemeStorageKey,next)}catch{/* browser storage may be unavailable */}};
+  const [tripTheme,setTripTheme]=useState<'theme1'|'theme2'|'theme3'|'theme4'>(()=>{try{const saved=localStorage.getItem(tripThemeStorageKey);return saved==='theme2'||saved==='theme3'||saved==='theme4'?saved:'theme1'}catch{return 'theme1'}});
+  useEffect(()=>{try{const saved=localStorage.getItem(tripThemeStorageKey);setTripTheme(saved==='theme2'||saved==='theme3'||saved==='theme4'?saved:'theme1')}catch{setTripTheme('theme1')}},[tripThemeStorageKey]);
+  const chooseTripTheme=(next:'theme1'|'theme2'|'theme3'|'theme4')=>{setTripTheme(next);try{localStorage.setItem(tripThemeStorageKey,next)}catch{/* browser storage may be unavailable */}};
   const allOrderedGridColumns=useMemo(()=>{
     const byKey=new Map(gridColumns.map(column=>[column[0],column] as const));
     const order=tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0]);
@@ -1490,14 +1490,118 @@ export default function TransportWorkspace(){
         [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-trips-scrollport {
           scrollbar-color: #0f766e #e7efed;
         }
+
+        /* Theme 4 — premium warm ledger: ink + ivory + brass */
+        [data-navilo-transport-register][data-navilo-theme="theme4"] {
+          font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+          background: #f6f1e7 !important;
+          border: 1px solid #b89b62 !important;
+          border-radius: 2px !important;
+          box-shadow: 0 6px 22px rgba(69,49,22,.14) !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-topbar {
+          height: 42px !important;
+          background: linear-gradient(90deg,#1c1917 0%,#292524 58%,#3f2f17 100%) !important;
+          border-bottom: 3px solid #d4a72c !important;
+          color: #fff7df !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar {
+          background: #fffaf0 !important;
+          border: 1px solid #d6c39a !important;
+          border-radius: 2px !important;
+          padding: 7px !important;
+          gap: 7px !important;
+          box-shadow: inset 0 -1px 0 #ead9b5;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar > button,
+        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar > div > button {
+          height: 30px !important;
+          border-radius: 2px !important;
+          font-size: 10px !important;
+          font-weight: 800 !important;
+          box-shadow: none !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-trips-scrollport {
+          background: #fffdf7 !important;
+          border-top: 2px solid #b89b62 !important;
+          scrollbar-color: #a27b2c #f1e6cf;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] table {
+          font-family: "Trebuchet MS", "Segoe UI", sans-serif !important;
+          font-size: 10px !important;
+          letter-spacing: .005em;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] thead {
+          background: #292524 !important;
+          color: #fff7df !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] thead tr:first-child {
+          height: 34px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] thead tr:first-child th {
+          background: #292524 !important;
+          color: #f8e7b0 !important;
+          border-color: #6b5a38 !important;
+          font-size: 11px !important;
+          letter-spacing: .055em !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] thead tr:first-child th:nth-child(2) {
+          background: #4a2d18 !important;
+          color: #ffe0a3 !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] thead tr:first-child th:nth-child(3) {
+          background: #183b35 !important;
+          color: #c8f4e8 !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] thead tr:nth-child(2) th {
+          background: #f1e5cb !important;
+          color: #292524 !important;
+          border-color: #c9b27f !important;
+          min-height: 34px;
+          box-shadow: inset 0 -2px 0 #b08b3e !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] thead tr:nth-child(2) th button {
+          color: #292524 !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody tr,
+        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody td {
+          height: 27px !important;
+          max-height: 27px !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody tr:nth-child(odd) td {
+          background: #fffdf7 !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody tr:nth-child(even) td {
+          background: #f8f0df !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody tr:hover td {
+          background: #fff1bf !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody td {
+          padding-left: 6px !important;
+          padding-right: 6px !important;
+          border-color: #e0d2b4 !important;
+          color: #292524 !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody td button {
+          height: 22px !important;
+          font-size: 10px !important;
+          font-weight: 700 !important;
+        }
+        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody td:first-child {
+          background: #f4e6c5 !important;
+          color: #5c421b !important;
+          border-right: 2px solid #b89b62 !important;
+        }
       `}</style>
-      <div className={`relative z-[90] flex shrink-0 items-center justify-between px-3 text-white ${tripTheme==='theme3'?'h-10 bg-gradient-to-r from-[#111827] via-[#16302b] to-[#0f3d34]':tripTheme==='theme2'?'h-9 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950':'h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]'}`}>
+      <div className={`navilo-transport-topbar relative z-[90] flex shrink-0 items-center justify-between px-3 text-white ${tripTheme==='theme3'?'h-10 bg-gradient-to-r from-[#111827] via-[#16302b] to-[#0f3d34]':tripTheme==='theme2'?'h-9 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950':'h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]'}`}>
         <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
         <div className="flex items-center gap-1">
           <div className="mr-1 inline-flex h-7 items-center rounded-md border border-white/20 bg-black/20 p-0.5" aria-label="Trips Register theme">
             <button type="button" aria-pressed={tripTheme==='theme1'} onClick={()=>chooseTripTheme('theme1')} className={`h-6 rounded px-2 text-[9px] font-bold ${tripTheme==='theme1'?'bg-white text-slate-950 shadow-sm':'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Theme 1</button>
             <button type="button" aria-pressed={tripTheme==='theme2'} onClick={()=>chooseTripTheme('theme2')} className={`h-6 rounded px-2 text-[9px] font-bold ${tripTheme==='theme2'?'bg-blue-500 text-white shadow-sm':'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Theme 2</button>
             <button type="button" aria-pressed={tripTheme==='theme3'} onClick={()=>chooseTripTheme('theme3')} className={`h-6 rounded px-2 text-[9px] font-bold ${tripTheme==='theme3'?'bg-emerald-500 text-white shadow-sm':'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Theme 3</button>
+            <button type="button" aria-pressed={tripTheme==='theme4'} onClick={()=>chooseTripTheme('theme4')} className={`h-6 rounded px-2 text-[9px] font-bold ${tripTheme==='theme4'?'bg-amber-400 text-slate-950 shadow-sm':'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Theme 4</button>
           </div>
           <button type="button" onClick={resetGrid} className={`flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white ${tripTheme==='theme3'?'border border-emerald-600 bg-emerald-900/80 hover:bg-emerald-800':'border border-slate-500 bg-slate-900/70 hover:bg-slate-800'}`}>Reset</button>
           <button type="button" onClick={()=>void load()} disabled={registerLoading} className={`flex h-7 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold text-white ${tripTheme==='theme3'?'border border-emerald-400 bg-emerald-600 hover:bg-emerald-500':'border border-blue-500 bg-blue-600 hover:bg-blue-700'}`}><RefreshCw className="h-3 w-3"/>Refresh</button>
