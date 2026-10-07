@@ -124,8 +124,8 @@ begin
  -- Reader-only synthetic fixtures, seeded like the existing 50k benchmark;
  -- creation/posting behavior is covered independently by canonical rehearsals.
  alter table public.transport_trips disable trigger user;
- insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,customer_name_snapshot,from_location_id,to_location_id,from_location,to_location,po_do_job_no,customer_rate,sale_type,ppr_status)
- select c,b,'SORT-'||code||'-'||i,current_date,customer,'Entry Customer',from_id,to_id,'Entry From','Entry To','SORT-ONLY',i,'credit','pending' from generate_series(1,501) i;
+ insert into public.transport_trips(company_id,business_unit_id,operating_location_id,trip_no,trip_date,customer_id,customer_name_snapshot,from_location_id,to_location_id,from_location,to_location,po_do_job_no,customer_rate,sale_type,ppr_status)
+ select c,b,loc,'SORT-'||code||'-'||i,current_date,customer,'Entry Customer',from_id,to_id,'Entry From','Entry To','SORT-ONLY',i,'credit','pending' from generate_series(1,501) i;
  alter table public.transport_trips enable trigger user;
  analyze public.transport_trips;
  raise notice '501 Trips sort fixture prepared';
