@@ -21,7 +21,7 @@ end $$;
 do $$
 declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;
  code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
- customer uuid;supplier uuid;tt uuid;tt2 uuid;from_id uuid;to_id uuid;v uuid;company_v uuid;d uuid;company_d uuid;employee uuid;
+ customer uuid;supplier uuid;second_supplier uuid;tt uuid;tt2 uuid;from_id uuid;to_id uuid;v uuid;company_v uuid;d uuid;company_d uuid;employee uuid;
  ownership uuid;rate uuid;result jsonb;payload jsonb;supplier_payload jsonb;trip uuid;trip2 uuid;request_id uuid:=gen_random_uuid();number text;deleted_number text;
  other_bu uuid;foreign_v uuid;other_c uuid;other_customer uuid;before_count bigint;canonical public.customers;canonical_supplier public.suppliers;
 data jsonb;bank_account uuid;fixed_account uuid;rent uuid;second_rent uuid;bill uuid;customer_trip uuid;
@@ -71,6 +71,7 @@ begin
  execute 'set local role authenticated';
  canonical:=public.create_customer_with_ar('Entry Customer',null,'123',null);customer:=canonical.id;
  canonical_supplier:=public.create_supplier_with_ap('Entry Supplier',null,'456',null);supplier:=canonical_supplier.id;
+ select id into second_supplier from public.create_supplier_with_ap('Entry Supplier Two',null,'789',null);
  if canonical.company_id is distinct from c or canonical.account_id is distinct from ar or canonical_supplier.account_id is distinct from ap then raise exception 'Canonical party mapping/scope missing';end if;
  perform pg_temp.entry_rejected('select public.create_customer_with_ar('' entry  customer '',null,null,null)','Duplicate canonical');
  perform pg_temp.entry_rejected('select public.create_supplier_with_ap('' ENTRY SUPPLIER '',null,null,null)','Duplicate canonical');
@@ -166,7 +167,7 @@ begin
  select id into rent from public.transport_trip_supplier_rents where trip_id=trip;
  perform public.transport_post_customer_bill(trip,current_date,false);
  perform public.transport_post_supplier_bill(rent,current_date,acct,false,'Reader test');
- second_rent:=public.transport_add_supplier_rent(trip,supplier,400,'Extra supplier line');
+ second_rent:=public.transport_add_supplier_rent(trip,second_supplier,400,'Extra supplier line');
  perform public.transport_finalize_supplier_rent(second_rent,400,'Extra finalized line');
  perform public.transport_adjust_rate(trip,'supplier',0,'Full credit',current_date,rent,'Reader full credit');
  perform public.transport_adjust_rate(trip,'customer',0,'Full credit',current_date,null,'Reader full credit');
