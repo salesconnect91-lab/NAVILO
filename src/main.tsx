@@ -25,6 +25,22 @@ import "./invoiceEntryColumnWidths.css";
 import "./naviloProfessionalReports.css";
 import "./documentLanguage.css";
 
+// A deployment can replace hashed Vite chunks while an already-open browser tab still
+// holds the previous entry bundle. Recover once instead of leaving NAVILO on a spinner.
+const DEPLOY_RELOAD_KEY = "navilo.deploy-reload";
+const recoverFromStaleChunk = (event?: Event) => {
+  event?.preventDefault();
+  if (sessionStorage.getItem(DEPLOY_RELOAD_KEY) === "1") return;
+  sessionStorage.setItem(DEPLOY_RELOAD_KEY, "1");
+  window.location.reload();
+};
+window.addEventListener("vite:preloadError", recoverFromStaleChunk);
+window.addEventListener("unhandledrejection", (event) => {
+  const message = String(event.reason?.message ?? event.reason ?? "");
+  if (/Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(message)) recoverFromStaleChunk(event);
+});
+window.addEventListener("load", () => window.setTimeout(() => sessionStorage.removeItem(DEPLOY_RELOAD_KEY), 5_000), { once: true });
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
