@@ -325,7 +325,7 @@ export default function Customers({ quickCreate, transportEnglishOnly = false }:
     { key: "actions", label: "Actions", className: "text-right", render: (r) => <div className="flex justify-end gap-2"><button onClick={() => openEdit(r)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Pencil className="h-3.5 w-3.5" />Edit</button><button onClick={() => setDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Power className="h-3.5 w-3.5" />{r.is_active === false ? "Activate" : "Deactivate"}</button><button onClick={() => setHardDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600"><Trash2 className="h-3.5 w-3.5" />Delete</button></div> },
   ];
 
-  const editor = <Modal open={modalOpen} title={editing ? "Edit Customer" : "New Customer"} onClose={closeEditor}>
+  const editor = <Modal englishOnly={transportEnglishOnly} open={modalOpen} title={editing ? "Edit Customer" : "New Customer"} onClose={closeEditor}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {quickCreate && error && <ErrorBanner message={error} />}
         <div><label className="label">English Name</label><input aria-label="English Name" className="input" required value={form.name} onChange={(e) => { const name = e.target.value; setForm((f) => ({ ...f, name, name_urdu: urduTouched ? f.name_urdu : toUrduName(name) })); }} /></div>
