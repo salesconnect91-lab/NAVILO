@@ -57,6 +57,8 @@ end $$;
 alter table public.transport_trips alter column operating_location_id set not null;
 alter table public.transport_trips enable trigger user;
 select set_config('app.maintenance_reset','0',true);
+alter table public.transport_trip_audit disable trigger user;
+alter table public.transport_trip_expenses disable trigger user;
 
 update public.transport_trip_audit a set operating_location_id=t.operating_location_id
 from public.transport_trips t where a.trip_id=t.id and a.operating_location_id is null;
@@ -67,6 +69,8 @@ with only_loc as (
 where a.operating_location_id is null and a.company_id=o.company_id and a.business_unit_id=o.business_unit_id;
 update public.transport_trip_expenses e set operating_location_id=t.operating_location_id
 from public.transport_trips t where e.trip_id=t.id and e.operating_location_id is null;
+alter table public.transport_trip_audit enable trigger user;
+alter table public.transport_trip_expenses enable trigger user;
 
 create index if not exists transport_trips_branch_register_idx on public.transport_trips(company_id,business_unit_id,operating_location_id,trip_date desc,trip_no desc,id);
 create index if not exists transport_trip_audit_branch_trip_idx on public.transport_trip_audit(company_id,business_unit_id,operating_location_id,upper(btrim(trip_no)),changed_at,id);
