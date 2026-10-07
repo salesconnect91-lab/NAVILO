@@ -19,6 +19,7 @@ beforeEach(()=>{
  mock.allowed=true;mock.failCash=false;mock.failCorrection=false;mock.trips=[{...trip}];
  mock.tables={customers:[{id:'customer',name:'Customer A',is_active:true}],suppliers:[{id:'supplier-a',name:'Supplier A',is_active:true},{id:'supplier-b',name:'Supplier B',is_active:true}],
  chart_of_accounts:[{id:'expense',name:'Transport Expense',type:'expense'},{id:'cash',name:'Cash',type:'asset',detail_type:'Cash on Hand'}],
+ account_mappings:[{mapping_key:'transport_expense',account_id:'expense'}],
  transport_trip_supplier_rents:[{id:'rent-a',trip_id:'trip',supplier_id:'supplier-a',amount:70,state:'finalized'},{id:'rent-b',trip_id:'trip',supplier_id:'supplier-b',amount:30,state:'finalized'}],
  transport_supplier_document_rents:[],transport_rate_adjustments:[]};
  mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>{
@@ -67,6 +68,11 @@ describe('Compact supplier rate popup',()=>{
  });
 });
 describe('Transport Customer / Supplier bulk parity',()=>{
+ it('defaults the supplier posting account from the canonical transport expense mapping',async()=>{
+  render(<TransportBulkSupplierRent onClose={vi.fn()} onChanged={async()=>{}}/>);
+  await screen.findByRole('option',{name:'Supplier A'});
+  await waitFor(()=>expect((screen.getByLabelText('Expense account') as HTMLSelectElement).value).toBe('expense'));
+ });
  it('loads beyond the first 1000 Trips',async()=>{
   mock.trips=Array.from({length:1001},(_,i)=>({...trip,id:String(i)}));
   expect(await loadBulkTrips()).toHaveLength(1001);
