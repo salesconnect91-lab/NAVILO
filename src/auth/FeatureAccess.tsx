@@ -11,7 +11,7 @@ type FeatureAccessContextValue = {
   isFeatureEnabled:(featureKey:string, action?:FeatureAction)=>boolean;
 };
 
-const FeatureAccessContext=createContext<FeatureAccessContextValue|undefined>(undefined);
+const FeatureAccessContext=createContext<FeatureAccessContextValue|undefined>(undefined);\nconst FEATURE_ACCESS_TIMEOUT_MS=12_000;
 
 export function FeatureAccessProvider({children}:{children:ReactNode}){
   const { activeCompany, activeBusinessUnit }=useAuth();
@@ -25,16 +25,24 @@ export function FeatureAccessProvider({children}:{children:ReactNode}){
     const currentRequest=++requestId.current;
     if(!companyId){setRules(null);return;}
     setRules(null);
-    const [companyResult,unitResult]=await Promise.all([
-      supabase.from("company_feature_entitlements").select("feature_key,enabled,action_overrides").eq("company_id",companyId),
-      activeBusinessUnit?.business_unit_id
-        ? supabase.from("business_unit_feature_entitlements").select("feature_key,enabled,action_overrides").eq("company_id",companyId).eq("business_unit_id",activeBusinessUnit.business_unit_id)
-        : Promise.resolve({data:[],error:null} as {data:Entitlement[];error:null}),
-    ]);
-    if(currentRequest!==requestId.current)return;
-    setRules({scope,valid:!companyResult.error&&!unitResult.error,
-      company:new Map(((companyResult.data??[]) as Entitlement[]).map(x=>[x.feature_key,x])),
-      unit:new Map(((unitResult.data??[]) as Entitlement[]).map(x=>[x.feature_key,x]))});
+    try{
+      const request=Promise.all([
+        supabase.from("company_feature_entitlements").select("feature_key,enabled,action_overrides").eq("company_id",companyId),
+        activeBusinessUnit?.business_unit_id
+          ? supabase.from("business_unit_feature_entitlements").select("feature_key,enabled,action_overrides").eq("company_id",companyId).eq("business_unit_id",activeBusinessUnit.business_unit_id)
+          : Promise.resolve({data:[],error:null} as {data:Entitlement[];error:null}),
+      ]);
+      const timeout=new Promise<never>((_,reject)=>window.setTimeout(()=>reject(new Error("Feature access check timed out")),FEATURE_ACCESS_TIMEOUT_MS));
+      const [companyResult,unitResult]=await Promise.race([request,timeout]);
+      if(currentRequest!==requestId.current)return;
+      setRules({scope,valid:!companyResult.error&&!unitResult.error,
+        company:new Map(((companyResult.data??[]) as Entitlement[]).map(x=>[x.feature_key,x])),
+        unit:new Map(((unitResult.data??[]) as Entitlement[]).map(x=>[x.feature_key,x]))});
+    }catch(error){
+      if(currentRequest!==requestId.current)return;
+      console.error("[NAVILO feature access]",error);
+      setRules({scope,valid:false,company:new Map(),unit:new Map()});
+    }
   },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,scope]);
 
   useEffect(()=>{void refresh()},[refresh]);
