@@ -56,14 +56,23 @@ describe('Compact supplier rate popup',()=>{
   expect(mock.rpc.mock.calls.some(([name])=>name.startsWith('transport_post_supplier_bill'))).toBe(false);
   expect(mock.rpc.mock.calls.filter(([name])=>name==='transport_bulk_rate_page').every(([,args])=>args.p_filters.initialTrip==='trip')).toBe(true);
  });
- it('keeps multiple supplier rents separate and corrects only the selected posted rent',async()=>{
+ it('keeps multiple supplier rents separate and requires explicit confirmation before correcting a posted rent',async()=>{
   mock.tables.transport_supplier_document_rents=[{id:'link-a',rent_id:'rent-a'},{id:'link-b',rent_id:'rent-b'}];
   render(<TransportBulkSupplierRent compact initialTripId="trip" initialSupplierName="Supplier A" onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByLabelText('Supplier rate excluding VAT');
   fireEvent.change(screen.getByLabelText('Supplier rent'),{target:{value:'rent-b'}});
-  await waitFor(()=>expect((screen.getByLabelText('Supplier rate excluding VAT') as HTMLInputElement).value).toBe('30'));
-  fireEvent.change(screen.getByLabelText('Supplier rate excluding VAT'),{target:{value:'35'}});fireEvent.change(screen.getByLabelText('Reason'),{target:{value:'Supplier confirmation received'}});
-  fireEvent.click(screen.getByRole('button',{name:'Post Correction'}));
+  const rate=screen.getByLabelText('Supplier rate excluding VAT') as HTMLInputElement;
+  await waitFor(()=>expect(rate.value).toBe('30'));
+  expect(rate.disabled).toBe(true);
+  expect(mock.rpc.mock.calls.some(([name])=>name==='transport_adjust_rate')).toBe(false);
+  fireEvent.click(screen.getByRole('button',{name:'Create Debit/Credit Note'}));
+  expect(rate.disabled).toBe(false);
+  fireEvent.change(rate,{target:{value:'35'}});
+  fireEvent.change(screen.getByLabelText('Reason'),{target:{value:'Supplier confirmation received'}});
+  expect((screen.getByRole('button',{name:'Post Debit/Credit Note'}) as HTMLButtonElement).disabled).toBe(true);
+  expect(mock.rpc.mock.calls.some(([name])=>name==='transport_adjust_rate')).toBe(false);
+  fireEvent.click(screen.getByLabelText('Confirm supplier financial correction posting'));
+  fireEvent.click(screen.getByRole('button',{name:'Post Debit/Credit Note'}));
   await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_adjust_rate',expect.objectContaining({p_trip_id:'trip',p_rent_id:'rent-b',p_side:'supplier',p_new_rate:35})));
  });
 });
