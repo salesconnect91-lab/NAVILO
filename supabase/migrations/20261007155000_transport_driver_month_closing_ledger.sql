@@ -1,0 +1,12 @@
+begin;
+create or replace view public.transport_driver_account_movements as
+with sources as (
+ select 'accrual:'||a.id event_id,a.company_id,a.business_unit_id,a.operating_location_id,a.trip_id,s.employee_id,s.journal_entry_id,a.amount,'salary_accrual'::text event_type from public.transport_driver_accrual_attributions a join public.employee_salary_accruals s on s.id=a.accrual_id
+ union all select 'payment:'||a.id,a.company_id,a.business_unit_id,a.operating_location_id,a.trip_id,s.employee_id,s.journal_entry_id,-a.amount,'salary_payment'::text from public.transport_driver_payment_attributions a join public.employee_salary_payments s on s.id=a.salary_payment_id
+ union all select 'month:'||c.id,c.company_id,c.business_unit_id,c.operating_location_id,null::uuid,c.employee_id,c.journal_entry_id,c.trip_pay+c.allowance+c.bonus+c.other_earning-c.loan_deduction-c.other_deduction,'driver_month_closing'::text from public.transport_driver_month_closings c
+), posted as (
+ select s.*,t.trip_no,coalesce(e.name,'Payroll employee '||s.employee_id::text) party_name,j.entry_no,j.entry_date event_date,j.description,j.created_at,greatest(s.amount,0) debit,greatest(-s.amount,0) credit from sources s left join public.transport_trips t on t.id=s.trip_id and t.company_id=s.company_id and t.business_unit_id=s.business_unit_id join public.journal_entries j on j.id=s.journal_entry_id and j.status='posted' left join public.employees e on e.id=s.employee_id and e.company_id=s.company_id where s.company_id=public.current_company_id() and s.business_unit_id=public.current_business_unit_id() and s.operating_location_id=public.current_operating_location_id() and public.has_module_permission(s.company_id,'transport','view')
+)
+select event_id,company_id,business_unit_id,operating_location_id,trip_id,employee_id,party_name,journal_entry_id,amount,event_type,trip_no,entry_no,event_date,description,created_at,debit,credit from posted
+union all select p.event_id||':reversal:'||r.id,p.company_id,p.business_unit_id,p.operating_location_id,p.trip_id,p.employee_id,p.party_name,r.id,-p.amount,'reversal_'||p.event_type,p.trip_no,r.entry_no,r.entry_date,r.description,r.created_at,p.credit,p.debit from posted p join public.journal_entries r on r.reversal_of_entry_id=p.journal_entry_id and r.status='posted';
+commit;
