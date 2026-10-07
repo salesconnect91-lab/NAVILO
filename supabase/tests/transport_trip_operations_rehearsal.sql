@@ -118,6 +118,9 @@ begin
          last_company_id=excluded.last_company_id,
          last_business_unit_id=excluded.last_business_unit_id;
 
+  insert into public.operating_locations(company_id,business_unit_id,code,name,location_type,is_active)
+  values(v_company,v_bu,'HO','Head Office','branch',true);
+
   insert into public.employees(user_id,company_id,name)
   values(v_user,v_company,'Transport V1 PPR Employee')
   returning id into v_employee;
