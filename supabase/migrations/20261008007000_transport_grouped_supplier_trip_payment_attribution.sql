@@ -4,14 +4,12 @@ create view public.transport_supplier_trip_document_balances
 with (security_invoker=true) as
 select
  l.company_id,l.business_unit_id,l.trip_id,l.rent_id,d.purchase_order_id,
- round(l.amount_snapshot,2) billed_net,
- round(l.amount_snapshot+coalesce(l.vat_snapshot,0),2) billed_gross,
+ round(b.billed_net * l.amount_snapshot / nullif(sum(l.amount_snapshot) over(partition by d.purchase_order_id),0),2) billed_net,
+ round(b.billed_gross * (l.amount_snapshot+coalesce(l.vat_snapshot,0)) / nullif(sum(l.amount_snapshot+coalesce(l.vat_snapshot,0)) over(partition by d.purchase_order_id),0),2) billed_gross,
  round(
-   least(greatest(b.paid_gross-b.refunded_gross,0),b.billed_gross)
-   * greatest(b.billed_gross,0)
+   least(greatest(b.paid_gross-b.refunded_gross,0),greatest(b.billed_gross,0))
    * (l.amount_snapshot+coalesce(l.vat_snapshot,0))
    / nullif(sum(l.amount_snapshot+coalesce(l.vat_snapshot,0)) over(partition by d.purchase_order_id),0)
-   / nullif(b.billed_gross,0)
  ,2) paid_gross,
  round(
    least(greatest(b.paid_net,0),b.billed_net)
