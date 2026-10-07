@@ -36,7 +36,7 @@ const EMPTY = {
   opening_date: new Date().toISOString().slice(0, 10),
 };
 
-export default function Suppliers({ quickCreate }: { quickCreate?: MasterQuickCreate } = {}) {
+export default function Suppliers({ quickCreate, transportEnglishOnly = false }: { quickCreate?: MasterQuickCreate; transportEnglishOnly?: boolean } = {}) {
  const supabase = useTransportMasterClient();
   const { isPlatformOwner, activeCompany } = useAuth();
   const role = activeCompany?.membership_role ?? "";
@@ -318,7 +318,7 @@ export default function Suppliers({ quickCreate }: { quickCreate?: MasterQuickCr
       <form onSubmit={handleSubmit} className="space-y-4">
         {quickCreate && error && <ErrorBanner message={error} />}
         <div><label className="label">English Name</label><input aria-label="English Name" className="input" required value={form.name} onChange={(e) => { const name = e.target.value; setForm((f) => ({ ...f, name, name_urdu: urduTouched ? f.name_urdu : toUrduName(name) })); }} /></div>
-        <div data-language-code="ur"><div className="flex items-center justify-between"><label className="label">Urdu Name</label><button type="button" className="text-xs text-primary-600" onClick={() => { setUrduTouched(false); setForm((f) => ({ ...f, name_urdu: toUrduName(f.name) })); }}>Auto Urdu</button></div><input aria-label="Urdu Name" dir="rtl" className="input text-right" value={form.name_urdu} onChange={(e) => { setUrduTouched(true); setForm({ ...form, name_urdu: e.target.value }); }} placeholder="خودکار اردو نام" /></div>
+        {!transportEnglishOnly&&<div data-language-code="ur"><div className="flex items-center justify-between"><label className="label">Urdu Name</label><button type="button" className="text-xs text-primary-600" onClick={() => { setUrduTouched(false); setForm((f) => ({ ...f, name_urdu: toUrduName(f.name) })); }}>Auto Urdu</button></div><input aria-label="Urdu Name" dir="rtl" className="input text-right" value={form.name_urdu} onChange={(e) => { setUrduTouched(true); setForm({ ...form, name_urdu: e.target.value }); }} placeholder="خودکار اردو نام" /></div>}
         <div><label className="label">Email</label><input aria-label="Email" className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
         <div><label className="label">Phone</label><input aria-label="Phone" className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
         <div><label className="label">Address</label><textarea aria-label="Address" className="input" rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
