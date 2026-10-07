@@ -25,8 +25,8 @@ export default function TransportReports(){
  <div className="flex flex-wrap gap-2">
   <button className={mode==='party'&&requestedSide==='customer'?'btn-primary':'btn'} onClick={()=>choose('party','customer')}>Customer reports</button>
   <button className={mode==='party'&&requestedSide==='supplier'?'btn-primary':'btn'} onClick={()=>choose('party','supplier')}>Supplier reports</button>
-  <button className={mode==='driver'?'btn-primary':'btn'} onClick={()=>choose('driver')}>Driver statement</button>
-  <button className={mode==='vehicle'?'btn-primary':'btn'} onClick={()=>choose('vehicle')}>Vehicle statement</button>
+  <button className={mode==='driver'?'btn-primary':'btn'} onClick={()=>choose('driver')}>Company Driver Hisaab</button>
+  <button className={mode==='vehicle'?'btn-primary':'btn'} onClick={()=>choose('vehicle')}>Company Vehicle / Gari Hisaab</button>
   <button className={mode==='trips'?'btn-primary':'btn'} onClick={()=>choose('trips')}>Trip-wise reports</button>
   <button className={mode==='profit'?'btn-primary':'btn'} onClick={()=>choose('profit')}>Posted profitability</button>
  </div>
