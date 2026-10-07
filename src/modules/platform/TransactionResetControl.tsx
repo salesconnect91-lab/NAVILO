@@ -109,7 +109,7 @@ export default function TransactionResetControl({ companyId, companyName, compan
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <div className="flex items-center gap-2"><Database className="h-5 w-5 text-rose-600"/><h2 className="font-semibold text-slate-900">Reset Company Transaction Data</h2></div>
-        <p className="mt-1 max-w-3xl text-xs text-slate-500">Company: <b>{companyName}</b>. TEST company only. Reset removes transactional/test data while preserving company setup, masters, users, security and protected opening baselines.</p>
+        <p className="mt-1 max-w-3xl text-xs text-slate-500">Company: <b>{companyName}</b>. Reset is available for TEST and LIVE companies. Reset removes transactional data while preserving company setup, masters, users, security and protected opening baselines.</p>
       </div>
       <button type="button" className="btn-secondary" disabled={loading || resetting} onClick={() => void loadPreview()}>{loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4"/>}{previewRetry ? "Retrying Preview" : "Refresh Preview"}</button>
     </div>
@@ -126,11 +126,11 @@ export default function TransactionResetControl({ companyId, companyName, compan
       </div>
     </div>
     <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-      <div className="flex gap-2 text-sm font-semibold text-rose-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0"/>Reset Test Transaction Data</div>
-      <p className="mt-2 text-xs text-rose-700">Type the exact security phrase below and acknowledge the permanent removal. This action is available only to explicitly marked TEST companies.</p>
+      <div className="flex gap-2 text-sm font-semibold text-rose-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0"/>Reset Company Transaction Data</div>
+      <p className="mt-2 text-xs text-rose-700">Type the exact security phrase below and acknowledge the permanent removal. This action is available to TEST and LIVE companies. Company identity, setup and protected baselines are preserved.</p>
       <input className="input mt-3 max-w-md border-rose-300" value={confirmation} onChange={e=>setConfirmation(e.target.value)} placeholder={expected}/>
       <label className="mt-3 flex items-start gap-2 text-xs text-slate-700"><input type="checkbox" className="mt-0.5" checked={ack} onChange={e=>setAck(e.target.checked)}/><span>I understand this permanently removes the selected company&apos;s transactional/test entries.</span></label>
-      <button type="button" className="mt-3 inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40" disabled={!canReset} onClick={() => void reset()}>{resetting && <Loader2 className="h-4 w-4 animate-spin"/>}Reset Test Data</button>
+      <button type="button" className="mt-3 inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40" disabled={!canReset} onClick={() => void reset()}>{resetting && <Loader2 className="h-4 w-4 animate-spin"/>}Reset Company Data</button>
     </div>
   </section>;
 }
