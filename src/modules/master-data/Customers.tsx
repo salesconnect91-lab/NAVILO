@@ -72,7 +72,7 @@ export default function Customers({ quickCreate, transportEnglishOnly = false }:
     setLoading(false);
   }, [supabase]);
 
-  useEffect(() => { void fetchRows(); }, [fetchRows]);
+  useEffect(() => { if (!quickCreate) void fetchRows(); }, [fetchRows, quickCreate]);
 
   const openCreate = () => {
     setEditing(null);
