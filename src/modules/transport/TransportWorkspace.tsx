@@ -1813,6 +1813,80 @@ export default function TransportWorkspace(){
         [data-navilo-transport-register][data-navilo-theme="theme4"] thead {
           letter-spacing: .045em !important;
         }
+
+        /* Mobile containment: keep the register full viewport width and scroll the data grid instead of squeezing it. */
+        @media (max-width: 767px) {
+          [data-navilo-transport-register] {
+            width: 100% !important;
+            max-width: 100vw !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            border-left-width: 0 !important;
+            border-right-width: 0 !important;
+            border-radius: 0 !important;
+            overflow: hidden !important;
+          }
+          [data-navilo-transport-register] .navilo-transport-topbar {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+          }
+          [data-navilo-transport-register] .navilo-transport-topbar > div {
+            flex-shrink: 0 !important;
+          }
+          [data-navilo-transport-register] .navilo-transport-register-toolbar {
+            display: flex !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            flex-wrap: nowrap !important;
+            justify-content: flex-start !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            margin: 0 !important;
+            padding: 6px 8px !important;
+            gap: 6px !important;
+            border-radius: 0 !important;
+          }
+          [data-navilo-transport-register] .navilo-transport-register-toolbar > * {
+            width: auto !important;
+            min-width: max-content !important;
+            flex: 0 0 auto !important;
+          }
+          [data-navilo-transport-register] .navilo-transport-register-toolbar > form {
+            width: 250px !important;
+            min-width: 250px !important;
+            flex-basis: 250px !important;
+          }
+          [data-navilo-transport-register] .navilo-transport-trips-scrollport {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            overflow-x: auto !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch;
+          }
+          [data-navilo-transport-register] .navilo-transport-trips-scrollport table {
+            width: max-content !important;
+            min-width: max-content !important;
+            max-width: none !important;
+          }
+          [data-navilo-transport-register] .navilo-transport-trips-scrollport th,
+          [data-navilo-transport-register] .navilo-transport-trips-scrollport td {
+            flex-shrink: 0 !important;
+          }
+          [data-navilo-transport-register][data-navilo-theme="theme2"],
+          [data-navilo-transport-register][data-navilo-theme="theme3"],
+          [data-navilo-transport-register][data-navilo-theme="theme4"] {
+            padding: 0 !important;
+            gap: 0 !important;
+          }
+        }
       `}</style>
       <div className={`navilo-transport-topbar relative z-[90] flex shrink-0 items-center justify-between px-3 text-white ${tripTheme==='theme3'?'h-10 bg-gradient-to-r from-[#111827] via-[#16302b] to-[#0f3d34]':tripTheme==='theme2'?'h-9 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950':'h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]'}`}>
         <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
