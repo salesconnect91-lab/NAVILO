@@ -25,7 +25,7 @@ export default function TransportFoundationMaster({ kind, quickCreate }: { kind:
   const table = `transport_${kind}` as "transport_truck_types" | "transport_locations" | "transport_vehicle_expense_types";
   const role = activeBusinessUnit?.membership_role ?? activeCompany?.membership_role;
   const permissions = {...activeCompany?.permissions,...activeBusinessUnit?.permissions,transport_actions:{...((activeCompany?.permissions?.transport_actions??{}) as Record<string,boolean>),...((activeBusinessUnit?.permissions?.transport_actions??{}) as Record<string,boolean>)}};
-  const allowed = canTransportAction(role, permissions, "master_manage", isPlatformOwner);
+  const allowed = Boolean(quickCreate?.allowTransportMobileCreate) || canTransportAction(role, permissions, "master_manage", isPlatformOwner);
 
   const load = async () => {
     try {
