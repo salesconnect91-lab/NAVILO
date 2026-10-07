@@ -46,10 +46,11 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
   const metadata=masterCache.current?.scope===scopeKey&&masterCache.current.expires>Date.now()?Promise.resolve(masterCache.current.data):Promise.all([
    fetchAllPages<Supplier>((from,to)=>supabase.from('suppliers').select('id,name,is_active').eq('company_id',company).order('id').range(from,to)),
    fetchAllPages<Account>((from,to)=>supabase.from('chart_of_accounts').select('id,name,type').eq('company_id',company).eq('is_active',true).eq('is_group',false).eq('type','expense').order('id').range(from,to)),
+   fetchAllPages<{mapping_key:string;account_id:string}>((from,to)=>supabase.from('account_mappings').select('mapping_key,account_id').eq('company_id',company).eq('mapping_key','transport_expense').range(from,to)),
    Promise.all([...['rent','adjustment'].map(async action=>{const r=await supabase.rpc('transport_finance_allowed',{p_action:action});if(r.error)throw r.error;return [action,r.data===true] as const}),...['rent_finalize','rent_correct'].map(async action=>{const r=await supabase.rpc('has_transport_action_permission',{p_company_id:company,p_action:action});if(r.error)throw r.error;return [action,r.data===true] as const})]),
   ]).then(data=>{masterCache.current={scope:scopeKey,expires:Date.now()+30000,data};return data;});
   const [result,refs]=await Promise.all([resultPromise,metadata]);
-  const [ss,aa,grants]=refs;
+  const [ss,aa,mappings,grants]=refs;
   if(request!==generation.current)return;if(result.error)throw result.error;
   const data=result.data;
   const rentIds=data.rows.map((r:any)=>r.rent?.id).filter(Boolean);
@@ -63,7 +64,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
   setLegacyRents(data.rows.filter((r:any)=>r.legacyBlocked).map((r:any)=>({id:r.id,rent_state:'finalized'})));
   setSuppliers(ss.sort((a,b)=>a.name.localeCompare(b.name)));
   setRents(data.rows.filter((r:any)=>r.rent).map((r:any)=>r.rent));
-  setAccounts(aa);setPermissions(Object.fromEntries(grants));
+  setAccounts(aa);const transportExpense=mappings.find(m=>m.mapping_key==='transport_expense')?.account_id;if(transportExpense&&aa.some(a=>a.id===transportExpense))setAccount(current=>current||transportExpense);setPermissions(Object.fromEntries(grants));
   }finally{if(request===generation.current)setLoading(false);}
  }
  useEffect(()=>{masterCache.current=null;initialApplied.current=false;setRows([]);setPermissions({});setPage(0);setSelected([]);setAmounts({});setInvoiceNumbers({});setSupplierReferences({});setDescriptions({});setCorrectionTrip(null);setSupplier('');setAccount('');},[scopeKey]);
