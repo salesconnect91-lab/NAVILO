@@ -11,7 +11,8 @@ type FeatureAccessContextValue = {
   isFeatureEnabled:(featureKey:string, action?:FeatureAction)=>boolean;
 };
 
-const FeatureAccessContext=createContext<FeatureAccessContextValue|undefined>(undefined);\nconst FEATURE_ACCESS_TIMEOUT_MS=12_000;
+const FeatureAccessContext=createContext<FeatureAccessContextValue|undefined>(undefined);
+const FEATURE_ACCESS_TIMEOUT_MS=12_000;
 
 export function FeatureAccessProvider({children}:{children:ReactNode}){
   const { activeCompany, activeBusinessUnit }=useAuth();
