@@ -12,6 +12,8 @@ begin
  insert into public.business_units(company_id,code,name,unit_type) values(c,'T1','Transport 1','transport') returning id into b1;
  insert into public.business_units(company_id,code,name,unit_type) values(c,'T2','Transport 2','transport') returning id into b2;
  insert into public.business_units(company_id,code,name,unit_type) values(c2,'T3','Transport Other','transport') returning id into b3;
+ insert into public.operating_locations(company_id,business_unit_id,code,name,location_type,is_active)
+ values(c,b1,'HO1','Head Office 1','branch',true),(c,b2,'HO2','Head Office 2','branch',true),(c2,b3,'HO3','Head Office 3','branch',true);
  insert into public.company_memberships(company_id,user_id,role,is_active) values(c,u,'company_owner',true);
  insert into public.business_unit_memberships(company_id,business_unit_id,user_id,role,is_active)
  values(c,b1,u,'company_owner',true),(c,b2,u,'company_owner',true);
