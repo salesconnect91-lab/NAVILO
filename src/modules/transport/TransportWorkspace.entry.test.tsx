@@ -157,6 +157,10 @@ describe('Transport register interactions',()=>{
    expect(scopedThemeCss).toContain('Theme 3 — modern executive charcoal + emerald');
    expect(scopedThemeCss).toContain('height: 20px !important');
    expect(scopedThemeCss).toContain('height: 34px !important');
+   const theme4=screen.getByRole('button',{name:'Theme 4'});fireEvent.click(theme4);
+   expect(theme4.getAttribute('aria-pressed')).toBe('true');expect(localStorage.getItem(key)).toBe('theme4');
+   expect(document.querySelector('[data-navilo-transport-register]')?.getAttribute('data-navilo-theme')).toBe('theme4');
+   expect(scopedThemeCss).toContain('Theme 4 — premium warm ledger: ink + ivory + brass');
   }finally{localStorage.removeItem(key);}
  });
  it('shows customer and supplier invoice numbers in their own financial groups',async()=>{
