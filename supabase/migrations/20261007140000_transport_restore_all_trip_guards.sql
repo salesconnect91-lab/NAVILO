@@ -1,3 +1,17 @@
 begin;
-alter table public.transport_trips enable trigger user;
+alter table public.transport_trips enable trigger a_transport_checked_entry_guard;
+alter table public.transport_trips enable trigger transport_assignment_supplier_guard;
+alter table public.transport_trips enable trigger transport_customer_commercial_lock;
+alter table public.transport_trips enable trigger transport_finalized_commercial_dimension_guard;
+alter table public.transport_trips enable trigger transport_ppr_attachment_audit;
+alter table public.transport_trips enable trigger transport_trip_branch_guard;
+alter table public.transport_trips enable trigger transport_trip_customer_accounting_guard;
+alter table public.transport_trips enable trigger transport_trip_delete_protected;
+alter table public.transport_trips enable trigger trg_transport_trip_audit;
+alter table public.transport_trips enable trigger trg_transport_trip_ppr_guard;
+alter table public.transport_trips enable trigger trg_transport_trips_scope;
+alter table public.transport_trips enable trigger zz_transport_posted_rate_guard;
+alter table public.transport_trips enable trigger zz_transport_ppr_attachment_guard;
+alter table public.transport_trips enable trigger zz_transport_trip_batch1_guard;
+alter table public.transport_trips enable trigger zz_transport_trip_created;
 commit;
