@@ -18,8 +18,8 @@ const trip={id:'trip',trip_no:'TRP-1',trip_date:'2026-10-01',customer_id:'custom
 beforeEach(()=>{
  mock.allowed=true;mock.failCash=false;mock.failCorrection=false;mock.trips=[{...trip}];
  mock.tables={customers:[{id:'customer',name:'Customer A',is_active:true}],suppliers:[{id:'supplier-a',name:'Supplier A',is_active:true},{id:'supplier-b',name:'Supplier B',is_active:true}],
- chart_of_accounts:[{id:'expense',name:'Transport Expense',type:'expense'},{id:'cash',name:'Cash',type:'asset',detail_type:'Cash on Hand'}],
- account_mappings:[{mapping_key:'transport_expense',account_id:'expense'}],
+ chart_of_accounts:[{id:'expense',name:'Transport Expense',type:'expense'},{id:'revenue',name:'Service Revenue',type:'revenue'},{id:'cash',name:'Cash',type:'asset',detail_type:'Cash on Hand'}],
+ account_mappings:[{mapping_key:'transport_expense',account_id:'expense'},{mapping_key:'service_revenue',account_id:'revenue'}],
  transport_trip_supplier_rents:[{id:'rent-a',trip_id:'trip',supplier_id:'supplier-a',amount:70,state:'finalized'},{id:'rent-b',trip_id:'trip',supplier_id:'supplier-b',amount:30,state:'finalized'}],
  transport_supplier_document_rents:[],transport_rate_adjustments:[]};
  mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>{
@@ -68,6 +68,11 @@ describe('Compact supplier rate popup',()=>{
  });
 });
 describe('Transport Customer / Supplier bulk parity',()=>{
+ it('defaults the customer posting account from the canonical service revenue mapping',async()=>{
+  render(<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>);
+  await screen.findByRole('option',{name:'Customer A'});
+  await waitFor(()=>expect((screen.getByLabelText('Revenue account') as HTMLSelectElement).value).toBe('revenue'));
+ });
  it('defaults the supplier posting account from the canonical transport expense mapping',async()=>{
   render(<TransportBulkSupplierRent onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByRole('option',{name:'Supplier A'});
@@ -128,7 +133,7 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   if(invoiceNo)fireEvent.change(screen.getByLabelText('Invoice number TRP-1'),{target:{value:invoiceNo}});
   fireEvent.click(screen.getByRole('button',{name:'Select Page Unposted'}));
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
-  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith(invoiceNo?'transport_post_customer_bill_numbered':'transport_post_customer_bill',expect.objectContaining({p_trip_id:'trip',p_with_tax:false,...(invoiceNo?{p_invoice_no:invoiceNo}:{})})));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_customer_bill_accounted',expect.objectContaining({p_trip_id:'trip',p_revenue_account_id:'revenue',p_with_tax:false,p_invoice_no:invoiceNo||null})));
   expect(mock.rpc.mock.calls.some(([n])=>/cash_bill_receive|settle|receive_customer_payment|pay_supplier/.test(n))).toBe(false);
  });
  it.each(['customer','supplier'] as const)('posts %s custom description with the editable invoice number',async side=>{
@@ -143,7 +148,7 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   fireEvent.change(screen.getByLabelText(`Invoice number ${suffix}`),{target:{value:'DESC-001'}});
   fireEvent.click(screen.getByRole('button',{name:'Select Page Unposted'}));
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
-  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith(side==='customer'?'transport_post_customer_bill_described':'transport_post_supplier_bill_described',expect.objectContaining({p_invoice_no:'DESC-001',p_description:'Special delivery instructions'})));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith(side==='customer'?'transport_post_customer_bill_accounted':'transport_post_supplier_bill_described',expect.objectContaining({p_invoice_no:'DESC-001',p_description:'Special delivery instructions',...(side==='customer'?{p_revenue_account_id:'revenue'}:{})})));
   expect(mock.rpc.mock.calls.some(([n])=>/cash_bill_receive|settle|pay_supplier/.test(n))).toBe(false);
  });
  it.each(['customer','supplier'] as const)('disables %s actions when server permissions deny them',async side=>{
@@ -175,7 +180,7 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   if(side==='supplier')fireEvent.change(screen.getByLabelText('Expense account'),{target:{value:'expense'}});
   fireEvent.click(screen.getByLabelText(side==='customer'?'Select TRP-1':'Select TRP-1 Supplier A'));
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
-  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith(side==='customer'?'transport_post_customer_bill_numbered':'transport_post_supplier_bill_numbered',expect.objectContaining({p_invoice_no:'MY-INV-2026'})));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith(side==='customer'?'transport_post_customer_bill_accounted':'transport_post_supplier_bill_numbered',expect.objectContaining({p_invoice_no:'MY-INV-2026',...(side==='customer'?{p_revenue_account_id:'revenue'}:{})})));
  });
  it('locks invoice numbering on posted trips',async()=>{
   mock.trips=[{...trip,customer_rate_locked:true,invoice_no:'S-OLD'}];
