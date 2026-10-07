@@ -1230,9 +1230,9 @@ export default function TransportWorkspace(){
   const legacyTripGridStorageKey=`navilo:transport:trip-grid:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
   const tripGridStorageKey=`navilo:transport:trip-grid:v2:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
   const tripThemeStorageKey=`navilo:transport:trip-theme:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
-  const [tripTheme,setTripTheme]=useState<'theme1'|'theme2'>(()=>{try{return localStorage.getItem(tripThemeStorageKey)==='theme2'?'theme2':'theme1'}catch{return 'theme1'}});
-  useEffect(()=>{try{const saved=localStorage.getItem(tripThemeStorageKey);setTripTheme(saved==='theme2'?'theme2':'theme1')}catch{setTripTheme('theme1')}},[tripThemeStorageKey]);
-  const chooseTripTheme=(next:'theme1'|'theme2')=>{setTripTheme(next);try{localStorage.setItem(tripThemeStorageKey,next)}catch{/* browser storage may be unavailable */}};
+  const [tripTheme,setTripTheme]=useState<'theme1'|'theme2'|'theme3'>(()=>{try{const saved=localStorage.getItem(tripThemeStorageKey);return saved==='theme2'||saved==='theme3'?saved:'theme1'}catch{return 'theme1'}});
+  useEffect(()=>{try{const saved=localStorage.getItem(tripThemeStorageKey);setTripTheme(saved==='theme2'||saved==='theme3'?saved:'theme1')}catch{setTripTheme('theme1')}},[tripThemeStorageKey]);
+  const chooseTripTheme=(next:'theme1'|'theme2'|'theme3')=>{setTripTheme(next);try{localStorage.setItem(tripThemeStorageKey,next)}catch{/* browser storage may be unavailable */}};
   const allOrderedGridColumns=useMemo(()=>{
     const byKey=new Map(gridColumns.map(column=>[column[0],column] as const));
     const order=tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0]);
@@ -1404,13 +1404,14 @@ export default function TransportWorkspace(){
 
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-    {!showPartyReports&&tab==="trips"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className={`relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden bg-white ${tripTheme==='theme2'?'rounded-md border border-slate-300 shadow-[0_1px_4px_rgba(15,23,42,0.08)]':'rounded-lg border border-slate-700 shadow-sm shadow-slate-300'}`} data-navilo-theme={tripTheme} data-navilo-customizable="true">
-      <div className={`relative z-[90] flex shrink-0 items-center justify-between px-3 text-white ${tripTheme==='theme2'?'h-9 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950':'h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]'}`}>
+    {!showPartyReports&&tab==="trips"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className={`relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden bg-white ${tripTheme==='theme3'?'rounded-xl border border-slate-200 shadow-[0_10px_30px_rgba(15,23,42,0.10)] [&_tbody_tr:nth-child(even)>td]:bg-slate-50/70 [&_tbody_tr:hover>td]:bg-emerald-50/70':tripTheme==='theme2'?'rounded-md border border-slate-300 shadow-[0_1px_4px_rgba(15,23,42,0.08)]':'rounded-lg border border-slate-700 shadow-sm shadow-slate-300'}`} data-navilo-theme={tripTheme} data-navilo-customizable="true">
+      <div className={`relative z-[90] flex shrink-0 items-center justify-between px-3 text-white ${tripTheme==='theme3'?'h-10 bg-gradient-to-r from-[#111827] via-[#16302b] to-[#0f3d34]':tripTheme==='theme2'?'h-9 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950':'h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]'}`}>
         <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
         <div className="flex items-center gap-1">
           <div className="mr-1 inline-flex h-7 items-center rounded-md border border-white/20 bg-black/20 p-0.5" aria-label="Trips Register theme">
             <button type="button" aria-pressed={tripTheme==='theme1'} onClick={()=>chooseTripTheme('theme1')} className={`h-6 rounded px-2 text-[9px] font-bold ${tripTheme==='theme1'?'bg-white text-slate-950 shadow-sm':'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Theme 1</button>
             <button type="button" aria-pressed={tripTheme==='theme2'} onClick={()=>chooseTripTheme('theme2')} className={`h-6 rounded px-2 text-[9px] font-bold ${tripTheme==='theme2'?'bg-blue-500 text-white shadow-sm':'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Theme 2</button>
+            <button type="button" aria-pressed={tripTheme==='theme3'} onClick={()=>chooseTripTheme('theme3')} className={`h-6 rounded px-2 text-[9px] font-bold ${tripTheme==='theme3'?'bg-emerald-500 text-white shadow-sm':'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Theme 3</button>
           </div>
           <button type="button" onClick={resetGrid} className="flex h-7 items-center rounded-md border border-slate-500 bg-slate-900/70 px-2.5 text-[10px] font-semibold text-white hover:bg-slate-800">Reset</button>
           <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-7 items-center gap-1 rounded-md border border-blue-500 bg-blue-600 px-2.5 text-[10px] font-semibold text-white hover:bg-blue-700"><RefreshCw className="h-3 w-3"/>Refresh</button>
@@ -1418,22 +1419,22 @@ export default function TransportWorkspace(){
           <span data-navilo-standard-tools-host="true" className="contents" />
         </div>
       </div>
-      <div className={`relative z-[80] shrink-0 border-b border-slate-200 bg-white ${tripTheme==='theme2'?'px-1.5 py-1':'px-2 py-2'}`}>
-        <div className={`navilo-transport-register-toolbar flex flex-wrap items-center ${tripTheme==='theme2'?'gap-1.5':'gap-2'}`}>
+      <div className={`relative z-[80] shrink-0 border-b border-slate-200 bg-white ${tripTheme==='theme3'?'px-2.5 py-1.5':tripTheme==='theme2'?'px-1.5 py-1':'px-2 py-2'}`}>
+        <div className={`navilo-transport-register-toolbar flex flex-wrap items-center ${tripTheme==='theme3'?'gap-2':tripTheme==='theme2'?'gap-1.5':'gap-2'}`}>
 
-          <div className={`flex items-center justify-between border border-blue-200 bg-blue-50 ${tripTheme==='theme2'?'h-7 min-w-[86px] rounded-md px-2':'h-9 min-w-[104px] rounded-lg px-3 shadow-sm'}`}>
+          <div className={`flex items-center justify-between border border-blue-200 bg-blue-50 ${tripTheme==='theme3'?'h-8 min-w-[96px] rounded-lg border-emerald-200 bg-emerald-50 px-2.5 shadow-sm':tripTheme==='theme2'?'h-7 min-w-[86px] rounded-md px-2':'h-9 min-w-[104px] rounded-lg px-3 shadow-sm'}`}>
             <span className="text-[10px] font-extrabold uppercase text-blue-700">🚚 Trips</span>
             <span className="text-sm font-bold text-slate-950">{Number(registerMeta.count??0).toLocaleString()}</span>
           </div>
 
-          <div className={`flex items-center gap-2 border border-slate-200 bg-slate-50 ${tripTheme==='theme2'?'h-7 min-w-[180px] rounded-md px-2':'h-9 min-w-[215px] rounded-lg px-3 shadow-sm'}`}>
+          <div className={`flex items-center gap-2 border border-slate-200 bg-slate-50 ${tripTheme==='theme3'?'h-8 min-w-[200px] rounded-lg border-slate-200 bg-white px-2.5 shadow-sm':tripTheme==='theme2'?'h-7 min-w-[180px] rounded-md px-2':'h-9 min-w-[215px] rounded-lg px-3 shadow-sm'}`}>
             <span className="text-[10px] font-extrabold uppercase text-slate-700">▣ Paper</span>
             <span className="text-[9px] font-semibold text-emerald-700">Received <b>{Number(dashboardSummary.paper?.received??0).toLocaleString()}</b></span>
             <span className="text-[9px] font-semibold text-amber-700">Not Received <b>{Number(dashboardSummary.paper?.not_received??0).toLocaleString()}</b></span>
           </div>
 
           <div className="relative">
-            <button type="button" onClick={()=>setStatusOpen(v=>!v)} className={`flex items-center justify-between gap-2 border border-slate-200 bg-white text-[10px] font-semibold text-slate-700 ${tripTheme==='theme2'?'h-7 min-w-[190px] rounded-md px-2':'h-9 min-w-[200px] rounded-lg px-3 shadow-sm'}`}>
+            <button type="button" onClick={()=>setStatusOpen(v=>!v)} className={`flex items-center justify-between gap-2 border border-slate-200 bg-white text-[10px] font-semibold text-slate-700 ${tripTheme==='theme3'?'h-8 min-w-[195px] rounded-lg border-emerald-200 bg-emerald-50/40 px-2.5 shadow-sm':tripTheme==='theme2'?'h-7 min-w-[190px] rounded-md px-2':'h-9 min-w-[200px] rounded-lg px-3 shadow-sm'}`}>
               <span>Status</span><span className="max-w-[135px] truncate text-slate-900">{statusFilters.length===0?"All Statuses":statusFilters.length===1?<> <span className={statusMark(statusFilters[0].replace(/^status:/,'')).className}>{statusMark(statusFilters[0].replace(/^status:/,'')).mark}</span> {statusOptions.find(option=>option.key===statusFilters[0])?.label??"1 selected"}</>:`${statusFilters.length} selected`}</span>
               <span aria-hidden>⌄</span>
             </button>
@@ -1459,9 +1460,9 @@ export default function TransportWorkspace(){
             </div>}
           </div>
 
-          <form className={`flex w-80 items-stretch ${tripTheme==='theme2'?'h-7':'h-9'}`} onSubmit={e=>{e.preventDefault();setPage(0);setRegisterSearch(registerSearchDraft.trim())}}>
-            <input aria-label="Search all Trip data" placeholder="Search all Trip data…" className={`input min-w-0 flex-1 rounded-r-none text-[11px] ${tripTheme==='theme2'?'h-7 rounded-l-md':'h-9 rounded-l-lg border-slate-200 shadow-sm'}`} value={registerSearchDraft} onChange={e=>setRegisterSearchDraft(e.target.value)}/>
-            <button type="submit" aria-label="Search Trips" className={`flex items-center justify-center border border-l-0 border-blue-300 bg-white text-blue-700 hover:bg-blue-50 ${tripTheme==='theme2'?'h-7 w-8 rounded-r-md':'h-9 w-9 rounded-r-lg shadow-sm'}`}><Search className="h-3.5 w-3.5"/></button>
+          <form className={`flex w-80 items-stretch ${tripTheme==='theme3'?'h-8':tripTheme==='theme2'?'h-7':'h-9'}`} onSubmit={e=>{e.preventDefault();setPage(0);setRegisterSearch(registerSearchDraft.trim())}}>
+            <input aria-label="Search all Trip data" placeholder="Search all Trip data…" className={`input min-w-0 flex-1 rounded-r-none text-[11px] ${tripTheme==='theme3'?'h-8 rounded-l-lg border-emerald-200 bg-emerald-50/20 shadow-sm':tripTheme==='theme2'?'h-7 rounded-l-md':'h-9 rounded-l-lg border-slate-200 shadow-sm'}`} value={registerSearchDraft} onChange={e=>setRegisterSearchDraft(e.target.value)}/>
+            <button type="submit" aria-label="Search Trips" className={`flex items-center justify-center border border-l-0 border-blue-300 bg-white text-blue-700 hover:bg-blue-50 ${tripTheme==='theme3'?'h-8 w-9 rounded-r-lg border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm':tripTheme==='theme2'?'h-7 w-8 rounded-r-md':'h-9 w-9 rounded-r-lg shadow-sm'}`}><Search className="h-3.5 w-3.5"/></button>
           </form>
           <div className="flex shrink-0 items-center gap-1.5">
           <button type="button" onClick={()=>{entryReturnTab.current="trips";setEditingTripId(null);setTab("new")}} className="flex h-9 items-center gap-1 rounded-lg border border-blue-500 bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
@@ -1533,12 +1534,12 @@ export default function TransportWorkspace(){
         ref={tripsGridRef}
         className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-400 bg-white"
       >
-        <table className={`w-max min-w-full table-auto whitespace-nowrap leading-none ${tripTheme==='theme2'?'text-[10px]':'text-[10.5px]'}`}>
+        <table className={`w-max min-w-full table-auto whitespace-nowrap leading-none ${tripTheme==='theme3'?'text-[10.5px]':tripTheme==='theme2'?'text-[10px]':'text-[10.5px]'}`}>
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
-          <thead className={`sticky top-0 z-40 text-left uppercase tracking-normal shadow-[0_1px_2px_rgba(15,23,42,0.12)] ${tripTheme==='theme2'?'bg-slate-950 text-[10px] text-white':'bg-slate-900 text-[10.5px] text-white'}`}>
-            <tr className={tripTheme==='theme2'?'h-9':'h-11'}>
+          <thead className={`sticky top-0 z-40 text-left uppercase tracking-normal shadow-[0_1px_2px_rgba(15,23,42,0.12)] ${tripTheme==='theme3'?'bg-[#102a25] text-[10.5px] text-white':tripTheme==='theme2'?'bg-slate-950 text-[10px] text-white':'bg-slate-900 text-[10.5px] text-white'}`}>
+            <tr className={tripTheme==='theme3'?'h-10':tripTheme==='theme2'?'h-9':'h-11'}>
               {gridGroupSegments.map((segment,index)=><th key={segment.group+index} colSpan={segment.count}
-                className={`border-b border-r px-3 py-0 text-center font-black tracking-[0.025em] ${tripTheme==='theme2'?'text-[11px]':'text-[13px]'} ${segment.group==="supplier"?(tripTheme==='theme2'?"border-amber-300 bg-amber-50 text-amber-900":"border-rose-300 bg-rose-100 text-rose-800"):segment.group==="customer"?(tripTheme==='theme2'?"border-sky-300 bg-sky-50 text-sky-900":"border-blue-300 bg-blue-100 text-blue-800"):segment.group==="ppr"?"border-emerald-300 bg-emerald-100 text-emerald-800":(tripTheme==='theme2'?"border-slate-300 bg-slate-50 text-slate-900":"border-slate-300 bg-slate-100 text-slate-800")}`}>
+                className={`border-b border-r px-3 py-0 text-center font-black tracking-[0.025em] ${tripTheme==='theme3'?'text-[12px]':tripTheme==='theme2'?'text-[11px]':'text-[13px]'} ${segment.group==="supplier"?(tripTheme==='theme3'?"border-orange-200 bg-orange-50 text-orange-900":tripTheme==='theme2'?"border-amber-300 bg-amber-50 text-amber-900":"border-rose-300 bg-rose-100 text-rose-800"):segment.group==="customer"?(tripTheme==='theme3'?"border-emerald-200 bg-emerald-50 text-emerald-900":tripTheme==='theme2'?"border-sky-300 bg-sky-50 text-sky-900":"border-blue-300 bg-blue-100 text-blue-800"):segment.group==="ppr"?"border-emerald-300 bg-emerald-100 text-emerald-800":(tripTheme==='theme3'?"border-slate-200 bg-slate-100 text-slate-900":tripTheme==='theme2'?"border-slate-300 bg-slate-50 text-slate-900":"border-slate-300 bg-slate-100 text-slate-800")}`}>
                 <span className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
                   <span aria-hidden="true" className="text-[17px] leading-none">{segment.group==="supplier"?"🚚":segment.group==="customer"?"👤":segment.group==="ppr"?"📄":"🚚"}</span>
                   <span>{segment.group==="supplier"?"SUPPLIER · OUR COST":segment.group==="customer"?"CUSTOMER · OUR REVENUE":segment.group==="ppr"?"PPR":"TRIP DETAILS"}</span>
