@@ -1367,6 +1367,26 @@ export default function TransportWorkspace(){
   },[openColumnFilter,columnSearch,registerKey]);
   const columnOptions=(_key:string)=>columnValues;
   const gridRows=rows;
+  const [selectedTripIds,setSelectedTripIds]=useState<Set<string>>(()=>new Set());
+  const selectedTripCount=selectedTripIds.size;
+  const visibleTripIds=gridRows.map(row=>String(row.id));
+  const allVisibleTripsSelected=visibleTripIds.length>0&&visibleTripIds.every(id=>selectedTripIds.has(id));
+  const toggleTripSelection=(tripId:string)=>{
+    setSelectedTripIds(current=>{
+      const next=new Set(current);
+      if(next.has(tripId))next.delete(tripId);else next.add(tripId);
+      return next;
+    });
+  };
+  const toggleVisibleTripSelection=()=>{
+    setSelectedTripIds(current=>{
+      const next=new Set(current);
+      if(allVisibleTripsSelected)visibleTripIds.forEach(id=>next.delete(id));
+      else visibleTripIds.forEach(id=>next.add(id));
+      return next;
+    });
+  };
+  useEffect(()=>{setSelectedTripIds(new Set());},[scopeKey]);
   const amountGridKeys=new Set(['charge','rent_driver','supplier_charges','supplier_paid','supplier_balance','supplier_credit','driver_pay','driver_paid','driver_balance','amount','company_rate','received_company','remaining_company','customer_credit','profit','commission']);
   const gridTotal=(key:string)=>Number(registerMeta.totals?.[key]??0);
 
@@ -1723,6 +1743,12 @@ export default function TransportWorkspace(){
             <span className="text-sm font-bold text-slate-950">{Number(registerMeta.count??0).toLocaleString()}</span>
           </div>
 
+          <div className={`flex items-center gap-2 border ${selectedTripCount>0?'border-amber-400 bg-amber-100 text-amber-950':'border-slate-200 bg-slate-50 text-slate-500'} ${tripTheme==='theme3'?'h-8 rounded-full px-3 shadow-sm':tripTheme==='theme2'?'h-7 rounded-none px-2':'h-9 rounded-lg px-3 shadow-sm'}`} aria-live="polite" data-testid="trip-selection-count">
+            <span className="text-[10px] font-extrabold uppercase">✓ Selected</span>
+            <span className="min-w-[18px] text-center text-sm font-black tabular-nums">{selectedTripCount.toLocaleString()}</span>
+            {selectedTripCount>0&&<button type="button" onClick={()=>setSelectedTripIds(new Set())} className="ml-0.5 text-[9px] font-bold underline underline-offset-2" aria-label="Clear selected trips">Clear</button>}
+          </div>
+
           <div className={`flex items-center gap-2 border border-slate-200 bg-slate-50 ${tripTheme==='theme3'?'h-8 min-w-[200px] rounded-lg border-slate-200 bg-white px-2.5 shadow-sm':tripTheme==='theme2'?'h-7 min-w-[180px] rounded-md px-2':'h-9 min-w-[215px] rounded-lg px-3 shadow-sm'}`}>
             <span className="text-[10px] font-extrabold uppercase text-slate-700">▣ Paper</span>
             <span className="text-[9px] font-semibold text-emerald-700">Received <b>{Number(dashboardSummary.paper?.received??0).toLocaleString()}</b></span>
@@ -1854,6 +1880,15 @@ export default function TransportWorkspace(){
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
                   className={`sticky top-0 border-b border-r px-0.5 !py-0 font-bold leading-none ${tripTheme==='theme3'?(isSupplierGridKey(key)?"border-orange-700 bg-[#7c2d12] text-white":isCustomerGridKey(key)?"border-emerald-800 bg-[#065f46] text-white":isPprGridKey(key)?"border-teal-800 bg-[#115e59] text-white":"border-slate-700 bg-[#1f2937] text-white"):tripTheme==='theme2'?(isSupplierGridKey(key)?"border-amber-200 bg-amber-100 text-amber-950":isCustomerGridKey(key)?"border-sky-200 bg-sky-100 text-sky-950":isPprGridKey(key)?"border-emerald-200 bg-emerald-100 text-emerald-950":"border-slate-200 bg-slate-100 text-slate-800"):(isSupplierGridKey(key)?"border-rose-200 bg-rose-50 text-slate-800":isCustomerGridKey(key)?"border-blue-200 bg-blue-50 text-slate-800":isPprGridKey(key)?"border-emerald-200 bg-emerald-50 text-slate-800":"border-slate-300 bg-white text-slate-700")} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
                   <div className="flex min-h-[28px] w-full min-w-0 items-center gap-0.5">
+                    {key==='trip_no'&&<input
+                      type="checkbox"
+                      aria-label={allVisibleTripsSelected?"Deselect all visible trips":"Select all visible trips"}
+                      title={allVisibleTripsSelected?"Deselect all visible trips":"Select all visible trips"}
+                      checked={allVisibleTripsSelected}
+                      onChange={toggleVisibleTripSelection}
+                      onClick={e=>e.stopPropagation()}
+                      className="ml-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer accent-amber-500"
+                    />}
                     <button type="button"
                       title={`Sort ${label} ${sorted&&sortDirection==="asc"?"descending":"ascending"}`}
                       onClick={()=>{
@@ -1924,10 +1959,13 @@ export default function TransportWorkspace(){
           </thead>
 
           <tbody>
-            {gridRows.map(r=><tr key={r.id} className={`align-middle transition-colors ${tripTheme==='theme3'?'h-[30px] odd:bg-white even:bg-emerald-50/35 hover:bg-emerald-100/70':tripTheme==='theme2'?'h-[22px] odd:bg-white even:bg-sky-50/55 hover:bg-sky-100/70':'h-[26px] odd:bg-white even:bg-slate-50/45 hover:bg-blue-50/45'}`}>
+            {gridRows.map(r=>{
+              const tripSelected=selectedTripIds.has(String(r.id));
+              return <tr key={r.id} data-trip-selected={tripSelected?"true":"false"} className={`align-middle transition-colors ${tripSelected?'outline outline-1 -outline-offset-1 outline-amber-400':''} ${tripTheme==='theme3'?'h-[30px] odd:bg-white even:bg-emerald-50/35 hover:bg-emerald-100/70':tripTheme==='theme2'?'h-[22px] odd:bg-white even:bg-sky-50/55 hover:bg-sky-100/70':'h-[26px] odd:bg-white even:bg-slate-50/45 hover:bg-blue-50/45'}`}>
               <td
                 style={tripColumnWidths[orderedGridColumns[0]?.[0]??""]?{width:tripColumnWidths[orderedGridColumns[0]?.[0]??""],minWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""]}:undefined}
-                className={`!sticky left-0 z-30 overflow-hidden whitespace-nowrap border-b border-r px-1.5 !py-0 font-bold leading-tight shadow-[2px_0_3px_rgba(15,23,42,0.06)] ${tripTheme==='theme3'?'h-[30px] max-h-[30px] border-emerald-200 bg-[#ecfdf5] text-emerald-950':tripTheme==='theme2'?'h-[22px] max-h-[22px] border-sky-200 bg-[#eff6ff] text-slate-900':'h-[26px] max-h-[26px] border-slate-200 bg-white text-slate-900'}`}>
+                className={`!sticky left-0 z-30 overflow-hidden whitespace-nowrap border-b border-r px-1.5 !py-0 font-bold leading-tight shadow-[2px_0_3px_rgba(15,23,42,0.06)] ${tripSelected?'!border-amber-400 !bg-amber-100 text-amber-950':tripTheme==='theme3'?'h-[30px] max-h-[30px] border-emerald-200 bg-[#ecfdf5] text-emerald-950':tripTheme==='theme2'?'h-[22px] max-h-[22px] border-sky-200 bg-[#eff6ff] text-slate-900':'h-[26px] max-h-[26px] border-slate-200 bg-white text-slate-900'}`}>
+  <input type="checkbox" aria-label={`Select trip ${r.trip_no}`} checked={tripSelected} onChange={()=>toggleTripSelection(String(r.id))} className="mr-1 h-3.5 w-3.5 cursor-pointer align-middle accent-amber-500"/>
   <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
     className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
@@ -1942,7 +1980,7 @@ export default function TransportWorkspace(){
                 const columnWidth=tripColumnWidths[key];
                 return <td key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`overflow-hidden text-ellipsis whitespace-nowrap border-b border-r px-1.5 !py-0 leading-tight ${tripTheme==='theme3'?(isSupplierGridKey(key)?"h-[30px] max-h-[30px] border-orange-100 bg-orange-50/80":isCustomerGridKey(key)?"h-[30px] max-h-[30px] border-emerald-100 bg-emerald-50/80":isPprGridKey(key)?"h-[30px] max-h-[30px] border-teal-100 bg-teal-50/80":"h-[30px] max-h-[30px] border-slate-200 bg-white/80"):tripTheme==='theme2'?(isSupplierGridKey(key)?"h-[22px] max-h-[22px] border-amber-100 bg-amber-50":isCustomerGridKey(key)?"h-[22px] max-h-[22px] border-sky-100 bg-sky-50":isPprGridKey(key)?"h-[22px] max-h-[22px] border-emerald-100 bg-emerald-50":"h-[22px] max-h-[22px] border-slate-200 bg-white"):(isSupplierGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-rose-50/55":isCustomerGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-blue-50/45":isPprGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-emerald-50/50":"h-[26px] max-h-[26px] border-slate-200")} ${numeric?"text-right font-medium":""}`}>
+                  className={`overflow-hidden text-ellipsis whitespace-nowrap border-b border-r px-1.5 !py-0 leading-tight ${tripTheme==='theme3'?(isSupplierGridKey(key)?"h-[30px] max-h-[30px] border-orange-100 bg-orange-50/80":isCustomerGridKey(key)?"h-[30px] max-h-[30px] border-emerald-100 bg-emerald-50/80":isPprGridKey(key)?"h-[30px] max-h-[30px] border-teal-100 bg-teal-50/80":"h-[30px] max-h-[30px] border-slate-200 bg-white/80"):tripTheme==='theme2'?(isSupplierGridKey(key)?"h-[22px] max-h-[22px] border-amber-100 bg-amber-50":isCustomerGridKey(key)?"h-[22px] max-h-[22px] border-sky-100 bg-sky-50":isPprGridKey(key)?"h-[22px] max-h-[22px] border-emerald-100 bg-emerald-50":"h-[22px] max-h-[22px] border-slate-200 bg-white"):(isSupplierGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-rose-50/55":isCustomerGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-blue-50/45":isPprGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-emerald-50/50":"h-[26px] max-h-[26px] border-slate-200")} ${tripSelected?"!border-amber-300 !bg-amber-100":""} ${numeric?"text-right font-medium":""}`}>
                   {key==='charge'
                     ?<button type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
                     :key==='supplier_charges'
@@ -1969,7 +2007,8 @@ export default function TransportWorkspace(){
                         :<button type="button" onClick={()=>void openQuickPpr(r)} className="h-[22px] rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0 text-[9px] font-semibold leading-tight text-amber-800 hover:bg-amber-100">Receive PPR</button>
                       :value||""}
                 </td>;
-              })}            </tr>)}
+              })}            </tr>;
+            })}
           </tbody>
         </table>
       </div>
