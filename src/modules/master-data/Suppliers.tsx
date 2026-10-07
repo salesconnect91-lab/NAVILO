@@ -135,7 +135,7 @@ export default function Suppliers({ quickCreate, transportEnglishOnly = false }:
       return setError("Opening date is required.");
     }
 
-    if (quickCreate?.allowTransportMobileCreate && !quickCreatedId.current) {
+    if (quickCreate?.allowTransportMobileCreate && !canSetOpeningBalance && !quickCreatedId.current) {
       const { data, error } = await (supabase as any).rpc("transport_mobile_quick_create_party", {
         p_party_type: "supplier", p_name: payload.name, p_email: payload.email, p_phone: payload.phone,
         p_address: payload.address, p_ntn: payload.ntn, p_strn: payload.strn, p_cnic: payload.cnic,
