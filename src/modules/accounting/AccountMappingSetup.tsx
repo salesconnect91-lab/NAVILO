@@ -21,7 +21,7 @@ const MAPPING_GROUPS: Array<{
   {
     title: "Cash & Current Assets",
     subtitle: "Cash, bank, customer balances and stock control accounts.",
-    keys: ["cash", "bank", "accounts_receivable", "inventory"],
+    keys: ["cash", "bank", "accounts_receivable", "inventory", "employee_loan_receivable"],
   },
   {
     title: "Tax & Payables",
@@ -36,7 +36,7 @@ const MAPPING_GROUPS: Array<{
   {
     title: "Cost & Operating Expenses",
     subtitle: "Cost of sales and regular business expense accounts.",
-    keys: ["cogs", "salaries", "rent", "utilities", "transport_expense", "general_expense"],
+    keys: ["cogs", "salaries", "driver_pay_expense", "rent", "utilities", "transport_expense", "general_expense"],
   },
 ];
 
