@@ -27,7 +27,8 @@ with evidence as (
  ) c on true
  left join lateral(
   select sum(x.billed_net) net,sum(x.billed_gross) gross,sum(x.paid_net) paid_net,sum(x.paid_gross) paid_gross,
-         sum(x.outstanding_gross) outstanding,sum(x.credit_gross) credit,max(x.last_payment_date) last_date
+         greatest(sum(x.billed_gross)-sum(x.paid_gross),0) outstanding,
+         greatest(sum(x.paid_gross)-sum(x.billed_gross),0) credit,max(x.last_payment_date) last_date
   from public.transport_supplier_trip_document_balances x
   where x.trip_id=t.id
  ) s on true
