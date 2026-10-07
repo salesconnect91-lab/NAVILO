@@ -140,6 +140,17 @@ describe('Transport register server pagination',()=>{
 });
 
 describe('Transport register interactions',()=>{
+ it('keeps both Transport themes and persists the selected register theme',async()=>{
+  const key='navilo:transport:trip-theme:user:c:b';localStorage.removeItem(key);
+  try{
+   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+   const theme1=await screen.findByRole('button',{name:'Theme 1'}),theme2=screen.getByRole('button',{name:'Theme 2'});
+   expect(theme1.getAttribute('aria-pressed')).toBe('true');
+   fireEvent.click(theme2);
+   expect(theme2.getAttribute('aria-pressed')).toBe('true');expect(localStorage.getItem(key)).toBe('theme2');
+   expect(document.querySelector('[data-navilo-transport-register]')?.getAttribute('data-navilo-theme')).toBe('theme2');
+  }finally{localStorage.removeItem(key);}
+ });
  it('shows customer and supplier invoice numbers in their own financial groups',async()=>{
   mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_register_query'?{rows:[{id:'invoice-trip',trip_no:'INV-TRIP',trip_date:'2026-10-01',status:'locked',invoice_no:'TR-S000010',supplier_invoice_no:'TR-P000010'}],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:true,error:null}));
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
