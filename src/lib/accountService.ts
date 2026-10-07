@@ -31,6 +31,8 @@ export const DEFAULT_MAPPINGS = [
   ["utilities", "Utilities"],
   ["transport_expense", "Transport & Freight"],
   ["general_expense", "General Expenses"],
+  ["driver_pay_expense", "Transport Driver Pay Expense"],
+  ["employee_loan_receivable", "Employee Loan / Advance Receivable"],
 ] as const;
 
 export const ACCOUNT_MAPPING_TYPES: Record<
@@ -54,6 +56,8 @@ export const ACCOUNT_MAPPING_TYPES: Record<
   utilities: "expense",
   transport_expense: "expense",
   general_expense: "expense",
+  driver_pay_expense: "expense",
+  employee_loan_receivable: "asset",
   // Read-compatible aliases retained while older installations are upgraded.
   sales: "revenue",
   cost_of_goods_sold: "expense",
