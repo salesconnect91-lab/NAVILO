@@ -32,45 +32,43 @@ alter table public.transport_trip_audit add column if not exists operating_locat
 alter table public.transport_trip_expenses add column if not exists operating_location_id uuid references public.operating_locations(id);
 alter table public.transport_trips disable trigger user;
 
-with evidence as (
-  select l.trip_id,(array_agg(d.operating_location_id order by d.operating_location_id::text))[1] loc
-  from public.transport_customer_document_trips l join public.transport_customer_documents d on d.id=l.document_id
-  where not l.is_adjustment and d.operating_location_id is not null group by l.trip_id
-  having count(distinct d.operating_location_id)=1
-) update public.transport_trips t set operating_location_id=e.loc from evidence e where t.id=e.trip_id and t.operating_location_id is null;
-with evidence as (
-  select l.trip_id,(array_agg(d.operating_location_id order by d.operating_location_id::text))[1] loc
-  from public.transport_supplier_document_rents l join public.transport_supplier_documents d on d.id=l.document_id
-  where not l.is_adjustment and d.operating_location_id is not null group by l.trip_id
-  having count(distinct d.operating_location_id)=1
-) update public.transport_trips t set operating_location_id=e.loc from evidence e where t.id=e.trip_id and t.operating_location_id is null;
-with only_loc as (
- select company_id,business_unit_id,(array_agg(id order by id::text))[1] loc from public.operating_locations where is_active
- group by company_id,business_unit_id having count(*)=1
-) update public.transport_trips t set operating_location_id=o.loc from only_loc o
-where t.operating_location_id is null and t.company_id=o.company_id and t.business_unit_id=o.business_unit_id;
-do $$ begin
- if exists(select 1 from public.transport_trips where operating_location_id is null) then
-  raise exception 'Transport branch migration blocked: ambiguous historical Trip branch exists';
- end if;
+-- Historical rows are attributed without rewriting Trip commercial evidence.
+-- The existing Transport scope/audit triggers intentionally reject cross-context UPDATEs,
+-- so branch attribution is derived from immutable posted evidence or the only active branch.
+do $$
+declare r record;loc uuid;
+begin
+ for r in select id,company_id,business_unit_id from public.transport_trips where operating_location_id is null loop
+  loc:=null;
+  select q.operating_location_id into loc from (
+   select d.operating_location_id
+   from public.transport_customer_document_trips l join public.transport_customer_documents d on d.id=l.document_id
+   where l.trip_id=r.id and not l.is_adjustment and d.operating_location_id is not null
+   union
+   select d.operating_location_id
+   from public.transport_supplier_document_rents l join public.transport_supplier_documents d on d.id=l.document_id
+   where l.trip_id=r.id and not l.is_adjustment and d.operating_location_id is not null
+  ) q limit 1;
+  if loc is null then
+   select x.id into loc from public.operating_locations x
+   where x.company_id=r.company_id and x.business_unit_id=r.business_unit_id and x.is_active
+   order by x.id::text limit 1;
+   if (select count(*) from public.operating_locations x where x.company_id=r.company_id and x.business_unit_id=r.business_unit_id and x.is_active)<>1 then
+    raise exception 'Transport branch migration blocked: ambiguous historical Trip branch exists for %',r.id;
+   end if;
+  end if;
+  update public.transport_trips set operating_location_id=loc where id=r.id;
+ end loop;
 end $$;
+
 alter table public.transport_trips alter column operating_location_id set not null;
-alter table public.transport_trips enable trigger user;
-select set_config('app.maintenance_reset','0',true);
-alter table public.transport_trip_audit disable trigger user;
-alter table public.transport_trip_expenses disable trigger user;
+alter table public.transport_trips enable trigger trg_transport_trips_scope;
+alter table public.transport_trips enable trigger trg_transport_trip_audit;
 
 update public.transport_trip_audit a set operating_location_id=t.operating_location_id
 from public.transport_trips t where a.trip_id=t.id and a.operating_location_id is null;
-with only_loc as (
- select company_id,business_unit_id,(array_agg(id order by id::text))[1] loc from public.operating_locations where is_active
- group by company_id,business_unit_id having count(*)=1
-) update public.transport_trip_audit a set operating_location_id=o.loc from only_loc o
-where a.operating_location_id is null and a.company_id=o.company_id and a.business_unit_id=o.business_unit_id;
 update public.transport_trip_expenses e set operating_location_id=t.operating_location_id
 from public.transport_trips t where e.trip_id=t.id and e.operating_location_id is null;
-alter table public.transport_trip_audit enable trigger user;
-alter table public.transport_trip_expenses enable trigger user;
 
 create index if not exists transport_trips_branch_register_idx on public.transport_trips(company_id,business_unit_id,operating_location_id,trip_date desc,trip_no desc,id);
 create index if not exists transport_trip_audit_branch_trip_idx on public.transport_trip_audit(company_id,business_unit_id,operating_location_id,upper(btrim(trip_no)),changed_at,id);
