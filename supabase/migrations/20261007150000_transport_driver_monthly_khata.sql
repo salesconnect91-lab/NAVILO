@@ -1,0 +1,60 @@
+begin;
+-- Transport driver monthly khata: trip earnings stay operational until a reviewed month is posted.
+-- Posting uses canonical journals/COA; posted month snapshots are immutable.
+create table if not exists public.transport_driver_month_adjustments(
+ id uuid primary key default gen_random_uuid(), company_id uuid not null default public.current_company_id(), business_unit_id uuid not null default public.current_business_unit_id(), operating_location_id uuid not null default public.current_operating_location_id(),
+ employee_id uuid not null references public.employees(id) on delete restrict, month date not null, kind text not null check(kind in('allowance','bonus','loan_deduction','other_earning','other_deduction')), amount numeric(18,2) not null check(amount>0), note text, created_by uuid not null default auth.uid(), created_at timestamptz not null default now(),
+ check(month=date_trunc('month',month)::date));
+create table if not exists public.transport_driver_month_closings(
+ id uuid primary key default gen_random_uuid(), company_id uuid not null default public.current_company_id(), business_unit_id uuid not null default public.current_business_unit_id(), operating_location_id uuid not null default public.current_operating_location_id(),
+ employee_id uuid not null references public.employees(id) on delete restrict, month date not null, opening_balance numeric(18,2) not null, trip_pay numeric(18,2) not null, allowance numeric(18,2) not null, bonus numeric(18,2) not null, other_earning numeric(18,2) not null, loan_deduction numeric(18,2) not null, other_deduction numeric(18,2) not null, payments numeric(18,2) not null, closing_balance numeric(18,2) not null,
+ journal_entry_id uuid not null references public.journal_entries(id) on delete restrict, posted_by uuid not null, posted_at timestamptz not null default now(), unique(company_id,business_unit_id,operating_location_id,employee_id,month),check(month=date_trunc('month',month)::date));
+alter table public.transport_driver_month_adjustments enable row level security;alter table public.transport_driver_month_closings enable row level security;
+create policy transport_driver_month_adjustments_select on public.transport_driver_month_adjustments for select to authenticated using(company_id=public.current_company_id() and business_unit_id=public.current_business_unit_id() and operating_location_id=public.current_operating_location_id());
+create policy transport_driver_month_closings_select on public.transport_driver_month_closings for select to authenticated using(company_id=public.current_company_id() and business_unit_id=public.current_business_unit_id() and operating_location_id=public.current_operating_location_id());
+grant select on public.transport_driver_month_adjustments,public.transport_driver_month_closings to authenticated;revoke insert,update,delete on public.transport_driver_month_adjustments,public.transport_driver_month_closings from authenticated;
+
+create or replace function public.transport_driver_month_preview(p_employee_id uuid,p_month date) returns jsonb language plpgsql security definer stable set search_path=public,pg_temp as $$
+declare c uuid:=public.current_company_id();b uuid:=public.current_business_unit_id();loc uuid:=public.current_operating_location_id();m date:=date_trunc('month',p_month)::date;op numeric:=0;tp numeric:=0;al numeric:=0;bo numeric:=0;oe numeric:=0;ld numeric:=0;od numeric:=0;pa numeric:=0;locked jsonb;
+begin
+ if auth.uid() is null or not public.has_module_permission(c,'transport','view') then raise exception 'Transport view permission required';end if;
+ select to_jsonb(x) into locked from public.transport_driver_month_closings x where x.company_id=c and x.business_unit_id=b and x.operating_location_id=loc and x.employee_id=p_employee_id and x.month=m;
+ if locked is not null then return locked||jsonb_build_object('locked',true);end if;
+ select coalesce((select closing_balance from public.transport_driver_month_closings x where x.company_id=c and x.business_unit_id=b and x.operating_location_id=loc and x.employee_id=p_employee_id and x.month<m order by month desc limit 1),0) into op;
+ select coalesce(sum(coalesce(t.driver_pay,0)),0) into tp from public.transport_trips t join public.transport_drivers d on d.id=t.driver_id and d.employee_id=p_employee_id where t.company_id=c and t.business_unit_id=b and t.operating_location_id=loc and t.trip_date>=m and t.trip_date<(m+interval '1 month')::date;
+ select coalesce(sum(amount) filter(where kind='allowance'),0),coalesce(sum(amount) filter(where kind='bonus'),0),coalesce(sum(amount) filter(where kind='other_earning'),0),coalesce(sum(amount) filter(where kind='loan_deduction'),0),coalesce(sum(amount) filter(where kind='other_deduction'),0) into al,bo,oe,ld,od from public.transport_driver_month_adjustments where company_id=c and business_unit_id=b and operating_location_id=loc and employee_id=p_employee_id and month=m;
+ select coalesce(sum(amount),0) into pa from public.employee_salary_payments where company_id=c and business_unit_id=b and employee_id=p_employee_id and salary_month=m;
+ return jsonb_build_object('month',m,'opening_balance',op,'trip_pay',tp,'allowance',al,'bonus',bo,'other_earning',oe,'loan_deduction',ld,'other_deduction',od,'payments',pa,'closing_balance',op+tp+al+bo+oe-ld-od-pa,'locked',false);
+end $$;
+grant execute on function public.transport_driver_month_preview(uuid,date) to authenticated;
+
+create or replace function public.transport_driver_add_adjustment(p_employee_id uuid,p_month date,p_kind text,p_amount numeric,p_note text default null) returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
+declare c uuid:=public.current_company_id();b uuid:=public.current_business_unit_id();loc uuid:=public.current_operating_location_id();m date:=date_trunc('month',p_month)::date;rid uuid;
+begin perform public.transport_finance_assert('driver');if p_kind not in('allowance','bonus','loan_deduction','other_earning','other_deduction') or coalesce(p_amount,0)<=0 then raise exception 'Valid adjustment and positive amount required';end if;
+ if exists(select 1 from public.transport_driver_month_closings where company_id=c and business_unit_id=b and operating_location_id=loc and employee_id=p_employee_id and month=m) then raise exception 'Driver month is posted and locked';end if;
+ insert into public.transport_driver_month_adjustments(company_id,business_unit_id,operating_location_id,employee_id,month,kind,amount,note) values(c,b,loc,p_employee_id,m,p_kind,round(p_amount,2),nullif(btrim(p_note),'')) returning id into rid;return rid;end $$;
+grant execute on function public.transport_driver_add_adjustment(uuid,date,text,numeric,text) to authenticated;
+
+create or replace function public.transport_driver_post_month(p_employee_id uuid,p_month date) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare c uuid:=public.current_company_id();b uuid:=public.current_business_unit_id();loc uuid:=public.current_operating_location_id();m date:=date_trunc('month',p_month)::date;v jsonb;earn numeric;ded numeric;exp uuid;payable uuid;loan uuid;expn text;payn text;loann text;je uuid:=gen_random_uuid();jno text;ename text;
+begin perform public.transport_finance_assert('driver');perform public.assert_module_permission('accounting','post');
+ if exists(select 1 from public.transport_driver_month_closings where company_id=c and business_unit_id=b and operating_location_id=loc and employee_id=p_employee_id and month=m) then raise exception 'Driver month is already posted and locked';end if;
+ v:=public.transport_driver_month_preview(p_employee_id,m);earn:=round(coalesce((v->>'trip_pay')::numeric,0)+coalesce((v->>'allowance')::numeric,0)+coalesce((v->>'bonus')::numeric,0)+coalesce((v->>'other_earning')::numeric,0),2);ded:=round(coalesce((v->>'loan_deduction')::numeric,0)+coalesce((v->>'other_deduction')::numeric,0),2);
+ if ded>earn+coalesce((v->>'opening_balance')::numeric,0) then raise exception 'Deductions exceed driver payable';end if;
+ select account_id into exp from public.account_mappings where company_id=c and mapping_key in('driver_pay_expense','salaries') order by case mapping_key when 'driver_pay_expense' then 0 else 1 end limit 1;
+ select id,name into payable,payn from public.chart_of_accounts where company_id=c and detail_type='Salary Payable' and is_active and not is_group order by created_at limit 1;
+ select account_id into loan from public.account_mappings where company_id=c and mapping_key='employee_loan_receivable';
+ select name into expn from public.chart_of_accounts where id=exp;select name into loann from public.chart_of_accounts where id=loan;
+ if earn>0 and (exp is null or payable is null) then raise exception 'Driver Pay Expense / Salary Payable account mapping is missing';end if;if ded>0 and loan is null then raise exception 'Employee Loan / Advance Receivable mapping is required for deductions';end if;
+ select name into ename from public.employees where id=p_employee_id and company_id=c;if ename is null then raise exception 'Driver employee not found';end if;
+ jno:='DRV-'||to_char(m,'YYYYMM')||'-'||upper(substr(replace(je::text,'-',''),1,6));
+ insert into public.journal_entries(id,user_id,company_id,business_unit_id,operating_location_id,entry_no,entry_date,description,status,payment_mode,party_name,trans_type,created_by,source_module,source_document_type) values(je,public.legacy_data_user_id(),c,b,loc,jno,(m+interval '1 month - 1 day')::date,'Transport driver month closing - '||ename||' - '||to_char(m,'Mon YYYY'),'draft','Accrual',ename,'Driver Month Closing',auth.uid(),'transport','driver_month_closing');
+ if earn>0 then insert into public.journal_lines(user_id,company_id,business_unit_id,entry_id,account,account_id,debit,credit,party_name) values(public.legacy_data_user_id(),c,b,je,expn,exp,earn,0,ename),(public.legacy_data_user_id(),c,b,je,payn,payable,0,earn,ename);end if;
+ if ded>0 then insert into public.journal_lines(user_id,company_id,business_unit_id,entry_id,account,account_id,debit,credit,party_name) values(public.legacy_data_user_id(),c,b,je,payn,payable,ded,0,ename),(public.legacy_data_user_id(),c,b,je,loann,loan,0,ded,ename);end if;
+ perform public.post_journal_entry(je);
+ insert into public.transport_driver_month_closings(company_id,business_unit_id,operating_location_id,employee_id,month,opening_balance,trip_pay,allowance,bonus,other_earning,loan_deduction,other_deduction,payments,closing_balance,journal_entry_id,posted_by)
+ values(c,b,loc,p_employee_id,m,(v->>'opening_balance')::numeric,(v->>'trip_pay')::numeric,(v->>'allowance')::numeric,(v->>'bonus')::numeric,(v->>'other_earning')::numeric,(v->>'loan_deduction')::numeric,(v->>'other_deduction')::numeric,(v->>'payments')::numeric,(v->>'closing_balance')::numeric,je,auth.uid());
+ return v||jsonb_build_object('locked',true,'journal_entry_id',je,'entry_no',jno);
+end $$;
+grant execute on function public.transport_driver_post_month(uuid,date) to authenticated;
+commit;
