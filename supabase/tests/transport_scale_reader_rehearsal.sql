@@ -231,14 +231,28 @@ begin
  if data is distinct from (select coalesce(jsonb_agg(to_jsonb(q)),'[]') from (select * from public.transport_canonical_party_movements order by event_id) q)
  then raise exception 'Reporting ledger diverged from canonical view';end if;
  data:=public.transport_account_report_page('vehicle');
- if data is distinct from (select coalesce(jsonb_agg(to_jsonb(q)),'[]') from (select * from public.transport_vehicle_account_movements where company_id=c and business_unit_id=b and operating_location_id=loc order by event_id) q)
- then raise exception 'Scoped vehicle ledger differs from canonical attribution';end if;
+ if data is distinct from (select coalesce(jsonb_agg(to_jsonb(q)),'[]') from (
+   select m.* from public.transport_vehicle_account_movements m
+   join public.transport_vehicles v0 on v0.id=m.account_id and v0.company_id=c and v0.business_unit_id=b
+   where m.company_id=c and m.business_unit_id=b and m.operating_location_id=loc
+     and lower(coalesce(v0.ownership_type,v0.owner_type,'')) in ('company','company_owned','owned','self')
+   order by m.event_id
+ ) q) then raise exception 'Scoped company-vehicle ledger differs from canonical attribution';end if;
  data:=public.transport_account_report_page('contributions');
- if data is distinct from (select coalesce(jsonb_agg(to_jsonb(q)),'[]') from (select * from public.transport_vehicle_contributions where company_id=c and business_unit_id=b and operating_location_id=loc order by event_id) q)
- then raise exception 'Scoped vehicle margins differ from canonical attribution';end if;
+ if data is distinct from (select coalesce(jsonb_agg(to_jsonb(q)),'[]') from (
+   select x.* from public.transport_vehicle_contributions x
+   join public.transport_vehicles v0 on v0.id=x.account_id and v0.company_id=c and v0.business_unit_id=b
+   where x.company_id=c and x.business_unit_id=b and x.operating_location_id=loc
+     and lower(coalesce(v0.ownership_type,v0.owner_type,'')) in ('company','company_owned','owned','self')
+   order by x.event_id
+ ) q) then raise exception 'Scoped company-vehicle margins differ from canonical attribution';end if;
  data:=public.transport_account_report_page('driver');
- if data is distinct from (select coalesce(jsonb_agg(to_jsonb(q)),'[]') from (select * from public.transport_driver_account_movements where company_id=c and business_unit_id=b and operating_location_id=loc order by event_id) q)
- then raise exception 'Scoped driver ledger differs from canonical attribution';end if;
+ if data is distinct from (select coalesce(jsonb_agg(to_jsonb(q)),'[]') from (
+   select m.* from public.transport_driver_account_movements m
+   where m.company_id=c and m.business_unit_id=b and m.operating_location_id=loc
+     and exists(select 1 from public.employees e where e.id=m.employee_id and e.company_id=c)
+   order by m.event_id
+ ) q) then raise exception 'Scoped company-driver ledger differs from canonical attribution';end if;
  if jsonb_array_length(public.transport_account_report_page('vehicle',1,0))<>1 or jsonb_array_length(public.transport_account_report_page('vehicle',1,100000))<>0 then raise exception 'Account report pagination failed';end if;
  perform pg_temp.entry_rejected('select public.transport_account_report_page(''unknown'')','Invalid account report');
  perform pg_temp.entry_rejected('select public.transport_party_report_page(''unknown'')','Invalid report');
