@@ -9,7 +9,7 @@ export default function TransportQuickAdd({kind,truckTypeId,supplierId,initialNa
   kind:QuickAddKind;truckTypeId:string;supplierId:string;initialName?:string;truckTypes:any[];suppliers:any[];
   onCreated:(record:any)=>Promise<void>;onClose:()=>void;
 }) {
-  const quickCreate={onCreated,onClose,truckTypeId,supplierId,initialName};
+  const quickCreate={onCreated,onClose,truckTypeId,supplierId,initialName,allowTransportMobileCreate:true};
   if(kind==='customer')return <Customers quickCreate={quickCreate} transportEnglishOnly/>;
   if(kind==='supplier')return <Suppliers quickCreate={quickCreate} transportEnglishOnly/>;
   if(kind==='vehicle'||kind==='driver')return <TransportMaster kind={kind==='vehicle'?'vehicles':'drivers'} quickCreate={quickCreate}/>;
