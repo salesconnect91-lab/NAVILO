@@ -41,6 +41,8 @@ window.addEventListener("load", () => window.setTimeout(() => sessionStorage.rem
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("NAVILO root element is missing");
 
+rootElement.setAttribute("data-navilo-react-mounted", "true");
+
 createRoot(rootElement).render(
   <StrictMode>
     <ApplicationErrorBoundary>
