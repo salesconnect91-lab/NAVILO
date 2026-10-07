@@ -183,7 +183,7 @@ begin
  update public.user_profiles set last_company_id=other_c,last_business_unit_id=(select id from public.business_units where company_id=other_c and is_default) where id=u;
  perform set_config('request.jwt.claim.sub',u::text,true);
  execute 'set local role authenticated';
- data:=public.transport_register_query();if (data->>'count')::integer<>0 then raise exception 'Reader leaked another tenant';end if;
+ perform pg_temp.entry_rejected('select public.transport_register_query()','active Company/Business Unit');
  perform pg_temp.entry_rejected(format('select public.transport_import_trip_batch(%L,0,%L::jsonb)',job_id,batch_payload),'does not belong');
  execute 'reset role';perform set_config('request.jwt.claim.sub','',true);
  perform pg_temp.entry_rejected('select public.transport_register_query()','permission');
