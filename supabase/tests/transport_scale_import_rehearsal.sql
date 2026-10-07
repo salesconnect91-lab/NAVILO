@@ -127,11 +127,12 @@ commit;
 -- NAVILO_SCALE_BATCHES: runner executes 200 independently committed calls here.
 begin;
 do $$
-declare c uuid;b uuid;u uuid;other_c uuid;job_id uuid;customer uuid;from_id uuid;to_id uuid;manifest jsonb;job jsonb;data jsonb;first_page jsonb;last_page jsonb;started timestamptz;batch_payload jsonb:='[]';
+declare c uuid;b uuid;u uuid;loc uuid;other_c uuid;job_id uuid;customer uuid;from_id uuid;to_id uuid;manifest jsonb;job jsonb;data jsonb;first_page jsonb;last_page jsonb;started timestamptz;batch_payload jsonb:='[]';
 begin
  select company_id,business_unit_id,user_id,other_company_id,navilo_scale_context.job_id,customer_id,from_location_id,to_location_id
  into c,b,u,other_c,job_id,customer,from_id,to_id from navilo_scale_context;
  perform set_config('request.jwt.claim.sub',u::text,true);execute 'set local role authenticated';
+ loc:=public.current_operating_location_id();if loc is null then raise exception 'Scale fixture operating location missing';end if;
  select jsonb_agg(rows order by chunk) into manifest from (
   select (i-1)/100 chunk,jsonb_agg(i+1 order by i) rows from generate_series(1,20000) i group by (i-1)/100) s;
  if (select count(*) from public.transport_trips where company_id=c)<>20000 then raise exception '20,000 import count mismatch';end if;
@@ -144,9 +145,9 @@ begin
  execute 'reset role';
  -- Trusted synthetic scale fixture: no production content, isolated transaction only.
  alter table public.transport_trips disable trigger user;
- insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,customer_name_snapshot,
+ insert into public.transport_trips(company_id,business_unit_id,operating_location_id,trip_no,trip_date,customer_id,customer_name_snapshot,
   from_location_id,to_location_id,from_location,to_location,customer_rate,po_do_job_no,sale_type)
- select c,b,'SCALE-'||i,current_date-1,customer,'Entry Customer',from_id,to_id,'Entry From','Entry To',20,'SCALE-'||i,'credit'
+ select c,b,loc,'SCALE-'||i,current_date-1,customer,'Entry Customer',from_id,to_id,'Entry From','Entry To',20,'SCALE-'||i,'credit'
  from generate_series(20001,50000) i;
  alter table public.transport_trips enable trigger user;
  analyze public.transport_trips;
