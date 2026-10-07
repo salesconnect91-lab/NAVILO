@@ -11,26 +11,34 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
  const [invoiceNo,setInvoiceNo]=useState(trip.invoice_no??'');
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
  const [withTax,setWithTax]=useState(false);const [vatReady,setVatReady]=useState(true);
- const [allowed,setAllowed]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');
+ const [allowed,setAllowed]=useState(false);const [accounts,setAccounts]=useState<{id:string;name:string}[]>([]);const [account,setAccount]=useState('');const [busy,setBusy]=useState(false);const [error,setError]=useState('');
  const dialog=useRef<HTMLElement>(null);const input=useRef<HTMLInputElement>(null);
 
  useEffect(()=>{
   let active=true;input.current?.focus();
   if(posted){setAllowed(false);return()=>{active=false};}
-  void supabase.rpc('transport_finance_allowed',{p_action:'billing'}).then(({data,error}:any)=>{if(active){setAllowed(data===true);if(error)setError(error.message)}});
+  void Promise.all([
+   supabase.rpc('transport_finance_allowed',{p_action:'billing'}),
+   supabase.from('chart_of_accounts').select('id,name').eq('is_active',true).eq('is_group',false).eq('type','revenue').order('name'),
+   supabase.from('account_mappings').select('account_id').eq('mapping_key','service_revenue').limit(1).maybeSingle()
+  ]).then(([permission,accountsResult,mapping])=>{
+   if(!active)return;
+   if(permission.error)throw permission.error;if(accountsResult.error)throw accountsResult.error;if(mapping.error)throw mapping.error;
+   setAllowed(permission.data===true);setAccounts(accountsResult.data||[]);
+   const mapped=mapping.data?.account_id;
+   if(mapped&&(accountsResult.data||[]).some((a:any)=>a.id===mapped))setAccount(mapped);
+  }).catch((e:any)=>{if(active)setError(e?.message||'Unable to load invoice posting setup.')});
   return()=>{active=false};
  },[posted]);
 
  const number=invoiceNo.trim();
  const rateReady=trip.customer_rate_state==='finalized'&&Number(trip.customer_rate??0)>0;
- const canPost=!posted&&allowed&&rateReady&&Boolean(date)&&!busy&&(!withTax||vatReady);
+ const canPost=!posted&&allowed&&rateReady&&Boolean(date)&&Boolean(account)&&!busy&&(!withTax||vatReady);
 
  async function post(){
   if(!canPost)return;setBusy(true);setError('');
   try{
-   const result=number
-    ?await supabase.rpc('transport_post_customer_bill_numbered',{p_trip_id:trip.id,p_date:date,p_with_tax:withTax,p_invoice_no:number})
-    :await supabase.rpc('transport_post_customer_bill',{p_trip_id:trip.id,p_date:date,p_with_tax:withTax});
+   const result=await supabase.rpc('transport_post_customer_bill_accounted',{p_trip_id:trip.id,p_date:date,p_revenue_account_id:account,p_with_tax:withTax,p_invoice_no:number||null,p_description:null});
    if(result.error)throw result.error;
    await onChanged();onClose();
   }catch(e:any){setError(e?.message||'Unable to post customer invoice. Refresh the Trip before retrying.')}finally{setBusy(false)}
@@ -46,13 +54,16 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
    {posted
     ?<p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">This canonical Sales invoice is already posted. Its invoice number is locked and is not overwritten from the Trips grid.</p>
     :<>
+      <label className="mt-2 block text-xs font-semibold">Revenue Account
+       <select aria-label="Revenue account" className="input mt-1 w-full" value={account} disabled={busy} onChange={e=>setAccount(e.target.value)}><option value="">Select account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select>
+      </label>
       <label className="mt-2 block text-xs font-semibold">Invoice Date
        <NaviloDateInput className="input mt-1 w-full" type="date" value={date} disabled={busy} onChange={e=>setDate(e.target.value)}/>
       </label>
       <label className="mt-2 inline-flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={withTax} disabled={busy} onChange={e=>setWithTax(e.target.checked)}/> With VAT</label>
       <TransportVatPreview side="customer" date={date} withTax={withTax} amounts={[Number(trip.customer_rate??0)]} onReady={setVatReady}/>
       {!rateReady&&<p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">Finalize a positive Company Rate first. Invoice posting remains disabled until then.</p>}
-      <p className="mt-2 text-xs text-slate-600">Save here posts the canonical Sales/service invoice. Blank Invoice Number uses NAVILO automatic numbering.</p>
+      <p className="mt-2 text-xs text-slate-600">Save here posts the canonical Sales/service invoice to the selected Revenue Account. Blank Invoice Number uses NAVILO automatic numbering.</p>
     </>}
    {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}
    <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={onClose}>Close</button>{!posted&&<button className="btn-primary" disabled={!canPost} onClick={()=>void post()}>{busy?'Posting…':'Post Invoice'}</button>}</div>
