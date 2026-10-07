@@ -99,7 +99,26 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   fireEvent.click(screen.getByRole('button',{name:'Save Correction'}));
   await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_adjust_rate',expect.objectContaining({p_trip_id:'trip',p_rent_id:'rent-a',p_new_rate:65,p_side:'supplier'})));
  });
- it('posts only the selected supplier rent from a multi-supplier Trip',async()=>{
+ it('posts multiple selected customer trips as one grouped invoice with one shared number',async()=>{
+  mock.trips=[
+   {...trip,id:'trip-1',trip_no:'TRP-1'},
+   {...trip,id:'trip-2',trip_no:'TRP-2',trip_date:'2026-10-02'}
+  ];
+  render(<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>);
+  await screen.findByLabelText('Rate TRP-2');
+  fireEvent.change(screen.getByLabelText('Invoice number'),{target:{value:'GROUP-001'}});
+  fireEvent.click(screen.getByRole('button',{name:'Select Page Unposted'}));
+  expect((screen.getByLabelText('Invoice number TRP-1') as HTMLInputElement).value).toBe('GROUP-001');
+  expect((screen.getByLabelText('Invoice number TRP-2') as HTMLInputElement).value).toBe('GROUP-001');
+  fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_customer_bill_grouped',expect.objectContaining({
+   p_trip_ids:['trip-1','trip-2'],
+   p_invoice_no:'GROUP-001',
+   p_revenue_account_id:'revenue'
+  })));
+  expect(mock.rpc.mock.calls.filter(([n])=>n==='transport_post_customer_bill_grouped')).toHaveLength(1);
+ });
+  it('posts only the selected supplier rent from a multi-supplier Trip',async()=>{
   render(<TransportBulkSupplierRent onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByRole('option',{name:'Supplier B'});
   fireEvent.change(screen.getByLabelText('Supplier'),{target:{value:'supplier-b'}});
@@ -108,8 +127,8 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   fireEvent.click(screen.getByRole('button',{name:'Select Page Unposted'}));
   fireEvent.change(screen.getByLabelText('Expense account'),{target:{value:'expense'}});
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
-  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_supplier_bill',expect.objectContaining({p_rent_id:'rent-b'})));
-  expect(mock.rpc.mock.calls.filter(([n])=>n==='transport_post_supplier_bill')).toHaveLength(1);
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_supplier_bill_grouped',expect.objectContaining({p_rent_ids:['rent-b']})));
+  expect(mock.rpc.mock.calls.filter(([n])=>n==='transport_post_supplier_bill_grouped')).toHaveLength(1);
   expect(mock.rpc.mock.calls.some(([n])=>/settle|pay_supplier/.test(n))).toBe(false);
   expect(screen.queryByLabelText('Cash / Bank')).toBeNull();
  });
@@ -130,10 +149,10 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   render(<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByRole('option',{name:'Customer A'});
   expect(screen.queryByLabelText('Cash / Bank')).toBeNull();
-  if(invoiceNo)fireEvent.change(screen.getByLabelText('Invoice number TRP-1'),{target:{value:invoiceNo}});
+  if(invoiceNo)fireEvent.change(screen.getByLabelText('Invoice number'),{target:{value:invoiceNo}});
   fireEvent.click(screen.getByRole('button',{name:'Select Page Unposted'}));
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
-  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_customer_bill_accounted',expect.objectContaining({p_trip_id:'trip',p_revenue_account_id:'revenue',p_with_tax:false,p_invoice_no:invoiceNo||null})));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_customer_bill_grouped',expect.objectContaining({p_trip_ids:['trip'],p_revenue_account_id:'revenue',p_with_tax:false,p_invoice_no:invoiceNo||null})));
   expect(mock.rpc.mock.calls.some(([n])=>/cash_bill_receive|settle|receive_customer_payment|pay_supplier/.test(n))).toBe(false);
  });
  it.each(['customer','supplier'] as const)('posts %s custom description with the editable invoice number',async side=>{
@@ -145,10 +164,13 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   }
   const suffix=side==='customer'?'TRP-1':'TRP-1 Supplier A';
   fireEvent.change(await screen.findByLabelText(`Description ${suffix}`),{target:{value:'  Special delivery instructions  '}});
-  fireEvent.change(screen.getByLabelText(`Invoice number ${suffix}`),{target:{value:'DESC-001'}});
+  fireEvent.change(screen.getByLabelText('Invoice number'),{target:{value:'DESC-001'}});
   fireEvent.click(screen.getByRole('button',{name:'Select Page Unposted'}));
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
-  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith(side==='customer'?'transport_post_customer_bill_accounted':'transport_post_supplier_bill_described',expect.objectContaining({p_invoice_no:'DESC-001',p_description:'Special delivery instructions',...(side==='customer'?{p_revenue_account_id:'revenue'}:{})})));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith(side==='customer'?'transport_post_customer_bill_grouped':'transport_post_supplier_bill_grouped',expect.objectContaining({
+   p_invoice_no:'DESC-001',
+   ...(side==='customer'?{p_revenue_account_id:'revenue',p_trip_ids:['trip'],p_descriptions:{trip:'Special delivery instructions'}}:{p_rent_ids:['rent-a'],p_descriptions:{'rent-a':'Special delivery instructions'}})
+  })));
   expect(mock.rpc.mock.calls.some(([n])=>/cash_bill_receive|settle|pay_supplier/.test(n))).toBe(false);
  });
  it.each(['customer','supplier'] as const)('disables %s actions when server permissions deny them',async side=>{
@@ -175,12 +197,11 @@ describe('Transport Customer / Supplier bulk parity',()=>{
  it.each(['customer','supplier'] as const)('posts the chosen %s invoice number through canonical numbered posting',async side=>{
   render(side==='customer'?<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>:<TransportBulkSupplierRent onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByRole('option',{name:side==='customer'?'Customer A':'Supplier A'});
-  const label=side==='customer'?'Invoice number TRP-1':'Invoice number TRP-1 Supplier A';
-  fireEvent.change(screen.getByLabelText(label),{target:{value:'  MY-INV-2026  '}});
+  fireEvent.change(screen.getByLabelText('Invoice number'),{target:{value:'  MY-INV-2026  '}});
   if(side==='supplier')fireEvent.change(screen.getByLabelText('Expense account'),{target:{value:'expense'}});
   fireEvent.click(screen.getByLabelText(side==='customer'?'Select TRP-1':'Select TRP-1 Supplier A'));
   fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
-  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith(side==='customer'?'transport_post_customer_bill_accounted':'transport_post_supplier_bill_numbered',expect.objectContaining({p_invoice_no:'MY-INV-2026',...(side==='customer'?{p_revenue_account_id:'revenue'}:{})})));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith(side==='customer'?'transport_post_customer_bill_grouped':'transport_post_supplier_bill_grouped',expect.objectContaining({p_invoice_no:'MY-INV-2026',...(side==='customer'?{p_revenue_account_id:'revenue',p_trip_ids:['trip']}:{p_rent_ids:['rent-a']})})));
  });
  it('locks invoice numbering on posted trips',async()=>{
   mock.trips=[{...trip,customer_rate_locked:true,invoice_no:'S-OLD'}];
@@ -230,8 +251,8 @@ it('requires supplier VAT source reference and posts the reference separately fr
  fireEvent.change(screen.getByLabelText('Supplier'),{target:{value:'supplier-b'}});await waitFor(()=>expect(screen.getByLabelText('Rent TRP-1 Supplier B')).toBeTruthy());
  fireEvent.click(screen.getByRole('button',{name:'Select Page Unposted'}));fireEvent.change(screen.getByLabelText('Expense account'),{target:{value:'expense'}});fireEvent.click(screen.getByLabelText('With VAT'));
  await screen.findByText(/VAT 18%: 5.40/);fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
- await screen.findByText(/original supplier invoice reference required/);expect(mock.rpc.mock.calls.some(([n])=>n==='transport_post_supplier_bill')).toBe(false);
- fireEvent.change(screen.getByLabelText('Supplier invoice reference TRP-1 Supplier B'),{target:{value:'SUP-VAT-77'}});
+ await screen.findByText(/original supplier invoice reference required/);expect(mock.rpc.mock.calls.some(([n])=>n==='transport_post_supplier_bill_grouped')).toBe(false);
+ fireEvent.change(screen.getByLabelText('Supplier invoice reference'),{target:{value:'SUP-VAT-77'}});
  fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
- await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_supplier_bill',expect.objectContaining({p_rent_id:'rent-b',p_with_tax:true,p_reference:'SUP-VAT-77'})));
+ await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_supplier_bill_grouped',expect.objectContaining({p_rent_ids:['rent-b'],p_with_tax:true,p_reference:'SUP-VAT-77'})));
 });
