@@ -78,7 +78,7 @@ describe('New Trip master integration',()=>{
    if(name==='create_party_with_opening_balance_v2'){const row={id:'added',name:'Added',is_active:true};mock.tables[table].push(row);return {data:{party_id:row.id},error:null};}
    return {data:true,error:null};
   });
-  fireEvent.click(screen.getByRole('button',{name:button}));fireEvent.change(screen.getByLabelText(kind==='driver'?'Driver Name *':kind==='customer'?'English Name':'Name'),{target:{value:'Added'}});
+  fireEvent.click(screen.getByRole('button',{name:button}));fireEvent.change(screen.getByLabelText(kind==='customer'?'English Name':'Name'),{target:{value:'Added'}});
   fireEvent.submit(document.querySelectorAll('form')[document.querySelectorAll('form').length-1]);await waitFor(()=>expect(document.querySelector('form')).toBeNull());
   expect((screen.getByPlaceholderText(placeholder) as HTMLInputElement).value).toBe('Added');
  });
