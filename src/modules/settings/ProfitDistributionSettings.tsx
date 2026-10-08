@@ -2,6 +2,7 @@ import {useCallback,useEffect,useMemo,useState} from 'react';
 import {useAuth} from '@/auth/AuthContext';
 import SearchableSelect from '@/components/SearchableSelect';
 import TransportPartnerCurrentLedger from './TransportPartnerCurrentLedger';
+import TransportProfitMonthPosting from './TransportProfitMonthPosting';
 import {supabase} from '@/lib/supabase';
 import {calculateFixedDistribution,effectiveRule,validateDistributionPartners,type DistributionPartner,type DistributionMethod} from './profitDistribution';
 type LinkedPartner=DistributionPartner & {account_id:string;account_code?:string};
@@ -23,6 +24,7 @@ export default function ProfitDistributionSettings(){
  const [own,setOwn]=useState('0'),[twakkal,setTwakkal]=useState('0');
  const [rules,setRules]=useState<Rule[]>([]),[busy,setBusy]=useState(false),[loading,setLoading]=useState(false);
  const [error,setError]=useState(''),[notice,setNotice]=useState('');
+ const [postedVersion,setPostedVersion]=useState(0);
  const loadAccounts=useCallback(async()=>{
   if(!company||!unit||!isTransport){setEligibleAccounts([]);return;}
   const {data,error:e}=await supabase.rpc('transport_profit_distribution_eligible_accounts');
@@ -95,6 +97,7 @@ export default function ProfitDistributionSettings(){
    <div className="mt-2 grid gap-3 md:grid-cols-3"><label className="grid gap-1">Closing month<input className="input" type="month" value={closingMonth} onChange={e=>setClosingMonth(e.target.value)}/></label><label className="grid gap-1">Own-fleet net profit<input className="input" type="number" min="0" step="0.01" value={own} onChange={e=>setOwn(e.target.value)}/></label><label className="grid gap-1">Twakkal net profit<input className="input" type="number" min="0" step="0.01" value={twakkal} onChange={e=>setTwakkal(e.target.value)}/></label></div>
    {!active?<p className="mt-2 text-amber-800">No rule effective for this month.</p>:active.method==='custom_excel'?<p className="mt-2 text-amber-800">Custom Excel awaiting workbook; calculation and posting blocked.</p>:preview?.error?<p role="alert" className="mt-2 text-red-700">{preview.error}</p>:preview?.values?<div className="mt-2 overflow-x-auto"><p className="text-xs text-slate-600">Rule: {active.effective_from.slice(0,7)}</p><table className="w-full text-right text-xs"><thead><tr className="border-b bg-slate-50"><th className="p-2 text-left">Partner</th><th className="p-2">Own Fleet</th><th className="p-2">Twakkal</th><th className="p-2">Total</th></tr></thead><tbody>{preview.values.lines.map(l=><tr key={l.key} className="border-b"><td className="p-2 text-left">{active.shares.find(p=>p.key===l.key)?.account_code??'GL'} — {l.name}</td><td className="p-2">{currency(l.own_fleet)}</td><td className="p-2">{currency(l.twakkal)}</td><td className="p-2 font-semibold">{currency(l.total)}</td></tr>)}<tr className="bg-slate-50 font-bold"><td className="p-2 text-left">Total</td><td className="p-2">{currency(preview.values.poolTotals.own_fleet)}</td><td className="p-2">{currency(preview.values.poolTotals.twakkal)}</td><td className="p-2">{currency(preview.values.total)}</td></tr></tbody></table></div>:null}
   </section>
-   {active&&active.shares.some(p=>p.account_id)&&<TransportPartnerCurrentLedger month={closingMonth} accounts={active.shares.filter(p=>p.account_id).map(p=>({id:p.account_id,code:p.account_code??'',name:p.name}))} />}
+   <TransportProfitMonthPosting month={closingMonth} active={active} onPosted={()=>setPostedVersion(x=>x+1)} />
+   {active&&active.shares.some(p=>p.account_id)&&<TransportPartnerCurrentLedger key={closingMonth+'-'+postedVersion} month={closingMonth} accounts={active.shares.filter(p=>p.account_id).map(p=>({id:p.account_id,code:p.account_code??'',name:p.name}))} />}
  </div>;
 }
