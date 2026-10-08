@@ -41,6 +41,7 @@ export default function Suppliers({ quickCreate, transportEnglishOnly = false }:
   const { isPlatformOwner, activeCompany } = useAuth();
   const role = activeCompany?.membership_role ?? "";
   const canSetOpeningBalance = isPlatformOwner || role === "company_owner" || role === "admin";
+  const mobilePartyQuickCreate = Boolean(quickCreate?.allowTransportMobileCreate);
 
   const [rows, setRows] = useState<SupplierRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,7 +136,7 @@ export default function Suppliers({ quickCreate, transportEnglishOnly = false }:
       return setError("Opening date is required.");
     }
 
-    if (quickCreate?.allowTransportMobileCreate && !canSetOpeningBalance && !quickCreatedId.current) {
+    if (mobilePartyQuickCreate && !quickCreatedId.current) {
       const { data, error } = await (supabase as any).rpc("transport_mobile_quick_create_party", {
         p_party_type: "supplier", p_name: payload.name, p_email: payload.email, p_phone: payload.phone,
         p_address: payload.address, p_ntn: payload.ntn, p_strn: payload.strn, p_cnic: payload.cnic,
@@ -144,6 +145,9 @@ export default function Suppliers({ quickCreate, transportEnglishOnly = false }:
       if (error) return setError(error.message);
       const created = Array.isArray(data) ? data[0] : data;
       if (created?.id) { selectedCreatedId = created.id; quickCreatedId.current = created.id; }
+    } else if (mobilePartyQuickCreate && quickCreatedId.current) {
+      // Re-select the already-created party after a refresh failure; no implicit edit rights.
+      selectedCreatedId = quickCreatedId.current;
     } else if (quickCreate && quickCreatedId.current) {
       const {error: retryError} = await supabase.from("suppliers").update(payload).eq("id",quickCreatedId.current);
       if(retryError) return setError(retryError.message);
@@ -344,7 +348,7 @@ export default function Suppliers({ quickCreate, transportEnglishOnly = false }:
           <div className="mt-2 text-xs text-slate-500">{form.tax_registration_status === "registered" ? "Registered supplier ke Tax Invoice ke liye STRN/NTN posting validation mein use hoga." : "Unregistered supplier ke liye STRN/NTN required nahi; CNIC optional hai."}</div>
         </div>
 
-        {!editing && canSetOpeningBalance && <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+        {!editing && canSetOpeningBalance && !mobilePartyQuickCreate && <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
           <div className="mb-3"><div className="text-sm font-semibold text-blue-900">Opening Balance</div><div className="text-xs text-blue-700">Optional. Company Owner/Admin can enter the migrated opening balance here; 0 means no opening balance.</div></div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div><label className="label">Amount</label><input aria-label="Amount" className="input" type="number" min="0" step="0.01" value={form.opening_amount} onChange={(e) => setForm({ ...form, opening_amount: e.target.value })} placeholder="0.00" /></div>

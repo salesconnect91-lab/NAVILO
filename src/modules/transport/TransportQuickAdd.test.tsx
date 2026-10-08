@@ -11,9 +11,33 @@ vi.mock('@/components/MasterActionButton',()=>({default:()=>null}));
 vi.mock('@/modules/master-data/useTransportMasterClient',()=>({default:()=>client}));
 const client:any={rpc:mock.rpc,from:(table:string)=>{const data=table==='suppliers'?[{id:'s',name:'Owner',is_active:true}]:table==='transport_truck_types'?[{id:'tt',name:'Flatbed',is_active:true}]:[];const q:any={select:()=>q,order:()=>q,eq:()=>q,range:()=>Promise.resolve({data,error:null}),single:()=>Promise.resolve({data:{id:'new'},error:null}),insert:(p:any)=>{mock.insert(table,p);return q},update:(p:any)=>{mock.update(table,p);return q},then:(resolve:any,reject:any)=>Promise.resolve({data,error:null}).then(resolve,reject)};return q}};
 beforeEach(()=>{mock.rpc.mockReset();mock.rpc.mockResolvedValue({data:{party_id:'new'},error:null});mock.insert.mockReset();mock.update.mockReset()});afterEach(cleanup);
-function view(kind:any,onCreated=vi.fn(async()=>{})){const onClose=vi.fn();const result=render(<MemoryRouter><TransportQuickAdd kind={kind} truckTypeId="tt" supplierId="" truckTypes={[]} suppliers={[]} onCreated={onCreated} onClose={onClose}/></MemoryRouter>);return {...result,onCreated,onClose,submit:()=>fireEvent.submit(result.container.querySelector('form')!)};}
+function view(kind:any,onCreated=vi.fn(async()=>{}),allowTransportMobileCreate=false){const onClose=vi.fn();const result=render(<MemoryRouter><TransportQuickAdd kind={kind} truckTypeId="tt" supplierId="" truckTypes={[]} suppliers={[]} allowTransportMobileCreate={allowTransportMobileCreate} onCreated={onCreated} onClose={onClose}/></MemoryRouter>);return {...result,onCreated,onClose,submit:()=>fireEvent.submit(result.container.querySelector('form')!)};}
 describe('Canonical quick master editors',()=>{
  for(const kind of ['customer','supplier'])it(`${kind} preserves tax identity and opening balance fields and saves through the master RPC`,async()=>{const events=view(kind);for(const label of ['English Name','Phone','Address','Tax Status','Amount','Balance Side','Opening Date'])expect(screen.getByLabelText(label)).toBeTruthy();fireEvent.change(screen.getByLabelText('English Name'),{target:{value:'Party'}});fireEvent.change(screen.getByLabelText('Amount'),{target:{value:'125'}});fireEvent.change(screen.getByLabelText('Opening Date'),{target:{value:'02-Oct-26'}});events.submit();await waitFor(()=>expect(events.onCreated).toHaveBeenCalledWith({id:'new',name:'Party'}));expect(mock.rpc).toHaveBeenCalledWith('create_party_with_opening_balance_v2',expect.objectContaining({p_opening_amount:125,p_opening_date:'2026-10-02'}));expect(events.onClose).toHaveBeenCalled()});
+ for(const kind of ['customer','supplier'])it(`Mobile Quick Entry ${kind} uses dedicated create permission even for Company Owner`,async()=>{
+   mock.rpc.mockResolvedValue({data:{id:'new',name:'Party'},error:null});
+   const events=view(kind,vi.fn(async()=>{}),true);
+   expect(screen.queryByLabelText('Amount')).toBeNull();
+   fireEvent.change(screen.getByLabelText('English Name'),{target:{value:'Party'}});
+   events.submit();
+   await waitFor(()=>expect(events.onCreated).toHaveBeenCalledWith({id:'new',name:'Party'}));
+   expect(mock.rpc).toHaveBeenCalledWith('transport_mobile_quick_create_party',expect.objectContaining({p_party_type:kind,p_name:'Party'}));
+   expect(mock.rpc).toHaveBeenCalledTimes(1);
+   expect(mock.update).not.toHaveBeenCalled();
+ });
+ it('Mobile Quick Entry retries refresh without editing or recreating an existing customer',async()=>{
+   mock.rpc.mockResolvedValue({data:{id:'new',name:'Party'},error:null});
+   const onCreated=vi.fn().mockRejectedValueOnce(new Error('Refresh failed')).mockResolvedValue(undefined);
+   const events=view('customer',onCreated,true);
+   fireEvent.change(screen.getByLabelText('English Name'),{target:{value:'Party'}});
+   events.submit();
+   await screen.findByRole('alert');
+   events.submit();
+   await waitFor(()=>expect(events.onClose).toHaveBeenCalled());
+   expect(mock.rpc).toHaveBeenCalledTimes(1);
+   expect(mock.update).not.toHaveBeenCalled();
+   expect(onCreated).toHaveBeenCalledTimes(2);
+ });
  it('validates registered tax identity before posting',async()=>{const events=view('customer');fireEvent.change(screen.getByLabelText('English Name'),{target:{value:'Party'}});fireEvent.click(screen.getByLabelText('Tax Status'));fireEvent.click(screen.getByRole('option',{name:'Registered'}));expect(screen.getByLabelText('NTN')).toBeTruthy();expect(screen.getByLabelText('STRN')).toBeTruthy();events.submit();await screen.findByRole('alert');expect(mock.rpc).not.toHaveBeenCalled()});
  it('retains Driver identity and conditional supplier fields',async()=>{view('driver');fireEvent.change(screen.getByLabelText('Driver Type'),{target:{value:'supplier'}});await screen.findByRole('option',{name:'Owner'});expect(screen.getByLabelText('Supplier *').hasAttribute('required')).toBe(true);for(const label of ['Driver Code','ID / CNIC / Iqama','Driving Licence No','Licence Expiry'])expect(screen.getByLabelText(label)).toBeTruthy()});
  it('creates a supplier vehicle with dated ownership through the canonical atomic RPC',async()=>{mock.rpc.mockResolvedValue({data:'new',error:null});const events=view('vehicle');await screen.findByRole('option',{name:'Flatbed'});fireEvent.change(screen.getByLabelText('Vehicle No / Plate No *'),{target:{value:'ABC'}});fireEvent.change(screen.getByLabelText('Ownership Type'),{target:{value:'supplier'}});fireEvent.change(screen.getByLabelText('Supplier *'),{target:{value:'s'}});fireEvent.change(screen.getByLabelText('Ownership Effective From *'),{target:{value:'02-Oct-26'}});events.submit();await waitFor(()=>expect(events.onCreated).toHaveBeenCalledWith(expect.objectContaining({id:'new'})));expect(mock.rpc).toHaveBeenCalledWith('transport_create_vehicle_master',expect.objectContaining({p_supplier_id:'s',p_owner_type:'supplier',p_truck_type_id:'tt',p_effective_from:'2026-10-02'}));expect(mock.insert).not.toHaveBeenCalled()});

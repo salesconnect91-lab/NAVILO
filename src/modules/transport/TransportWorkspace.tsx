@@ -376,7 +376,10 @@ export default function TransportWorkspace(){
     setError('');setQuickAdd(kind);
   };
   async function quickMasterCreated(created:any){
-    await loadTripMasters();
+    const masters=await loadTripMasters();
+    if((quickAdd==='customer'||quickAdd==='supplier') && !masters[quickAdd==='customer'?'customers':'suppliers'].some((r:any)=>r.id===created.id&&r.is_active!==false)){
+      throw new Error(`${quickAdd==='customer'?'Customer':'Supplier'} was saved but is not visible in the active Company. Check Company access before continuing.`);
+    }
     if(bulkFixRowNo!==null){
       // A newly-created master can resolve the same rejection in many uploaded rows.
       // Re-run the existing validator for the whole preview; no validation rule is bypassed.
@@ -2441,7 +2444,7 @@ export default function TransportWorkspace(){
     </div>
 
     {quickAdd&&<TransportQuickAdd key={`${scopeKey}/${quickAdd}`} kind={quickAdd} truckTypeId={form.truck_type_id} supplierId={quickSupplierId}
-      truckTypes={tripMasters.truckTypes} suppliers={tripMasters.suppliers} onCreated={quickMasterCreated} onClose={()=>setQuickAdd(null)}/>}
+      truckTypes={tripMasters.truckTypes} suppliers={tripMasters.suppliers} allowTransportMobileCreate={standaloneMobile&&mobileCanCreate} onCreated={quickMasterCreated} onClose={()=>setQuickAdd(null)}/>}
 
   </div>
   }
