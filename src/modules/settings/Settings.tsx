@@ -8,6 +8,7 @@ import AccessManagementSettings from "./AccessManagementSettings";
 import ApprovalWorkflowSettings from "./ApprovalWorkflowSettings";
 import LicenceBillingStatus from "./LicenceBillingStatus";
 import ImportCenter from "./ImportCenter";
+import ProfitDistributionSettings from "./ProfitDistributionSettings";
 
 export default function Settings() {
   return (
@@ -21,6 +22,7 @@ export default function Settings() {
       <Route path="/order-book" element={<OrderBookSettings />} />
       <Route path="/gate-pass" element={<GatePassWeighbridgeSettings />} />
       <Route path="/imports" element={<ImportCenter />} />
+      <Route path="/profit-distribution" element={<ProfitDistributionSettings />} />
     </Routes>
   );
 }

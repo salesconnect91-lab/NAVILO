@@ -68,6 +68,7 @@ const navigation:NavNode[]=[
   {key:"settings",label:"Settings / سیٹنگز",icon:Lucide.Settings,module:"settings",children:[
     {key:"company-settings",to:"/settings",label:"Company / کمپنی",end:true,module:"settings"},
     {key:"import-center",to:"/settings/imports",label:"Import Center / امپورٹ سینٹر",module:"settings"},
+    {key:"transport-profit-distribution",to:"/settings/profit-distribution",label:"Profit Distribution",module:"settings",requiresModule:"transport",businessType:"transport",accessAdminOnly:true},
     {key:"access-settings",to:"/settings/access",label:"Users & Branches / یوزرز اور برانچز",module:"settings",accessAdminOnly:true},
     {key:"licence-settings",to:"/settings/licence",label:"Licence & Billing / لائسنس",module:"settings",accessAdminOnly:true},
     {key:"approval-settings",to:"/settings/approvals",label:"Approval Workflows / منظوری کے مراحل",module:"settings",accessAdminOnly:true},
