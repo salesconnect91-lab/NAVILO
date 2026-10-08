@@ -1,3 +1,4 @@
+import NaviloSearchableSelect from "@/components/SearchableSelect";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import {
   useState,
@@ -2876,10 +2877,10 @@ export default function JournalEntryList() {
                 {baseCurrency && availableCurrencies.length > 0 && (
                   <label className="block text-xs font-semibold">
                     Journal currency (company base: {baseCurrency})
-                    <select className="mt-1 w-full border rounded p-2" value={form.currency_code || baseCurrency}
+                    <NaviloSearchableSelect nativeCompatibility preserveLabel className="mt-1 w-full border rounded p-2" value={form.currency_code || baseCurrency}
                       onChange={event => setForm(current => ({ ...current, currency_code: event.target.value }))}>
                       {availableCurrencies.map(currency => <option key={currency.code} value={currency.code}>{currency.code} · {currency.name}</option>)}
-                    </select>
+                    </NaviloSearchableSelect>
                     <span className="mt-1 block font-normal text-slate-500">Foreign entries use the rate effective on the entry date. Enter line amounts in the selected currency.</span>
                   </label>
                 )}

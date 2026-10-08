@@ -1,3 +1,4 @@
+import NaviloSearchableSelect from "@/components/SearchableSelect";
 import {useLocation,useNavigate,useSearchParams} from 'react-router-dom';
 import TransportHorizontalScroll from './TransportHorizontalScroll';
 import './transportScrolling.css';
@@ -249,6 +250,8 @@ export default function TransportWorkspace(){
   const [page,setPage]=useState(0);
   const [registerSearch,setRegisterSearch]=useState('');
   const [registerSearchDraft,setRegisterSearchDraft]=useState('');
+  const [registerSearchMode,setRegisterSearchMode]=useState<'contains'|'starts_with'>('contains');
+  const [registerSearchModeDraft,setRegisterSearchModeDraft]=useState<'contains'|'starts_with'>('contains');
   const [registerMeta,setRegisterMeta]=useState<any>({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
   const readGeneration=useRef(0);
   const registerRequest=useRef<AbortController|null>(null);
@@ -468,7 +471,7 @@ export default function TransportWorkspace(){
     return result.data;
   }
 
-  const registerFilters={fromDate,toDate,customer:customerFilter,driver:driverFilter,vehicle:vehicleFilter,from:fromFilter,to:toFilter,ppr:pprFilter,statuses:statusFilters,columns:columnFilters,search:registerSearch};
+  const registerFilters={fromDate,toDate,customer:customerFilter,driver:driverFilter,vehicle:vehicleFilter,from:fromFilter,to:toFilter,ppr:pprFilter,statuses:statusFilters,columns:columnFilters,search:registerSearch,searchMode:registerSearchMode};
   const registerKey=JSON.stringify({scopeKey,registerFilters,sortColumn,sortDirection});
   async function load(silent=false){
     // A successful rent save must refresh the register immediately. A previous
@@ -594,6 +597,8 @@ export default function TransportWorkspace(){
   const resetFilters=()=>{
     setRegisterSearch("");
     setRegisterSearchDraft("");
+    setRegisterSearchMode("contains");
+    setRegisterSearchModeDraft("contains");
     setFromDate("");
     setToDate("");
     setCustomerFilter("");
@@ -1992,7 +1997,8 @@ export default function TransportWorkspace(){
             </div>}
           </div>
 
-          <form className={`flex w-80 items-stretch ${tripTheme==='theme3'?'h-8':tripTheme==='theme2'?'h-7':'h-9'}`} onSubmit={e=>{e.preventDefault();setPage(0);setRegisterSearch(registerSearchDraft.trim())}}>
+          <form className={`flex w-80 items-stretch ${tripTheme==='theme3'?'h-8':tripTheme==='theme2'?'h-7':'h-9'}`} onSubmit={e=>{e.preventDefault();setPage(0);setRegisterSearch(registerSearchDraft.trim());setRegisterSearchMode(registerSearchModeDraft)}}>
+            <NaviloSearchableSelect preserveLabel aria-label="Trip search mode" wrapperClassName="w-[120px] shrink-0" className="input h-7 text-xs" value={registerSearchModeDraft} onChange={e=>setRegisterSearchModeDraft(e.target.value as 'contains'|'starts_with')}><option value="contains">Contains</option><option value="starts_with">Starts with</option></NaviloSearchableSelect>
             <input aria-label="Search all Trip data" placeholder="Search all Trip data…" className={`input min-w-0 flex-1 rounded-r-none text-[11px] ${tripTheme==='theme3'?'h-8 rounded-l-lg border-emerald-200 bg-emerald-50/20 shadow-sm':tripTheme==='theme2'?'h-7 rounded-l-md':'h-9 rounded-l-lg border-slate-200 shadow-sm'}`} value={registerSearchDraft} onChange={e=>setRegisterSearchDraft(e.target.value)}/>
             <button type="submit" aria-label="Search Trips" className={`flex items-center justify-center border border-l-0 border-blue-300 bg-white text-blue-700 hover:bg-blue-50 ${tripTheme==='theme3'?'h-8 w-9 rounded-r-lg border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm':tripTheme==='theme2'?'h-7 w-8 rounded-r-md':'h-9 w-9 rounded-r-lg shadow-sm'}`}><Search className="h-3.5 w-3.5"/></button>
           </form>
@@ -2375,21 +2381,21 @@ export default function TransportWorkspace(){
         </TripField>
 
         <TripField label="Paper Received">
-          <select aria-label="PPR Status" value={form.ppr_status}
+          <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="PPR Status" value={form.ppr_status}
             onChange={e=>{setError("");setForm({...form,ppr_status:e.target.value,ppr_received_by_employee_id:e.target.value==="received"?form.ppr_received_by_employee_id:"",ppr_attachment_path:e.target.value==="received"?form.ppr_attachment_path:"",ppr_received_date:e.target.value==="received"?(form.ppr_received_date||new Date().toISOString().slice(0,10)):""})}}
             className="h-8 w-full border-0 bg-white px-2 text-xs outline-none">
             <option value="pending">Pending</option>
             <option value="received">Received</option>
             <option value="not_required">Not Required</option>
-          </select>
+          </NaviloSearchableSelect>
         </TripField>
 
         <TripField label="PPR Receiving Employee">
-          <select aria-label="PPR Receiving Employee" value={form.ppr_received_by_employee_id} disabled={form.ppr_status!=="received"} onChange={e=>setForm({...form,ppr_received_by_employee_id:e.target.value})} className="input w-full">
+          <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="PPR Receiving Employee" value={form.ppr_received_by_employee_id} disabled={form.ppr_status!=="received"} onChange={e=>setForm({...form,ppr_received_by_employee_id:e.target.value})} className="input w-full">
             <option value="">Select employee</option>
             {form.ppr_received_by_employee_id&&!tripMasters.employees.some(e=>e.id===form.ppr_received_by_employee_id)&&<option value={form.ppr_received_by_employee_id}>Recorded employee</option>}
             {tripMasters.employees.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
-          </select>
+          </NaviloSearchableSelect>
         </TripField>
         <TripField label="PPR Attachment (optional)">
           <input aria-label="PPR Attachment" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={loading||!editingTripId||form.ppr_status!=="received"} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void attachPpr(file)}}/>
@@ -2428,13 +2434,13 @@ export default function TransportWorkspace(){
     <div className="mt-3 grid gap-3 xl:grid-cols-[180px_1fr_auto]">
       <label className="text-[11px] font-semibold text-slate-700">
         Sale Type
-        <select aria-label="Sale Type" disabled={editingTripLocked||Boolean(editingTripId&&editingRateLocks.customer)} value={form.sale_type}
+        <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Sale Type" disabled={editingTripLocked||Boolean(editingTripId&&editingRateLocks.customer)} value={form.sale_type}
           onChange={e=>{setError("");setForm({...form,sale_type:e.target.value})}}
           className="mt-1 h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-blue-400">
           <option value="">Select</option>
           <option value="cash">Cash</option>
           <option value="credit">Credit</option>
-        </select>
+        </NaviloSearchableSelect>
       </label>
 
       <label className="text-[11px] font-semibold text-slate-700">
@@ -2783,10 +2789,10 @@ export default function TransportWorkspace(){
         </div>
         <div className="grid grid-cols-2 gap-2">
           <label className="text-xs font-semibold">Received By
-            <select value={quickPprEmployee} onChange={e=>setQuickPprEmployee(e.target.value)} className="mt-1 h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs">
+            <NaviloSearchableSelect nativeCompatibility preserveLabel value={quickPprEmployee} onChange={e=>setQuickPprEmployee(e.target.value)} className="mt-1 h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs">
               <option value="">Select employee</option>
               {tripMasters.employees.map((employee:any)=><option key={employee.id} value={employee.id}>{employee.name}</option>)}
-            </select>
+            </NaviloSearchableSelect>
           </label>
           <label className="text-xs font-semibold">PPR Date
             <NaviloDateInput aria-label="PPR Received Date" type="date" value={quickPprDate} onChange={e=>setQuickPprDate(e.target.value)} className="mt-1 h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs"/>
@@ -3021,11 +3027,11 @@ function FilterDate({label,value,setValue}:{label:string;value:string;setValue:(
 function FilterSelect({label,value,setValue,all,options}:{label:string;value:string;setValue:(value:string)=>void;all:string;options:string[]}){
   return <label className="text-[9px] font-bold uppercase tracking-normal text-slate-500">
     {label}
-    <select value={value} onChange={e=>setValue(e.target.value)}
+    <NaviloSearchableSelect nativeCompatibility preserveLabel value={value} onChange={e=>setValue(e.target.value)}
       className="mt-0.5 h-6 w-full rounded border border-slate-200 bg-white px-1.5 text-[10px]">
       <option value="">{all}</option>
       {options.map(v=><option key={v} value={v}>{v}</option>)}
-    </select>
+    </NaviloSearchableSelect>
   </label>
 }
 

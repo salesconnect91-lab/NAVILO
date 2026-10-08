@@ -31,3 +31,15 @@ describe("SearchableSelect global interaction contract",()=>{
   rerender(<SearchableSelect value="invoice"><option value="invoice">TR-000001 — Outstanding Rs. 1,500.00</option></SearchableSelect>);
   expect(screen.getByRole("button",{name:/Outstanding Rs/}).textContent).not.toContain("TR-000001");
  });
+
+
+describe("native form compatibility",()=>{
+ it("retains required validation and form values while presenting searchable options",()=>{
+  render(<form data-testid="form"><label htmlFor="required-party">Party</label><SearchableSelect nativeCompatibility id="required-party" name="party" required defaultValue=""><option value="">Select party</option><option value="steel">Steel Works</option></SearchableSelect></form>);
+  const form=screen.getByTestId("form") as HTMLFormElement;
+  expect(form.checkValidity()).toBe(false);
+  fireEvent.change(form.querySelector("select")!,{target:{value:"steel"}});
+  expect(form.checkValidity()).toBe(true);
+  expect(new FormData(form).get("party")).toBe("steel");
+ });
+});

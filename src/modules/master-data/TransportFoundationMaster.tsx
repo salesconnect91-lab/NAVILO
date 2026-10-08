@@ -1,3 +1,4 @@
+import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { Modal } from "@/components/ui";
 import type { MasterQuickCreate } from "./MasterQuickCreate";
 import { useEffect, useRef, useState } from "react";
@@ -64,7 +65,7 @@ export default function TransportFoundationMaster({ kind, quickCreate }: { kind:
   const editor = <form className="flex flex-wrap items-end gap-2" onSubmit={save}>
       <label className="text-xs font-semibold">Name<input className="input mt-1 block" required value={name} onChange={e => setName(e.target.value)} /></label>
       {kind === "locations" && <label className="text-xs font-semibold">City / Area<input className="input mt-1 block" value={city} onChange={e => setCity(e.target.value)} /></label>}
-      {kind === "vehicle_expense_types" && <label className="text-xs font-semibold">Expense Scope<select required className="input mt-1 block" value={expenseScope} onChange={e => setExpenseScope(e.target.value)}><option value="">Select scope</option><option value="trip">Trip</option><option value="vehicle">Vehicle</option><option value="both">Both</option></select></label>}
+      {kind === "vehicle_expense_types" && <label className="text-xs font-semibold">Expense Scope<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 block" value={expenseScope} onChange={e => setExpenseScope(e.target.value)}><option value="">Select scope</option><option value="trip">Trip</option><option value="vehicle">Vehicle</option><option value="both">Both</option></NaviloSearchableSelect></label>}
       <button className="btn-primary" disabled={busy}>{editing ? "Save Changes" : "Add"}</button>
       {editing && <button type="button" className="btn-secondary" onClick={reset}>Cancel</button>}
     </form>;

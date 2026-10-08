@@ -95,3 +95,6 @@
     [data-navilo-searchable-dropdown] button { min-height: 44px; }
   }
 }
+
+/* Keep native labels/form semantics intact under the visual search trigger. */
+.navilo-select-display::before { content: attr(data-selected-label); }

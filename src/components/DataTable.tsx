@@ -1,3 +1,4 @@
+import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export interface Column<T> {
@@ -228,12 +229,12 @@ export default function DataTable<T extends { id: string }>({
           {selected.size ? <span className="ml-3 font-semibold">{selected.size} selected · <button type="button" className="underline" onClick={() => setSelected(new Set())}>Clear</button></span> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select aria-label="Table density" className="input h-8 min-h-8 w-auto py-0 text-xs" value={prefs.density} onChange={e => savePrefs({ ...prefs, density:e.target.value as Density })}>
+          <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Table density" className="input h-8 min-h-8 w-auto py-0 text-xs" value={prefs.density} onChange={e => savePrefs({ ...prefs, density:e.target.value as Density })}>
             <option value="compact">Compact</option><option value="comfortable">Comfortable</option><option value="spacious">Spacious</option>
-          </select>
-          <select aria-label="Rows per page" className="input h-8 min-h-8 w-auto py-0 text-xs" value={prefs.pageSize} onChange={e => savePrefs({ ...prefs, pageSize:Number(e.target.value) })}>
+          </NaviloSearchableSelect>
+          <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Rows per page" className="input h-8 min-h-8 w-auto py-0 text-xs" value={prefs.pageSize} onChange={e => savePrefs({ ...prefs, pageSize:Number(e.target.value) })}>
             {[25,50,100,250].map(n => <option key={n} value={n}>{n} / page</option>)}
-          </select>
+          </NaviloSearchableSelect>
           <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage<=1} onClick={()=>setPage(1)}>First</button>
           <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage<=1} onClick={()=>setPage(p=>Math.max(1,p-1))}>Previous</button>
           <span className="text-xs font-semibold text-slate-600">{safePage} / {totalPages}</span>

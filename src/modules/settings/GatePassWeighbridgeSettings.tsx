@@ -1,3 +1,4 @@
+import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
@@ -87,11 +88,11 @@ export default function GatePassWeighbridgeSettings() {
         {loading ? <div className="py-8 text-sm text-slate-500">Loading settings……</div> : <div className="space-y-5">
           <div>
             <label className="label">Tolerance Rule</label>
-            <select className="input max-w-xl" value={config.tolerance_mode} onChange={e => setConfig(v => ({ ...v, tolerance_mode: e.target.value as Mode }))}>
+            <NaviloSearchableSelect nativeCompatibility preserveLabel className="input max-w-xl" value={config.tolerance_mode} onChange={e => setConfig(v => ({ ...v, tolerance_mode: e.target.value as Mode }))}>
               <option value="greater_of_both">Greater of Fixed or Percentage</option>
               <option value="fixed_only">Fixed Kg Only</option>
               <option value="percentage_only">Percentage Only</option>
-            </select>
+            </NaviloSearchableSelect>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">

@@ -903,13 +903,13 @@ export default function SalesInvoiceList() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <select className="input h-8 w-44 text-xs" value={invoiceSort} onChange={(e)=>setInvoiceSort(e.target.value as typeof invoiceSort)} aria-label="Sort invoices">
+                  <SearchableSelect nativeCompatibility preserveLabel className="input h-8 w-44 text-xs" value={invoiceSort} onChange={(e)=>setInvoiceSort(e.target.value as typeof invoiceSort)} aria-label="Sort invoices">
                     <option value="date_desc">Newest date</option>
                     <option value="date_asc">Oldest date</option>
                     <option value="invoice_asc">Invoice #</option>
                     <option value="balance_desc">Balance: high-low</option>
                     <option value="balance_asc">Balance: low-high</option>
-                  </select>
+                  </SearchableSelect>
 
                   <input
                     className="input h-8 text-xs w-48"

@@ -1,3 +1,4 @@
+import NaviloSearchableSelect from "@/components/SearchableSelect";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import {useEffect,useRef,useState} from 'react';
 import {useAuth} from '@/auth/AuthContext';
@@ -56,11 +57,11 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
   </label>}
   {(finalized||(posted&&correctionMode))&&<>
    <label className="mt-2 block text-xs font-semibold">Reason
-    <select className="input mt-1 w-full" value={reasonPreset} disabled={busy||saved} onChange={e=>{const value=e.target.value;setReasonPreset(value);setReason(value==="__other__"?"":value)}}>
+    <NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" value={reasonPreset} disabled={busy||saved} onChange={e=>{const value=e.target.value;setReasonPreset(value);setReason(value==="__other__"?"":value)}}>
      <option value="">Select reason</option>
      {CUSTOMER_RATE_REASON_OPTIONS.map(option=><option key={option} value={option}>{option}</option>)}
      <option value="__other__">Other</option>
-    </select>
+    </NaviloSearchableSelect>
    </label>
    {reasonPreset==="__other__"&&<label className="mt-2 block text-xs font-semibold">Other reason
     <input className="input mt-1 w-full" value={reason} disabled={busy||saved} onChange={e=>setReason(e.target.value)} placeholder={posted?'Enter posted correction reason':'Enter rate override reason'}/>

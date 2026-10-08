@@ -1,3 +1,4 @@
+import NaviloSearchableSelect from "@/components/SearchableSelect";
 import TransportVatPreview from './TransportVatPreview';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import {useEffect,useRef,useState} from 'react';
@@ -55,7 +56,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
     ?<p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">This canonical Sales invoice is already posted. Its invoice number is locked and is not overwritten from the Trips grid.</p>
     :<>
       <label className="mt-2 block text-xs font-semibold">Revenue Account
-       <select aria-label="Revenue account" className="input mt-1 w-full" value={account} disabled={busy} onChange={e=>setAccount(e.target.value)}><option value="">Select account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select>
+       <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Revenue account" className="input mt-1 w-full" value={account} disabled={busy} onChange={e=>setAccount(e.target.value)}><option value="">Select account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</NaviloSearchableSelect>
       </label>
       <label className="mt-2 block text-xs font-semibold">Invoice Date
        <NaviloDateInput className="input mt-1 w-full" type="date" value={date} disabled={busy} onChange={e=>setDate(e.target.value)}/>

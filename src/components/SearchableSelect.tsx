@@ -1,4 +1,4 @@
-import { Children, isValidElement, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, Children, isValidElement, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Search } from "lucide-react";
 import type { ChangeEvent, ReactElement, ReactNode, SelectHTMLAttributes } from "react";
@@ -9,6 +9,7 @@ type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, "children"> & {
   searchPlaceholder?: string;
   emptyText?: string;
   preserveLabel?: boolean;
+  nativeCompatibility?: boolean;
 };
 
 type Option = { value: string; label: string; searchText: string; disabled: boolean };
@@ -67,7 +68,7 @@ function displayLabel(raw: string): string {
   return value;
 }
 
-function collectOptions(children: ReactNode, preserveLabel = false): Option[] {
+function collectOptions(children: ReactNode, preserveLabel = false, groupDisabled = false): Option[] {
   const result: Option[] = [];
   Children.forEach(children, child => {
     if (!isValidElement(child)) return;
@@ -75,10 +76,10 @@ function collectOptions(children: ReactNode, preserveLabel = false): Option[] {
     if (element.type === "option") {
       const rawLabel = textOf(element.props.children).trim() || String(element.props.value ?? "");
       const hiddenSearch = String(element.props["data-search"] ?? "").trim();
-      result.push({ value: String(element.props.value ?? ""), label: preserveLabel ? rawLabel : displayLabel(rawLabel), searchText: `${rawLabel} ${hiddenSearch}`.trim(), disabled: Boolean(element.props.disabled) });
+      result.push({ value: String(element.props.value ?? rawLabel), label: preserveLabel ? rawLabel : displayLabel(rawLabel), searchText: `${rawLabel} ${hiddenSearch}`.trim(), disabled: groupDisabled || Boolean(element.props.disabled) });
       return;
     }
-    if (element.type === "optgroup") result.push(...collectOptions(element.props.children, preserveLabel));
+    if (element.type === "optgroup" || element.type === Fragment) result.push(...collectOptions(element.props.children, preserveLabel, groupDisabled || Boolean(element.props.disabled)));
   });
   return result;
 }
@@ -96,18 +97,20 @@ export default function SearchableSelect({
   searchPlaceholder = "Type to search...",
   emptyText = "No matching option",
   preserveLabel = false,
+  nativeCompatibility = false,
   ...props
 }: Props) {
   const options = useMemo(() => collectOptions(children, preserveLabel), [children, preserveLabel]);
   const controlled = value !== undefined;
   const [internalValue, setInternalValue] = useState(String(defaultValue ?? ""));
-  const selectedValue = controlled ? String(value ?? "") : internalValue;
+  const selectedValue = controlled ? String(value ?? "") : internalValue || (nativeCompatibility && defaultValue === undefined ? options[0]?.value ?? "" : internalValue);
   const selected = options.find(option => option.value === selectedValue) ?? null;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [dropdownPosition, setDropdownPosition] = useState<DropdownPosition | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const positionDropdown = () => {
     const rect = rootRef.current?.getBoundingClientRect();
@@ -115,10 +118,11 @@ export default function SearchableSelect({
     const availableBelow = window.innerHeight - rect.bottom - 8;
     const openAbove = availableBelow < 220 && rect.top > availableBelow;
     const estimatedHeight = Math.min(288, 53 + options.length * 36);
+    const popupWidth = Math.min(Math.max(rect.width, 180), Math.max(1, window.innerWidth - 16));
     setDropdownPosition({
-      left: Math.max(8, Math.min(rect.left, window.innerWidth - Math.max(rect.width, 180) - 8)),
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - popupWidth - 8)),
       top: openAbove ? Math.max(8, rect.top - estimatedHeight - 4) : rect.bottom + 4,
-      width: Math.max(rect.width, 180),
+      width: popupWidth,
     });
   };
 
@@ -175,27 +179,36 @@ export default function SearchableSelect({
     closeDropdown();
   };
 
+  const Trigger = nativeCompatibility ? "span" : "button";
+  const nativeLayout = className.split(/\s+/).filter(token => /^(?:w-|min-w-|max-w-|flex-|grow|shrink|col-|row-|m[trblxy]?-|self-)/.test(token)).join(" ");
   return (
-    <div ref={rootRef} className={`relative min-w-0 ${wrapperClassName || "w-full"}`}>
-      <button
-        id={id}
+    <div ref={rootRef} className={`relative min-w-0 ${wrapperClassName || (nativeCompatibility && nativeLayout ? nativeLayout : "w-full")}`}>
+      <Trigger
+        role={nativeCompatibility ? "button" : undefined}
+        aria-hidden={nativeCompatibility ? true : undefined}
+        tabIndex={nativeCompatibility ? -1 : undefined}
+        aria-disabled={disabled}
+        ref={node => { triggerRef.current = node as HTMLButtonElement | null; }}
+        id={nativeCompatibility ? undefined : id}
         type="button"
         disabled={disabled}
-        className={`${className} flex w-full items-center justify-between gap-2 text-left`}
+        className={`${className} ${nativeCompatibility && disabled ? "cursor-not-allowed opacity-50" : ""} flex w-full items-center justify-between gap-2 text-left`}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={props["aria-label"]}
+        aria-label={nativeCompatibility ? undefined : props["aria-label"]}
+        aria-required={props.required}
+        onBlur={nativeCompatibility ? undefined : props.onBlur as unknown as React.FocusEventHandler<HTMLButtonElement>}
         title={props.title}
         onClick={() => {
           if (disabled) return;
           if (open) closeDropdown(); else openDropdown();
         }}
       >
-        <span className={`min-w-0 flex-1 truncate ${selectedValue ? "text-slate-900" : "text-slate-500"}`}>
-          {selected?.label || "Select..."}
+        <span data-selected-label={nativeCompatibility ? selected?.label || "Select..." : undefined} className={`${nativeCompatibility ? "navilo-select-display" : ""} min-w-0 flex-1 truncate ${selectedValue ? "text-slate-900" : "text-slate-500"}`}>
+          {nativeCompatibility ? null : selected?.label || "Select..."}
         </span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+      </Trigger>
 
       {open && dropdownPosition && createPortal(
         <div
@@ -223,7 +236,16 @@ export default function SearchableSelect({
         </div>,
         document.body,
       )}
-      {name ? <input type="hidden" name={name} value={selectedValue} /> : null}
+      {nativeCompatibility && <select
+        {...props}
+        className="sr-only" tabIndex={nativeCompatibility ? 0 : -1} aria-hidden={nativeCompatibility ? open : true}
+        id={nativeCompatibility ? id : undefined} aria-label={nativeCompatibility ? props["aria-label"] : undefined}
+        onFocus={event => { props.onFocus?.(event); openDropdown(); }}
+        name={name} value={selectedValue} disabled={disabled} required={props.required} form={props.form}
+        onChange={event => { if (!controlled) setInternalValue(event.target.value); onChange?.(event); closeDropdown(); }}
+        onInvalid={event => { event.preventDefault(); triggerRef.current?.focus(); openDropdown(); }}
+      >{children}</select>}
+      {!nativeCompatibility && name ? <input type="hidden" name={name} value={selectedValue} /> : null}
     </div>
   );
 }

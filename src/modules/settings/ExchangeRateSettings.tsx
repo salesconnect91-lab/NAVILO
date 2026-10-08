@@ -1,3 +1,4 @@
+import NaviloSearchableSelect from "@/components/SearchableSelect";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -83,9 +84,9 @@ export default function ExchangeRateSettings() {
     {notice && <p role="status" className="mt-3 text-sm text-emerald-700">{notice}</p>}
     <form onSubmit={save} className="mt-4 grid gap-3 md:grid-cols-5">
       <label className="text-xs font-semibold">Foreign currency
-        <select className="input mt-1 w-full" value={foreign} onChange={event => setForeign(event.target.value)} required>
+        <NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" value={foreign} onChange={event => setForeign(event.target.value)} required>
           <option value="">Select…</option>{currencies.filter(currency => currency.code !== base).map(currency => <option key={currency.code} value={currency.code}>{currency.code} · {currency.name}</option>)}
-        </select>
+        </NaviloSearchableSelect>
       </label>
       <label className="text-xs font-semibold">Effective from
         <NaviloDateInput className="input mt-1 w-full" type="date" value={effectiveOn} onChange={event => setEffectiveOn(event.target.value)} required />

@@ -1,3 +1,4 @@
+import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { useMemo, useState } from "react";
 
 export type ReportColumn = {
@@ -58,8 +59,8 @@ export default function ReportCustomizer({ columns, value, onChange }: Props) {
             ))}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-            <label>Density<select className="input mt-1" value={value.density} onChange={(event) => patch({ density: event.target.value as ReportCustomizeState["density"] })}><option value="compact">Compact</option><option value="standard">Standard</option></select></label>
-            <label>Orientation<select className="input mt-1" value={value.orientation} onChange={(event) => patch({ orientation: event.target.value as ReportCustomizeState["orientation"] })}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
+            <label>Density<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1" value={value.density} onChange={(event) => patch({ density: event.target.value as ReportCustomizeState["density"] })}><option value="compact">Compact</option><option value="standard">Standard</option></NaviloSearchableSelect></label>
+            <label>Orientation<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1" value={value.orientation} onChange={(event) => patch({ orientation: event.target.value as ReportCustomizeState["orientation"] })}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></NaviloSearchableSelect></label>
           </div>
           <div className="mt-3 space-y-2 text-sm">
             <label className="flex items-center gap-2"><input type="checkbox" checked={value.showTotals} onChange={(event) => patch({ showTotals: event.target.checked })} /> Show totals</label>

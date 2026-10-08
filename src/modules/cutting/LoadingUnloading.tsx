@@ -1,3 +1,4 @@
+import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useState } from "react";
 import { Printer } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -134,20 +135,20 @@ export default function LoadingUnloading() {
         <div className="grid w-full min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="min-w-0">
             <label className="label">Final Gate Pass</label>
-            <select className="input w-full min-w-0" value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
+            <NaviloSearchableSelect nativeCompatibility preserveLabel className="input w-full min-w-0" value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
               <option value="">Select Final Gate Pass</option>
               {finalized.map((g) => (
                 <option key={g.id} value={g.id}>{g.pass_no} · {g.customer_name || "—"} · {g.vehicle_no || "—"} · {g.pass_date}</option>
               ))}
-            </select>
+            </NaviloSearchableSelect>
           </div>
 
           <div className="min-w-0">
             <label className="label">Correction Reason</label>
-            <select className="input w-full min-w-0" value={reason} onChange={(e) => setReason(e.target.value)}>
+            <NaviloSearchableSelect nativeCompatibility preserveLabel className="input w-full min-w-0" value={reason} onChange={(e) => setReason(e.target.value)}>
               <option value="">Select a reason</option>
               {CORRECTION_REASONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-            </select>
+            </NaviloSearchableSelect>
           </div>
 
           <div className="min-w-0">

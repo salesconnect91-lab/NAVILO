@@ -1394,8 +1394,8 @@ import SearchableSelect from "@/components/SearchableSelect";
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
             <div className="border-b border-slate-200 bg-white px-5 py-4">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                <div className="flex flex-1 flex-col gap-3 md:flex-row">
-                  <div className="relative min-w-0 flex-1 md:max-w-md">
+                <div className="flex min-w-0 flex-1 flex-col gap-3 md:flex-row md:flex-wrap">
+                  <div className="relative min-w-0 flex-1 md:min-w-[220px] md:max-w-md">
                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                       ⌕
                     </span>

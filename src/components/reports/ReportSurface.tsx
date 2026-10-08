@@ -1,3 +1,4 @@
+import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Columns3, X } from "lucide-react";
 import { useLocation } from "react-router-dom";
@@ -58,8 +59,8 @@ export default function ReportSurface({ children }: ReportSurfaceProps) {
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3"><div><div className="text-sm font-bold">Customize Report</div><div className="text-[11px] text-slate-500">Display and print options</div></div><button type="button" aria-label="Close customize report" onClick={()=>setCustomizeOpen(false)}><X className="h-4 w-4"/></button></div>
       <div className="space-y-4 p-4 text-xs">
         {columns.length>0&&<div><div className="mb-2 flex items-center gap-2 font-bold"><Columns3 className="h-4 w-4"/>Columns</div><div className="max-h-52 space-y-1 overflow-y-auto">{columns.map(c=><label key={`${c.index}-${c.label}`} className="flex items-center gap-2 py-1"><input type="checkbox" checked={c.visible} disabled={c.visible&&columns.filter(item=>item.visible).length===1} onChange={()=>setColumns(list=>list.map(item=>item.index===c.index?{...item,visible:!item.visible}:item))}/><span>{c.label}</span></label>)}</div></div>}
-        <label className="block font-semibold">Density<select className="input mt-1 w-full" value={density} onChange={e=>setDensity(e.target.value as Density)}><option value="compact">Compact</option><option value="standard">Standard</option></select></label>
-        <label className="block font-semibold">Print orientation<select className="input mt-1 w-full" value={orientation} onChange={e=>setOrientation(e.target.value as Orientation)}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
+        <label className="block font-semibold">Density<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" value={density} onChange={e=>setDensity(e.target.value as Density)}><option value="compact">Compact</option><option value="standard">Standard</option></NaviloSearchableSelect></label>
+        <label className="block font-semibold">Print orientation<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" value={orientation} onChange={e=>setOrientation(e.target.value as Orientation)}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></NaviloSearchableSelect></label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={showTotals} onChange={e=>setShowTotals(e.target.checked)}/>Show totals</label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={showFilters} onChange={e=>setShowFilters(e.target.checked)}/>Show filters</label>
         <button type="button" className="btn-secondary w-full" onClick={reset}>Reset report view</button>
