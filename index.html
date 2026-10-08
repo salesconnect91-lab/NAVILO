@@ -29,6 +29,16 @@
           }
         }, 0);
       }, true);
+      // A failed client bootstrap can leave the root empty even when HTML/assets are 200.
+      // Show a recovery action rather than an indefinitely blank or loading screen.
+      window.setTimeout(function () {
+        var root = document.getElementById("root");
+        if (!root) return;
+        var fallback = root.querySelector("#navilo-boot-fallback");
+        var empty = !root.textContent || !root.textContent.trim();
+        if (!fallback && !empty) return;
+        root.innerHTML = '<div role="alert" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f7f9;padding:24px;font:500 14px Inter,Arial,sans-serif;color:#334155"><div style="max-width:480px;border:1px solid #fecaca;background:white;padding:20px;border-radius:10px"><strong style="display:block;color:#991b1b;margin-bottom:8px">NAVILO did not finish opening</strong><p style="line-height:1.6;margin:0 0 14px">The app could not complete startup. Reload to get the latest version. Your saved business data has not been changed.</p><button type="button" onclick="window.location.reload()" style="background:#1e40af;color:white;border:0;border-radius:6px;padding:10px 16px;cursor:pointer">Reload NAVILO</button></div></div>';
+      }, 14000);
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
