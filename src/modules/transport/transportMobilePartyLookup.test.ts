@@ -19,7 +19,7 @@ describe('Transport Mobile party lookup',()=>{
   it('paginates full party lists across the PostgREST default 1000 row limit',async()=>{
     const calls:number[]=[];
     const client={rpc:()=>({
-      range:(start:number,end:number)=>{
+      range:(start:number,_end:number)=>{
         calls.push(start);
         const count=start===0?1000:1;
         return Promise.resolve({data:Array.from({length:count},(_,i)=>({id:String(start+i),name:'Party',is_active:true})),error:null});
