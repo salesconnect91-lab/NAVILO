@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>NAVILO | Browser Recovery</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#0f172a;font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;min-height:100vh;display:grid;place-items:center;padding:20px}
+    main{width:min(100%,460px);background:white;border:1px solid #cbd5e1;border-radius:14px;padding:24px;box-shadow:0 8px 30px #0f172a12}
+    h1{font-size:21px;margin:0 0 13px}p{line-height:1.6;color:#475569;margin:9px 0}
+    button,a{display:block;width:100%;text-align:center;border-radius:9px;padding:12px 14px;font:600 14px inherit;cursor:pointer;text-decoration:none}
+    a{border:1px solid #cbd5e1;color:#1e40af;background:white;margin-top:12px}
+    button{border:0;background:#1d4ed8;color:white;margin-top:18px}
+    .note{font-size:12px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;padding:10px;border-radius:8px;margin-top:14px}
+    #status{font-size:13px;min-height:22px;color:#b91c1c}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>NAVILO — Browser Recovery</h1>
+    <p>This recovery page is on your original <strong>navilo.vercel.app</strong> address and does not load the ERP application.</p>
+    <p>If NAVILO opens as a white screen here but works on another Vercel address, the browser may have old website data for this domain.</p>
+    <div class="note"><strong>Before continuing:</strong> Resetting browser data signs you out and may remove unsaved drafts and display preferences stored on this device. It does not delete saved customers, trips, payments or other server records.</div>
+    <button id="reset" type="button">Reset this browser and open NAVILO</button>
+    <a href="/">Open NAVILO without resetting</a>
+    <p id="status" role="status" aria-live="polite"></p>
+  </main>
+  <script>
+    document.getElementById("reset").addEventListener("click", function () {
+      var status = document.getElementById("status");
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (registrations) {
+            return Promise.all(registrations.filter(function (r) { return r.scope.indexOf(location.origin) === 0; }).map(function (r) { return r.unregister(); }));
+          }).catch(function () {}).finally(function () {
+            location.replace("/?recovered=" + Date.now());
+          });
+        } else {
+          location.replace("/?recovered=" + Date.now());
+        }
+      } catch (err) {
+        status.textContent = "Browser storage reset was blocked. Use Safari Settings > Apps > Safari > Advanced > Website Data and remove navilo.vercel.app.";
+      }
+    });
+  </script>
+</body>
+</html>
