@@ -1,0 +1,97 @@
+/* Approved compact accountant UI. Named surfaces only; no DOM relocation,
+   hidden fields, account logic, print rules or Transport scroll geometry. */
+@media screen {
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"]) table:not(:where(.navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-print-preview] *)) {
+    font-family: var(--erp-font);
+    font-size: 13px !important;
+    font-variant-numeric: tabular-nums;
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"]) :is(th, td):not(:where(.navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-print-preview] *, [data-navilo-data-table] *)) {
+    padding: 5px 8px !important;
+    font-size: 13px !important;
+    line-height: 1.35 !important;
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"]) th:not(:where(.navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-print-preview] *, [data-navilo-data-table] *)) {
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-data-table] > div:last-child {
+    padding: 7px 10px;
+    gap: 6px;
+  }
+  .erp-shell #navilo-main-content [data-navilo-data-table] > div:last-child > div:last-child { gap: 4px; }
+  .erp-shell #navilo-main-content [data-navilo-data-table] > div:last-child :is(button, select) {
+    min-height: 28px !important;
+    height: 28px;
+    padding: 3px 7px !important;
+    font-size: 12px !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-summary-strip] {
+    border-radius: 6px;
+    box-shadow: none;
+  }
+  .erp-shell #navilo-main-content [data-navilo-summary-strip] > .grid { min-height: 56px; }
+  .erp-shell #navilo-main-content [data-navilo-summary-strip] > .grid > div { padding: 8px 10px; gap: 8px; }
+  .erp-shell #navilo-main-content [data-navilo-summary-strip] > .grid > div > span { width: 30px; height: 30px; border-radius: 5px; }
+  .erp-shell #navilo-main-content [data-navilo-summary-strip] .text-lg { font-size: 16px; font-weight: 600; }
+  .erp-shell #navilo-main-content [data-navilo-summary-strip] > div:last-child { padding: 5px 10px; }
+  .erp-shell #navilo-main-content :is(.navilo-master-filterbar, .neus-route-search) {
+    padding: 7px 8px;
+    border-radius: 5px;
+    gap: 6px;
+    box-shadow: none;
+  }
+  .erp-shell #navilo-main-content [data-navilo-dashboard] { padding: 0; }
+  .erp-shell #navilo-main-content [data-navilo-dashboard] > .grid { gap: 10px; }
+  .erp-shell #navilo-main-content [data-navilo-dashboard] .group.cursor-grab {
+    border-radius: 6px;
+    padding: 10px;
+    box-shadow: none;
+    transform: none;
+  }
+  .erp-shell #navilo-main-content [data-navilo-dashboard] .text-xl { font-size: 18px; font-weight: 600; }
+  .erp-shell #navilo-main-content [data-navilo-dashboard] .text-\[10px\],
+  .erp-shell #navilo-main-content [data-navilo-dashboard] .text-\[9px\] { font-size: 11px; font-weight: 500; }
+  .erp-shell #navilo-main-content [data-navilo-dashboard] .group.cursor-grab .mt-3 { margin-top: 7px; }
+  .erp-shell #navilo-main-content [data-navilo-dashboard] .rounded-2xl { border-radius: 6px; }
+  .erp-shell #navilo-main-content [data-navilo-dashboard] .p-5 { padding: 12px; }
+  .erp-shell #navilo-main-content [data-navilo-dashboard] .p-4 { padding: 10px; }
+  .erp-shell #navilo-main-content [data-neus-search] input { font-size: 13px; }
+
+  /* Existing modal sizes and allowed close/minimize/maximize behavior remain
+     in the shared component. These rules only compact the content chrome. */
+  [data-navilo-ui-dialog] { padding: 12px !important; border-radius: 6px !important; font-family: "Segoe UI", Arial, sans-serif; }
+  [data-navilo-ui-dialog] > div.sticky { margin-bottom: 10px; padding-bottom: 6px; }
+  [data-navilo-ui-dialog] h3 { font-size: 16px !important; font-weight: 600 !important; }
+  [data-navilo-ui-dialog] > p { margin-bottom: 12px; }
+  [data-navilo-ui-dialog] > div.justify-end { gap: 6px; }
+  [data-navilo-ui-dialog] .input { font-size: 13px !important; }
+  [data-navilo-ui-dialog] :is(.btn-primary, .btn-secondary, .btn-danger) { min-height: 30px !important; padding: 4px 9px !important; font-size: 13px !important; }
+  [data-navilo-searchable-dropdown] { font-family: "Segoe UI", Arial, sans-serif; border-radius: 5px !important; }
+  [data-navilo-searchable-dropdown] input { font-size: 13px !important; }
+  [data-navilo-searchable-dropdown] button { font-size: 13px !important; line-height: 1.35; }
+  [data-navilo-support-center] { font-family: "Segoe UI", Arial, sans-serif; }
+  [data-navilo-support-center] header { padding: 10px 12px !important; }
+  [data-navilo-support-center] .px-6 { padding-inline: 12px; }
+  [data-navilo-support-center] .py-5 { padding-block: 12px; }
+  [data-navilo-support-center] .py-4 { padding-block: 10px; }
+  [data-navilo-support-center] .font-black,
+  [data-navilo-support-center] .font-extrabold { font-weight: 600; }
+  [data-navilo-support-center] .text-\[9px\],
+  [data-navilo-support-center] .text-\[10px\] { font-size: 11px; }
+  [data-navilo-support-center] .btn-primary { min-height: 30px; padding: 5px 9px !important; font-size: 13px; }
+  @media (max-width: 767px) {
+    .erp-shell #navilo-main-content [data-navilo-summary-strip] > .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .erp-shell #navilo-main-content [data-navilo-summary-strip] > .grid > div:first-child { grid-column: 1 / -1; }
+    .erp-shell #navilo-main-content [data-navilo-summary-strip] > .grid > div { min-width: 0; }
+    .erp-shell #navilo-main-content [data-navilo-summary-strip] h1 { white-space: normal; }
+  }
+  @media (pointer: coarse) and (max-width: 767px) {
+    [data-navilo-ui-dialog] .input,
+    [data-navilo-searchable-dropdown] input,
+    [data-navilo-support-center] .input { font-size: 16px !important; }
+    [data-navilo-searchable-dropdown] button { min-height: 44px; }
+  }
+}

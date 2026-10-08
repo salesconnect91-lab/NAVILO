@@ -21,6 +21,9 @@ import "./erpProfessionalSystem.css";
 import "./invoiceEntryColumnWidths.css";
 import "./naviloProfessionalReports.css";
 import "./documentLanguage.css";
+import "./naviloAccountantUi.css";
+import "./naviloModuleUi.css";
+import "./modules/transport/transportProfessionalUi.css";
 
 // A deployment can replace hashed Vite chunks while an already-open browser tab still
 // holds the previous entry bundle. Recover once instead of leaving NAVILO on a spinner.

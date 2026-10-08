@@ -1,0 +1,110 @@
+/* Approved register presentation. Never set register/scrollport/table width,
+   overflow, position, column widths, or scrolling properties here. Existing
+   wheel handlers, sticky headers, resize handles and scrollbars own those. */
+@media screen {
+  .erp-shell #navilo-main-content [data-navilo-transport-register] {
+    --transport-ui-accent: #235ca4;
+    font-family: "Segoe UI", Arial, sans-serif !important;
+    font-size: 12.5px !important;
+    box-shadow: none !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register][data-navilo-theme="theme3"] { --transport-ui-accent: #23675d; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register][data-navilo-theme="theme4"] { --transport-ui-accent: #72572e; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar {
+    height: 34px !important;
+    padding: 0 8px !important;
+    gap: 8px !important;
+    background: #182a42 !important;
+    border-bottom-color: #35465f !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    font-family: "Segoe UI", Arial, sans-serif !important;
+    letter-spacing: 0 !important;
+    text-transform: none;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-topbar { background: #193f38 !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-topbar { background: #393125 !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar button {
+    font-family: "Segoe UI", Arial, sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar > div:first-child > span { font-size: 12px; font-weight: 600; }
+  /* Preserve the existing toolbar layout and horizontal scrolling. */
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar {
+    align-items: center !important;
+    gap: 5px !important;
+    padding: 5px 6px !important;
+    margin: 0 !important;
+    background: #f5f7fa !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > * {
+    min-height: 28px !important;
+    height: 28px !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar :is(button, input) {
+    font-size: 12px !important;
+    font-family: "Segoe UI", Arial, sans-serif !important;
+    font-weight: 500 !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > div > span { font-size: 11px !important; font-weight: 500; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar .text-sm { font-size: 13px !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] table {
+    font-family: "Segoe UI", Arial, sans-serif !important;
+    font-size: 12.5px !important;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead tr:first-child { height: 28px !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead tr:first-child th {
+    font-family: "Segoe UI", Arial, sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+    padding-block: 4px !important;
+    background: #edf1f6 !important;
+    color: #283d59 !important;
+    border-color: #d5dfeb !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead tr:nth-child(2) th {
+    font-size: 12px !important;
+    font-family: "Segoe UI", Arial, sans-serif !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+    text-transform: none;
+    color: #283d59 !important;
+    background: #f1f4f8 !important;
+    border-color: #d5dfeb !important;
+    box-shadow: none !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead th:is([class~="bg-blue-100"], [class~="bg-sky-50"], [class~="bg-emerald-50"], [class~="bg-blue-50"], [class~="bg-sky-100"], [class~="bg-[#065f46]"]) { background: #eaf4fd !important; color: #244f75 !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead th:is([class~="bg-rose-100"], [class~="bg-amber-50"], [class~="bg-orange-50"], [class~="bg-rose-50"], [class~="bg-amber-100"], [class~="bg-[#7c2d12]"]) { background: #fff4e3 !important; color: #815515 !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead th:is([class~="bg-emerald-100"], [class~="bg-[#115e59]"]) { background: #edf5ef !important; color: #2d6041 !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead th button { font-family: "Segoe UI", Arial, sans-serif !important; font-size: 12px !important; font-weight: 600 !important; color: inherit !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead th > div:last-of-type { font-size: 12px !important; font-weight: 600 !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody :is(tr, td) { height: 25px !important; max-height: none !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td {
+    font-family: "Segoe UI", Arial, sans-serif !important;
+    font-size: 12.5px !important;
+    line-height: 1.15 !important;
+    padding-block: 0 !important;
+    border-color: #d9e0e9 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody button { font-size: 12px !important; font-family: "Segoe UI", Arial, sans-serif !important; font-weight: 500 !important; border-radius: 3px !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td .text-\[8px\] { font-size: 11px !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody tr[data-trip-selected="true"] > td { background: #fff0c9 !important; border-color: #d7b66b !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] > p:last-of-type { font-size: 11px !important; }
+  /* Standalone mobile quick entry keeps its existing large touch controls. */
+  @media (max-width: 767px) {
+    .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar { height: auto !important; min-height: 34px; padding-block: 4px !important; }
+  }
+}

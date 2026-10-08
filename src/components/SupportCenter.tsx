@@ -54,6 +54,6 @@ export default function SupportCenter({owner=false}:{owner?:boolean}){
   </main>
  </div>;
 
- if(owner)return <div className="h-[min(680px,calc(100vh-190px))] min-h-[520px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">{shell}</div>;
- return <div className="fixed inset-0 z-[500] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[1px]"><div className="h-[min(720px,92vh)] w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">{shell}</div></div>;
+ if(owner)return <div data-navilo-support-center="true" className="h-[min(680px,calc(100vh-190px))] min-h-[520px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">{shell}</div>;
+ return <div data-navilo-support-center="true" className="fixed inset-0 z-[500] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[1px]"><div className="h-[min(720px,92vh)] w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">{shell}</div></div>;
 }

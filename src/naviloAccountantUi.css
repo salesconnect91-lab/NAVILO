@@ -1,0 +1,245 @@
+/* Presentation only. Keep route/permission handlers and financial state in their
+   existing components. Screen scope deliberately excludes printed documents and
+   the specialist Transport workspace, whose approved density has its own styles. */
+@media screen {
+  .erp-shell {
+    --erp-font: "Segoe UI", Arial, ui-sans-serif, system-ui, sans-serif;
+    --ui-ink: #17253b;
+    --ui-muted: #52647b;
+    --ui-line: #d5dfeb;
+    --ui-accent: #2458a6;
+    --ui-radius: 5px;
+    font-family: var(--erp-font);
+    background: #f2f5f9;
+  }
+
+  /* Keep existing sidebar widths, collapse rules and mobile visibility intact. */
+  .erp-shell .navilo-sidebar {
+    background: #14243a;
+    border-right-color: #253c58;
+    box-shadow: 3px 0 12px rgb(15 23 42 / 5%);
+  }
+  .erp-shell .navilo-sidebar nav { padding-block: 6px; }
+  .erp-shell .navilo-sidebar > div:first-child { height: 48px; padding-inline: 10px; }
+  .erp-shell .navilo-sidebar > div:first-child > :is(img, div:first-child) { max-height: 34px; }
+  .erp-shell .navilo-nav-link,
+  .erp-shell .navilo-nav-group {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.35;
+    border-radius: var(--ui-radius);
+    color: #c5d2e3;
+    min-height: 30px;
+    padding-block: 5px;
+  }
+  .erp-shell .navilo-nav-group { font-weight: 600; }
+  .erp-shell .navilo-nav-link:hover,
+  .erp-shell .navilo-nav-group:hover { background: #223b58; color: #fff; }
+  .erp-shell .navilo-nav-link.is-active {
+    background: #2458a6;
+    color: #fff;
+    box-shadow: inset 3px 0 #9ec8ff;
+  }
+  .erp-shell .navilo-nav-group.is-active { background: #223b58; color: #fff; }
+  .erp-shell .navilo-sidebar .text-slate-500,
+  .erp-shell .navilo-sidebar .text-slate-600 { color: #a9bad0; }
+  .erp-shell .navilo-topbar { background: #fff; border-bottom-color: var(--ui-line); backdrop-filter: none; }
+  .erp-shell .navilo-topbar .font-black { font-weight: 600; }
+  .erp-shell .navilo-topbar button { font-size: 13px; }
+  .erp-shell .navilo-topbar > div {
+    min-height: 48px;
+    gap: 8px;
+    padding: 6px 12px;
+  }
+  .erp-shell .navilo-topbar button.h-9 { height: 32px; }
+  .erp-shell .navilo-topbar button.w-9 { width: 32px; }
+
+  /* This selector never changes the Transport register, its popups, filters or
+     amount group colors. It also leaves report/print preview layout untouched. */
+  .erp-shell main:not([data-neus-route^="/transport"]) {
+    --erp-text: var(--ui-ink);
+    --erp-muted: var(--ui-muted);
+    font-size: 13px;
+    line-height: 1.45;
+    padding: 10px 12px;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) :is(.page-title, h1) {
+    font-size: 18px !important;
+    font-weight: 650 !important;
+    line-height: 1.3 !important;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) h2 {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) h3 {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) .page-subtitle { font-size: 13px; }
+  .erp-shell main:not([data-neus-route^="/transport"]) .label,
+  .erp-shell main:not([data-neus-route^="/transport"]) label.label {
+    font-size: 13px !important;
+    line-height: 1.4;
+    font-weight: 600;
+    color: var(--ui-muted);
+    margin-bottom: 3px;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) .input {
+    border-color: #b7c6d8;
+    border-radius: var(--ui-radius);
+    font-size: 13px !important;
+    color: var(--ui-ink);
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) input.input,
+  .erp-shell main:not([data-neus-route^="/transport"]) select.input {
+    height: 32px;
+    min-height: 32px !important;
+    padding-block: 4px;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) .input:focus-visible {
+    border-color: var(--ui-accent);
+    outline: 2px solid #b5d0f5;
+    outline-offset: 1px;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) :is(.btn-primary, .btn-secondary, .btn-danger) {
+    min-height: 30px !important;
+    font-size: 13px !important;
+    font-weight: 600;
+    border-radius: var(--ui-radius);
+    padding: 4px 9px !important;
+    line-height: 1.35;
+    box-shadow: none;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) .btn-primary { background: var(--ui-accent); }
+  .erp-shell main:not([data-neus-route^="/transport"]) .btn-primary:hover:not(:disabled) { background: #1a447f; }
+  .erp-shell main:not([data-neus-route^="/transport"]) .btn-secondary {
+    background: #fff;
+    border-color: #b7c6d8;
+    color: #334b69;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) .btn-secondary:hover:not(:disabled) { background: #edf3fa; }
+  .erp-shell main:not([data-neus-route^="/transport"]) .btn-danger { background: #b42332; color: #fff; }
+  .erp-shell :is(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid #71a5ed;
+    outline-offset: 2px;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) :is(.card, .table-shell) {
+    border-color: var(--ui-line) !important;
+    border-radius: 6px;
+    box-shadow: none;
+  }
+  /* Limit compaction to named page surfaces; do not flatten nested field grids. */
+  .erp-shell main:not([data-neus-route^="/transport"]) :is(.card.p-4, .card.p-5, .card.p-6) { padding: 10px; }
+  .erp-shell main:not([data-neus-route^="/transport"]) :is(.card.p-3, .filter-toolbar, .filter-bar, .search-bar) { padding: 8px; }
+  .erp-shell main:not([data-neus-route^="/transport"]) .card.mb-4 { margin-bottom: 10px; }
+  .erp-shell main:not([data-neus-route^="/transport"]) :is(.page-header, .navilo-page-header) {
+    gap: 6px;
+    align-items: start;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) .page-header.mb-4 { margin-bottom: 10px; }
+  .erp-shell main:not([data-neus-route^="/transport"]) > :is(.space-y-4, .space-y-6) > :not([hidden]) ~ :not([hidden]) { margin-top: 10px; }
+  .erp-shell main:not([data-neus-route^="/transport"]) .page-actions { gap: 4px; }
+  .erp-shell main:not([data-neus-route^="/transport"]) :is(.navilo-page-actions, [data-navilo-standard-tools-host]) { gap: 4px; }
+  /* Commercial list summaries and filters are explicit top-level surfaces.
+     Their fields, counts, amounts and responsive column breakpoints stay intact. */
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-commercial-standard] > section.grid[data-no-print] { gap: 8px; }
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-commercial-standard] > section.grid[data-no-print] > div {
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: 6px;
+    box-shadow: none;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-commercial-standard] > section.grid[data-no-print] > div > span {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-commercial-standard] > section.grid[data-no-print] .text-lg {
+    font-size: 16px;
+    line-height: 1.25;
+    font-weight: 600;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-commercial-standard] > div.rounded-xl[data-no-print] {
+    padding: 8px;
+    border-radius: 6px;
+    box-shadow: none;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-commercial-standard] > section[data-report-content] > div:first-child {
+    padding: 8px 10px;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) .data-table {
+    font-size: 13px !important;
+    font-variant-numeric: tabular-nums;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) .data-table th {
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+    color: #3c526d !important;
+    background: #edf2f8 !important;
+    padding: 6px 8px !important;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) .data-table td {
+    font-size: 13px !important;
+    padding: 5px 8px !important;
+    line-height: 1.4 !important;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) .data-table tbody tr:hover > td { box-shadow: inset 0 0 0 9999px rgb(36 88 166 / 4%); }
+  .erp-shell main:not([data-neus-route^="/transport"]) .data-table tfoot :is(th, td) {
+    font-weight: 650 !important;
+    border-top: 2px solid #b7c6d8;
+  }
+  /* Honor the saved grid density rather than flattening all three preferences. */
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-data-table] {
+    --grid-font: 13px;
+    --grid-y: 8px;
+    --grid-x: 10px;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-data-table][data-density="compact"] {
+    --grid-font: 12.5px;
+    --grid-y: 4px;
+    --grid-x: 8px;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-data-table][data-density="spacious"] {
+    --grid-font: 14px;
+    --grid-y: 12px;
+    --grid-x: 14px;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-data-table] :is(th, td) {
+    font-size: var(--grid-font) !important;
+    padding: var(--grid-y) var(--grid-x) !important;
+    line-height: 1.4 !important;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-data-table] th {
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+  }
+  /* Table controls follow density, including the saved spacious preference. */
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-data-table] tbody :is(.btn-primary, .btn-secondary, .btn-danger) {
+    min-height: 34px !important;
+    height: 34px;
+    padding-block: 4px !important;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-data-table][data-density="compact"] tbody :is(.btn-primary, .btn-secondary, .btn-danger) {
+    min-height: 28px !important;
+    height: 28px;
+    padding-block: 2px !important;
+  }
+  .erp-shell main:not([data-neus-route^="/transport"]) [data-navilo-data-table][data-density="spacious"] tbody :is(.btn-primary, .btn-secondary, .btn-danger) {
+    min-height: 40px !important;
+    height: 40px;
+    padding-block: 6px !important;
+  }
+  @media (max-width: 639px) {
+    .erp-shell main:not([data-neus-route^="/transport"]) { padding: 8px; }
+    .erp-shell .navilo-topbar > div { padding-inline: 8px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .erp-shell .navilo-sidebar,
+    .erp-shell .navilo-nav-link,
+    .erp-shell .navilo-nav-group { transition: none; }
+  }
+}

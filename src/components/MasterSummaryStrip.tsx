@@ -5,7 +5,7 @@ const icons={categories:Layers3,customers:Users,suppliers:Building2,employees:Us
 
 export default function MasterSummaryStrip({kind,title,subtitle,total,active,inactive,fourthLabel,fourthValue}:{kind:Kind;title:string;subtitle:string;total:number;active:number;inactive:number;fourthLabel:string;fourthValue:number|string}){
  const MainIcon=icons[kind]??PackageOpen;
- return <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" data-no-print data-no-export>
+ return <section data-navilo-summary-strip="true" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" data-no-print data-no-export>
   <div className="grid min-h-[72px] grid-cols-[1.75fr_repeat(4,minmax(0,1fr))] divide-x divide-slate-200">
    <div className="flex items-center gap-3 px-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-600"><MainIcon className="h-5 w-5"/></span><div><h1 className="text-xl font-bold text-slate-900">{title}</h1><p className="mt-0.5 text-xs text-slate-500">{subtitle}</p></div></div>
    <div className="flex items-center gap-3 px-4"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-600"><Database className="h-4 w-4"/></span><div><div className="text-xs text-slate-500">Total {title}</div><div className="text-lg font-bold text-slate-900">{total}</div></div></div>
