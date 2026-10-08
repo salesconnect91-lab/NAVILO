@@ -5,7 +5,7 @@ import DataTable from '@/components/DataTable';
 import {buildReport,cleanReportTable,reportFilterSnapshot,applyReportPrintSettings} from './printReport';
 import {createPrintDocument,registerPrintSource} from './printDocument';
 import {paginatePrintDocument,paperCSS} from './printPagination';
-import PrintPreviewController from '@/components/PrintPreviewController';
+import PrintPreviewController,{brandStandaloneDocument} from '@/components/PrintPreviewController';
 vi.mock('@/lib/documentPrintSettings',()=>({loadDocumentPrintSettings:vi.fn(async()=>({company:{},visibility:{show_company_name:true,show_signatures:false}}))}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_name:'Orbit'},activeBusinessUnit:{business_unit_name:'Head Office'}})}));
 vi.mock('@/lib/platformBranding',()=>({usePlatformBranding:()=>({branding:{show_branding:false}})}));
@@ -61,6 +61,10 @@ describe('document report data contract',()=>{
  it('honors company identity and signature settings while escaping their content',()=>{
   const result=applyReportPrintSettings('<article><header class="document-heading"><div><strong>Orbit</strong></div><div><small>Printed today</small></div></header><table></table></article>',{company:{address:'Office <one>',document_footer:'Controlled document'},visibility:{show_company_name:true,show_logo:false,show_address:true,show_phone_email:false,show_tax_details:false,show_print_datetime:false,show_header:false,show_footer:true,show_signatures:true} as any});
   expect(result).toContain('Office &lt;one&gt;');expect(result).not.toContain('Printed today');expect(result).toContain('Prepared By');expect(result).toContain('Controlled document');
+ });
+ it('identifies legacy vouchers with the active company instead of only the platform brand',()=>{
+  const root=document.createElement('div');root.innerHTML='<div class="sheet"><div class="header"><div class="brand">NAVILO</div></div></div>';brandStandaloneDocument(root,'Orbit','Main Branch');expect(root.querySelector('.brand')?.textContent).toBe('Orbit');expect(root.textContent).toContain('Main Branch');expect(root.querySelector('.document-identity')).toBeNull();
+  root.innerHTML='<div class="sheet"><div class="brand">Configured Company</div></div>';brandStandaloneDocument(root,'Orbit','Main Branch');expect(root.querySelector('.brand')?.textContent).toBe('Configured Company');
  });
  it('does not intercept the original Print button handler',()=>{
   const handler=vi.fn();render(<><PrintPreviewController/><button onClick={handler}>Print Work Order</button></>);fireEvent.click(screen.getByRole('button',{name:'Print Work Order'}));expect(handler).toHaveBeenCalledOnce();

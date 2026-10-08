@@ -21,7 +21,7 @@ export function paginatePrintDocument(doc: Document, footerLabel: string) {
   }
   const template = source.cloneNode(false) as HTMLElement;
   const blocks = Array.from(source.children).filter(n=>!n.matches('script,style,.print-page-number,.page-number,.navilo-page-number'));
-  const header = blocks.find(n=>n.matches('header,.print-header,.top,.head'));
+  const header = blocks.find(n=>n.matches('header,.print-header,.header,.top,.head'));
   const pages: HTMLElement[] = [];
   let body: HTMLElement, container: HTMLElement;
   const newPage = (repeatHeader: boolean) => {

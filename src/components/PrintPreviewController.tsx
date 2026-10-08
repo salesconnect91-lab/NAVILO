@@ -20,6 +20,16 @@ function sanitize(root:HTMLElement) {
     Array.from(el.attributes).forEach(a=>{if(/^on/i.test(a.name)||((a.name==='src'||a.name==='href')&&/^javascript:/i.test(a.value)))el.removeAttribute(a.name);});
   });
 }
+export function brandStandaloneDocument(root: HTMLElement, companyName: string, businessUnitName: string) {
+  const brand=root.querySelector<HTMLElement>('.brand');
+  if(brand && /^NAVILO(?: ERP)?$/i.test(brand.textContent?.trim()||'')) {
+    brand.textContent=companyName;
+    if(businessUnitName){const unit=document.createElement('div');unit.className='sub';unit.textContent=businessUnitName;brand.after(unit);}
+  }
+  if(root.querySelector('.print-company,.brand,.logo'))return;
+  const identity=document.createElement('div');identity.className='document-identity';identity.style.cssText='font:10pt Arial;margin-bottom:3mm';identity.textContent=[companyName,businessUnitName].filter(Boolean).join(' · ');
+  (root.querySelector('.sheet,.gp-doc')||root).prepend(identity);
+}
 export function collectDocumentPrintStyles() {
   return Array.from(document.styleSheets).map(sheet=>{
     try {return `<style>${Array.from(sheet.cssRules).map(rule=>rule.cssText).join('\n')}</style>`;}
@@ -66,11 +76,7 @@ export default function PrintPreviewController() {
           const pageRule=styles.match(/@page\s*\{[^}]*size\s*:\s*(A3|A4|Letter)\s*(portrait|landscape)?/i);
           const title=detail.title||parsed.title||'Document';
           result={id:request,html:wrapper.innerHTML,styles,title,paper:detail.paper||(pageRule?.[1]?.toLowerCase()==='letter'?'Letter':pageRule?.[1]?.toUpperCase()==='A3'?'A3':'A4'),orientation:detail.orientation||(pageRule?.[2]?.toLowerCase()==='landscape'?'landscape':'portrait'),footer:title};
-          // Standalone operational templates without a company header gain a small identity line.
-          if(detail.fullDocument&&!parsed.querySelector('.print-company,.brand,.logo')) {
-            const identity=document.createElement('div');identity.className='document-identity';identity.style.cssText='font:10pt Arial;margin-bottom:3mm';identity.textContent=[companyName,businessUnitName].filter(Boolean).join(' · ');
-            const shell=wrapper.querySelector('.sheet,.gp-doc')||wrapper;shell.prepend(identity);result.html=wrapper.innerHTML;
-          }
+          if(detail.fullDocument){brandStandaloneDocument(wrapper,companyName,businessUnitName);result.html=wrapper.innerHTML;}
         }else{
           const target=printTarget(detail.selector);if(!target)throw new Error('Open a document or report to print.');
           // Take the source snapshot before React hides a temporary invoice print root.
