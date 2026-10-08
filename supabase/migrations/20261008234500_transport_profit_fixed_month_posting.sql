@@ -86,10 +86,12 @@ returns uuid language plpgsql stable security definer set search_path=public,pg_
 declare c uuid:=public.current_company_id(); a uuid; n integer;
 begin
  perform public.transport_profit_month_assert('read');
- select count(*),min(id) into n,a from public.chart_of_accounts
+ select count(*) into n from public.chart_of_accounts
  where company_id=c and is_active and not is_group and allow_manual_entries
  and type='equity' and lower(btrim(name))='retained earnings';
  if n<>1 then raise exception 'Exactly one active posting Retained Earnings GL required';end if;
+ select id into a from public.chart_of_accounts where company_id=c and is_active and not is_group and allow_manual_entries
+  and type='equity' and lower(btrim(name))='retained earnings' limit 1;
  return a;
 end $$;
 revoke all on function public.transport_profit_appropriation_account() from public,anon;
