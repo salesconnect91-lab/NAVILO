@@ -40,7 +40,7 @@ export function reportFilterSnapshot(target: HTMLElement) {
     seen.add(key);
     return [{label,value:normalized}];
   });
-  target.querySelectorAll<HTMLElement>('[data-report-filter-value]').forEach(node=>{const value=text(node),label=node.dataset.reportFilterLabel||'Selection';if(value&&!seen.has(`${label}:${value}`))filters.push({label,value});});
+  scope.querySelectorAll<HTMLElement>('[data-report-filter-value]').forEach(node=>{const value=node.dataset.reportFilterValue||text(node),label=node.dataset.reportFilterLabel||'Selection';if(value&&!seen.has(`${label}:${value}`))filters.push({label,value});});
   return filters;
 }
 
@@ -97,7 +97,7 @@ export async function buildReport(target: HTMLElement, identity: PrintIdentity, 
     if(empty)report.insertAdjacentHTML('beforeend',`<p>${escapePrintHtml(text(empty))}</p>`);
     else throw new Error('This screen has no document or report data to print. Open the relevant report first.');
   }
-  const preferred = target.querySelector<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation || target.closest<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation;
+  const preferred = primary?.dataset.reportOrientation || primary?.querySelector<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation || (!primary ? target.querySelector<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation || target.closest<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation : undefined);
   const width = tables.reduce((max,t)=>Math.max(max,Array.from(t.tHead?.rows[0]?.cells || []).reduce((sum,c)=>sum+c.colSpan,0)),0);
   const orientation: PrintOrientation = preferred === 'portrait' || preferred === 'landscape' ? preferred : width >= 7 ? 'landscape' : 'portrait';
   return {html:report.outerHTML,title:reportTitle,orientation};

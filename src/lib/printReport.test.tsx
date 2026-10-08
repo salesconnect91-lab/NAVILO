@@ -29,8 +29,8 @@ describe('document report data contract',()=>{
   expect(clean.tHead?.textContent).toBe('DateAmount');expect(clean.tFoot?.textContent).toBe('Total 1700');expect(clean.querySelector('button')).toBeNull();expect(clean.tBodies[0].rows[0].cells.length).toBe(2);
  });
  it('snapshots dates and selected compatibility dropdown values before controls disappear',()=>{
-  const main=document.createElement('main');main.innerHTML='<section data-report-filters><label>From<input type="date" value="2026-10-01"></label><label>Supplier<div data-print-control="Steel"><select class="sr-only"><option selected>Steel</option></select></div></label></section><article id="report"><table></table></article>';document.body.append(main);
-  expect(reportFilterSnapshot(main.querySelector('#report')!)).toEqual([{label:'From',value:'01-Oct-26'},{label:'Supplier',value:'Steel'}]);
+  const main=document.createElement('main');main.innerHTML='<label data-report-filter-label="Report scope" data-report-filter-value="Whole Company">Scope control</label><section data-report-filters><label>From<input type="date" value="2026-10-01"></label><label>Supplier<div data-print-control="Steel"><select class="sr-only"><option selected>Steel</option></select></div></label></section><article id="report"><table></table></article>';document.body.append(main);
+  expect(reportFilterSnapshot(main.querySelector('#report')!)).toEqual([{label:'From',value:'01-Oct-26'},{label:'Supplier',value:'Steel'},{label:'Report scope',value:'Whole Company'}]);
  });
  it('honors complete async report providers and rejects printing form-only screens',async()=>{
   const root=document.createElement('main');root.innerHTML='<h1>Transport</h1><section><table><tbody><tr><td>Current page</td></tr></tbody></table></section>';
@@ -45,9 +45,9 @@ describe('document report data contract',()=>{
   expect(popup).not.toHaveBeenCalled();expect(listener).toHaveBeenCalledTimes(1);expect(listener.mock.calls[0][0].detail).toMatchObject({fullDocument:true});window.removeEventListener('navilo:print-preview',listener);
  });
  it('uses the hidden canonical financial report and preserves its section totals',async()=>{
-  const root=document.createElement('main');root.innerHTML='<h1>Profit and Loss</h1><details class="no-print" data-print-primary-source><section></section></details><div>Screen result</div>';
+  const root=document.createElement('main');root.innerHTML='<h1>Profit and Loss</h1><details class="no-print" data-print-primary-source data-report-orientation="portrait"><section></section></details><div>Screen result</div>';
   registerPrintSource(root.querySelector('section')!,async()=>'<table><thead><tr><th>Section</th><th>Amount</th></tr></thead><tbody><tr><td>Gross Profit</td><td>1700</td></tr><tr><td>Net Profit</td><td>700</td></tr></tbody></table>');
-  const report=await buildReport(root,{companyName:'Orbit',businessUnitName:''},'NAVILO');expect(report.title).toBe('Profit and Loss');expect(report.html).toContain('Gross Profit');expect(report.html).toContain('Net Profit');expect(report.html).not.toContain('Screen result');
+  const report=await buildReport(root,{companyName:'Orbit',businessUnitName:''},'NAVILO');expect(report.title).toBe('Profit and Loss');expect(report.orientation).toBe('portrait');expect(report.html).toContain('Gross Profit');expect(report.html).toContain('Net Profit');expect(report.html).not.toContain('Screen result');
  });
  it('replaces a table-root provider without nesting tables or retaining current-page rows',async()=>{
   const root=document.createElement('table');root.innerHTML='<tbody><tr><td>Current page only</td></tr></tbody>';
