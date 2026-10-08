@@ -128,8 +128,13 @@ begin
  update public.transport_trips set po_do_job_no='FIN-JOB-1' where id=trip;
  perform public.transport_complete_operations(trip,'Job completed');
  if (select financial_status from public.transport_trip_financial_summary where id=trip)<>'Closed' then
- raise exception 'Fully settled Trip did not close: status=%, customer_out=%, customer_credit=%, supplier_out=%, supplier_credit=%, driver_out=%, driver_accrued=%, agreed_driver=%, unbilled_rent=%, required_cost_out=%',
+ raise exception 'Fully settled Trip did not close: status=%, op_status=%, job_status=%, customer_docs=%, structured_rents=%, legacy_rent=%, customer_out=%, customer_credit=%, supplier_out=%, supplier_credit=%, driver_out=%, driver_accrued=%, agreed_driver=%, unbilled_rent=%, required_cost_out=%',
  (select financial_status from public.transport_trip_financial_summary where id=trip),
+ (select operational_status from public.transport_trip_financial_summary where id=trip),
+ (select job_status from public.transport_trip_financial_summary where id=trip),
+ (select customer_documents from public.transport_trip_financial_summary where id=trip),
+ (select structured_rents from public.transport_trip_financial_summary where id=trip),
+ (select legacy_owner_rent from public.transport_trip_financial_summary where id=trip),
  (select customer_outstanding_gross from public.transport_trip_financial_summary where id=trip),
  (select customer_credit_gross from public.transport_trip_financial_summary where id=trip),
  (select supplier_outstanding_gross from public.transport_trip_financial_summary where id=trip),
