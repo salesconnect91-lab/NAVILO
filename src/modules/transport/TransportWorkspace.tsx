@@ -29,6 +29,7 @@ import * as XLSX from "xlsx";
 import {parseTripFile,fileDigest,makeImportJob,runImportJob,storedImport,saveImport,tripImportIdentity,type ImportRow,type ImportJob} from './transportTripImport';
 import TransportPagination from './TransportPagination';
 import TransportQuickAdd from './TransportQuickAdd';
+import {loadTransportMobilePartyOptions} from './transportMobilePartyLookup';
 import {compatibleVehicles,ownershipOnDate,matchingCustomerRate,estimatedMargin,masterKey,validMoney,type QuickAddKind,type OwnershipPeriod} from './transportTripEntry';
 
 type MobileVoiceDraft={id:string;created_at:string;transcript:string;patch:Record<string,string>};
@@ -348,11 +349,18 @@ export default function TransportWorkspace(){
     if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)throw new Error('Select Company and Business Unit.');
     const companyId=activeCompany.company_id,businessUnitId=activeBusinessUnit.business_unit_id;
     const startedScope=scopeKey;
-    const read=(table:string,columns='*',companyOnly=false)=>fetchAllPages<any>((start,end)=>{
-      let query=supabase.from(table).select(columns).eq('company_id',companyId);
-      if(!companyOnly)query=query.eq('business_unit_id',businessUnitId);
-      return query.order('id').range(start,end);
-    });
+    const read=(table:string,columns='*',companyOnly=false)=>{
+      // Mobile-only users do not have full Master Data SELECT. Use the scoped,
+      // names-only party reader; all non-Mobile master queries stay unchanged.
+      if(standaloneMobile&&mobileCanCreate&&(table==='customers'||table==='suppliers')){
+        return loadTransportMobilePartyOptions(table);
+      }
+      return fetchAllPages<any>((start,end)=>{
+        let query=supabase.from(table).select(columns).eq('company_id',companyId);
+        if(!companyOnly)query=query.eq('business_unit_id',businessUnitId);
+        return query.order('id').range(start,end);
+      });
+    };
     const [customers,truckTypes,locations,vehicles,drivers,suppliers,employees,ownership,rates]=await Promise.all([
       read('customers','id,name,is_active',true),read('transport_truck_types'),read('transport_locations'),read('transport_vehicles'),
       read('transport_drivers'),read('suppliers','id,name,is_active',true),read('employees','id,name,is_active',true),
@@ -533,10 +541,11 @@ export default function TransportWorkspace(){
   },[scopeKey]);
 
   useEffect(()=>{
+    if(standaloneMobile&&featureAccess?.loading)return;
     if(activeCompany?.company_id&&activeBusinessUnit?.business_unit_id){
       void loadTripMasters().catch((e:any)=>setError(e?.message||"Unable to load Transport masters."));
     }
-  },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
+  },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,standaloneMobile,featureAccess?.loading,mobileCanCreate]);
 
   useEffect(()=>{
     if(tab!=="trips"||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
