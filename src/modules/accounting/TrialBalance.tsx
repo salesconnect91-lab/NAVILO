@@ -343,7 +343,7 @@ export default function TrialBalance() {
         }
       `}</style>
 
-      <div id="printable-trial-balance" className="space-y-6">
+      <div id="printable-trial-balance" className="space-y-6" aria-busy={loading}>
         {reportPrintSettings && (
           <div className="hidden print:block border-b border-slate-300 pb-4 text-center">
             {reportPrintSettings.visibility.show_logo &&
@@ -542,7 +542,7 @@ export default function TrialBalance() {
           {loading ? (
             <div className="p-16 text-center text-slate-400">Loading Trial Balance...</div>
           ) : rows.length === 0 ? (
-            <div className="p-16 text-center text-slate-400">
+            <div data-print-empty className="p-16 text-center text-slate-400">
               No posted transactions found for the selected period.
             </div>
           ) : (

@@ -512,7 +512,7 @@ ${
           Loading history...
         </div>
       ) : rows.length === 0 ? (
-        <div className="p-8 text-center text-sm text-slate-400">
+        <div data-print-empty className="p-8 text-center text-sm text-slate-400">
           No posted vouchers found.
         </div>
       ) : (

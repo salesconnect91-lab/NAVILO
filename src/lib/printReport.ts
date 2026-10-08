@@ -74,7 +74,10 @@ export function cleanReportTable(table: HTMLTableElement) {
 }
 
 export async function buildReport(target: HTMLElement, identity: PrintIdentity, title?: string) {
-  if (target.querySelector('[role=status]')?.textContent?.match(/loading/i) || target.getAttribute('aria-busy') === 'true') throw new Error('Wait for the report to finish loading before printing.');
+  const statusRoot = target.closest('[data-report-root],main') || target;
+  const error = statusRoot.matches('[data-print-error]') ? statusRoot : statusRoot.querySelector('[data-print-error]');
+  if (error) throw new Error(`Report could not be loaded: ${text(error)} Refresh the report before printing.`);
+  if (statusRoot.querySelector('[aria-busy=true]') || Array.from(statusRoot.querySelectorAll('[role=status],p,div,td')).some(node=>!node.closest('button,details,[data-no-print]') && /^loading\b.{0,150}(?:…|\.{3})$/i.test(text(node))) || statusRoot.getAttribute('aria-busy') === 'true') throw new Error('Wait for the report to finish loading before printing.');
   const filters = reportFilterSnapshot(target);
   const clone = await clonePrintSource(target);
   const reportTitle = text(target.querySelector('.page-title,h1,h2')) || text(target.closest('main,[role=dialog]')?.querySelector('.page-title,h1,h2') || null) || title || 'Report';

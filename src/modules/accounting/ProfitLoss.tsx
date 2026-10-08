@@ -324,7 +324,7 @@ export default function ProfitLoss() {
     <div className="mx-auto max-w-5xl space-y-6 pb-12"><AccountingReportScopeSelect value={scope} onChange={setScope}/>
       <style>{`@media print{body *{visibility:hidden}#printable-profit-loss,#printable-profit-loss *{visibility:visible}#printable-profit-loss{position:absolute;left:0;top:0;width:100%}.no-print{display:none!important}}`}</style>
 
-      <div id="printable-profit-loss" className="space-y-6">
+      <div id="printable-profit-loss" className="space-y-6" aria-busy={loading}>
         {reportPrintSettings && (
           <div className="hidden border-b border-slate-300 pb-4 text-center print:block">
             {reportPrintSettings.visibility.show_logo && reportPrintSettings.company.logo_url && <img src={reportPrintSettings.company.logo_url} alt="Company Logo" className="mx-auto mb-2 max-h-16 max-w-40 object-contain" />}

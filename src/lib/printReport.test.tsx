@@ -39,6 +39,16 @@ describe('document report data contract',()=>{
   root.innerHTML='<form><input value="Private editing field"><button>Save</button></form>';
   await expect(buildReport(root,{companyName:'Orbit',businessUnitName:''})).rejects.toThrow('no document or report data');
  });
+ it('prints an empty report but blocks loading or failed reports',async()=>{
+  const root=document.createElement('main');root.innerHTML='<h1>Trial Balance</h1><label>From<input type="date" value="2026-10-01"></label><div data-print-empty>No posted transactions found for the selected period.</div>';
+  const result=await buildReport(root,{companyName:'Orbit',businessUnitName:''});expect(result.html).toContain('No posted transactions found');expect(result.html).toContain('01-Oct-26');
+  root.innerHTML='<section aria-busy="true"><table><tbody><tr><td>Stale values</td></tr></tbody></table></section>';
+  await expect(buildReport(root,{companyName:'Orbit',businessUnitName:''})).rejects.toThrow('finish loading');
+  root.innerHTML='<table><tbody><tr><td>Loading General Ledger...</td></tr></tbody></table>';
+  await expect(buildReport(root,{companyName:'Orbit',businessUnitName:''})).rejects.toThrow('finish loading');
+  root.innerHTML='<div data-print-error>Request failed</div><div data-print-empty>No rows</div>';
+  await expect(buildReport(root,{companyName:'Orbit',businessUnitName:''})).rejects.toThrow('Request failed');
+ });
  it('opens existing voucher builders exactly once without popups or executing their scripts',()=>{
   const listener=vi.fn();window.addEventListener('navilo:print-preview',listener);const popup=vi.spyOn(window,'open');
   const print=createPrintDocument();print.document.write('<html><head><title>Voucher A</title></head><body>Voucher evidence<script>window.print()</script></body></html>');print.document.close();print.focus();print.print();

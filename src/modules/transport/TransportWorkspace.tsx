@@ -498,11 +498,11 @@ export default function TransportWorkspace(){
     // Clearing rows made every header-filter click look like a dashboard hang.
     readGeneration.current++;setRegisterLoading(true);
     if(changed&&page!==0){setPage(0);return;}
-    if(tab==="mobile"){setRegisterLoading(false);return;}
+    if(tab==="mobile"||showPartyReports){setRegisterLoading(false);return;}
     if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){setRegisterLoading(false);return;}
     const timer=window.setTimeout(()=>void load(),200);
     return()=>{window.clearTimeout(timer);registerRequest.current?.abort();registerRequest.current=null;readGeneration.current++;};
-  },[registerKey,page,tab]);
+  },[registerKey,page,tab,showPartyReports]);
 
   const mobileToday=new Date().toISOString().slice(0,10);
   const mobileFromDate=new Date(Date.now()-29*24*60*60*1000).toISOString().slice(0,10);

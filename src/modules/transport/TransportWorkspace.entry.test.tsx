@@ -236,3 +236,11 @@ describe('Trip edit transition',()=>{
   await screen.findByRole('button',{name:'EDIT-1'});
  });
 });
+
+describe('Transport report isolation',()=>{
+ it('does not request the trip register behind a party report',async()=>{
+  render(<MemoryRouter initialEntries={['/transport?panel=customer-reports']}><TransportWorkspace/></MemoryRouter>);
+  await new Promise(resolve=>setTimeout(resolve,300));
+  expect(mock.rpc.mock.calls.some(call=>call[0]==='transport_register_query')).toBe(false);
+ });
+});
