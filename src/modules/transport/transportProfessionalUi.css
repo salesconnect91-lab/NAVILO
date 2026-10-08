@@ -108,3 +108,38 @@
     .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar { height: auto !important; min-height: 34px; padding-block: 4px !important; }
   }
 }
+
+/* Desktop controls adapt to the available content width when the sidebar opens.
+   Grid/column sizing and wheel behavior inside the trips scrollport are unchanged. */
+@media screen and (min-width: 768px) {
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar {
+    height: auto !important;
+    min-height: 34px;
+    flex-wrap: wrap;
+    padding-block: 4px !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar > div:last-child {
+    min-width: 0;
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    min-width: 0;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > * {
+    width: auto !important;
+    flex: 0 1 auto;
+    min-width: 0 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > form {
+    flex: 1 1 250px !important;
+    width: auto !important;
+    max-width: 520px;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > button {
+    white-space: nowrap;
+  }
+}
