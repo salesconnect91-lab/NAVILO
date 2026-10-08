@@ -29,7 +29,7 @@ type CustomerMasterImportRow = {
  name:string; name_urdu:string; email:string; phone:string; address:string;
  tax_registration_status:"registered"|"unregistered"; ntn:string; strn:string; cnic:string; sourceRow:number;
 };
-const customerKey=(value:string)=>value.normalize("NFKC").trim().replace(/\\s+/g," ").toLowerCase();
+const customerKey=(value:string)=>value.normalize("NFKC").trim().replace(/\s+/g," ").toLowerCase();
 
 function CustomerMasterImportCard({canImport}:{canImport:boolean}){
  const {activeCompany,activeBusinessUnit}=useAuth();
