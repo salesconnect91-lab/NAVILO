@@ -33,9 +33,12 @@ describe("import center", () => {
 function customerFile(rows:(string|number)[][]) {
  const wb = XLSX.utils.book_new();
  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"Customers");
- const bytes = XLSX.write(wb,{type:"array",bookType:"xlsx"}) as Uint8Array;
- const file = new File([bytes],"customers.xlsx",{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
- Object.defineProperty(file,"arrayBuffer",{value:async()=>bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)});
+ const raw = XLSX.write(wb,{type:"array",bookType:"xlsx"}) as ArrayBuffer | Uint8Array;
+ const bytes = new Uint8Array(raw);
+ const buffer = new ArrayBuffer(bytes.byteLength);
+ new Uint8Array(buffer).set(bytes);
+ const file = new File([buffer],"customers.xlsx",{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+ Object.defineProperty(file,"arrayBuffer",{value:async()=>buffer});
  return file;
 }
 
