@@ -1,6 +1,6 @@
 import { ArrowRight, FileText, Landmark, Truck, Users, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useRef,useState } from "react";
+import { useEffect,useRef,useState } from "react";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission, type ModuleKey } from "@/auth/permissions";
 import { supabase } from "@/lib/supabase";
@@ -23,6 +23,154 @@ const defs:Record<RateKind,{title:string;headers:string[];sample:(string|number)
 };
 const key=(v:string)=>v.trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
 const iso=(v:any)=>{if(v instanceof Date)return v.toISOString().slice(0,10);if(typeof v==="number"){const d=XLSX.SSF.parse_date_code(v);return d?String(d.y).padStart(4,"0")+"-"+String(d.m).padStart(2,"0")+"-"+String(d.d).padStart(2,"0"):"";}const s=String(v??"").trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;const d=new Date(s);return Number.isNaN(d.valueOf())?"":d.toISOString().slice(0,10)};
+
+
+type CustomerMasterImportRow = {
+ name:string; name_urdu:string; email:string; phone:string; address:string;
+ tax_registration_status:"registered"|"unregistered"; ntn:string; strn:string; cnic:string; sourceRow:number;
+};
+const customerKey=(value:string)=>value.normalize("NFKC").trim().replace(/\\s+/g," ").toLowerCase();
+
+function CustomerMasterImportCard({canImport}:{canImport:boolean}){
+ const {activeCompany,activeBusinessUnit}=useAuth();
+ const scope=`${activeCompany?.company_id??""}:${activeBusinessUnit?.business_unit_id??""}`;
+ const latestScope=useRef(scope); latestScope.current=scope;
+ const input=useRef<HTMLInputElement>(null);
+ const running=useRef(false);
+ const [rows,setRows]=useState<CustomerMasterImportRow[]>([]);
+ const [existing,setExisting]=useState<string[]>([]);
+ const [previewScope,setPreviewScope]=useState("");
+ const [preview,setPreview]=useState(false);
+ const [file,setFile]=useState("");
+ const [busy,setBusy]=useState(false);
+ const [error,setError]=useState("");
+ const [message,setMessage]=useState("");
+ useEffect(()=>{setRows([]);setExisting([]);setPreviewScope("");setFile("");setPreview(false);setError("");setMessage("")},[scope]);
+ const refreshExisting=async()=>{
+  const result=await supabase.from("customers").select("name");
+  if(result.error)throw result.error;
+  return new Set((result.data??[]).map((customer:{name:string})=>customerKey(customer.name)));
+ };
+ const download=()=>{
+  const headers=["Name","Urdu Name","Email","Phone","Address","Tax Status","NTN","STRN","CNIC"];
+  const ws=XLSX.utils.aoa_to_sheet([headers,["Sample Customer","","","","","unregistered","","",""]]);
+  ws["!cols"]=[{wch:50},...headers.slice(1).map(()=>({wch:20}))];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Customers");
+  XLSX.writeFile(wb,"NAVILO-Customers-Import-Template.xlsx");
+ };
+ const choose=async(event:React.ChangeEvent<HTMLInputElement>)=>{
+  const selected=event.target.files?.[0];event.target.value="";
+  if(!selected)return;
+  setRows([]);setFile("");setError("");setMessage("");setPreview(false);
+  const selectedScope=scope;
+  try{
+   if(!canImport||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)throw new Error("Select a Company and Business Unit with Master create permission.");
+   if(selected.size>5*1024*1024)throw new Error("Maximum customer import file size is 5 MB.");
+   const wb=XLSX.read(await selected.arrayBuffer(),{type:"array"});
+   const sheet=wb.Sheets[wb.SheetNames[0]];
+   if(!sheet)throw new Error("Excel/CSV has no worksheet.");
+   const raw=XLSX.utils.sheet_to_json<Record<string,unknown>>(sheet,{defval:""});
+   if(!raw.length||raw.length>200)throw new Error("Customer import must contain 1 to 200 rows.");
+   const seen=new Set<string>();
+   const mapped=raw.map((record,index)=>{
+    const data=Object.fromEntries(Object.entries(record).map(([k,v])=>[key(k),String(v??"").trim()]));
+    const name=data.name||data.customer_name||data.party_name||"";
+    const normalized=customerKey(name);
+    if(!normalized)throw new Error(`Row ${index+2}: Customer Name is required.`);
+    if(seen.has(normalized))throw new Error(`Row ${index+2}: Duplicate customer "${name}" in file.`);
+    seen.add(normalized);
+    const rawTax=(data.tax_status||data.tax_registration_status||"unregistered").toLowerCase();
+    if(!["registered","unregistered"].includes(rawTax))throw new Error(`Row ${index+2}: Tax Status must be registered or unregistered.`);
+    if(rawTax==="registered"&&!data.strn&&!data.ntn)throw new Error(`Row ${index+2}: Registered customer requires STRN or NTN.`);
+    return {name,name_urdu:data.urdu_name||data.name_urdu||"",email:data.email||"",
+     phone:data.phone||data.mobile||"",address:data.address||"",
+     tax_registration_status:rawTax as "registered"|"unregistered",
+     ntn:data.ntn||"",strn:data.strn||"",cnic:data.cnic||"",sourceRow:index+2};
+   });
+   const current=await refreshExisting();
+   if(latestScope.current!==selectedScope)throw new Error("Active workspace changed. Choose the file again.");
+   setRows(mapped);setExisting([...current]);setPreviewScope(selectedScope);setFile(selected.name);setPreview(true);
+  }catch(failure){setError(failure instanceof Error?failure.message:"Unable to read customer import file.");}
+ };
+ const run=async()=>{
+  if(running.current||!rows.length)return;
+  if(!canImport||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id||previewScope!==scope){
+   setError("Active Company or Business Unit changed. Choose the customer file again.");return;
+  }
+  running.current=true;setBusy(true);setError("");setMessage("");
+  const selectedScope=scope;
+  let created=0;let skipped=0;
+  const completed=new Set<string>();
+  try{
+   const existingNow=await refreshExisting();
+   if(latestScope.current!==selectedScope)throw new Error("Workspace changed. Import stopped.");
+   const pending=rows.filter(r=>!existingNow.has(customerKey(r.name)));
+   skipped=rows.length-pending.length;
+   if(!pending.length){setRows([]);setFile("");setPreview(false);setMessage(`All ${skipped} customer(s) already exist. Nothing imported.`);return;}
+   if(!window.confirm(`Create ${pending.length} Customer Master(s) in the active Company? This imports names and optional contact/tax data ONLY. No opening balances or invoices will be posted.`))return;
+   for(const item of pending){
+    if(latestScope.current!==selectedScope)throw new Error("Workspace changed. Import stopped.");
+    const result=await supabase.rpc("create_customer_with_ar",{
+     p_name:item.name,p_email:item.email||null,p_phone:item.phone||null,p_address:item.address||null
+    });
+    if(result.error)throw new Error(`Row ${item.sourceRow} (${item.name}): ${result.error.message}`);
+    const createdCustomer=Array.isArray(result.data)?result.data[0]:result.data;
+    created++;completed.add(customerKey(item.name));
+    const attributes={
+     ...(item.name_urdu?{name_urdu:item.name_urdu}:{}),
+     ...(item.ntn?{ntn:item.ntn}:{}),
+     ...(item.strn?{strn:item.strn}:{}),
+     ...(item.cnic?{cnic:item.cnic}:{}),
+     ...(item.tax_registration_status==="registered"?{tax_registration_status:"registered"}:{})
+    };
+    if(Object.keys(attributes).length){
+     if(!createdCustomer?.id)throw new Error(`Row ${item.sourceRow}: Customer created, but the server did not return its ID for tax/contact details.`);
+     const updated=await supabase.from("customers").update(attributes).eq("id",createdCustomer.id);
+     if(updated.error)throw new Error(`Row ${item.sourceRow}: Customer created, but details update failed: ${updated.error.message}`);
+    }
+   }
+   if(latestScope.current===selectedScope){setRows([]);setFile("");setPreview(false);setMessage(`${created} customer(s) imported; ${skipped} already existed. No accounting balances were posted.`);}
+  }catch(failure){
+   if(latestScope.current===selectedScope){
+    setRows(previous=>previous.filter(item=>!completed.has(customerKey(item.name))));
+    setExisting(previous=>[...previous,...completed]);
+    setError(`${failure instanceof Error?failure.message:"Customer import failed."} ${created} customer(s) created before the error. Remaining rows are kept for retry; already-created names will be skipped.`);
+   }
+  }finally{
+   if(created>0)window.dispatchEvent(new Event("navilo-master-data-changed"));
+   running.current=false;setBusy(false);
+  }
+ };
+ const existingKeys=new Set(existing);
+ const already=rows.filter(item=>existingKeys.has(customerKey(item.name))).length;
+ return <section className="flex flex-col rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+  <div className="flex items-center gap-2"><Users className="h-5 w-5 text-emerald-700"/><h2 className="text-sm font-bold text-slate-900">Customers</h2></div>
+  <p className="mt-2 text-xs leading-5 text-slate-600">Excel/CSV Customer Master import with preview. No opening balances are posted.</p>
+  {canImport?<div className="mt-3 flex flex-wrap gap-2">
+   <button type="button" className="btn h-9 text-xs" disabled={busy} onClick={download}>Download Template</button>
+   <button type="button" className="btn h-9 text-xs" disabled={busy} onClick={()=>input.current?.click()}>Upload Excel / CSV</button>
+   <input ref={input} type="file" accept=".xlsx,.xls,.csv" className="hidden" aria-label="Select customer import file" onChange={e=>void choose(e)}/>
+   <button type="button" className="btn h-9 text-xs" disabled={busy||!rows.length} onClick={()=>setPreview(value=>!value)}>Import Preview</button>
+   <Link to="/master-data/customers" className="inline-flex h-9 items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-800">Open customer import<ArrowRight className="h-3.5 w-3.5"/></Link>
+  </div>:<span className="mt-3 text-xs text-slate-500">No Master create permission</span>}
+  {file&&<p className="mt-2 text-xs text-slate-600">{file} · {rows.length} row(s) · {already} already exist · {rows.length-already} new</p>}
+  {error&&<p role="alert" className="mt-2 rounded bg-red-50 p-2 text-xs text-red-700">{error}</p>}
+  {message&&<p role="status" className="mt-2 rounded bg-emerald-50 p-2 text-xs text-emerald-700">{message}</p>}
+  {preview&&rows.length>0&&<div className="mt-2">
+   <div className="max-h-48 overflow-auto rounded border border-slate-200">
+    <table className="w-full text-left text-[11px]">
+     <thead className="sticky top-0 bg-slate-100"><tr><th className="p-1">Row</th><th className="p-1">Customer Name</th><th className="p-1">Tax</th><th className="p-1">Status</th></tr></thead>
+     <tbody>{rows.slice(0,100).map(item=><tr key={item.sourceRow} className="border-t"><td className="p-1">{item.sourceRow}</td><td className="p-1">{item.name}</td><td className="p-1">{item.tax_registration_status}</td><td className="p-1">{existingKeys.has(customerKey(item.name))?"Already exists · skip":"New"}</td></tr>)}</tbody>
+    </table>
+    {rows.length>100&&<p className="p-1 text-xs">Preview shows first 100 rows.</p>}
+   </div>
+   <div className="mt-2 flex items-center justify-between gap-2">
+    <p className="text-[11px] text-slate-600">Creates customer masters only. Existing names are skipped; imported rows are not rolled back if a later row fails.</p>
+    <button type="button" className="btn-primary h-9 shrink-0 px-3 text-xs" disabled={busy||!canImport||rows.length===already} onClick={()=>void run()}>{busy?"Importing…":`Import ${rows.length-already} Customers`}</button>
+   </div>
+  </div>}
+ </section>;
+}
 
 function TransportMasterImports(){
  const {activeCompany,activeBusinessUnit}=useAuth(); const input=useRef<HTMLInputElement>(null);
@@ -135,5 +283,5 @@ export default function ImportCenter() {
   ];
   return <div className="mx-auto max-w-6xl space-y-5 py-3"><div><h1 className="text-xl font-bold text-slate-900">Import Center</h1><p className="mt-1 text-sm text-slate-600">Choose a data type, download its template and review records before posting.</p></div>
    {canImport("transport")&&<><TransportTransferTripImports/><TransportMasterImports/><TransportRateImports/>{<TransportDriverPayImports/>}{canImport("accounting")&&<TransportExpenseImports/>}{canImport("accounting")&&<TransportSettlementImports/>}{canImport("sales")&&<TransportInvoiceImports/>}</>}
-   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{cards.map(card=>{const Icon=card.icon;return <section key={card.title} className="flex min-h-52 flex-col items-center rounded-xl border border-slate-200 bg-white px-5 py-6 text-center shadow-sm"><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><Icon className="h-6 w-6"/></div><h2 className="mt-4 text-sm font-bold text-slate-900">{card.title}</h2><p className="mt-1 min-h-10 text-xs leading-5 text-slate-600">{card.detail}</p>{card.destinations.length?<div className="mt-auto flex flex-wrap justify-center gap-2 pt-3">{card.destinations.map(d=><Link key={d.to} to={d.to} className="inline-flex min-h-9 items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-800">{d.label}<ArrowRight className="h-3.5 w-3.5"/></Link>)}</div>:<span className="mt-auto pt-3 text-xs font-medium text-slate-500">{card.title==="Bank Data"?"Not available":"No import permission"}</span>}</section>})}</div></div>;
+   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{cards.map(card=>{if(card.title==="Customers")return <CustomerMasterImportCard key={card.title} canImport={canImport("master")}/>;const Icon=card.icon;return <section key={card.title} className="flex min-h-52 flex-col items-center rounded-xl border border-slate-200 bg-white px-5 py-6 text-center shadow-sm"><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><Icon className="h-6 w-6"/></div><h2 className="mt-4 text-sm font-bold text-slate-900">{card.title}</h2><p className="mt-1 min-h-10 text-xs leading-5 text-slate-600">{card.detail}</p>{card.destinations.length?<div className="mt-auto flex flex-wrap justify-center gap-2 pt-3">{card.destinations.map(d=><Link key={d.to} to={d.to} className="inline-flex min-h-9 items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-800">{d.label}<ArrowRight className="h-3.5 w-3.5"/></Link>)}</div>:<span className="mt-auto pt-3 text-xs font-medium text-slate-500">{card.title==="Bank Data"?"Not available":"No import permission"}</span>}</section>})}</div></div>;
 }
