@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import {fetchAllPages} from "@/lib/fetchAllPages";
+import {formatNaviloDate} from "@/lib/naviloDate";
+import { createPrintDocument, registerPrintSource, printTableMarkup } from "@/lib/printDocument";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FileDown,
   Loader2,
@@ -62,6 +65,12 @@ export default function PaymentVoucherHistory({
     mode === "customer"
       ? "Customer Receipt"
       : "Supplier Payment";
+
+  const printRoot = useRef<HTMLElement|null>(null);
+  useEffect(()=>{if(!printRoot.current)return;return registerPrintSource(printRoot.current,async()=>{
+    const all=await fetchAllPages<Voucher>((from,to)=>supabase.from('journal_entries').select('id,entry_no,entry_date,description,trans_type,party_name,payment_mode,balance_before,payment_amount,balance_after').eq('status','posted').eq('trans_type',transactionType).order('entry_date',{ascending:false}).order('entry_no',{ascending:false}).order('id').range(from,to));
+    return printTableMarkup(transactionType+' History',['Voucher','Date','Party','Previous','Amount','Closing'],all.map(row=>[row.entry_no,formatNaviloDate(row.entry_date),row.party_name||'—',row.balance_before??'—',row.payment_amount??'—',row.balance_after??'—']),'All posted vouchers in the active company/business scope.');
+  });},[transactionType]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -184,11 +193,7 @@ export default function PaymentVoucherHistory({
           loadCompany(),
         ]);
 
-      const popup = window.open(
-        "",
-        "_blank",
-        "width=900,height=900"
-      );
+      const popup = createPrintDocument();
 
       if (!popup) {
         throw new Error(
@@ -473,7 +478,7 @@ ${
   };
 
   return (
-    <section className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section ref={printRoot} className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
         <div>
           <h3 className="font-bold text-slate-900">

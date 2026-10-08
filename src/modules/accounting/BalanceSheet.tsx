@@ -411,7 +411,7 @@ export default function BalanceSheet() {
   );
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 pb-12"><AccountingReportScopeSelect value={scope} onChange={setScope}/><details className="no-print"><summary>Export / customize Balance Sheet</summary><ConfigurableReport module="accounting" preferenceKey="accounting-balance-sheet" report={{title:'Balance Sheet',description:`As of ${asOfDate} · Canonical posted ledger · Difference ${equationDifference.toFixed(2)}`,columns:['Section','Account','Amount'],rows:[...assets.items.map(i=>['Assets',i.name,i.amount]),...liabilities.items.map(i=>['Liabilities',i.name,i.amount]),...equity.items.map(i=>['Equity',i.name,i.amount]),['Total','Assets',assets.total],['Total','Liabilities and Equity',totalLiabilitiesAndEquity]]}}/></details>
+    <div className="mx-auto max-w-[1500px] space-y-6 pb-12"><AccountingReportScopeSelect value={scope} onChange={setScope}/><details data-print-primary-source className="no-print"><summary>Export / customize Balance Sheet</summary><ConfigurableReport module="accounting" preferenceKey="accounting-balance-sheet" report={{title:'Balance Sheet',description:`As of ${asOfDate} · Canonical posted ledger · Difference ${equationDifference.toFixed(2)}`,columns:['Section','Account','Amount'],rows:[...assets.items.map(i=>['Assets',i.name,i.amount]),...liabilities.items.map(i=>['Liabilities',i.name,i.amount]),...equity.items.map(i=>['Equity',i.name,i.amount]),['Total','Assets',assets.total],['Total','Liabilities',liabilities.total],['Total','Equity',equity.total],['Total','Liabilities and Equity',totalLiabilitiesAndEquity],['Check','Equation difference',equationDifference]]}}/></details>
       <style>{`
         @media print {
           body * { visibility: hidden; }

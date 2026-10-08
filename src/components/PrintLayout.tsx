@@ -71,6 +71,7 @@ export interface PrintLayoutProps {
   extraFields?: { label: string; value: string }[];
   hawalaDocuments?: { id: string; invoiceNo: string; invoiceDate?: string | null; referenceName?: string | null; referenceNo?: string | null; referenceNotes?: string | null; amount: number }[];
   normalInvoiceTotal?: number;
+  documentDetails?: React.ReactNode;
   documentNotice?: string;
   documentNoticeUrdu?: string;
   paymentSummary?: PaymentSummary;
@@ -137,7 +138,7 @@ function mapStoredVisibility(row: any): PrintVisibility {
 export default function PrintLayout({
   voucherTitle, voucherNo, voucherDate, company, party, items, chargeBreakdown, itemsTotal, chargesTotal,
   taxAmount = 0, showTaxSummary = false, grandTotal, discountAmount, extraFields, hawalaDocuments = [], normalInvoiceTotal,
-  documentNotice, documentNoticeUrdu, paymentSummary, bilingual,
+  documentDetails, documentNotice, documentNoticeUrdu, paymentSummary, bilingual,
   signatureLabels = ["Authorized Signature", "Customer Signature"],
   visibility: visibilityProp = {}, documentHeader, documentHeaderUrdu, documentFooter, documentFooterUrdu,
 }: PrintLayoutProps) {
@@ -275,7 +276,7 @@ export default function PrintLayout({
       <div className="print-company">
         {showLogo && company.logoUrl && <img src={company.logoUrl} alt="Company Logo" className="print-logo" />}
         <div>
-          {showCompanyName && company.name && (!showLogo || !company.logoUrl) && <h1 className="print-company-name">{company.name}</h1>}
+          {showCompanyName && company.name && <h1 className="print-company-name">{company.name}</h1>}
           {showAddress && company.address && <p className="print-company-addr">{company.address}</p>}
           {showPhoneEmail && (company.phone || company.email) && <p className="print-company-addr">{[company.phone ? `${docLabel("Phone", "فون")}: ${company.phone}` : "", company.email || ""].filter(Boolean).join(" · ")}</p>}
           {showTaxDetails && cleanTaxId && <p className="print-company-tax">${docLabel("NTN / STRN", "ٹیکس نمبر")}: {cleanTaxId}</p>}
@@ -303,6 +304,8 @@ export default function PrintLayout({
         {showTaxDetails && party.taxRegistrationStatus && <div style={{ marginTop: 2, fontSize: 9, color: "#64748b", textTransform: "capitalize" }}>Tax Status: {party.taxRegistrationStatus}</div>}
       </div></div>
     </div>
+
+    {documentDetails}
 
     <div className="invoice-items-wrap">
       <div className={`${itemGridClass} invoice-items-head`} style={itemGridStyle}>

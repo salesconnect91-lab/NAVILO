@@ -70,6 +70,6 @@ const startOptionalRuntime = (label: string, loader: () => Promise<unknown>) => 
 // These DOM enhancement runtimes are not required to mount the application.
 // Start them only after React has been mounted so a runtime import failure can
 // never leave #root completely blank.
-startOptionalRuntime("print target", () => import("./printTargetRuntime"));
+
 startOptionalRuntime("account name display", () => import("./accountNameDisplayRuntime"));
 startOptionalRuntime("document language isolation", () => import("./documentLanguageIsolationRuntime"));

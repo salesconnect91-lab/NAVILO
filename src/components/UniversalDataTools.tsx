@@ -67,6 +67,7 @@ function masterDataRoot(){
 }
 function reportRoot(){return document.querySelector<HTMLElement>("[data-report-content]")||document.querySelector<HTMLElement>(".professional-report")||document.querySelector<HTMLElement>("#order-book-report")||salesInvoiceDetailRoot()||consolidatedPurchaseRoot()||consolidatedSalesRoot()||chartOfAccountsRoot()||journalDetailRoot()||journalListRoot()||masterDataRoot()||document.querySelector<HTMLElement>("#navilo-main-content")}
 function reportSelector(){
+  if(document.querySelector("[data-print-primary-source]"))return "#navilo-main-content";
   if(document.querySelector("[data-report-content]"))return"[data-report-content]";
   if(document.querySelector(".professional-report"))return".professional-report";
   if(document.querySelector("#order-book-report"))return"#order-book-report";

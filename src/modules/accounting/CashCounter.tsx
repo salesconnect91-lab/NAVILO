@@ -1,3 +1,4 @@
+import { createPrintDocument } from "@/lib/printDocument";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import {
@@ -469,11 +470,7 @@ export default function CashCounter() {
           "receipt_payment"
         );
 
-      const popup = window.open(
-        "",
-        "_blank",
-        "width=900,height=1000"
-      );
+      const popup = createPrintDocument();
 
       if (!popup) {
         setError(

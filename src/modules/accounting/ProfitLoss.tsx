@@ -59,6 +59,10 @@ const emptyPLData = (): PLData => ({
   otherExpenses: emptySection(),
 });
 
+function printSectionRows(title: string, section: PLSectionData) {
+  return [...section.items.map(item => [title, item.name, item.amount]), [title, 'Section total', section.total]];
+}
+
 function localDateValue(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
@@ -358,7 +362,7 @@ export default function ProfitLoss() {
           <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-slate-400 shadow-sm">Loading Profit & Loss statement...</div>
         ) : (
           <>
-            <TransportContributionSummary from={fromDate} to={toDate}/><details className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...Object.entries(data).flatMap(([bucket,section])=>section.items.map(item=>[bucket,item.name,item.amount])),['Total','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <TransportContributionSummary from={fromDate} to={toDate}/><details data-print-primary-source className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...printSectionRows('Operating Revenue',data.operatingRevenue),...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...printSectionRows('Other Income',data.otherIncome),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {([
                 ["Revenue", data.operatingRevenue.total, "text-emerald-700"],
                 ["Cost of Sales", data.costOfSales.total, "text-rose-700"],

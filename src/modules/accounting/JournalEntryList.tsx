@@ -1,3 +1,4 @@
+import { createPrintDocument } from "@/lib/printDocument";
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import {
@@ -2568,7 +2569,7 @@ export default function JournalEntryList() {
         return `<tr><td class="center">${index + 1}</td><td>${safe(accountName)}${source}</td><td class="right">${money(line.debit)}</td><td class="right">${money(line.credit)}</td></tr>`;
       }).join("");
 
-      const printWindow = window.open("", "_blank", "width=950,height=1000");
+      const printWindow = createPrintDocument();
       if (!printWindow) throw new Error("Please allow pop-ups in your browser to print the voucher.");
       printWindow.document.open();
       printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${safe(entry.entry_no)} - Journal Voucher</title><style>

@@ -182,7 +182,7 @@ export default function SearchableSelect({
   const Trigger = nativeCompatibility ? "span" : "button";
   const nativeLayout = className.split(/\s+/).filter(token => /^(?:w-|min-w-|max-w-|flex-|grow|shrink|col-|row-|m[trblxy]?-|self-)/.test(token)).join(" ");
   return (
-    <div ref={rootRef} className={`relative min-w-0 ${wrapperClassName || (nativeCompatibility && nativeLayout ? nativeLayout : "w-full")}`}>
+    <div ref={rootRef} data-print-control={selected?.label || ""} data-print-label={props["aria-label"]} className={`relative min-w-0 ${wrapperClassName || (nativeCompatibility && nativeLayout ? nativeLayout : "w-full")}`}>
       <Trigger
         role={nativeCompatibility ? "button" : undefined}
         aria-hidden={nativeCompatibility ? true : undefined}

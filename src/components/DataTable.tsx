@@ -1,3 +1,4 @@
+import { registerPrintSource } from "@/lib/printDocument";
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -132,6 +133,17 @@ export default function DataTable<T extends { id: string }>({
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / prefs.pageSize));
   const safePage = Math.min(page, totalPages);
   const pagedRows = sortedRows.slice((safePage - 1) * prefs.pageSize, safePage * prefs.pageSize);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || loading) return;
+    return registerPrintSource(root, async () => {
+      const {renderToStaticMarkup} = await import("react-dom/server");
+      const hiddenLabels=new Set(Array.from(root.querySelectorAll<HTMLElement>('thead th')).filter(cell=>cell.style.display==='none').map(cell=>cell.getAttribute('aria-label')));
+      const printColumns = visibleColumns.filter(col => col.key !== "action" && col.key !== "actions" && !hiddenLabels.has(col.label));
+      return renderToStaticMarkup(<table><thead><tr>{showSerialNumber && <th>S.No.</th>}{printColumns.map(col => <th key={col.key} className={col.className}>{col.label}</th>)}</tr></thead><tbody>{sortedRows.map((row, index) => <tr key={row.id}>{showSerialNumber && <td>{index + 1}</td>}{printColumns.map(col => <td key={col.key} className={col.className}>{col.render ? col.render(row) : (row as Record<string, unknown>)[col.key] as React.ReactNode}</td>)}</tr>)}</tbody></table>);
+    });
+  }, [sortedRows, visibleColumns, showSerialNumber, loading]);
+
   const allPageSelected = pagedRows.length > 0 && pagedRows.every(row => selected.has(row.id));
   const densityClass = prefs.density === "compact" ? "text-xs" : prefs.density === "spacious" ? "text-base" : "text-sm";
   const rowPad = prefs.density === "compact" ? "py-0.5" : prefs.density === "spacious" ? "py-5" : "py-2.5";
@@ -169,7 +181,7 @@ export default function DataTable<T extends { id: string }>({
       ? { position:"sticky", right:pinOffsets.right[key], zIndex:12, background:"white" } : {};
 
   if (loading) return <div role="status" className="card p-12 text-center text-slate-600">Loading records…</div>;
-  if (rows.length === 0) return <div role="status" className="card p-12 text-center text-slate-600">{emptyMessage ?? "No records yet."}</div>;
+  if (rows.length === 0) return <div data-print-empty role="status" className="card p-12 text-center text-slate-600">{emptyMessage ?? "No records yet."}</div>;
 
   return <>
     <div ref={rootRef} className="card overflow-hidden" data-report-content data-navilo-data-table data-neus-grid="true" data-density={prefs.density}>

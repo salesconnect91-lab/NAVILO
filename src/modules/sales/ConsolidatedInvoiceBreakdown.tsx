@@ -1,3 +1,4 @@
+import { escapePrintHtml, createPrintDocument } from "@/lib/printDocument";
 import { useEffect, useMemo, useState } from "react";
 import { FileText, Printer } from "lucide-react";
 import jsPDF from "jspdf";
@@ -188,16 +189,16 @@ export default function ConsolidatedInvoiceBreakdown({
         return `
           <section style="margin-top:24px;page-break-inside:avoid">
             <div style="background:#f1f5f9;padding:10px;display:flex;justify-content:space-between">
-              <strong>${index + 1}. ${invoice.sales_order?.order_no || ""}</strong>
+              <strong>${index + 1}. ${escapePrintHtml(invoice.sales_order?.order_no || "")}</strong>
               <strong>${money(invoice.sales_order?.total)}</strong>
             </div>
 
             <div style="font-size: 12px;padding:8px 0">
               <strong>Date:</strong> ${invoice.sales_order?.order_date || ""}
               &nbsp;&nbsp;
-              <strong>Hawala:</strong> ${invoice.reference_name || "—"}
+              <strong>Hawala:</strong> ${escapePrintHtml(invoice.reference_name || "—")}
               &nbsp;&nbsp;
-              <strong>Reference:</strong> ${invoice.reference_no || "—"}
+              <strong>Reference:</strong> ${escapePrintHtml(invoice.reference_no || "—")}
             </div>
 
             <table>
@@ -215,8 +216,8 @@ export default function ConsolidatedInvoiceBreakdown({
                   .map(
                     (line) => `
                     <tr>
-                      <td>${line.item?.sku || "—"}</td>
-                      <td>${line.item?.name || "—"}</td>
+                      <td>${escapePrintHtml(line.item?.sku || "—")}</td>
+                      <td>${escapePrintHtml(line.item?.name || "—")}</td>
                       <td style="text-align:right">${n(line.qty).toLocaleString()}</td>
                       <td style="text-align:right">${money(line.unit_price)}</td>
                       <td style="text-align:right">${money(line.line_total)}</td>
@@ -237,7 +238,7 @@ export default function ConsolidatedInvoiceBreakdown({
                       (payment) =>
                         `${payment.allocation_date} — ${money(payment.amount)}${
                           payment.reference
-                            ? ` (${payment.reference})`
+                            ? ` (${escapePrintHtml(payment.reference)})`
                             : ""
                         }`
                     )
@@ -252,7 +253,7 @@ export default function ConsolidatedInvoiceBreakdown({
       .join("");
 
   const printDetailed = () => {
-    const win = window.open("", "_blank", "width=1100,height=850");
+    const win = createPrintDocument();
 
     if (!win) return;
 
@@ -260,7 +261,7 @@ export default function ConsolidatedInvoiceBreakdown({
       <!doctype html>
       <html>
       <head>
-        <title>${consolidationNo}</title>
+        <title>${escapePrintHtml(consolidationNo)}</title>
         <style>
           body{font-family:Arial,sans-serif;padding:28px;color:#0f172a}
           h1{text-align:center;margin:0}
@@ -276,11 +277,11 @@ export default function ConsolidatedInvoiceBreakdown({
       </head>
       <body>
         <h1>Consolidated Invoice</h1>
-        <div class="sub">${consolidationNo}</div>
+        <div class="sub">${escapePrintHtml(consolidationNo)}</div>
 
         <div style="font-size:12px">
-          <strong>Main Customer:</strong> ${customerName}<br/>
-          <strong>Date:</strong> ${consolidationDate}
+          <strong>Main Customer:</strong> ${escapePrintHtml(customerName)}<br/>
+          <strong>Date:</strong> ${escapePrintHtml(consolidationDate)}
         </div>
 
         ${detailedHtml()}

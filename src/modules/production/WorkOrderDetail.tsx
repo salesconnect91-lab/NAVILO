@@ -1,3 +1,4 @@
+import { createPrintDocument } from "@/lib/printDocument";
 import SearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
@@ -813,11 +814,7 @@ export default function WorkOrderDetail() {
               </tr>
             `;
 
-      const popup = window.open(
-        "",
-        "_blank",
-        "width=1000,height=800"
-      );
+      const popup = createPrintDocument();
 
       if (!popup) {
         throw new Error(
