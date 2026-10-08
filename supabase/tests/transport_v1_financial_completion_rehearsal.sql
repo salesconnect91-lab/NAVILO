@@ -158,7 +158,14 @@ end if;
  result:=public.transport_refund_service_credit('customer',sales_id,current_date,cash_id,50,'Refund overcharge');
  if (select financial_status from public.transport_trip_financial_summary where id=trip)<>'Closed' then raise exception 'Refund did not resolve credit';end if;
  result:=public.transport_adjust_rate(trip,'supplier',200,'Owner overpaid after close',current_date,rent);
- if (select supplier_credit_gross from public.transport_trip_financial_summary where id=trip)<>50 then raise exception 'Supplier credit after full payment';end if;
+ if (select supplier_credit_gross from public.transport_trip_financial_summary where id=trip)<>50 then
+ raise exception 'Supplier credit after full payment: trip_credit=%, supplier_net=%, supplier_paid=%, supplier_out=%, doc_balances=%',
+ (select supplier_credit_gross from public.transport_trip_financial_summary where id=trip),
+ (select supplier_net from public.transport_trip_financial_summary where id=trip),
+ (select supplier_paid_gross from public.transport_trip_financial_summary where id=trip),
+ (select supplier_outstanding_gross from public.transport_trip_financial_summary where id=trip),
+ (select jsonb_agg(jsonb_build_object('order_id',d.purchase_order_id,'billed',b.billed_gross,'paid',b.paid_gross,'out',b.outstanding_gross,'credit',b.credit_gross)) from public.transport_supplier_document_rents l join public.transport_supplier_documents d on d.id=l.document_id join public.transport_service_document_balances b on b.order_id=d.purchase_order_id and b.side='supplier' where l.trip_id=trip);
+ end if;
  result:=public.transport_refund_service_credit('supplier',bill,current_date,cash_id,50,'Recover supplier overpayment');
  result:=public.transport_post_cost_request(gen_random_uuid(),trip,'commission',supplier,20,current_date,acct,false);
  j:=(result->>'document_id')::uuid;
