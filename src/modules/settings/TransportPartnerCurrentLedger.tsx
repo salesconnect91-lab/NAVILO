@@ -17,13 +17,15 @@ export default function TransportPartnerCurrentLedger({month,accounts}:{month:st
   let live=true;setLedger(null);setError('');
   if(!accountId||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))return;
   setBusy(true);
-  void supabase.rpc('transport_profit_distribution_partner_ledger',{p_account_id:accountId,p_month:month+'-01',p_limit:200})
-   .then(({data,error:e})=>{
-     if(!live)return;
-     if(e)setError(e.message);
-     else setLedger(data as Ledger);
-   }).catch(e=>{if(live)setError(e instanceof Error?e.message:'Could not load partner ledger');})
-   .finally(()=>{if(live)setBusy(false);});
+  void (async()=>{
+   try{
+    const {data,error:e}=await supabase.rpc('transport_profit_distribution_partner_ledger',{p_account_id:accountId,p_month:month+'-01',p_limit:200});
+    if(!live)return;
+    if(e)setError(e.message);
+    else setLedger(data as Ledger);
+   }catch(e){if(live)setError(e instanceof Error?e.message:'Could not load partner ledger');}
+   finally{if(live)setBusy(false);}
+  })();
   return()=>{live=false;};
  },[accountId,month,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
  return <section className="rounded border bg-white p-3 space-y-2">
