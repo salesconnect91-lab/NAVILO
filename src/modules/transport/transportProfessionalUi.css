@@ -143,3 +143,30 @@
     white-space: nowrap;
   }
 }
+
+/* Keep existing actions and make their labels readable against every theme. */
+@media screen {
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar .navilo-report-tool {
+    background: #243e5e !important;
+    color: #ffffff !important;
+    border: 1px solid #8fa8c7 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar .navilo-report-tool:hover {
+    background: #365579 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > button.bg-amber-50 {
+    background: #f5deb0 !important;
+    color: #63390c !important;
+    border-color: #bd812d !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > button.bg-emerald-50 {
+    background: #c4e8d5 !important;
+    color: #145437 !important;
+    border-color: #3d9168 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar button[type="submit"] {
+    background: #2458a6 !important;
+    color: #ffffff !important;
+    border-color: #1c4686 !important;
+  }
+}
