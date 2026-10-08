@@ -95,7 +95,13 @@ export function paginatePrintDocument(doc: Document, footerLabel: string) {
       const t = chunk!.matches('table') ? chunk! as HTMLTableElement : chunk!.querySelector<HTMLTableElement>('table')!;
       const foot=table.tFoot.cloneNode(true);t.appendChild(foot);
       if (!fits()) {
-        foot.parentNode?.removeChild(foot);newPage(true);makeChunk();
+        foot.parentNode?.removeChild(foot);
+        // Keep the final data row with its totals instead of creating a totals-only page.
+        const finalRow=rowParent!.lastElementChild;
+        finalRow?.remove();
+        if (!rowParent!.children.length) chunk!.remove();
+        newPage(true);makeChunk();
+        if (finalRow) rowParent!.appendChild(finalRow);
         const lastTable = chunk!.matches('table') ? chunk! as HTMLTableElement : chunk!.querySelector<HTMLTableElement>('table')!;
         lastTable.appendChild(foot);
         if (!fits()) throw new Error('Report totals do not fit on one page.');

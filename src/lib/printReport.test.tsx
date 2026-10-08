@@ -75,6 +75,11 @@ describe('measured page layout',()=>{
   const doc=layoutDoc(9);expect(paginatePrintDocument(doc,'Orbit')).toBe(3);
   expect(doc.querySelectorAll('tbody tr').length).toBe(9);expect(doc.querySelectorAll('thead').length).toBe(3);expect(doc.querySelectorAll('tfoot').length).toBe(1);expect(doc.querySelectorAll('.navilo-paper')[2].textContent).toContain('TOTAL 1700');expect(doc.querySelectorAll('.navilo-page-footer')[2].textContent).toContain('Page 3 of 3');
  });
+ it('keeps the final data row together with totals when the first page is full',()=>{
+  vi.spyOn(HTMLElement.prototype,'clientHeight','get').mockReturnValue(100);
+  vi.spyOn(HTMLElement.prototype,'scrollHeight','get').mockImplementation(function(this:HTMLElement){return this.classList.contains('navilo-page-body')?20+this.querySelectorAll('tbody tr,tfoot tr').length*20:0;});
+  const doc=layoutDoc(4);paginatePrintDocument(doc,'Orbit');const pages=doc.querySelectorAll('.navilo-paper');expect(pages).toHaveLength(2);expect(pages[0].querySelectorAll('tbody tr')).toHaveLength(3);expect(pages[1].textContent).toContain('TR-3');expect(pages[1].textContent).toContain('TOTAL 1700');expect(doc.querySelectorAll('tbody tr')).toHaveLength(4);expect(doc.querySelectorAll('tfoot')).toHaveLength(1);
+ });
  it('prints payments following a split invoice table only once',()=>{
   vi.spyOn(HTMLElement.prototype,'clientHeight','get').mockReturnValue(100);
   vi.spyOn(HTMLElement.prototype,'scrollHeight','get').mockImplementation(function(this:HTMLElement){return this.classList.contains('navilo-page-body')?20+this.querySelectorAll('tbody tr,tfoot tr').length*20:0;});
