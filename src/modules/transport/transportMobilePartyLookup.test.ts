@@ -1,6 +1,10 @@
 import {describe,it,expect,vi} from 'vitest';
 import {loadTransportMobilePartyOptions} from './transportMobilePartyLookup';
 
+// Unit tests inject a fake query client; importing production Supabase must not
+// require live environment secrets on GitHub CI.
+vi.mock('@/lib/supabase',()=>({supabase:{}}));
+
 describe('Transport Mobile party lookup',()=>{
   for(const table of ['customers','suppliers'] as const){
     it(`${table} uses only the scoped names-only RPC, not direct Master Data SELECT`,async()=>{
