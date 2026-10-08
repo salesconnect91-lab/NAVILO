@@ -784,6 +784,15 @@ export async function saveAccount(
     account_role:
       account.account_role?.trim() || "general",
 
+    // The SQL column defaults to debit; that default is incorrect for newly
+    // created payable/equity/income GLs. Owner drawings are contra-equity.
+    // This metadata change does not modify or reclassify existing transactions.
+    normal_balance:
+      account.type === "liability" || account.type === "revenue" ||
+      (account.type === "equity" && account.detail_type !== "owners_drawings")
+        ? "credit"
+        : "debit",
+
     /**
      * System account.
      *
