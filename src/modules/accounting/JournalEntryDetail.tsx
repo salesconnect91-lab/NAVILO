@@ -58,6 +58,7 @@ type ImportRow = {
   accountName: string;
   partyType: PartyType | "";
   partyName: string;
+  vehicleNo: string;
   debit: string;
   credit: string;
   rowNumber: number;
@@ -870,6 +871,7 @@ export default function JournalEntryDetail() {
             "Account Name": "Cash",
             "Party Type": "",
             "Party Name": "",
+            "Vehicle No": "",
             Debit: 1000,
             Credit: "",
           },
@@ -878,6 +880,7 @@ export default function JournalEntryDetail() {
             "Account Name": "Sales Revenue",
             "Party Type": "",
             "Party Name": "",
+            "Vehicle No": "",
             Debit: "",
             Credit: 1000,
           },
@@ -893,6 +896,7 @@ export default function JournalEntryDetail() {
           { wch: 35 },
           { wch: 18 },
           { wch: 35 },
+          { wch: 16 },
           { wch: 18 },
           { wch: 18 },
         ];
@@ -1071,6 +1075,7 @@ export default function JournalEntryDetail() {
               ])
             );
 
+          const vehicleNo=normalizeValue(findColumn(['Vehicle No','Vehicle Number','Vehicle','vehicle_no']));
           const debit =
             parseAmount(
               findColumn([
@@ -1096,6 +1101,7 @@ export default function JournalEntryDetail() {
             !accountName &&
             !partyType &&
             !partyName &&
+            !vehicleNo &&
             debit === 0 &&
             credit === 0;
 
@@ -1266,7 +1272,15 @@ export default function JournalEntryDetail() {
             }
           }
 
+          if(vehicleNo){
+            if(journalRelatedToMode(account.type,accountRequiresParty(account.id),isTransport)!=='vehicle'){
+              importErrors.push(`Row ${rowNumber}: Vehicle No is only valid on a Transport income/expense line.`);return;
+            }
+            const matches=eligibleVehicles.filter(v=>normalizedJournalVehicleNo(v.vehicle_no)===normalizedJournalVehicleNo(vehicleNo));
+            if(matches.length!==1){importErrors.push(`Row ${rowNumber}: Vehicle ${vehicleNo} is not uniquely company-owned on this journal date.`);return;}
+          }
           importedRows.push({
+            vehicleNo,
             accountCode,
             accountName:
               account.name,
@@ -1354,6 +1368,7 @@ export default function JournalEntryDetail() {
                 createTempId(),
               accountId:
                 account?.id || "",
+              vehicleId:row.vehicleNo?eligibleVehicles.find(v=>normalizedJournalVehicleNo(v.vehicle_no)===normalizedJournalVehicleNo(row.vehicleNo))?.id??'':'',
               partyType:
                 row.partyType,
               partyId,
@@ -1623,6 +1638,9 @@ export default function JournalEntryDetail() {
           return;
         }
 
+        if(line.vehicleId && (journalRelatedToMode(account.type,accountRequiresParty(account.id),isTransport)!=='vehicle' || !eligibleVehicles.some(v=>v.id===line.vehicleId))){
+          setError(`Row ${rowNumber}: Select a company-owned vehicle valid on this journal date.`);return;
+        }
         rowsToInsert.push({
           transport_vehicle_id: line.vehicleId || null,
           entry_id: id,
@@ -2473,7 +2491,7 @@ export default function JournalEntryDetail() {
                   <strong>
                     File columns:
                   </strong>{" "}
-                  Account Code, Account Name, Party Type, Party Name, Debit, Credit
+                  Account Code, Account Name, Party Type, Party Name, Vehicle No (optional for Transport income/expense), Debit, Credit
                   <span className="ml-2">
                     • Party Type + Party Name required for customer/supplier control accounts
                   </span>
@@ -2491,7 +2509,7 @@ export default function JournalEntryDetail() {
                   </h4>
 
                   <p className="text-xs text-slate-600 mt-0.5">
-                    Account and Name / Party are separate fields. Selecting a party selects its linked control account. For a company vehicle expense or income, select the vehicle on that line only.
+                    Select a GL first. Related To then shows Customer, Supplier, Company Vehicle or General / Shared. A journal can include both a supplier payable line and a vehicle expense line.
                   </p>
                 </div>
 
