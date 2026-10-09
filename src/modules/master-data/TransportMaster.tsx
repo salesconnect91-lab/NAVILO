@@ -13,6 +13,7 @@ import DataTable, { type Column } from "@/components/DataTable";
 import MasterSummaryStrip from "@/components/MasterSummaryStrip";
 import MasterActionButton from "@/components/MasterActionButton";
 import useTransportMasterClient from "./useTransportMasterClient";
+import TransportAccountStatement from "../transport/TransportAccountStatement";
 
 type Kind = "vehicles" | "drivers";
 type Row = { id: string; name: string; detail: string; mobile: string; owner: string; active: boolean;
@@ -28,6 +29,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
   const supabase = useTransportMasterClient();
   const vehicle = kind === "vehicles";
   const [rows, setRows] = useState<Row[]>([]);
+  const [statementDriver,setStatementDriver]=useState<Row|null>(null);
   const [truckTypes, setTruckTypes] = useState<Option[]>([]);
   const [suppliers, setSuppliers] = useState<Option[]>([]);
   const [employees, setEmployees] = useState<Option[]>([]);
@@ -159,11 +161,13 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
     { key: "owner", label: "Supplier / Owner", render: row => partyName(row) || "—" },
     ...(!vehicle ? [{ key: "licence", label: "Licence Expiry", render: (row: Row) => formatNaviloDate(row.licenceExpiry) } as Column<Row>] : []),
     { key: "status", label: "Status", render: row => row.active ? "Active" : "Inactive" },
-    { key: "actions", label: "Actions", className: "text-right", render: row => allowed && <div className="flex justify-end gap-2">
+    { key: "actions", label: "Actions", className: "text-right", render: row => <div className="flex justify-end gap-2">
+      {!vehicle&&row.driverType==="company"&&row.employeeId&&<button className="btn-secondary px-2 py-1 text-xs" onClick={()=>setStatementDriver(row)}>Hisaab</button>}
+      {allowed&&<>
       <button className="btn-secondary px-2 py-1 text-xs" onClick={() => openEdit(row)}><Pencil className="inline h-3.5 w-3.5" /> Edit</button>
       <MasterActionButton tone="danger" title={`${row.active ? "Deactivate" : "Activate"} ${vehicle ? "Vehicle" : "Driver"}`}
         message="Historical Transport records remain unchanged. Inactive masters cannot be selected for new Trips."
-        onConfirm={() => toggle(row)} className="btn-secondary px-2 py-1 text-xs"><Power className="inline h-3.5 w-3.5" /> {row.active ? "Deactivate" : "Activate"}</MasterActionButton>
+        onConfirm={() => toggle(row)} className="btn-secondary px-2 py-1 text-xs"><Power className="inline h-3.5 w-3.5" /> {row.active ? "Deactivate" : "Activate"}</MasterActionButton></>}
     </div> },
   ];
   const supplierOptions = suppliers.filter(s => s.is_active || s.id === form.supplierId);
@@ -188,6 +192,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
         </div><div className="flex justify-end gap-2 border-t px-5 py-3"><button type="button" className="btn-secondary" onClick={closeEditor}>Cancel</button><button className="btn-primary" disabled={saving}>{saving ? "Saving..." : "Save"}</button></div>
       </form></div>;
   if(quickCreate) return allowed && (!vehicle || canAddOwner) ? editor : <div role="alert">Master / ownership permission required.</div>;
+  if(statementDriver)return <div className="space-y-3"><button className="btn-secondary" onClick={()=>setStatementDriver(null)}>Back to Drivers</button><h2 className="text-sm font-semibold">{statementDriver.name} — Driver Salary Hisaab</h2><TransportAccountStatement key={statementDriver.employeeId} kind="driver" employeeAccount={{id:statementDriver.employeeId,name:statementDriver.name}}/></div>;
   return <div className="space-y-4" data-navilo-master-standard="true">
     <MasterSummaryStrip kind={kind} title={masterTitle} subtitle={vehicle ? "Vehicle identities and dated ownership" : supplierOwner ? "Trip and licence details only. Payments belong to the Supplier account; no Employee or Driver Salary Khata." : "Company drivers link to Employees and salary accounts; supplier drivers link only to Suppliers. Both use the same details as Trip Register."}
       total={rows.length} active={rows.filter(r => r.active).length} inactive={rows.filter(r => !r.active).length} fourthLabel="Displayed" fourthValue={filtered.length} />
