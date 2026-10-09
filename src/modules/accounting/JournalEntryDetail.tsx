@@ -55,6 +55,7 @@ type DraftLine = {
 };
 
 type ImportRow = {
+  description: string;
   accountCode: string;
   accountName: string;
   partyType: PartyType | "";
@@ -1033,6 +1034,8 @@ export default function JournalEntryDetail() {
               : "";
           };
 
+          const lineDescription = normalizeValue(findColumn(["Description","Narration","Line Description"]));
+
           const accountCode =
             normalizeValue(
               findColumn([
@@ -1287,6 +1290,7 @@ export default function JournalEntryDetail() {
             if(matches.length!==1){importErrors.push(`Row ${rowNumber}: Vehicle ${vehicleNo} is not uniquely company-owned on this journal date.`);return;}
           }
           importedRows.push({
+            description: lineDescription,
             vehicleNo,
             accountCode,
             accountName:
@@ -1383,7 +1387,7 @@ export default function JournalEntryDetail() {
                 row.debit,
               credit:
                 row.credit,
-              description: "",
+              description: row.description,
             };
           }
         );
