@@ -2561,12 +2561,17 @@ export default function JournalEntryList() {
         !["General","Journal Entry","Manual Journal",null].includes(original.trans_type))
         throw new Error("Only original manual journals can be copied. Generated and reversal journals must not be duplicated.");
       const {data: originalLines,error: linesError} = await supabase.from("journal_lines")
-        .select("account_id,account,party_type,party_id,party_name,transport_vehicle_id,debit,credit,source_debit,source_credit")
+        .select("id,account_id,account,party_type,party_id,party_name,transport_vehicle_id,debit,credit,source_debit,source_credit")
         .eq("entry_id",source.id).order("id");
       if(linesError) throw linesError;
       if(!originalLines?.length) throw new Error("This journal has no lines to copy.");
       if(originalLines.some(line=>!line.account_id))
         throw new Error("One or more source accounts cannot be resolved. Review the original journal.");
+      // Narration is copied when the optional line-description migration is installed.
+      const {data: sourceDescriptions,error: narrationLookupError}=await supabase.from("journal_lines")
+        .select("id,description").eq("entry_id",source.id);
+      const descriptions=new Map<string,string>();
+      if(!narrationLookupError) for(const item of sourceDescriptions||[]) if(item.description) descriptions.set(item.id,item.description);
       const currency = original.currency_code || baseCurrency;
       const isForeign = Boolean(baseCurrency && currency && currency !== baseCurrency);
       if(isForeign && original.status==="posted" &&
@@ -2584,6 +2589,7 @@ export default function JournalEntryList() {
         entry_id:copy.id,account_id:line.account_id,account:line.account,
         party_type:line.party_type,party_id:line.party_id,party_name:line.party_name,
         transport_vehicle_id:line.transport_vehicle_id,
+        ...(descriptions.has(line.id) ? {description:descriptions.get(line.id)} : {}),
         debit:isForeign&&original.status==="posted"?Number(line.source_debit||0):Number(line.debit||0),
         credit:isForeign&&original.status==="posted"?Number(line.source_credit||0):Number(line.credit||0),
       }));
