@@ -1910,7 +1910,7 @@ export default function JournalEntryDetail() {
           );
 
         setError(
-          `"${account?.code ?? ""} - ${account?.name ?? "Party control account"}" requires a customer or supplier before posting.`
+          `"${account?.name ?? "Party control account"}" requires a customer or supplier before posting.`
         );
 
         return;
