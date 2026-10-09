@@ -31,4 +31,19 @@ describe("shared ERP table", () => {
     expect(screen.getByRole("columnheader", { name: "Customer" })).toBeTruthy();
     expect(screen.queryByRole("columnheader", { name: "Amount" })).toBeNull();
   });
+  it("migrates old density to compact while preserving column order", () => {
+    const key = `navilo:table-columns:${location.pathname}:customer|amount:neus-v3`;
+    localStorage.setItem(key, JSON.stringify({ density: "spacious", order: ["amount", "customer"], widths: { amount: 180 }, pageSize: 50 }));
+    const {container} = render(<DataTable columns={columns} rows={rows} />);
+    expect(container.querySelector("[data-navilo-data-table]")?.getAttribute("data-density")).toBe("compact");
+    expect(screen.getAllByRole("columnheader").filter(header => header.textContent?.includes("Amount") || header.textContent?.includes("Customer"))[0].textContent).toContain("Amount");
+  });
+
+  it("retains a density chosen after the compact update", () => {
+    const key = `navilo:table-columns:${location.pathname}:customer|amount:neus-v3`;
+    localStorage.setItem(key, JSON.stringify({ density: "comfortable", densityVersion: 1 }));
+    const {container} = render(<DataTable columns={columns} rows={rows} />);
+    expect(container.querySelector("[data-navilo-data-table]")?.getAttribute("data-density")).toBe("comfortable");
+  });
+
 });

@@ -13,6 +13,7 @@ export interface Column<T> {
 type Density = "compact" | "comfortable" | "spacious";
 type PinSide = "left" | "right" | null;
 type ViewPrefs = {
+  densityVersion?: number;
   order: string[];
   widths: Record<string, number>;
   pins: Record<string, PinSide>;
@@ -40,7 +41,7 @@ function restoredHiddenKeys(raw: string | null, configurable: { key: string }[])
 }
 
 function defaultPrefs<T>(columns: Column<T>[]): ViewPrefs {
-  return { order: columns.map(c => c.key), widths: {}, pins: {}, density: "comfortable", hidden: [], sort: null, pageSize: 25 };
+  return { order: columns.map(c => c.key), widths: {}, pins: {}, density: "compact", densityVersion: 1, hidden: [], sort: null, pageSize: 25 };
 }
 function readPrefs<T>(columns: Column<T>[]): ViewPrefs {
   const fallback = defaultPrefs(columns);
@@ -54,7 +55,8 @@ function readPrefs<T>(columns: Column<T>[]): ViewPrefs {
       order: [...order, ...columns.map(c => c.key).filter(k => !order.includes(k))],
       widths: raw.widths && typeof raw.widths === "object" ? raw.widths : {},
       pins: raw.pins && typeof raw.pins === "object" ? raw.pins : {},
-      density: ["compact","comfortable","spacious"].includes(raw.density) ? raw.density : "comfortable",
+      density: raw.densityVersion === 1 && ["compact","comfortable","spacious"].includes(raw.density) ? raw.density : "compact",
+      densityVersion: 1,
       pageSize: [25,50,100,250].includes(Number(raw.pageSize)) ? Number(raw.pageSize) : 25,
       sort: raw.sort && valid.has(raw.sort.key) ? raw.sort : null,
     };
@@ -95,6 +97,7 @@ export default function DataTable<T extends { id: string }>({
   }, []);
 
   const savePrefs = (next: ViewPrefs) => {
+    next = { ...next, densityVersion: 1 };
     setPrefs(next);
     try { window.localStorage.setItem(prefsKey(columns), JSON.stringify(next)); } catch {}
   };

@@ -2120,19 +2120,13 @@ export default function JournalEntryDetail() {
   ========================================================= */
 
   return (
-    <div className="navilo-journal-detail space-y-3 w-full min-w-0 pb-3">
-      <div>
-        <Link
-          to="/accounting"
-          className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1 w-fit"
-        >
-          ← Back to Journal Entries
-        </Link>
-      </div>
-
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+    <div className="navilo-journal-detail space-y-2 w-full min-w-0 pb-2">
+      <div className="navilo-detail-header flex flex-col md:flex-row md:items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to="/accounting" className="shrink-0 text-xs font-medium text-primary-600 hover:text-primary-700">
+              ← Back to Journal Entries
+            </Link>
             <h1 className="text-2xl font-bold text-slate-900">
               {entry.entry_no}
             </h1>
