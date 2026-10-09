@@ -193,6 +193,7 @@ export default function JournalEntryDetail() {
 
   const [suppliers, setSuppliers] =
     useState<Supplier[]>([]);
+  const [partyControlAccounts,setPartyControlAccounts]=useState<{ar:string;ap:string}>({ar:"",ap:""});
 
   const [draftLines, setDraftLines] =
     useState<DraftLine[]>([
@@ -344,49 +345,27 @@ export default function JournalEntryDetail() {
     []
   );
 
-  const fetchCustomers = useCallback(
-    async () => {
-      const { data, error } =
-        await supabase
-          .from("customers")
-          .select("*")
-          .eq("is_active", true)
-          .order("name", {
-            ascending: true,
-          });
+  const fetchCustomers = useCallback(async () => {
+    setCustomers(await fetchAllPages<Customer>((start,end)=>supabase.from('customers')
+      .select('*').eq('is_active',true).order('name').order('id').range(start,end)));
+  },[]);
 
-      if (error) {
-        throw new Error(error.message);
-      }
+  const fetchSuppliers = useCallback(async () => {
+    setSuppliers(await fetchAllPages<Supplier>((start,end)=>supabase.from('suppliers')
+      .select('*').eq('is_active',true).order('name').order('id').range(start,end)));
+  },[]);
 
-      setCustomers(
-        (data ?? []) as Customer[]
-      );
-    },
-    []
-  );
-
-  const fetchSuppliers = useCallback(
-    async () => {
-      const { data, error } =
-        await supabase
-          .from("suppliers")
-          .select("*")
-          .eq("is_active", true)
-          .order("name", {
-            ascending: true,
-          });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      setSuppliers(
-        (data ?? []) as Supplier[]
-      );
-    },
-    []
-  );
+  const fetchControlAccounts = useCallback(async () => {
+    if(!activeCompany?.company_id){setPartyControlAccounts({ar:'',ap:''});return;}
+    const {data,error}=await supabase.from('account_mappings')
+      .select('mapping_key,account_id').eq('company_id',activeCompany.company_id)
+      .in('mapping_key',['accounts_receivable','accounts_payable']);
+    if(error)throw new Error(error.message);
+    setPartyControlAccounts({
+      ar:data?.find(r=>r.mapping_key==='accounts_receivable')?.account_id??'',
+      ap:data?.find(r=>r.mapping_key==='accounts_payable')?.account_id??'',
+    });
+  },[activeCompany?.company_id]);
 
   /* =========================================================
      INITIAL LOAD
@@ -406,6 +385,7 @@ export default function JournalEntryDetail() {
           fetchAccounts(),
           fetchCustomers(),
           fetchSuppliers(),
+          fetchControlAccounts(),
         ]);
       } catch (err: any) {
         if (mounted) {
@@ -430,6 +410,7 @@ export default function JournalEntryDetail() {
     fetchAccounts,
     fetchCustomers,
     fetchSuppliers,
+    fetchControlAccounts,
   ]);
 
   /* =========================================================
@@ -474,7 +455,9 @@ export default function JournalEntryDetail() {
     accountId: string
   ) =>
     customerAccountIds.has(accountId) ||
-    supplierAccountIds.has(accountId);
+    supplierAccountIds.has(accountId) ||
+    (!!partyControlAccounts.ar && accountId===partyControlAccounts.ar) ||
+    (!!partyControlAccounts.ap && accountId===partyControlAccounts.ap);
 
   const getPartyName = (
     partyType: PartyType | null | "",
