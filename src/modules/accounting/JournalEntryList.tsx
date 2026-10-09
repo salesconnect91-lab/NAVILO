@@ -2545,6 +2545,61 @@ export default function JournalEntryList() {
      PRINT JOURNAL VOUCHER
   ======================================================= */
 
+  const [copyingJournalId, setCopyingJournalId] = useState<string | null>(null);
+  const copyJournalAsDraft = async (source: JournalEntry) => {
+    if (copyingJournalId || creating) return;
+    setError(null);
+    setSuccess(null);
+    setCopyingJournalId(source.id);
+    let newId: string | null = null;
+    try {
+      const {data: original, error: originalError} = await supabase.from("journal_entries")
+        .select("id,status,description,entry_date,currency_code,trans_type,source_module,reversal_of_entry_id")
+        .eq("id",source.id).single();
+      if(originalError) throw originalError;
+      if(original.source_module || original.reversal_of_entry_id ||
+        !["General","Journal Entry","Manual Journal",null].includes(original.trans_type))
+        throw new Error("Only original manual journals can be copied. Generated and reversal journals must not be duplicated.");
+      const {data: originalLines,error: linesError} = await supabase.from("journal_lines")
+        .select("account_id,account,party_type,party_id,party_name,transport_vehicle_id,debit,credit,source_debit,source_credit")
+        .eq("entry_id",source.id).order("id");
+      if(linesError) throw linesError;
+      if(!originalLines?.length) throw new Error("This journal has no lines to copy.");
+      if(originalLines.some(line=>!line.account_id))
+        throw new Error("One or more source accounts cannot be resolved. Review the original journal.");
+      const currency = original.currency_code || baseCurrency;
+      const isForeign = Boolean(baseCurrency && currency && currency !== baseCurrency);
+      if(isForeign && original.status==="posted" &&
+        originalLines.some(line=>line.source_debit == null && line.source_credit == null))
+        throw new Error("Original foreign-currency amounts are missing; journal cannot be copied safely.");
+      const today = new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+      const {data: copy,error: createError} = await supabase.from("journal_entries").insert({
+        entry_no: generateEntryNo(),entry_date:today,status:"draft",
+        description:original.description||"",
+        ...(isForeign ? {currency_code:currency}:{}),
+      }).select("id").single();
+      if(createError) throw createError;
+      newId=copy.id;
+      const rows=originalLines.map(line=>({
+        entry_id:copy.id,account_id:line.account_id,account:line.account,
+        party_type:line.party_type,party_id:line.party_id,party_name:line.party_name,
+        transport_vehicle_id:line.transport_vehicle_id,
+        debit:isForeign&&original.status==="posted"?Number(line.source_debit||0):Number(line.debit||0),
+        credit:isForeign&&original.status==="posted"?Number(line.source_credit||0):Number(line.credit||0),
+      }));
+      const {error: copyError}=await supabase.from("journal_lines").insert(rows);
+      if(copyError) throw copyError;
+      navigate(`/accounting/${copy.id}`);
+    } catch(err:unknown) {
+      // A failed line insert must never leave a partially copied draft behind.
+      if(newId) {
+        const {error: cleanupError}=await supabase.from("journal_entries").delete().eq("id",newId).eq("status","draft");
+        if(cleanupError) setError(`Copy failed. An incomplete draft was created; review it before retrying. ${cleanupError.message}`);
+        else setError(err instanceof Error?err.message:"Unable to copy journal.");
+      } else setError(err instanceof Error?err.message:"Unable to copy journal.");
+    } finally {setCopyingJournalId(null);}
+  };
+
   const printJournalVoucher = useCallback(async (entry: JournalEntry) => {
     try {
       setError(null);
@@ -2754,6 +2809,12 @@ export default function JournalEntryList() {
                           >
                             {entry.status === "posted" ? "View →" : "Edit →"}
                           </Link>
+                          <button type="button" onClick={event=>{event.stopPropagation();void copyJournalAsDraft(entry)}}
+                            disabled={copyingJournalId!==null}
+                            className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-blue-700 disabled:opacity-50"
+                            title="Copy journal into a new editable draft without posting">
+                            {copyingJournalId===entry.id?"Copying...":"Copy"}
+                          </button>
                           <button
                             type="button"
                             onClick={(event) => {
