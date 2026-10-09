@@ -4,6 +4,7 @@ import TransportHorizontalScroll from './TransportHorizontalScroll';
 import './transportScrolling.css';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { formatNaviloDate } from "@/lib/naviloDate";
+import {vehicleDisplayLabel} from '@/lib/transportVehicleLabel';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment} from "react";
 import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw, LockKeyhole, Mic, Trash2 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
@@ -1178,7 +1179,7 @@ export default function TransportWorkspace(){
       case "company": return String(r.customer_name??"");
       case "driver": return String(r.driver_name??"");
       case "owner": return String(r.owner_name??"");
-      case "plate": return String(r.vehicle_no??"");
+      case "plate": return vehicleDisplayLabel(r.vehicle_no,r.truck_type);
       case "from": return String(r.from_location??"");
       case "to": return String(r.to_location??"");
       case "charge": return financialNumber(Number((r as any).customer_charges??(r as any).cells?.charge??0));
@@ -2334,11 +2335,12 @@ export default function TransportWorkspace(){
 
         <TripField label="Plate #" onAdd={!editingTripLocked&&canQuickAddVehicle?()=>openQuickAdd("vehicle"):undefined}>
           <SearchMasterInput value={selectedVehicle
-              ? `${selectedVehicle.vehicle_no}${ownerDisplay?` - ${ownerDisplay}`:""}`
+              ? `${vehicleDisplayLabel(selectedVehicle.vehicle_no,tripMasters.truckTypes.find((t:any)=>t.id===selectedVehicle.truck_type_id)?.name??selectedVehicle.truck_type)}${ownerDisplay?` - ${ownerDisplay}`:""}`
               : ""}
             options={vehicleChoices.map((r:any)=>{
               const owner=ownershipOnDate(tripMasters.ownership,r.id,form.trip_date)?.owner_name_snapshot||"";
-              return {value:r.id,label:owner?`${r.vehicle_no} - ${owner}`:r.vehicle_no};
+              const plate=vehicleDisplayLabel(r.vehicle_no,tripMasters.truckTypes.find((t:any)=>t.id===r.truck_type_id)?.name??r.truck_type);
+               return {value:r.id,label:owner?`${plate} - ${owner}`:plate};
             })}
             placeholder="Search Plate"
             disabled={editingTripLocked}
@@ -2665,7 +2667,7 @@ export default function TransportWorkspace(){
                 <td className="whitespace-nowrap px-2 py-2">{formatNaviloDate(row.trip_date)}</td>
                 <td className="whitespace-nowrap px-2 py-2">{row.customer}</td>
                 <td className="whitespace-nowrap px-2 py-2">{row.truck_type}</td>
-                <td className="whitespace-nowrap px-2 py-2">{row.vehicle}</td>
+                <td className="whitespace-nowrap px-2 py-2">{vehicleDisplayLabel(row.vehicle,row.truck_type)}</td>
                 <td className="whitespace-nowrap px-2 py-2">{row.driver}</td>
                 <td className="whitespace-nowrap px-2 py-2">{row.owner_supplier}</td>
                 <td className="whitespace-nowrap px-2 py-2">{row.po_do_job_no}</td>
@@ -2766,7 +2768,7 @@ export default function TransportWorkspace(){
                   <Badge value={row.status}/>
                 </div>
                 <div className="mt-1 text-xs font-semibold text-slate-700">{formatNaviloDate(row.trip_date)} · {row.customer_name||"No customer"}</div>
-                <div className="mt-1 text-xs text-slate-500">{row.vehicle_no||"No vehicle"}{row.driver_name?` · ${row.driver_name}`:""}</div>
+                <div className="mt-1 text-xs text-slate-500">{vehicleDisplayLabel(row.vehicle_no,row.truck_type)||"No vehicle"}{row.driver_name?` · ${row.driver_name}`:""}</div>
                 <div className="mt-1 text-xs text-slate-600">{row.from_location||"—"} → {row.to_location||"—"}</div>
                 {row.po_do_job_no&&<div className="mt-1 text-[11px] text-slate-500">PO/DO/Job: {row.po_do_job_no}</div>}
               </div>
@@ -3048,5 +3050,5 @@ function TransportAccountRows({title,kind}:{title:string;kind:'driver'|'vehicle'
   try{const r=await supabase.rpc('transport_register_query',{p_limit:500,p_offset:page*500,p_filters:{search}});if(!live)return;if(r.error)throw r.error;setRows(r.data.rows);setCount(r.data.count);setError('');}catch(e:any){if(live)setError(e.message);}finally{if(live)setBusy(false);}
  })(),200);return()=>{live=false;window.clearTimeout(timer)};},[scope,search,page,revision]);
  return <section className="rounded-lg border bg-white p-3"><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">{title}</h2><input aria-label={`Search ${title}`} className="input" placeholder="Trip / driver / vehicle" value={search} onChange={e=>setSearch(e.target.value)}/></div>
- <TransportAccountStatement kind={kind} onChanged={()=>setRevision(r=>r+1)}/>{error&&<p role="alert">{error}</p>}<div className="overflow-auto"><table className="w-full text-xs"><thead><tr><th className="text-left">Trip</th><th className="text-left">{kind==='driver'?'Driver':'Current vehicle / owner'}</th><th>Status</th><th>Accrued / Billed</th><th>Paid</th><th>Outstanding</th><th>Posted Trip profit</th></tr></thead><tbody>{filtered.map(r=><tr className="border-t" key={r.id}><td><span className="font-semibold text-blue-700">{r.trip_no}</span></td><td>{kind==='driver'?r.driver_name:`${r.vehicle_no??''} / ${r.owner_name??''}`}</td><td>{r.financial_status}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_accrued:r.billed_supplier_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_paid:r.supplier_paid_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_outstanding:Number(r.supplier_outstanding_gross??0)-Number(r.supplier_credit_gross??0))}</td><td className="text-right">{financialNumber(r.trip_profit)}</td></tr>)}</tbody></table></div><TransportPagination page={page} pageSize={500} count={count} busy={busy} onPage={setPage}/></section>;
+ <TransportAccountStatement kind={kind} onChanged={()=>setRevision(r=>r+1)}/>{error&&<p role="alert">{error}</p>}<div className="overflow-auto"><table className="w-full text-xs"><thead><tr><th className="text-left">Trip</th><th className="text-left">{kind==='driver'?'Driver':'Current vehicle / owner'}</th><th>Status</th><th>Accrued / Billed</th><th>Paid</th><th>Outstanding</th><th>Posted Trip profit</th></tr></thead><tbody>{filtered.map(r=><tr className="border-t" key={r.id}><td><span className="font-semibold text-blue-700">{r.trip_no}</span></td><td>{kind==='driver'?r.driver_name:`${vehicleDisplayLabel(r.vehicle_no,r.truck_type)} / ${r.owner_name??''}`}</td><td>{r.financial_status}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_accrued:r.billed_supplier_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_paid:r.supplier_paid_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_outstanding:Number(r.supplier_outstanding_gross??0)-Number(r.supplier_credit_gross??0))}</td><td className="text-right">{financialNumber(r.trip_profit)}</td></tr>)}</tbody></table></div><TransportPagination page={page} pageSize={500} count={count} busy={busy} onPage={setPage}/></section>;
 }
