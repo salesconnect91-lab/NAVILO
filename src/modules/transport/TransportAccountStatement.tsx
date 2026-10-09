@@ -1,5 +1,6 @@
 import TransportVehicleMonthlyProfitHistory from "./TransportVehicleMonthlyProfitHistory";
 import ImportedAccountBalances from "@/components/ImportedAccountBalances";
+import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import ConfigurableReport from './ConfigurableReport';
 import TransportTripReports from './TransportTripReports';
@@ -36,13 +37,15 @@ export default function TransportAccountStatement({kind,onChanged}:{kind:'driver
  const items=await fetchAllPages<PartyMovement & {employee_id:string}>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'driver',p_limit:end-start+1,p_offset:start}));
  data=items.map(r=>({...r,side:'supplier',party_id:r.employee_id,account_id:r.employee_id,account_name:r.party_name}));
  }else{
- const [movements,contribs,masterRows]=await Promise.all([
+ const [movements,contribs,masterRows,truckTypes]=await Promise.all([
    fetchAllPages<AccountMovement>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'vehicle',p_limit:end-start+1,p_offset:start})),
    fetchAllPages<Contribution>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'contributions',p_limit:end-start+1,p_offset:start})),
-   fetchAllPages<{id:string;vehicle_no:string}>((start,end)=>supabase.from('transport_vehicles')
-     .select('id,vehicle_no').eq('ownership_type','company').order('vehicle_no').range(start,end))
+   fetchAllPages<{id:string;vehicle_no:string;truck_type_id:string|null;truck_type:string|null}>((start,end)=>supabase.from('transport_vehicles')
+     .select('id,vehicle_no,truck_type_id,truck_type').eq('ownership_type','company').order('vehicle_no').range(start,end)),
+   fetchAllPages<{id:string;name:string}>((start,end)=>supabase.from('transport_truck_types')
+     .select('id,name').order('id').range(start,end))
  ]);
- data=movements;economics=contribs;fleet=masterRows.map(v=>[v.id,v.vehicle_no] as [string,string]);
+ data=movements;economics=contribs;fleet=masterRows.map(v=>[v.id,vehicleDisplayLabel(v.vehicle_no,truckTypes.find(t=>t.id===v.truck_type_id)?.name??v.truck_type)] as [string,string]);
  }
  if(generation.current===token){setRows(data);setContributions(economics);setFleetOptions(fleet);}
  }catch(e:any){if(generation.current===token)setError(e?.message||'Unable to load posted account detail.')}finally{if(generation.current===token)setLoading(false)}}
@@ -50,8 +53,8 @@ export default function TransportAccountStatement({kind,onChanged}:{kind:'driver
  },[kind,activeCompany?.company_id,activeBusinessUnit?.business_unit_id,revision]);
  useEffect(()=>setAccount(''),[kind,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
  const accounts=useMemo(()=>Array.from(new Map([
-   ...driverOptions,...(kind==='vehicle'?fleetOptions:[]),
-   ...[...rows,...contributions].map(r=>[r.account_id,r.account_name] as [string,string])
+   ...driverOptions,...[...rows,...contributions].map(r=>[r.account_id,r.account_name] as [string,string]),
+   ...(kind==='vehicle'?fleetOptions:[])
  ]).entries()).sort((a,b)=>a[1].localeCompare(b[1])),[rows,contributions,driverOptions,fleetOptions,kind]);
  const ledger=statement(rows.filter(r=>r.account_id===account&&(kind==='driver'||r.side===side)),from,to);
  const name=accounts.find(a=>a[0]===account)?.[1]||'';
