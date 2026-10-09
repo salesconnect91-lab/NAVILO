@@ -1,7 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {salarySheetPosition} from './salaryBalanceSheet';
 describe('Salary-linked Balance Sheet presentation',()=>{
-  it('keeps a COA liability with debit driver-advance balance in Liabilities as a negative',()=>{
+  it('keeps a COA salary running liability with debit balance in Liabilities as a negative',()=>{
     expect(salarySheetPosition('liability',3241,0)).toEqual({bucket:'liability',signedAmount:-3241});
   });
   it('shows a salary payable as a positive liability',()=>{
