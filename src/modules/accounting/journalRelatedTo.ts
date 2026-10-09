@@ -1,8 +1,7 @@
 /** Journal "Related To" is a presentation choice. Party and vehicle IDs stay separate. */
 export type JournalRelatedToMode = 'party' | 'vehicle' | 'general';
-export function journalRelatedToMode(accountType:string|undefined,requiresParty:boolean,isTransport:boolean):JournalRelatedToMode{
+export function journalRelatedToMode(_accountType:string|undefined,requiresParty:boolean,_isTransport:boolean):JournalRelatedToMode{
   if(requiresParty)return 'party';
-  if(isTransport && ['revenue','income','expense'].includes(accountType??''))return 'vehicle';
   return 'general';
 }
 export type OwnedPeriod={vehicle_id:string;owner_type:string;effective_from:string;effective_to:string|null};

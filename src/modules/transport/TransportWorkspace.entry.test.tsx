@@ -44,7 +44,7 @@ describe('New Trip master integration',()=>{
   expect((screen.getByLabelText('Trip Owner / Supplier') as HTMLInputElement).readOnly).toBe(true);
   fireEvent.change(screen.getByLabelText('Trip Date'),{target:{value:'2026-07-01'}});expect((screen.getByLabelText('Trip Owner / Supplier') as HTMLInputElement).value).toBe('Company');
  });
- it('clears company Driver Pay when switching to a supplier driver and creates without salary earnings',async()=>{mock.tables.transport_drivers.push({id:'sd',driver_name:'Supplier Driver',driver_type:'supplier',supplier_id:'s',employee_id:null,is_active:true});await fill();choose('Search Driver','Driver');expect((screen.getByLabelText('Driver Pay') as HTMLInputElement).disabled).toBe(false);fireEvent.change(screen.getByLabelText('Driver Pay'),{target:{value:'100'}});choose('Search Driver','Supplier Driver');expect((screen.getByLabelText('Driver Pay') as HTMLInputElement).disabled).toBe(true);expect((screen.getByLabelText('Driver Pay') as HTMLInputElement).value).toBe('');fireEvent.click(screen.getByRole('button',{name:'Create Trip'}));await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_create_trips',expect.objectContaining({p_rows:[expect.objectContaining({driver_id:'sd',driver_pay:null})]})))});
+ it('keeps driver selection but removes Driver Pay entry',async()=>{await fill();choose('Search Driver','Driver');expect(screen.queryByLabelText('Driver Pay')).toBeNull();fireEvent.click(screen.getByRole('button',{name:'Create Trip'}));await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_create_trips',expect.objectContaining({p_rows:[expect.objectContaining({driver_id:'d',driver_pay:null})]})))});
  it('auto-displays Driver Mobile and excludes inactive Drivers',async()=>{
   await view();fireEvent.focus(screen.getByPlaceholderText('Search Driver'));expect(screen.queryByRole('button',{name:'Inactive Driver'})).toBeNull();
   fireEvent.mouseDown(screen.getByRole('button',{name:'Driver'}));expect((screen.getByLabelText('Driver Mobile') as HTMLInputElement).value).toBe('12345');expect((screen.getByLabelText('Driver Mobile') as HTMLInputElement).readOnly).toBe(true);
@@ -96,22 +96,22 @@ describe('New Trip master integration',()=>{
   fireEvent.click(screen.getByRole('button',{name:'Add Plate #'}));fireEvent.change(screen.getByLabelText('Vehicle No / Plate No *'),{target:{value:'NEW-V'}});fireEvent.change(screen.getByLabelText('Ownership Effective From *'),{target:{value:'2020-01-01'}});fireEvent.submit(document.querySelectorAll('form')[document.querySelectorAll('form').length-1]);
   await waitFor(()=>expect(document.querySelector('form')).toBeNull());expect((screen.getByPlaceholderText('Search Plate') as HTMLInputElement).value).toBe('NEW-V · Flatbed - Company');
  });
- async function upload(sale='Credit',owner='Supplier'){
+ async function upload(sale='Credit',owner='Supplier',pay=''){
   await view();fireEvent.click(screen.getByRole('button',{name:'Bulk Upload'}));
   const headers=['DATE','TRUCK TYPE','COMPANY NAME','DRIVER NAME','OWNER','PLATE #','FROM','TO','PAPER RECEIVED BY','DATE','Customer Rate','Supplier Rent','Driver Pay','Sale Type (Cash / Credit)'];
-  const row=['2026-06-01','Flatbed','Customer','Driver',owner,'FLAT-1','From','To','PPR PENDING','','1000','300','50',sale];
+  const row=['2026-06-01','Flatbed','Customer','Driver',owner,'FLAT-1','From','To','PPR PENDING','','1000','300',pay,sale];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([headers,row]),'Trips');
   const bytes=XLSX.write(wb,{bookType:'xlsx',type:'array'});const file=new File([bytes],'trip.xlsx');Object.defineProperty(file,'arrayBuffer',{value:async()=>bytes});
   fireEvent.change(screen.getByLabelText(/Select Transport Excel/),{target:{files:[file]}});await screen.findByText('trip.xlsx');
  }
- it('rejects supplier-driver earnings in daily bulk before import',async()=>{mock.tables.transport_drivers[0]={...mock.tables.transport_drivers[0],driver_type:'supplier',employee_id:null,supplier_id:'s'};await upload();expect(screen.getByRole('button',{name:/Import Valid Rows/}).hasAttribute('disabled')).toBe(true);expect(screen.getByTitle(/Driver Pay requires a company driver/)).toBeTruthy();expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_import_trip_batch')).toBe(false)});
+ it('rejects supplier-driver earnings in daily bulk before import',async()=>{mock.tables.transport_drivers[0]={...mock.tables.transport_drivers[0],driver_type:'supplier',employee_id:null,supplier_id:'s'};await upload('Credit','Supplier','50');expect(screen.getByRole('button',{name:/Import Valid Rows/}).hasAttribute('disabled')).toBe(true);expect(screen.getByTitle(/Driver Pay entry is disabled/)).toBeTruthy();expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_import_trip_batch')).toBe(false)});
  it('rejects bulk invalid Cash/Credit and free-text Owner mismatch',async()=>{
   await upload('Other','Fake Owner');expect(screen.getByRole('button',{name:/Import Valid Rows/}).hasAttribute('disabled')).toBe(true);
   expect(screen.getByTitle(/Sale Type/).getAttribute('title')).toContain('Sale Type');expect(screen.getByTitle(/Sale Type/).getAttribute('title')).toContain('dated ownership');
  });
  it('imports bulk through the same atomic entry RPC with separate rent/pay and no owner text',async()=>{
   vi.spyOn(window,'confirm').mockReturnValue(true);vi.spyOn(window,'alert').mockImplementation(()=>{});await upload();
-  fireEvent.click(screen.getByRole('button',{name:/Import Valid Rows/}));await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_import_trip_batch',expect.objectContaining({p_rows:[expect.objectContaining({vehicle_id:'v',supplier_rent:300,driver_pay:50,sale_type:'credit'})]})));
+  fireEvent.click(screen.getByRole('button',{name:/Import Valid Rows/}));await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_import_trip_batch',expect.objectContaining({p_rows:[expect.objectContaining({vehicle_id:'v',supplier_rent:300,driver_pay:null,sale_type:'credit'})]})));
   expect(mock.rpc.mock.calls.find(c=>c[0]==='transport_import_trip_batch')![1].p_rows[0]).not.toHaveProperty('owner_name_snapshot');
  });
 

@@ -7,7 +7,6 @@ import Employees from './Employees';
 const mock=vi.hoisted(()=>({businessType:'transport',driver:vi.fn(),account:vi.fn()}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'c',enabled_modules:['transport'],membership_role:'company_owner'},activeBusinessUnit:{business_unit_id:'b',business_unit_type:mock.businessType,enabled_modules:['transport']},isPlatformOwner:true})}));
 vi.mock('./TransportMaster',()=>({default:(props:any)=>{mock.driver(props);return <div>Scoped Driver Details</div>}}));
-vi.mock('../transport/TransportAccountStatement',()=>({default:(props:any)=>{mock.account(props);return <div>Employee Account</div>}}));
 vi.mock('@/components/MasterSummaryStrip',()=>({default:()=>null}));
 vi.mock('@/components/DataTable',()=>({default:({rows,columns}:any)=><div>{rows.map((r:any)=><div key={r.id}>{columns.map((c:any)=><span key={c.key}>{c.render?c.render(r):r[c.key]}</span>)}</div>)}</div>}));
 const client={from:(table:string)=>{const q:any={};for(const key of ['select','eq','is','order','range'])q[key]=()=>q;q.then=(resolve:any)=>Promise.resolve({data:table==='suppliers'?[{id:'s',name:'Supplier One',is_active:true}]:table==='transport_drivers'?[{employee_id:'e'}]:[{id:'e',name:'Employee One',is_active:true}],error:null}).then(resolve);return q}};

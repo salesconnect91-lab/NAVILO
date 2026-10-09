@@ -5,10 +5,10 @@ describe('Fast Journal smart Related To selection',()=>{
   expect(journalRelatedToMode('liability',true,true)).toBe('party');
   expect(journalRelatedToMode('asset',true,true)).toBe('party');
  });
- it('shows vehicle only for transport income and expense accounts',()=>{
-  expect(journalRelatedToMode('expense',false,true)).toBe('vehicle');
-  expect(journalRelatedToMode('revenue',false,true)).toBe('vehicle');
-  expect(journalRelatedToMode('income',false,true)).toBe('vehicle');
+ it('uses general postings without driver or vehicle attribution',()=>{
+  expect(journalRelatedToMode('expense',false,true)).toBe('general');
+  expect(journalRelatedToMode('revenue',false,true)).toBe('general');
+  expect(journalRelatedToMode('income',false,true)).toBe('general');
   expect(journalRelatedToMode('expense',false,false)).toBe('general');
   expect(journalRelatedToMode('liability',false,true)).toBe('general');
  });

@@ -41,7 +41,7 @@ export default function MasterData() {
         <Route path="/drivers" element={<TransportMasterOnly><TransportMaster kind="drivers" /></TransportMasterOnly>} />
         <Route path="/truck-types" element={<TransportMasterOnly><TransportFoundationMaster kind="truck_types" /></TransportMasterOnly>} />
         <Route path="/transport-locations" element={<TransportMasterOnly><TransportFoundationMaster kind="locations" /></TransportMasterOnly>} />
-        <Route path="/vehicle-expense-types" element={<TransportMasterOnly><TransportFoundationMaster kind="vehicle_expense_types" /></TransportMasterOnly>} />
+        <Route path="/vehicle-expense-types" element={<Navigate to="/master-data/vehicles" replace/>} />
         <Route path="/vehicle-ownership" element={<TransportMasterOnly><TransportVehicleOwnership /></TransportMasterOnly>} />
       </Routes>
     </div>

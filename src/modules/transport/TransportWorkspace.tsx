@@ -17,12 +17,9 @@ import TransportInitialRate from './TransportInitialRate';
 import TransportTripCharges from './TransportTripCharges';
 import TransportSupplierCharges from './TransportSupplierCharges';
 import TransportInvoiceNumber from './TransportInvoiceNumber';
-import TransportDriverPayEditor from './TransportDriverPayEditor';
-import TransportCostUpload from './TransportCostUpload';
 import TransportHistoricalImport from './TransportHistoricalImport';
 import TransportAudit from './TransportAudit';
 import TransportPartyReports from './TransportPartyReports';
-import TransportAccountStatement from './TransportAccountStatement';
 import {collectRegisterExport} from './transportRegisterExport';
 import {exportMatrixToCSV,exportMatrixToExcel,exportMatrixToWord,exportPackageToPDF,type ExportMatrix} from '@/lib/exportUtils';
 import {fetchAllPages} from '@/lib/fetchAllPages';
@@ -35,7 +32,7 @@ import {loadTransportMobilePartyOptions} from './transportMobilePartyLookup';
 import {compatibleVehicles,ownershipOnDate,matchingCustomerRate,estimatedMargin,masterKey,validMoney,type QuickAddKind,type OwnershipPeriod} from './transportTripEntry';
 
 type MobileVoiceDraft={id:string;created_at:string;transcript:string;patch:Record<string,string>};
-type Tab="trips"|"new"|"mobile"|"audit"|"driver-expenses"|"driver-account"|"vehicle-account";
+type Tab="trips"|"new"|"mobile"|"audit";
 type Trip=FinancialTrip & {
   id:string;
   trip_no:string;
@@ -67,8 +64,6 @@ type Trip=FinancialTrip & {
 
 const tabs:{key:Tab;label:string;icon:any}[]=[
   {key:"trips",label:"Trips",icon:Route},{key:"new",label:"New Trip",icon:Plus},{key:"mobile",label:"Mobile Quick Entry",icon:Search},{key:"audit",label:"Trip Audit",icon:History},
-  {key:"driver-expenses",label:"Trip / Vehicle Expense Upload",icon:ReceiptText},
-  {key:"vehicle-account",label:"Company Vehicle Ledger",icon:Truck},
 ];
 
 function Badge({value}:{value?:string|null}){const label=String(value??"").trim();return <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold capitalize text-slate-700">{label?label.replaceAll("_"," "):"?"}</span>}
@@ -90,7 +85,7 @@ const BULK_TRIP_HEADERS=[
   "Customer Rate",
   "Supplier Rent",
   "Invoice Number",
-  "Notes", "Sale Type", "Driver Pay", "PPR Employee", "PPR Date"
+  "Notes", "Sale Type", "PPR Employee", "PPR Date"
 ] as const;
 
 const TRANSPORT_TRIP_HEADERS=[
@@ -117,8 +112,7 @@ const TRANSPORT_TRIP_HEADERS=[
   "PROFIT",
   "paid commissin for trip",
   "INVOICE NUMBER",
-  "Sale Type (Cash / Credit)",
-  "Driver Pay"
+  "Sale Type (Cash / Credit)"
 ] as const;
 
 export default function TransportWorkspace(){
@@ -141,7 +135,7 @@ export default function TransportWorkspace(){
     &&canPerformModule(role,"transport","create",rolePermissions,isPlatformOwner);
   const mobileCanEdit=(!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled("transport-mobile-quick-entry","edit")))
     &&canPerformModule(role,"transport","edit",rolePermissions,isPlatformOwner);
-  useEffect(()=>{if(params.get("view")==="driver-account")navigate("/master-data/employees",{replace:true});},[params,navigate]);
+  useEffect(()=>{if(["driver-account","vehicle-account","driver-expenses"].includes(params.get("view")??""))navigate("/transport",{replace:true});},[params,navigate]);
   const requestedView=params.get('view')??(standaloneMobile?'mobile':null);
   const requestedTab:Tab=tabs.some(t=>t.key===requestedView)?requestedView as Tab:'trips';
   const tabFeature:Record<Tab,string>={
@@ -149,11 +143,8 @@ export default function TransportWorkspace(){
     new:standaloneMobile?"transport-mobile-quick-entry":"transport-trips-register",
     mobile:"transport-mobile-quick-entry",
     audit:"transport-audit",
-    "driver-expenses":"transport-driver-expenses",
-    "driver-account":"transport-driver-account",
-    "vehicle-account":"transport-vehicle-account",
   };
-  const firstAllowedTab=():Tab=>(["trips","mobile","driver-expenses","vehicle-account","audit"] as Tab[])
+  const firstAllowedTab=():Tab=>(["trips","mobile","audit"] as Tab[])
     .find(candidate=>canViewFeature(tabFeature[candidate]))??"trips";
   const tab:Tab=canViewFeature(tabFeature[requestedTab])?requestedTab:firstAllowedTab();
   const setTab=(next:Tab)=>{
@@ -313,7 +304,6 @@ export default function TransportWorkspace(){
   const [quickPprDate,setQuickPprDate]=useState(new Date().toISOString().slice(0,10));
   const [quickPprFile,setQuickPprFile]=useState<File|null>(null);
   const [initialRateTrip,setInitialRateTrip]=useState<Trip|null>(null);
-  const [driverPayTrip,setDriverPayTrip]=useState<Trip|null>(null);
   const [chargeTrip,setChargeTrip]=useState<Trip|null>(null);
   const [supplierChargeTarget,setSupplierChargeTarget]=useState<{rentId:string;tripNo:string}|null>(null);
   const [showRateList,setShowRateList]=useState(false);
@@ -340,7 +330,6 @@ export default function TransportWorkspace(){
 
   const selectedVehicle=tripMasters.vehicles.find(v=>v.id===form.vehicle_id);
   const selectedDriver=tripMasters.drivers.find(d=>d.id===form.driver_id);
-  const companyDriverPay=selectedDriver?.driver_type==="company"&&Boolean(selectedDriver?.employee_id)&&!selectedDriver?.supplier_id;
   const selectedOwnership=ownershipOnDate(tripMasters.ownership,form.vehicle_id,form.trip_date);
   const supplierOwned=selectedOwnership?.owner_type==='third_party';
   const ownerDisplay=selectedOwnership?.owner_name_snapshot||'';
@@ -756,8 +745,7 @@ export default function TransportWorkspace(){
       "",
       "",
       "",
-      "Credit",
-      ""
+      "Credit"
     ];
 
     const ws=XLSX.utils.aoa_to_sheet([
@@ -825,7 +813,7 @@ export default function TransportWorkspace(){
         if(vehicle&&!owner)errors.push('Vehicle Ownership History must cover Trip Date');
         if(row.owner_supplier&&(!owner||masterKey(row.owner_supplier)!==masterKey(owner.owner_name_snapshot)))errors.push('Owner / Supplier does not match dated ownership');
         if(row.supplier_rent!==''&&owner?.owner_type!=='third_party')errors.push('Supplier Rent requires dated Supplier Owned Vehicle');
-        if(row.driver_pay!==''&&Number(row.driver_pay)>0&&(!driver||driver.driver_type!=='company'||!driver.employee_id||driver.supplier_id))errors.push('Driver Pay requires a company driver linked to an Employee. Supplier driver payments belong to Supplier Rent.');
+        if(row.driver_pay!==''&&Number(row.driver_pay)>0)errors.push('Driver Pay entry is disabled. Remove Driver Pay from this upload.');
         const duplicateKey=tripImportIdentity(row,{customer:customer?.id,vehicle:vehicle?.id,driver:driver?.id,from:from?.id,to:to?.id});
         if(!allowRepeatJourneys&&seen.has(duplicateKey))errors.push('Duplicate row in upload file');seen.add(duplicateKey);
         return {...row,errors,payload:{trip_date:row.trip_date,customer_id:customer?.id,truck_type_id:truck?.id??vehicle?.truck_type_id??null,
@@ -888,7 +876,7 @@ export default function TransportWorkspace(){
     const workbook=XLSX.utils.book_new();const sheet=XLSX.utils.aoa_to_sheet([
       [...TRANSPORT_TRIP_HEADERS,'Source Row','Validation Errors'],
       ...rejected.map(r=>[r.trip_date,r.truck_type,r.po_do_job_no,'',r.customer,r.driver,r.owner_supplier,r.vehicle,r.from_location,r.to_location,
-        r.ppr_status==='received'?r.ppr_employee:r.ppr_status==='not_required'?'N/A':'PPR PENDING',r.ppr_date,'',r.supplier_rent,'','','',r.customer_rate,'','','','',r.source_invoice_no,r.sale_type,r.driver_pay,r.rowNo,r.errors.join('; ')])
+        r.ppr_status==='received'?r.ppr_employee:r.ppr_status==='not_required'?'N/A':'PPR PENDING',r.ppr_date,'',r.supplier_rent,'','','',r.customer_rate,'','','','',r.source_invoice_no,r.sale_type,r.rowNo,r.errors.join('; ')])
     ]);
     XLSX.utils.book_append_sheet(workbook,sheet,'Rejected rows');XLSX.writeFile(workbook,'NAVILO-Trip-Import-Rejected.csv',{bookType:'csv'});
   };
@@ -1112,7 +1100,7 @@ export default function TransportWorkspace(){
       po_do_job_no:po.toUpperCase(),
       customer_rate:voiceMoney(transcript,["customer rate","company rate"]),
       supplier_rent:voiceMoney(transcript,["supplier rent","rent"]),
-      driver_pay:voiceMoney(transcript,["driver pay"]),
+      driver_pay:"",
       sale_type:/\bcash\b/.test(lower)?"cash":/\bcredit\b/.test(lower)?"credit":"",
       ppr_status:"pending",
     };
@@ -1153,7 +1141,7 @@ export default function TransportWorkspace(){
     if(form.vehicle_id&&!selectedOwnership){setError('Vehicle Ownership History must cover Trip Date.');return}
     if(form.ppr_status==='received'&&(!form.ppr_received_by_employee_id||!form.ppr_received_date)){setError('PPR Received requires Employee and Date.');return}
     if(![form.customer_rate,form.supplier_rent,form.driver_pay].every(validMoney)){setError('Amounts must be nonnegative with at most two decimal places.');return}
-    if(Number(form.driver_pay)>0&&!companyDriverPay){setError('Driver Pay requires a company driver linked to an Employee. Supplier driver payments belong to Supplier Rent.');return;}
+    if(Number(form.driver_pay)>0){setError('Driver Pay entry is disabled. Remove Driver Pay from this upload.');return;}
     submissionRef.current=true;setLoading(true);setError('');
     try{
       await submitTripRows([{trip_date:form.trip_date,customer_id:form.customer_id,truck_type_id:form.truck_type_id||null,
@@ -1163,7 +1151,7 @@ export default function TransportWorkspace(){
         ppr_received_by_employee_id:form.ppr_status==='received'?form.ppr_received_by_employee_id:null,
         customer_rate:entryPermissions.rate&&form.customer_rate!==''?Number(form.customer_rate):null,
         supplier_rent:supplierOwned&&form.supplier_rent!==''?Number(form.supplier_rent):null,
-        driver_pay:companyDriverPay&&form.driver_pay!==''?Number(form.driver_pay):null,sale_type:form.sale_type,notes:form.notes||null}]);
+        driver_pay:null,sale_type:form.sale_type,notes:form.notes||null}]);
       setForm(previous=>({...previous,customer_id:'',vehicle_id:'',driver_id:'',truck_type_id:'',from_location:'',to_location:'',
         customer_rate:'',supplier_rent:'',driver_pay:'',po_do_job_no:'',ppr_status:'pending',ppr_received_date:'',ppr_received_by_employee_id:'',ppr_attachment_path:'',sale_type:'',notes:''}));
       setRateTouched(false);setEditingTripId(null);
@@ -1216,7 +1204,7 @@ export default function TransportWorkspace(){
   };
 
   const tripDataGridKeys=["trip_no","trip_date","truck_type","job_no","from","to","charge"] as const;
-  const vehicleDriverGridKeys=["driver","plate","owner","driver_pay","driver_paid","driver_balance"] as const;
+  const vehicleDriverGridKeys=["driver","plate","owner"] as const;
   const supplierGridKeys=["supplier_invoice_no","rent_driver","supplier_charges","supplier_paid","supplier_balance","payment_date","amount","supplier_credit"] as const;
   const customerGridKeys=["invoice_no","company","company_rate","received_company","remaining_company","sale_type","customer_credit"] as const;
   const pprGridKeys=["paper_received_by"] as const;
@@ -1239,9 +1227,6 @@ export default function TransportWorkspace(){
     ["from","From"],
     ["to","To"],
     ["sale_type","Sale Type"],
-    ["driver_pay","Driver Pay"],
-    ["driver_paid","Driver Paid"],
-    ["driver_balance","Driver Balance"],
     ["charge","Customer Charges"],
     ["company_rate","Customer Rate (Net)"],
     ["received_company","Collection (Incl. VAT)"],
@@ -1450,7 +1435,6 @@ export default function TransportWorkspace(){
   return <div className={standaloneMobile?"relative min-h-dvh w-full max-w-none bg-slate-100":"relative w-full max-w-none space-y-1"} style={{width:"100%",maxWidth:"none",marginInline:0}}>
 
 
-    {driverPayTrip&&<TransportDriverPayEditor trip={driverPayTrip} onClose={()=>setDriverPayTrip(null)} onSaved={()=>{setDriverPayTrip(null);void load()}}/>}
       {chargeTrip&&<TransportTripCharges tripId={chargeTrip.id} onClose={()=>setChargeTrip(null)} onChanged={load}/>}
     {supplierChargeTarget&&<TransportSupplierCharges rentId={supplierChargeTarget.rentId} tripNo={supplierChargeTarget.tripNo} onClose={()=>setSupplierChargeTarget(null)} onChanged={load}/>} 
 
@@ -2225,8 +2209,6 @@ export default function TransportWorkspace(){
                       </button>
                     :key==='rent_driver'&&r.customer_rate_state!==undefined
                       ?<button type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-medium leading-tight text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
-                    :key==='driver_pay'
-                      ?<button type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-semibold leading-tight text-violet-700 hover:bg-violet-100 focus-visible:outline focus-visible:outline-violet-500" aria-label={`Open Driver Pay ${r.trip_no}`} onClick={()=>setDriverPayTrip(r)}>{value||'0.00'}</button>
                     :key==='paper_received_by'
                       ?r.ppr_status==='received'
                         ?<span className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[8px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
@@ -2331,7 +2313,7 @@ export default function TransportWorkspace(){
             options={tripMasters.drivers.map((r:any)=>({value:r.id,label:r.driver_name}))}
             placeholder="Search Driver"
             disabled={editingTripLocked}
-            onSelect={driverId=>{setError("");const driver=tripMasters.drivers.find(d=>d.id===driverId);setForm({...form,driver_id:driverId,driver_pay:driver?.driver_type==="company"&&driver.employee_id&&!driver.supplier_id?form.driver_pay:""})}}/>
+            onSelect={driverId=>{setError("");const driver=tripMasters.drivers.find(d=>d.id===driverId);setForm({...form,driver_id:driverId,driver_pay:""})}}/>
         </TripField>
 
         <TripField label="Owner / Supplier" onAdd={!editingTripLocked&&canQuickAddMaster?()=>openQuickAdd('supplier'):undefined}>
@@ -2430,16 +2412,13 @@ export default function TransportWorkspace(){
             className="h-8 w-full border-0 bg-white px-2 text-right text-xs outline-none"/>
         </TripField>
 
-        <TripField label="Driver Pay">
-          <input aria-label="Driver Pay" type="number" min="0" step="0.01" disabled={!companyDriverPay} title={companyDriverPay?"Company driver trip earning":"Supplier driver payments belong to Supplier Rent"} readOnly={editingTripLocked||Boolean(editingTripId)||!entryPermissions.driver} value={form.driver_pay} onChange={e=>setForm({...form,driver_pay:e.target.value})} className="h-8 w-full border-0 px-2 text-right text-xs"/>
-        </TripField>
         <TripField label="Estimated Operational Margin">
-          <input aria-label="Estimated Operational Margin" value={estimatedMargin(form.customer_rate,form.supplier_rent,form.driver_pay,supplierOwned)} readOnly className="h-8 w-full border-0 bg-slate-50 px-2 text-right text-xs font-semibold"/>
+          <input aria-label="Estimated Operational Margin" value={estimatedMargin(form.customer_rate,form.supplier_rent,"",supplierOwned)} readOnly className="h-8 w-full border-0 bg-slate-50 px-2 text-right text-xs font-semibold"/>
         </TripField>
       </div>
     </div>
 
-    <p className="mt-1 text-[10px] text-slate-600">{agreedRate?`Suggested Customer Rate: ${agreedRate.amount} (effective agreement). `:''}Entered Customer Rate and Supplier Rent finalize on creation with permission; blank means pending. Driver Pay is separate. Estimated margin excludes later expenses, fuel and charges. {editingTripId?'Use Finance for rate, rent or driver-pay corrections.':''}</p>
+    <p className="mt-1 text-[10px] text-slate-600">{agreedRate?`Suggested Customer Rate: ${agreedRate.amount} (effective agreement). `:''}Entered Customer Rate and Supplier Rent finalize on creation with permission; blank means pending. Estimated margin excludes later expenses, fuel and charges. {editingTripId?'Use Finance for rate, rent or driver-pay corrections.':''}</p>
     <div className="mt-3 grid gap-3 xl:grid-cols-[180px_1fr_auto]">
       <label className="text-[11px] font-semibold text-slate-700">
         Sale Type
@@ -2685,7 +2664,7 @@ export default function TransportWorkspace(){
                 <td className="whitespace-nowrap px-2 py-2">{row.supplier_rent}</td>
                 <td className="whitespace-nowrap px-2 py-2">{row.source_invoice_no}</td>
                 <td className="max-w-[220px] truncate px-2 py-2">{row.notes}</td>
-                <td className="px-2 py-2">{row.sale_type}</td><td className="px-2 py-2">{row.driver_pay}</td>
+                <td className="px-2 py-2">{row.sale_type}</td>
                 <td className="px-2 py-2">{row.ppr_employee}</td><td className="px-2 py-2">{row.ppr_date}</td>
 
               </tr>
@@ -2787,9 +2766,6 @@ export default function TransportWorkspace(){
     </section>}
 
     {!showPartyReports&&tab==="audit"&&<TransportAudit trips={rows}/>}
-    {!showPartyReports&&tab==="driver-expenses"&&<TransportCostUpload trips={rows} onChanged={load}/> }
-    {!showPartyReports&&tab==="driver-account"&&<TransportAccountRows title="Driver Ledger" kind="driver"/> }
-    {!showPartyReports&&tab==="vehicle-account"&&<TransportAccountRows title="Company Vehicle Ledger" kind="vehicle"/> }
     {quickPprTrip&&<div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/30 p-4">
       <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
         <div className="mb-3 flex items-center justify-between">
@@ -3045,7 +3021,3 @@ function FilterSelect({label,value,setValue,all,options}:{label:string;value:str
 }
 
 function SimplePanel({title,text}:{title:string;text:string}){return <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-base font-bold text-slate-950">{title}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{text}</p></section>}
-
-function TransportAccountRows({title,kind}:{title:string;kind:'driver'|'vehicle'}){
- return <section className="rounded-lg border bg-white p-3"><h2 className="text-sm font-semibold">{title}</h2><TransportAccountStatement kind={kind}/></section>;
-}

@@ -20,8 +20,8 @@ describe("import center", () => {
     render(<MemoryRouter><ImportCenter /></MemoryRouter>);
     expect(screen.getByRole("heading", { name: "Transport Master Imports" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Transport Rate Imports" })).toBeTruthy();
-    for (const name of ["Vehicles","Drivers","Truck Types","Locations","Vehicle Expense Types","Vehicle Ownership History"]) expect(screen.getByRole("option", { name })).toBeTruthy();
-    expect(screen.getAllByRole("heading", { level: 2 }).map(node => node.textContent)).toEqual(["Daily Trip Upload","One-time Historical Import","Bulk Journal Entries","Customers","Suppliers","Transport Master Imports","Transport Rate Imports","Driver Trip Earnings Import","Transport Trip Expense Import","Transport Receipts / Payments Import","Transport Sales Invoice Import","NAVILO → NAVILO Transport Transfer"]);
+    for (const name of ["Vehicles","Drivers","Truck Types","Locations","Vehicle Ownership History"]) expect(screen.getByRole("option", { name })).toBeTruthy();
+    expect(screen.getAllByRole("heading", { level: 2 }).map(node => node.textContent)).toEqual(["Daily Trip Upload","One-time Historical Import","Bulk Journal Entries","Customers","Suppliers","Transport Master Imports","Transport Rate Imports","Transport Receipts / Payments Import","Transport Sales Invoice Import","NAVILO → NAVILO Transport Transfer"]);
     expect(screen.getByRole("option", { name: "Customer Route Rates" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Supplier Route Rates" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Customer Additional Charges" })).toBeTruthy();
@@ -124,15 +124,7 @@ describe("Import Center supplier upload",()=>{
 });
 
 describe("Import Center financial review",()=>{
- it("accepts two-decimal trip earnings and shows their total without posting",async()=>{
-  render(<MemoryRouter><ImportCenter/></MemoryRouter>);
-  const card=screen.getByRole("heading",{name:"Driver Trip Earnings Import"}).closest("section")!;
-  const input=card.querySelector('input[type="file"]')!;
-  fireEvent.change(input,{target:{files:[customerFile([["Trip ID","Driver Pay","Reason"],["12345678-1234-4123-8123-123456789012",1.1,"Agreed"],["12345678-1234-4123-8123-123456789013",2.2,"Agreed"]])]}});
-  await waitFor(()=>expect(within(card).getByText(/Total amount: 3.30/)).toBeTruthy());
-  expect(supabase.rpc).not.toHaveBeenCalled();
-  expect(within(card).queryByRole("alert")).toBeNull();
- });
+ it("does not expose driver earnings or vehicle expense uploads",()=>{render(<MemoryRouter><ImportCenter/></MemoryRouter>);expect(screen.queryByRole("heading",{name:"Driver Trip Earnings Import"})).toBeNull();expect(screen.queryByRole("heading",{name:"Transport Trip Expense Import"})).toBeNull();expect(screen.queryByRole("option",{name:"Vehicle Expense Types"})).toBeNull()});
  it("disables invoice import when the server preview rejects a row",async()=>{
   vi.mocked(supabase.rpc).mockResolvedValue({data:{rows:[{amount:100,import_status:"Error",import_reason:"Vehicle mismatch"}]},error:null} as never);
   render(<MemoryRouter><ImportCenter/></MemoryRouter>);
@@ -143,26 +135,6 @@ describe("Import Center financial review",()=>{
   expect(supabase.rpc).toHaveBeenCalledTimes(1);
   expect(supabase.rpc).toHaveBeenCalledWith("transport_preview_customer_invoice_batch",expect.anything());
  });
- it("clears the old preview and blocks saving while a new file is still reading",async()=>{
-  render(<MemoryRouter><ImportCenter/></MemoryRouter>);
-  const card=screen.getByRole("heading",{name:"Driver Trip Earnings Import"}).closest("section")!;
-  const input=card.querySelector('input[type="file"]')!;
-  const rows=[["Trip ID","Driver Pay","Reason"],["12345678-1234-4123-8123-123456789012",1.1,"Agreed"]];
-  fireEvent.change(input,{target:{files:[customerFile(rows)]}});
-  await waitFor(()=>expect(within(card).getByText(/Total amount: 1.10/)).toBeTruthy());
-  let finish!:(value:ArrayBuffer)=>void;
-  const next=customerFile(rows);
-  Object.defineProperty(next,"arrayBuffer",{value:()=>new Promise<ArrayBuffer>(resolve=>{finish=resolve}),configurable:true});
-  fireEvent.change(input,{target:{files:[next]}});
-  expect(within(card).queryByText(/Total amount/)).toBeNull();
-  expect(within(card).getByRole("button",{name:"Saving…"}).hasAttribute("disabled")).toBe(true);
-  const buffer=await customerFile(rows).arrayBuffer();finish(buffer);
-  await waitFor(()=>expect(within(card).getByText(/Total amount: 1.10/)).toBeTruthy());
-  expect(supabase.rpc).not.toHaveBeenCalled();
- });
-});
-
-describe("Driver master import ownership",()=>{
  it("blocks unlinked company-driver master imports before any write",async()=>{
   render(<MemoryRouter><ImportCenter/></MemoryRouter>);
   const card=screen.getByRole("heading",{name:"Transport Master Imports"}).closest("section")!;
