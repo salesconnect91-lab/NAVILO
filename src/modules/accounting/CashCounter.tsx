@@ -1771,7 +1771,6 @@ export default function CashCounter() {
                         key={account.id}
                         value={account.id}
                       >
-                        {account.code} —{" "}
                         {account.name}
                       </option>
                     )
