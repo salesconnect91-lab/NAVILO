@@ -2,6 +2,7 @@ import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
 import {salarySheetPosition} from '@/lib/salaryBalanceSheet';
+import {balanceSheetClassification,compareBalanceSheetPresentation} from '@/lib/balanceSheetPresentation';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -87,7 +88,7 @@ function professionalParentHead(type: string, accountName: string, detailType?: 
   return "Capital & Reserves";
 }
 
-function groupItems(items: BSItem[], preferredOrder: string[]): BSGroup[] {
+function groupItems(items: BSItem[], preferredOrder: string[], accountType:'asset'|'liability'|'equity'): BSGroup[] {
   const groups = new Map<string, BSItem[]>();
   items.forEach((item) => {
     const head = item.parentHead || "Other";
@@ -97,7 +98,7 @@ function groupItems(items: BSItem[], preferredOrder: string[]): BSGroup[] {
   return Array.from(groups.entries())
     .map(([head, group]) => ({
       head,
-      items: [...group].sort((a, b) => a.name.localeCompare(b.name)),
+      items: [...group].sort((a, b) => compareBalanceSheetPresentation(a,b,accountType)),
       total: group.reduce((sum, item) => sum + item.amount, 0),
     }))
     .sort((a, b) => {
@@ -115,11 +116,13 @@ function StatementRows({
   groups,
   totalLabel,
   total,
+  accountType,
 }: {
   title: string;
   groups: BSGroup[];
   totalLabel: string;
   total: number;
+  accountType:'asset'|'liability'|'equity';
 }) {
   return (
     <>
@@ -144,10 +147,10 @@ function StatementRows({
                 {formatCurrency(group.total)}
               </td>
             </tr>
-            {group.items.map((item) => (
-              <tr key={`${group.head}-${item.name}`}>
+            {group.items.map((item,idx) => (
+              <tr key={`${group.head}-${item.name}`} className={idx>0 && balanceSheetClassification(accountType,group.items[idx-1].detailType,group.items[idx-1].name).label !== balanceSheetClassification(accountType,item.detailType,item.name).label ? 'border-t border-slate-200' : 'border-t border-slate-100'}>
                 <td className="px-6 py-2.5 text-sm font-medium text-slate-800">{item.name}</td>
-                <td className="px-4 py-2.5 text-xs text-slate-500">{item.detailType || "General"}</td>
+                <td className="px-4 py-2.5 text-xs font-medium text-slate-600">{balanceSheetClassification(accountType,item.detailType,item.name).label}</td>
                 <td
                   className={`px-4 py-2.5 text-right font-mono text-sm font-semibold ${
                     item.amount < -0.005 ? "text-rose-700" : "text-slate-900"
@@ -417,14 +420,14 @@ export default function BalanceSheet() {
   const isBalanced = Math.abs(equationDifference) < 0.01;
 
   const assetGroups = useMemo(
-    () => groupItems(assets.items, ["Current Assets", "Non-Current Assets"]),
+    () => groupItems(assets.items, ["Current Assets", "Non-Current Assets"], "asset"),
     [assets.items]
   );
   const liabilityGroups = useMemo(
-    () => groupItems(liabilities.items, ["Current Liabilities", "Non-Current Liabilities"]),
+    () => groupItems(liabilities.items, ["Current Liabilities", "Non-Current Liabilities"], "liability"),
     [liabilities.items]
   );
-  const equityGroups = useMemo(() => groupItems(equity.items, ["Capital & Reserves"]), [equity.items]);
+  const equityGroups = useMemo(() => groupItems(equity.items, ["Capital & Reserves"], "equity"), [equity.items]);
 
   const negativeInventoryItems = assets.items.filter(
     (item) =>
@@ -556,9 +559,9 @@ export default function BalanceSheet() {
                   </tr>
                 </thead>
                 <tbody>
-                  <StatementRows title="Assets" groups={assetGroups} totalLabel="Total Assets" total={assets.total} />
-                  <StatementRows title="Liabilities" groups={liabilityGroups} totalLabel="Total Liabilities" total={liabilities.total} />
-                  <StatementRows title="Equity" groups={equityGroups} totalLabel="Total Equity" total={equity.total} />
+                  <StatementRows title="Assets" groups={assetGroups} totalLabel="Total Assets" total={assets.total} accountType="asset" />
+                  <StatementRows title="Liabilities" groups={liabilityGroups} totalLabel="Total Liabilities" total={liabilities.total} accountType="liability" />
+                  <StatementRows title="Equity" groups={equityGroups} totalLabel="Total Equity" total={equity.total} accountType="equity" />
                   <tr data-report-total className="border-t-2 border-slate-900 bg-slate-50">
                     <td colSpan={2} className="px-4 py-3.5 text-sm font-bold text-slate-900">Total Liabilities & Equity</td>
                     <td className="px-4 py-3.5 text-right font-mono text-sm font-bold text-slate-900">
