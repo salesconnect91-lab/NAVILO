@@ -2561,6 +2561,9 @@ export default function JournalEntryList() {
         ? await supabase.from("journal_lines").select("id,source_debit,source_credit").eq("entry_id", entry.id)
         : { data: null };
       const sourceById = new Map((sourceLines || []).map(line => [line.id, line]));
+      // New journal line narration is optional until the forward-only migration is deployed.
+      const {data: descriptionLines, error: descriptionError} = await supabase.from("journal_lines").select("id,description").eq("entry_id",entry.id);
+      const descriptionById = new Map(!descriptionError ? (descriptionLines || []).map(line=>[line.id,line.description]) : []);
 
       const safe = (value: unknown) => String(value ?? "")
         .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -2576,7 +2579,7 @@ export default function JournalEntryList() {
         const original = sourceById.get(line.id);
         const source = foreign && entry.status === "posted" && original && (Number(original.source_debit) > 0 || Number(original.source_credit) > 0)
           ? `<div class="sub">Original ${safe(entry.currency_code)}: ${money(original.source_debit)} / ${money(original.source_credit)}</div>` : "";
-        return `<tr><td class="center">${index + 1}</td><td>${safe(accountName)}${source}</td><td class="right">${money(line.debit)}</td><td class="right">${money(line.credit)}</td></tr>`;
+        return `<tr><td class="center">${index + 1}</td><td>${safe(accountName)}${source}</td><td>${safe(descriptionById.get(line.id) || entry.description || "—")}</td><td class="right">${money(line.debit)}</td><td class="right">${money(line.credit)}</td></tr>`;
       }).join("");
 
       const printWindow = createPrintDocument();
@@ -2585,11 +2588,11 @@ export default function JournalEntryList() {
       printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${safe(entry.entry_no)} - Journal Voucher</title><style>
       *{box-sizing:border-box}body{margin:0;padding:28px;background:#f3f4f6;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:13px}.sheet{max-width:820px;margin:0 auto;background:#fff;padding:38px 42px;border:1px solid #e5e7eb}.toolbar{max-width:820px;margin:0 auto 14px;text-align:right}.toolbar button{border:0;border-radius:7px;padding:10px 16px;background:#111827;color:#fff;font-weight:700;cursor:pointer}.header{display:flex;justify-content:space-between;gap:30px;border-bottom:2px solid #111827;padding-bottom:20px}.brand{font-size:25px;font-weight:800}.sub{margin-top:5px;color:#6b7280;font-size:12px}.title{text-align:right;font-size:21px;font-weight:800;text-transform:uppercase;letter-spacing:1px}.voucher-no{margin-top:6px;color:#4b5563;font-size:12px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:18px 34px;margin:28px 0}.label{color:#6b7280;font-size: 12px;text-transform:uppercase;letter-spacing:.7px;font-weight:700}.value{margin-top:5px;font-size:14px;font-weight:700}.status{display:inline-block;margin-top:6px;padding:4px 9px;border-radius:999px;font-size: 12px;font-weight:800;text-transform:uppercase;border:1px solid #d1d5db}table{width:100%;border-collapse:collapse;margin-top:18px}th{padding:10px 9px;background:#f3f4f6;border-bottom:1px solid #d1d5db;text-align:left;font-size: 12px;text-transform:uppercase;letter-spacing:.5px}td{padding:11px 9px;border-bottom:1px solid #e5e7eb}.center{text-align:center;width:48px}.right{text-align:right}.total td{background:#f9fafb;font-weight:800}.description{margin-top:25px;padding:15px;border:1px solid #e5e7eb;background:#fafafa}.footer{margin-top:58px;display:flex;justify-content:space-between;gap:40px;color:#6b7280;font-size:11px}.signature{width:190px;text-align:center;border-top:1px solid #9ca3af;padding-top:8px}@media print{body{background:#fff;padding:0}.sheet{max-width:none;border:0;padding:18px}.toolbar{display:none}@page{size:A4;margin:10mm}}
       </style></head><body><div class="toolbar"><button onclick="window.print()">🖨 Print Voucher</button></div><div class="sheet">
-      <div class="header"><div><div class="brand">NAVILO</div><div class="sub">Accounting Journal Voucher</div></div><div><div class="title">Journal Voucher</div><div class="voucher-no">Voucher No:::<strong>${safe(entry.entry_no)}</strong></div></div></div>
+      <div class="header"><div><div class="brand">NAVILO</div><div class="sub">Accounting Journal Voucher</div></div><div><div class="title">Journal Voucher</div><div class="voucher-no">Voucher No: <strong>${safe(entry.entry_no)}</strong></div></div></div>
       <div class="meta"><div><div class="label">Entry Date</div><div class="value">${safe(formatDate(entry.entry_date))}</div></div><div><div class="label">Status</div><div class="status">${safe(entry.status)}</div></div><div><div class="label">Payment Mode</div><div class="value">${safe((entry as any).payment_mode || "General")}</div></div><div><div class="label">Party</div><div class="value">${safe((entry as any).party_name || "—")}</div></div></div>
-      <div class="label">Journal Lines · ${safe(postedCurrency || "")} ${foreign ? `· 1 ${safe(entry.currency_code)} = ${safe(entry.exchange_rate)} ${safe(baseCurrency)}` : ""}</div><table><thead><tr><th class="center">#</th><th>Account</th><th class="right">Debit</th><th class="right">Credit</th></tr></thead><tbody>${lineRows}</tbody><tfoot><tr class="total"><td colspan="2">TOTAL</td><td class="right">${money(totalDebit)}</td><td class="right">${money(totalCredit)}</td></tr></tfoot></table>
+      <div class="label">Journal Lines · ${safe(postedCurrency || "")} ${foreign ? `· 1 ${safe(entry.currency_code)} = ${safe(entry.exchange_rate)} ${safe(baseCurrency)}` : ""}</div><table><thead><tr><th class="center">#</th><th>Account</th><th>Description</th><th class="right">Debit</th><th class="right">Credit</th></tr></thead><tbody>${lineRows}</tbody><tfoot><tr class="total"><td colspan="3">TOTAL</td><td class="right">${money(totalDebit)}</td><td class="right">${money(totalCredit)}</td></tr></tfoot></table>
       <div class="description"><div class="label">Description</div><div style="margin-top:7px">${safe(entry.description || "—")}</div></div><div class="footer"><div><strong>NAVILO</strong><br/>Official accounting record. Keep this voucher for your records.</div><div class="signature">Authorized Signature</div></div></div></body></html>`);
-      printWindow.document.close(); printWindow.focus(); setTimeout(() => printWindow.print(), 250);
+      printWindow.document.close(); printWindow.focus();
     } catch (err: any) { setError(err?.message || "Failed to print journal voucher."); }
   }, [baseCurrency]);
 
