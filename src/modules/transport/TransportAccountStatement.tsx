@@ -21,28 +21,38 @@ export default function TransportAccountStatement({kind,onChanged}:{kind:'driver
  const outputAllowed=useTransportOutputPermissions();
  const {activeCompany,activeBusinessUnit}=useAuth();
  const [driverOptions,setDriverOptions]=useState<[string,string][]>([]);
+ const [fleetOptions,setFleetOptions]=useState<[string,string][]>([]);
  const [contributions,setContributions]=useState<Contribution[]>([]);
  const [rows,setRows]=useState<AccountMovement[]>([]);const [account,setAccount]=useState('');const [side,setSide]=useState('supplier');
  const [from,setFrom]=useState('');const [to,setTo]=useState(new Date().toISOString().slice(0,10));const [error,setError]=useState('');const [loading,setLoading]=useState(false);
  const [revision,setRevision]=useState(0);const generation=useRef(0);const [showTripDetails,setShowTripDetails]=useState(false);
  useEffect(()=>{
- const token=++generation.current;setLoading(true);setRows([]);setContributions([]);setDriverOptions([]);setError('');
+ const token=++generation.current;setLoading(true);setRows([]);setContributions([]);setDriverOptions([]);setFleetOptions([]);setError('');
  async function load(){try{
  if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
- let data:AccountMovement[];let economics:Contribution[]=[];
+ let data:AccountMovement[];let economics:Contribution[]=[];let fleet:[string,string][]=[];
  if(kind==='driver'){
  const drivers=await fetchAllPages<any>((a,b)=>supabase.from('transport_drivers').select('employee_id,driver_name').eq('company_id',activeCompany!.company_id).eq('business_unit_id',activeBusinessUnit!.business_unit_id).eq('is_active',true).eq('driver_type','company').is('supplier_id',null).order('id').range(a,b));if(generation.current===token)setDriverOptions(drivers.filter(d=>d.employee_id).map(d=>[d.employee_id,d.driver_name]));
  const items=await fetchAllPages<PartyMovement & {employee_id:string}>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'driver',p_limit:end-start+1,p_offset:start}));
  data=items.map(r=>({...r,side:'supplier',party_id:r.employee_id,account_id:r.employee_id,account_name:r.party_name}));
  }else{
- [data,economics]=await Promise.all([fetchAllPages<AccountMovement>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'vehicle',p_limit:end-start+1,p_offset:start})),fetchAllPages<Contribution>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'contributions',p_limit:end-start+1,p_offset:start}))]);
+ const [movements,contribs,masterRows]=await Promise.all([
+   fetchAllPages<AccountMovement>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'vehicle',p_limit:end-start+1,p_offset:start})),
+   fetchAllPages<Contribution>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'contributions',p_limit:end-start+1,p_offset:start})),
+   fetchAllPages<{id:string;vehicle_no:string}>((start,end)=>supabase.from('transport_vehicles')
+     .select('id,vehicle_no').eq('ownership_type','company').order('vehicle_no').range(start,end))
+ ]);
+ data=movements;economics=contribs;fleet=masterRows.map(v=>[v.id,v.vehicle_no]);
  }
- if(generation.current===token){setRows(data);setContributions(economics);}
+ if(generation.current===token){setRows(data);setContributions(economics);setFleetOptions(fleet);}
  }catch(e:any){if(generation.current===token)setError(e?.message||'Unable to load posted account detail.')}finally{if(generation.current===token)setLoading(false)}}
  void load();return()=>{generation.current++};
  },[kind,activeCompany?.company_id,activeBusinessUnit?.business_unit_id,revision]);
  useEffect(()=>setAccount(''),[kind,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
- const accounts=useMemo(()=>Array.from(new Map([...driverOptions,...[...rows,...contributions].map(r=>[r.account_id,r.account_name] as [string,string])]).entries()).sort((a,b)=>a[1].localeCompare(b[1])),[rows,contributions,driverOptions]);
+ const accounts=useMemo(()=>Array.from(new Map([
+   ...driverOptions,...(kind==='vehicle'?fleetOptions:[]),
+   ...[...rows,...contributions].map(r=>[r.account_id,r.account_name] as [string,string])
+ ]).entries()).sort((a,b)=>a[1].localeCompare(b[1])),[rows,contributions,driverOptions,fleetOptions,kind]);
  const ledger=statement(rows.filter(r=>r.account_id===account&&(kind==='driver'||r.side===side)),from,to);
  const name=accounts.find(a=>a[0]===account)?.[1]||'';
  const report:ReportTable={title:`Transport ${kind==='vehicle'?'Company Vehicle':'driver'} account — ${name}`,description:`${activeCompany?.company_name||''} / ${activeBusinessUnit?.business_unit_name||''} / active branch · ${from?formatNaviloDate(from):'Beginning'} to ${to?formatNaviloDate(to):'all dates'} · Company base currency. ${kind==='driver'?'Opening salary balance + posted basic salary/trip earnings − salary payments. Positive is salary payable; negative is salary advance.':'Posted '+side+' document movements attributed to the saved vehicle assignment at original bill posting; positive balance is '+(side==='supplier'?'payable.':'receivable.')}`,
@@ -52,7 +62,7 @@ export default function TransportAccountStatement({kind,onChanged}:{kind:'driver
  const economicReport:ReportTable={title:`Vehicle earnings and costs — ${name}`,description:`${activeCompany?.company_name||''} / ${activeBusinessUnit?.business_unit_name||''} / active branch · ${from?formatNaviloDate(from):'Beginning'} to ${to?formatNaviloDate(to):'all dates'} · Posted amounts excluding VAT, attributed to the saved assignment at source posting. Payroll viewing permission is required for driver costs. Settlements do not count as earnings or costs.`,columns:['Date','Trip','Voucher','Category','Expense account','Revenue','Cost','Contribution','Margin %'],rows:[...economicRows.map(r=>[formatNaviloDate(r.event_date),r.trip_no,r.entry_no,r.category,r.expense_accounts,Number(r.revenue),Number(r.cost),Number(r.revenue)-Number(r.cost),Number(r.revenue)?(Number(r.revenue)-Number(r.cost))/Number(r.revenue)*100:0]),['Total','','','','',revenue,cost,revenue-cost,revenue?(revenue-cost)/revenue*100:0]]};
  async function output(format:'print'|'pdf'|'xlsx',table:ReportTable=report){if(!(format==='print'?outputAllowed.print:outputAllowed.export))return;try{await exportPartyReport(table,format)}catch(e:any){setError(e?.message||'Export failed')}}
  return <div className="my-3 rounded border p-3" aria-label={`${kind} dated statement`}>
- {kind==='vehicle'&&<TransportVehicleMonthlyProfitHistory/>}
+ {kind==='vehicle'&&<TransportVehicleMonthlyProfitHistory onLinked={()=>setRevision(r=>r+1)}/>}
  {kind==='driver'&&<ImportedAccountBalances kind="driver" to={to} onLinked={()=>setRevision(r=>r+1)}/>}
  <h3 className="font-semibold">Dated statement / opening and running balance</h3><details onToggle={e=>setShowTripDetails(e.currentTarget.open)}><summary>Trip details, earnings and margin</summary>{showTripDetails&&<TransportTripReports key={revision} accountKind={kind} accountId={account} externalFilters={{from,to,search:''}}/>}</details>{kind==='driver'&&<><TransportDriverMonthlyKhata employeeId={account} employeeName={name} onChanged={()=>{setRevision(r=>r+1);onChanged?.()}}/><TransportDriverPayUpload onChanged={()=>{setRevision(r=>r+1);onChanged?.()}}/></>}
  <div className="my-2 flex flex-wrap gap-2"><label>{kind==='driver'?'Company employee / driver':'Company vehicle'}<NaviloSearchableSelect nativeCompatibility preserveLabel className="input" value={account} onChange={e=>setAccount(e.target.value)}><option value="">Select account</option>{accounts.map(([id,label])=><option key={id} value={id}>{accounts.filter(a=>a[1]===label).length>1?`${label} · ${id.slice(0,8)}`:label}</option>)}</NaviloSearchableSelect></label>
