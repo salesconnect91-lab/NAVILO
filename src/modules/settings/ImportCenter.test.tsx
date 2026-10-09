@@ -25,7 +25,8 @@ describe("import center", () => {
     expect(screen.getByRole("option", { name: "Customer Route Rates" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Supplier Route Rates" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Customer Additional Charges" })).toBeTruthy();
-    expect(screen.getByText("No import permission")).toBeTruthy();
+    expect(screen.getByText("Use Transport Receipts / Payments Import above")).toBeTruthy();
+    expect(screen.queryByText("No import permission")).toBeNull();
     expect(screen.getByRole("link", { name: /Open customer import/ }).getAttribute("href")).toBe("/master-data/customers");
     expect(screen.getByRole("link", { name: /Open supplier import/ }).getAttribute("href")).toBe("/master-data/suppliers");
   });
