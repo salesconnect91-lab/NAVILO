@@ -277,7 +277,7 @@ const TEMPLATE_ROWS = [
     "JE-1001",
     "2026-08-26",
     "Payment to Amjad Khan",
-    "1000",
+    "",
     "Cash",
     "Cash",
     "5000",
@@ -3078,9 +3078,7 @@ export default function JournalEntryList() {
                     </h3>
 
                     <p className="text-xs text-slate-500 mt-1">
-                      AccountCode is optional.AccountHead and
-                      AccountName are
-                      separate columns.
+                      Use the same Description on each row of one Entry No. Account Code is optional; Account Head and Account Name select the posting account.
                     </p>
 
                     <p className="text-xs text-slate-500 mt-1">
