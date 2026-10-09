@@ -2318,7 +2318,7 @@ export default function JournalEntryDetail() {
                     <th className="text-left py-3 px-4 font-semibold">Account</th>
 
                     <th className="text-left py-3 px-4 font-semibold">
-                      Name / Party
+                      Related To
                     </th>
 
                     <th className="text-right py-3 px-4 font-semibold">Debit</th>
@@ -2542,7 +2542,7 @@ export default function JournalEntryDetail() {
                       <th className="text-left px-4 py-3 font-semibold text-slate-600 w-[34%]">Account</th>
 
                       <th className="text-left px-4 py-3 font-semibold text-slate-600 w-[26%]">
-                        Name / Party
+                        Related To
                       </th>
 
                       <th className="text-right px-4 py-3 font-semibold text-slate-600 w-[14%]">Debit</th>
@@ -2568,6 +2568,8 @@ export default function JournalEntryDetail() {
                           accountRequiresParty(
                             line.accountId
                           );
+                        const selectedGL=accounts.find(a=>a.id===line.accountId);
+                        const relatedMode=journalRelatedToMode(selectedGL?.type,partyRequired,isTransport);
 
                         return (
                           <tr
@@ -2619,56 +2621,46 @@ export default function JournalEntryDetail() {
                             </td>
 
                             <td className="px-3 py-2">
-                              <SearchableSelect
-                                className="input bg-white w-full"
-                                searchPlaceholder="Search customer or supplier..."
-                                emptyText="No matching customer / supplier"
-                                value={
-                                  line.partyType &&
-                                  line.partyId
-                                    ? `${line.partyType}:${line.partyId}`
-                                    : ""
-                                }
-                                onChange={(
-                                  e
-                                ) =>
-                                  updateDraftParty(
-                                    line.tempId,
-                                    e.target.value
-                                  )
-                                }
-                              >
-                                <option value="">
-                                  {partyRequired
-                                    ? "Choose Customer / Supplier..."
-                                    : "No Party"}
-                                </option>
-
-                                {partyOptions.map(
-                                  (party) => (
-                                    <option
-                                      key={
-                                        party.key
-                                      }
-                                      value={
-                                        party.key
-                                      }
-                                    >
-                                      {party.type === "customer"
-                                        ? "Customer"
-                                        : "Supplier"}{" "}
-                                      - {party.name}
-                                    </option>
-                                  )
-                                )}
-                              </SearchableSelect>
-
-                              {isTransport && ['revenue','income','expense'].includes(accounts.find(a=>a.id===line.accountId)?.type||'') && <label className="mt-1 block text-xs">Company Vehicle (optional)<SearchableSelect aria-label={`Company Vehicle row ${draftLines.indexOf(line)+1}`} className="input bg-white w-full" value={line.vehicleId||''} onChange={e=>updateDraftLine(line.tempId,'vehicleId',e.target.value)}><option value="">No vehicle / shared expense</option>{companyVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</SearchableSelect></label>}
-
-                              {partyRequired && (
-                                <div className="text-[12px] text-amber-600 mt-1">
-                                  Party required for this account
+                              {!line.accountId ? (
+                                <span className="text-xs text-slate-500">Select account first</span>
+                              ) : relatedMode==='party' ? (
+                                <SearchableSelect
+                                  preserveLabel
+                                  aria-label={`Related To row ${draftLines.indexOf(line)+1}`}
+                                  className="input bg-white w-full"
+                                  searchPlaceholder="Search customer or supplier..."
+                                  emptyText="No linked customer / supplier found"
+                                  value={line.partyType&&line.partyId?`${line.partyType}:${line.partyId}`:""}
+                                  onChange={e=>updateDraftParty(line.tempId,e.target.value)}
+                                >
+                                  <option value="">Select Customer / Supplier...</option>
+                                  {partyOptions.map(p=><option key={p.key} value={p.key}>
+                                    {p.type==='customer'?'Customer':'Supplier'} · {p.name}
+                                  </option>)}
+                                </SearchableSelect>
+                              ) : relatedMode==='vehicle' ? (
+                                <div>
+                                  <SearchableSelect
+                                    preserveLabel
+                                    aria-label={`Related To row ${draftLines.indexOf(line)+1}`}
+                                    className="input bg-white w-full"
+                                    searchPlaceholder="Search company vehicle number or type..."
+                                    value={line.vehicleId??""}
+                                    onChange={e=>updateDraftLine(line.tempId,'vehicleId',e.target.value)}
+                                  >
+                                    <option value="">General / Shared (no vehicle)</option>
+                                    {eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.label}</option>)}
+                                  </SearchableSelect>
+                                  {vehicleLoadError&&<span role="alert" className="mt-1 block text-xs text-red-700">{vehicleLoadError}</span>}
+                                  {!vehicleLoadError&&eligibleVehicles.length===0&&<span className="mt-1 block text-xs text-amber-700">No company-owned vehicle valid on this journal date</span>}
                                 </div>
+                              ) : (
+                                <div className="rounded border border-slate-200 bg-slate-50 px-3 py-3 text-xs font-medium text-slate-600">
+                                  General / Shared
+                                </div>
+                              )}
+                              {relatedMode==='party'&&partyRequired&&partyOptions.length===0&&(
+                                <span className="mt-1 block text-xs text-amber-700">Set up a linked customer/supplier before posting.</span>
                               )}
                             </td>
 
