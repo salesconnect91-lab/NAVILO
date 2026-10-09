@@ -27,8 +27,8 @@ const navigation:NavNode[]=[
     {key:"transport-mobile-quick-entry",to:"/transport/mobile",label:"Mobile Quick Entry",module:"transport"},
     {key:"transport-audit",to:"/transport?view=audit",label:"Trip Audit",module:"transport"},
     {key:"transport-driver-expenses",to:"/transport?view=driver-expenses",label:"Driver Expense Upload",module:"transport"},
-    {key:"transport-driver-account",to:"/transport?view=driver-account",label:"Driver Account / Hisaab",module:"transport"},
-    {key:"transport-vehicle-account",to:"/transport?view=vehicle-account",label:"Vehicle Account / Gari Hisaab",module:"transport"},
+    {key:"transport-driver-account",to:"/transport?view=driver-account",label:"Driver Ledger",module:"transport"},
+    {key:"transport-vehicle-account",to:"/transport?view=vehicle-account",label:"Company Vehicle Ledger",module:"transport"},
     {key:"transport-party-reports",label:"Reports & Allocation",module:"transport",children:[
       {key:"transport-customer-reports",to:"/transport?panel=customer-reports",label:"Customer Reports",module:"transport"},
       {key:"transport-supplier-reports",to:"/transport?panel=supplier-reports",label:"Supplier Reports",module:"transport"},
@@ -56,8 +56,8 @@ const navigation:NavNode[]=[
       {key:"transport-trip-reports",to:"/reports/transport?mode=trips",label:"Trip-wise Reports",module:"reports"},
       {key:"transport-customer-reporting",to:"/reports/transport?mode=party&side=customer",label:"Customer Reports & Statements",module:"reports"},
       {key:"transport-supplier-reporting",to:"/reports/transport?mode=party&side=supplier",label:"Supplier Reports & Statements",module:"reports"},
-      {key:"transport-driver-reporting",to:"/reports/transport?mode=driver",label:"Driver Account / Hisaab",module:"reports"},
-      {key:"transport-vehicle-reporting",to:"/reports/transport?mode=vehicle",label:"Vehicle Account / Gari Hisaab",module:"reports"},
+      {key:"transport-driver-reporting",to:"/reports/transport?mode=driver",label:"Driver Ledger",module:"reports"},
+      {key:"transport-vehicle-reporting",to:"/reports/transport?mode=vehicle",label:"Company Vehicle Ledger",module:"reports"},
       {key:"transport-profitability-reporting",to:"/reports/transport?mode=profit",label:"Posted Trip Profitability",module:"reports"}
     ]},
     {key:"management-reports",label:"Management & MIS / مینجمنٹ",module:"reports",children:[{key:"business-unit-performance-report",to:"/reports/business-unit-performance",label:"Business Unit Performance / بزنس یونٹ",module:"reports"},{key:"monthly-mis-report",to:"/reports/monthly-mis",label:"Monthly Business MIS / ماہانہ ایم آئی ایس",module:"reports"}]},
