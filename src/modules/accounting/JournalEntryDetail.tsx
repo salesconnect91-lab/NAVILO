@@ -870,6 +870,7 @@ export default function JournalEntryDetail() {
           {
             "Account Code": "1110",
             "Account Name": "Cash",
+            Description: "Cash received for service",
             "Party Type": "",
             "Party Name": "",
             "Vehicle No": "",
@@ -879,6 +880,7 @@ export default function JournalEntryDetail() {
           {
             "Account Code": "4100",
             "Account Name": "Sales Revenue",
+            Description: "Service revenue earned",
             "Party Type": "",
             "Party Name": "",
             "Vehicle No": "",
@@ -895,6 +897,7 @@ export default function JournalEntryDetail() {
         worksheet["!cols"] = [
           { wch: 18 },
           { wch: 35 },
+          { wch: 42 },
           { wch: 18 },
           { wch: 35 },
           { wch: 16 },
@@ -2495,7 +2498,7 @@ export default function JournalEntryDetail() {
                   <strong>
                     File columns:
                   </strong>{" "}
-                  Account Code, Account Name, Party Type, Party Name, Vehicle No (optional for Transport income/expense), Debit, Credit
+                  Account Code, Account Name, Description, Party Type, Party Name, Vehicle No (optional for Transport income/expense), Debit, Credit
                   <span className="ml-2">
                     • Party Type + Party Name required for customer/supplier control accounts
                   </span>
