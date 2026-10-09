@@ -1,7 +1,7 @@
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
-import {driverSalaryPosition} from '@/lib/driverSalaryBalance';
+import {salarySheetPosition} from '@/lib/salaryBalanceSheet';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -283,11 +283,21 @@ export default function BalanceSheet() {
       const accountName = balanceSheetAccountName(meta.type, meta.name, meta.detailType);
 
       if(salaryNames.has(line.account_id)){
-        const name=salaryNames.get(line.account_id)!;
-        const position=driverSalaryPosition(credit-debit);
-        if(position.advance)assetMap[name]={amount:position.advance,parentHead:'Current Assets',detailType:'Driver Salary Advance'};
-        else if(position.payable)liabilityMap[name]={amount:position.payable,parentHead:'Current Liabilities',detailType:'Driver Salary Payable'};
-        return;
+        // Use the COA classification chosen by the owner, not movement sign.
+        // A debit in a liability GL is a negative liability, not a new asset.
+        // Accumulate every movement (previous code overwrote prior rows).
+        const position=salarySheetPosition(type,debit,credit);
+        if(position){
+          const name=salaryNames.get(line.account_id)!;
+          const target=position.bucket==='liability'?liabilityMap:assetMap;
+          if(!target[name])target[name]={
+            amount:0,
+            parentHead:meta.parentHead,
+            detailType:meta.detailType,
+          };
+          target[name].amount+=position.signedAmount;
+          return;
+        }
       }
 
       if (type === "asset") {
