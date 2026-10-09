@@ -328,7 +328,7 @@ export default function TrialBalance() {
     Math.abs(amount) >= 0.005 ? formatCurrency(amount) : "—";
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 pb-12"><AccountingReportScopeSelect value={scope} onChange={setScope}/><details className="no-print"><summary>Customize Trial Balance headers / export</summary><ConfigurableReport module="accounting" preferenceKey="accounting-trial-balance" report={{title:'Trial Balance',description:`${fromDate} to ${toDate} · Canonical posted ledger`,columns:['Account','Opening debit','Opening credit','Period debit','Period credit','Closing debit','Closing credit'],rows:[...rows.map(r=>[r.name,r.openingDebit,r.openingCredit,r.periodDebit,r.periodCredit,r.closingDebit,r.closingCredit]),['TOTAL','',totals.openingDebit,totals.openingCredit,totals.periodDebit,totals.periodCredit,totals.closingDebit,totals.closingCredit]]}}/></details>
+    <div className="mx-auto max-w-[1500px] space-y-6 pb-12"><AccountingReportScopeSelect value={scope} onChange={setScope}/><details className="no-print"><summary>Customize Trial Balance headers / export</summary><ConfigurableReport module="accounting" preferenceKey="accounting-trial-balance" report={{title:'Trial Balance',description:`${fromDate} to ${toDate} · Canonical posted ledger`,columns:['Account','Opening debit','Opening credit','Period debit','Period credit','Closing debit','Closing credit'],rows:[...rows.map(r=>[r.name,r.openingDebit,r.openingCredit,r.periodDebit,r.periodCredit,r.closingDebit,r.closingCredit]),['TOTAL',totals.openingDebit,totals.openingCredit,totals.periodDebit,totals.periodCredit,totals.closingDebit,totals.closingCredit]]}}/></details>
       <style>{`
         @media print {
           body * { visibility: hidden; }
