@@ -1,4 +1,5 @@
 import NaviloSearchableSelect from "@/components/SearchableSelect";
+import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
 import TransportVatGuide from './TransportVatGuide';
 import ConfigurableReport from './ConfigurableReport';
 import TransportTripReports from './TransportTripReports';
@@ -79,7 +80,7 @@ export default function TransportPartyReports({onClose,onChanged,initialSide='cu
  },[side,mode,activeCompany?.company_name,activeBusinessUnit?.business_unit_name,selectedName,to,from,tripSearch,status,balances,ledger,matchingEvents,matchingDocs]);
  const detailsByDocument=useMemo(()=>{const map=new Map<string,any[]>();for(const t of tripDetails){const key=t.side+':'+t.order_no;const rows=map.get(key)||[];rows.push(t);map.set(key,rows)}return map},[tripDetails]);
  const documentColumn=report.columns.findIndex(c=>c==='Document'||c==='Bill');
- const detailedReportBase:ReportTable=documentColumn<0?report:{...report,columns:[...report.columns,'Trip dates','From','To','Vehicles at posting','Drivers at posting','Owners at posting','Jobs / PO / DO'],rows:report.rows.map(row=>{const details=detailsByDocument.get(side+':'+row[documentColumn])||[];return [...row,...['trip_date','from_location','to_location','vehicle_no','driver_name','owner_name','po_do_job_no'].map(key=>[...new Set(details.map(t=>t[key]?(key==='trip_date'?formatNaviloDate(t[key]):t[key]):'Unattributed'))].join(' / '))]})};
+ const detailedReportBase:ReportTable=documentColumn<0?report:{...report,columns:[...report.columns,'Trip dates','From','To','Vehicles at posting','Drivers at posting','Owners at posting','Jobs / PO / DO'],rows:report.rows.map(row=>{const details=detailsByDocument.get(side+':'+row[documentColumn])||[];return [...row,...['trip_date','from_location','to_location','vehicle_no','driver_name','owner_name','po_do_job_no'].map(key=>[...new Set(details.map(t=>t[key]?(key==='trip_date'?formatNaviloDate(t[key]):key==='vehicle_no'?vehicleDisplayLabel(t.vehicle_no,t.truck_type):t[key]):'Unattributed'))].join(' / '))]})};
  const detailedReport:ReportTable=['trip-statement','trip-ledger'].includes(mode)?{...detailedReportBase,columns:[detailedReportBase.columns[1],detailedReportBase.columns[0],...detailedReportBase.columns.slice(2)],rows:detailedReportBase.rows.map(r=>[r[1],r[0],...r.slice(2)])}:detailedReportBase;
  const canExport=!loading&&!error&&!dateError&&!needsParty&&!(mode==='canonical'&&!canLedger);
  async function exportAs(format:'xlsx'|'pdf'|'print'){if(!(format==='print'?outputAllowed.print:outputAllowed.export))return;try{await exportPartyReport(report,format)}catch(e){setError(e instanceof Error?e.message:'Export failed')}}
