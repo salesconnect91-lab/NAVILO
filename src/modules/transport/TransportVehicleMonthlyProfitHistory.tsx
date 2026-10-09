@@ -16,7 +16,7 @@ const monthName=(iso:string)=>new Date(iso+'T00:00:00Z').toLocaleDateString('en-
  * contributions. The server suppresses overlapping operating profit when an
  * authoritative historical opening snapshot exists for a vehicle/month.
  */
-export default function TransportVehicleMonthlyProfitHistory(){
+export default function TransportVehicleMonthlyProfitHistory({onLinked}:{onLinked?:()=>void}){
   const {activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role;
   const canImport=isPlatformOwner||role==='company_owner'||role==='admin';
@@ -64,6 +64,7 @@ export default function TransportVehicleMonthlyProfitHistory(){
       const count=Number((data as {linked_count?:number}|null)?.linked_count??0);
       setImportNotice(count+' vehicle(s) linked to existing posted opening profit. No new financial journal.');
       setVersion(n=>n+1);
+      onLinked?.();
     }catch(e){
       setError(e instanceof Error?e.message:String(e));
     }finally{setImporting(false);}
