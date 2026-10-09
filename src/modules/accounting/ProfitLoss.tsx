@@ -234,7 +234,7 @@ export default function ProfitLoss() {
 
     accounts.forEach((account) => {
       const type = String(account.type ?? "").toLowerCase();
-      const name = `${account.code ?? ""} - ${account.name ?? ""}`.trim();
+      const name = String(account.name ?? "").trim();
       const detailType = account.detail_type || "General";
       accountMap.set(account.id, {
         name,
