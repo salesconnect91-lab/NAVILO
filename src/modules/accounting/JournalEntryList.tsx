@@ -8,7 +8,7 @@ import {
   useMemo,
 } from "react";
 
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 
 import { supabase } from "@/lib/supabase";
@@ -2743,16 +2743,14 @@ export default function JournalEntryList() {
                       <td className="py-3.5 px-4 text-right">
 
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              navigate(`/accounting/${entry.id}`);
-                            }}
+                          <Link
+                            to={`/accounting/${entry.id}`}
+                            onClick={(event) => event.stopPropagation()}
                             className="text-primary-600 hover:text-primary-800 font-medium text-xs"
+                            aria-label={`${entry.status === "posted" ? "View" : "Edit"} journal ${entry.entry_no}`}
                           >
-                            View / Edit →
-                          </button>
+                            {entry.status === "posted" ? "View →" : "Edit →"}
+                          </Link>
                           <button
                             type="button"
                             onClick={(event) => {
