@@ -73,7 +73,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
           .select("id,name,is_active").order("name").range(start, end)) : Promise.resolve([]),
       ]);
       setTruckTypes(types); setSuppliers(parties); setEmployees(employeeRows);
-      const visibleRecords=vehicle||quickCreate?records:records.filter(x=>supplierOwner
+      const visibleRecords=vehicle||quickCreate||(!supplierOwner&&!employeeOwner)?records:records.filter(x=>supplierOwner
         ?x.driver_type==="supplier"&&x.supplier_id===supplierOwner.id&&x.employee_id==null
         :x.driver_type==="company"&&x.supplier_id==null&&(!employeeOwner||x.employee_id===employeeOwner.id));
       setRows(visibleRecords.map(x => {
