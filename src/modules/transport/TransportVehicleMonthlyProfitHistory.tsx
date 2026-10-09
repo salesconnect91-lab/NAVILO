@@ -30,15 +30,19 @@ export default function TransportVehicleMonthlyProfitHistory({onLinked}:{onLinke
   useEffect(()=>{
     let mounted=true;
     setLoading(true);setError('');setRows([]);
-    void supabase.rpc('transport_vehicle_monthly_profit_report',{
-      p_from:from?from+'-01':null,p_to:to?to+'-01':null,
-    }).then(({data,error:failure})=>{
-      if(!mounted)return;
-      if(failure)throw failure;
-      setRows((data??[]) as ProfitRow[]);
-    }).catch((failure:unknown)=>{
-      if(mounted)setError(failure instanceof Error?failure.message:String(failure));
-    }).finally(()=>{if(mounted)setLoading(false)});
+    async function load(){
+      try{
+        const {data,error:failure}=await supabase.rpc('transport_vehicle_monthly_profit_report',{
+          p_from:from?from+'-01':null,p_to:to?to+'-01':null,
+        });
+        if(!mounted)return;
+        if(failure)throw failure;
+        setRows((data??[]) as ProfitRow[]);
+      }catch(failure:unknown){
+        if(mounted)setError(failure instanceof Error?failure.message:String(failure));
+      }finally{if(mounted)setLoading(false)}
+    }
+    void load();
     return()=>{mounted=false};
   },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,from,to,version]);
 
