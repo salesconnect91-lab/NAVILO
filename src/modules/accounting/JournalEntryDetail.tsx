@@ -1455,7 +1455,7 @@ export default function JournalEntryDetail() {
         party_name: string | null;
         debit: number;
         credit: number;
-        description: string | null;
+        description?: string;
       }[] = [];
 
       for (
@@ -1663,7 +1663,7 @@ export default function JournalEntryDetail() {
             line.partyId || null,
           party_name:
             partyName,
-          description: line.description.trim() || null,
+          ...(line.description.trim() ? { description: line.description.trim() } : {}),
           debit,
           credit,
         });
