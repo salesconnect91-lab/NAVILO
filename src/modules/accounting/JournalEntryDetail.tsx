@@ -1,3 +1,4 @@
+import {useAuth} from '@/auth/AuthContext';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import {
@@ -43,6 +44,7 @@ import {
 type DraftLine = {
   tempId: string;
   accountId: string;
+  vehicleId?: string;
   partyType: PartyType | "";
   partyId: string;
   debit: string;
@@ -69,6 +71,7 @@ const createTempId = () =>
 const createDraftLine = (): DraftLine => ({
   tempId: createTempId(),
   accountId: "",
+  vehicleId: "",
   partyType: "",
   partyId: "",
   debit: "",
@@ -136,6 +139,14 @@ const normalizePartyType = (
 export default function JournalEntryDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const {activeCompany,activeBusinessUnit}=useAuth();
+  const isTransport=activeBusinessUnit?.business_unit_type==='transport';
+  const [companyVehicles,setCompanyVehicles]=useState<{id:string;vehicle_no:string}[]>([]);
+  useEffect(()=>{let live=true;setCompanyVehicles([]);if(!isTransport)return;
+   void fetchAllPages<{id:string;vehicle_no:string}>((start,end)=>supabase.from('transport_vehicles').select('id,vehicle_no').eq('company_id',activeCompany!.company_id).eq('business_unit_id',activeBusinessUnit!.business_unit_id).eq('ownership_type','company').eq('is_active',true).order('vehicle_no').range(start,end))
+    .then(rows=>{if(live)setCompanyVehicles(rows);}).catch(e=>{if(live)setError(e?.message||'Unable to load company vehicles');});
+   return()=>{live=false};
+  },[isTransport,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
 
   /* -------------------------------------------------------
      STATE
@@ -281,7 +292,7 @@ export default function JournalEntryDetail() {
           })
         ) as JournalLine[];
 
-      setLines(mappedLines);
+      setLines(mappedLines.sort((a,b)=>Number(Number(b.debit)>0)-Number(Number(a.debit)>0)||a.id.localeCompare(b.id)));
     },
     [id]
   );
@@ -651,6 +662,7 @@ export default function JournalEntryDetail() {
           return {
             ...line,
             accountId,
+            vehicleId: "",
             partyType:
               partyStillMatches
                 ? line.partyType
@@ -716,6 +728,7 @@ export default function JournalEntryDetail() {
             ...line,
             accountId:
               customer.account_id,
+            vehicleId: "",
             partyType: "customer",
             partyId:
               customer.id,
@@ -739,6 +752,7 @@ export default function JournalEntryDetail() {
           ...line,
           accountId:
             supplier.account_id,
+          vehicleId: "",
           partyType: "supplier",
           partyId:
             supplier.id,
@@ -1383,6 +1397,7 @@ export default function JournalEntryDetail() {
 
       const rowsToInsert: {
         entry_id: string;
+        transport_vehicle_id?: string|null;
         account_id: string;
         account: string;
         party_type: PartyType | null;
@@ -1582,6 +1597,7 @@ export default function JournalEntryDetail() {
         }
 
         rowsToInsert.push({
+          transport_vehicle_id: line.vehicleId || null,
           entry_id: id,
           account_id:
             account.id,
@@ -2299,6 +2315,8 @@ export default function JournalEntryDetail() {
                                 : line.account}
                             </div>
 
+                            {line.transport_vehicle_id&&<div className="text-xs text-blue-700">Company Vehicle: {line.transport_vehicle_no||companyVehicles.find(v=>v.id===line.transport_vehicle_id)?.vehicle_no||'Linked vehicle'}</div>}
+
                             {coa && (
                               <div className="text-xs text-slate-400 mt-0.5">
                                 {coa.type}
@@ -2446,7 +2464,7 @@ export default function JournalEntryDetail() {
                   </h4>
 
                   <p className="text-xs text-slate-600 mt-0.5">
-                    Account aur Name / Party alag fields hain. Party select karne par uska linked control account automatically select ho jayega.
+                    Account and Name / Party are separate fields. Selecting a party selects its linked control account. For a company vehicle expense or income, select the vehicle on that line only.
                   </p>
                 </div>
 
@@ -2599,6 +2617,8 @@ export default function JournalEntryDetail() {
                                   )
                                 )}
                               </SearchableSelect>
+
+                              {isTransport && ['revenue','income','expense'].includes(accounts.find(a=>a.id===line.accountId)?.type||'') && <label className="mt-1 block text-xs">Company Vehicle (optional)<SearchableSelect aria-label={`Company Vehicle row ${draftLines.indexOf(line)+1}`} className="input bg-white w-full" value={line.vehicleId||''} onChange={e=>updateDraftLine(line.tempId,'vehicleId',e.target.value)}><option value="">No vehicle / shared expense</option>{companyVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</SearchableSelect></label>}
 
                               {partyRequired && (
                                 <div className="text-[12px] text-amber-600 mt-1">
