@@ -2815,12 +2815,12 @@ export default function JournalEntryList() {
                           >
                             {entry.status === "posted" ? "View →" : "Edit →"}
                           </Link>
-                          <button type="button" onClick={event=>{event.stopPropagation();void copyJournalAsDraft(entry)}}
+                          {!entry.entry_no.startsWith("COB-") && <button type="button" onClick={event=>{event.stopPropagation();void copyJournalAsDraft(entry)}}
                             disabled={copyingJournalId!==null}
                             className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-blue-700 disabled:opacity-50"
                             title="Copy journal into a new editable draft without posting">
                             {copyingJournalId===entry.id?"Copying...":"Copy"}
-                          </button>
+                          </button>}
                           <button
                             type="button"
                             onClick={(event) => {
