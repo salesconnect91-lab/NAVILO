@@ -762,7 +762,7 @@ export default function JournalEntryDetail() {
         return {
           ...line,
           accountId:
-            supplier.account_id,
+            (line.accountId===partyControlAccounts.ap?line.accountId:supplier.account_id??partyControlAccounts.ap),
           vehicleId: "",
           partyType: "supplier",
           partyId:
@@ -1509,7 +1509,7 @@ export default function JournalEntryDetail() {
           (!line.partyType || !line.partyId)
         ) {
           setError(
-            `Row ${rowNumber}: "${account.name}" requires a customer or supplier in Name / Party.`
+            `Row ${rowNumber}: "${account.name}" requires a customer or supplier in Related To.`
           );
 
           return;
