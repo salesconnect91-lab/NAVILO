@@ -13,6 +13,7 @@ describe('company report currency',()=>{
  render(<JurisdictionRuntime><Report/></JurisdictionRuntime>);
  await screen.findByText('SAR 1,234.50 · USD 25.00');
  expect(document.documentElement.dataset.naviloCurrency).toBe('SAR');
+ expect(formatCurrency(-1e-9)).toBe('SAR 0.00');
  });
  it('reloads canonical currency when company changes',async()=>{
  const view=render(<JurisdictionRuntime><Report/></JurisdictionRuntime>);

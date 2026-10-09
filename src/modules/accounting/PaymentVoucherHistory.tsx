@@ -1,3 +1,4 @@
+import {currentCurrency} from "@/components/ui";
 import {fetchAllPages} from "@/lib/fetchAllPages";
 import {formatNaviloDate} from "@/lib/naviloDate";
 import { createPrintDocument, registerPrintSource, printTableMarkup } from "@/lib/printDocument";
@@ -285,7 +286,7 @@ ${
   visibility.show_previous_balance
     ? `<div class="amount">
          <span>Previous Balance</span>
-         <strong>Rs. ${money(
+         <strong>${currentCurrency()} ${money(
            Number(detail.balance_before || 0)
          )}</strong>
        </div>`
@@ -294,14 +295,14 @@ ${
 
 <div class="amount">
   <span>${amountLabel}</span>
-  <strong>Rs. ${money(detail.amount)}</strong>
+  <strong>${currentCurrency()} ${money(detail.amount)}</strong>
 </div>
 
 ${
   visibility.show_closing_balance
     ? `<div class="amount">
          <span>Closing Balance</span>
-         <strong>Rs. ${money(
+         <strong>${currentCurrency()} ${money(
            Number(detail.balance_after || 0)
          )}</strong>
        </div>`
@@ -408,7 +409,7 @@ ${
         pdf.text("Previous Balance", 18, y);
         pdf.setFontSize(15);
         pdf.text(
-          `Rs. ${money(
+          `${currentCurrency()} ${money(
             Number(detail.balance_before || 0)
           )}`,
           190,
@@ -428,7 +429,7 @@ ${
       );
       pdf.setFontSize(15);
       pdf.text(
-        `Rs. ${money(detail.amount)}`,
+        `${currentCurrency()} ${money(detail.amount)}`,
         190,
         y,
         { align: "right" }
@@ -440,7 +441,7 @@ ${
         pdf.text("Closing Balance", 18, y);
         pdf.setFontSize(15);
         pdf.text(
-          `Rs. ${money(
+          `${currentCurrency()} ${money(
             Number(detail.balance_after || 0)
           )}`,
           190,
@@ -560,19 +561,19 @@ ${
                     {row.party_name || "—"}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    Rs.{" "}
+                    {currentCurrency()}{" "}
                     {money(
                       Number(row.balance_before || 0)
                     )}
                   </td>
                   <td className="px-4 py-3 text-right font-bold">
-                    Rs.{" "}
+                    {currentCurrency()}{" "}
                     {money(
                       Number(row.payment_amount || 0)
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    Rs.{" "}
+                    {currentCurrency()}{" "}
                     {money(
                       Number(row.balance_after || 0)
                     )}

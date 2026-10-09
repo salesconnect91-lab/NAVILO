@@ -39,5 +39,5 @@ export function Modal({open,title,onClose,children,panelClassName="",closeOnBack
 }
 
 export function currentCurrency():string{return typeof document!=="undefined"?document.documentElement.dataset.naviloCurrency||"":"";}
-export function formatCurrency(n:number):string{return `${currentCurrency()} ${Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`.trim();}
+export function formatCurrency(n:number):string{const value=Number(n||0);return `${currentCurrency()} ${(Math.abs(value)<0.005?0:value).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`.trim();}
 export function formatDate(s:string):string{return formatNaviloDate(s);}

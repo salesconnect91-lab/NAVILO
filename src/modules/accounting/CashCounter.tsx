@@ -1,3 +1,4 @@
+import {currentCurrency} from "@/components/ui";
 import { createPrintDocument } from "@/lib/printDocument";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
@@ -827,7 +828,7 @@ export default function CashCounter() {
                 visibility.show_previous_balance
                   ? `<div class="amount">
                        <span>Previous Balance</span>
-                       <strong>Rs. ${money(receipt.balance_before ?? 0)}</strong>
+                       <strong>${currentCurrency()} ${money(receipt.balance_before ?? 0)}</strong>
                      </div>`
                   : ""
               }
@@ -837,7 +838,7 @@ export default function CashCounter() {
                   Total Amount Received</span>
 
                 <strong>
-                  Rs. ${money(
+                  ${currentCurrency()} ${money(
                     receipt.amount
                   )}
                 </strong>
@@ -846,7 +847,7 @@ export default function CashCounter() {
                 visibility.show_closing_balance
                   ? `<div class="amount">
                        <span>Closing Balance</span>
-                       <strong>Rs. ${money(receipt.balance_after ?? 0)}</strong>
+                       <strong>${currentCurrency()} ${money(receipt.balance_after ?? 0)}</strong>
                      </div>`
                   : ""
               }
@@ -872,7 +873,7 @@ export default function CashCounter() {
                     </td>
 
                     <td class="right">
-                      Rs. ${money(
+                      ${currentCurrency()} ${money(
                         receipt.amount
                       )}
                     </td>
@@ -1205,7 +1206,7 @@ export default function CashCounter() {
         pdf.setFontSize(10);
         pdf.text("Previous Balance", margin, y);
         pdf.text(
-          `Rs. ${money(receipt.balance_before ?? 0)}`,
+          `${currentCurrency()} ${money(receipt.balance_before ?? 0)}`,
           pageWidth - margin,
           y,
           { align: "right" }
@@ -1220,7 +1221,7 @@ export default function CashCounter() {
       );
 
       pdf.text(
-        `Rs. ${money(
+        `${currentCurrency()} ${money(
           receipt.amount
         )}`,
         pageWidth - margin,
@@ -1234,7 +1235,7 @@ export default function CashCounter() {
         pdf.setFontSize(10);
         pdf.text("Closing Balance", margin, y);
         pdf.text(
-          `Rs. ${money(receipt.balance_after ?? 0)}`,
+          `${currentCurrency()} ${money(receipt.balance_after ?? 0)}`,
           pageWidth - margin,
           y,
           { align: "right" }
@@ -1521,7 +1522,7 @@ export default function CashCounter() {
       setSuccess(
         `Payment received successfully — ${
           receipt.entry_no
-        }. Amount: Rs. ${money(
+        }. Amount: ${currentCurrency()} ${money(
           receipt.amount
         )}.`
       );
@@ -1978,7 +1979,7 @@ export default function CashCounter() {
                         {
                           invoice.order_no
                         }{" "}
-                        — Outstanding Rs.{" "}
+                        — Outstanding {currentCurrency()}{" "}
                         {money(
                           invoice.outstanding_amount
                         )}
@@ -1995,7 +1996,7 @@ export default function CashCounter() {
                         Invoice Total
                       </div>
                       <div className="mt-0.5 text-sm font-bold text-slate-800">
-                        Rs.{" "}
+                        {currentCurrency()}{" "}
                         {money(
                           selectedInvoice.total
                         )}
@@ -2007,7 +2008,7 @@ export default function CashCounter() {
                         Paid
                       </div>
                       <div className="mt-0.5 text-sm font-bold text-slate-800">
-                        Rs.{" "}
+                        {currentCurrency()}{" "}
                         {money(
                           selectedInvoice.paid_amount
                         )}
@@ -2019,7 +2020,7 @@ export default function CashCounter() {
                         Outstanding
                       </div>
                       <div className="mt-0.5 text-sm font-bold text-amber-800">
-                        Rs.{" "}
+                        {currentCurrency()}{" "}
                         {money(
                           selectedInvoice.outstanding_amount
                         )}
@@ -2160,7 +2161,7 @@ export default function CashCounter() {
                     Amount to Post
                   </div>
                   <div className="mt-1 text-2xl font-extrabold text-slate-900">
-                    Rs.{" "}
+                    {currentCurrency()}{" "}
                     {money(
                       amountNumber
                     )}
@@ -2172,7 +2173,7 @@ export default function CashCounter() {
                     Allocation
                   </div>
                   <div className="mt-1 font-bold text-emerald-700">
-                    Rs.{" "}
+                    {currentCurrency()}{" "}
                     {money(
                       paymentType ===
                         "advance"

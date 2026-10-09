@@ -52,7 +52,7 @@ const REPORT_MODULE:Record<string,string>={
  "/reports/gate-pass":"production"
 };
 function unique(rows:any[],key?:string){return key?Array.from(new Set(rows.map(r=>String(r[key]??"")).filter(Boolean))).sort():[]}
-function show(v:any,k?:Kind){if(v===null||v===undefined||v===""){if(k==="money")return formatCurrency(0);if(k==="percent")return "0.00%";if(k==="number")return "0";return "—"}if(k==="money")return formatCurrency(n(v));if(k==="percent")return `${n(v).toFixed(2)}%`;if(k==="number")return n(v).toLocaleString();if(k==="date")return formatDate(String(v));return String(v)}
+function show(v:any,k?:Kind){if(v===null||v===undefined||v==="")return "—";if(k==="money")return formatCurrency(n(v));if(k==="percent")return `${n(v).toFixed(2)}%`;if(k==="number")return n(v).toLocaleString();if(k==="date")return formatDate(String(v));return String(v)}
 type SavedReportView={name:string;filters:{q:string;from:string;to:string;party:string;item:string;category:string;status:string;groupBy:string;range:string;inventoryView?:string;godown?:string}};
 function localDate(date:Date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`}
 export default function Reports(){
