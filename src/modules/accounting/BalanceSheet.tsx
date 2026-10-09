@@ -1,6 +1,7 @@
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
+import {driverSalaryPosition} from '@/lib/driverSalaryBalance';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -207,6 +208,9 @@ export default function BalanceSheet() {
       return;
     }
 
+    const salaryLinks=await fetchAllPages<any>((a,b)=>supabase.from('driver_salary_accounts').select('account_id,employees(name)').order('account_id').range(a,b)).catch((err)=>{setError(err.message);return null;});
+    if(salaryLinks===null){setLoading(false);return;}
+    const salaryNames=new Map<string,string>(salaryLinks.map(s=>[s.account_id,`${s.employees?.name||'Driver'} Salary Balance`]));
     const accounts = accountsRes;
     const ledgerLines = ledgerRes;
 
@@ -260,7 +264,7 @@ export default function BalanceSheet() {
               : null;
       const displayName = balanceSheetAccountName(meta.type, meta.name, meta.detailType);
 
-      if (target && !meta.isGroup && meta.allowManualEntries && meta.isActive && !target[displayName]) {
+      if (target && !salaryNames.has(acc.id) && !meta.isGroup && meta.allowManualEntries && meta.isActive && !target[displayName]) {
         target[displayName] = {
           amount: 0,
           parentHead: meta.parentHead,
@@ -277,6 +281,14 @@ export default function BalanceSheet() {
       const debit = Number(line.debit ?? 0);
       const credit = Number(line.credit ?? 0);
       const accountName = balanceSheetAccountName(meta.type, meta.name, meta.detailType);
+
+      if(salaryNames.has(line.account_id)){
+        const name=salaryNames.get(line.account_id)!;
+        const position=driverSalaryPosition(credit-debit);
+        if(position.advance)assetMap[name]={amount:position.advance,parentHead:'Current Assets',detailType:'Driver Salary Advance'};
+        else if(position.payable)liabilityMap[name]={amount:position.payable,parentHead:'Current Liabilities',detailType:'Driver Salary Payable'};
+        return;
+      }
 
       if (type === "asset") {
         const net = debit - credit;
