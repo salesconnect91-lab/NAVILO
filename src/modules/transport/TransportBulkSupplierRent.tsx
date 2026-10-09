@@ -1,4 +1,5 @@
 import NaviloSearchableSelect from "@/components/SearchableSelect";
+import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
 import TransportVatPreview from './TransportVatPreview';
 import './transportBulkRateLayout.css';
 import {useEffect,useMemo,useRef,useState} from 'react';
@@ -14,7 +15,7 @@ import {financialNumber} from './transportFinancialTypes';
 import TransportSupplierCharges from './TransportSupplierCharges';
 import {SUPPLIER_RATE_REASON_OPTIONS} from './transportRateReasons';
 
-type Row={invoice_no?:string|null;id:string;party_id?:string;trip_id?:string;posted?:boolean;legacyBlocked?:boolean;trip_no:string;trip_date:string;trip_status?:string|null;financial_status?:string|null;customer_name?:string|null;vehicle_no?:string|null;driver_name?:string|null;from_location?:string|null;to_location?:string|null;po_do_job_no?:string|null;owner_name?:string|null;supplier_rent?:number|null;owner_rent?:number|null;billed_supplier_net?:number|null;supplier_charges?:number|null;supplier_charge_names?:string|null};
+type Row={invoice_no?:string|null;id:string;party_id?:string;trip_id?:string;posted?:boolean;legacyBlocked?:boolean;trip_no:string;trip_date:string;trip_status?:string|null;financial_status?:string|null;customer_name?:string|null;vehicle_no?:string|null;truck_type_name?:string|null;truck_type?:string|null;driver_name?:string|null;from_location?:string|null;to_location?:string|null;po_do_job_no?:string|null;owner_name?:string|null;supplier_rent?:number|null;owner_rent?:number|null;billed_supplier_net?:number|null;supplier_charges?:number|null;supplier_charge_names?:string|null};
 type LegacyRent={id:string;rent_state?:string|null;rent_finalized_at?:string|null};
 type Supplier={id:string;name:string;is_active:boolean};
 type Rent={id:string;trip_id:string;supplier_id:string;amount:number;base_amount?:number|null;state?:string;finalized_amount_snapshot?:number|null};
@@ -167,7 +168,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
   <section ref={compactDialog} role="dialog" aria-modal="true" aria-labelledby="supplier-rate-title" className="w-full max-w-sm rounded bg-white p-4 text-sm shadow-xl">
    <h2 id="supplier-rate-title" className="font-semibold">{singlePosted?'Posted':'Update'} Supplier Rate · {singleRow?.trip_no||''}</h2>
    {loading?<p role="status">Loading supplier rate…</p>:singleRow?<>
-    <p className="my-2 text-xs text-slate-600">{singleRow.customer_name}<br/>{singleRow.from_location} → {singleRow.to_location}<br/>{singleRow.vehicle_no} · {singleRow.owner_name}</p>
+    <p className="my-2 text-xs text-slate-600">{singleRow.customer_name}<br/>{singleRow.from_location} → {singleRow.to_location}<br/>{vehicleDisplayLabel(singleRow.vehicle_no,singleRow.truck_type_name??singleRow.truck_type)} · {singleRow.owner_name}</p>
     {singleRows.length>1&&<label className="block text-xs font-semibold">Supplier rent<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" disabled={busy} value={singleRow.id} onChange={e=>{setSingleRowKey(e.target.value);setSingleCorrectionMode(false);setSingleConfirmFinancialPost(false);setCompactReasonPreset('');setReason('');setError('')}}>{singleRows.map(r=><option key={r.id} value={r.id}>{r.owner_name} · {financialNumber(r.billed_supplier_net??r.supplier_rent)}</option>)}</NaviloSearchableSelect></label>}
     <label className="block text-xs font-semibold">Supplier rate excluding VAT<input autoFocus className="input mt-1 w-full" type="number" min="0" step="0.01" disabled={busy||singleBlocked||(singlePosted&&!singleCorrectionMode)} value={singleAmount} onChange={e=>setAmounts(v=>({...v,[singleRow.id]:e.target.value}))}/></label>
     {singlePosted&&singleCorrectionMode&&<label className="mt-2 block text-xs font-semibold">Correction Date<NaviloDateInput className="input mt-1 w-full" type="date" disabled={busy} value={date} onChange={e=>setDate(e.target.value)}/></label>}
