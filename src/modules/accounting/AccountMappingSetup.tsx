@@ -36,7 +36,7 @@ const MAPPING_GROUPS: Array<{
   {
     title: "Cost & Operating Expenses",
     subtitle: "Cost of sales and regular business expense accounts.",
-    keys: ["cogs", "salaries", "driver_pay_expense", "rent", "utilities", "transport_expense", "general_expense"],
+    keys: ["cogs", "salary_expense", "driver_pay_expense", "rent_expense", "utilities_expense", "transport_expense", "general_expense"],
   },
 ];
 

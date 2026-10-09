@@ -67,7 +67,7 @@ type Trip=FinancialTrip & {
 
 const tabs:{key:Tab;label:string;icon:any}[]=[
   {key:"trips",label:"Trips",icon:Route},{key:"new",label:"New Trip",icon:Plus},{key:"mobile",label:"Mobile Quick Entry",icon:Search},{key:"audit",label:"Trip Audit",icon:History},
-  {key:"driver-expenses",label:"Driver Expense Upload",icon:ReceiptText},{key:"driver-account",label:"Driver Ledger",icon:UserRound},
+  {key:"driver-expenses",label:"Trip / Vehicle Expense Upload",icon:ReceiptText},{key:"driver-account",label:"Driver Ledger",icon:UserRound},
   {key:"vehicle-account",label:"Company Vehicle Ledger",icon:Truck},
 ];
 
@@ -3040,30 +3040,5 @@ function FilterSelect({label,value,setValue,all,options}:{label:string;value:str
 function SimplePanel({title,text}:{title:string;text:string}){return <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-base font-bold text-slate-950">{title}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{text}</p></section>}
 
 function TransportAccountRows({title,kind}:{title:string;kind:'driver'|'vehicle'}){
- const {activeCompany,activeBusinessUnit}=useAuth();
- const [search,setSearch]=useState(''),[page,setPage]=useState(0),[filtered,setRows]=useState<Trip[]>([]),[count,setCount]=useState(0),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const [revision,setRevision]=useState(0);
- const scope=`${activeCompany?.company_id}/${activeBusinessUnit?.business_unit_id}`;
- useEffect(()=>{setPage(0);setSearch('');},[scope]);
- useEffect(()=>{setPage(0);},[search]);
- useEffect(()=>{let live=true;setBusy(true);setRows([]);const timer=window.setTimeout(()=>void (async()=>{
-  try{
-    // A vehicle/driver account can legitimately have historical opening entries
-    // before any operational Trip exists. Avoid an expensive register projection
-    // and its finance joins for this empty-trip case.
-    const probe=await supabase.from('transport_trips').select('id')
-      .eq('company_id',activeCompany?.company_id)
-      .eq('business_unit_id',activeBusinessUnit?.business_unit_id)
-      .range(0,0);
-    if(!live)return;
-    if(probe.error)throw probe.error;
-    if((probe.data??[]).length===0){setRows([]);setCount(0);setError('');return;}
-    const r=await supabase.rpc('transport_register_query',{p_limit:500,p_offset:page*500,p_filters:{search}});
-    if(!live)return;
-    if(r.error)throw r.error;
-    setRows(r.data.rows);setCount(r.data.count);setError('');
-   }catch(e:any){if(live)setError(e.message);}finally{if(live)setBusy(false);}
- })(),200);return()=>{live=false;window.clearTimeout(timer)};},[scope,search,page,revision]);
- return <section className="rounded-lg border bg-white p-3"><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">{title}</h2><input aria-label={`Search ${title}`} className="input" placeholder="Trip / driver / vehicle" value={search} onChange={e=>setSearch(e.target.value)}/></div>
- <TransportAccountStatement kind={kind} onChanged={()=>setRevision(r=>r+1)}/>{error&&<p role="alert">{error}</p>}<div className="overflow-auto"><table className="w-full text-xs"><thead><tr><th className="text-left">Trip</th><th className="text-left">{kind==='driver'?'Driver':'Current vehicle / owner'}</th><th>Status</th><th>Accrued / Billed</th><th>Paid</th><th>Outstanding</th><th>Posted Trip profit</th></tr></thead><tbody>{filtered.map(r=><tr className="border-t" key={r.id}><td><span className="font-semibold text-blue-700">{r.trip_no}</span></td><td>{kind==='driver'?r.driver_name:`${vehicleDisplayLabel(r.vehicle_no,r.truck_type)} / ${r.owner_name??''}`}</td><td>{r.financial_status}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_accrued:r.billed_supplier_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_paid:r.supplier_paid_net)}</td><td className="text-right">{financialNumber(kind==='driver'?r.driver_outstanding:Number(r.supplier_outstanding_gross??0)-Number(r.supplier_credit_gross??0))}</td><td className="text-right">{financialNumber(r.trip_profit)}</td></tr>)}</tbody></table></div><TransportPagination page={page} pageSize={500} count={count} busy={busy} onPage={setPage}/></section>;
+ return <section className="rounded-lg border bg-white p-3"><h2 className="text-sm font-semibold">{title}</h2><TransportAccountStatement kind={kind}/></section>;
 }

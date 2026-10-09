@@ -26,7 +26,7 @@ const navigation:NavNode[]=[
     {key:"transport-trips-register",to:"/transport?view=trips",label:"Trips",module:"transport"},
     {key:"transport-mobile-quick-entry",to:"/transport/mobile",label:"Mobile Quick Entry",module:"transport"},
     {key:"transport-audit",to:"/transport?view=audit",label:"Trip Audit",module:"transport"},
-    {key:"transport-driver-expenses",to:"/transport?view=driver-expenses",label:"Driver Expense Upload",module:"transport"},
+    {key:"transport-driver-expenses",to:"/transport?view=driver-expenses",label:"Trip / Vehicle Expense Upload",module:"transport"},
     {key:"transport-driver-account",to:"/transport?view=driver-account",label:"Driver Ledger",module:"transport"},
     {key:"transport-vehicle-account",to:"/transport?view=vehicle-account",label:"Company Vehicle Ledger",module:"transport"},
     {key:"transport-party-reports",label:"Reports & Allocation",module:"transport",children:[
@@ -68,7 +68,7 @@ const navigation:NavNode[]=[
   {key:"settings",label:"Settings / سیٹنگز",icon:Lucide.Settings,module:"settings",children:[
     {key:"company-settings",to:"/settings",label:"Company / کمپنی",end:true,module:"settings"},
     {key:"import-center",to:"/settings/imports",label:"Import Center / امپورٹ سینٹر",module:"settings"},
-    {key:"transport-profit-distribution",to:"/settings/profit-distribution",label:"Profit Distribution",module:"settings",requiresModule:"transport",businessType:"transport",accessAdminOnly:true},
+    {key:"transport-profit-distribution",to:"/settings/profit-distribution",label:"Profit Closing Guide",module:"settings",requiresModule:"transport",businessType:"transport",accessAdminOnly:true},
     {key:"access-settings",to:"/settings/access",label:"Users & Branches / یوزرز اور برانچز",module:"settings",accessAdminOnly:true},
     {key:"licence-settings",to:"/settings/licence",label:"Licence & Billing / لائسنس",module:"settings",accessAdminOnly:true},
     {key:"approval-settings",to:"/settings/approvals",label:"Approval Workflows / منظوری کے مراحل",module:"settings",accessAdminOnly:true},
@@ -100,6 +100,7 @@ function matches(n:NavNode,path:string):boolean {
 function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],unitType:string|undefined,permissions:PermissionMatrix|undefined,isFeatureEnabled:(key:string)=>boolean):NavNode|null{
   if(unitType === "transport" && (n.key === "sales-consolidated" || n.key === "purchase-consolidated"))return null;
   if(n.key === "transporters" && unitType === "transport" && mods.includes("transport"))return null;
+  if(unitType === "transport" && ['transport-customer-reporting','transport-supplier-reporting','transport-driver-reporting','transport-vehicle-reporting'].includes(n.key))return null;
   if(n.ownerOnly&&!owner)return null;
   if(n.accessAdminOnly&&!owner&&role!=="company_owner"&&role!=="admin")return null;
   if(n.steelOnly&&unitType&&unitType!=="steel")return null;

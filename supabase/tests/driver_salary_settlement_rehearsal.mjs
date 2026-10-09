@@ -99,4 +99,10 @@ for(const table of ['employees','ledgers','journal_entries'])await db.exec(`alte
 await db.exec('grant usage on schema auth to authenticated;set role authenticated');
 assert.equal(Number(await scalar('select count(*) from driver_salary_accounts')),3);
 await db.exec("set test.company='00000000-0000-0000-0000-000000000099'");assert.equal(Number(await scalar('select count(*) from driver_salary_accounts')),0);assert.equal(Number(await scalar('select count(*) from driver_salary_account_movements')),0);
-await db.exec('reset role');await db.close();console.log('Driver salary rehearsal PASS: opening linkage/idempotency, basic + trip earnings, advance→payable→settled→advance, post-lock payments, roll-forward, no duplicate accrual, per-driver balances, legacy dispatch and tenant isolation.');
+await db.exec('reset role');await db.exec(readFileSync(new URL('../migrations/20261009135235_transport_driver_month_end_guard.sql',import.meta.url),'utf8'));
+const beforeGuard=await db.query('select count(*)::integer n from journal_entries');
+await assert.rejects(()=>db.query(`select transport_driver_post_month('${waqas}',date_trunc('month',current_date)::date)`),/month must finish/);
+await assert.rejects(()=>db.query(`select transport_driver_post_month('${waqas}',(date_trunc('month',current_date)+interval '1 month')::date)`),/month must finish/);
+assert.equal((await db.query('select count(*)::integer n from journal_entries')).rows[0].n,beforeGuard.rows[0].n);
+console.log('PASS current/future month guard; no journal created');
+await db.close();console.log('Driver salary rehearsal PASS: opening linkage/idempotency, basic + trip earnings, advance→payable→settled→advance, post-lock payments, roll-forward, no duplicate accrual, per-driver balances, legacy dispatch and tenant isolation.');
