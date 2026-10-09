@@ -16,6 +16,7 @@ import {
 import * as XLSX from "xlsx";
 
 import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 
 import {
   JournalEntry,
@@ -291,22 +292,17 @@ export default function JournalEntryDetail() {
 
   const fetchAccounts = useCallback(
     async () => {
-      const { data, error } =
-        await supabase
+      // A single PostgREST request is capped; fetch all COA rows with stable
+      // ordering, including group/inactive rows for an accurate exclusion count.
+      const data = await fetchAllPages<ChartOfAccount>((start, end) =>
+        supabase
           .from("chart_of_accounts")
           .select("*")
-          .eq("is_active", true)
-          .order("code", {
-            ascending: true,
-          });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      setAccounts(
-        (data ?? []) as ChartOfAccount[]
+          .order("code", { ascending: true })
+          .order("id", { ascending: true })
+          .range(start, end)
       );
+      setAccounts(data);
     },
     []
   );
@@ -410,6 +406,7 @@ export default function JournalEntryDetail() {
         !account.is_group &&
         account.allow_manual_entries
     );
+  const journalExcludedAccounts = accounts.length - postingAccounts.length;
 
   const customerAccountIds =
     new Set(
@@ -2469,6 +2466,12 @@ export default function JournalEntryDetail() {
                 </button>
               </div>
 
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                <span>{postingAccounts.length} posting accounts available{journalExcludedAccounts > 0 ? ` · ${journalExcludedAccounts} group/inactive/non-posting accounts excluded` : ""}. Search by GL code, name or type.</span>
+                <button type="button" className="rounded border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50" data-navilo-keep-local-action="true" onClick={() => { void fetchAccounts().catch((e:unknown) => setError(e instanceof Error ? e.message : "Unable to refresh Chart of Accounts.")); }}>
+                  Refresh Accounts
+                </button>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1150px] text-sm">
                   <thead>
@@ -2544,7 +2547,7 @@ export default function JournalEntryDetail() {
                                         account.id
                                       }
                                     >
-                                      {account.name} ({account.type})
+                                      {account.code} · {account.name} ({account.type})
                                     </option>
                                   )
                                 )}
