@@ -37,7 +37,7 @@ export default function TransportVehicleMonthlyProfitHistory({onLinked}:{onLinke
         });
         if(!mounted)return;
         if(failure)throw failure;
-        setRows((data??[]) as ProfitRow[]);
+        setRows(Array.isArray(data)?data as ProfitRow[]:[]);
       }catch(failure:unknown){
         if(mounted)setError(failure instanceof Error?failure.message:String(failure));
       }finally{if(mounted)setLoading(false)}
