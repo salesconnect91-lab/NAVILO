@@ -12,9 +12,7 @@ BEGIN
     SELECT NULLIF(btrim(jl.description), '') INTO v_description
       FROM public.journal_lines jl
      WHERE jl.id = NEW.journal_line_id
-       AND jl.entry_id = NEW.journal_entry_id
-       AND jl.company_id = NEW.company_id
-       AND jl.business_unit_id = NEW.business_unit_id;
+       AND jl.entry_id = NEW.journal_entry_id;
     IF v_description IS NOT NULL THEN
       NEW.description := v_description;
     END IF;
