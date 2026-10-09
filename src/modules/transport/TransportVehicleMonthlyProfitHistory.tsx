@@ -18,14 +18,15 @@ const monthName=(iso:string)=>new Date(iso+'T00:00:00Z').toLocaleDateString('en-
  * contributions. The server suppresses overlapping operating profit when an
  * authoritative historical opening snapshot exists for a vehicle/month.
  */
-export default function TransportVehicleMonthlyProfitHistory({onLinked}:{onLinked?:()=>void}){
+export default function TransportVehicleMonthlyProfitHistory({onLinked,reportFrom,reportTo,readOnly=false}:{onLinked?:()=>void;reportFrom?:string;reportTo?:string;readOnly?:boolean}){
   const {activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role;
   const canImport=isPlatformOwner||role==='company_owner'||role==='admin';
   const [pending,setPending]=useState<{id:string;vehicle_no:string;truck_type_name:string;net_profit:number|string}[]>([]);
   const [vehicleTypes,setVehicleTypes]=useState<Record<string,string>>({});
   const [importing,setImporting]=useState(false),[importNotice,setImportNotice]=useState('');
-  const [from,setFrom]=useState(''),[to,setTo]=useState('');
+  const [selectedFrom,setFrom]=useState(''),[selectedTo,setTo]=useState('');
+  const from=reportFrom?.slice(0,7)??selectedFrom,to=reportTo?.slice(0,7)??selectedTo;
   const [version,setVersion]=useState(0);
   const [rows,setRows]=useState<ProfitRow[]>([]);
   const [loading,setLoading]=useState(false),[error,setError]=useState('');
@@ -108,21 +109,22 @@ export default function TransportVehicleMonthlyProfitHistory({onLinked}:{onLinke
 
   return <section className="rounded-lg border border-slate-200 bg-white p-3 text-[12px]" aria-label="Monthly company-owned vehicle profit history">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div><h3 className="text-sm font-bold">Company Vehicles · Monthly Profit History</h3>
+      <div><h3 className="text-sm font-bold">Company Vehicles · Monthly Income, Expenses & Profit</h3>
         <p className="text-slate-600">One row per owned vehicle/month. August cutover profit is linked to its existing posted journal; later months use posted vehicle revenue and costs.</p>
       </div>
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="grid gap-1">From month<input aria-label="Vehicle profit from month" className="input h-8 text-xs" type="month" value={from} onChange={e=>setFrom(e.target.value)}/></label>
-        <label className="grid gap-1">To month<input aria-label="Vehicle profit to month" className="input h-8 text-xs" type="month" value={to} onChange={e=>setTo(e.target.value)}/></label>
+      <div className="no-print flex flex-wrap items-end gap-2">
+        {!readOnly&&<><label className="grid gap-1">From month<input aria-label="Vehicle profit from month" className="input h-8 text-xs" type="month" value={from} onChange={e=>setFrom(e.target.value)}/></label>
+        <label className="grid gap-1">To month<input aria-label="Vehicle profit to month" className="input h-8 text-xs" type="month" value={to} onChange={e=>setTo(e.target.value)}/></label></>}
         <button className="btn btn-secondary h-8 text-xs" onClick={()=>setVersion(x=>x+1)} disabled={loading}>Refresh</button>
       </div>
     </div>
     {pending.length>0&&<div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded border border-amber-200 bg-amber-50 p-2">
       <p className="text-amber-900"><strong>{pending.length} owner-confirmed company vehicle(s)</strong>: {pending.map(v=>vehicleDisplayLabel(v.vehicle_no,v.truck_type_name)).join(', ')}. Awaiting one-time master linking; posted opening journal will not be re-posted.</p>
-      {canImport&&<button className="btn btn-primary text-xs" disabled={importing} onClick={()=>void linkApprovedOpening()}>{importing?'Linking…':'Link Company Vehicles & Opening Profit'}</button>}
+      {canImport&&!readOnly&&<button className="btn btn-primary text-xs" disabled={importing} onClick={()=>void linkApprovedOpening()}>{importing?'Linking…':'Link Company Vehicles & Opening Profit'}</button>}
     </div>}
     {importNotice&&<p role="status" className="mt-2 text-emerald-700">{importNotice}</p>}
-    <p className="mt-2 text-slate-500">Net profit is analytical history, not a cash balance or new journal. Owner/partner transfers must be posted as separate approved journals. If historical opening and posted activity overlap, the opening NET is counted once.</p>
+    <p className="mt-2 text-slate-500">Income less expenses gives net profit. Partner distribution transfers net profit once and preserves this history. Historical opening NET is already after expenses; its original income and expense breakdown is unavailable and is not assumed to be zero.</p>
+    {readOnly&&<p className="mt-2 text-slate-500">Full calendar months shown. Opening history covers the active Transport business unit; operational income and expenses cover the active branch. Historical opening results are carried in equity and are not added to the operational P&amp;L totals.</p>}
     {from&&to&&from>to?<p role="alert" className="mt-2 text-red-700">From month must not follow To month.</p>:
     error?<p role="alert" className="mt-2 text-red-700">{error}</p>:
     loading?<p role="status" className="mt-2">Loading monthly vehicle history…</p>:
@@ -132,7 +134,7 @@ export default function TransportVehicleMonthlyProfitHistory({onLinked}:{onLinke
         <thead className="bg-slate-100 text-slate-700"><tr>
           <th className="p-2">Month</th><th className="p-2">Company Vehicle</th>
           <th className="p-2 text-right">Historical Opening NET</th>
-          <th className="p-2 text-right">Posted Revenue</th><th className="p-2 text-right">Posted Cost</th>
+          <th className="p-2 text-right">Income</th><th className="p-2 text-right">Expenses</th>
           <th className="p-2 text-right">Monthly Profit / (Loss)</th><th className="p-2">Basis</th>
         </tr></thead>
         <tbody>
@@ -140,17 +142,17 @@ export default function TransportVehicleMonthlyProfitHistory({onLinked}:{onLinke
             {items.map(r=><tr key={month+':'+r.vehicle_id} className="border-b border-slate-100">
               <td className="p-2">{monthName(month)}</td><td className="p-2 font-semibold">{vehicleDisplayLabel(r.vehicle_no,vehicleTypes[r.vehicle_id])}</td>
               <td className="p-2 text-right">{r.source_kind==='historical_opening'?amount(Number(r.historical_net)):'—'}</td>
-              <td className="p-2 text-right">{amount(Number(r.posted_revenue))}</td>
-              <td className="p-2 text-right">{amount(Number(r.posted_cost))}</td>
+              <td className="p-2 text-right">{r.source_kind==='historical_opening'?'—':amount(Number(r.posted_revenue))}</td>
+              <td className="p-2 text-right">{r.source_kind==='historical_opening'?'—':amount(Number(r.posted_cost))}</td>
               <td className={'p-2 text-right font-semibold '+(Number(r.net_profit)<0?'text-red-700':'')}>{amount(Number(r.net_profit))}</td>
               <td className="p-2">{r.source_kind==='historical_opening'?'Posted opening journal':'Posted operations'}</td>
             </tr>)}
             <tr key={month+':total'} className="border-b border-slate-200 bg-slate-50 font-bold">
               <td className="p-2">{monthName(month)}</td><td className="p-2">Fleet total</td>
               <td className="p-2 text-right">{amount(items.reduce((sum,r)=>sum+(r.source_kind==='historical_opening'?Number(r.historical_net):0),0))}</td>
-              <td className="p-2 text-right">{amount(items.reduce((sum,r)=>sum+Number(r.posted_revenue),0))}</td>
-              <td className="p-2 text-right">{amount(items.reduce((sum,r)=>sum+Number(r.posted_cost),0))}</td>
-              <td className="p-2 text-right">{amount(items.reduce((sum,r)=>sum+Number(r.net_profit),0))}</td><td className="p-2">Historical result</td>
+              <td className="p-2 text-right">{items.some(r=>r.source_kind==='historical_opening')?'—':amount(items.reduce((sum,r)=>sum+Number(r.posted_revenue),0))}</td>
+              <td className="p-2 text-right">{items.some(r=>r.source_kind==='historical_opening')?'—':amount(items.reduce((sum,r)=>sum+Number(r.posted_cost),0))}</td>
+              <td className="p-2 text-right">{amount(items.reduce((sum,r)=>sum+Number(r.net_profit),0))}</td><td className="p-2">Monthly result</td>
             </tr>
           </Fragment>)}
         </tbody>

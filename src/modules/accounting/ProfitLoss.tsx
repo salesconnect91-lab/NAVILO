@@ -1,3 +1,5 @@
+import TransportVehicleMonthlyProfitHistory from '../transport/TransportVehicleMonthlyProfitHistory';
+import {useAuth} from '@/auth/AuthContext';
 import TransportContributionSummary from '../transport/TransportContributionSummary';
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
@@ -144,6 +146,7 @@ function ResultRow({ label, amount, prominent = false }: { label: string; amount
 }
 
 export default function ProfitLoss() {
+  const {activeBusinessUnit}=useAuth();
   const [data, setData] = useState<PLData>(emptyPLData);
   const [fromDate, setFromDate] = useState(getYearStart);
   const [toDate, setToDate] = useState(getLocalToday);
@@ -362,7 +365,7 @@ export default function ProfitLoss() {
           <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-slate-400 shadow-sm">Loading Profit & Loss statement...</div>
         ) : (
           <>
-            <TransportContributionSummary from={fromDate} to={toDate}/><details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...printSectionRows('Operating Revenue',data.operatingRevenue),...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...printSectionRows('Other Income',data.otherIncome),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {activeBusinessUnit?.business_unit_type==='transport'&&<TransportVehicleMonthlyProfitHistory reportFrom={fromDate} reportTo={toDate} readOnly/>}<details className="no-print"><summary className="cursor-pointer text-xs font-semibold">Ownership comparison</summary><TransportContributionSummary from={fromDate} to={toDate}/></details><details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...printSectionRows('Operating Revenue',data.operatingRevenue),...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...printSectionRows('Other Income',data.otherIncome),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {([
                 ["Revenue", data.operatingRevenue.total, "text-emerald-700"],
                 ["Cost of Sales", data.costOfSales.total, "text-rose-700"],
