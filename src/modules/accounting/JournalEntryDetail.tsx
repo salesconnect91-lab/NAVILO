@@ -183,8 +183,6 @@ export default function JournalEntryDetail() {
 
   const [entry, setEntry] =
     useState<JournalEntry | null>(null);
-  const [journalDescription,setJournalDescription]=useState("");
-  const [savingDescription,setSavingDescription]=useState(false);
   const [companyBaseCurrency, setCompanyBaseCurrency] = useState("");
 
   const [lines, setLines] =
@@ -260,7 +258,6 @@ export default function JournalEntryDetail() {
       setEntry(
         data as JournalEntry | null
       );
-      setJournalDescription(data?.description ?? "");
       if (data?.company_id) {
         const { data: company } = await supabase.from("companies")
           .select("base_currency_code").eq("id", data.company_id).maybeSingle();
@@ -2145,7 +2142,7 @@ export default function JournalEntryDetail() {
             />
           </div>
 
-          {isPosted ? <p className="text-sm text-slate-500 mt-1">{entry.description || "No description provided for this entry."}</p> : <div className="mt-2 flex flex-wrap items-end gap-2"><label className="min-w-64 flex-1 text-xs font-semibold text-slate-600">Journal Description / Narration<input aria-label="Journal Description" className="input mt-1 w-full text-sm" value={journalDescription} onChange={e=>setJournalDescription(e.target.value)} placeholder="Enter narration for the journal and its ledger reports..." maxLength={1000}/></label><button type="button" className="btn-secondary text-xs" disabled={savingDescription || saving || posting} onClick={async()=>{if(!id||entry.status==="posted")return;setSavingDescription(true);setError(null);try{const {data,error}=await supabase.from("journal_entries").update({description:journalDescription.trim()||null}).eq("id",id).eq("status","draft").select("id,description").single();if(error)throw error;setEntry(previous=>previous?{...previous,description:data.description}:previous);setSuccess("Journal description saved. It will appear in journal and ledger reports.");}catch(e:any){setError(e?.message||"Unable to save journal description.");}finally{setSavingDescription(false)}}}>{savingDescription?"Saving...":"Save Description"}</button></div>}
+          {entry.description && <p className="text-sm text-slate-500 mt-1">{entry.description}</p>}
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
