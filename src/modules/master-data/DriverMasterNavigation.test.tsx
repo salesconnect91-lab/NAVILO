@@ -15,6 +15,7 @@ vi.mock('./useTransportMasterClient',()=>({default:()=>client}));
 vi.mock('@/lib/supabase',()=>({supabase:{}}));
 afterEach(cleanup);beforeEach(()=>{mock.businessType='transport';mock.driver.mockReset();mock.account.mockReset()});
 describe('Driver management lives under its owner master',()=>{
+ it('uses English tax guidance in the Transport Supplier form',async()=>{render(<MemoryRouter><Suppliers/></MemoryRouter>);fireEvent.click(await screen.findByRole('button',{name:/New Supplier/}));expect(screen.getByText('Tax registration numbers are not required for an unregistered Supplier. CNIC is optional.')).toBeTruthy();expect(screen.queryByText('Unregistered supplier ke liye STRN/NTN required nahi; CNIC optional hai.')).toBeNull();expect(screen.queryByLabelText('Urdu Name')).toBeNull()});
  it('opens Supplier drivers with only the selected Supplier context',async()=>{
   render(<MemoryRouter><Suppliers/></MemoryRouter>);fireEvent.click(await screen.findByRole('button',{name:'Drivers'}));
   expect(screen.getByText('Scoped Driver Details')).toBeTruthy();expect(mock.driver).toHaveBeenLastCalledWith(expect.objectContaining({kind:'drivers',supplierOwner:{id:'s',name:'Supplier One'}}));

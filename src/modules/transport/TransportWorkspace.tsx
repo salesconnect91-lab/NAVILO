@@ -340,6 +340,7 @@ export default function TransportWorkspace(){
 
   const selectedVehicle=tripMasters.vehicles.find(v=>v.id===form.vehicle_id);
   const selectedDriver=tripMasters.drivers.find(d=>d.id===form.driver_id);
+  const companyDriverPay=selectedDriver?.driver_type==="company"&&Boolean(selectedDriver?.employee_id)&&!selectedDriver?.supplier_id;
   const selectedOwnership=ownershipOnDate(tripMasters.ownership,form.vehicle_id,form.trip_date);
   const supplierOwned=selectedOwnership?.owner_type==='third_party';
   const ownerDisplay=selectedOwnership?.owner_name_snapshot||'';
@@ -824,7 +825,7 @@ export default function TransportWorkspace(){
         if(vehicle&&!owner)errors.push('Vehicle Ownership History must cover Trip Date');
         if(row.owner_supplier&&(!owner||masterKey(row.owner_supplier)!==masterKey(owner.owner_name_snapshot)))errors.push('Owner / Supplier does not match dated ownership');
         if(row.supplier_rent!==''&&owner?.owner_type!=='third_party')errors.push('Supplier Rent requires dated Supplier Owned Vehicle');
-        if(row.driver_pay!==''&&Number(row.driver_pay)>0&&!driver)errors.push('Driver Pay requires Driver');
+        if(row.driver_pay!==''&&Number(row.driver_pay)>0&&(!driver||driver.driver_type!=='company'||!driver.employee_id||driver.supplier_id))errors.push('Driver Pay requires a company driver linked to an Employee. Supplier driver payments belong to Supplier Rent.');
         const duplicateKey=tripImportIdentity(row,{customer:customer?.id,vehicle:vehicle?.id,driver:driver?.id,from:from?.id,to:to?.id});
         if(!allowRepeatJourneys&&seen.has(duplicateKey))errors.push('Duplicate row in upload file');seen.add(duplicateKey);
         return {...row,errors,payload:{trip_date:row.trip_date,customer_id:customer?.id,truck_type_id:truck?.id??vehicle?.truck_type_id??null,
@@ -1152,6 +1153,7 @@ export default function TransportWorkspace(){
     if(form.vehicle_id&&!selectedOwnership){setError('Vehicle Ownership History must cover Trip Date.');return}
     if(form.ppr_status==='received'&&(!form.ppr_received_by_employee_id||!form.ppr_received_date)){setError('PPR Received requires Employee and Date.');return}
     if(![form.customer_rate,form.supplier_rent,form.driver_pay].every(validMoney)){setError('Amounts must be nonnegative with at most two decimal places.');return}
+    if(Number(form.driver_pay)>0&&!companyDriverPay){setError('Driver Pay requires a company driver linked to an Employee. Supplier driver payments belong to Supplier Rent.');return;}
     submissionRef.current=true;setLoading(true);setError('');
     try{
       await submitTripRows([{trip_date:form.trip_date,customer_id:form.customer_id,truck_type_id:form.truck_type_id||null,
@@ -1161,7 +1163,7 @@ export default function TransportWorkspace(){
         ppr_received_by_employee_id:form.ppr_status==='received'?form.ppr_received_by_employee_id:null,
         customer_rate:entryPermissions.rate&&form.customer_rate!==''?Number(form.customer_rate):null,
         supplier_rent:supplierOwned&&form.supplier_rent!==''?Number(form.supplier_rent):null,
-        driver_pay:form.driver_pay!==''?Number(form.driver_pay):null,sale_type:form.sale_type,notes:form.notes||null}]);
+        driver_pay:companyDriverPay&&form.driver_pay!==''?Number(form.driver_pay):null,sale_type:form.sale_type,notes:form.notes||null}]);
       setForm(previous=>({...previous,customer_id:'',vehicle_id:'',driver_id:'',truck_type_id:'',from_location:'',to_location:'',
         customer_rate:'',supplier_rent:'',driver_pay:'',po_do_job_no:'',ppr_status:'pending',ppr_received_date:'',ppr_received_by_employee_id:'',ppr_attachment_path:'',sale_type:'',notes:''}));
       setRateTouched(false);setEditingTripId(null);
@@ -2329,7 +2331,7 @@ export default function TransportWorkspace(){
             options={tripMasters.drivers.map((r:any)=>({value:r.id,label:r.driver_name}))}
             placeholder="Search Driver"
             disabled={editingTripLocked}
-            onSelect={driverId=>{setError("");setForm({...form,driver_id:driverId})}}/>
+            onSelect={driverId=>{setError("");const driver=tripMasters.drivers.find(d=>d.id===driverId);setForm({...form,driver_id:driverId,driver_pay:driver?.driver_type==="company"&&driver.employee_id&&!driver.supplier_id?form.driver_pay:""})}}/>
         </TripField>
 
         <TripField label="Owner / Supplier" onAdd={!editingTripLocked&&canQuickAddMaster?()=>openQuickAdd('supplier'):undefined}>
@@ -2429,7 +2431,7 @@ export default function TransportWorkspace(){
         </TripField>
 
         <TripField label="Driver Pay">
-          <input aria-label="Driver Pay" type="number" min="0" step="0.01" readOnly={editingTripLocked||Boolean(editingTripId)||!entryPermissions.driver} value={form.driver_pay} onChange={e=>setForm({...form,driver_pay:e.target.value})} className="h-8 w-full border-0 px-2 text-right text-xs"/>
+          <input aria-label="Driver Pay" type="number" min="0" step="0.01" disabled={!companyDriverPay} title={companyDriverPay?"Company driver trip earning":"Supplier driver payments belong to Supplier Rent"} readOnly={editingTripLocked||Boolean(editingTripId)||!entryPermissions.driver} value={form.driver_pay} onChange={e=>setForm({...form,driver_pay:e.target.value})} className="h-8 w-full border-0 px-2 text-right text-xs"/>
         </TripField>
         <TripField label="Estimated Operational Margin">
           <input aria-label="Estimated Operational Margin" value={estimatedMargin(form.customer_rate,form.supplier_rent,form.driver_pay,supplierOwned)} readOnly className="h-8 w-full border-0 bg-slate-50 px-2 text-right text-xs font-semibold"/>

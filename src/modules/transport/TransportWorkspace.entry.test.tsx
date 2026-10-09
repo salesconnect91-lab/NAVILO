@@ -24,7 +24,7 @@ beforeEach(()=>{
  mock.tables={customers:[{id:'c1',name:'Customer',is_active:true}],suppliers:[{id:'s',name:'Supplier',is_active:true}],employees:[{id:'e',name:'Employee',is_active:true}],
  transport_truck_types:[{id:'tt',name:'Flatbed',is_active:true},{id:'tt2',name:'Tanker',is_active:true}],
  transport_locations:[{id:'f',name:'From',is_active:true},{id:'t',name:'To',is_active:true}],
- transport_drivers:[{id:'d',driver_name:'Driver',mobile:'12345',is_active:true},{id:'inactive',driver_name:'Inactive Driver',is_active:false}],
+ transport_drivers:[{id:'d',driver_name:'Driver',mobile:'12345',driver_type:'company',employee_id:'e',supplier_id:null,is_active:true},{id:'inactive',driver_name:'Inactive Driver',is_active:false}],
  transport_vehicles:[{id:'v',vehicle_no:'FLAT-1',truck_type_id:'tt',is_active:true},{id:'v2',vehicle_no:'TANK-1',truck_type_id:'tt2',is_active:true}],
  transport_vehicle_ownership:[{id:'old',vehicle_id:'v',owner_type:'third_party',supplier_id:'s',owner_name_snapshot:'Supplier',effective_from:'2020-01-01',effective_to:'2026-06-30'},
  {id:'current',vehicle_id:'v',owner_type:'company',supplier_id:null,owner_name_snapshot:'Company',effective_from:'2026-07-01',effective_to:null}]};
@@ -44,6 +44,7 @@ describe('New Trip master integration',()=>{
   expect((screen.getByLabelText('Trip Owner / Supplier') as HTMLInputElement).readOnly).toBe(true);
   fireEvent.change(screen.getByLabelText('Trip Date'),{target:{value:'2026-07-01'}});expect((screen.getByLabelText('Trip Owner / Supplier') as HTMLInputElement).value).toBe('Company');
  });
+ it('clears company Driver Pay when switching to a supplier driver and creates without salary earnings',async()=>{mock.tables.transport_drivers.push({id:'sd',driver_name:'Supplier Driver',driver_type:'supplier',supplier_id:'s',employee_id:null,is_active:true});await fill();choose('Search Driver','Driver');expect((screen.getByLabelText('Driver Pay') as HTMLInputElement).disabled).toBe(false);fireEvent.change(screen.getByLabelText('Driver Pay'),{target:{value:'100'}});choose('Search Driver','Supplier Driver');expect((screen.getByLabelText('Driver Pay') as HTMLInputElement).disabled).toBe(true);expect((screen.getByLabelText('Driver Pay') as HTMLInputElement).value).toBe('');fireEvent.click(screen.getByRole('button',{name:'Create Trip'}));await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_create_trips',expect.objectContaining({p_rows:[expect.objectContaining({driver_id:'sd',driver_pay:null})]})))});
  it('auto-displays Driver Mobile and excludes inactive Drivers',async()=>{
   await view();fireEvent.focus(screen.getByPlaceholderText('Search Driver'));expect(screen.queryByRole('button',{name:'Inactive Driver'})).toBeNull();
   fireEvent.mouseDown(screen.getByRole('button',{name:'Driver'}));expect((screen.getByLabelText('Driver Mobile') as HTMLInputElement).value).toBe('12345');expect((screen.getByLabelText('Driver Mobile') as HTMLInputElement).readOnly).toBe(true);
@@ -103,6 +104,7 @@ describe('New Trip master integration',()=>{
   const bytes=XLSX.write(wb,{bookType:'xlsx',type:'array'});const file=new File([bytes],'trip.xlsx');Object.defineProperty(file,'arrayBuffer',{value:async()=>bytes});
   fireEvent.change(screen.getByLabelText(/Select Transport Excel/),{target:{files:[file]}});await screen.findByText('trip.xlsx');
  }
+ it('rejects supplier-driver earnings in daily bulk before import',async()=>{mock.tables.transport_drivers[0]={...mock.tables.transport_drivers[0],driver_type:'supplier',employee_id:null,supplier_id:'s'};await upload();expect(screen.getByRole('button',{name:/Import Valid Rows/}).hasAttribute('disabled')).toBe(true);expect(screen.getByTitle(/Driver Pay requires a company driver/)).toBeTruthy();expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_import_trip_batch')).toBe(false)});
  it('rejects bulk invalid Cash/Credit and free-text Owner mismatch',async()=>{
   await upload('Other','Fake Owner');expect(screen.getByRole('button',{name:/Import Valid Rows/}).hasAttribute('disabled')).toBe(true);
   expect(screen.getByTitle(/Sale Type/).getAttribute('title')).toContain('Sale Type');expect(screen.getByTitle(/Sale Type/).getAttribute('title')).toContain('dated ownership');
