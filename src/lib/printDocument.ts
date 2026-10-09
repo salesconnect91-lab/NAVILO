@@ -52,6 +52,11 @@ export function escapePrintHtml(value: unknown) {
   return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 }
 
+/** Only report metadata is shortened; transaction notes and company terms are never passed here. */
+export function printReportDescription(description: string) {
+  return description.split(/ · |(?<=\.)\s+/).filter(part => !/canonical|totals cover|unposted agreed rates|vehicle and driver are current|allocations deleted|historical allocations|manual historical reconciliation|complete filter|trip filter is not applied|includes other modules|supplier positive balance|customer positive balance|not automatically a transport error|live document reconciliation uses|voucher totals are|reversals carry|full voucher opens|export includes|complete posted history|complete audit history|all posted vouchers in the active|current-state balances shown|historical snapshots are not fabricated/i.test(part)).map(part => part.trim()).filter(Boolean).join(' · ');
+}
+
 export function printTableMarkup(title: string, columns: string[], rows: unknown[][], description = '') {
-  return `<h2>${escapePrintHtml(title)}</h2>${description?`<p>${escapePrintHtml(description)}</p>`:''}<table><caption>${escapePrintHtml(title)}${description?` · ${escapePrintHtml(description)}`:''}</caption><thead><tr>${columns.map(column=>`<th>${escapePrintHtml(column)}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(row=>`<tr>${row.map(value=>`<td${typeof value==='number'?' class="text-right"':''}>${escapePrintHtml(typeof value==='number'?value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):value)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${columns.length}">No records for the selected filters.</td></tr>`}</tbody></table>`;
+  return `<h2>${escapePrintHtml(title)}</h2>${description?`<p data-print-description>${escapePrintHtml(printReportDescription(description))}</p>`:''}<table><caption>${escapePrintHtml(title)}</caption><thead><tr>${columns.map(column=>`<th>${escapePrintHtml(column)}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(row=>`<tr>${row.map(value=>`<td${typeof value==='number'?' class="text-right"':''}>${escapePrintHtml(typeof value==='number'?value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):value==='TOTAL · full filter'?'TOTAL':value)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${columns.length}">No records for the selected filters.</td></tr>`}</tbody></table>`;
 }

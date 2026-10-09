@@ -1,5 +1,5 @@
 import type {CompanyDocumentSettings, DocumentVisibility} from "./documentPrintSettings";
-import {clonePrintSource, escapePrintHtml, type PrintOrientation} from './printDocument';
+import {clonePrintSource, escapePrintHtml, printReportDescription, type PrintOrientation} from './printDocument';
 export type PrintIdentity = {companyName: string; businessUnitName: string; platformName?: string};
 const text = (node: Element | null) => (node?.textContent || '').replace(/\s+/g, ' ').trim();
 const UI = '[data-no-print],.no-print,.print\\:hidden,[data-print-ui],nav,aside,[role=dialog],details';
@@ -91,7 +91,11 @@ export async function buildReport(target: HTMLElement, identity: PrintIdentity, 
   if(scope) report.insertAdjacentHTML('beforeend',`<p class="document-scope"><strong>Report scope:</strong> ${escapePrintHtml(scope)}</p>`);
   if (filters.length) report.insertAdjacentHTML('beforeend',`<section class="document-filters"><strong>Applied filters</strong><div>${filters.map(f=>`<span><b>${escapePrintHtml(f.label)}:</b> ${escapePrintHtml(f.value)}</span>`).join('')}</div></section>`);
   if (summaries.length) report.insertAdjacentHTML('beforeend',`<section class="document-summary">${summaries.map(r=>`<div><span>${escapePrintHtml(r.label)}</span><strong>${escapePrintHtml(r.value)}</strong></div>`).join('')}</section>`);
+  const descriptions = Array.from((primary || clone).querySelectorAll<HTMLElement>('[data-print-description]')).map(node=>printReportDescription(text(node))).filter(Boolean);
+  if(descriptions.length)report.insertAdjacentHTML('beforeend',`<p class="document-scope">${[...new Set(descriptions)].map(escapePrintHtml).join(' · ')}</p>`);
   tables.forEach((table,index) => {
+    const caption=table.caption;
+    if(caption && text(caption)===reportTitle)caption.remove();
     if (tables.length > 1) {const h = document.createElement('h2');h.textContent=`${reportTitle} · Section ${index+1}`;report.appendChild(h);}
     report.appendChild(table);
   });
@@ -123,11 +127,33 @@ export function applyReportPrintSettings(html: string, settings: {company: Compa
 }
 
 export const REPORT_DOCUMENT_CSS = `
-.document-signatures{display:flex;justify-content:space-between;gap:10mm;margin-top:15mm;margin-bottom:4mm}.document-signatures>div{flex:1;border-top:1px solid #64748b;text-align:center;padding-top:2mm;font-size:8pt}
+.document-signatures{display:flex;justify-content:space-between;gap:6mm;margin-top:8mm;margin-bottom:2mm}.document-signatures>div{flex:1;border-top:1px solid #64748b;text-align:center;padding-top:2mm;font-size:8pt}
 body{font:9pt Arial,Helvetica,sans-serif;color:#172033;background:white;margin:0}
-.document-heading{display:flex;justify-content:space-between;gap:10mm;border-bottom:2px solid #214e76;padding-bottom:4mm;margin-bottom:4mm}
-.document-heading>div:last-child{text-align:right}.document-heading strong{font-size:14pt}.document-heading h1{font-size:15pt;margin:0 0 2mm}.document-heading small{font-size:8pt;color:#536477}
-.document-filters{border:1px solid #cbd5e1;padding:2.5mm;margin-bottom:4mm;font-size:8pt}.document-filters>div{display:flex;flex-wrap:wrap;gap:2mm 5mm;margin-top:1.5mm}
-.document-summary{display:flex;flex-wrap:wrap;gap:3mm;margin-bottom:4mm}.document-summary>div{flex:1;min-width:30mm;border:1px solid #cbd5e1;padding:3mm}.document-summary span{display:block;font-size:8pt;color:#536477}.document-summary strong{display:block;font-size:12pt;margin-top:1mm}
-caption{text-align:left;font-size:8pt;font-weight:bold;color:#183e61;margin:2mm 0}h2{font-size:11pt;margin:4mm 0 2mm}table{width:100%;border-collapse:collapse;table-layout:auto;margin:0 0 3mm;font-size:8pt}th,td{padding:1.8mm 1.5mm;border:1px solid #cbd5e1;vertical-align:top;overflow-wrap:anywhere;white-space:normal}th{background:#edf2f7;font-size:7.5pt;text-align:left;color:#183e61}tfoot{font-weight:bold;background:#edf2f7}.print-number{white-space:nowrap;overflow-wrap:normal;text-align:right;font-variant-numeric:tabular-nums}thead{display:table-header-group}tr{break-inside:avoid}.document-note{white-space:pre-wrap;line-height:1.5}
+.document-heading{display:flex;justify-content:space-between;gap:6mm;border-bottom:1px solid #214e76;padding-bottom:2mm;margin-bottom:2mm}
+.document-heading>div:last-child{text-align:right}.document-heading strong{font-size:12pt}.document-heading h1{font-size:13pt;margin:0 0 1mm}.document-heading small{font-size:8pt;color:#536477}
+.document-filters{border:1px solid #cbd5e1;padding:1.5mm;margin-bottom:2mm;font-size:8pt}.document-filters>div{display:flex;flex-wrap:wrap;gap:1mm 3mm;margin-top:.5mm}
+.document-summary{display:flex;flex-wrap:wrap;gap:2mm;margin-bottom:2mm}.document-summary>div{flex:1;min-width:30mm;border:1px solid #cbd5e1;padding:1.5mm}.document-summary span{display:block;font-size:8pt;color:#536477}.document-summary strong{display:block;font-size:10pt;margin-top:.5mm}
+caption{text-align:left;font-size:8pt;font-weight:bold;color:#183e61;margin:2mm 0}h2{font-size:11pt;margin:2mm 0 1mm}table{width:100%;border-collapse:collapse;table-layout:auto;margin:0 0 3mm;font-size:8pt}th,td{padding:1mm 1.2mm;border:1px solid #cbd5e1;vertical-align:top;overflow-wrap:anywhere;white-space:normal}th{background:#edf2f7;font-size:7.5pt;text-align:left;color:#183e61}tfoot{font-weight:bold;background:#edf2f7}.print-number{white-space:nowrap;overflow-wrap:normal;text-align:right;font-variant-numeric:tabular-nums}thead{display:table-header-group}tr{break-inside:avoid}.document-note{white-space:pre-wrap;line-height:1.3}
+`;
+
+/** Applies to every preview/print route, including standalone legacy voucher builders. */
+export const PRINT_COMPACT_CSS = `
+.navilo-print-output{font-size:9pt;line-height:1.3}
+.navilo-print-output h1{font-size:14pt!important;margin:0 0 2mm!important;line-height:1.2!important}
+.navilo-print-output h2{font-size:11pt!important;margin:2mm 0 1mm!important}
+.navilo-print-output p{margin:1mm 0 2mm}
+.navilo-print-output :is(.header,.top){gap:5mm!important;padding-bottom:2mm!important;margin-bottom:2mm!important}
+.navilo-print-output :is(.document-title,.section-title){margin:3mm 0 2mm!important}
+.navilo-print-output .meta-item{min-height:0!important;padding:1.5mm 2mm!important}
+.navilo-print-output .company{gap:4mm!important;padding-bottom:2mm!important}
+.navilo-print-output .meta{gap:2mm 5mm!important;margin:3mm 0!important}
+.navilo-print-output .sub{margin-top:1mm!important;margin-bottom:2mm!important}
+.navilo-print-output .description{margin-top:3mm!important;padding:2mm!important}
+.navilo-print-output .amount{margin:2mm 0!important;padding:2mm!important}
+.navilo-print-output .footer{margin-top:3mm!important}
+.navilo-print-output :is(.sig,.signatures,.footer:has(.signature)){margin-top:8mm!important;gap:6mm!important}
+.navilo-print-output .row{padding:1.5mm 0!important}
+.navilo-print-output table{margin-top:2mm!important;margin-bottom:2mm!important;font-size:8pt!important}
+.navilo-print-output :is(th,td){padding:1mm 1.2mm!important;line-height:1.25!important}
+.navilo-print-output :is(.toolbar,[data-print-ui],[data-no-print],.no-print){display:none!important}
 `;

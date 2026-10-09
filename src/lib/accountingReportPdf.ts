@@ -1,3 +1,4 @@
+import { printReportDescription } from "./printDocument";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -23,8 +24,8 @@ export async function downloadAccountingReportPdf({ fileName, title, subtitle, c
   const doc = new jsPDF({ orientation: documentOrientation(company.page_orientation), unit: "mm", format: documentPageFormat(company.page_size) });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 12;
-  let y = 12;
+  const margin = 8;
+  let y = 8;
 
   if (visibility.show_logo && company.logo_url) {
     try {
@@ -54,13 +55,13 @@ export async function downloadAccountingReportPdf({ fileName, title, subtitle, c
 
   y += 6; doc.setDrawColor(30, 41, 59); doc.setLineWidth(0.55); doc.line(margin, y, pageWidth - margin, y);
   y += 7; doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text(title, margin, y);
-  if (subtitle) { doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(71, 85, 105); doc.text(subtitle, pageWidth - margin, y, { align: "right" }); doc.setTextColor(15, 23, 42); }
+  if (subtitle) { doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(71, 85, 105); doc.text(printReportDescription(subtitle), pageWidth - margin, y, { align: "right" }); doc.setTextColor(15, 23, 42); }
   y += 5;
 
   const numericStart = Math.max(0, columns.findIndex((column) => /debit|credit|balance|amount|total|dr\b|cr\b/i.test(column)));
   autoTable(doc, {
     startY: y, head: [columns], body: rows, theme: "plain",
-    styles: { font: "helvetica", fontSize: 7.7, cellPadding: { top: 2.1, right: 1.8, bottom: 2.1, left: 1.8 }, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: { bottom: 0.12 }, overflow: "linebreak", valign: "middle" },
+    styles: { font: "helvetica", fontSize: 7.7, cellPadding: { top: 1.2, right: 1.2, bottom: 1.2, left: 1.2 }, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: { bottom: 0.12 }, overflow: "linebreak", valign: "middle" },
     headStyles: { fillColor: [238, 242, 247], textColor: [30, 41, 59], fontStyle: "bold", fontSize: 7.3, lineColor: [148, 163, 184], lineWidth: { top: 0.25, bottom: 0.25 } },
     alternateRowStyles: { fillColor: [251, 253, 255] },
     columnStyles: Object.fromEntries(columns.map((_, index) => [index, index >= numericStart ? { halign: "right" } : { halign: "left" }])),
@@ -85,7 +86,7 @@ export async function downloadAccountingReportPdf({ fileName, title, subtitle, c
   }
 
   if (visibility.show_signatures) {
-    if (summaryY > pageHeight - 35) { doc.addPage(); summaryY = 28; } else summaryY += 15;
+    if (summaryY > pageHeight - 35) { doc.addPage(); summaryY = 28; } else summaryY += 8;
     const labels = [company.prepared_by_label || "Prepared By", company.checked_by_label || "Checked By", company.approved_by_label || "Approved By"];
     const sectionWidth = (pageWidth - margin * 2) / 3;
     labels.forEach((label, index) => { const x1 = margin + sectionWidth * index; const center = x1 + sectionWidth / 2; doc.setDrawColor(100); doc.line(x1 + 5, summaryY, x1 + sectionWidth - 5, summaryY); doc.setFontSize(7.5); doc.text(label, center, summaryY + 4.5, { align: "center" }); });

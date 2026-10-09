@@ -3,7 +3,7 @@ import {afterEach,describe,expect,it,vi} from 'vitest';
 import {cleanup,render,fireEvent,screen} from '@testing-library/react';
 import DataTable from '@/components/DataTable';
 import {buildReport,cleanReportTable,reportFilterSnapshot,applyReportPrintSettings} from './printReport';
-import {createPrintDocument,registerPrintSource} from './printDocument';
+import {createPrintDocument,registerPrintSource,printTableMarkup,printReportDescription} from './printDocument';
 import {paginatePrintDocument,paperCSS} from './printPagination';
 import PrintPreviewController,{brandStandaloneDocument} from '@/components/PrintPreviewController';
 vi.mock('@/lib/documentPrintSettings',()=>({loadDocumentPrintSettings:vi.fn(async()=>({company:{},visibility:{show_company_name:true,show_signatures:false}}))}));
@@ -13,6 +13,20 @@ afterEach(()=>{cleanup();document.body.innerHTML='';localStorage.clear();vi.rest
 if(!globalThis.CSS)Object.defineProperty(globalThis,'CSS',{value:{escape:(s:string)=>s},configurable:true});
 
 describe('document report data contract',()=>{
+ it('prints scope and period once without technical explanations or duplicate report headings',async()=>{
+  const root=document.createElement('main');root.innerHTML='<h1>Trip Statement</h1><section></section>';
+  const metadata='Orbit / Transport · Trip dates 01-Oct-26 to 31-Oct-26 · Company base currency · Totals cover the complete filter. Unposted agreed rates are estimates, excluded from posted balances.';
+  registerPrintSource(root.querySelector('section')!,()=>printTableMarkup('Trip Statement',['Description','Amount'],[['Waiting charge as agreed',400],['TOTAL · full filter',400]],metadata));
+  const result=await buildReport(root,{companyName:'Orbit',businessUnitName:'Transport'});
+  expect(result.html).toContain('Trip dates 01-Oct-26 to 31-Oct-26');
+  expect(result.html).not.toContain('full filter');expect(result.html).not.toContain('Totals cover');expect(result.html).not.toContain('Unposted agreed');
+  const doc=new DOMParser().parseFromString(result.html,'text/html');expect(doc.querySelector('caption')).toBeNull();
+  expect(doc.querySelectorAll('h1')).toHaveLength(1);expect(doc.querySelectorAll('tbody tr')).toHaveLength(2);
+  expect(result.html).toContain('Waiting charge as agreed');expect(result.html).toContain('TOTAL');
+ });
+ it('shortens only report metadata and retains dates, currency and financial totals',()=>{
+  expect(printReportDescription('Orbit · 01-Oct-26 to 31-Oct-26 · Canonical posted ledger; monthly closing excluded · Company base currency · Revenue 1000')).toBe('Orbit · 01-Oct-26 to 31-Oct-26 · Company base currency · Revenue 1000');
+ });
  it('prints every sorted row, not the current DataTable page, and retains header labels',async()=>{
   const rows=Array.from({length:61},(_,i)=>({id:String(i),name:`Party ${String(i).padStart(2,'0')}`,amount:i}));
   const {container}=render(<main><h1>Parties</h1><DataTable showSerialNumber columns={[{key:'name',label:'Party'},{key:'amount',label:'Amount',className:'text-right'},{key:'actions',label:'Actions',render:()=> <button>Edit</button>}]} rows={rows}/></main>);

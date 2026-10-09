@@ -11,7 +11,7 @@
 }
 
 @media print {
-  @page { size: A4; margin: 12mm 10mm 14mm; }
+  @page { size: A4; margin: 8mm; }
 
   html, body { background: #fff !important; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -52,14 +52,14 @@
     border-radius: 0 !important;
     background: #fff !important;
     box-shadow: none !important;
-    padding: 0 0 4mm !important;
-    margin: 0 0 5mm !important;
+    padding: 0 0 2mm !important;
+    margin: 0 0 2mm !important;
   }
 
   .professional-report h1,
   .professional-report .page-title {
     color: var(--report-ink) !important;
-    font-size: 17pt !important;
+    font-size: 14pt !important;
     line-height: 1.15 !important;
     font-weight: 800 !important;
     letter-spacing: -0.015em !important;
@@ -80,7 +80,7 @@
     background: #fff !important;
   }
 
-  .professional-report .card { padding: 4mm !important; }
+  .professional-report .card { padding: 2mm !important; }
 
   .professional-report table {
     width: 100% !important;
@@ -98,7 +98,7 @@
     color: #1e293b !important;
     border-top: 1px solid #94a3b8 !important;
     border-bottom: 1px solid #94a3b8 !important;
-    padding: 2.2mm 2mm !important;
+    padding: 1mm 1.2mm !important;
     font-size: 7.8pt !important;
     font-weight: 800 !important;
     text-transform: uppercase !important;
@@ -109,7 +109,7 @@
   .professional-report td {
     color: #1e293b !important;
     border-bottom: 1px solid #e2e8f0 !important;
-    padding: 2.1mm 2mm !important;
+    padding: 1mm 1.2mm !important;
     vertical-align: top !important;
   }
 
@@ -123,8 +123,8 @@
   .professional-report [class*="font-semibold"] { color: #0f172a !important; }
 
   .professional-report .overflow-x-auto { overflow: visible !important; }
-  .professional-report .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 4mm !important; }
-  .professional-report .space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 3.5mm !important; }
+  .professional-report .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 2mm !important; }
+  .professional-report .space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 2mm !important; }
 
   .professional-report .report-total,
   .professional-report tfoot tr,

@@ -3,7 +3,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import {useEffect, useRef, useState} from 'react';
 import {useAuth} from '@/auth/AuthContext';
 import {usePlatformBranding} from '@/lib/platformBranding';
-import {buildReport, applyReportPrintSettings, REPORT_DOCUMENT_CSS} from '@/lib/printReport';
+import {buildReport, applyReportPrintSettings, REPORT_DOCUMENT_CSS, PRINT_COMPACT_CSS} from '@/lib/printReport';
 import {clonePrintSource, escapePrintHtml, type PrintRequest, type PrintPaper, type PrintOrientation} from '@/lib/printDocument';
 import {paginatePrintDocument, paperCSS, paperDimensions} from '@/lib/printPagination';
 
@@ -51,7 +51,8 @@ export async function waitForDocumentAssets(doc:Document) {
   await new Promise<void>(resolve=>window.setTimeout(resolve,50));
 }
 function documentMarkup(preview:Preview) {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><base href="${escapePrintHtml(document.baseURI)}"><title>${escapePrintHtml(preview.title)}</title>${printableStyles(preview.styles)}<style>${paperCSS(preview.paper,preview.orientation)}</style></head><body><div class="navilo-print-output navilo-${preview.orientation}">${preview.html}</div></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><base href="${escapePrintHtml(document.baseURI)}"><title>${escapePrintHtml(preview.title)}</title>${printableStyles(preview.styles)}<style>${PRINT_COMPACT_CSS}
+${paperCSS(preview.paper,preview.orientation)}</style></head><body><div class="navilo-print-output navilo-${preview.orientation}">${preview.html}</div></body></html>`;
 }
 export default function PrintPreviewController() {
   const {activeCompany,activeBusinessUnit}=useAuth();const {branding}=usePlatformBranding();
