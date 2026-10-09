@@ -18,6 +18,8 @@ import * as XLSX from "xlsx";
 
 import { supabase } from "@/lib/supabase";
 import { fetchAllPages } from "@/lib/fetchAllPages";
+import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
+import {journalRelatedToMode,vehicleOwnedOnDate,normalizedJournalVehicleNo,type OwnedPeriod} from "./journalRelatedTo";
 
 import {
   JournalEntry,
@@ -141,11 +143,34 @@ export default function JournalEntryDetail() {
   const navigate = useNavigate();
   const {activeCompany,activeBusinessUnit}=useAuth();
   const isTransport=activeBusinessUnit?.business_unit_type==='transport';
-  const [companyVehicles,setCompanyVehicles]=useState<{id:string;vehicle_no:string}[]>([]);
-  useEffect(()=>{let live=true;setCompanyVehicles([]);if(!isTransport)return;
-   void fetchAllPages<{id:string;vehicle_no:string}>((start,end)=>supabase.from('transport_vehicles').select('id,vehicle_no').eq('company_id',activeCompany!.company_id).eq('business_unit_id',activeBusinessUnit!.business_unit_id).eq('ownership_type','company').eq('is_active',true).order('vehicle_no').range(start,end))
-    .then(rows=>{if(live)setCompanyVehicles(rows);}).catch(e=>{if(live)setError(e?.message||'Unable to load company vehicles');});
-   return()=>{live=false};
+  const [companyVehicles,setCompanyVehicles]=useState<{id:string;vehicle_no:string;label:string}[]>([]);
+  const [vehicleOwnership,setVehicleOwnership]=useState<OwnedPeriod[]>([]);
+  const [vehicleLoadError,setVehicleLoadError]=useState('');
+  useEffect(()=>{
+    let live=true;setCompanyVehicles([]);setVehicleOwnership([]);setVehicleLoadError('');
+    if(!isTransport||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
+    const cid=activeCompany.company_id,bid=activeBusinessUnit.business_unit_id;
+    async function loadVehicles(){
+      try{
+        const [vehicles,ownership,types]=await Promise.all([
+          fetchAllPages<{id:string;vehicle_no:string;truck_type_id:string|null;truck_type:string|null}>((start,end)=>
+            supabase.from('transport_vehicles').select('id,vehicle_no,truck_type_id,truck_type')
+              .eq('company_id',cid).eq('business_unit_id',bid).eq('is_active',true).order('id').range(start,end)),
+          fetchAllPages<OwnedPeriod>((start,end)=>
+            supabase.from('transport_vehicle_ownership').select('vehicle_id,owner_type,effective_from,effective_to')
+              .eq('company_id',cid).eq('business_unit_id',bid).order('id').range(start,end)),
+          fetchAllPages<{id:string;name:string}>((start,end)=>
+            supabase.from('transport_truck_types').select('id,name')
+              .eq('company_id',cid).eq('business_unit_id',bid).order('id').range(start,end)),
+        ]);
+        const names=new Map(types.map(t=>[t.id,t.name]));
+        if(live){setVehicleOwnership(ownership);setCompanyVehicles(vehicles.map(v=>({
+          id:v.id,vehicle_no:v.vehicle_no,label:vehicleDisplayLabel(v.vehicle_no,names.get(v.truck_type_id??'')??v.truck_type),
+        })));}
+      }catch(e:unknown){if(live)setVehicleLoadError(e instanceof Error?e.message:'Unable to load vehicle ownership history');}
+    }
+    void loadVehicles();
+    return()=>{live=false};
   },[isTransport,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
 
   /* -------------------------------------------------------
@@ -418,6 +443,7 @@ export default function JournalEntryDetail() {
         account.allow_manual_entries
     );
   const journalExcludedAccounts = accounts.length - postingAccounts.length;
+  const eligibleVehicles=companyVehicles.filter(v=>vehicleOwnedOnDate(v.id,entry?.entry_date,vehicleOwnership));
 
   const customerAccountIds =
     new Set(
@@ -636,6 +662,7 @@ export default function JournalEntryDetail() {
             return {
               ...line,
               accountId: "",
+              vehicleId: "",
               partyType: "",
               partyId: "",
             };
