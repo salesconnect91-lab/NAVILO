@@ -506,7 +506,7 @@ export default function JournalEntryDetail() {
     customers
       .filter(
         (customer) =>
-          customer.account_id === accountId
+          (customer.account_id === accountId || (!!partyControlAccounts.ar && accountId===partyControlAccounts.ar))
       )
       .forEach((customer) => {
         options.push({
@@ -520,7 +520,7 @@ export default function JournalEntryDetail() {
     suppliers
       .filter(
         (supplier) =>
-          supplier.account_id === accountId
+          (supplier.account_id === accountId || (!!partyControlAccounts.ap && accountId===partyControlAccounts.ap))
       )
       .forEach((supplier) => {
         options.push({
@@ -658,7 +658,7 @@ export default function JournalEntryDetail() {
               customers.some(
                 (customer) =>
                   customer.id === line.partyId &&
-                  customer.account_id === accountId
+                  (customer.account_id === accountId || (!!partyControlAccounts.ar && accountId===partyControlAccounts.ar))
               )
             ) ||
             (
@@ -666,7 +666,7 @@ export default function JournalEntryDetail() {
               suppliers.some(
                 (supplier) =>
                   supplier.id === line.partyId &&
-                  supplier.account_id === accountId
+                  (supplier.account_id === accountId || (!!partyControlAccounts.ap && accountId===partyControlAccounts.ap))
               )
             );
 
@@ -730,7 +730,7 @@ export default function JournalEntryDetail() {
 
           if (
             !customer ||
-            !customer.account_id
+            (!customer.account_id && !partyControlAccounts.ar)
           ) {
             return line;
           }
@@ -738,7 +738,7 @@ export default function JournalEntryDetail() {
           return {
             ...line,
             accountId:
-              customer.account_id,
+              (line.accountId===partyControlAccounts.ar?line.accountId:customer.account_id??partyControlAccounts.ar),
             vehicleId: "",
             partyType: "customer",
             partyId:
@@ -754,7 +754,7 @@ export default function JournalEntryDetail() {
 
         if (
           !supplier ||
-          !supplier.account_id
+          (!supplier.account_id && !partyControlAccounts.ap)
         ) {
           return line;
         }
@@ -1223,7 +1223,7 @@ export default function JournalEntryDetail() {
 
             if (
               customer.account_id !==
-              account.id
+              account.id && account.id!==partyControlAccounts.ar
             ) {
               importErrors.push(
                 `Row ${rowNumber}: Customer "${customer.name}" is not linked to account "${account.name}".`
@@ -1257,7 +1257,7 @@ export default function JournalEntryDetail() {
 
             if (
               supplier.account_id !==
-              account.id
+              account.id && account.id!==partyControlAccounts.ap
             ) {
               importErrors.push(
                 `Row ${rowNumber}: Supplier "${supplier.name}" is not linked to account "${account.name}".`
@@ -1549,7 +1549,7 @@ export default function JournalEntryDetail() {
 
           if (
             customer.account_id !==
-            account.id
+            account.id && account.id!==partyControlAccounts.ar
           ) {
             setError(
               `Row ${rowNumber}: Customer "${customer.name}" is not linked to "${account.name}".`
@@ -1582,7 +1582,7 @@ export default function JournalEntryDetail() {
 
           if (
             supplier.account_id !==
-            account.id
+            account.id && account.id!==partyControlAccounts.ap
           ) {
             setError(
               `Row ${rowNumber}: Supplier "${supplier.name}" is not linked to "${account.name}".`
