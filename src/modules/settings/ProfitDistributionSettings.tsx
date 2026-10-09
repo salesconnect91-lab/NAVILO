@@ -20,7 +20,7 @@ export default function ProfitDistributionSettings(){
   try{const [p,a]=await Promise.all([supabase.rpc('transport_monthly_profit_preview',{p_month:`${month}-01`}),supabase.from('chart_of_accounts').select('id,code,name').eq('type','equity').eq('is_active',true).eq('is_group',false).eq('allow_manual_entries',true).order('code')]);
    if(request!==requestId.current)return;
    if(p.error||a.error)throw p.error||a.error;
-   setPreview(p.data as Preview);setAccounts((a.data??[]).filter(x=>!x.name.toLowerCase().includes('august')));
+   setPreview(p.data as Preview);const profitAccounts=(a.data??[]).filter(x=>x.name.trim().toLowerCase()==='undistributed profit');setAccounts(profitAccounts);if(profitAccounts.length===1)setAccount(profitAccounts[0].id);
   }catch(e){if(request!==requestId.current)return;setError(e instanceof Error?e.message:(e as {message?:string})?.message||'Unable to load closing preview');}finally{if(request===requestId.current)setLoading(false);}
  },[month,transport,activeCompany?.company_id,activeBusinessUnit?.business_unit_id,branch?.id]);
  useEffect(()=>{setAccount('');setSuccess('');void load();},[load]);
@@ -36,7 +36,7 @@ export default function ProfitDistributionSettings(){
   <h1 className="text-base font-semibold">Monthly Profit Closing · Journal Entries</h1>
   <p>Scope: {branch?.name||'active branch'}. Close each branch separately. Review all posted income and expenses, including salaries, before closing. Partner allocation remains manual.</p>
   <div className="flex flex-wrap items-end gap-2"><label>Profit month<input aria-label="Profit month" type="month" className="input block" value={month} disabled={posting} onChange={e=>{setMonth(e.target.value);setSuccess('');}}/></label><label>Undistributed Profit account<select aria-label="Undistributed Profit account" className="input block" value={account} disabled={posting} onChange={e=>setAccount(e.target.value)}><option value="">Select equity account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.code} · {a.name}</option>)}</select></label><button className="btn btn-secondary" disabled={loading||posting} onClick={()=>void load()}>Refresh</button></div>
-  <p className="text-xs text-slate-600">Use one ongoing equity account named Undistributed Profit. Create it in Chart of Accounts if missing; allow manual entries. Historical August opening stays in its existing account.</p>
+  <p className="text-xs text-slate-600">Use one equity account named Undistributed Profit for both historical opening and future monthly closing. The journal date and description identify the month; do not record opening profit again.</p>
   {error&&<p role="alert" className="text-red-700">{error}</p>}{success&&<p role="status" className="text-green-700">{success}</p>}
   {loading?<p>Loading preview…</p>:preview&&<>
    <p className="font-semibold">Net profit / (loss): {money(preview.net_profit)} · Draft journals: {preview.draft_count}</p>
