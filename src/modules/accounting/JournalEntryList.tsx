@@ -2633,7 +2633,7 @@ export default function JournalEntryList() {
 
           <button
             type="button"
-            onClick={() => { void createAndOpen({entry_no:generateEntryNo(),entry_date:new Date().toLocaleDateString("en-CA"),description:"",currency_code:""}); }}
+            onClick={() => { void createAndOpen({entry_no:generateEntryNo(),entry_date:new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10),description:"",currency_code:""}); }}
             disabled={creating}
             className="px-4 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-60"
           >
