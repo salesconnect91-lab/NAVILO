@@ -594,10 +594,10 @@ export default function JournalEntryDetail() {
         Number(line.credit) > 0
     ).length;
 
+  // A zero/zero draft is not a balanced, postable journal.
   const balanced =
-    lines.length +
-      activeDraftCount >
-      0 &&
+    lines.length + activeDraftCount > 0 &&
+    totalDebit > 0 && totalCredit > 0 &&
     Math.abs(difference) < 0.01;
 
   /* =========================================================
@@ -2489,8 +2489,8 @@ export default function JournalEntryDetail() {
           )}
 
           {!isPosted && (
-            <div className="border border-blue-200 rounded-xl overflow-hidden">
-              <div className="bg-blue-50 border-b border-blue-200 px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <div className="min-w-0 max-w-full border border-blue-200 rounded-xl overflow-hidden">
+              <div className="bg-blue-50 border-b border-blue-200 px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <h4 className="font-bold text-slate-900">
                     Fast Journal Entry
@@ -2511,33 +2511,40 @@ export default function JournalEntryDetail() {
                     posting ||
                     importing
                   }
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg"
+                  className="shrink-0 whitespace-nowrap px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg"
                 >
                   + Add Row
                 </button>
               </div>
 
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+              <div className="min-w-0 px-2 py-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
                 <span>{postingAccounts.length} posting accounts available{journalExcludedAccounts > 0 ? ` · ${journalExcludedAccounts} group/inactive/non-posting accounts excluded` : ""}. Search by GL code, name or type.</span>
                 <button type="button" className="rounded border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50" data-navilo-keep-local-action="true" onClick={() => { void fetchAccounts().catch((e:unknown) => setError(e instanceof Error ? e.message : "Unable to refresh Chart of Accounts.")); }}>
                   Refresh Accounts
                 </button>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1150px] text-sm">
+              <div className="w-full max-w-full min-w-0 overflow-x-auto" aria-label="Journal line editor">
+                <table className="w-full table-fixed min-w-[690px] text-[12px]">
+                  <colgroup>
+                    <col style={{width:'37%'}} />
+                    <col style={{width:'25%'}} />
+                    <col style={{width:'13%'}} />
+                    <col style={{width:'13%'}} />
+                    <col style={{width:'12%'}} />
+                  </colgroup>
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="text-left px-4 py-3 font-semibold text-slate-600 w-[34%]">Account</th>
+                      <th className="text-left px-2 py-2 font-semibold text-slate-600">Account</th>
 
-                      <th className="text-left px-4 py-3 font-semibold text-slate-600 w-[26%]">
+                      <th className="text-left px-2 py-2 font-semibold text-slate-600">
                         Related To
                       </th>
 
-                      <th className="text-right px-4 py-3 font-semibold text-slate-600 w-[14%]">Debit</th>
+                      <th className="text-right px-2 py-2 font-semibold text-slate-600">Debit</th>
 
-                      <th className="text-right px-4 py-3 font-semibold text-slate-600 w-[14%]">Credit</th>
+                      <th className="text-right px-2 py-2 font-semibold text-slate-600">Credit</th>
 
-                      <th className="text-center px-4 py-3 font-semibold text-slate-600 w-[12%]">
+                      <th className="text-center px-1 py-2 font-semibold text-slate-600">
                         Action
                       </th>
                     </tr>
@@ -2566,10 +2573,10 @@ export default function JournalEntryDetail() {
                             }
                             className="border-b border-slate-100"
                           >
-                            <td className="px-3 py-2">
+                            <td className="min-w-0 px-2 py-1.5">
                               <SearchableSelect
                                 preserveLabel
-                                className="input bg-white w-full"
+                                className="input min-w-0 max-w-full bg-white w-full text-xs"
                                 searchPlaceholder="Search account by code or name..."
                                 emptyText="No posting account found"
                                 value={
@@ -2608,14 +2615,14 @@ export default function JournalEntryDetail() {
                               </SearchableSelect>
                             </td>
 
-                            <td className="px-3 py-2">
+                            <td className="min-w-0 px-2 py-1.5">
                               {!line.accountId ? (
                                 <span className="text-xs text-slate-500">Select account first</span>
                               ) : relatedMode==='party' ? (
                                 <SearchableSelect
                                   preserveLabel
                                   aria-label={`Related To row ${draftLines.indexOf(line)+1}`}
-                                  className="input bg-white w-full"
+                                  className="input min-w-0 max-w-full bg-white w-full text-xs"
                                   searchPlaceholder="Search customer or supplier..."
                                   emptyText="No linked customer / supplier found"
                                   value={line.partyType&&line.partyId?`${line.partyType}:${line.partyId}`:""}
@@ -2631,7 +2638,7 @@ export default function JournalEntryDetail() {
                                   <SearchableSelect
                                     preserveLabel
                                     aria-label={`Related To row ${draftLines.indexOf(line)+1}`}
-                                    className="input bg-white w-full"
+                                    className="input min-w-0 max-w-full bg-white w-full text-xs"
                                     searchPlaceholder="Search company vehicle number or type..."
                                     value={line.vehicleId??""}
                                     onChange={e=>updateDraftLine(line.tempId,'vehicleId',e.target.value)}
@@ -2643,18 +2650,23 @@ export default function JournalEntryDetail() {
                                   {!vehicleLoadError&&eligibleVehicles.length===0&&<span className="mt-1 block text-xs text-amber-700">No company-owned vehicle valid on this journal date</span>}
                                 </div>
                               ) : (
-                                <div className="rounded border border-slate-200 bg-slate-50 px-3 py-3 text-xs font-medium text-slate-600">
-                                  General / Shared
-                                </div>
+                                <details className="min-w-0 rounded-md border border-slate-200 bg-white text-xs text-slate-700">
+                                  <summary className="cursor-pointer select-none px-2.5 py-2.5 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500" title="Why is no separate related party or vehicle needed?">
+                                    Account only <span className="text-slate-400">· Info</span>
+                                  </summary>
+                                  <p className="border-t border-slate-100 px-2.5 py-2 text-slate-600">
+                                    This GL is the posting account. Customer/Supplier is available on linked AR/AP lines, and Company Vehicle on Transport income/expense lines. No additional allocation is required here.
+                                  </p>
+                                </details>
                               )}
                               {relatedMode==='party'&&partyRequired&&partyOptions.length===0&&(
                                 <span className="mt-1 block text-xs text-amber-700">Set up a linked customer/supplier before posting.</span>
                               )}
                             </td>
 
-                            <td className="px-3 py-2">
+                            <td className="min-w-0 px-2 py-1.5">
                               <input
-                                className="input bg-white font-mono text-right w-full"
+                                className="input min-w-0 max-w-full bg-white font-mono text-right w-full text-xs px-2"
                                 type="number"
                                 min="0"
                                 step="0.01"
@@ -2674,9 +2686,9 @@ export default function JournalEntryDetail() {
                               />
                             </td>
 
-                            <td className="px-3 py-2">
+                            <td className="min-w-0 px-2 py-1.5">
                               <input
-                                className="input bg-white font-mono text-right w-full"
+                                className="input min-w-0 max-w-full bg-white font-mono text-right w-full text-xs px-2"
                                 type="number"
                                 min="0"
                                 step="0.01"
@@ -2696,8 +2708,8 @@ export default function JournalEntryDetail() {
                               />
                             </td>
 
-                            <td className="px-3 py-2">
-                              <div className="flex items-center justify-center gap-2">
+                            <td className="min-w-0 px-1 py-1.5">
+                              <div className="flex items-center justify-center gap-1">
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -2710,7 +2722,8 @@ export default function JournalEntryDetail() {
                                     posting ||
                                     importing
                                   }
-                                  className="px-2 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded"
+                                  className="shrink-0 rounded bg-blue-50 px-1.5 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100"
+                                  aria-label={relatedMode==='vehicle'?'Split vehicle journal row':'Duplicate journal row'}
                                   title={relatedMode==='vehicle'?'Split amount across vehicles using another journal line':'Duplicate row'}
                                 >
                                   {relatedMode==='vehicle'?'Split':'Copy'}
@@ -2728,10 +2741,11 @@ export default function JournalEntryDetail() {
                                     posting ||
                                     importing
                                   }
-                                  className="px-2 py-1 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded"
+                                  className="shrink-0 rounded bg-rose-50 px-1.5 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100"
+                                  aria-label="Remove journal row"
                                   title="Remove row"
                                 >
-                                  Remove
+                                  ✕
                                 </button>
                               </div>
                             </td>
@@ -2744,19 +2758,19 @@ export default function JournalEntryDetail() {
                   <tfoot>
                     <tr className="bg-slate-50 border-t-2 border-slate-200">
                       <td
-                        className="px-4 py-3 font-bold text-slate-900"
+                        className="px-2 py-2 font-bold text-slate-900"
                         colSpan={2}
                       >
                         New Lines Total
                       </td>
 
-                      <td className="px-4 py-3 text-right font-mono font-bold">
+                      <td className="px-2 py-2 text-right font-mono text-[11px] font-bold">
                         {formatJournalAmount(
                           draftDebit
                         )}
                       </td>
 
-                      <td className="px-4 py-3 text-right font-mono font-bold">
+                      <td className="px-2 py-2 text-right font-mono text-[11px] font-bold">
                         {formatJournalAmount(
                           draftCredit
                         )}
