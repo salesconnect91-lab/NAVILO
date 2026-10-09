@@ -2630,6 +2630,7 @@ export default function JournalEntryDetail() {
                               </SearchableSelect>
                             </td>
 
+                            <td className="min-w-0 px-2 py-1.5"><input className="input w-full text-xs" aria-label={`Description row ${draftLines.indexOf(line)+1}`} placeholder="Line description..." value={line.description} onChange={e=>updateDraftLine(line.tempId,"description",e.target.value)} maxLength={1000} /></td>
                             <td className="min-w-0 px-2 py-1.5">
                               {!line.accountId ? (
                                 <span className="text-xs text-slate-500">Select account first</span>
@@ -2772,7 +2773,7 @@ export default function JournalEntryDetail() {
                     <tr className="bg-slate-50 border-t-2 border-slate-200">
                       <td
                         className="px-2 py-2 font-bold text-slate-900"
-                        colSpan={2}
+                        colSpan={3}
                       >
                         New Lines Total
                       </td>
