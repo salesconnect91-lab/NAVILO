@@ -51,6 +51,7 @@ type DraftLine = {
   partyId: string;
   debit: string;
   credit: string;
+  description: string;
 };
 
 type ImportRow = {
@@ -79,6 +80,7 @@ const createDraftLine = (): DraftLine => ({
   partyId: "",
   debit: "",
   credit: "",
+  description: "",
 });
 
 const normalizeValue = (value: unknown): string => {
