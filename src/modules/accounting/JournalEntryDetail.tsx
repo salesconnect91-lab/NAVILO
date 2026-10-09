@@ -1383,6 +1383,7 @@ export default function JournalEntryDetail() {
                 row.debit,
               credit:
                 row.credit,
+              description: "",
             };
           }
         );
@@ -2537,15 +2538,17 @@ export default function JournalEntryDetail() {
               <div className="w-full max-w-full min-w-0 overflow-x-auto" aria-label="Journal line editor">
                 <table className="w-full table-fixed min-w-[690px] text-[12px]">
                   <colgroup>
-                    <col style={{width:'37%'}} />
-                    <col style={{width:'25%'}} />
-                    <col style={{width:'13%'}} />
-                    <col style={{width:'13%'}} />
-                    <col style={{width:'12%'}} />
+                    <col style={{width:'26%'}} />
+                     <col style={{width:'23%'}} />
+                    <col style={{width:'23%'}} />
+                    <col style={{width:'11%'}} />
+                    <col style={{width:'11%'}} />
+                    <col style={{width:'6%'}} />
                   </colgroup>
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="text-left px-2 py-2 font-semibold text-slate-600">Account</th>
+                       <th className="text-left px-2 py-2 font-semibold text-slate-600">Description</th>
 
                       <th className="text-left px-2 py-2 font-semibold text-slate-600">
                         Related To
