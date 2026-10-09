@@ -227,6 +227,21 @@ export default function JournalEntryDetail() {
   const [deleteEntryOpen, setDeleteEntryOpen] =
     useState(false);
 
+  const [ownerCanCancel, setOwnerCanCancel] = useState(false);
+  const [ownerCancelOpen, setOwnerCancelOpen] = useState(false);
+  const [ownerCancelling, setOwnerCancelling] = useState(false);
+  const [ownerCancelDate, setOwnerCancelDate] = useState(new Date().toISOString().slice(0, 10));
+  const [ownerCancelReason, setOwnerCancelReason] = useState("");
+  useEffect(() => {
+    let live = true;
+    setOwnerCanCancel(false);
+    if (!activeCompany?.company_id || !activeBusinessUnit?.business_unit_id) return;
+    void supabase.rpc("owner_posted_control_access").then(({ data, error }) => {
+      if (live && !error) setOwnerCanCancel(data === true);
+    });
+    return () => { live = false; };
+  }, [activeCompany?.company_id, activeBusinessUnit?.business_unit_id]);
+
   const [reversalOpen, setReversalOpen] = useState(false);
   const [reversing, setReversing] = useState(false);
   const [reversalDate, setReversalDate] = useState(new Date().toISOString().slice(0, 10));
@@ -2066,6 +2081,27 @@ export default function JournalEntryDetail() {
      LOADING / NOT FOUND
   ========================================================= */
 
+  const handleOwnerCancel = async () => {
+    if (!entry || !ownerCanCancel || ownerCancelReason.trim().length < 10 || !ownerCancelDate) return;
+    try {
+      setOwnerCancelling(true);
+      setError(null);
+      const { data, error: rpcError } = await supabase.rpc("owner_cancel_manual_journal", {
+        p_entry_id: entry.id,
+        p_reversal_date: ownerCancelDate,
+        p_reason: ownerCancelReason.trim(),
+      });
+      if (rpcError) throw new Error(rpcError.message);
+      if (!data?.success) throw new Error("Owner cancellation was not confirmed by the server.");
+      setOwnerCancelOpen(false);
+      navigate("/accounting");
+    } catch (err: any) {
+      setError(err?.message || "Owner cancellation failed; no financial change was confirmed.");
+    } finally {
+      setOwnerCancelling(false);
+    }
+  };
+
   const handleReverseEntry = async () => {
     if (!entry) return;
     if (!reversalDate) { setError("Reversal date is required."); return; }
@@ -2114,6 +2150,21 @@ export default function JournalEntryDetail() {
   const isManualJournal =
     !entry.reversal_of_entry_id &&
     (!entry.trans_type || entry.trans_type === "Journal Entry" || entry.trans_type === "Manual Journal");
+  const sourceEntry = entry as JournalEntry & {
+    source_module?: string | null;
+    source_document_type?: string | null;
+    source_document_id?: string | null;
+    fiscal_year_closure_id?: string | null;
+    monthly_profit_closure_id?: string | null;
+  };
+  const isOwnerCancellableJournal =
+    isPosted && ownerCanCancel && !reversalEntry &&
+    !entry.reversal_of_entry_id &&
+    !sourceEntry.source_module && !sourceEntry.source_document_type &&
+    !sourceEntry.source_document_id && !sourceEntry.fiscal_year_closure_id &&
+    !sourceEntry.monthly_profit_closure_id &&
+    !entry.entry_no.startsWith("COB-") &&
+    (!entry.trans_type || ["General", "Journal Entry", "Manual Journal"].includes(entry.trans_type));
 
   /* =========================================================
      UI
@@ -2176,6 +2227,16 @@ export default function JournalEntryDetail() {
               className="px-3 py-2 text-sm font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-200"
             >
               Reverse Journal
+            </button>
+          )}
+
+          {isOwnerCancellableJournal && (
+            <button
+              onClick={() => setOwnerCancelOpen(true)}
+              disabled={ownerCancelling}
+              className="px-3 py-2 text-sm font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200"
+            >
+              Owner Cancel Posted
             </button>
           )}
 
@@ -2906,6 +2967,26 @@ export default function JournalEntryDetail() {
           setDeleteLineId(null)
         }
       />
+
+      <Modal open={ownerCancelOpen} title={`Owner Cancel · ${entry.entry_no}`} onClose={() => !ownerCancelling && setOwnerCancelOpen(false)}>
+        <div className="space-y-4">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            This action is permanent. The original posted journal stays locked for audit, an opposite posted journal offsets its balance, and both are hidden from the normal Journal List. Financial ledgers retain the audit trail.
+          </div>
+          <div>
+            <label className="label">Cancellation Date</label>
+            <NaviloDateInput className="input" type="date" value={ownerCancelDate} onChange={(event) => setOwnerCancelDate(event.target.value)} />
+          </div>
+          <div>
+            <label className="label">Mandatory Reason (minimum 10 characters)</label>
+            <textarea className="input" rows={3} value={ownerCancelReason} onChange={(event) => setOwnerCancelReason(event.target.value)} placeholder="Why is this posted journal being cancelled?" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button className="btn-secondary" disabled={ownerCancelling} onClick={() => setOwnerCancelOpen(false)}>Keep Posted</button>
+            <button className="px-3 py-2 rounded-lg bg-rose-700 text-white disabled:opacity-50" disabled={ownerCancelling || ownerCancelReason.trim().length < 10 || !ownerCancelDate} onClick={() => void handleOwnerCancel()}>{ownerCancelling ? "Cancelling…" : "Confirm Owner Cancellation"}</button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={reversalOpen} title={`Reverse ${entry.entry_no}`} onClose={() => !reversing && setReversalOpen(false)}>
         <div className="space-y-4">
