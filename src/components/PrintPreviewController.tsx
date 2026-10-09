@@ -5,9 +5,10 @@ import {useAuth} from '@/auth/AuthContext';
 import {usePlatformBranding} from '@/lib/platformBranding';
 import {buildReport, applyReportPrintSettings, REPORT_DOCUMENT_CSS, PRINT_COMPACT_CSS} from '@/lib/printReport';
 import {clonePrintSource, escapePrintHtml, type PrintRequest, type PrintPaper, type PrintOrientation} from '@/lib/printDocument';
+import {customizePrintHtml, printTableSelections, type PrintTableSelection} from '@/lib/printCustomization';
 import {paginatePrintDocument, paperCSS, paperDimensions} from '@/lib/printPagination';
 
-type Preview = {id:number; html:string; styles:string; title:string; paper:PrintPaper; orientation:PrintOrientation; footer:string};
+type Preview = {id:number; html:string; styles:string; title:string; paper:PrintPaper; orientation:PrintOrientation; footer:string; originalHtml?:string; tables?:PrintTableSelection[]};
 function printTarget(selector?:string) {
   if (selector) return document.querySelector<HTMLElement>(selector);
   const candidates=Array.from(document.querySelectorAll<HTMLElement>('.print-document'));
@@ -58,6 +59,7 @@ export default function PrintPreviewController() {
   const {activeCompany,activeBusinessUnit}=useAuth();const {branding}=usePlatformBranding();
   const [preview,setPreview]=useState<Preview|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[pageCount,setPageCount]=useState(0),[page,setPage]=useState(1);
   const [readyHtml,setReadyHtml]=useState('');
+  const [customizing,setCustomizing]=useState(false);
   const frameRef=useRef<HTMLIFrameElement>(null),requestRef=useRef(0),printFrames=useRef(new Set<HTMLIFrameElement>());
   const companyName=activeCompany?.company_name||'ERP',businessUnitName=activeBusinessUnit?.business_unit_name||'';
   const platformName=branding.show_branding&&branding.show_on_prints?branding.erp_name||'NAVILO':'';
@@ -93,7 +95,7 @@ export default function PrintPreviewController() {
             result={id:request,...report,styles:`<style>${REPORT_DOCUMENT_CSS}</style>`,paper:detail.paper||(settings.company.page_size==='Letter'?'Letter':settings.company.page_size==='A3'?'A3':'A4'),orientation:detail.orientation||report.orientation,footer:[companyName,businessUnitName,platformName?`Powered by ${platformName}`:''].filter(Boolean).join(' · ')};
           }
         }
-        if(request===requestRef.current)setPreview(result);
+        if(request===requestRef.current){const tables=printTableSelections(result.html);setPreview({...result,originalHtml:result.html,tables,html:customizePrintHtml(result.html,tables)});setCustomizing(true);}
       }catch(e){if(request===requestRef.current){setPreview(null);setBusy(false);setError(e instanceof Error?e.message:'Unable to prepare print document.');}}
     };
     const openNative=()=>{void open();};
@@ -117,6 +119,17 @@ export default function PrintPreviewController() {
     }catch(e){if(request===requestRef.current){setError(e instanceof Error?e.message:'Unable to lay out document pages.');setBusy(false);setReadyHtml('');}}
   };
   const changeLayout=(paper:PrintPaper,orientation:PrintOrientation)=>{if(!preview)return;requestRef.current++;setBusy(true);setError('');setReadyHtml('');setPageCount(0);setPage(1);setPreview({...preview,id:requestRef.current,paper,orientation});};
+  const changeColumns=(tableIndex:number,columnIndex:number,selected:boolean)=>{
+    if(!preview)return;
+    const tables=(preview.tables||[]).map(table=>table.index!==tableIndex?table:{...table,columns:table.columns.map((column,index)=>index===columnIndex?{...column,selected}:column)});
+    if(tables.some(table=>!table.columns.some(column=>column.selected)))return;
+    refreshColumns(tables);
+  };
+  const refreshColumns=(tables:PrintTableSelection[])=>{
+    if(!preview)return;
+    requestRef.current++;setBusy(true);setError('');setReadyHtml('');setPageCount(0);setPage(1);
+    setPreview({...preview,id:requestRef.current,tables,html:customizePrintHtml(preview.originalHtml||preview.html,tables)});
+  };
   const printNow=()=>{
     if(!readyHtml||busy)return;
     const frame=document.createElement('iframe');frame.setAttribute('aria-hidden','true');frame.style.cssText='position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;border:0';printFrames.current.add(frame);
@@ -132,9 +145,16 @@ export default function PrintPreviewController() {
       <div className="flex flex-wrap items-center gap-2">
         <label className="text-xs">Paper <SearchableSelect preserveLabel wrapperClassName="inline-block w-20" aria-label="Print paper size" className="rounded border p-1" disabled={!preview||busy} value={preview?.paper||'A4'} onChange={e=>changeLayout(e.target.value as PrintPaper,preview!.orientation)}><option>A4</option><option>A3</option><option>Letter</option></SearchableSelect></label>
         <label className="text-xs">Layout <SearchableSelect preserveLabel wrapperClassName="inline-block w-28" aria-label="Print orientation" className="rounded border p-1" disabled={!preview||busy} value={preview?.orientation||'portrait'} onChange={e=>changeLayout(preview!.paper,e.target.value as PrintOrientation)}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></SearchableSelect></label>
+        <button className="btn-secondary" disabled={!preview} aria-expanded={customizing} onClick={()=>setCustomizing(value=>!value)}>Customize Print</button>
         <button className="btn-primary" disabled={!readyHtml||busy||!!error} onClick={printNow}>Print / Save PDF</button><button className="btn-secondary" onClick={close} aria-label="Close print preview">✕</button>
       </div>
     </div>
+    {preview&&customizing&&<section aria-label="Print customization" className="mx-auto mb-2 w-full max-w-7xl shrink-0 rounded-lg border bg-white px-4 py-2">
+      <div className="flex items-center justify-between gap-2"><div className="text-xs font-semibold">Select columns to print</div><button className="btn-secondary" onClick={()=>refreshColumns((preview.tables||[]).map(table=>({...table,columns:table.columns.map(column=>({...column,selected:true}))})))}>Select all columns</button></div>
+      <div className="max-h-40 overflow-auto">
+        {preview.tables?.length?preview.tables.map(table=><fieldset key={table.index} className="mt-2"><legend className="text-xs font-medium">{preview.tables!.length>1?table.title:'Columns'}</legend><div className="flex flex-wrap gap-x-4 gap-y-1">{table.columns.map((column,index)=><label key={index} className="flex items-center gap-1.5 text-xs"><input type="checkbox" checked={column.selected} disabled={column.selected&&table.columns.filter(c=>c.selected).length===1} onChange={e=>changeColumns(table.index,index,e.target.checked)}/>{column.label}</label>)}</div></fieldset>):<p className="mt-1 text-xs text-slate-500">This document has no table columns. Use Paper and Layout to customize the print.</p>}
+      </div>
+    </section>}
     {error&&<div role="alert" className="mx-auto mb-2 w-full max-w-7xl rounded border border-red-300 bg-white p-3 text-sm text-red-700">{error}</div>}
     {busy&&<div role="status" className="mx-auto mb-2 rounded bg-white px-4 py-2 text-sm">Preparing complete document and page breaks…</div>}
     {preview&&<div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col overflow-auto rounded-lg bg-slate-300 p-3">

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach,describe,expect,it,vi} from 'vitest';
-import {cleanup,render,fireEvent,screen} from '@testing-library/react';
+import {cleanup,render,fireEvent,screen,waitFor} from '@testing-library/react';
 import DataTable from '@/components/DataTable';
 import {buildReport,cleanReportTable,reportFilterSnapshot,applyReportPrintSettings} from './printReport';
 import {createPrintDocument,registerPrintSource,printTableMarkup,printReportDescription} from './printDocument';
@@ -89,6 +89,19 @@ describe('document report data contract',()=>{
  it('identifies legacy vouchers with the active company instead of only the platform brand',()=>{
   const root=document.createElement('div');root.innerHTML='<div class="sheet"><div class="header"><div class="brand">NAVILO</div></div></div>';brandStandaloneDocument(root,'Orbit','Main Branch');expect(root.querySelector('.brand')?.textContent).toBe('Orbit');expect(root.textContent).toContain('Main Branch');expect(root.querySelector('.document-identity')).toBeNull();
   root.innerHTML='<div class="sheet"><div class="brand">Configured Company</div></div>';brandStandaloneDocument(root,'Orbit','Main Branch');expect(root.querySelector('.brand')?.textContent).toBe('Configured Company');
+ });
+ it('offers column customization for legacy print requests and restores the original complete snapshot',async()=>{
+  render(<PrintPreviewController/>);
+  window.dispatchEvent(new CustomEvent('navilo:print-preview',{detail:{html:'<table><thead><tr><th>Description</th><th>Amount</th></tr></thead><tbody><tr><td>Trip waiting</td><td>400</td></tr></tbody></table>',title:'Trip Statement'}}));
+  await waitFor(()=>expect(screen.getByRole('checkbox',{name:'Amount'})).toBeTruthy());
+  fireEvent.click(screen.getByRole('checkbox',{name:'Amount'}));
+  const frame=screen.getByTitle('Document pages') as HTMLIFrameElement;
+  expect(frame.srcdoc).toContain('Trip waiting');expect(frame.srcdoc).not.toContain('<th colspan="1">Amount</th>');
+  expect(new DOMParser().parseFromString(frame.srcdoc,'text/html').querySelectorAll('th')).toHaveLength(1);
+  expect((screen.getByRole('checkbox',{name:'Description'}) as HTMLInputElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button',{name:'Select all columns'}));
+  expect(new DOMParser().parseFromString((screen.getByTitle('Document pages') as HTMLIFrameElement).srcdoc,'text/html').querySelectorAll('th')).toHaveLength(2);
+  expect((screen.getByTitle('Document pages') as HTMLIFrameElement).srcdoc).toContain('400');
  });
  it('does not intercept the original Print button handler',()=>{
   const handler=vi.fn();render(<><PrintPreviewController/><button onClick={handler}>Print Work Order</button></>);fireEvent.click(screen.getByRole('button',{name:'Print Work Order'}));expect(handler).toHaveBeenCalledOnce();
