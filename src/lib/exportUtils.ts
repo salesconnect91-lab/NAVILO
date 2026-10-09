@@ -143,8 +143,8 @@ function collectFilters(root: HTMLElement): ExportMatrix {
   const controls = scoped.length ? scoped : Array.from(root.querySelectorAll("input:not([type=file]):not([type=hidden]),select,textarea")).filter(el => isVisibleForExport(el) && !el.closest("[role=dialog],.modal,[data-no-export]"));
   const rows: ExportMatrix = [["Filter", "Value"]];
   const seen = new Set<string>();
-  controls.forEach(el => { const label=controlLabel(el); const value=controlValue(el); const key=`${label}|${value}`; if(!seen.has(key)){rows.push([label,value]);seen.add(key);} });
-  root.querySelectorAll<HTMLElement>("[data-report-filter-value]").forEach(el => { if (isVisibleForExport(el)) rows.push([el.dataset.reportFilterLabel || "Filter", cleanText(el.textContent)]); });
+  controls.forEach(el => { if(el.getAttribute('aria-hidden')==='true'||el.closest('[data-report-filter-value]'))return; const label=controlLabel(el); const value=controlValue(el); const key=`${label}|${value}`; if(!seen.has(key)){rows.push([label,value]);seen.add(key);} });
+  root.querySelectorAll<HTMLElement>("[data-report-filter-value]").forEach(el => { if (isVisibleForExport(el)) { const label=el.dataset.reportFilterLabel || "Filter",value=el.dataset.reportFilterValue||cleanText(el.textContent),key=`${label}|${value}`;if(!seen.has(key)){rows.push([label,value]);seen.add(key);} } });
   const activeButtons = Array.from(root.querySelectorAll<HTMLButtonElement>("button.btn-primary")).filter(button => isVisibleForExport(button) && !button.closest("[data-no-export]") && !/new|add|save|refresh|print|post|receive|pay/i.test(cleanText(button.textContent)));
   activeButtons.forEach(button => { const value=cleanText(button.textContent); if(value) rows.push(["Selected View / Status",value]); });
   return rows.length > 1 ? rows : [];
