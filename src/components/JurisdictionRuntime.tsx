@@ -1,18 +1,17 @@
-import { useEffect } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { JURISDICTIONS, getJurisdictionProfile } from "@/lib/jurisdictionConfig";
+import { getJurisdictionProfile } from "@/lib/jurisdictionConfig";
 
 const originalText = new WeakMap<Text, string>();
 const originalAttributes = new WeakMap<Element, Map<string, string>>();
 const ATTRIBUTES = ["placeholder", "title", "aria-label"] as const;
-const currencyCodes = Array.from(new Set(JURISDICTIONS.map((item) => item.currency)));
-const currencyPattern = new RegExp(`\b(?:${currencyCodes.join("|")}|PKR)\b(?=\s*[-+(]?\d)`, "g");
 
 function applyProfileText(value: string, currency: string, primaryTaxId: string, secondaryTaxId: string) {
   if (!value) return value;
   let output = value;
   output = output.replace(/\bRs\.?\s*(?=[-+(]?\d)/g, `${currency} `);
-  output = output.replace(currencyPattern, currency);
+  // Foreign-currency source amounts must never be relabelled as base currency.
 
   const replacements: Array<[RegExp, string]> = [
     [/\bNTN\b/g, primaryTaxId],
@@ -83,12 +82,16 @@ function applyTree(root: Node, currency: string, primaryTaxId: string, secondary
   }
 }
 
-export default function JurisdictionRuntime() {
+export default function JurisdictionRuntime({children}:{children?:ReactNode}) {
+  const {activeCompany}=useAuth();
+  const companyId=activeCompany?.company_id;
+  const [readyCompany,setReadyCompany]=useState<string|null>(null);
+  const [error,setError]=useState("");
   useEffect(() => {
     let active = true;
     let observer: MutationObserver | null = null;
     let applying = false;
-    let currency = "PKR";
+    let currency = "";
     let primaryTaxId = "NTN";
     let secondaryTaxId = "STRN";
 
@@ -107,13 +110,19 @@ export default function JurisdictionRuntime() {
       // public login page. Defaults remain in effect until a session exists.
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) return;
-      const { data, error } = await supabase.from("company_settings").select("country_code,currency").maybeSingle();
-      if (error || !data) return;
-      const profile = getJurisdictionProfile(data.country_code);
-      currency = String(data.currency || profile.currency || "USD").toUpperCase();
+      if (!companyId) return;
+      const [settings, company] = await Promise.all([
+        supabase.from("company_settings").select("country_code,currency").eq("company_id",companyId).maybeSingle(),
+        supabase.from("companies").select("base_currency_code").eq("id",companyId).single()
+      ]);
+      if (!active) return;
+      if (company.error || !company.data) {setError(company.error?.message||"Company base currency is unavailable.");return;}
+      const profile = getJurisdictionProfile(settings.data?.country_code);
+      currency = String(company.data.base_currency_code || "").toUpperCase();
       primaryTaxId = profile.taxIdLabels[0] || "Tax Registration Number";
       secondaryTaxId = profile.taxIdLabels[1] || "";
       apply();
+      setReadyCompany(companyId);setError("");
     };
 
     let mutationFrame = 0;
@@ -141,8 +150,10 @@ export default function JurisdictionRuntime() {
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
-    void refresh();
-    const handleChange = () => void refresh();
+    document.documentElement.dataset.naviloCurrency = "";
+    const refreshSafely=()=>void refresh().catch((e:unknown)=>{if(active)setError(e instanceof Error?e.message:"Unable to load company currency.")});
+    refreshSafely();
+    const handleChange = refreshSafely;
     window.addEventListener("navilo-jurisdiction-changed", handleChange);
     window.addEventListener("navilo-workspace-changed", handleChange);
     return () => {
@@ -153,7 +164,8 @@ export default function JurisdictionRuntime() {
       window.removeEventListener("navilo-jurisdiction-changed", handleChange);
       window.removeEventListener("navilo-workspace-changed", handleChange);
     };
-  }, []);
+  }, [companyId]);
 
-  return null;
+  if(children&&companyId&&readyCompany!==companyId)return <p role={error?"alert":"status"}>{error||"Loading company currency…"}</p>;
+  return <>{children}</>;
 }

@@ -814,7 +814,7 @@ export default function Ledgers() {
               </div>
             )}
             <div className="text-right">
-              <div className="text-xs text-slate-400">Steel Mill ERP</div>
+              <div className="text-xs text-slate-400">NAVILO</div>
               <div className="text-xs text-slate-500 mt-1">Read-only posted accounting records</div>
             </div>
           </div>

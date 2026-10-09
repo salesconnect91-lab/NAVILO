@@ -53,8 +53,7 @@ createRoot(rootElement).render(
         <AuthProvider>
           <GlobalLanguageRuntime />
           <LanguageVisibilityRuntime />
-          <JurisdictionRuntime />
-          <App />
+          <JurisdictionRuntime><App /></JurisdictionRuntime>
         </AuthProvider>
       </BrowserRouter>
     </ApplicationErrorBoundary>

@@ -1,3 +1,4 @@
+import {useAuth} from "@/auth/AuthContext";
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useState } from "react";
 import { Globe2, ImagePlus, Languages, Loader2, Save, Trash2 } from "lucide-react";
@@ -15,6 +16,7 @@ import { useCompanyLanguages } from "@/hooks/useCompanyLanguages";
 import ExchangeRateSettings from "./ExchangeRateSettings";
 
 export default function CompanySettings() {
+  const {user,activeCompany}=useAuth();
   const {languages:enabledLanguages,enabledCodes,loading:languageEntitlementsLoading}=useCompanyLanguages();
   const [name,setName]=useState("Steel Mill ERP");
   const [currency,setCurrency]=useState("PKR");
@@ -51,7 +53,7 @@ export default function CompanySettings() {
 
   const load=useCallback(async()=>{
     setLoading(true);setError(null);
-    const{data,error}=await supabase.from("company_settings").select("*").maybeSingle();
+    const{data,error}=await supabase.from("company_settings").select("*").eq("company_id",activeCompany?.company_id??"").maybeSingle();
     if(error)setError(error.message);
     else if(data){
       setName(data.company_name||"Steel Mill ERP");
@@ -64,8 +66,9 @@ export default function CompanySettings() {
       setDocumentMode((data.document_language_mode||"single") as LanguageMode);
       setDocumentPrimary(data.document_primary_language||"en");setDocumentSecondary(data.document_secondary_language||"ur");
     }
+    if(!data&&activeCompany){setName(activeCompany.company_name);const company=await supabase.from("companies").select("base_currency_code").eq("id",activeCompany.company_id).single();if(company.error)setError(company.error.message);else setCurrency(company.data.base_currency_code);}
     setLoading(false);
-  },[]);
+  },[activeCompany?.company_id]);
   useEffect(()=>{void load();},[load]);
 
   const jurisdiction=getJurisdictionProfile(countryCode);
@@ -118,11 +121,11 @@ export default function CompanySettings() {
     try{
       if(!countryCode)throw new Error("Country / jurisdiction is required.");
       const companyId=await getCurrentCompanyId();
-      const{error:saveError}=await supabase.from("company_settings").update({
-        company_name:name.trim(),country_code:countryCode,currency:currency.trim()||jurisdiction.currency,
+      const{error:saveError}=await supabase.from("company_settings").upsert({
+        company_id:companyId,user_id:user?.id,company_name:name.trim(),country_code:countryCode,currency:currency.trim()||jurisdiction.currency,
         address:address.trim()||null,phone:phone.trim()||null,email:email.trim()||null,website:website.trim()||null,
         ntn:ntn.trim()||null,strn:strn.trim()||null,updated_at:new Date().toISOString(),
-      }).eq("company_id",companyId);
+      },{onConflict:"company_id"}).select("company_id").single();
       if(saveError)throw saveError;
       window.dispatchEvent(new Event("navilo-jurisdiction-changed"));
       setSaved(true);setNotice("Company profile saved successfully.");setTimeout(()=>setSaved(false),3000);
