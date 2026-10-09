@@ -556,22 +556,19 @@ export default function JournalEntryList() {
      SINGLE ENTRY
   ======================================================= */
 
-  const handleSubmit = async (
-    event: React.FormEvent
-  ) => {
-    event.preventDefault();
+  const createAndOpen = async (draft: typeof form) => {
 
     setError(null);
     setSuccess(null);
 
-    if (!form.entry_no.trim()) {
+    if (!draft.entry_no.trim()) {
       setError(
         "Entry number is required."
       );
       return;
     }
 
-    if (!form.entry_date) {
+    if (!draft.entry_date) {
       setError(
         "Entry date is required."
       );
@@ -580,13 +577,13 @@ export default function JournalEntryList() {
 
     try {
       setCreating(true);
-      const selectedCurrency = form.currency_code || baseCurrency;
+      const selectedCurrency = draft.currency_code || baseCurrency;
       if (baseCurrency && selectedCurrency !== baseCurrency) {
         const { data: effectiveRate, error: rateError } = await supabase.rpc("company_exchange_rate_on", {
-          p_company_id: activeCompanyId, p_currency_code: selectedCurrency, p_on: form.entry_date,
+          p_company_id: activeCompanyId, p_currency_code: selectedCurrency, p_on: draft.entry_date,
         });
         if (rateError) throw rateError;
-        if (effectiveRate == null) throw new Error(`No ${selectedCurrency} exchange rate exists for ${form.entry_date}. Record it in Company Settings first.`);
+        if (effectiveRate == null) throw new Error(`No ${selectedCurrency} exchange rate exists for ${draft.entry_date}. Record it in Company Settings first.`);
       }
 
       const {
@@ -596,13 +593,13 @@ export default function JournalEntryList() {
         .from("journal_entries")
         .insert({
           entry_no:
-            form.entry_no.trim(),
+            draft.entry_no.trim(),
 
           entry_date:
-            form.entry_date,
+            draft.entry_date,
 
           description:
-            form.description.trim(),
+            draft.description.trim(),
 
           status: "draft",
           ...(baseCurrency && selectedCurrency !== baseCurrency ? { currency_code: selectedCurrency } : {}),
@@ -635,6 +632,11 @@ export default function JournalEntryList() {
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    void createAndOpen(form);
   };
 
   /* =======================================================
@@ -2631,28 +2633,11 @@ export default function JournalEntryList() {
 
           <button
             type="button"
-            onClick={() => {
-              setForm({
-                entry_no:
-                  generateEntryNo(),
-
-                entry_date:
-                  new Date()
-                    .toISOString()
-                    .split("T")[0],
-
-                description: "",
-                currency_code: "",
-              });
-
-              setError(null);
-              setSuccess(null);
-
-              setModalOpen(true);
-            }}
-            className="px-4 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+            onClick={() => { void createAndOpen({entry_no:generateEntryNo(),entry_date:new Date().toLocaleDateString("en-CA"),description:"",currency_code:""}); }}
+            disabled={creating}
+            className="px-4 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-60"
           >
-            + New Journal Entry
+            {creating ? "Creating..." : "+ New Journal Entry"}
           </button>
 
         </div>
