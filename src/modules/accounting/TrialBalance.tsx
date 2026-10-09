@@ -259,17 +259,17 @@ export default function TrialBalance() {
       `"Closing Status","${isBalanced ? "Balanced" : "Out of Balance"}"`,
       `"Closing Difference","${closingDifference.toFixed(2)}"`,
       "",
-      "Account Code,Account Name,Type,Opening Debit,Opening Credit,Period Debit,Period Credit,Closing Debit,Closing Credit",
+      "Account Name,Type,Opening Debit,Opening Credit,Period Debit,Period Credit,Closing Debit,Closing Credit",
     ];
 
     rows.forEach((row) => {
       csvRows.push(
-        `"${row.code}","${row.name}","${row.type}",${row.openingDebit},${row.openingCredit},${row.periodDebit},${row.periodCredit},${row.closingDebit},${row.closingCredit}`
+        `"${row.name}","${row.type}",${row.openingDebit},${row.openingCredit},${row.periodDebit},${row.periodCredit},${row.closingDebit},${row.closingCredit}`
       );
     });
 
     csvRows.push(
-      `"TOTAL","","",${totals.openingDebit},${totals.openingCredit},${totals.periodDebit},${totals.periodCredit},${totals.closingDebit},${totals.closingCredit}`
+      `"TOTAL","",${totals.openingDebit},${totals.openingCredit},${totals.periodDebit},${totals.periodCredit},${totals.closingDebit},${totals.closingCredit}`
     );
 
     const link = document.createElement("a");
@@ -328,7 +328,7 @@ export default function TrialBalance() {
     Math.abs(amount) >= 0.005 ? formatCurrency(amount) : "—";
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 pb-12"><AccountingReportScopeSelect value={scope} onChange={setScope}/><details className="no-print"><summary>Customize Trial Balance headers / export</summary><ConfigurableReport module="accounting" preferenceKey="accounting-trial-balance" report={{title:'Trial Balance',description:`${fromDate} to ${toDate} · Canonical posted ledger`,columns:['Code','Account','Opening debit','Opening credit','Period debit','Period credit','Closing debit','Closing credit'],rows:[...rows.map(r=>[r.code,r.name,r.openingDebit,r.openingCredit,r.periodDebit,r.periodCredit,r.closingDebit,r.closingCredit]),['TOTAL','',totals.openingDebit,totals.openingCredit,totals.periodDebit,totals.periodCredit,totals.closingDebit,totals.closingCredit]]}}/></details>
+    <div className="mx-auto max-w-[1500px] space-y-6 pb-12"><AccountingReportScopeSelect value={scope} onChange={setScope}/><details className="no-print"><summary>Customize Trial Balance headers / export</summary><ConfigurableReport module="accounting" preferenceKey="accounting-trial-balance" report={{title:'Trial Balance',description:`${fromDate} to ${toDate} · Canonical posted ledger`,columns:['Account','Opening debit','Opening credit','Period debit','Period credit','Closing debit','Closing credit'],rows:[...rows.map(r=>[r.name,r.openingDebit,r.openingCredit,r.periodDebit,r.periodCredit,r.closingDebit,r.closingCredit]),['TOTAL','',totals.openingDebit,totals.openingCredit,totals.periodDebit,totals.periodCredit,totals.closingDebit,totals.closingCredit]]}}/></details>
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -550,7 +550,7 @@ export default function TrialBalance() {
               <table className="w-full min-w-[1250px] text-xs">
                 <thead>
                   <tr className="border-b border-slate-300 bg-slate-900 text-white">
-                    <th rowSpan={2} className="px-3 py-3 text-left font-semibold">Code</th>
+                    
                     <th rowSpan={2} className="px-3 py-3 text-left font-semibold">Account Name</th>
                     <th rowSpan={2} className="px-3 py-3 text-left font-semibold">Type</th>
                     <th colSpan={2} className="border-l border-slate-700 px-3 py-2 text-center font-semibold">Opening Balance</th>
@@ -568,7 +568,7 @@ export default function TrialBalance() {
                 <tbody className="divide-y divide-slate-100">
                   {rows.map((row) => (
                     <tr key={row.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2.5 font-mono font-semibold text-slate-900">{row.code}</td>
+                      
                       <td className="px-3 py-2.5 text-slate-800">{row.name}</td>
                       <td className="px-3 py-2.5 text-[12px] font-semibold uppercase text-slate-500">{row.type}</td>
                       <td className="border-l border-slate-100 px-3 py-2.5 text-right font-mono">{amountCell(row.openingDebit)}</td>
@@ -582,7 +582,7 @@ export default function TrialBalance() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-slate-900 bg-slate-100 font-bold text-slate-900">
-                    <td colSpan={3} className="px-3 py-3 text-sm uppercase">Total</td>
+                    <td colSpan={2} className="px-3 py-3 text-sm uppercase">Total</td>
                     <td className="border-l border-slate-300 px-3 py-3 text-right font-mono">{formatCurrency(totals.openingDebit)}</td>
                     <td className="px-3 py-3 text-right font-mono">{formatCurrency(totals.openingCredit)}</td>
                     <td className="border-l border-slate-300 px-3 py-3 text-right font-mono">{formatCurrency(totals.periodDebit)}</td>
