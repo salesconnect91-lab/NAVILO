@@ -42,7 +42,7 @@ export default function TransportAccountStatement({kind,onChanged}:{kind:'driver
    fetchAllPages<{id:string;vehicle_no:string}>((start,end)=>supabase.from('transport_vehicles')
      .select('id,vehicle_no').eq('ownership_type','company').order('vehicle_no').range(start,end))
  ]);
- data=movements;economics=contribs;fleet=masterRows.map(v=>[v.id,v.vehicle_no]);
+ data=movements;economics=contribs;fleet=masterRows.map(v=>[v.id,v.vehicle_no] as [string,string]);
  }
  if(generation.current===token){setRows(data);setContributions(economics);setFleetOptions(fleet);}
  }catch(e:any){if(generation.current===token)setError(e?.message||'Unable to load posted account detail.')}finally{if(generation.current===token)setLoading(false)}}
