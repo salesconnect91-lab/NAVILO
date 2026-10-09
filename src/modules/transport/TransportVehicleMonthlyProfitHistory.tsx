@@ -127,7 +127,7 @@ export default function TransportVehicleMonthlyProfitHistory({onLinked}:{onLinke
               <td className="p-2 text-right">{amount(items.reduce((sum,r)=>sum+(r.source_kind==='historical_opening'?Number(r.historical_net):0),0))}</td>
               <td className="p-2 text-right">{amount(items.reduce((sum,r)=>sum+Number(r.posted_revenue),0))}</td>
               <td className="p-2 text-right">{amount(items.reduce((sum,r)=>sum+Number(r.posted_cost),0))}</td>
-              <td className="p-2 text-right">{amount(items.reduce((sum,r)=>sum+Number(r.net_profit),0))}</td><td className="p-2">Not distributed</td>
+              <td className="p-2 text-right">{amount(items.reduce((sum,r)=>sum+Number(r.net_profit),0))}</td><td className="p-2">Historical result</td>
             </tr>
           </Fragment>)}
         </tbody>
