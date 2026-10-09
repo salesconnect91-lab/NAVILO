@@ -173,10 +173,17 @@ export function collectReportPackage(root: HTMLElement, title = document.title |
   const filterRows = includeFilters ? collectFilters(root) : [];
   const summaryRows = collectSummary(root);
   const overview: ExportMatrix = [["Report", title], ["Exported At", new Date().toLocaleString()]];
+  const baseCurrency=root.ownerDocument.documentElement.dataset.naviloCurrency;
+  if(baseCurrency)overview.push(["Company base currency",baseCurrency]);
   if (filterRows.length) overview.push([], ["Applied Filters"], ...filterRows);
   if (summaryRows.length) overview.push([], ["Summary"], ...summaryRows);
   if (overview.length > 2) sheets.push({ name: "Summary & Filters", rows: overview });
-  Array.from(root.querySelectorAll<HTMLTableElement>("table")).filter(isVisibleForExport).forEach((table, index) => {
+  const primary=root.matches("[data-print-primary-source]")?root:root.querySelector<HTMLElement>("[data-print-primary-source]");
+  const primaryTables=primary?Array.from(primary.querySelectorAll<HTMLTableElement>("table")).filter(isVisibleForExport):[];
+  // Financial statements have a configurable canonical source and a visual
+  // presentation of the same balances. Export the source once.
+  const tables=primaryTables.length?primaryTables:Array.from(root.querySelectorAll<HTMLTableElement>("table")).filter(isVisibleForExport);
+  tables.forEach((table, index) => {
     const matrix = tableMatrix(table, includeTotals); if (!matrix.length) return;
     const heading = table.closest("section,div")?.querySelector<HTMLElement>("h1,h2,h3,[data-export-table-title]");
     sheets.push({ name: cleanText(heading?.textContent) || (index === 0 ? "Report Data" : `Table ${index + 1}`), rows: matrix });
