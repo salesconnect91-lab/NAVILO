@@ -21,12 +21,13 @@ describe('Driver management lives under its owner master',()=>{
   expect(screen.getByText('Scoped Driver Details')).toBeTruthy();expect(mock.driver).toHaveBeenLastCalledWith(expect.objectContaining({kind:'drivers',supplierOwner:{id:'s',name:'Supplier One'}}));
   fireEvent.click(screen.getByRole('button',{name:'Back to Suppliers'}));expect(screen.getByText('Supplier One')).toBeTruthy();
  });
- it('opens driving details for an existing Employee',async()=>{
-  render(<MemoryRouter><Employees/></MemoryRouter>);fireEvent.click(await screen.findByRole('button',{name:'Driver Details'}));
-  expect(mock.driver).toHaveBeenLastCalledWith(expect.objectContaining({kind:'drivers',employeeOwner:{id:'e',name:'Employee One'}}));
-  fireEvent.click(screen.getByRole('button',{name:'Back to Employees'}));expect(screen.getByText('Employee One')).toBeTruthy();
+ it('shows linked Transport drivers only under Drivers, not Staff',async()=>{
+  render(<MemoryRouter><Employees/></MemoryRouter>);
+  await screen.findByText('Staff only. Company drivers are displayed under Drivers; their employee records remain linked internally for salary accounting.');
+  expect(screen.queryByText('Employee One')).toBeNull();
+  expect(screen.queryByRole('button',{name:'Driver Details'})).toBeNull();
+  expect(screen.queryByRole('button',{name:'Hisaab'})).toBeNull();
  });
- it('opens Hisaab for the selected Employee without another driver selector',async()=>{render(<MemoryRouter><Employees/></MemoryRouter>);fireEvent.click(await screen.findByRole('button',{name:'Hisaab'}));expect(mock.account).toHaveBeenLastCalledWith(expect.objectContaining({kind:'driver',employeeAccount:{id:'e',name:'Employee One'}}));fireEvent.click(screen.getByRole('button',{name:'Back to Employees'}));expect(screen.getByText('Employee One')).toBeTruthy()});
  it('keeps driver management out of Steel/general supplier and employee screens',async()=>{
   mock.businessType='steel';const view=render(<MemoryRouter><Suppliers/></MemoryRouter>);await screen.findByText('Supplier One');expect(screen.queryByRole('button',{name:'Drivers'})).toBeNull();view.unmount();
   render(<MemoryRouter><Employees/></MemoryRouter>);await screen.findByText('Employee One');expect(screen.queryByRole('button',{name:'Driver Details'})).toBeNull();expect(mock.driver).not.toHaveBeenCalled();
