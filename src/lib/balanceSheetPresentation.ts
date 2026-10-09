@@ -33,7 +33,7 @@ export function balanceSheetClassification(
   if (accountType === 'equity') {
     if (name.includes('current account'))return {label:'Partner Current Account',rank:20};
     if (name.includes('undistributed profit'))return {label:'Undistributed Profit',rank:30};
-    if (key==='retainedearnings')return {label:'Retained Earnings',rank:40};
+    if (name.includes('retained earnings') || key==='retainedearnings')return {label:'Retained Earnings',rank:40};
     if (name.includes('capital') || key==='capital' || key==='ownersequity')return {label:'Partner Capital',rank:10};
     if (key==='ownersdrawings')return {label:'Owner Drawings',rank:50};
     return {label:'Other Equity',rank:60};
@@ -41,6 +41,7 @@ export function balanceSheetClassification(
 
   if (accountType === 'asset') {
     if (key==='cash' || key==='cashandcashequivalents' || key==='bank')return {label:'Cash & Bank',rank:10};
+    if (key==='othercurrentasset')return {label:'Other Current Asset',rank:60};
     if (key==='accountsreceivable')return {label:'Trade Receivables',rank:20};
     if (name.includes('investment') || key.includes('noncurrentasset'))return {label:'Investments / Long-Term Assets',rank:70};
     if (key==='fixedassets' || name.includes('machinery') || name.includes('equipment'))return {label:'Property & Equipment',rank:80};
