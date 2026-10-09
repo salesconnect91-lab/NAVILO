@@ -1,4 +1,5 @@
 import NaviloSearchableSelect from "@/components/SearchableSelect";
+import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { formatNaviloDate } from "@/lib/naviloDate";
 import type { MasterQuickCreate } from "./MasterQuickCreate";
@@ -132,7 +133,7 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
     if (result.error) setError(result.error.message); else await changed();
   };
   const columns: Column<Row>[] = [
-    { key: "name", label: vehicle ? "Vehicle No / Plate No" : "Driver Name", render: row => <span className="font-semibold">{row.name}</span> },
+    { key: "name", label: vehicle ? "Vehicle No / Plate No" : "Driver Name", render: row => <span className="font-semibold">{vehicle ? vehicleDisplayLabel(row.name,truckTypes.find(t=>t.id===row.truckTypeId)?.name??row.detail) : row.name}</span> },
     { key: "detail", label: vehicle ? "Truck Type" : "Driver Code", render: row => vehicle ? truckTypes.find(t => t.id === row.truckTypeId)?.name ?? (row.detail || "—") : row.detail || "—" },
     ...(!vehicle ? [{ key: "mobile", label: "Mobile", render: (row: Row) => row.mobile || "—" } as Column<Row>] : []),
     { key: "type", label: vehicle ? "Ownership Type" : "Driver Type", render: row => (vehicle ? row.ownerType : row.driverType) === "supplier" ? "Supplier" : (vehicle ? row.ownerType : row.driverType) === "company" ? "Company" : "Legacy / not classified" },
