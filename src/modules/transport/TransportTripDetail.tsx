@@ -1,4 +1,5 @@
 import NaviloSearchableSelect from "@/components/SearchableSelect";
+import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { useEffect, useState } from "react";
 import { useAuth } from "@/auth/AuthContext";
@@ -9,7 +10,7 @@ type Trip = { id:string; trip_no:string; po_do_job_no:string|null; job_status:st
   ppr_status:string; ppr_received_by_employee_id:string|null; ppr_received_date:string|null; customer_rate:number;
   customer_rate_state:string; owner_rent:number; vehicle_id:string|null; driver_id:string|null };
 type Person = { id:string; name:string };
-type Simple = { id:string; vehicle_no?:string; driver_name?:string };
+type Simple = { id:string; vehicle_no?:string; driver_name?:string;truck_type_id?:string|null;truck_type?:string|null };
 type Rent = { id:string; supplier_name_snapshot:string; amount:number; state:string };
 type Audit = { id:number; action:string; occurred_at:string; reason:string|null; old_value:unknown; new_value:unknown };
 
@@ -20,27 +21,28 @@ export default function TransportTripDetail({tripId,onClose,onSaved}:{tripId:str
   const can=(action:TransportAction)=>canTransportAction(role,permissions,action,isPlatformOwner);
   const [trip,setTrip]=useState<Trip|null>(null),[rents,setRents]=useState<Rent[]>([]),[audit,setAudit]=useState<Audit[]>([]);
   const [employees,setEmployees]=useState<Person[]>([]),[suppliers,setSuppliers]=useState<Person[]>([]);
-  const [vehicles,setVehicles]=useState<Simple[]>([]),[drivers,setDrivers]=useState<Simple[]>([]);
+  const [vehicles,setVehicles]=useState<Simple[]>([]),[drivers,setDrivers]=useState<Simple[]>([]),[truckTypes,setTruckTypes]=useState<{id:string;name:string}[]>([]);
   const [error,setError]=useState(""),[busy,setBusy]=useState(false);
   const [job,setJob]=useState(""),[employee,setEmployee]=useState(""),[date,setDate]=useState(new Date().toISOString().slice(0,10));
   const [rate,setRate]=useState(""),[rateReason,setRateReason]=useState(""),[rent,setRent]=useState(""),[rentReason,setRentReason]=useState("");
   const [supplier,setSupplier]=useState(""),[supplierAmount,setSupplierAmount]=useState(""),[vehicle,setVehicle]=useState(""),[driver,setDriver]=useState(""),[replacementReason,setReplacementReason]=useState("");
   const load=async()=>{
-    const [t,r,a,e,s,v,d]=await Promise.all([
+    const [t,r,a,e,s,v,d,tt]=await Promise.all([
       supabase.from("transport_trips").select("*").eq("id",tripId).single(),
       supabase.from("transport_trip_supplier_rents").select("id,supplier_name_snapshot,amount,state").eq("trip_id",tripId),
       supabase.from("transport_trip_audit").select("id,action,occurred_at,reason,old_value,new_value").eq("trip_id",tripId).order("occurred_at",{ascending:false}),
       supabase.from("employees").select("id,name").eq("is_active",true),
       supabase.from("suppliers").select("id,name"),
-      supabase.from("transport_vehicles").select("id,vehicle_no").eq("is_active",true),
-      supabase.from("transport_drivers").select("id,driver_name").eq("is_active",true)
+      supabase.from("transport_vehicles").select("id,vehicle_no,truck_type_id,truck_type").eq("is_active",true),
+      supabase.from("transport_drivers").select("id,driver_name").eq("is_active",true),
+      supabase.from("transport_truck_types").select("id,name")
     ]);
-    const first=[t.error,r.error,a.error,e.error,s.error,v.error,d.error].find(Boolean);
+    const first=[t.error,r.error,a.error,e.error,s.error,v.error,d.error,tt.error].find(Boolean);
     if(first){setError(first.message);return;}
     const next=t.data as Trip;
     setTrip(next);setJob(next.po_do_job_no??"");setRate(String(next.customer_rate));setRent(String(next.owner_rent));
     setRents((r.data??[]) as Rent[]);setAudit((a.data??[]) as Audit[]);setEmployees((e.data??[]) as Person[]);
-    setSuppliers((s.data??[]) as Person[]);setVehicles((v.data??[]) as Simple[]);setDrivers((d.data??[]) as Simple[]);
+    setSuppliers((s.data??[]) as Person[]);setVehicles((v.data??[]) as Simple[]);setDrivers((d.data??[]) as Simple[]);setTruckTypes((tt.data??[]) as {id:string;name:string}[]);
     setVehicle(next.vehicle_id??"");setDriver(next.driver_id??"");
   };
   useEffect(()=>{void load()},[tripId]);
@@ -67,7 +69,7 @@ export default function TransportTripDetail({tripId,onClose,onSaved}:{tripId:str
         {can(trip.rent_state==="finalized"?"rent_correct":"rent_finalize")&&<div className="mt-2 flex flex-wrap gap-2"><input className="input w-28" type="number" min="0" step="0.01" aria-label="Legacy owner rent" value={rent} onChange={e=>setRent(e.target.value)}/><input className="input flex-1" placeholder="Correction reason" value={rentReason} onChange={e=>setRentReason(e.target.value)}/><button className="btn-secondary" disabled={busy} onClick={()=>void run(()=>trip.rent_state==="finalized"?supabase.rpc("transport_correct_trip_rent",{p_trip_id:tripId,p_owner_rent:Number(rent),p_reason:rentReason}):supabase.rpc("transport_finalize_trip_rent",{p_trip_id:tripId,p_reason:null}))}>{trip.rent_state==="finalized"?"Correct Rent":"Complete Trip"}</button></div>}
       </div>
       <div className="rounded-lg border p-3"><h3 className="font-semibold">Vehicle / Driver Replacement</h3>
-        {can("assignment_replace")&&<div className="mt-2 flex flex-wrap gap-2"><NaviloSearchableSelect nativeCompatibility preserveLabel className="input" aria-label="Replacement vehicle" value={vehicle} onChange={e=>setVehicle(e.target.value)}><option value="">No vehicle</option>{vehicles.map(x=><option key={x.id} value={x.id}>{x.vehicle_no}</option>)}</NaviloSearchableSelect><NaviloSearchableSelect nativeCompatibility preserveLabel className="input" aria-label="Replacement driver" value={driver} onChange={e=>setDriver(e.target.value)}><option value="">No driver</option>{drivers.map(x=><option key={x.id} value={x.id}>{x.driver_name}</option>)}</NaviloSearchableSelect><input className="input" placeholder="Required reason" value={replacementReason} onChange={e=>setReplacementReason(e.target.value)}/><button className="btn-secondary" disabled={busy||!replacementReason.trim()} onClick={()=>void run(()=>supabase.rpc("transport_replace_trip_assignment",{p_trip_id:tripId,p_vehicle_id:vehicle||null,p_driver_id:driver||null,p_reason:replacementReason}))}>Replace</button></div>}
+        {can("assignment_replace")&&<div className="mt-2 flex flex-wrap gap-2"><NaviloSearchableSelect nativeCompatibility preserveLabel className="input" aria-label="Replacement vehicle" value={vehicle} onChange={e=>setVehicle(e.target.value)}><option value="">No vehicle</option>{vehicles.map(x=><option key={x.id} value={x.id}>{vehicleDisplayLabel(x.vehicle_no,truckTypes.find(t=>t.id===x.truck_type_id)?.name??x.truck_type)}</option>)}</NaviloSearchableSelect><NaviloSearchableSelect nativeCompatibility preserveLabel className="input" aria-label="Replacement driver" value={driver} onChange={e=>setDriver(e.target.value)}><option value="">No driver</option>{drivers.map(x=><option key={x.id} value={x.id}>{x.driver_name}</option>)}</NaviloSearchableSelect><input className="input" placeholder="Required reason" value={replacementReason} onChange={e=>setReplacementReason(e.target.value)}/><button className="btn-secondary" disabled={busy||!replacementReason.trim()} onClick={()=>void run(()=>supabase.rpc("transport_replace_trip_assignment",{p_trip_id:tripId,p_vehicle_id:vehicle||null,p_driver_id:driver||null,p_reason:replacementReason}))}>Replace</button></div>}
       </div>
     </div>
     <div className="rounded-lg border p-3"><h3 className="font-semibold">Trip Audit / Change History</h3>{audit.map(x=><div key={x.id} className="border-t py-2 text-xs"><strong>{x.action}</strong> · {new Date(x.occurred_at).toLocaleString()} · {x.reason||"—"}<div className="break-all text-slate-500">{JSON.stringify(x.old_value)} → {JSON.stringify(x.new_value)}</div></div>)}</div>
