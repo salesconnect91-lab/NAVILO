@@ -1,6 +1,8 @@
 import {Fragment,useEffect,useMemo,useState} from 'react';
 import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
+import {fetchAllPages} from '@/lib/fetchAllPages';
+import {vehicleDisplayLabel} from '@/lib/transportVehicleLabel';
 
 type ProfitRow={
   vehicle_id:string;vehicle_no:string;month:string;
@@ -20,7 +22,8 @@ export default function TransportVehicleMonthlyProfitHistory({onLinked}:{onLinke
   const {activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role;
   const canImport=isPlatformOwner||role==='company_owner'||role==='admin';
-  const [pending,setPending]=useState<{id:string;vehicle_no:string;net_profit:number|string}[]>([]);
+  const [pending,setPending]=useState<{id:string;vehicle_no:string;truck_type_name:string;net_profit:number|string}[]>([]);
+  const [vehicleTypes,setVehicleTypes]=useState<Record<string,string>>({});
   const [importing,setImporting]=useState(false),[importNotice,setImportNotice]=useState('');
   const [from,setFrom]=useState(''),[to,setTo]=useState('');
   const [version,setVersion]=useState(0);
@@ -49,12 +52,32 @@ export default function TransportVehicleMonthlyProfitHistory({onLinked}:{onLinke
   useEffect(()=>{
     let mounted=true;
     void supabase.from('transport_vehicle_profit_import_queue')
-      .select('id,vehicle_no,net_profit').eq('status','pending').order('vehicle_no')
+      .select('id,vehicle_no,truck_type_name,net_profit').eq('status','pending').order('vehicle_no')
       .then(({data,error:failure})=>{
         if(!mounted)return;
         if(failure){setPending([]);return;}
         setPending(data??[]);
       });
+    return()=>{mounted=false};
+  },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,version]);
+
+  useEffect(()=>{
+    let mounted=true;
+    async function loadVehicleTypes(){
+      try{
+        const [vehicles,truckTypes]=await Promise.all([
+          fetchAllPages<{id:string;truck_type_id:string|null;truck_type:string|null}>((start,end)=>
+            supabase.from('transport_vehicles').select('id,truck_type_id,truck_type').order('id').range(start,end)),
+          fetchAllPages<{id:string;name:string}>((start,end)=>
+            supabase.from('transport_truck_types').select('id,name').order('id').range(start,end)),
+        ]);
+        if(mounted){
+          const typeById=new Map(truckTypes.map(t=>[t.id,t.name]));
+          setVehicleTypes(Object.fromEntries(vehicles.map(v=>[v.id,typeById.get(v.truck_type_id??'')??v.truck_type??''])));
+        }
+      }catch{if(mounted)setVehicleTypes({});}
+    }
+    void loadVehicleTypes();
     return()=>{mounted=false};
   },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,version]);
 
@@ -95,7 +118,7 @@ export default function TransportVehicleMonthlyProfitHistory({onLinked}:{onLinke
       </div>
     </div>
     {pending.length>0&&<div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded border border-amber-200 bg-amber-50 p-2">
-      <p className="text-amber-900"><strong>{pending.length} owner-confirmed company vehicle(s)</strong> awaiting one-time master linking. Existing posted opening journal amounts will only be attributed, never re-posted.</p>
+      <p className="text-amber-900"><strong>{pending.length} owner-confirmed company vehicle(s)</strong>: {pending.map(v=>vehicleDisplayLabel(v.vehicle_no,v.truck_type_name)).join(', ')}. Awaiting one-time master linking; posted opening journal will not be re-posted.</p>
       {canImport&&<button className="btn btn-primary text-xs" disabled={importing} onClick={()=>void linkApprovedOpening()}>{importing?'Linking…':'Link Company Vehicles & Opening Profit'}</button>}
     </div>}
     {importNotice&&<p role="status" className="mt-2 text-emerald-700">{importNotice}</p>}
@@ -115,7 +138,7 @@ export default function TransportVehicleMonthlyProfitHistory({onLinked}:{onLinke
         <tbody>
           {months.map(([month,items])=><Fragment key={month}>
             {items.map(r=><tr key={month+':'+r.vehicle_id} className="border-b border-slate-100">
-              <td className="p-2">{monthName(month)}</td><td className="p-2 font-semibold">{r.vehicle_no}</td>
+              <td className="p-2">{monthName(month)}</td><td className="p-2 font-semibold">{vehicleDisplayLabel(r.vehicle_no,vehicleTypes[r.vehicle_id])}</td>
               <td className="p-2 text-right">{r.source_kind==='historical_opening'?amount(Number(r.historical_net)):'—'}</td>
               <td className="p-2 text-right">{amount(Number(r.posted_revenue))}</td>
               <td className="p-2 text-right">{amount(Number(r.posted_cost))}</td>
