@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/auth/AuthContext";
 
 type OwnerEvent = {
   id: string;
@@ -11,11 +12,15 @@ type OwnerEvent = {
 };
 
 export default function OwnerJournalAuditHistory() {
+  const { activeCompany, activeBusinessUnit } = useAuth();
   const [events, setEvents] = useState<OwnerEvent[]>([]);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
     let alive = true;
+    setEvents([]);
+    setError("");
+    if (!activeCompany?.company_id || !activeBusinessUnit?.business_unit_id) return;
     void (async () => {
       const { data: owner, error: permissionError } = await supabase.rpc("owner_posted_control_access");
       if (!alive || permissionError || owner !== true) return;
@@ -31,7 +36,7 @@ export default function OwnerJournalAuditHistory() {
       else setEvents((data ?? []) as OwnerEvent[]);
     })();
     return () => { alive = false; };
-  }, []);
+  }, [activeCompany?.company_id, activeBusinessUnit?.business_unit_id]);
   if (events.length === 0 && !error) return null;
   return (
     <section className="rounded-lg border border-slate-200 bg-white px-3 py-2">
