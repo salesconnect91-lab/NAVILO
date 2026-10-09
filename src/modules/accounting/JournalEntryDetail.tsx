@@ -800,6 +800,18 @@ export default function JournalEntryDetail() {
     ]);
   };
 
+  // Copying a vehicle cost never duplicates its monetary value.
+  // Fill the split amount on each line explicitly so the final journal balances.
+  const handleSplitVehicleRow=(line:DraftLine)=>{
+    setDraftLines(current=>{
+      const at=current.findIndex(r=>r.tempId===line.tempId);
+      if(at<0)return current;
+      const copy=[...current];
+      copy.splice(at+1,0,{...line,tempId:createTempId(),vehicleId:'',debit:'',credit:''});
+      return copy;
+    });
+  };
+
   const handleDuplicateRow = (
     line: DraftLine
   ) => {
@@ -2304,7 +2316,7 @@ export default function JournalEntryDetail() {
             <p className="text-xs text-slate-500 mt-0.5">
               {isPosted
                 ? "This journal entry has been posted and is locked."
-                : "Enter multiple journal lines manually or load them from Excel/CSV. Account and Name / Party are stored separately."}
+                : "Enter multiple journal lines manually or import Excel/CSV. Related To keeps party and company-vehicle dimensions correctly linked."}
             </p>
           </div>
         </div>
@@ -2360,7 +2372,7 @@ export default function JournalEntryDetail() {
                                 : line.account}
                             </div>
 
-                            {line.transport_vehicle_id&&<div className="text-xs text-blue-700">Company Vehicle: {line.transport_vehicle_no||companyVehicles.find(v=>v.id===line.transport_vehicle_id)?.vehicle_no||'Linked vehicle'}</div>}
+
 
                             {coa && (
                               <div className="text-xs text-slate-400 mt-0.5">
@@ -2370,21 +2382,14 @@ export default function JournalEntryDetail() {
                           </td>
 
                           <td className="py-3.5 px-4">
-                            {partyName ? (
-                              <>
-                                <div className="font-medium text-slate-800">
-                                  {partyName}
-                                </div>
-
-                                <div className="text-xs text-slate-400 mt-0.5 capitalize">
-                                  {line.party_type}
-                                </div>
-                              </>
-                            ) : (
-                              <span className="text-slate-400">
-                                —
-                              </span>
-                            )}
+                            {partyName&&<div className="font-medium text-slate-800">
+                              {partyName} <span className="text-xs text-slate-500">({line.party_type})</span>
+                            </div>}
+                            {line.transport_vehicle_id&&<div className="font-medium text-blue-800">
+                              {companyVehicles.find(v=>v.id===line.transport_vehicle_id)?.label
+                                ??line.transport_vehicle_no??'Company Vehicle'}
+                            </div>}
+                            {!partyName&&!line.transport_vehicle_id&&<span className="text-slate-400">General / Shared</span>}
                           </td>
 
                           <td className="py-3.5 px-4 text-right text-slate-700 font-mono">
@@ -2713,9 +2718,9 @@ export default function JournalEntryDetail() {
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    handleDuplicateRow(
-                                      line
-                                    )
+                                    relatedMode==='vehicle'
+                                      ? handleSplitVehicleRow(line)
+                                      : handleDuplicateRow(line)
                                   }
                                   disabled={
                                     saving ||
@@ -2723,9 +2728,9 @@ export default function JournalEntryDetail() {
                                     importing
                                   }
                                   className="px-2 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded"
-                                  title="Duplicate row"
+                                  title={relatedMode==='vehicle'?'Split amount across vehicles using another journal line':'Duplicate row'}
                                 >
-                                  Copy
+                                  {relatedMode==='vehicle'?'Split':'Copy'}
                                 </button>
 
                                 <button
