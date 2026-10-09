@@ -67,8 +67,8 @@ type Trip=FinancialTrip & {
 
 const tabs:{key:Tab;label:string;icon:any}[]=[
   {key:"trips",label:"Trips",icon:Route},{key:"new",label:"New Trip",icon:Plus},{key:"mobile",label:"Mobile Quick Entry",icon:Search},{key:"audit",label:"Trip Audit",icon:History},
-  {key:"driver-expenses",label:"Driver Expense Upload",icon:ReceiptText},{key:"driver-account",label:"Driver Account / Hisaab",icon:UserRound},
-  {key:"vehicle-account",label:"Vehicle Account / Gari Hisaab",icon:Truck},
+  {key:"driver-expenses",label:"Driver Expense Upload",icon:ReceiptText},{key:"driver-account",label:"Driver Ledger",icon:UserRound},
+  {key:"vehicle-account",label:"Company Vehicle Ledger",icon:Truck},
 ];
 
 function Badge({value}:{value?:string|null}){const label=String(value??"").trim();return <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold capitalize text-slate-700">{label?label.replaceAll("_"," "):"?"}</span>}
@@ -2781,8 +2781,8 @@ export default function TransportWorkspace(){
 
     {!showPartyReports&&tab==="audit"&&<TransportAudit trips={rows}/>}
     {!showPartyReports&&tab==="driver-expenses"&&<TransportCostUpload trips={rows} onChanged={load}/> }
-    {!showPartyReports&&tab==="driver-account"&&<TransportAccountRows title="Driver Account / Hisaab" kind="driver"/> }
-    {!showPartyReports&&tab==="vehicle-account"&&<TransportAccountRows title="Vehicle Account / Gari Hisaab" kind="vehicle"/> }
+    {!showPartyReports&&tab==="driver-account"&&<TransportAccountRows title="Driver Ledger" kind="driver"/> }
+    {!showPartyReports&&tab==="vehicle-account"&&<TransportAccountRows title="Company Vehicle Ledger" kind="vehicle"/> }
     {quickPprTrip&&<div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/30 p-4">
       <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
         <div className="mb-3 flex items-center justify-between">
