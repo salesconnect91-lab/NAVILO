@@ -1199,6 +1199,13 @@ export default function JournalEntryDetail() {
             return;
           }
 
+          if (partyType && (partyType === "customer" ? customers : suppliers).filter(item =>
+            item.name.trim().toLowerCase() === partyName.trim().toLowerCase()
+          ).length > 1) {
+            importErrors.push(`Row ${rowNumber}: More than one ${partyType} matches "${partyName}". Use a unique master name or select the correct party manually.`);
+            return;
+          }
+
           if (
             partyType === "customer"
           ) {
