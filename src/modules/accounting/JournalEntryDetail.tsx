@@ -2515,6 +2515,7 @@ export default function JournalEntryDetail() {
                           >
                             <td className="px-3 py-2">
                               <SearchableSelect
+                                preserveLabel
                                 className="input bg-white w-full"
                                 searchPlaceholder="Search account by code or name..."
                                 emptyText="No posting account found"
