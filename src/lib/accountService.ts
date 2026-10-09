@@ -811,13 +811,21 @@ export async function saveAccount(
    * UPDATE
    */
   if (account.id) {
-    const { error } = await supabase
+    // Return the saved row: a row filtered out by RLS must not look
+    // like a successful update (PostgREST can report no error for 0 rows).
+    // The database trigger, not the client clock, stamps updated_at.
+    const { data, error } = await supabase
       .from("chart_of_accounts")
       .update(payload)
-      .eq("id", account.id);
+      .eq("id", account.id)
+      .select("id, updated_at")
+      .single();
 
     if (error) {
       throw new Error(error.message);
+    }
+    if (!data || data.id !== account.id || !data.updated_at) {
+      throw new Error("Account update was not confirmed. Refresh and retry.");
     }
 
     return;
