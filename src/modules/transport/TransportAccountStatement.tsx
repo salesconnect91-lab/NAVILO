@@ -37,9 +37,16 @@ export default function TransportAccountStatement({kind,onChanged}:{kind:'driver
  const items=await fetchAllPages<PartyMovement & {employee_id:string}>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'driver',p_limit:end-start+1,p_offset:start}));
  data=items.map(r=>({...r,side:'supplier',party_id:r.employee_id,account_id:r.employee_id,account_name:r.party_name}));
  }else{
+ // Historical opening profits may exist even before the first Trip.
+ // Probe the narrow base table before invoking two costly accounting views.
+ const tripProbe=await supabase.from('transport_trips').select('id')
+   .eq('company_id',activeCompany.company_id)
+   .eq('business_unit_id',activeBusinessUnit.business_unit_id).range(0,0);
+ if(tripProbe.error)throw tripProbe.error;
+ const hasTrips=(tripProbe.data??[]).length>0;
  const [movements,contribs,masterRows,truckTypes]=await Promise.all([
-   fetchAllPages<AccountMovement>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'vehicle',p_limit:end-start+1,p_offset:start})),
-   fetchAllPages<Contribution>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'contributions',p_limit:end-start+1,p_offset:start})),
+   hasTrips?fetchAllPages<AccountMovement>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'vehicle',p_limit:end-start+1,p_offset:start})):Promise.resolve([] as AccountMovement[]),
+   hasTrips?fetchAllPages<Contribution>((start,end)=>supabase.rpc('transport_account_report_page',{p_kind:'contributions',p_limit:end-start+1,p_offset:start})):Promise.resolve([] as Contribution[]),
    fetchAllPages<{id:string;vehicle_no:string;truck_type_id:string|null;truck_type:string|null}>((start,end)=>supabase.from('transport_vehicles')
      .select('id,vehicle_no,truck_type_id,truck_type').eq('ownership_type','company').order('vehicle_no').range(start,end)),
    fetchAllPages<{id:string;name:string}>((start,end)=>supabase.from('transport_truck_types')
