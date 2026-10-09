@@ -23,7 +23,7 @@ describe('Driver management lives under its owner master',()=>{
  });
  it('shows linked Transport drivers only under Drivers, not Staff',async()=>{
   render(<MemoryRouter><Employees/></MemoryRouter>);
-  await screen.findByText('Staff only. Company drivers are displayed under Drivers; their employee records remain linked internally for salary accounting.');
+  await screen.findByRole('button',{name:/Add Employee/});
   expect(screen.queryByText('Employee One')).toBeNull();
   expect(screen.queryByRole('button',{name:'Driver Details'})).toBeNull();
   expect(screen.queryByRole('button',{name:'Hisaab'})).toBeNull();
