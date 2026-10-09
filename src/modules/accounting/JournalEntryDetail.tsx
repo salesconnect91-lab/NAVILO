@@ -2584,7 +2584,7 @@ export default function JournalEntryDetail() {
                               <SearchableSelect
                                 preserveLabel
                                 className="input min-w-0 max-w-full bg-white w-full text-xs"
-                                searchPlaceholder="Search account by code or name..."
+                                searchPlaceholder="Search account by name or code..."
                                 emptyText="No posting account found"
                                 value={
                                   line.accountId
@@ -2614,8 +2614,9 @@ export default function JournalEntryDetail() {
                                       value={
                                         account.id
                                       }
+                                      data-search={account.code}
                                     >
-                                      {account.code} · {account.name} ({account.type})
+                                      {account.name} ({account.type})
                                     </option>
                                   )
                                 )}
