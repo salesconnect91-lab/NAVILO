@@ -161,3 +161,22 @@ describe("Import Center financial review",()=>{
   expect(supabase.rpc).not.toHaveBeenCalled();
  });
 });
+
+describe("Driver master import ownership",()=>{
+ it("blocks unlinked company-driver master imports before any write",async()=>{
+  render(<MemoryRouter><ImportCenter/></MemoryRouter>);
+  const card=screen.getByRole("heading",{name:"Transport Master Imports"}).closest("section")!;
+  fireEvent.change(card.querySelector("select")!,{target:{value:"drivers"}});
+  fireEvent.change(card.querySelector('input[type="file"]')!,{target:{files:[customerFile([["Driver Name","Driver Type","Supplier"],["Company Driver","Company",""]])]}});
+  await waitFor(()=>expect(within(card).getByRole("alert").textContent).toContain("Company drivers must be linked to an Employee"));
+  expect(supabase.rpc).not.toHaveBeenCalled();
+ });
+ it("allows supplier-driver previews without creating an Employee",async()=>{
+  render(<MemoryRouter><ImportCenter/></MemoryRouter>);
+  const card=screen.getByRole("heading",{name:"Transport Master Imports"}).closest("section")!;
+  fireEvent.change(card.querySelector("select")!,{target:{value:"drivers"}});
+  fireEvent.change(card.querySelector('input[type="file"]')!,{target:{files:[customerFile([["Driver Name","Driver Type","Supplier"],["External Driver","Supplier","Supplier A"]])]}});
+  await waitFor(()=>expect(within(card).getByText("External Driver")).toBeTruthy());
+  expect(within(card).queryByRole("alert")).toBeNull();expect(supabase.rpc).not.toHaveBeenCalled();
+ });
+});

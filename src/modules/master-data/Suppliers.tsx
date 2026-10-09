@@ -1,3 +1,5 @@
+import TransportMaster from "./TransportMaster";
+import { isDedicatedTransportContext } from "@/lib/transportMasterContext";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import type { MasterQuickCreate } from "./MasterQuickCreate";
 import useTransportMasterClient from "./useTransportMasterClient";
@@ -38,7 +40,9 @@ const EMPTY = {
 
 export default function Suppliers({ quickCreate, transportEnglishOnly = false }: { quickCreate?: MasterQuickCreate; transportEnglishOnly?: boolean } = {}) {
  const supabase = useTransportMasterClient();
-  const { isPlatformOwner, activeCompany } = useAuth();
+  const { isPlatformOwner, activeCompany, activeBusinessUnit } = useAuth();
+  const transportContext=isDedicatedTransportContext(activeCompany,activeBusinessUnit);
+  const [driverSupplier,setDriverSupplier]=useState<SupplierRow|null>(null);
   const role = activeCompany?.membership_role ?? "";
   const canSetOpeningBalance = isPlatformOwner || role === "company_owner" || role === "admin";
   const mobilePartyQuickCreate = Boolean(quickCreate?.allowTransportMobileCreate);
@@ -324,7 +328,7 @@ export default function Suppliers({ quickCreate, transportEnglishOnly = false }:
     { key: "phone", label: "Phone", render: (r) => r.phone ?? "—" },
     { key: "address", label: "Address", render: (r) => r.address ?? "—" },
     { key: "status", label: "Status", render: (r) => <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${r.is_active === false ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700"}`}>{r.is_active === false ? "Inactive" : "Active"}</span> },
-    { key: "actions", label: "Actions", className: "text-right", render: (r) => <div className="flex justify-end gap-2"><button onClick={() => openEdit(r)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Pencil className="h-3.5 w-3.5" />Edit</button><button onClick={() => setDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Power className="h-3.5 w-3.5" />{r.is_active === false ? "Activate" : "Deactivate"}</button><button onClick={() => setHardDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600"><Trash2 className="h-3.5 w-3.5" />Delete</button></div> },
+    { key: "actions", label: "Actions", className: "text-right", render: (r) => <div className="flex justify-end gap-2">{transportContext&&<button className="btn-secondary px-2 py-1 text-xs" onClick={()=>setDriverSupplier(r)}>Drivers</button>}<button onClick={() => openEdit(r)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Pencil className="h-3.5 w-3.5" />Edit</button><button onClick={() => setDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs"><Power className="h-3.5 w-3.5" />{r.is_active === false ? "Activate" : "Deactivate"}</button><button onClick={() => setHardDeleteId(r.id)} className="btn-secondary inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600"><Trash2 className="h-3.5 w-3.5" />Delete</button></div> },
   ];
 
   const editor = <Modal englishOnly={transportEnglishOnly} open={modalOpen} title={editing ? "Edit Supplier" : "New Supplier"} onClose={closeEditor}>
@@ -362,6 +366,7 @@ export default function Suppliers({ quickCreate, transportEnglishOnly = false }:
       </form>
     </Modal>;
   if (quickCreate) return editor;
+  if(transportContext&&driverSupplier)return <div className="space-y-3"><button type="button" className="btn-secondary" onClick={()=>setDriverSupplier(null)}>Back to Suppliers</button><TransportMaster key={driverSupplier.id} kind="drivers" supplierOwner={{id:driverSupplier.id,name:driverSupplier.name}}/></div>;
 
   return <div className="space-y-4" data-navilo-master-standard="true">
     <MasterSummaryStrip kind="suppliers" title="Suppliers" subtitle="Manage supplier accounts" total={rows.length} active={rows.filter(r=>r.is_active!==false).length} inactive={rows.filter(r=>r.is_active===false).length} fourthLabel="Displayed" fourthValue={filteredRows.length}/>

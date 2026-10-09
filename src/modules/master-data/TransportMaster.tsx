@@ -18,11 +18,12 @@ type Kind = "vehicles" | "drivers";
 type Row = { id: string; name: string; detail: string; mobile: string; owner: string; active: boolean;
   truckTypeId: string; ownerType: string; supplierId: string; driverType: string;
   identityNo: string; licenceNo: string; licenceExpiry: string; employeeId: string };
+export type DriverOwner = {id:string;name:string};
 type Option = { id: string; name: string; is_active: boolean };
 const EMPTY = { name: "", detail: "", mobile: "", truckTypeId: "", ownerType: "company", supplierId: "",
   driverType: "company", employeeId: "", identityNo: "", licenceNo: "", licenceExpiry: "", effectiveFrom: "" };
 
-export default function TransportMaster({ kind, quickCreate }: { kind: Kind; quickCreate?: MasterQuickCreate }) {
+export default function TransportMaster({ kind, quickCreate, supplierOwner, employeeOwner }: { kind: Kind; quickCreate?: MasterQuickCreate; supplierOwner?:DriverOwner; employeeOwner?:DriverOwner }) {
   const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
   const supabase = useTransportMasterClient();
   const vehicle = kind === "vehicles";
@@ -40,7 +41,9 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
   const submitting=useRef(false);
   const closeEditor=()=>{setShow(false);quickCreate?.onClose();};
   const [editing, setEditing] = useState<Row | null>(null);
-  const initialForm={...EMPTY,name:quickCreate?.initialName??"",truckTypeId:quickCreate?.truckTypeId??"",supplierId:quickCreate?.supplierId??""};
+  const ownerId=supplierOwner?.id??employeeOwner?.id??"";
+  const initialForm={...EMPTY,name:employeeOwner?.name??quickCreate?.initialName??"",truckTypeId:quickCreate?.truckTypeId??"",supplierId:supplierOwner?.id??quickCreate?.supplierId??"",employeeId:employeeOwner?.id??"",driverType:supplierOwner?"supplier":"company"};
+  const masterTitle=vehicle?"Vehicles":supplierOwner?`${supplierOwner.name} — Supplier Drivers`:employeeOwner?`${employeeOwner.name} — Driver Details`:"Company Drivers";
   const [form, setForm] = useState(initialForm);
   const role = activeBusinessUnit?.membership_role ?? activeCompany?.membership_role;
   const permissions = {...activeCompany?.permissions,...activeBusinessUnit?.permissions,transport_actions:{...((activeCompany?.permissions?.transport_actions??{}) as Record<string,boolean>),...((activeBusinessUnit?.permissions?.transport_actions??{}) as Record<string,boolean>)}};
@@ -51,37 +54,47 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
     setLoading(true); setError("");
     try {
       const [records, types, parties, history, employeeRows] = await Promise.all([
-        fetchAllPages<any>((start, end) => supabase.from(vehicle ? "transport_vehicles" : "transport_drivers")
-          .select("*").order("id").range(start, end)),
+        fetchAllPages<any>((start, end) => {
+          let query=supabase.from(vehicle ? "transport_vehicles" : "transport_drivers").select("*");
+          if(!vehicle&&!quickCreate){
+            query=query.eq("driver_type",supplierOwner?"supplier":"company");
+            if(supplierOwner)query=query.eq("supplier_id",supplierOwner.id).is("employee_id",null);
+            else {query=query.is("supplier_id",null);if(employeeOwner)query=query.eq("employee_id",employeeOwner.id);}
+          }
+          return query.order("id").range(start,end);
+        }),
         vehicle ? fetchAllPages<Option>((start, end) => supabase.from("transport_truck_types")
           .select("id,name,is_active").order("id").range(start, end)) : Promise.resolve([]),
         fetchAllPages<Option>((start, end) => supabase.from("suppliers")
           .select("id,name,is_active").order("id").range(start, end)),
         vehicle ? fetchAllPages<any>((start, end) => supabase.from("transport_vehicle_ownership")
           .select("*").order("id").range(start, end)) : Promise.resolve([]),
-        !vehicle ? fetchAllPages<Option>((start, end) => supabase.from("employees")
+        !vehicle&&!supplierOwner ? fetchAllPages<Option>((start, end) => supabase.from("employees")
           .select("id,name,is_active").order("name").range(start, end)) : Promise.resolve([]),
       ]);
       setTruckTypes(types); setSuppliers(parties); setEmployees(employeeRows);
-      setRows(records.map(x => {
+      const visibleRecords=vehicle||quickCreate?records:records.filter(x=>supplierOwner
+        ?x.driver_type==="supplier"&&x.supplier_id===supplierOwner.id&&x.employee_id==null
+        :x.driver_type==="company"&&x.supplier_id==null&&(!employeeOwner||x.employee_id===employeeOwner.id));
+      setRows(visibleRecords.map(x => {
         const today = new Date().toLocaleDateString("en-CA");
         const saved = history.filter(h => h.vehicle_id === x.id);
         const current = saved.find(h => h.effective_from <= today && (!h.effective_to || h.effective_to >= today));
-        return { id: x.id, name: vehicle ? x.vehicle_no : x.driver_name,
+        return { id: x.id, name: vehicle ? x.vehicle_no : x.driver_type==="company" ? employeeRows.find(e=>e.id===x.employee_id)?.name??x.driver_name : x.driver_name,
         detail: vehicle ? x.truck_type ?? "" : x.driver_code ?? "", mobile: x.mobile ?? "",
         owner: current?.owner_name_snapshot ?? (saved.length ? "No current ownership period" : x.owner_name ?? ""), active: x.is_active, truckTypeId: x.truck_type_id ?? "",
         ownerType: current ? (current.owner_type === "third_party" ? "supplier" : "company") : saved.length ? "" : x.ownership_type ?? "", supplierId: current ? current.supplier_id ?? "" : saved.length ? "" : x.supplier_id ?? "", driverType: x.driver_type ?? "",
         identityNo: x.identity_no ?? "", licenceNo: x.driving_licence_no ?? "", licenceExpiry: x.licence_expiry ?? "", employeeId: x.employee_id ?? "" }; }));
     } catch (failure: any) { setRows([]); setTruckTypes([]); setSuppliers([]); setError(failure.message ?? "Unable to load masters."); }
     finally { setLoading(false); }
-  }, [supabase, vehicle]);
+  }, [supabase, vehicle, ownerId, Boolean(supplierOwner), Boolean(employeeOwner), Boolean(quickCreate)]);
   useEffect(() => { setShow(Boolean(quickCreate)); setEditing(null); setForm(initialForm); void load(); }, [load]);
   const partyName = (row: Row) => suppliers.find(s => s.id === row.supplierId)?.name ?? row.owner;
   const filtered = useMemo(() => rows.filter(row => (status === "all" || (status === "active") === row.active) &&
     (!q.trim() || [row.name, row.detail, row.mobile, row.owner, suppliers.find(s => s.id === row.supplierId)?.name ?? "",
       truckTypes.find(t => t.id === row.truckTypeId)?.name ?? ""].join(" ").toLowerCase().includes(q.trim().toLowerCase()))),
   [rows, status, q, suppliers, truckTypes]);
-  const openAdd = () => { setEditing(null); setForm(EMPTY); setError(""); setShow(true); };
+  const openAdd = () => { setEditing(null); setForm(initialForm); setError(""); setShow(true); };
   const openEdit = (row: Row) => {
     setEditing(row); setForm({ ...EMPTY, ...row, effectiveFrom: "" }); setError(""); setShow(true);
   };
@@ -95,6 +108,12 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
     if (supplierRequired && !form.supplierId) return setError("Select the Supplier.");
     if (!vehicle && !form.driverType) return setError("Select Company Driver or Supplier Driver.");
     if (!vehicle && form.driverType === "company" && !form.employeeId) return setError("Select the Employee for a Company Driver.");
+    if(!vehicle){
+      if(supplierOwner&&(form.driverType!=="supplier"||form.supplierId!==supplierOwner.id||form.employeeId))return setError("Supplier drivers must remain linked only to this Supplier.");
+      if(employeeOwner&&(form.driverType!=="company"||form.employeeId!==employeeOwner.id||form.supplierId))return setError("Company drivers must remain linked only to this Employee.");
+      if(!quickCreate&&!supplierOwner&&form.driverType!=="company")return setError("Manage Supplier drivers from Supplier Master.");
+      if(form.driverType==="company"&&rows.some(row=>row.employeeId===form.employeeId&&row.id!==editing?.id))return setError("This Employee already has Driver details. Edit the existing record.");
+    }
     submitting.current=true; setSaving(true);
     try {
       const result = createdRecord.current ? {data:createdRecord.current.id,error:null} : vehicle
@@ -105,7 +124,7 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
             p_truck_type_id: form.truckTypeId || null, p_owner_type: form.ownerType,
             p_supplier_id: form.ownerType === "supplier" ? form.supplierId : null, p_effective_from: form.effectiveFrom })
         : await (() => {
-          const fields = { driver_name: form.name.trim(), driver_code: form.detail.trim() || null,
+          const fields = { driver_name: form.driverType==="company" ? employees.find(e=>e.id===form.employeeId)?.name??form.name.trim() : form.name.trim(), driver_code: form.detail.trim() || null,
             mobile: form.mobile.trim() || null, driver_type: form.driverType,
             supplier_id: form.driverType === "supplier" ? form.supplierId : null,
             employee_id: form.driverType === "company" ? form.employeeId : null,
@@ -153,14 +172,14 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
         <div className="flex items-center justify-between border-b px-5 py-3"><h2 id="transport-master-title" className="font-bold">{editing ? "Edit" : "Add"} {vehicle ? "Vehicle" : "Driver"}</h2><button type="button" className="btn" aria-label="Close" onClick={closeEditor}><X className="h-4 w-4" /></button></div>
         {quickCreate && error && <div role="alert" className="px-5 pt-3 text-xs text-red-700">{error}</div>}
         <div className="grid gap-3 p-5 sm:grid-cols-2">
-          <label className="text-xs font-semibold">{vehicle ? "Vehicle No / Plate No" : "Driver Name"} *<input className="input mt-1 w-full" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></label>
+          <label className="text-xs font-semibold">{vehicle ? "Vehicle No / Plate No" : "Driver Name"} *<input className="input mt-1 w-full" value={form.name} readOnly={!vehicle&&form.driverType==="company"} onChange={e => setForm({ ...form, name: e.target.value })} required /></label>
           {vehicle ? <label className="text-xs font-semibold">Truck Type<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" value={form.truckTypeId} onChange={e => setForm({ ...form, truckTypeId: e.target.value })}><option value="">Select Truck Type</option>{truckTypes.filter(t => t.is_active || t.id === form.truckTypeId).map(t => <option key={t.id} value={t.id}>{t.name}{!t.is_active ? " (Inactive)" : ""}</option>)}</NaviloSearchableSelect></label>
             : <label className="text-xs font-semibold">Driver Code<input className="input mt-1 w-full" value={form.detail} onChange={e => setForm({ ...form, detail: e.target.value })} /></label>}
           {vehicle && editing ? <div className="text-xs sm:col-span-2">Owner: {partyName(editing) || "Legacy / not classified"}. <Link className="text-blue-700 underline" to="/master-data/vehicle-ownership">Change through Vehicle Ownership History</Link></div>
-            : <><label className="text-xs font-semibold">{vehicle ? "Ownership Type" : "Driver Type"}<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 w-full" value={vehicle ? form.ownerType : form.driverType} onChange={e => setForm({ ...form, ...(vehicle ? { ownerType: e.target.value } : { driverType: e.target.value, employeeId: "" }), supplierId: "" })}>
-              <option value="">Select type</option><option value="company">{vehicle ? "Company Owned" : "Company Driver"}</option><option value="supplier">{vehicle ? "Supplier Owned" : "Supplier Driver"}</option></NaviloSearchableSelect></label>
-              {!vehicle && form.driverType === "company" && <label className="text-xs font-semibold">Employee *<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 w-full" value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}><option value="">Select Employee</option>{employees.filter(e => e.is_active || e.id === form.employeeId).map(e => <option key={e.id} value={e.id}>{e.name}{!e.is_active ? " (Inactive)" : ""}</option>)}</NaviloSearchableSelect></label>}
-              {(vehicle ? form.ownerType : form.driverType) === "supplier" && <label className="text-xs font-semibold">Supplier *<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 w-full" value={form.supplierId} onChange={e => setForm({ ...form, supplierId: e.target.value })}><option value="">Select Supplier</option>{supplierOptions.map(s => <option key={s.id} value={s.id}>{s.name}{!s.is_active ? " (Inactive)" : ""}</option>)}</NaviloSearchableSelect></label>}</>}
+            : <>{(!supplierOwner&&!employeeOwner)&&<label className="text-xs font-semibold">{vehicle ? "Ownership Type" : "Driver Type"}<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 w-full" value={vehicle ? form.ownerType : form.driverType} onChange={e => setForm({ ...form, ...(vehicle ? { ownerType: e.target.value } : { driverType: e.target.value, employeeId: "" }), supplierId: "" })}>
+              <option value="">Select type</option><option value="company">{vehicle ? "Company Owned" : "Company Driver"}</option>{(vehicle||quickCreate)&&<option value="supplier">{vehicle ? "Supplier Owned" : "Supplier Driver"}</option>}</NaviloSearchableSelect></label>}
+              {!vehicle && form.driverType === "company" && <label className="text-xs font-semibold">Employee *<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 w-full" value={form.employeeId} disabled={Boolean(employeeOwner)} onChange={e => setForm({ ...form, employeeId: e.target.value, name:employees.find(employee=>employee.id===e.target.value)?.name??"" })}><option value="">Select Employee</option>{employees.filter(e => e.is_active || e.id === form.employeeId).map(e => <option key={e.id} value={e.id}>{e.name}{!e.is_active ? " (Inactive)" : ""}</option>)}</NaviloSearchableSelect></label>}
+              {(vehicle ? form.ownerType : form.driverType) === "supplier" && <label className="text-xs font-semibold">Supplier *<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 w-full" value={form.supplierId} disabled={Boolean(supplierOwner)} onChange={e => setForm({ ...form, supplierId: e.target.value })}><option value="">Select Supplier</option>{supplierOptions.map(s => <option key={s.id} value={s.id}>{s.name}{!s.is_active ? " (Inactive)" : ""}</option>)}</NaviloSearchableSelect></label>}</>}
           {vehicle && !editing && <label className="text-xs font-semibold">Ownership Effective From *<NaviloDateInput required type="date" className="input mt-1 w-full" value={form.effectiveFrom} onChange={e => setForm({ ...form, effectiveFrom: e.target.value })} /></label>}
           {!vehicle && <><label className="text-xs font-semibold">Mobile<input className="input mt-1 w-full" value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} /></label>
             <label className="text-xs font-semibold">ID / CNIC / Iqama<input className="input mt-1 w-full" value={form.identityNo} onChange={e => setForm({ ...form, identityNo: e.target.value })} /></label>
@@ -170,10 +189,11 @@ export default function TransportMaster({ kind, quickCreate }: { kind: Kind; qui
       </form></div>;
   if(quickCreate) return allowed && (!vehicle || canAddOwner) ? editor : <div role="alert">Master / ownership permission required.</div>;
   return <div className="space-y-4" data-navilo-master-standard="true">
-    <MasterSummaryStrip kind={kind} title={vehicle ? "Vehicles" : "Drivers"} subtitle={vehicle ? "Vehicle identities and dated ownership" : "Drivers are independent of permanent Vehicle assignments"}
+    <MasterSummaryStrip kind={kind} title={masterTitle} subtitle={vehicle ? "Vehicle identities and dated ownership" : supplierOwner ? "Trip and licence details only. Payments belong to the Supplier account; no Employee or Driver Salary Khata." : "Company employee-drivers only. One Employee link and one salary account; staff without driving duties stay in Employees."}
       total={rows.length} active={rows.filter(r => r.active).length} inactive={rows.filter(r => !r.active).length} fourthLabel="Displayed" fourthValue={filtered.length} />
+    {!vehicle&&!quickCreate&&!supplierOwner&&!employeeOwner&&<div className="flex gap-3 text-xs"><Link className="text-emerald-800 underline" to="/master-data/employees">Manage Employees</Link><Link className="text-emerald-800 underline" to="/master-data/suppliers">Manage Supplier Drivers</Link></div>}
     <div className="flex justify-end gap-2" data-no-print data-no-export>{vehicle && <Link className="btn-secondary" to="/master-data/vehicle-ownership">Vehicle Ownership History</Link>}
-      {allowed && (!vehicle || canAddOwner) && <button className="btn-primary" onClick={openAdd}><Plus className="h-4 w-4" />Add {vehicle ? "Vehicle" : "Driver"}</button>}</div>
+      {allowed && (!vehicle || canAddOwner) && (!employeeOwner||!rows.length) && <button className="btn-primary" onClick={openAdd}><Plus className="h-4 w-4" />Add {vehicle ? "Vehicle" : "Driver"}</button>}</div>
     {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</div>}
     <div className="navilo-master-filterbar flex flex-wrap items-center gap-2 px-3 py-2" data-no-print data-no-export>
       <div className="relative min-w-52 flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input className="input w-full pl-9"
