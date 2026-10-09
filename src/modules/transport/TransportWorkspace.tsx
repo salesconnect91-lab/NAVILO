@@ -235,7 +235,11 @@ export default function TransportWorkspace(){
   const [openColumnFilter,setOpenColumnFilter]=useState<string|null>(null);
   const [columnMenuPosition,setColumnMenuPosition]=useState({top:0,left:0});
 
-  const [newTripMode,setNewTripMode]=useState<"single"|"bulk"|"historical">("single");
+  const requestedImport=params.get("import");
+  const [newTripMode,setNewTripMode]=useState<"single"|"bulk"|"historical">(()=>requestedImport==="bulk"||requestedImport==="historical"?requestedImport:"single");
+  useEffect(()=>{
+    if(requestedImport==="bulk"||requestedImport==="historical")setNewTripMode(requestedImport);
+  },[requestedImport]);
   const [bulkRows,setBulkRows]=useState<BulkTripRow[]>([]);
   const [bulkFileName,setBulkFileName]=useState("");
   const [bulkSourceHash,setBulkSourceHash]=useState('');

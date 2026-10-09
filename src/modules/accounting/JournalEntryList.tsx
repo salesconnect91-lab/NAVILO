@@ -8,7 +8,7 @@ import {
   useMemo,
 } from "react";
 
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 
 import { supabase } from "@/lib/supabase";
@@ -403,6 +403,7 @@ const downloadExcelTemplate = () => {
 
 export default function JournalEntryList() {
   const navigate = useNavigate();
+  const [importParams,setImportParams]=useSearchParams();
 
   /* =======================================================
      JOURNAL LIST
@@ -473,7 +474,14 @@ export default function JournalEntryList() {
   ======================================================= */
 
   const [bulkModalOpen, setBulkModalOpen] =
-    useState(false);
+    useState(()=>importParams.get("import")==="journal");
+  useEffect(()=>{
+    if(importParams.get("import")==="journal"){
+      setBulkModalOpen(true);
+      const next=new URLSearchParams(importParams);next.delete("import");
+      setImportParams(next,{replace:true});
+    }
+  },[importParams,setImportParams]);
 
   const [importRows, setImportRows] =
     useState<ImportRow[]>([]);
