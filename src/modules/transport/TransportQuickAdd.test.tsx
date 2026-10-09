@@ -7,6 +7,7 @@ const mock=vi.hoisted(()=>({rpc:vi.fn(),insert:vi.fn(),update:vi.fn()}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'c',enabled_modules:['transport'],membership_role:'company_owner'},activeBusinessUnit:{business_unit_id:'b',business_unit_type:'transport',enabled_modules:['transport'],membership_role:'company_owner'},isPlatformOwner:false})}));
 vi.mock('@/components/DataTable',()=>({default:()=>null}));
 vi.mock('@/components/MasterSummaryStrip',()=>({default:()=>null}));
+vi.mock('@/modules/transport/TransportAccountStatement',()=>({default:()=>null}));
 vi.mock('@/components/MasterActionButton',()=>({default:()=>null}));
 vi.mock('@/modules/master-data/useTransportMasterClient',()=>({default:()=>client}));
 const client:any={rpc:mock.rpc,from:(table:string)=>{const data=table==='suppliers'?[{id:'s',name:'Owner',is_active:true}]:table==='transport_truck_types'?[{id:'tt',name:'Flatbed',is_active:true}]:[];const q:any={select:()=>q,order:()=>q,eq:()=>q,range:()=>Promise.resolve({data,error:null}),single:()=>Promise.resolve({data:{id:'new'},error:null}),insert:(p:any)=>{mock.insert(table,p);return q},update:(p:any)=>{mock.update(table,p);return q},then:(resolve:any,reject:any)=>Promise.resolve({data,error:null}).then(resolve,reject)};return q}};
