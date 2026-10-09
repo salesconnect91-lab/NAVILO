@@ -26,12 +26,12 @@ describe('Structured Transport master forms',()=>{
   await waitFor(()=>expect(mock.insert).toHaveBeenCalledWith('transport_drivers',expect.objectContaining({driver_name:'Driver One',driver_type:'supplier',supplier_id:'s',employee_id:null,driving_licence_no:'LIC-1'})));
   expect(mock.insert).toHaveBeenCalledTimes(1);expect(mock.rpc).not.toHaveBeenCalled();
  });
- it('shows only company drivers in the Drivers master',async()=>{
+ it('shows company and supplier drivers in the unified Drivers master',async()=>{
   mock.drivers=[{id:"dc",driver_name:"Company Driver",driver_type:"company",employee_id:"e",supplier_id:null,is_active:true},{id:"ds",driver_name:"Supplier Driver",driver_type:"supplier",employee_id:null,supplier_id:"s",is_active:true}];
   view('drivers');
   await screen.findByText('Employee Driver');
-  expect(screen.queryByText('Supplier Driver')).toBeNull();
-  expect(screen.getByRole('link',{name:'Manage Supplier Drivers'}).getAttribute('href')).toBe('/master-data/suppliers');
+  expect(screen.getByText('Supplier Driver')).toBeTruthy();
+  expect(screen.getByRole('link',{name:'Supplier Master'}).getAttribute('href')).toBe('/master-data/suppliers');
  });
  it('shows only drivers of the selected Supplier',async()=>{
   mock.drivers=[{id:"ds",driver_name:"Own Driver",driver_type:"supplier",employee_id:null,supplier_id:"s",is_active:true},{id:"other",driver_name:"Other Driver",driver_type:"supplier",employee_id:null,supplier_id:"s2",is_active:true},{id:"dc",driver_name:"Company Driver",driver_type:"company",employee_id:"e",supplier_id:null,is_active:true}];
