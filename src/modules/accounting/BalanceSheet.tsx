@@ -210,7 +210,7 @@ export default function BalanceSheet() {
 
     const salaryLinks=await fetchAllPages<any>((a,b)=>supabase.from('driver_salary_accounts').select('account_id,employees(name)').order('account_id').range(a,b)).catch((err)=>{setError(err.message);return null;});
     if(salaryLinks===null){setLoading(false);return;}
-    const salaryNames=new Map<string,string>(salaryLinks.map(s=>[s.account_id,`${s.employees?.name||'Driver'} Salary Balance`]));
+    const salaryNames=new Map<string,string>(salaryLinks.map(s=>[s.account_id,`${s.employees?.name||'Driver'} Salary Running Account`]));
     const accounts = accountsRes;
     const ledgerLines = ledgerRes;
 
@@ -284,7 +284,7 @@ export default function BalanceSheet() {
 
       if(salaryNames.has(line.account_id)){
         // Use the COA classification chosen by the owner, not movement sign.
-        // A debit in a liability GL is a negative liability, not a new asset.
+        // Running salary debit net stays negative under the configured liability GL; no cash advance is assumed.
         // Accumulate every movement (previous code overwrote prior rows).
         const position=salarySheetPosition(type,debit,credit);
         if(position){
