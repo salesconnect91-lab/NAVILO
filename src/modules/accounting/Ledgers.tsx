@@ -30,6 +30,7 @@ type PartyLedgerRow = PartyLedger & {
 };
 
 type TransportDetail = {
+  side: PartyType;
   order_no?: string | null;
   trip_no?: string | null;
   trip_date?: string | null;
@@ -47,6 +48,7 @@ type TransportDetail = {
 };
 
 type TransportMovementLink = {
+  side: PartyType;
   journal_entry_id?: string | null;
   order_no?: string | null;
   trip_no?: string | null;
@@ -75,6 +77,55 @@ const signedBalanceLabel = (balance: number) => {
     : `${formatCurrency(Math.abs(balance))} Cr`;
 };
 
+export function buildTransportLedgerContext(transportDetails: TransportDetail[], transportMovements: TransportMovementLink[]) {
+    const detailsByOrder = new Map<string, TransportDetail[]>();
+    for (const detail of transportDetails) {
+      if (!detail.order_no) continue;
+      const key = `${detail.side}:${detail.order_no}`;
+      const list = detailsByOrder.get(key) || [];
+      list.push(detail);
+      detailsByOrder.set(key, list);
+    }
+    const ordersByJournal = new Map<string, Set<string>>();
+    for (const movement of transportMovements) {
+      if (!movement.journal_entry_id || !movement.order_no) continue;
+      const set = ordersByJournal.get(movement.journal_entry_id) || new Set<string>();
+      set.add(`${movement.side}:${movement.order_no}`);
+      ordersByJournal.set(movement.journal_entry_id, set);
+    }
+    const unique = (values: Array<string | null | undefined>) =>
+      [...new Set(values.filter((value): value is string => !!value))].join(" / ");
+    return (row: PartyLedgerRow | LedgerRow) => {
+      const reference = "reference" in row ? row.reference : null;
+      const orderNos = new Set<string>();
+      const referenceKey = reference && "party_type" in row ? `${row.party_type}:${reference}` : null;
+      if (referenceKey && detailsByOrder.has(referenceKey)) orderNos.add(referenceKey);
+      if (row.journal_entry_id) {
+        for (const orderNo of ordersByJournal.get(row.journal_entry_id) || []) {
+          if (!("party_type" in row) || orderNo.startsWith(`${row.party_type}:`)) orderNos.add(orderNo);
+        }
+      }
+      const details = [...orderNos].flatMap((orderNo) => detailsByOrder.get(orderNo) || []);
+      // Financial fields returned by transport_document_trip_detail_query are document-level
+      // snapshots repeated on each Trip row. Sum each order once; Trip context remains multi-row.
+      const financialDetails = [...orderNos].map((orderNo) => (detailsByOrder.get(orderNo) || [])[0]).filter((d): d is TransportDetail => Boolean(d));
+      return {
+        trip: unique(details.map((d) => d.trip_no)),
+        from: unique(details.map((d) => d.from_location)),
+        to: unique(details.map((d) => d.to_location)),
+        vehicle: unique(details.map((d) => d.vehicle_no)),
+        driver: unique(details.map((d) => d.driver_name)),
+        owner: unique(details.map((d) => d.owner_name)),
+        job: unique(details.map((d) => d.po_do_job_no)),
+        base: financialDetails.reduce((sum,d)=>sum+(Number(d.base_amount)||0),0),
+        charges: financialDetails.reduce((sum,d)=>sum+(Number(d.charge_amount)||0),0),
+        tax: financialDetails.reduce((sum,d)=>sum+(Number(d.tax_amount)||0),0),
+        postedTotal: financialDetails.reduce((sum,d)=>sum+(Number(d.total_amount)||0),0),
+        chargeBreakdown: unique(details.map((d)=>d.charge_breakdown)),
+      };
+    };
+}
+
 export default function Ledgers() {
   const [viewMode, setViewMode] = useState<ViewMode>("general");
 
@@ -93,6 +144,7 @@ export default function Ledgers() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [transportWarning, setTransportWarning] = useState<string | null>(null);
   const [transportDetails, setTransportDetails] = useState<TransportDetail[]>([]);
   const [transportMovements, setTransportMovements] = useState<TransportMovementLink[]>([]);
   const [showColumns, setShowColumns] = useState(false);
@@ -207,13 +259,15 @@ export default function Ledgers() {
   const fetchTransportContext = useCallback(async () => {
     const selected = selectedPartyKey ? selectedPartyKey.split(":") as [PartyType, string] : null;
     const sides: PartyType[] = selected ? [selected[0]] : partyFilterType === "all" ? ["customer", "supplier"] : [partyFilterType];
+    setTransportWarning(null);
     const details: TransportDetail[] = [];
     const movements: TransportMovementLink[] = [];
 
     await Promise.all(sides.map(async (side) => {
       try {
         const allowed = await supabase.rpc("transport_financial_read_allowed", { p_side: side });
-        if (allowed.error || allowed.data !== true) return;
+        if (allowed.error) throw allowed.error;
+        if (allowed.data !== true) return;
         const party = selected?.[0] === side ? selected[1] : "";
         const [detailRows, movementRows] = await Promise.all([
           fetchAllPages<TransportDetail>((fromRow, toRow) =>
@@ -234,10 +288,10 @@ export default function Ledgers() {
             })
           ),
         ]);
-        details.push(...detailRows);
-        movements.push(...movementRows);
+        details.push(...detailRows.map(row => ({ ...row, side })));
+        movements.push(...movementRows.map(row => ({ ...row, side })));
       } catch {
-        // Ledger remains usable for companies/business units without Transport access.
+        setTransportWarning("Transport trip and charge details could not be loaded. Ledger balances are available; refresh before relying on the trip details.");
       }
     }));
 
@@ -442,50 +496,7 @@ export default function Ledgers() {
     });
   }, [partyRows, getPartyName]);
 
-  const transportInfoByJournal = useMemo(() => {
-    const detailsByOrder = new Map<string, TransportDetail[]>();
-    for (const detail of transportDetails) {
-      if (!detail.order_no) continue;
-      const list = detailsByOrder.get(detail.order_no) || [];
-      list.push(detail);
-      detailsByOrder.set(detail.order_no, list);
-    }
-    const ordersByJournal = new Map<string, Set<string>>();
-    for (const movement of transportMovements) {
-      if (!movement.journal_entry_id || !movement.order_no) continue;
-      const set = ordersByJournal.get(movement.journal_entry_id) || new Set<string>();
-      set.add(movement.order_no);
-      ordersByJournal.set(movement.journal_entry_id, set);
-    }
-    const unique = (values: Array<string | null | undefined>) =>
-      [...new Set(values.filter((value): value is string => !!value))].join(" / ");
-    return (row: PartyLedgerRow | LedgerRow) => {
-      const reference = "reference" in row ? row.reference : null;
-      const orderNos = new Set<string>();
-      if (reference && detailsByOrder.has(reference)) orderNos.add(reference);
-      if (row.journal_entry_id) {
-        for (const orderNo of ordersByJournal.get(row.journal_entry_id) || []) orderNos.add(orderNo);
-      }
-      const details = [...orderNos].flatMap((orderNo) => detailsByOrder.get(orderNo) || []);
-      // Financial fields returned by transport_document_trip_detail_query are document-level
-      // snapshots repeated on each Trip row. Sum each order once; Trip context remains multi-row.
-      const financialDetails = [...orderNos].map((orderNo) => (detailsByOrder.get(orderNo) || [])[0]).filter((d): d is TransportDetail => Boolean(d));
-      return {
-        trip: unique(details.map((d) => d.trip_no)),
-        from: unique(details.map((d) => d.from_location)),
-        to: unique(details.map((d) => d.to_location)),
-        vehicle: unique(details.map((d) => d.vehicle_no)),
-        driver: unique(details.map((d) => d.driver_name)),
-        owner: unique(details.map((d) => d.owner_name)),
-        job: unique(details.map((d) => d.po_do_job_no)),
-        base: financialDetails.reduce((sum,d)=>sum+(Number(d.base_amount)||0),0),
-        charges: financialDetails.reduce((sum,d)=>sum+(Number(d.charge_amount)||0),0),
-        tax: financialDetails.reduce((sum,d)=>sum+(Number(d.tax_amount)||0),0),
-        postedTotal: financialDetails.reduce((sum,d)=>sum+(Number(d.total_amount)||0),0),
-        chargeBreakdown: unique(details.map((d)=>d.charge_breakdown)),
-      };
-    };
-  }, [transportDetails, transportMovements]);
+  const transportInfoByJournal = useMemo(() => buildTransportLedgerContext(transportDetails, transportMovements), [transportDetails, transportMovements]);
 
   const orderedPartyColumns = partyColumnOrder
     .map((key) => PARTY_COLUMNS.find(([candidate]) => candidate === key))
@@ -627,6 +638,7 @@ export default function Ledgers() {
       />
 
       {error && <ErrorBanner message={error} />}
+      {transportWarning && <p role="alert" className="rounded border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900">{transportWarning}</p>}
 
       <div className="card p-4 print:hidden">
         <div className="flex flex-col lg:flex-row lg:items-end gap-4">

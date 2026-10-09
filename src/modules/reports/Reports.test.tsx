@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { MemoryRouter } from "react-router-dom";
 import Reports from "./Reports";
 import ReportSurface from "@/components/reports/ReportSurface";
-const paging=vi.hoisted(()=>({enabled:false,fail:false,calls:[] as number[]}));
+const paging=vi.hoisted(()=>({enabled:false,fail:false,partyPaging:false,calls:[] as number[]}));
 
 vi.mock("@/auth/AuthContext", () => ({ useAuth: () => ({
   user: { id: "synthetic-user" }, isPlatformOwner: true,
@@ -18,6 +18,7 @@ vi.mock("@/lib/supabase", () => ({ supabase: { from: (table:string) => {
   const result = table === "monthly_business_performance_report" ? {data:[{month_start:"2026-09-01",net_sales:0,current_ar:null,current_ap:null,current_inventory_value:null,sales_change_percent:null}],error:null} : table === "customers" ? { data: [{ name: "Synthetic Customer" }], error: null } :
     { data: [{ id: "row-1", invoice_no: "INV-1", invoice_date: "2026-09-24", customer_name: "Synthetic Customer", net_sales_amount: 100 }], error: null };
   const query = { select: () => query, limit: () => query, eq: () => query, order: () => query, range: async (start:number) => {
+    if(table==="customers"&&paging.partyPaging)return start===0?{data:Array.from({length:1000},(_,i)=>({id:`customer-${i}`,name:`Customer ${i}`})),error:null}:{data:[{id:"last-customer",name:"Customer beyond first page"}],error:null};
     if(table!=="sales_margin_report"||!paging.enabled)return result;
     paging.calls.push(start);
     if(start===0)return {data:Array.from({length:1000},(_,i)=>({id:`row-${i}`,invoice_no:`PAGE-${i}`,invoice_date:"2026-09-24",customer_name:"Synthetic Customer",net_sales_amount:1})),error:null};
@@ -28,10 +29,16 @@ vi.mock("@/lib/supabase", () => ({ supabase: { from: (table:string) => {
 } } }));
 
 const showReport = () => render(<MemoryRouter initialEntries={["/reports/sales-margin"]}><ReportSurface><Reports /></ReportSurface></MemoryRouter>);
-beforeEach(() => {localStorage.clear();paging.enabled=false;paging.fail=false;paging.calls=[]});
+beforeEach(() => {localStorage.clear();paging.enabled=false;paging.fail=false;paging.partyPaging=false;paging.calls=[]});
 afterEach(cleanup);
 
 describe("generic report workspace", () => {
+  it("includes master parties beyond the first page and historical parties from report data",async()=>{
+    paging.partyPaging=true;showReport();
+    fireEvent.click(await screen.findByRole("button",{name:"Party"}));
+    await screen.findByRole("option",{name:"Customer beyond first page"});
+    expect(screen.getByRole("option",{name:"Synthetic Customer"})).toBeTruthy();
+  });
   it("distinguishes unknown historical MIS balances from recorded zero",async()=>{
     render(<MemoryRouter initialEntries={["/reports/monthly-mis"]}><ReportSurface><Reports /></ReportSurface></MemoryRouter>);
     const date=await screen.findByText("01-Sep-26");

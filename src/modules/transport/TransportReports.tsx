@@ -29,6 +29,6 @@ export default function TransportReports(){
  </div>
  {mode==='party'&&<TransportPartyReports key={requestedSide} initialSide={requestedSide} onClose={()=>choose('trips')} onChanged={async()=>{}}/>}
  {mode==='trips'&&<TransportTripReports/>}
- {mode==='profit'&&<><div className="flex gap-2"><label>Comparison: posting date From<NaviloDateInput className="input" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Comparison: posting date To<NaviloDateInput className="input" value={to} onChange={e=>setTo(e.target.value)}/></label></div>{from&&to&&from>to?<p role="alert">From must be on or before To.</p>:<TransportTripReports externalFilters={{from,to,search:""}}/>}</>}
+ {mode==='profit'&&<><div className="flex gap-2"><label>Trip date From<NaviloDateInput className="input" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Trip date To<NaviloDateInput className="input" value={to} onChange={e=>setTo(e.target.value)}/></label></div>{from&&to&&from>to?<p role="alert">From must be on or before To.</p>:<TransportTripReports externalFilters={{from,to,search:""}}/>}</>}
  </div>;
 }

@@ -104,34 +104,35 @@ export default function Reports(){
    if(!canViewReport){setMasterParties([]);return;}
    const table=def.partyKey==="supplier_name"?"suppliers":def.partyKey==="customer_name"?"customers":null;
    if(!table){setMasterParties([]);return;}
-   const r=await supabase.from(table).select("name").eq("is_active",true).order("name");
-   if(cancelled)return;
-   if(r.error){setMasterParties([]);return;}
-   setMasterParties(Array.from(new Set((r.data??[]).map((x:any)=>String(x.name??"").trim()).filter(Boolean))));
+   try {
+    const rows=await fetchAllPages<any>((start,end)=>supabase.from(table).select("id,name").eq("is_active",true).order("name").order("id").range(start,end));
+    if(!cancelled)setMasterParties(Array.from(new Set(rows.map((x:any)=>String(x.name??"").trim()).filter(Boolean))));
+   } catch {if(!cancelled)setMasterParties([]);}
   };
   void loadMasterParties();
   return()=>{cancelled=true};
- },[def.partyKey,canViewReport]);
+ },[def.partyKey,canViewReport,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
  const supportsCategory=["/reports/stock-valuation","/reports/inventory-aging","/reports/inventory-turnover","/reports/stock-exceptions","/reports/daily-stock-trading","/reports/trading-margin"].includes(loc.pathname);
  useEffect(()=>{
   let cancelled=false;
   const loadCategories=async()=>{
    if(!supportsCategory){setCategoryOptions([]);setItemCategoryIds({});return;}
+   try {
    const [cats,itemRows]=await Promise.all([
-    supabase.from("categories").select("id,name").order("name"),
-    supabase.from("items").select("id,category_id")
+    fetchAllPages<any>((start,end)=>supabase.from("categories").select("id,name").order("name").order("id").range(start,end)),
+    fetchAllPages<any>((start,end)=>supabase.from("items").select("id,category_id").order("id").range(start,end))
    ]);
    if(cancelled)return;
-   if(cats.error||itemRows.error){setCategoryOptions([]);setItemCategoryIds({});return;}
-   setCategoryOptions((cats.data??[]).map((x:any)=>({id:String(x.id),name:String(x.name??"Unspecified")})));
-   setItemCategoryIds(Object.fromEntries((itemRows.data??[]).map((x:any)=>[String(x.id),String(x.category_id??"")])));
+   setCategoryOptions(cats.map((x:any)=>({id:String(x.id),name:String(x.name??"Unspecified")})));
+   setItemCategoryIds(Object.fromEntries(itemRows.map((x:any)=>[String(x.id),String(x.category_id??"")])));
+   } catch {if(!cancelled){setCategoryOptions([]);setItemCategoryIds({});}}
   };
   void loadCategories();
   return()=>{cancelled=true};
  },[supportsCategory,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
  const categoryNames=useMemo(()=>Object.fromEntries(categoryOptions.map(x=>[x.id,x.name])),[categoryOptions]);
  const categoryIdByName=useMemo(()=>Object.fromEntries(categoryOptions.map(x=>[x.name.trim().toLowerCase(),x.id])),[categoryOptions]);
- const parties=useMemo(()=>masterParties.length?masterParties:unique(data,def.partyKey),[data,def.partyKey,masterParties]),items=useMemo(()=>unique(data,def.itemKey),[data,def.itemKey]),statuses=useMemo(()=>unique(data,def.statusKey),[data,def.statusKey]),godowns=useMemo(()=>loc.pathname==="/reports/daily-stock-trading"?unique(data,"godown"):[],[data,loc.pathname]);
+ const parties=useMemo(()=>Array.from(new Set([...masterParties,...unique(data,def.partyKey)])).sort(),[data,def.partyKey,masterParties]),items=useMemo(()=>unique(data,def.itemKey),[data,def.itemKey]),statuses=useMemo(()=>unique(data,def.statusKey),[data,def.statusKey]),godowns=useMemo(()=>loc.pathname==="/reports/daily-stock-trading"?unique(data,"godown"):[],[data,loc.pathname]);
  const rows=useMemo(()=>data.filter(r=>{if(def.dateKey&&!def.rpc){const d=String(r[def.dateKey]??"").slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false}if(party&&def.partyKey&&String(r[def.partyKey]??"")!==party)return false;if(item&&def.itemKey&&String(r[def.itemKey]??"")!==item)return false;if(category&&supportsCategory){const rowCategoryId=itemCategoryIds[String(r.item_id??"")]||categoryIdByName[String(r.category_name??"").trim().toLowerCase()]||"";if(rowCategoryId!==category)return false;}if(status&&def.statusKey&&String(r[def.statusKey]??"")!==status)return false;if(godown&&loc.pathname==="/reports/daily-stock-trading"&&String(r.godown??"")!==godown)return false;const s=q.trim().toLowerCase();return !s||JSON.stringify(r).toLowerCase().includes(s)}),[data,def,q,from,to,party,item,category,status,godown,supportsCategory,itemCategoryIds,categoryIdByName,loc.pathname]);
  const inventoryCategoryMode=supportsCategory&&inventoryView==="categories";
   const marginReport=loc.pathname==="/reports/trading-margin";
@@ -175,7 +176,7 @@ export default function Reports(){
       <label className="block w-36 text-[11px] font-semibold text-slate-600" title="These reports use posted transactions; cash-basis reporting is not implemented.">Accounting method<SearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" aria-label="Accounting method" value="posted" disabled><option value="posted">Posted basis</option></SearchableSelect></label>
       {groupOptions.length>0&&<label className="block w-32 text-[11px] font-semibold text-slate-600">Column grouping<SearchableSelect className="input mt-1 w-full" aria-label="Column grouping" value={groupBy} onChange={e=>setGroupBy(e.target.value)}><option value="">None</option>{groupOptions.map(option=><option key={option.key} value={option.key}>{option.label}</option>)}</SearchableSelect></label>}
       <label className="block w-40 text-[11px] font-semibold text-slate-600">Search<input className="input mt-1 w-full" aria-label="Search report" placeholder="Search records" value={q} onChange={e=>setQ(e.target.value)}/></label>
-      {def.partyKey&&<label className="block w-36 text-[11px] font-semibold text-slate-600">Party<SearchableSelect className="input mt-1 w-full" value={party} onChange={e=>setParty(e.target.value)}><option value="">All parties</option>{parties.map(x=><option key={x}>{x}</option>)}</SearchableSelect></label>}
+      {def.partyKey&&<label className="block w-36 text-[11px] font-semibold text-slate-600">Party<SearchableSelect className="input mt-1 w-full" aria-label="Party" value={party} onChange={e=>setParty(e.target.value)}><option value="">All parties</option>{parties.map(x=><option key={x}>{x}</option>)}</SearchableSelect></label>}
       {supportsCategory&&<><label className="block w-32 text-[11px] font-semibold text-slate-600">View by<SearchableSelect className="input mt-1 w-full" aria-label="Inventory view" value={inventoryView} onChange={e=>{const v=e.target.value==="categories"?"categories":"items";setInventoryView(v);if(v==="categories"){setItem("");setGroupBy("")}}}><option value="items">Items</option><option value="categories">Categories</option></SearchableSelect></label><label className="block w-40 text-[11px] font-semibold text-slate-600">Category<SearchableSelect className="input mt-1 w-full" aria-label="Category" value={category} onChange={e=>setCategory(e.target.value)}><option value="">All categories</option>{categoryOptions.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</SearchableSelect></label></>}{def.itemKey&&!inventoryCategoryMode&&<label className="block w-36 text-[11px] font-semibold text-slate-600">Item<SearchableSelect className="input mt-1 w-full" value={item} onChange={e=>setItem(e.target.value)}><option value="">All items</option>{items.map(x=><option key={x}>{x}</option>)}</SearchableSelect></label>}{trading&&<label className="block w-36 text-[11px] font-semibold text-slate-600">Godown<SearchableSelect className="input mt-1 w-full" aria-label="Godown" value={godown} onChange={e=>setGodown(e.target.value)}><option value="">All godowns</option>{godowns.map(x=><option key={x}>{x}</option>)}</SearchableSelect></label>}
       {def.statusKey&&<label className="block w-32 text-[11px] font-semibold text-slate-600">Status<SearchableSelect className="input mt-1 w-full" value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{statuses.map(x=><option key={x}>{x}</option>)}</SearchableSelect></label>}
       <button type="button" onClick={reset} aria-label="Reset filters" className="mb-0.5 inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold text-slate-600 hover:bg-slate-200"><RotateCcw className="h-3.5 w-3.5"/>Reset</button>
