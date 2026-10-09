@@ -2120,7 +2120,7 @@ export default function JournalEntryDetail() {
   ========================================================= */
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="navilo-journal-detail space-y-3 w-full min-w-0 pb-3">
       <div>
         <Link
           to="/accounting"
@@ -2231,7 +2231,7 @@ export default function JournalEntryDetail() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="navilo-journal-summary grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
         {entry.currency_code && companyBaseCurrency && (
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Currency</div>
