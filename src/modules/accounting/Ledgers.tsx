@@ -522,13 +522,12 @@ export default function Ledgers() {
   const exportToExcel = () => {
     if (viewMode === "general") {
       const header =
-        "Date,Account Code,Account Name,Description,Debit,Credit,Balance\n";
+        "Date,Account Name,Description,Debit,Credit,Balance\n";
 
       const body = generalRowsWithBalance
         .map((row) =>
           [
             escapeCsv(row.entry_date),
-            escapeCsv(row.account?.code || ""),
             escapeCsv(row.account?.name || ""),
             escapeCsv(row.description || ""),
             Number(row.debit) || 0,
