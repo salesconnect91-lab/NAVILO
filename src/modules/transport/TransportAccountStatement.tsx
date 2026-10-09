@@ -19,7 +19,7 @@ import {exportPartyReport,type ReportTable} from './transportPartyExport';
 import {financialNumber} from './transportFinancialTypes';
 type Contribution={event_id:string;account_id:string;account_name:string;event_date:string;trip_no:string;entry_no:string;category:string;expense_accounts:string;revenue:number;cost:number};
 type AccountMovement=PartyMovement & {employee_id?:string;account_id:string;account_name:string};
-export default function TransportAccountStatement({kind,onChanged}:{kind:'driver'|'vehicle';onChanged?:()=>void}){
+export default function TransportAccountStatement({kind,onChanged,employeeAccount}:{kind:'driver'|'vehicle';onChanged?:()=>void;employeeAccount?:{id:string;name:string}}){
  const outputAllowed=useTransportOutputPermissions();
  const {activeCompany,activeBusinessUnit,accessContext}=useAuth();
  const branchId=(accessContext as unknown as {current_operating_location?:{id:string}|null})?.current_operating_location?.id;
@@ -27,7 +27,7 @@ export default function TransportAccountStatement({kind,onChanged}:{kind:'driver
  const [fleetOptions,setFleetOptions]=useState<[string,string][]>([]);
  const [historicalProfit,setHistoricalProfit]=useState<VehicleOpeningProfit[]>([]);
  const [contributions,setContributions]=useState<Contribution[]>([]);
- const [rows,setRows]=useState<AccountMovement[]>([]);const [account,setAccount]=useState('');const [side,setSide]=useState('supplier');
+ const [rows,setRows]=useState<AccountMovement[]>([]);const [account,setAccount]=useState(employeeAccount?.id??'');const [side,setSide]=useState('supplier');
  const [from,setFrom]=useState('');const [to,setTo]=useState(new Date().toISOString().slice(0,10));const [error,setError]=useState('');const [loading,setLoading]=useState(false);
  const [revision,setRevision]=useState(0);const generation=useRef(0);const [showTripDetails,setShowTripDetails]=useState(false);
  useEffect(()=>{
@@ -63,13 +63,13 @@ export default function TransportAccountStatement({kind,onChanged}:{kind:'driver
  }catch(e:any){if(generation.current===token)setError(e?.message||'Unable to load posted account detail.')}finally{if(generation.current===token)setLoading(false)}}
  void load();return()=>{generation.current++};
  },[kind,activeCompany?.company_id,activeBusinessUnit?.business_unit_id,branchId,revision]);
- useEffect(()=>setAccount(''),[kind,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
+ useEffect(()=>setAccount(employeeAccount?.id??''),[kind,activeCompany?.company_id,activeBusinessUnit?.business_unit_id,employeeAccount?.id]);
  const accounts=useMemo(()=>Array.from(new Map([
-   ...driverOptions,...[...rows,...contributions].map(r=>[r.account_id,r.account_name] as [string,string]),
+   ...(employeeAccount?[[employeeAccount.id,employeeAccount.name] as [string,string]]:[]),...driverOptions,...[...rows,...contributions].map(r=>[r.account_id,r.account_name] as [string,string]),
    ...(kind==='vehicle'?fleetOptions:[])
- ]).entries()).sort((a,b)=>a[1].localeCompare(b[1])),[rows,contributions,driverOptions,fleetOptions,kind]);
+ ]).entries()).sort((a,b)=>a[1].localeCompare(b[1])),[rows,contributions,driverOptions,fleetOptions,kind,employeeAccount?.id,employeeAccount?.name]);
  const ledger=statement(rows.filter(r=>r.account_id===account&&(kind==='driver'||r.side===side)),from,to);
- const name=accounts.find(a=>a[0]===account)?.[1]||'';
+ const name=employeeAccount?.name||accounts.find(a=>a[0]===account)?.[1]||'';
  const report:ReportTable={title:`Transport ${kind==='vehicle'?'Company Vehicle':'driver'} account — ${name}`,description:`${activeCompany?.company_name||''} / ${activeBusinessUnit?.business_unit_name||''} / active branch · ${from?formatNaviloDate(from):'Beginning'} to ${to?formatNaviloDate(to):'all dates'} · Company base currency. ${kind==='driver'?'Opening salary balance + posted basic salary/trip earnings − salary payments. Positive is salary payable; negative is salary advance.':'Posted '+side+' document movements attributed to the saved vehicle assignment at original bill posting; positive balance is '+(side==='supplier'?'payable.':'receivable.')}`,
  columns:['Date','Trip','Event','Voucher','Description','Debit','Credit','Running balance'],rows:[['Opening','','','','',0,0,ledger.opening],...ledger.rows.map(r=>[formatNaviloDate(r.event_date),r.trip_no||'',r.event_type||'',r.entry_no,r.description||'',Number(r.debit),Number(r.credit),r.running]),['Closing','','','','',ledger.debit,ledger.credit,ledger.closing]]};
  const profit=vehicleProfitStatement(account,from,to,contributions,historicalProfit);
@@ -78,11 +78,11 @@ export default function TransportAccountStatement({kind,onChanged}:{kind:'driver
  async function output(format:'print'|'pdf'|'xlsx',table:ReportTable=report){if(!(format==='print'?outputAllowed.print:outputAllowed.export))return;try{await exportPartyReport(table,format)}catch(e:any){setError(e?.message||'Export failed')}}
  return <div className="my-3 rounded border p-3" aria-label={`${kind} dated statement`}>
  {kind==='vehicle'&&<details><summary>All vehicle monthly profit history</summary><TransportVehicleMonthlyProfitHistory onLinked={()=>setRevision(r=>r+1)}/></details>}
- {kind==='driver'&&<details><summary>All driver opening balances</summary><ImportedAccountBalances kind="driver" to={to} onLinked={()=>setRevision(r=>r+1)}/></details>}
- <div className="my-2 flex flex-wrap gap-2"><label>{kind==='driver'?'Company employee / driver':'Company vehicle'}<NaviloSearchableSelect nativeCompatibility preserveLabel className="input" value={account} onChange={e=>setAccount(e.target.value)}><option value="">Select account</option>{accounts.map(([id,label])=><option key={id} value={id}>{accounts.filter(a=>a[1]===label).length>1?`${label} · ${id.slice(0,8)}`:label}</option>)}</NaviloSearchableSelect></label>
+ {kind==='driver'&&!employeeAccount&&<details><summary>All driver opening balances</summary><ImportedAccountBalances kind="driver" to={to} onLinked={()=>setRevision(r=>r+1)}/></details>}
+ <div className="my-2 flex flex-wrap gap-2"><label>{kind==='driver'?'Company employee / driver':'Company vehicle'}<NaviloSearchableSelect nativeCompatibility preserveLabel className="input" value={account} disabled={Boolean(employeeAccount)} onChange={e=>setAccount(e.target.value)}><option value="">Select account</option>{accounts.map(([id,label])=><option key={id} value={id}>{accounts.filter(a=>a[1]===label).length>1?`${label} · ${id.slice(0,8)}`:label}</option>)}</NaviloSearchableSelect></label>
  {kind==='vehicle'&&<label>Document balance side<NaviloSearchableSelect nativeCompatibility preserveLabel className="input" value={side} onChange={e=>setSide(e.target.value)}><option value="supplier">Supplier payable</option><option value="customer">Customer receivable</option></NaviloSearchableSelect></label>}
  <label>From<NaviloDateInput className="input" type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>To<NaviloDateInput className="input" type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div>
- <h3 className="font-semibold">Account details</h3><details onToggle={e=>setShowTripDetails(e.currentTarget.open)}><summary>Trip details, earnings and margin</summary>{showTripDetails&&<TransportTripReports key={revision} accountKind={kind} accountId={account} externalFilters={{from,to,search:''}}/>}</details>{kind==='driver'&&<><TransportDriverMonthlyKhata employeeId={account} employeeName={name} onChanged={()=>{setRevision(r=>r+1);onChanged?.()}}/><TransportDriverPayUpload onChanged={()=>{setRevision(r=>r+1);onChanged?.()}}/></>}
+ <h3 className="font-semibold">Account details</h3><details onToggle={e=>setShowTripDetails(e.currentTarget.open)}><summary>Trip details, earnings and margin</summary>{showTripDetails&&<TransportTripReports key={revision} accountKind={kind} accountId={account} externalFilters={{from,to,search:''}}/>}</details>{kind==='driver'&&<><TransportDriverMonthlyKhata employeeId={account} employeeName={name} onChanged={()=>{setRevision(r=>r+1);onChanged?.()}}/>{!employeeAccount&&<TransportDriverPayUpload onChanged={()=>{setRevision(r=>r+1);onChanged?.()}}/>}</>}
  {loading&&<p role="status">Loading posted account movements…</p>}{error&&<p role="alert" className="text-red-700">{error}</p>}
  {from&&to&&from>to?<p role="alert">From must be on or before To.</p>:account&&!loading&&!error&&<>{kind==='vehicle'&&<section className="mb-3 rounded border p-2" aria-label="Vehicle profit statement"><h3 className="font-semibold">Opening / historical result {financialNumber(profit.opening+profit.historical)} · Income {financialNumber(revenue)} · Expense {financialNumber(cost)} · Cumulative result {financialNumber(profit.closing)}</h3><p className="my-2">{economicReport.description}</p><ConfigurableReport outputPrefix="Profit " report={economicReport} preferenceKey={`${activeCompany?.company_id}:${kind}:profit-statement`}/></section>}<details><summary>{kind==='vehicle'?'Customer / supplier document ledger · not vehicle profit':'Running ledger · opening, entries and closing balance'}</summary><p>{report.description}</p><ConfigurableReport report={report} preferenceKey={`${activeCompany?.company_id}:${kind}:ledger`}/></details></>}
  <p className="mt-2 text-slate-600">{kind==='driver'?'Statements retain the original payroll employee when assignments change. Payroll viewing permission is required.':'Company Vehicle Ledger is limited to company-owned vehicles. Supplier/third-party vehicles remain in normal Trip, Supplier Rent, Purchase/AP and Supplier Settlement flows, but do not get a Company Vehicle Ledger. Customer and supplier document effects for company vehicles remain separated and historical saved assignment is preserved.'}</p>

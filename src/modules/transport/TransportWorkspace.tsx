@@ -6,7 +6,7 @@ import NaviloDateInput from '@/components/NaviloDateInput';
 import { formatNaviloDate } from "@/lib/naviloDate";
 import {vehicleDisplayLabel} from '@/lib/transportVehicleLabel';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment} from "react";
-import { Search, Plus, Upload, Route, History, ReceiptText, UserRound, Truck, RefreshCw, LockKeyhole, Mic, Trash2 } from "lucide-react";
+import { Search, Plus, Upload, Route, History, ReceiptText, Truck, RefreshCw, LockKeyhole, Mic, Trash2 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
 import { useOptionalFeatureAccess } from "@/auth/FeatureAccess";
@@ -67,7 +67,7 @@ type Trip=FinancialTrip & {
 
 const tabs:{key:Tab;label:string;icon:any}[]=[
   {key:"trips",label:"Trips",icon:Route},{key:"new",label:"New Trip",icon:Plus},{key:"mobile",label:"Mobile Quick Entry",icon:Search},{key:"audit",label:"Trip Audit",icon:History},
-  {key:"driver-expenses",label:"Trip / Vehicle Expense Upload",icon:ReceiptText},{key:"driver-account",label:"Driver Ledger",icon:UserRound},
+  {key:"driver-expenses",label:"Trip / Vehicle Expense Upload",icon:ReceiptText},
   {key:"vehicle-account",label:"Company Vehicle Ledger",icon:Truck},
 ];
 
@@ -141,6 +141,7 @@ export default function TransportWorkspace(){
     &&canPerformModule(role,"transport","create",rolePermissions,isPlatformOwner);
   const mobileCanEdit=(!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled("transport-mobile-quick-entry","edit")))
     &&canPerformModule(role,"transport","edit",rolePermissions,isPlatformOwner);
+  useEffect(()=>{if(params.get("view")==="driver-account")navigate("/master-data/employees",{replace:true});},[params,navigate]);
   const requestedView=params.get('view')??(standaloneMobile?'mobile':null);
   const requestedTab:Tab=tabs.some(t=>t.key===requestedView)?requestedView as Tab:'trips';
   const tabFeature:Record<Tab,string>={
@@ -152,7 +153,7 @@ export default function TransportWorkspace(){
     "driver-account":"transport-driver-account",
     "vehicle-account":"transport-vehicle-account",
   };
-  const firstAllowedTab=():Tab=>(["trips","mobile","driver-expenses","driver-account","vehicle-account","audit"] as Tab[])
+  const firstAllowedTab=():Tab=>(["trips","mobile","driver-expenses","vehicle-account","audit"] as Tab[])
     .find(candidate=>canViewFeature(tabFeature[candidate]))??"trips";
   const tab:Tab=canViewFeature(tabFeature[requestedTab])?requestedTab:firstAllowedTab();
   const setTab=(next:Tab)=>{

@@ -27,8 +27,9 @@ describe("collapsed navigation", () => {
   it("places Transport destinations and reports in the sidebar with only one active query link", () => {
     render(<MemoryRouter initialEntries={["/transport?view=audit"]}><Layout><div>Audit workspace</div></Layout></MemoryRouter>);
     fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
-    for(const name of ["Trips","Trip Audit","Trip / Vehicle Expense Upload","Driver Ledger","Company Vehicle Ledger"])
+    for(const name of ["Trips","Trip Audit","Trip / Vehicle Expense Upload","Company Vehicle Ledger"])
       expect(screen.getByRole("link",{name})).toBeTruthy();
+    expect(screen.queryByRole("link",{name:"Driver Ledger"})).toBeNull();
     expect(screen.queryByRole("link",{name:"Driver Account / Hisaab"})).toBeNull();
     expect(screen.queryByRole("link",{name:"Vehicle Account / Gari Hisaab"})).toBeNull();
     expect(screen.queryByRole("link",{name:"New Trip"})).toBeNull();

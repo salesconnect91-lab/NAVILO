@@ -27,7 +27,6 @@ const navigation:NavNode[]=[
     {key:"transport-mobile-quick-entry",to:"/transport/mobile",label:"Mobile Quick Entry",module:"transport"},
     {key:"transport-audit",to:"/transport?view=audit",label:"Trip Audit",module:"transport"},
     {key:"transport-driver-expenses",to:"/transport?view=driver-expenses",label:"Trip / Vehicle Expense Upload",module:"transport"},
-    {key:"transport-driver-account",to:"/transport?view=driver-account",label:"Driver Ledger",module:"transport"},
     {key:"transport-vehicle-account",to:"/transport?view=vehicle-account",label:"Company Vehicle Ledger",module:"transport"},
     {key:"transport-party-reports",label:"Reports & Allocation",module:"transport",children:[
       {key:"transport-customer-reports",to:"/transport?panel=customer-reports",label:"Customer Reports",module:"transport"},
@@ -56,7 +55,6 @@ const navigation:NavNode[]=[
       {key:"transport-trip-reports",to:"/reports/transport?mode=trips",label:"Trip-wise Reports",module:"reports"},
       {key:"transport-customer-reporting",to:"/reports/transport?mode=party&side=customer",label:"Customer Reports & Statements",module:"reports"},
       {key:"transport-supplier-reporting",to:"/reports/transport?mode=party&side=supplier",label:"Supplier Reports & Statements",module:"reports"},
-      {key:"transport-driver-reporting",to:"/reports/transport?mode=driver",label:"Driver Ledger",module:"reports"},
       {key:"transport-vehicle-reporting",to:"/reports/transport?mode=vehicle",label:"Company Vehicle Ledger",module:"reports"},
       {key:"transport-profitability-reporting",to:"/reports/transport?mode=profit",label:"Posted Trip Profitability",module:"reports"}
     ]},
