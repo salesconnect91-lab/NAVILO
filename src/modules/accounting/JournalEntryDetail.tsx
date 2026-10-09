@@ -2497,7 +2497,7 @@ export default function JournalEntryDetail() {
                   </h4>
 
                   <p className="text-xs text-slate-600 mt-0.5">
-                    Select a GL first. Related To then shows Customer, Supplier, Company Vehicle or General / Shared. A journal can include both a supplier payable line and a vehicle expense line.
+                    Select an account, then enter Debit or Credit. Related To selects the customer/supplier on AR/AP lines or the company vehicle on income/expense lines. Other lines post directly to the selected account.
                   </p>
                 </div>
 
@@ -2650,14 +2650,12 @@ export default function JournalEntryDetail() {
                                   {!vehicleLoadError&&eligibleVehicles.length===0&&<span className="mt-1 block text-xs text-amber-700">No company-owned vehicle valid on this journal date</span>}
                                 </div>
                               ) : (
-                                <details className="min-w-0 rounded-md border border-slate-200 bg-white text-xs text-slate-700">
-                                  <summary className="cursor-pointer select-none px-2.5 py-2.5 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500" title="Why is no separate related party or vehicle needed?">
-                                    Account only <span className="text-slate-400">· Info</span>
-                                  </summary>
-                                  <p className="border-t border-slate-100 px-2.5 py-2 text-slate-600">
-                                    This GL is the posting account. Customer/Supplier is available on linked AR/AP lines, and Company Vehicle on Transport income/expense lines. No additional allocation is required here.
-                                  </p>
-                                </details>
+                                <span
+                                  className="block truncate text-xs text-slate-600"
+                                  title={`Posts directly to ${selectedGL?.name ?? 'the selected account'}. No customer, supplier or vehicle allocation is required for this account.`}
+                                >
+                                  Direct to selected account
+                                </span>
                               )}
                               {relatedMode==='party'&&partyRequired&&partyOptions.length===0&&(
                                 <span className="mt-1 block text-xs text-amber-700">Set up a linked customer/supplier before posting.</span>
