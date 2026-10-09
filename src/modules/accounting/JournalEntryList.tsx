@@ -1,4 +1,5 @@
 import { createPrintDocument } from "@/lib/printDocument";
+import OwnerJournalAuditHistory from "./OwnerJournalAuditHistory";
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import {
@@ -2715,6 +2716,8 @@ export default function JournalEntryList() {
 
         </div>
       </div>
+
+      <OwnerJournalAuditHistory />
 
       {/* MESSAGES */}
 
