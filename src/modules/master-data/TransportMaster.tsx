@@ -43,7 +43,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
   const [editing, setEditing] = useState<Row | null>(null);
   const ownerId=supplierOwner?.id??employeeOwner?.id??"";
   const initialForm={...EMPTY,name:employeeOwner?.name??quickCreate?.initialName??"",truckTypeId:quickCreate?.truckTypeId??"",supplierId:supplierOwner?.id??quickCreate?.supplierId??"",employeeId:employeeOwner?.id??"",driverType:supplierOwner?"supplier":"company"};
-  const masterTitle=vehicle?"Vehicles":supplierOwner?`${supplierOwner.name} — Supplier Drivers`:employeeOwner?`${employeeOwner.name} — Driver Details`:"Company Drivers";
+  const masterTitle=vehicle?"Vehicles":supplierOwner?`${supplierOwner.name} — Supplier Drivers`:employeeOwner?`${employeeOwner.name} — Driver Details`:"All Drivers";
   const [form, setForm] = useState(initialForm);
   const role = activeBusinessUnit?.membership_role ?? activeCompany?.membership_role;
   const permissions = {...activeCompany?.permissions,...activeBusinessUnit?.permissions,transport_actions:{...((activeCompany?.permissions?.transport_actions??{}) as Record<string,boolean>),...((activeBusinessUnit?.permissions?.transport_actions??{}) as Record<string,boolean>)}};
@@ -56,7 +56,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
       const [records, types, parties, history, employeeRows] = await Promise.all([
         fetchAllPages<any>((start, end) => {
           let query=supabase.from(vehicle ? "transport_vehicles" : "transport_drivers").select("*");
-          if(!vehicle&&!quickCreate){
+          if(!vehicle&&!quickCreate&&(supplierOwner||employeeOwner)){
             query=query.eq("driver_type",supplierOwner?"supplier":"company");
             if(supplierOwner)query=query.eq("supplier_id",supplierOwner.id).is("employee_id",null);
             else {query=query.is("supplier_id",null);if(employeeOwner)query=query.eq("employee_id",employeeOwner.id);}
@@ -111,7 +111,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
     if(!vehicle){
       if(supplierOwner&&(form.driverType!=="supplier"||form.supplierId!==supplierOwner.id||form.employeeId))return setError("Supplier drivers must remain linked only to this Supplier.");
       if(employeeOwner&&(form.driverType!=="company"||form.employeeId!==employeeOwner.id||form.supplierId))return setError("Company drivers must remain linked only to this Employee.");
-      if(!quickCreate&&!supplierOwner&&form.driverType!=="company")return setError("Manage Supplier drivers from Supplier Master.");
+      
       if(form.driverType==="company"&&rows.some(row=>row.employeeId===form.employeeId&&row.id!==editing?.id))return setError("This Employee already has Driver details. Edit the existing record.");
     }
     submitting.current=true; setSaving(true);
@@ -177,7 +177,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
             : <label className="text-xs font-semibold">Driver Code<input className="input mt-1 w-full" value={form.detail} onChange={e => setForm({ ...form, detail: e.target.value })} /></label>}
           {vehicle && editing ? <div className="text-xs sm:col-span-2">Owner: {partyName(editing) || "Legacy / not classified"}. <Link className="text-blue-700 underline" to="/master-data/vehicle-ownership">Change through Vehicle Ownership History</Link></div>
             : <>{(!supplierOwner&&!employeeOwner)&&<label className="text-xs font-semibold">{vehicle ? "Ownership Type" : "Driver Type"}<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 w-full" value={vehicle ? form.ownerType : form.driverType} onChange={e => setForm({ ...form, ...(vehicle ? { ownerType: e.target.value } : { driverType: e.target.value, employeeId: "" }), supplierId: "" })}>
-              <option value="">Select type</option><option value="company">{vehicle ? "Company Owned" : "Company Driver"}</option>{(vehicle||quickCreate)&&<option value="supplier">{vehicle ? "Supplier Owned" : "Supplier Driver"}</option>}</NaviloSearchableSelect></label>}
+              <option value="">Select type</option><option value="company">{vehicle ? "Company Owned" : "Company Driver"}</option>{(vehicle||!employeeOwner)&&<option value="supplier">{vehicle ? "Supplier Owned" : "Supplier Driver"}</option>}</NaviloSearchableSelect></label>}
               {!vehicle && form.driverType === "company" && <label className="text-xs font-semibold">Employee *<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 w-full" value={form.employeeId} disabled={Boolean(employeeOwner)} onChange={e => setForm({ ...form, employeeId: e.target.value, name:employees.find(employee=>employee.id===e.target.value)?.name??"" })}><option value="">Select Employee</option>{employees.filter(e => e.is_active || e.id === form.employeeId).map(e => <option key={e.id} value={e.id}>{e.name}{!e.is_active ? " (Inactive)" : ""}</option>)}</NaviloSearchableSelect></label>}
               {(vehicle ? form.ownerType : form.driverType) === "supplier" && <label className="text-xs font-semibold">Supplier *<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 w-full" value={form.supplierId} disabled={Boolean(supplierOwner)} onChange={e => setForm({ ...form, supplierId: e.target.value })}><option value="">Select Supplier</option>{supplierOptions.map(s => <option key={s.id} value={s.id}>{s.name}{!s.is_active ? " (Inactive)" : ""}</option>)}</NaviloSearchableSelect></label>}</>}
           {vehicle && !editing && <label className="text-xs font-semibold">Ownership Effective From *<NaviloDateInput required type="date" className="input mt-1 w-full" value={form.effectiveFrom} onChange={e => setForm({ ...form, effectiveFrom: e.target.value })} /></label>}
@@ -189,9 +189,9 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
       </form></div>;
   if(quickCreate) return allowed && (!vehicle || canAddOwner) ? editor : <div role="alert">Master / ownership permission required.</div>;
   return <div className="space-y-4" data-navilo-master-standard="true">
-    <MasterSummaryStrip kind={kind} title={masterTitle} subtitle={vehicle ? "Vehicle identities and dated ownership" : supplierOwner ? "Trip and licence details only. Payments belong to the Supplier account; no Employee or Driver Salary Khata." : "Company employee-drivers only. One Employee link and one salary account; staff without driving duties stay in Employees."}
+    <MasterSummaryStrip kind={kind} title={masterTitle} subtitle={vehicle ? "Vehicle identities and dated ownership" : supplierOwner ? "Trip and licence details only. Payments belong to the Supplier account; no Employee or Driver Salary Khata." : "Company drivers link to Employees and salary accounts; supplier drivers link only to Suppliers. Both use the same details as Trip Register."}
       total={rows.length} active={rows.filter(r => r.active).length} inactive={rows.filter(r => !r.active).length} fourthLabel="Displayed" fourthValue={filtered.length} />
-    {!vehicle&&!quickCreate&&!supplierOwner&&!employeeOwner&&<div className="flex gap-3 text-xs"><Link className="text-emerald-800 underline" to="/master-data/employees">Manage Employees</Link><Link className="text-emerald-800 underline" to="/master-data/suppliers">Manage Supplier Drivers</Link></div>}
+    {!vehicle&&!quickCreate&&!supplierOwner&&!employeeOwner&&<div className="flex gap-3 text-xs"><Link className="text-emerald-800 underline" to="/master-data/employees">Manage Employees</Link><Link className="text-emerald-800 underline" to="/master-data/suppliers">Supplier Master</Link></div>}
     <div className="flex justify-end gap-2" data-no-print data-no-export>{vehicle && <Link className="btn-secondary" to="/master-data/vehicle-ownership">Vehicle Ownership History</Link>}
       {allowed && (!vehicle || canAddOwner) && (!employeeOwner||!rows.length) && <button className="btn-primary" onClick={openAdd}><Plus className="h-4 w-4" />Add {vehicle ? "Vehicle" : "Driver"}</button>}</div>
     {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</div>}
