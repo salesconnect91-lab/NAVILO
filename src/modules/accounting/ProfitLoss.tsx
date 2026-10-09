@@ -50,6 +50,7 @@ type JournalMeta = {
   id: string;
   trans_type: string | null;
   fiscal_year_closure_id: string | null;
+  monthly_profit_closure_id?: string | null;
 };
 
 const emptySection = (): PLSectionData => ({ total: 0, items: [] });
@@ -199,7 +200,7 @@ export default function ProfitLoss() {
           (ids,fromRow,toRow) =>
             supabase
               .from("journal_entries")
-              .select("id,trans_type,fiscal_year_closure_id")
+              .select("id,trans_type,fiscal_year_closure_id,monthly_profit_closure_id")
               .in("id",ids)
               .order("id",{ascending:true})
               .range(fromRow,toRow)
@@ -211,7 +212,7 @@ export default function ProfitLoss() {
       }
       closingJournalIds = new Set(
         journalRows
-          .filter((entry) => entry.trans_type === "Year End Closing" || Boolean(entry.fiscal_year_closure_id))
+          .filter((entry) => entry.trans_type === "Year End Closing" || Boolean(entry.fiscal_year_closure_id) || Boolean(entry.monthly_profit_closure_id))
           .map((entry) => entry.id)
       );
     }
@@ -342,7 +343,7 @@ export default function ProfitLoss() {
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Profit & Loss Statement</h1>
             <p className="mt-1 text-sm text-slate-500">For the period {formatReportDate(fromDate)} to {formatReportDate(toDate)}</p>
-            <p className="mt-1 text-xs text-slate-400">Year-end closing journals are excluded from P&L presentation.</p>
+            <p className="mt-1 text-xs text-slate-400">Monthly and year-end closing journals are excluded from P&L presentation.</p>
           </div>
           <button type="button" onClick={() => void fetchPL()} disabled={loading} className="no-print flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
@@ -365,7 +366,7 @@ export default function ProfitLoss() {
           <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-slate-400 shadow-sm">Loading Profit & Loss statement...</div>
         ) : (
           <>
-            {activeBusinessUnit?.business_unit_type==='transport'&&<TransportVehicleMonthlyProfitHistory reportFrom={fromDate} reportTo={toDate} readOnly/>}<details className="no-print"><summary className="cursor-pointer text-xs font-semibold">Ownership comparison</summary><TransportContributionSummary from={fromDate} to={toDate}/></details><details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...printSectionRows('Operating Revenue',data.operatingRevenue),...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...printSectionRows('Other Income',data.otherIncome),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {activeBusinessUnit?.business_unit_type==='transport'&&<TransportVehicleMonthlyProfitHistory reportFrom={fromDate} reportTo={toDate} readOnly/>}<details className="no-print"><summary className="cursor-pointer text-xs font-semibold">Ownership comparison</summary><TransportContributionSummary from={fromDate} to={toDate}/></details><details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; monthly and year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...printSectionRows('Operating Revenue',data.operatingRevenue),...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...printSectionRows('Other Income',data.otherIncome),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {([
                 ["Revenue", data.operatingRevenue.total, "text-emerald-700"],
                 ["Cost of Sales", data.costOfSales.total, "text-rose-700"],
