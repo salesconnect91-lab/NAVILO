@@ -35,11 +35,11 @@ async function fill(){await view();choose('Search Customer','Customer');choose('
 describe('New Trip master integration',()=>{
  it('restricts Plate choices to active compatible Truck Type and clears incompatible selection',async()=>{
   await view();choose('Search Truck Type','Flatbed');fireEvent.focus(screen.getByPlaceholderText('Search Plate'));
-  expect(screen.queryByRole('button',{name:'TANK-1'})).toBeNull();fireEvent.mouseDown(screen.getByRole('button',{name:'FLAT-1 - Company'}));
+  expect(screen.queryByRole('button',{name:'TANK-1'})).toBeNull();fireEvent.mouseDown(screen.getByRole('button',{name:'FLAT-1 · Flatbed - Company'}));
   choose('Search Truck Type','Tanker');expect((screen.getByPlaceholderText('Search Plate') as HTMLInputElement).value).toBe('');expect((screen.getByLabelText('Trip Owner / Supplier') as HTMLInputElement).value).toBe('');
  });
  it('displays historical Supplier then Company by Trip Date, read-only',async()=>{
-  await view();choose('Search Truck Type','Flatbed');choose('Search Plate','FLAT-1 - Company');
+  await view();choose('Search Truck Type','Flatbed');choose('Search Plate','FLAT-1 · Flatbed - Company');
   fireEvent.change(screen.getByLabelText('Trip Date'),{target:{value:'2026-06-01'}});expect((screen.getByLabelText('Trip Owner / Supplier') as HTMLInputElement).value).toBe('Supplier');
   expect((screen.getByLabelText('Trip Owner / Supplier') as HTMLInputElement).readOnly).toBe(true);
   fireEvent.change(screen.getByLabelText('Trip Date'),{target:{value:'2026-07-01'}});expect((screen.getByLabelText('Trip Owner / Supplier') as HTMLInputElement).value).toBe('Company');
@@ -83,7 +83,7 @@ describe('New Trip master integration',()=>{
   expect((screen.getByPlaceholderText(placeholder) as HTMLInputElement).value).toBe('Added');
  });
  it('selects created Supplier without changing the selected Vehicle owner',async()=>{
-  await view();choose('Search Truck Type','Flatbed');choose('Search Plate','FLAT-1 - Company');
+  await view();choose('Search Truck Type','Flatbed');choose('Search Plate','FLAT-1 · Flatbed - Company');
   mock.rpc.mockImplementation(async(name:string)=>{if(name==='create_party_with_opening_balance_v2'){const row={id:'added',name:'New Supplier',is_active:true};mock.tables.suppliers.push(row);return {data:{party_id:row.id},error:null};}return {data:true,error:null};});
   fireEvent.click(screen.getByRole('button',{name:'Add Owner / Supplier'}));fireEvent.change(screen.getByLabelText('English Name'),{target:{value:'New Supplier'}});fireEvent.submit(document.querySelectorAll('form')[document.querySelectorAll('form').length-1]);
   await waitFor(()=>expect(document.querySelector('form')).toBeNull());expect(screen.getByText(/Supplier selected: New Supplier/)).toBeTruthy();expect((screen.getByLabelText('Trip Owner / Supplier') as HTMLInputElement).value).toBe('Company');
@@ -93,7 +93,7 @@ describe('New Trip master integration',()=>{
    if(name==='transport_create_vehicle_master'){mock.tables.transport_vehicles.push({id:'added',vehicle_no:'NEW-V',truck_type_id:'tt',is_active:true});mock.tables.transport_vehicle_ownership.push({id:'new-own',vehicle_id:'added',owner_type:'company',owner_name_snapshot:'Company',effective_from:'2020-01-01',effective_to:null});return {data:'added',error:null};}
    return {data:true,error:null};});
   fireEvent.click(screen.getByRole('button',{name:'Add Plate #'}));fireEvent.change(screen.getByLabelText('Vehicle No / Plate No *'),{target:{value:'NEW-V'}});fireEvent.change(screen.getByLabelText('Ownership Effective From *'),{target:{value:'2020-01-01'}});fireEvent.submit(document.querySelectorAll('form')[document.querySelectorAll('form').length-1]);
-  await waitFor(()=>expect(document.querySelector('form')).toBeNull());expect((screen.getByPlaceholderText('Search Plate') as HTMLInputElement).value).toBe('NEW-V - Company');
+  await waitFor(()=>expect(document.querySelector('form')).toBeNull());expect((screen.getByPlaceholderText('Search Plate') as HTMLInputElement).value).toBe('NEW-V · Flatbed - Company');
  });
  async function upload(sale='Credit',owner='Supplier'){
   await view();fireEvent.click(screen.getByRole('button',{name:'Bulk Upload'}));
