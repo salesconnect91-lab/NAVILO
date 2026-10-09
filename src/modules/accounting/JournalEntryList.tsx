@@ -536,13 +536,22 @@ export default function JournalEntryList() {
         });
 
       if (fetchError) {
-        setError(
-          fetchError.message
-        );
+        setEntries([]);
+        setError(fetchError.message);
       } else {
-        setEntries(
-          (data ?? []) as JournalEntry[]
-        );
+        const { data: cancelled, error: cancelledError } =
+          await supabase.rpc("owner_cancelled_journal_ids");
+        if (cancelledError) {
+          setEntries([]);
+          setError(cancelledError.message);
+        } else {
+          const excluded = new Set(
+            (cancelled ?? []).map((row: { entry_id: string }) => row.entry_id)
+          );
+          setEntries(((data ?? []) as JournalEntry[]).filter(
+            (entry) => !excluded.has(entry.id)
+          ));
+        }
       }
 
       setLoading(false);
