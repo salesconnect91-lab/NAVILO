@@ -304,7 +304,7 @@ export default function ImportCenter() {
      <ImportEntry title="Daily Trip Upload" effect="Trip records only" detail="Upload current trips. No invoice, receipt or journal is posted." to="/transport?view=new&import=bulk" label="Open Daily Trip Upload"/>
      <ImportEntry title="One-time Historical Import" effect="Historical accounting import" detail="Old trips, invoices, expenses and settlements. Review the cutoff, totals and accounts before posting." to="/transport?view=new&import=historical" label="Open Historical Import"/>
     </>}
-    {(canImport("accounting")||canImport("transport"))&&<ImportEntry title="Bulk Journal Entries" effect="Drafts first; post after review" detail="Download CSV/Excel with Journal Description, Entry No, Date, Account Name and Debit/Credit. One description belongs to each journal; keep it consistent across its rows. Account code is optional. Posting requires Accounting permission." to="/accounting?import=journal" label="Open Journal Import & Templates"/>}
+    {(canImport("accounting")||canImport("transport"))&&<ImportEntry title="Bulk Journal Entries" effect="Drafts first; post after review" detail="Download CSV/Excel with Journal Description, Entry No, Date, Account Name and Debit/Credit. One description belongs to each journal; keep it consistent across its rows. Account code is optional. Posting requires Accounting permission." to="/accounting?import=journal" label="Open Journal Import"/>}
    </div>
    <div key={scope} className="space-y-3">
     <div className="grid gap-3 lg:grid-cols-2"><PartyMasterImportCard kind="customer" canImport={canImport("master")}/><PartyMasterImportCard kind="supplier" canImport={canImport("master")}/></div>
