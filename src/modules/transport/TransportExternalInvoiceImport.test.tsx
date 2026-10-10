@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 const mock=vi.hoisted(()=>({rpc:vi.fn(),from:vi.fn()}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'company'},activeBusinessUnit:{business_unit_id:'transport'}})}));
 vi.mock('@/lib/supabase',()=>({supabase:mock}));
+vi.mock('./TransportCustomerBillingModes',()=>({default:()=>null}));
 vi.mock('@/components/SearchableSelect',()=>({default:({nativeCompatibility,preserveLabel,...props}:any)=><select {...props}/>}));
 import TransportExternalInvoiceImport from './TransportExternalInvoiceImport';
 afterEach(cleanup);
