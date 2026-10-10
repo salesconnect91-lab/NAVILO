@@ -12,6 +12,8 @@ type TransportSummary = {
   locked_trips: number;
   settled_trips: number;
   ppr_pending: number;
+  customer_rate_pending: number;
+  supplier_rent_pending: number;
   trips_without_linked_sales_invoice: number;
   customer_billed: number;
 };
@@ -94,6 +96,8 @@ export default function TransportDashboardPanel({
         ))}
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] font-semibold text-slate-600">
+        <span>Customer rates pending: <strong>{summary ? number(summary.customer_rate_pending) : "—"}</strong></span>
+        <span>Supplier rents pending: <strong>{summary ? number(summary.supplier_rent_pending) : "—"}</strong></span>
         <span>Trips without direct sales invoice link: <strong>{summary ? number(summary.trips_without_linked_sales_invoice) : "—"}</strong></span>
         <span>Trips with direct sales invoice link: <strong>{summary ? number(summary.customer_billed) : "—"}</strong></span>
       </div>
