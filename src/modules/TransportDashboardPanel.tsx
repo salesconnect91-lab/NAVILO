@@ -77,7 +77,7 @@ export default function TransportDashboardPanel({
           <h2 className="flex items-center gap-2 text-sm font-black text-slate-900">
             <Truck className="h-4 w-4 text-blue-700" /> Transport Operations
           </h2>
-          <p className="text-[10px] text-slate-500">Current operating location · {startDate} → {endDate}</p>
+          <p className="text-[10px] text-slate-500">Current operating location · {startDate} → {endDate} · Trip dates for counts</p>
         </div>
         <button type="button" onClick={() => navigate("/transport")} className="rounded-md border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-700">
           Open Trip Register →
@@ -112,7 +112,7 @@ export default function TransportDashboardPanel({
         </div>
       )}
       <p className="text-[10px] text-slate-500">
-        Financial figures use posted transport contribution evidence and require both customer and supplier financial view permissions. External invoices may not have a direct trip link.
+        Financial figures use posted transport contribution event dates and require both customer and supplier financial view permissions. External invoices may not have a direct trip link.
       </p>
     </section>
   );
