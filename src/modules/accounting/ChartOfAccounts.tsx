@@ -457,11 +457,13 @@ import SearchableSelect from "@/components/SearchableSelect";
 
         setAccounts(rows);
 
+        // Some mapped posting accounts (Cash) also own subaccounts.
+        // Expand those parents without converting the posting account to a group.
         const rootGroups = rows
           .filter(
             (account) =>
-              !account.parent_id &&
-              account.is_group
+              (!account.parent_id && account.is_group) ||
+              (!account.is_group && rows.some(child => child.parent_id === account.id))
           )
           .map(
             (account) => account.id
@@ -650,7 +652,7 @@ import SearchableSelect from "@/components/SearchableSelect";
           result.add(child.id);
 
           if (
-            child.is_group &&
+            (child.is_group || hasChildren(filteredAccounts, child.id)) &&
             expanded.has(child.id)
           ) {
             walk(child.id);
@@ -786,7 +788,7 @@ import SearchableSelect from "@/components/SearchableSelect";
           accounts
             .filter(
               (account) =>
-                account.is_group
+                account.is_group || hasChildren(accounts, account.id)
             )
             .map(
               (account) =>
