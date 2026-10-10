@@ -1,5 +1,6 @@
 import {useAuth} from '@/auth/AuthContext';
 import TransportInvoiceCreate from '../transport/TransportInvoiceCreate';
+import {canPerformModule} from '@/auth/permissions';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import { fixedTaxRateOn } from "@/lib/effectiveTaxRate";
@@ -113,6 +114,10 @@ const emptyRow = (tax = "0", godownId = ""): InvoiceRow => ({
 
 function SalesInvoiceCreateItems() {
   const navigate = useNavigate();
+  const {activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
+  const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role;
+  const permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
+  const canDelete=canPerformModule(role,'sales','delete',permissions,isPlatformOwner);
   const { id } = useParams<{ id?: string }>();
   const isEditing = Boolean(id);
 
@@ -488,13 +493,14 @@ function SalesInvoiceCreateItems() {
   };
 
   const deleteDraft = async () => {
-    if (!id || isLocked || !window.confirm("Delete this draft sales invoice?")) return;
+    if (!id || isLocked || !canDelete || saving || !window.confirm("Delete this unposted draft Sales Invoice? This cannot be undone.")) return;
     setSaving(true);
     try {
-      const { error: deleteError } = await supabase.from("sales_orders").delete().eq("id", id);
-      if (deleteError) throw deleteError;
+      const {data,error:deleteError}=await supabase.rpc('delete_draft_sales_invoice',{p_order_id:id});
+      if(deleteError)throw deleteError;
+      if(data!==true)throw new Error('Draft invoice was not deleted.');
       navigate("/sales");
-    } catch (e: any) {
+    } catch (e:any) {
       setError(e?.message || "Failed to delete draft invoice.");
     } finally {
       setSaving(false);
@@ -535,7 +541,7 @@ function SalesInvoiceCreateItems() {
           <p className="mt-1 text-[12px] text-slate-500">Create and manage customer invoices with stock, tax and charges.</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {isEditing && !isLocked && <button type="button" className="btn-danger" onClick={deleteDraft}><Trash2 className="h-3.5 w-3.5" />Delete Draft</button>}
+          {isEditing && !isLocked && canDelete && <button type="button" className="btn-danger" disabled={saving} onClick={deleteDraft}><Trash2 className="h-3.5 w-3.5" />Delete Draft</button>}
           <button type="button" className="btn-secondary" onClick={() => setPreviewOpen(true)}><Eye className="h-3.5 w-3.5" />Preview</button>
           {!isLocked && <button type="button" className="btn-primary" disabled={saving} onClick={() => void saveDraft()}><FileCheck2 className="h-3.5 w-3.5" />{saving ? "Saving…" : "Save Draft"}</button>}
         </div>
