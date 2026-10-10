@@ -255,7 +255,7 @@ function TransportSettlementImports(){
 
 function TransportInvoiceImports(){
  const [mode,setMode]=useState<'trips'|'external'>('trips');
- return <div><p className="mb-1 text-xs text-slate-600">Ready invoices = no NAVILO trips needed. Existing trips = invoice the trips already saved in NAVILO.</p><label className="mb-2 block text-xs font-semibold">Invoice source<NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Invoice source" className="input ml-2" value={mode} onChange={e=>setMode(e.target.value as 'trips'|'external')}><option value="trips">Existing NAVILO trips</option><option value="external">Ready invoices from Twakkal / external source</option></NaviloSearchableSelect></label>{mode==='trips'?<TripLinkedInvoiceImports/>:<section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"><h2 className="mb-2 text-sm font-bold">Transport Sales Invoice Import</h2><TransportExternalInvoiceImport/></section>}</div>;
+ return <div><p className="mb-1 text-xs text-slate-600">Ready invoices = no NAVILO trips needed. Existing trips = invoice the trips already saved in NAVILO.</p><label className="mb-2 block text-xs font-semibold">Invoice source<NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Invoice source" className="input ml-2" value={mode} onChange={e=>setMode(e.target.value as 'trips'|'external')}><option value="trips">Existing NAVILO trips</option><option value="external">Ready invoices from external source</option></NaviloSearchableSelect></label>{mode==='trips'?<TripLinkedInvoiceImports/>:<section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"><h2 className="mb-2 text-sm font-bold">Transport Sales Invoice Import</h2><TransportExternalInvoiceImport/></section>}</div>;
 }
 
 function TripLinkedInvoiceImports(){
@@ -287,7 +287,7 @@ export default function ImportCenter() {
      <div className="grid gap-2 lg:grid-cols-2"><PartyMasterImportCard kind="customer" canImport={canImport("master")}/><PartyMasterImportCard kind="supplier" canImport={canImport("master")}/></div>
      {canImport("transport")&&<><TransportMasterImports/><TransportRateImports/></>}
     </ImportGroup>
-    {canImport("transport")&&<ImportGroup id="import-daily" title="2. Daily trips & sales invoices" detail="Have ready Twakkal invoices? Use Ready invoices below. Upload trips only when you need trip records.">
+    {canImport("transport")&&<ImportGroup id="import-daily" title="2. Daily trips & sales invoices" detail="Have invoices from an external source? Use Ready invoices below. Upload trips only when you need trip records.">
      <ImportEntry title="Daily Trip Upload" effect="Trip records only" detail="Upload current trips. No invoice, receipt or journal is posted." to="/transport?view=new&import=bulk" label="Open Daily Trip Upload" download={downloadDailyTripTemplate}/>
      {canImport("sales")&&<TransportInvoiceImports/>}
     </ImportGroup>}
