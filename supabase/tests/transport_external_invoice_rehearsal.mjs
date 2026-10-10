@@ -26,7 +26,6 @@ create table customers(id uuid primary key,company_id uuid,user_id uuid,name tex
 create table suppliers(id uuid primary key,company_id uuid,name text);
 create table transport_vehicles(id uuid primary key,company_id uuid,business_unit_id uuid,vehicle_no text,is_active bool);
 create table transport_trips(id uuid primary key,company_id uuid,business_unit_id uuid,transport_source_company text,transport_source_trip_id text,sales_order_id uuid);
-create table transport_owned_vehicle_sales_import_sources(company_id uuid,business_unit_id uuid,source_reference text);
 create table chart_of_accounts(id uuid primary key,company_id uuid,code text,name text,type text,is_active bool,is_group bool);
 create table sales_orders(id uuid primary key default gen_random_uuid(),user_id uuid,company_id uuid,business_unit_id uuid,operating_location_id uuid,order_no text,customer_id uuid,order_date date,status text,invoice_type text,tax_percent numeric,currency_code text,exchange_rate numeric,document_kind text,payment_mode text,created_by uuid,transport_source_company text,transport_source_invoice_id text,total numeric default 0,posted_at timestamptz,posted_by uuid,updated_at timestamptz,customer_name_snapshot text);
 create table purchase_orders(id uuid primary key,company_id uuid,business_unit_id uuid,operating_location_id uuid,supplier_id uuid,document_kind text,status text,total numeric,tax_percent numeric,order_no text,order_date date);
@@ -67,11 +66,17 @@ const core=sql('20261007104000_transport_customer_revenue_account.sql');await db
 await db.exec(`create function post_sales_invoice(uuid) returns jsonb language sql as $$select post_service_sales_invoice_core($1)$$;`);
 const adjustments=sql('20261001100200_transport_financial_adjustments.sql');await db.exec(adjustments.slice(adjustments.indexOf('create function public.transport_post_service_note'),adjustments.indexOf('create function public.transport_adjust_rate')));
 await db.exec(sql('20261010070701_transport_external_invoice_import.sql'));
+await db.exec(sql('20261010081645_fix_external_invoice_preview_removed_legacy_source.sql'));
 const balances=sql('20261001100300_transport_financial_evidence_views.sql');await db.exec(balances.slice(balances.indexOf('create view public.transport_service_document_balances'),balances.indexOf('create view public.transport_trip_financial_summary')));
 const row={source_reference:'16512',invoice_no:'2026-03098',invoice_date:'2026-08-31',customer:'ENERCO',sale_type:'Credit',vehicle_no:'7979',amount:3000,tax_percent:15,tax_amount:450,bill_amount:3450,description:'Delivery',reference_trip_no:'16512',reference_date:'2026-06-04',driver_name:'ASIF',from_location:'DAMMAM',to_location:'HAITH'};
 const rows=[row,{...row,source_reference:'16521',reference_trip_no:'16521',reference_date:'2026-06-05',vehicle_no:'5731',amount:4250,tax_amount:637.5,bill_amount:4887.5}, {...row,source_reference:'CASH1',invoice_no:'',sale_type:'Cash',tax_percent:0,tax_amount:0,bill_amount:3000}];
 const query=(text,params=[])=>db.query(text,params);
 const value=async(text,params=[])=>(await query(text,params)).rows[0];
+await db.exec(`create or replace function fixed_tax_rate_on(uuid,text,date) returns numeric language sql as $$select null::numeric$$;`);
+const missingVat=await value(`select transport_preview_external_invoices('Twakkal',$1::jsonb) result`,[JSON.stringify(rows)]);
+assert.match(missingVat.result.rows[0].import_reason,/No active Sales VAT/);
+assert.equal(missingVat.result.rows[2].import_status,'New');
+await db.exec(`create or replace function fixed_tax_rate_on(uuid,text,date) returns numeric language sql as $$select 15::numeric$$;`);
 const preview=await value(`select transport_preview_external_invoices('Twakkal',$1::jsonb) result`,[JSON.stringify(rows)]);assert.equal(preview.result.rows.every(r=>r.import_status==='New'),true);
 let result=await value(`select transport_import_external_invoices('Twakkal',$1,$2::jsonb) result`,[sales,JSON.stringify(rows)]);assert.equal(result.result.invoices,2);
 assert.equal((await value('select count(*) n from transport_trips')).n,0);assert.equal((await value('select count(*) n from ledgers')).n,0);
