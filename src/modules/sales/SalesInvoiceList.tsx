@@ -25,6 +25,7 @@ import { canPerformModule } from "@/auth/permissions";
 type PaymentStatus = "unpaid" | "partial" | "paid" | "overpaid";
 
 type SalesInvoiceRow = SalesOrder & {
+  document_kind?: string | null;
   due_date?: string | null;
   paid_amount?: number | string | null;
   outstanding_amount?: number | string | null;
