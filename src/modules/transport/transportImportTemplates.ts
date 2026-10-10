@@ -8,12 +8,12 @@ export const TRANSPORT_TRIP_HEADERS=[
  'PAPER RECEIVED BY','DATE','Customer Rate','Supplier Rent','INVOICE NUMBER','Notes'
 ] as const;
 
-export function downloadDailyTripTemplate(){
+export function createDailyTripTemplateWorkbook(){
  const example=[
   '2026-10-01','Flatbed','PO-001','Replace with active Customer','Driver A','', 'ABC-123',
   'Dammam','Riyadh','PPR PENDING','',1200,'','',''
  ];
- XLSX.writeFile(createImportTemplateWorkbook({
+ return createImportTemplateWorkbook({
   filename:'Transport_Daily_Trips_NAVILO.xlsx',
   sheetName:'Trips',title:'NAVILO Transport daily operational Trip upload',
   headers:TRANSPORT_TRIP_HEADERS,example,
@@ -36,11 +36,14 @@ export function downloadDailyTripTemplate(){
    {field:'Customer Rate / Supplier Rent',rule:'Optional amounts with at most 2 decimal places. Finalization permissions are enforced.'},
    {field:'INVOICE NUMBER',rule:'Optional reference; no invoice is posted by this upload.'}
   ]
- }), 'Transport_Daily_Trips_NAVILO.xlsx');
+ });
+}
+export function downloadDailyTripTemplate(){
+ XLSX.writeFile(createDailyTripTemplateWorkbook(),'Transport_Daily_Trips_NAVILO.xlsx');
 }
 
 /** One-time historical accounting import retains the explicit evidence fields. */
-export function downloadHistoricalTemplate(){
+export function createHistoricalTemplateWorkbook(){
  const headers=[
   'DATE','TRUCK TYPE','PO/DO/JOB NO.','INVOICED','COMPANY NAME','DRIVER NAME','OWNER',
   'PLATE #','FROM','TO','PAPER RECEIVED BY','Customer Rate','Supplier Rent',
@@ -74,5 +77,8 @@ export function downloadHistoricalTemplate(){
  payments['!cols']=PAYMENT_COLUMNS.map(h=>({wch:Math.min(34,Math.max(18,h.length+3))}));
  payments['!autofilter']={ref:'A1:F3'};
  XLSX.utils.book_append_sheet(wb,payments,'Payments');
- XLSX.writeFile(wb,'Transport-Historical-Import-Template.xlsx');
+ return wb;
+}
+export function downloadHistoricalTemplate(){
+ XLSX.writeFile(createHistoricalTemplateWorkbook(),'Transport-Historical-Import-Template.xlsx');
 }
