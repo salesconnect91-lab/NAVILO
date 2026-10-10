@@ -23,9 +23,9 @@ import Customers from './Customers';
 beforeEach(()=>{state.type='transport';});
 afterEach(()=>cleanup());
 describe('Transport-only billing setup in Customer Master',()=>{
- it('opens Cash/Credit rules from the Import Center deep link and keeps master list separate',()=>{
+ it('opens Cash/Credit rules from the Import Center deep link and keeps master list separate',async()=>{
   render(<MemoryRouter initialEntries={['/master-data/customers?tab=billing']}><Customers /></MemoryRouter>);
-  expect(screen.getByTestId('transport-billing-rules')).toBeTruthy();
+  expect(await screen.findByTestId('transport-billing-rules')).toBeTruthy();
   expect(screen.queryByTestId('customer-table')).toBeNull();
   fireEvent.click(screen.getByRole('tab',{name:'Customers'}));
   expect(screen.getByTestId('customer-table')).toBeTruthy();
