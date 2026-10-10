@@ -44,8 +44,8 @@ export default function TransportCustomerBillingModes(){
  if(!enabled&&!error)return null;
  return <section className="rounded-lg border border-amber-200 bg-amber-50/40 p-2 space-y-2">
   <div className="flex flex-wrap items-center justify-between gap-2">
-   <div><h3 className="text-xs font-bold text-slate-900">Customer Cash/Credit Lock · Orbit</h3>
-    <p className="text-[11px] text-slate-600">Set the allowed mode per customer before importing. Unassigned customers and mismatched Cash/Credit invoices are rejected. Existing invoices are not changed.</p></div>
+   <div><h3 className="text-xs font-bold text-slate-900">Customer Cash/Credit Lock · Transport</h3>
+    <p className="text-[11px] text-slate-600">Modes are independent in each Transport business. Select Cash Only or Credit Only before invoicing; an unassigned customer or mismatched invoice is blocked. Existing invoices stay unchanged.</p></div>
    <div className="flex gap-2 items-center"><input className="input h-8 text-xs w-44" aria-label="Find billing customer" placeholder="Search customers" value={filter} onChange={e=>setFilter(e.target.value)}/><button className="btn h-8" disabled={busy!==null} onClick={()=>setReload(x=>x+1)}>Refresh</button></div>
   </div>
   {error&&<p className="text-xs text-red-700" role="alert">{error}</p>}
