@@ -1,3 +1,4 @@
+import OwnerInvoiceCancellationReview from "@/modules/accounting/OwnerInvoiceCancellationReview";
 import TransportServiceDocument from '@/modules/transport/TransportServiceDocument';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -344,6 +345,7 @@ export default function SalesInvoiceDetail() {
 
   return (
     <div className="navilo-sales-neus navilo-invoice-detail space-y-3" data-navilo-commercial-standard="true" data-navilo-document-editor="true">
+      <OwnerInvoiceCancellationReview side="sales" documentId={order.id} posted={order.status === "posted"} />
       <section className="flex flex-col gap-3 border-b border-slate-200 pb-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <Link to="/sales" className="mb-1 inline-flex items-center gap-1 text-[12px] font-medium text-slate-500 hover:text-blue-700">
