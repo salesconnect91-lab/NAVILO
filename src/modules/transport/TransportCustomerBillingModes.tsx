@@ -20,7 +20,7 @@ export default function TransportCustomerBillingModes(){
   let active=true;
   setLoading(true);setError('');setRows([]);setEnabled(false);
   if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){setLoading(false);return;}
-  void supabase.rpc('transport_get_customer_billing_modes').then(({data,error:rpcError})=>{
+  void Promise.resolve(supabase.rpc('transport_get_customer_billing_modes')).then(({data,error:rpcError})=>{
    if(!active)return;
    if(rpcError)throw rpcError;
    setEnabled(Boolean(data?.enabled));setRows((data?.rows??[]) as Rule[]);
