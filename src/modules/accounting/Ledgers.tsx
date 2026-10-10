@@ -126,6 +126,17 @@ export function buildTransportLedgerContext(transportDetails: TransportDetail[],
     };
 }
 
+/** Normal statements exclude both sides of an owner-cancelled posting.
+ * The posted evidence remains intact in the database and Owner Audit History.
+ */
+export function excludeOwnerCancelledLedgerRows<T extends { journal_entry_id?: string | null }>(
+  rows: T[],
+  cancelledJournalIds: ReadonlySet<string>,
+): T[] {
+  if (!cancelledJournalIds.size) return rows;
+  return rows.filter((row) => !row.journal_entry_id || !cancelledJournalIds.has(row.journal_entry_id));
+}
+
 export default function Ledgers() {
   const [viewMode, setViewMode] = useState<ViewMode>("general");
 
@@ -209,52 +220,65 @@ export default function Ledgers() {
     setSuppliers(suppliersResult);
   }, []);
 
+  const fetchOwnerCancelledJournalIds = useCallback(async (): Promise<Set<string>> => {
+    // Fail closed: showing cancelled financial rows as active records would be misleading.
+    const { data, error: cancelledError } = await supabase.rpc("owner_cancelled_journal_ids");
+    if (cancelledError) throw cancelledError;
+    return new Set((data ?? []).map((row: { entry_id: string }) => row.entry_id));
+  }, []);
+
   const fetchGeneralLedger = useCallback(async () => {
-    const data = await fetchAllPages<LedgerRow>((fromRow, toRow) => {
-      let query = supabase
-        .from("ledgers")
-        .select("*, account:chart_of_accounts(*)")
-        .order("entry_date", { ascending: true })
-        .order("created_at", { ascending: true })
-        .order("id", { ascending: true });
+    const [data, excluded] = await Promise.all([
+      fetchAllPages<LedgerRow>((fromRow, toRow) => {
+        let query = supabase
+          .from("ledgers")
+          .select("*, account:chart_of_accounts(*)")
+          .order("entry_date", { ascending: true })
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true });
 
-      if (selectedAccount) {
-        query = query.eq("account_id", selectedAccount);
-      }
+        if (selectedAccount) {
+          query = query.eq("account_id", selectedAccount);
+        }
 
-      return query.range(fromRow, toRow);
-    });
+        return query.range(fromRow, toRow);
+      }),
+      fetchOwnerCancelledJournalIds(),
+    ]);
 
-    setLedgerRows(data);
-  }, [selectedAccount]);
+    setLedgerRows(excludeOwnerCancelledLedgerRows(data, excluded));
+  }, [selectedAccount, fetchOwnerCancelledJournalIds]);
 
   const fetchPartyLedger = useCallback(async () => {
-    const data = await fetchAllPages<PartyLedgerRow>((fromRow, toRow) => {
-      let query = supabase
-        .from("party_ledgers")
-        .select("*")
-        .order("entry_date", { ascending: true })
-        .order("created_at", { ascending: true })
-        .order("id", { ascending: true });
+    const [data, excluded] = await Promise.all([
+      fetchAllPages<PartyLedgerRow>((fromRow, toRow) => {
+        let query = supabase
+          .from("party_ledgers")
+          .select("*")
+          .order("entry_date", { ascending: true })
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true });
 
-      if (selectedPartyKey) {
-        const [partyType, partyId] = selectedPartyKey.split(":") as [
-          PartyType,
-          string,
-        ];
+        if (selectedPartyKey) {
+          const [partyType, partyId] = selectedPartyKey.split(":") as [
+            PartyType,
+            string,
+          ];
 
-        query = query
-          .eq("party_type", partyType)
-          .eq("party_id", partyId);
-      } else if (partyFilterType !== "all") {
-        query = query.eq("party_type", partyFilterType);
-      }
+          query = query
+            .eq("party_type", partyType)
+            .eq("party_id", partyId);
+        } else if (partyFilterType !== "all") {
+          query = query.eq("party_type", partyFilterType);
+        }
 
-      return query.range(fromRow, toRow);
-    });
+        return query.range(fromRow, toRow);
+      }),
+      fetchOwnerCancelledJournalIds(),
+    ]);
 
-    setPartyRows(data);
-  }, [partyFilterType, selectedPartyKey]);
+    setPartyRows(excludeOwnerCancelledLedgerRows(data, excluded));
+  }, [partyFilterType, selectedPartyKey, fetchOwnerCancelledJournalIds]);
 
   const fetchTransportContext = useCallback(async () => {
     const selected = selectedPartyKey ? selectedPartyKey.split(":") as [PartyType, string] : null;
