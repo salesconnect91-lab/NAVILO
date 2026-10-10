@@ -17,6 +17,16 @@ describe('BuKu Trip import',()=>{
   const result=parseTripWorkbook(workbook([row]))[0];expect(result.trip_date).toBe('2026-10-01');expect(result.ppr_date).toBe('2026-10-02');
   expect(result.sale_type).toBe('credit');expect(result.supplier_rent).toBe('0');expect(result.customer_rate).toBe('0');expect(result.driver_pay).toBe('');
  });
+ it('allows daily Trip upload without a Cash/Credit column; mode is resolved by customer master',()=>{
+  const dailyHeaders=headers.filter(h=>!h.startsWith('Sale Type'));
+  const dailyValues=example.slice(0,dailyHeaders.length);
+  const book=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet([dailyHeaders,dailyValues]),'Trips');
+  const parsed=parseTripWorkbook(XLSX.write(book,{type:'array',bookType:'xlsx'}));
+  expect(parsed).toHaveLength(1);
+  expect(parsed[0].sale_type).toBe('');
+  expect(parsed[0].customer).toBe('Customer');
+ });
  it('skips template formula-only rows and keeps Excel row numbers',()=>{
   const blank=Array(23).fill('');blank[16]=0;blank[20]=0;
   const parsed=parseTripWorkbook(workbook([example,blank,example]));expect(parsed.map(r=>r.rowNo)).toEqual([2,4]);
