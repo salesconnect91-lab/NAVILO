@@ -20,7 +20,7 @@ describe('external ready invoice upload',()=>{
  ['2','2026-06-05','INV1','2026-08-31','Customer A','5731',200,15,30,230,'Credit','Service B'],
  ['3','2026-09-01','CLEARED ASAD','2026-09-01','Cash A','5731',50,0,0,50,'Cash','Cash service']
  ]),'Invoices');const buffer=XLSX.write(wb,{type:'array',bookType:'xlsx'});const file=new File([buffer],'Twakkal.xlsx');Object.defineProperty(file,'arrayBuffer',{value:async()=>buffer});
- render(<MemoryRouter><TransportExternalInvoiceImport/></MemoryRouter>);await waitFor(()=>expect((screen.getByLabelText('External revenue account') as HTMLSelectElement).value).toBe('sales'));
+ render(<MemoryRouter><TransportExternalInvoiceImport/></MemoryRouter>);fireEvent.change(screen.getByLabelText('External source company'),{target:{value:'Twakkal'}});await waitFor(()=>expect((screen.getByLabelText('External revenue account') as HTMLSelectElement).value).toBe('sales'));
  fireEvent.change(screen.getByLabelText('External invoice file'),{target:{files:[file]}});
  await screen.findByText('Auto cash bill');expect(screen.getAllByText('INV1')).toHaveLength(2);
  fireEvent.click(screen.getByRole('button',{name:'Import Draft Invoices'}));await screen.findByRole('status');
