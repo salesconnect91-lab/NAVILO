@@ -8,7 +8,8 @@ declare
   v_company uuid; v_unit uuid; v_loc uuid;
   v_cash uuid; v_exp uuid; v_journal uuid; v_reversal uuid;
   v_result jsonb; v_debit numeric; v_credit numeric; v_n int;
-  v_code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
+  v_ctx text;
+  v_code text:substr(replace(gen_random_uuid()::text,'-',''),1,12);
 begin
   insert into auth.users(id,role,email,created_at,updated_at)
   values(v_platform,'authenticated','platform-'||v_code||'@navilo.test',now(),now()),
@@ -134,5 +135,8 @@ begin
     if sqlerrm like 'FAIL:%' then raise; end if;
   end;
   raise notice 'PASS owner cancellation: software-owner only; company-owner denied; backdate denied; posted originals preserved; per-account GL net zero; audit linked; list exclusions; duplicate denied';
-end $$;
+exception when others then
+  get stacked diagnostics v_ctx=PG_EXCEPTION_CONTEXT;
+  raise exception 'OWNER TEST FAILURE: % | CONTEXT: %',SQLERRM,v_ctx;
+end $;
 rollback;
