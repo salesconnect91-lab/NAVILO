@@ -16,6 +16,12 @@ vi.mock("@/auth/AuthContext", () => ({ useAuth: () => ({
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.clearAllMocks(); });
 
 describe("import center", () => {
+  it("uses generic invoice source labels without naming a specific external company", () => {
+    render(<MemoryRouter><ImportCenter /></MemoryRouter>);
+    expect(screen.queryByText(/Twakkal/i)).toBeNull();
+    expect(screen.getByText(/Have invoices from an external source/)).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Ready invoices from external source" })).toBeTruthy();
+  });
   it("shows centralized Transport rate imports and implemented destinations", () => {
     render(<MemoryRouter><ImportCenter /></MemoryRouter>);
     expect(screen.getByRole("heading", { name: "Transport Master Imports" })).toBeTruthy();
