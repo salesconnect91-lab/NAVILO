@@ -15,17 +15,15 @@ vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{
 beforeEach(()=>{mock.allowed=false;mock.cash=false;mock.failCash=false;mock.supplier=false;mock.failSettlement=false;mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_finance_allowed'?mock.allowed:{success:true},error:(name==='transport_post_cash_bill_receive'&&mock.failCash)||(name==='transport_correct_settlement'&&mock.failSettlement)?{message:'Network interrupted'}:null}))});afterEach(cleanup);
 describe('Transport canonical finance controls',()=>{
  it('does not expose or request driver bookkeeping actions',async()=>{mock.allowed=true;render(<TransportFinancialPanel trip={trip} onClose={vi.fn()} onChanged={async()=>{}}/>);await screen.findByRole('button',{name:'Credit / Debit Note'});expect(screen.queryByRole('button',{name:'Driver Pay'})).toBeNull();expect(screen.queryByText('Driver Account / Hisaab')).toBeNull();expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_finance_allowed'&&c[1]?.p_action==='driver')).toBe(false)});
- it('posts a Cash Trip invoice with an atomic full canonical receipt',async()=>{
+ it('posts a Cash Only customer invoice without inventing a full cash receipt',async()=>{
  mock.allowed=true;mock.cash=true;
- const rpc=mock.rpc.getMockImplementation()!;
- mock.rpc.mockImplementation((name:string,args:any)=>rpc(name,args));
  render(<TransportFinancialPanel trip={{...trip,customer_rate_locked:false,customer_rate_state:'finalized',sale_type:'cash'}} onClose={vi.fn()} onChanged={async()=>{}}/>);
- await screen.findByLabelText('Cash / Bank');
- expect((screen.getByRole('button',{name:'Post Customer Bill'}) as HTMLButtonElement).disabled).toBe(true);
- fireEvent.change(screen.getByLabelText('Cash / Bank'),{target:{value:'cash-a'}});
- await waitFor(()=>expect((screen.getByRole('button',{name:'Post Customer Bill'}) as HTMLButtonElement).disabled).toBe(false));
+ await screen.findByRole('button',{name:'Post Customer Bill'});
+ expect(screen.getByText(/Cash Only invoice is posted without a receipt/)).toBeTruthy();
+ expect((screen.getByRole('button',{name:'Post Customer Bill'}) as HTMLButtonElement).disabled).toBe(false);
  fireEvent.click(screen.getByRole('button',{name:'Post Customer Bill'}));
- await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_customer_bill_settled',expect.objectContaining({p_trip_id:'trip-a',p_with_tax:false,p_account_id:'cash-a'})));
+ await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_customer_bill',{p_trip_id:'trip-a',p_date:expect.any(String),p_with_tax:false}));
+ expect(mock.rpc.mock.calls.some(([name])=>name==='transport_post_customer_bill_settled'||name==='transport_post_cash_bill_receive')).toBe(false);
  });
 
  it('keeps financial actions disabled without server permissions and original billing protected',async()=>{
