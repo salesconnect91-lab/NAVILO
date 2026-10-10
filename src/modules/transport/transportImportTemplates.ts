@@ -77,6 +77,7 @@ export function createHistoricalTemplateWorkbook(){
  payments['!cols']=PAYMENT_COLUMNS.map(h=>({wch:Math.min(34,Math.max(18,h.length+3))}));
  payments['!autofilter']={ref:'A1:F3'};
  XLSX.utils.book_append_sheet(wb,payments,'Payments');
+ wb.SheetNames=['Trips','Payments','Instructions'];
  return wb;
 }
 export function downloadHistoricalTemplate(){
