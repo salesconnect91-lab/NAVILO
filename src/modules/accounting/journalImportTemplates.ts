@@ -18,7 +18,7 @@ export const TEMPLATE_ROWS = [
  ['JE-1002','2026-10-02','Office expenses','','Office Expenses','Office Rent',2000,0],
  ['JE-1002','2026-10-02','Office expenses','','Office Expenses','Stationery',1000,0],
  ['JE-1002','2026-10-02','Office expenses','','Cash','Petty Cash',0,3000],
-] as const;
+];
 
 export const downloadCSVTemplate = () => {
   const rows = [
