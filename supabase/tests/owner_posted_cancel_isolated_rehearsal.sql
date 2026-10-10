@@ -6,7 +6,7 @@ declare
   v_platform uuid:=gen_random_uuid();
   v_company_owner uuid:=gen_random_uuid();
   v_company uuid; v_unit uuid; v_loc uuid;
-  v_cash uuid; v_exp uuid; v_journal uuid; v_reversal uuid;
+  v_cash uuid; v_exp uuid; v_journal uuid; v_reversal uuid; v_payment uuid; v_payment_reversal uuid;
   v_result jsonb; v_debit numeric; v_credit numeric; v_n int;
   v_ctx text;
   v_code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
@@ -134,6 +134,73 @@ begin
   exception when others then
     if sqlerrm like 'FAIL:%' then raise; end if;
   end;
+  -- Unallocated accounting receipt: synthetic, no invoice/transport allocations.
+  reset role;
+  insert into public.journal_entries(
+    user_id,company_id,business_unit_id,operating_location_id,
+    entry_no,entry_date,description,status,trans_type,currency_code,exchange_rate,
+    source_module,source_document_type
+  ) values (
+    v_platform,v_company,v_unit,v_loc,'OC-PAY-'||v_code,current_date,
+    'Synthetic unallocated receipt','draft','Customer Receipt','SAR',1,
+    'accounting','customer_receipt'
+  ) returning id into v_payment;
+  insert into public.journal_lines(
+    user_id,company_id,business_unit_id,operating_location_id,entry_id,
+    account_id,account,debit,credit
+  ) select v_platform,v_company,v_unit,v_loc,v_payment,id,name,75,0
+    from public.chart_of_accounts where id=v_cash;
+  insert into public.journal_lines(
+    user_id,company_id,business_unit_id,operating_location_id,entry_id,
+    account_id,account,debit,credit
+  ) select v_platform,v_company,v_unit,v_loc,v_payment,id,name,0,75
+    from public.chart_of_accounts where id=v_exp;
+  set local role authenticated;
+  v_result:=public.post_journal_entry(v_payment);
+  if v_result->>'status'<>'posted' then raise exception 'FAIL: synthetic receipt not posted'; end if;
+  begin
+    perform public.owner_cancel_unallocated_payment(v_payment,current_date-1,'Reject backdated receipt cancellation');
+    raise exception 'FAIL: backdated payment cancellation allowed';
+  exception when others then
+    if sqlerrm like 'FAIL:%' then raise; end if;
+  end;
+  reset role;
+  perform set_config('request.jwt.claim.sub',v_company_owner::text,true);
+  set local role authenticated;
+  begin
+    perform public.owner_cancel_unallocated_payment(v_payment,current_date,'Reject non-platform owner cancellation');
+    raise exception 'FAIL: non-platform owner cancelled payment';
+  exception when others then
+    if sqlerrm like 'FAIL:%' then raise; end if;
+  end;
+  reset role;
+  perform set_config('request.jwt.claim.sub',v_platform::text,true);
+  set local role authenticated;
+  v_result:=public.owner_cancel_unallocated_payment(v_payment,current_date,'Isolated unallocated payment correction');
+  v_payment_reversal:=(v_result->>'reversal_entry_id')::uuid;
+  if v_result->>'success'<>'true' or v_payment_reversal is null then
+    raise exception 'FAIL: unallocated receipt owner reversal did not post';
+  end if;
+  if exists(
+    select 1 from public.ledgers where journal_entry_id in(v_payment,v_payment_reversal)
+    group by account_id having abs(sum(debit-credit))>=0.01
+  ) then raise exception 'FAIL: unallocated receipt reversal did not net to zero'; end if;
+  if (select count(*) from public.owner_posted_control_events
+      where company_id=v_company and document_id=v_payment
+        and reversal_document_id=v_payment_reversal and document_type='payment_voucher'
+        and action_type='cancel')<>1 then
+    raise exception 'FAIL: payment owner audit original/reversal link missing';
+  end if;
+  select count(*) into v_n from public.owner_cancelled_journal_ids()
+  where entry_id in(v_payment,v_payment_reversal);
+  if v_n<>2 then raise exception 'FAIL: payment and reversal missing from normal-list exclusion'; end if;
+  begin
+    perform public.owner_cancel_unallocated_payment(v_payment,current_date,'Duplicate payment cancellation rejected');
+    raise exception 'FAIL: duplicate payment cancellation allowed';
+  exception when others then
+    if sqlerrm like 'FAIL:%' then raise; end if;
+  end;
+  raise notice 'PASS owner unallocated receipt: platform-only, no backdating, zero net GL, linked audit, normal-list exclusions, duplicate blocked';
   raise notice 'PASS owner cancellation: software-owner only; company-owner denied; backdate denied; posted originals preserved; per-account GL net zero; audit linked; list exclusions; duplicate denied';
 exception when others then
   get stacked diagnostics v_ctx=PG_EXCEPTION_CONTEXT;
