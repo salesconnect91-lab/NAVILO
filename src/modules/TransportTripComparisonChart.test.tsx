@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { supabase } from "@/lib/supabase";
 import TransportTripComparisonChart from "./TransportTripComparisonChart";
 
 vi.mock("@/lib/supabase", () => ({ supabase: { rpc: vi.fn() } }));
 vi.mock("recharts", () => ({
-  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  BarChart: ({ children, data }: { children: React.ReactNode; data: unknown[] }) => <div data-testid="trip-chart" data-points={data.length}>{children}</div>,
+  ResponsiveContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  BarChart: ({ children, data }: { children: ReactNode; data: unknown[] }) => <div data-testid="trip-chart" data-points={data.length}>{children}</div>,
   Bar: ({ name }: { name: string }) => <span>{name}</span>,
   CartesianGrid: () => null, XAxis: () => null, YAxis: () => null,
   Tooltip: () => null, Legend: () => null,
