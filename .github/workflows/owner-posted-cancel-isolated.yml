@@ -8,6 +8,7 @@ on:
       - 'supabase/tests/replay_transport_isolated.mjs'
       - 'supabase/migrations/20261010153000_platform_owner_only_posted_cancellation.sql'
       - 'supabase/migrations/20261010154500_platform_owner_only_cancel_audit.sql'
+      - 'supabase/migrations/20261010160000_admin_posted_audit_actor_schema_compat.sql'
       - '.github/workflows/owner-posted-cancel-isolated.yml'
   workflow_dispatch:
 
