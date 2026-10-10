@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, ClipboardCheck, FileClock, ReceiptText, Route, Truck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import TransportTripComparisonChart from "./TransportTripComparisonChart";
 
 type TransportSummary = {
   currency: string;
@@ -111,6 +112,7 @@ export default function TransportDashboardPanel({
           ))}
         </div>
       )}
+      <TransportTripComparisonChart companyId={companyId} businessUnitId={businessUnitId} asOf={endDate} />
       <p className="text-[10px] text-slate-500">
         Financial figures use posted transport contribution event dates and require both customer and supplier financial view permissions. External invoices may not have a direct trip link.
       </p>
