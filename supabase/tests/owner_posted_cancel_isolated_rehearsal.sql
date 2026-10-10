@@ -201,6 +201,29 @@ begin
     if sqlerrm like 'FAIL:%' then raise; end if;
   end;
   raise notice 'PASS owner unallocated receipt: platform-only, no backdating, zero net GL, linked audit, normal-list exclusions, duplicate blocked';
+  -- Sales/Purchase/Transport cancellation review must not reveal other tenants
+  -- or expose a mutation endpoint to a non-platform owner.
+  reset role;
+  perform set_config('request.jwt.claim.sub',v_company_owner::text,true);
+  set local role authenticated;
+  begin
+    perform public.owner_posted_invoice_cancellation_review('sales',gen_random_uuid());
+    raise exception 'FAIL: non-platform owner accessed invoice cancellation review';
+  exception when others then
+    if sqlerrm like 'FAIL:%' then raise; end if;
+    if position('NAVILO software owner access required' in sqlerrm)=0 then raise; end if;
+  end;
+  reset role;
+  perform set_config('request.jwt.claim.sub',v_platform::text,true);
+  set local role authenticated;
+  begin
+    perform public.owner_posted_invoice_cancellation_review('sales',gen_random_uuid());
+    raise exception 'FAIL: cross-tenant invoice review returned a document';
+  exception when others then
+    if sqlerrm like 'FAIL:%' then raise; end if;
+    if position('not found in active business unit' in sqlerrm)=0 then raise; end if;
+  end;
+  raise notice 'PASS invoice review: platform owner only, cross-tenant document inaccessible, no mutation';
   raise notice 'PASS owner cancellation: software-owner only; company-owner denied; backdate denied; posted originals preserved; per-account GL net zero; audit linked; list exclusions; duplicate denied';
 exception when others then
   get stacked diagnostics v_ctx=PG_EXCEPTION_CONTEXT;
