@@ -9,7 +9,7 @@ declare
   v_cash uuid; v_exp uuid; v_journal uuid; v_reversal uuid;
   v_result jsonb; v_debit numeric; v_credit numeric; v_n int;
   v_ctx text;
-  v_code text:substr(replace(gen_random_uuid()::text,'-',''),1,12);
+  v_code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
 begin
   insert into auth.users(id,role,email,created_at,updated_at)
   values(v_platform,'authenticated','platform-'||v_code||'@navilo.test',now(),now()),
@@ -138,5 +138,5 @@ begin
 exception when others then
   get stacked diagnostics v_ctx=PG_EXCEPTION_CONTEXT;
   raise exception 'OWNER TEST FAILURE: % | CONTEXT: %',SQLERRM,v_ctx;
-end $;
+end $$;
 rollback;
