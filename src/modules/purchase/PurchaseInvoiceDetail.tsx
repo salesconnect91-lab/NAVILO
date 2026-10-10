@@ -1,3 +1,4 @@
+import OwnerInvoiceCancellationReview from "@/modules/accounting/OwnerInvoiceCancellationReview";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import TransportServiceDocument from '@/modules/transport/TransportServiceDocument';
 import SearchableSelect from "@/components/SearchableSelect";
@@ -325,6 +326,7 @@ export default function PurchaseInvoiceDetail() {
   if(order.document_kind==='service')return <TransportServiceDocument side="supplier" id={order.id}/>;
 
   return <div className="navilo-purchase-neus navilo-invoice-detail space-y-5" data-navilo-commercial-standard="true" data-navilo-document-editor="true">
+    <OwnerInvoiceCancellationReview side="purchase" documentId={order.id} posted={order.status === "posted"} />
     <div className="print:hidden flex flex-wrap items-center justify-between gap-3">
       <div><Link to="/purchase" className="text-sm text-primary-600">← Back to Purchase</Link><h1 className="mt-2 text-2xl font-bold text-slate-900">{isTax ? "Purchase Tax Invoice" : "Purchase Invoice"}</h1><div className="mt-1 text-sm text-slate-500">{order.order_no} · Supplier: {order.supplier_name_snapshot || order.supplier?.name || "—"}</div></div>
       <div className="flex flex-wrap gap-2">
