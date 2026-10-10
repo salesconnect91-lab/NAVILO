@@ -23,8 +23,7 @@ export const TRANSPORT_TRIP_HEADERS=[
   "remaining with company",
   "PROFIT",
   "paid commissin for trip",
-  "INVOICE NUMBER",
-  "Sale Type (Cash / Credit)"
+  "INVOICE NUMBER"
 ] as const;
 export const downloadDailyTripTemplate=()=>{
     const example=[
@@ -50,8 +49,7 @@ export const downloadDailyTripTemplate=()=>{
       "",
       "",
       "",
-      "",
-      "Credit"
+      ""
     ];
 
     const ws=XLSX.utils.aoa_to_sheet([
