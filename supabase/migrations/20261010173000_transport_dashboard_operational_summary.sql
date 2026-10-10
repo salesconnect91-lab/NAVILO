@@ -23,8 +23,7 @@ begin
   select coalesce(base_currency_code,'SAR') into v_currency from public.companies where id=c;
   with scoped as (
     select t.id,t.trip_status,t.lifecycle_status,t.status,t.ppr_status,
-      t.ppr_received_date,t.ppr_received_by_name,t.ppr_received_by_employee_id,t.customer_rate_status,t.customer_rate_state,
-      t.supplier_rent_status,t.rent_state,
+      t.ppr_received_date,t.ppr_received_by_name,t.ppr_received_by_employee_id,
       t.sales_order_id
     from public.transport_trips t
     where t.company_id=c and t.business_unit_id=b and t.operating_location_id=loc
@@ -39,8 +38,6 @@ begin
     'settled_trips',count(*) filter(where lower(coalesce(trip_status,lifecycle_status,status,''))='settled'),
     'ppr_pending',count(*) filter(where ppr_received_date is null and
       lower(coalesce(ppr_status,'')) not in ('received','yes')),
-    'customer_rate_pending',count(*) filter(where lower(coalesce(customer_rate_status,customer_rate_state,'')) in ('pending','draft','unfinalized')),
-    'supplier_rent_pending',count(*) filter(where lower(coalesce(supplier_rent_status,rent_state,'')) in ('pending','draft','unfinalized')),
     'trips_without_linked_sales_invoice',count(*) filter(where sales_order_id is null),
     'customer_billed',count(*) filter(where sales_order_id is not null)
   ) into result from scoped;
