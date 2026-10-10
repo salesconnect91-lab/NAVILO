@@ -2083,6 +2083,10 @@ export default function JournalEntryDetail() {
 
   const handleOwnerCancel = async () => {
     if (!entry || !ownerCanCancel || ownerCancelReason.trim().length < 10 || !ownerCancelDate) return;
+    if (ownerCancelDate < entry.entry_date) {
+      setError(`Cancellation date cannot be earlier than the original posting date (${entry.entry_date}).`);
+      return;
+    }
     try {
       setOwnerCancelling(true);
       setError(null);
@@ -2107,6 +2111,7 @@ export default function JournalEntryDetail() {
   const handleReverseEntry = async () => {
     if (!entry) return;
     if (!reversalDate) { setError("Reversal date is required."); return; }
+    if (reversalDate < entry.entry_date) { setError("Reversal date cannot precede the original journal date."); return; }
     if (!reversalReason.trim()) { setError("Reversal reason is required."); return; }
 
     try {
@@ -2985,7 +2990,7 @@ export default function JournalEntryDetail() {
           </div>
           <div>
             <label className="label">Cancellation Date</label>
-            <NaviloDateInput className="input" type="date" value={ownerCancelDate} onChange={(event) => setOwnerCancelDate(event.target.value)} />
+            <NaviloDateInput className="input" type="date" min={entry.entry_date} value={ownerCancelDate} onChange={(event) => setOwnerCancelDate(event.target.value)} />
           </div>
           <div>
             <label className="label">Mandatory Reason (minimum 10 characters)</label>
@@ -2993,7 +2998,7 @@ export default function JournalEntryDetail() {
           </div>
           <div className="flex justify-end gap-2">
             <button className="btn-secondary" disabled={ownerCancelling} onClick={() => setOwnerCancelOpen(false)}>Keep Posted</button>
-            <button className="px-3 py-2 rounded-lg bg-rose-700 text-white disabled:opacity-50" disabled={ownerCancelling || ownerCancelReason.trim().length < 10 || !ownerCancelDate} onClick={() => void handleOwnerCancel()}>{ownerCancelling ? "Cancelling…" : "Confirm Owner Cancellation"}</button>
+            <button className="px-3 py-2 rounded-lg bg-rose-700 text-white disabled:opacity-50" disabled={ownerCancelling || ownerCancelReason.trim().length < 10 || !ownerCancelDate || ownerCancelDate < entry.entry_date} onClick={() => void handleOwnerCancel()}>{ownerCancelling ? "Cancelling…" : "Confirm Owner Cancellation"}</button>
           </div>
         </div>
       </Modal>
@@ -3005,7 +3010,7 @@ export default function JournalEntryDetail() {
           </div>
           <div>
             <label className="label">Reversal Date</label>
-            <NaviloDateInput className="input" type="date" value={reversalDate} onChange={(event) => setReversalDate(event.target.value)} />
+            <NaviloDateInput className="input" type="date" min={entry.entry_date} value={reversalDate} onChange={(event) => setReversalDate(event.target.value)} />
           </div>
           <div>
             <label className="label">Mandatory Reason</label>
@@ -3013,7 +3018,7 @@ export default function JournalEntryDetail() {
           </div>
           <div className="flex justify-end gap-2">
             <button className="btn-secondary" disabled={reversing} onClick={() => setReversalOpen(false)}>Cancel</button>
-            <button className="btn-primary" disabled={reversing || !reversalDate || !reversalReason.trim()} onClick={() => void handleReverseEntry()}>{reversing ? "Reversing…" : "Create & Post Reversal"}</button>
+            <button className="btn-primary" disabled={reversing || !reversalDate || reversalDate < entry.entry_date || !reversalReason.trim()} onClick={() => void handleReverseEntry()}>{reversing ? "Reversing…" : "Create & Post Reversal"}</button>
           </div>
         </div>
       </Modal>
