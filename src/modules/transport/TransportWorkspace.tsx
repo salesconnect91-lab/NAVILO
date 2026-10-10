@@ -86,7 +86,7 @@ const BULK_TRIP_HEADERS=[
   "Customer Rate",
   "Supplier Rent",
   "Invoice Number",
-  "Notes", "Sale Type", "PPR Employee", "PPR Date"
+  "Notes", "Billing Mode (Auto)", "PPR Employee", "PPR Date"
 ] as const;
 
 
@@ -241,7 +241,8 @@ export default function TransportWorkspace(){
     employees:any[];
     ownership:OwnershipPeriod[];
     rates:any[];
-  }>({customers:[],truckTypes:[],locations:[],vehicles:[],drivers:[],suppliers:[],employees:[],ownership:[],rates:[]});
+    billingModes:Record<string,'cash'|'credit'>;
+  }>({customers:[],truckTypes:[],locations:[],vehicles:[],drivers:[],suppliers:[],employees:[],ownership:[],rates:[],billingModes:{}});
 
   const [form,setForm]=useState({
     trip_date:new Date().toISOString().slice(0,10),
@@ -304,6 +305,7 @@ export default function TransportWorkspace(){
     setSupplierChargeTarget({rentId:rents[0].id,tripNo:r.trip_no});
   };
 
+  const selectedCustomerMode=tripMasters.billingModes[form.customer_id]??'';
   const selectedVehicle=tripMasters.vehicles.find(v=>v.id===form.vehicle_id);
   const selectedDriver=tripMasters.drivers.find(d=>d.id===form.driver_id);
   const selectedOwnership=ownershipOnDate(tripMasters.ownership,form.vehicle_id,form.trip_date);
@@ -336,11 +338,16 @@ export default function TransportWorkspace(){
         return query.order('id').range(start,end);
       });
     };
-    const [customers,truckTypes,locations,vehicles,drivers,suppliers,employees,ownership,rates]=await Promise.all([
+    const [customers,truckTypes,locations,vehicles,drivers,suppliers,employees,ownership,rates,modeResponse]=await Promise.all([
       read('customers','id,name,is_active',true),read('transport_truck_types'),read('transport_locations'),read('transport_vehicles'),
       read('transport_drivers'),read('suppliers','id,name,is_active',true),read('employees','id,name,is_active',true),
-      read('transport_vehicle_ownership'),read('transport_customer_rates')]);
-    const masters={customers,truckTypes,locations,vehicles,drivers,suppliers,employees,ownership,rates};
+      read('transport_vehicle_ownership'),read('transport_customer_rates'),supabase.rpc('transport_trip_customer_modes')]);
+    if(modeResponse.error)throw modeResponse.error;
+    const billingModes:Record<string,'cash'|'credit'>={};
+    for(const row of Array.isArray(modeResponse.data)?modeResponse.data:[]){
+      if(typeof row?.id==='string'&&(row?.mode==='Cash'||row?.mode==='Credit'))billingModes[row.id]=row.mode.toLowerCase() as 'cash'|'credit';
+    }
+    const masters={customers,truckTypes,locations,vehicles,drivers,suppliers,employees,ownership,rates,billingModes};
     if(scopeRef.current!==startedScope)throw new Error('Workspace changed. Refresh before saving.');
     // Inactive rows remain in the validation snapshot so uploads get useful errors.
     setTripMasters({...masters,customers:customers.filter(r=>r.is_active),truckTypes:truckTypes.filter(r=>r.is_active),
@@ -505,7 +512,7 @@ export default function TransportWorkspace(){
     let active=true;
     setQuickAdd(null);setQuickSupplierId('');setBulkRows([]);setEditingTripId(null);setRateTouched(false);
     setForm(previous=>({...previous,customer_id:'',vehicle_id:'',driver_id:'',truck_type_id:'',from_location:'',to_location:'',customer_rate:'',supplier_rent:'',driver_pay:''}));
-    setTripMasters({customers:[],truckTypes:[],locations:[],vehicles:[],drivers:[],suppliers:[],employees:[],ownership:[],rates:[]});
+    setTripMasters({customers:[],truckTypes:[],locations:[],vehicles:[],drivers:[],suppliers:[],employees:[],ownership:[],rates:[],billingModes:{}});
     setEntryPermissions({master:false,owner:false,rate:false,rent:false,driver:false});
     const action=(p_action:string)=>supabase.rpc('has_transport_action_permission',{p_company_id:activeCompany?.company_id,p_action});
     void Promise.all([action('master_manage'),action('vehicle_owner_change'),action('customer_rate_finalize'),action('rent_finalize'),
@@ -698,19 +705,19 @@ export default function TransportWorkspace(){
 
   const downloadBulkTemplate=downloadDailyTripTemplate;
 
-  const validateBulkRow=(row:BulkTripRow)=>{
+  const validateBulkRow=(row:BulkTripRow,preserveHistory=false)=>{
     const errors:string[]=[];
     if(!row.trip_date)errors.push('Trip Date required');
     if(!row.customer)errors.push('Customer required');
     if(!row.from_location||!row.to_location)errors.push('From and To required');
-    if(!['cash','credit'].includes(row.sale_type))errors.push('Sale Type must be Cash or Credit');
+    if(preserveHistory&&!['cash','credit'].includes(row.sale_type))errors.push('Historical Sale Type must be Cash or Credit');
     if(!['pending','received','not_required'].includes(row.ppr_status))errors.push('Invalid PPR Status');
     if(row.ppr_status==='received'&&(!row.ppr_employee||!row.ppr_date))errors.push('PPR Received requires Employee and Date');
     for(const [label,value] of [['Customer Rate',row.customer_rate],['Supplier Rent',row.supplier_rent],['Driver Pay',row.driver_pay]])
       if(!validMoney(value))errors.push(`${label} must be nonnegative with at most two decimal places`);
     return errors;
   };
-  const validateBulkMasters=async(rowsToValidate:BulkTripRow[],allowRepeatJourneys=false)=>{
+  const validateBulkMasters=async(rowsToValidate:BulkTripRow[],allowRepeatJourneys=false,preserveHistory=false)=>{
     setBulkValidating(true);
     try{
       const masters=await loadTripMasters();const seen=new Set<string>();
@@ -724,12 +731,14 @@ export default function TransportWorkspace(){
         return found.length===1?found[0]:null;
       };
       return rowsToValidate.map(row=>{
-        const errors=validateBulkRow(row);
+        const errors=validateBulkRow(row,preserveHistory);
         const customer=resolve(masters.customers,row.customer),truck=resolve(masters.truckTypes,row.truck_type);
         const vehicle=row.vehicle?resolve(masters.vehicles,row.vehicle,'vehicle_no'):null;
         const driver=row.driver?resolve(masters.drivers,row.driver,'driver_name'):null;
         const from=resolve(masters.locations,row.from_location),to=resolve(masters.locations,row.to_location);
         const employee=row.ppr_status==='received'?resolve(masters.employees,row.ppr_employee):null;
+        const billingMode=customer?masters.billingModes[customer.id]:undefined;
+        if(!preserveHistory&&!billingMode)errors.push('Customer Cash/Credit not configured. Set Billing Rules in Transport Customer Master');
         for(const [label,record,needed] of [['Customer',customer,true],['Truck Type',truck,!!row.truck_type],['Vehicle',vehicle,!!row.vehicle],
           ['Driver',driver,!!row.driver],['From',from,true],['To',to,true],['PPR Employee',employee,row.ppr_status==='received']] as const)
           if(needed&&(!record||!record.is_active))errors.push(`${label} is missing, ambiguous or inactive in the selected workspace`);
@@ -746,7 +755,7 @@ export default function TransportWorkspace(){
           po_do_job_no:row.po_do_job_no||null,ppr_status:row.ppr_status,
           ppr_received_by_employee_id:row.ppr_status==='received'?employee?.id:null,ppr_received_date:row.ppr_status==='received'?row.ppr_date:null,
           customer_rate:row.customer_rate===''?null:Number(row.customer_rate),supplier_rent:row.supplier_rent===''?null:Number(row.supplier_rent),
-          driver_pay:row.driver_pay===''?null:Number(row.driver_pay),sale_type:row.sale_type,source_invoice_no:row.source_invoice_no||null,notes:row.notes||null}};
+          driver_pay:row.driver_pay===''?null:Number(row.driver_pay),sale_type:preserveHistory?row.sale_type:billingMode??null,source_invoice_no:row.source_invoice_no||null,notes:row.notes||null}};
       });
     }finally{setBulkValidating(false)}
   };
@@ -896,9 +905,8 @@ export default function TransportWorkspace(){
     if(!editingTripId||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
     
     if(!form.customer_id){setError("Customer is required.");return}
-    if(!form.sale_type){setError("Sale Type Cash or Credit is required.");return}
+    if(!editingTripLocked&&!selectedCustomerMode){setError("Configure this customer's Cash/Credit mode in Transport Customer Master before saving.");return}
     if(!form.from_location.trim()||!form.to_location.trim()){setError("From and To locations are required.");return}
-    if(!form.sale_type){setError("Sale Type Cash or Credit is required.");return}
 
     if(form.ppr_status==="received"&&(!form.ppr_received_by_employee_id||!form.ppr_received_date)){setError("PPR Received requires the receiving employee and date.");return}
     const customer=tripMasters.customers.find((c:any)=>c.id===form.customer_id);
@@ -929,7 +937,7 @@ export default function TransportWorkspace(){
         ppr_received_by_employee_id:form.ppr_status==="received"?form.ppr_received_by_employee_id:null,
         ppr_attachment_path:form.ppr_status==="received"?(form.ppr_attachment_path||null):null,
 
-        sale_type:form.sale_type,
+        sale_type:selectedCustomerMode,
         notes:form.notes||null
       };
 
@@ -1026,7 +1034,7 @@ export default function TransportWorkspace(){
       customer_rate:voiceMoney(transcript,["customer rate","company rate"]),
       supplier_rent:voiceMoney(transcript,["supplier rent","rent"]),
       driver_pay:"",
-      sale_type:/\bcash\b/.test(lower)?"cash":/\bcredit\b/.test(lower)?"credit":"",
+      sale_type:"",
       ppr_status:"pending",
     };
     return patch;
@@ -1034,7 +1042,7 @@ export default function TransportWorkspace(){
   const openVoiceDraft=(draft:MobileVoiceDraft)=>{
     setCurrentVoiceDraftId(draft.id);setVoiceStatus(`Voice draft · ${draft.transcript}`);
     setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setNewTripMode("single");
-    setForm(previous=>({...previous,...draft.patch,notes:previous.notes}));entryReturnTab.current="mobile";setTab("new");
+    setForm(previous=>({...previous,...draft.patch,sale_type:"",notes:previous.notes}));entryReturnTab.current="mobile";setTab("new");
   };
   const captureVoiceTrip=()=>{
     if(!mobileCanCreate){setError("Mobile Trip creation is disabled in Owner Control.");return;}
@@ -1044,7 +1052,7 @@ export default function TransportWorkspace(){
       voiceRecognitionRef.current?.stop?.();
       const recognition=new Recognition();voiceRecognitionRef.current=recognition;
       recognition.lang="en-US";recognition.interimResults=false;recognition.maxAlternatives=1;
-      recognition.onstart=()=>{setVoiceListening(true);setVoiceStatus("Listening… Say customer, vehicle, driver, From, To, PO/DO, and Cash/Credit.")};
+      recognition.onstart=()=>{setVoiceListening(true);setVoiceStatus("Listening… Say customer, vehicle, driver, From, To and PO/DO. Billing mode comes from Customer Master.")};
       recognition.onerror=(event:any)=>{setVoiceListening(false);setError(event?.error==="not-allowed"?"Microphone permission is required for Voice Trip.":"Voice recognition failed. Try again.")};
       recognition.onend=()=>setVoiceListening(false);
       recognition.onresult=(event:any)=>{
@@ -1060,7 +1068,8 @@ export default function TransportWorkspace(){
   async function createTrip(){
     if(entryReturnTab.current==="mobile"&&!mobileCanCreate){setError("Mobile Trip creation is disabled in Owner Control.");return;}
     if(submissionRef.current)return;
-    if(!form.customer_id||!form.trip_date||!['cash','credit'].includes(form.sale_type)){setError('Customer, Trip Date and Sale Type Cash or Credit are required.');return}
+    if(!form.customer_id||!form.trip_date){setError('Customer and Trip Date are required.');return}
+    if(!selectedCustomerMode){setError("Configure this customer's Cash/Credit mode in Transport Customer Master before creating the Trip.");return}
     const from=tripMasters.locations.find(l=>l.name===form.from_location),to=tripMasters.locations.find(l=>l.name===form.to_location);
     if(!from||!to){setError('Select active From and To Locations.');return}
     if(form.vehicle_id&&!selectedOwnership){setError('Vehicle Ownership History must cover Trip Date.');return}
@@ -1076,7 +1085,7 @@ export default function TransportWorkspace(){
         ppr_received_by_employee_id:form.ppr_status==='received'?form.ppr_received_by_employee_id:null,
         customer_rate:entryPermissions.rate&&form.customer_rate!==''?Number(form.customer_rate):null,
         supplier_rent:supplierOwned&&form.supplier_rent!==''?Number(form.supplier_rent):null,
-        driver_pay:null,sale_type:form.sale_type,notes:form.notes||null}]);
+        driver_pay:null,sale_type:selectedCustomerMode,notes:form.notes||null}]);
       setForm(previous=>({...previous,customer_id:'',vehicle_id:'',driver_id:'',truck_type_id:'',from_location:'',to_location:'',
         customer_rate:'',supplier_rent:'',driver_pay:'',po_do_job_no:'',ppr_status:'pending',ppr_received_date:'',ppr_received_by_employee_id:'',ppr_attachment_path:'',sale_type:'',notes:''}));
       setRateTouched(false);setEditingTripId(null);
@@ -2191,7 +2200,7 @@ export default function TransportWorkspace(){
   </div>
 
 
-  {!standaloneMobile&&newTripMode==='historical'&&<TransportHistoricalImport key={importScope} validateMasters={rows=>validateBulkMasters(rows,true)} onChanged={load}/>}
+  {!standaloneMobile&&newTripMode==='historical'&&<TransportHistoricalImport key={importScope} validateMasters={rows=>validateBulkMasters(rows,true,true)} onChanged={load}/>}
 
   {newTripMode==="single"&&
   <div className={standaloneMobile?"transport-mobile-trip-form px-3 pb-8 pt-3":"p-3"}>
@@ -2346,14 +2355,11 @@ export default function TransportWorkspace(){
     <p className="mt-1 text-[10px] text-slate-600">{agreedRate?`Suggested Customer Rate: ${agreedRate.amount} (effective agreement). `:''}Entered Customer Rate and Supplier Rent finalize on creation with permission; blank means pending. Estimated margin excludes later expenses, fuel and charges. {editingTripId?'Use Finance for rate, rent or driver-pay corrections.':''}</p>
     <div className="mt-3 grid gap-3 xl:grid-cols-[180px_1fr_auto]">
       <label className="text-[11px] font-semibold text-slate-700">
-        Sale Type
-        <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Sale Type" disabled={editingTripLocked||Boolean(editingTripId&&editingRateLocks.customer)} value={form.sale_type}
-          onChange={e=>{setError("");setForm({...form,sale_type:e.target.value})}}
-          className="mt-1 h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-blue-400">
-          <option value="">Select</option>
-          <option value="cash">Cash</option>
-          <option value="credit">Credit</option>
-        </NaviloSearchableSelect>
+        Billing Mode · Customer Master
+        <div aria-label="Customer billing mode" className={`mt-1 flex h-9 items-center rounded-md border px-3 text-xs font-semibold ${selectedCustomerMode?'border-emerald-200 bg-emerald-50 text-emerald-800':'border-amber-200 bg-amber-50 text-amber-800'}`}>
+          {editingTripLocked?(form.sale_type==='cash'?'Cash Only (Locked)':'Credit Only (Locked)'):selectedCustomerMode?(selectedCustomerMode==='cash'?'Cash Only':'Credit Only'):'Not Configured'}
+        </div>
+        {!selectedCustomerMode&&!editingTripLocked&&<a href="/master-data/customers?tab=billing" className="text-[10px] font-medium text-amber-700 underline">Configure in Customer Master</a>}
       </label>
 
       <label className="text-[11px] font-semibold text-slate-700">
@@ -2589,7 +2595,7 @@ export default function TransportWorkspace(){
                 <td className="whitespace-nowrap px-2 py-2">{row.supplier_rent}</td>
                 <td className="whitespace-nowrap px-2 py-2">{row.source_invoice_no}</td>
                 <td className="max-w-[220px] truncate px-2 py-2">{row.notes}</td>
-                <td className="px-2 py-2">{row.sale_type}</td>
+                <td className="px-2 py-2">{row.payload?.sale_type==="cash"?"Cash Only":row.payload?.sale_type==="credit"?"Credit Only":"Not Configured"}</td>
                 <td className="px-2 py-2">{row.ppr_employee}</td><td className="px-2 py-2">{row.ppr_date}</td>
 
               </tr>
