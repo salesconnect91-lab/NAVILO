@@ -9,14 +9,14 @@ vi.mock("@/lib/supabase", () => ({ supabase: { rpc: vi.fn() } }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 it("shows scoped transport lifecycle and PPR metrics with posted contribution only", async () => {
-  vi.mocked(supabase.rpc).mockImplementation(async (name) => {
+  vi.mocked(supabase.rpc).mockImplementation((async (name: string) => {
     if (name === "transport_dashboard_operational_summary") return {
       data: { currency: "SAR", total_trips: 12, draft_trips: 2, incomplete_trips: 3,
         complete_trips: 4, locked_trips: 2, settled_trips: 1, ppr_pending: 5,
         trips_without_linked_sales_invoice: 6, customer_billed: 6 }, error: null,
     } as never;
     return { data: [{ ownership: "company", trips: 5, revenue: 5000, cost: 3000, profit: 2000 }], error: null } as never;
-  });
+  }) as never);
   render(<MemoryRouter><TransportDashboardPanel companyId="orbit" businessUnitId="transport" startDate="2026-10-01" endDate="2026-10-10" /></MemoryRouter>);
   await waitFor(() => expect(screen.getByText("SAR 5,000")).toBeTruthy());
   expect(screen.getByText("PPR Pending")).toBeTruthy();
@@ -27,9 +27,9 @@ it("shows scoped transport lifecycle and PPR metrics with posted contribution on
 });
 
 it("never displays financial amounts when financial RPC denies permission", async () => {
-  vi.mocked(supabase.rpc).mockImplementation(async (name) => name === "transport_contribution_summary"
+  vi.mocked(supabase.rpc).mockImplementation((async (name: string) => name === "transport_contribution_summary"
     ? ({ data: null, error: { message: "Both financial view permissions required" } } as never)
-    : ({ data: { total_trips: 3, ppr_pending: 1, currency: "SAR" }, error: null } as never));
+    : ({ data: { total_trips: 3, ppr_pending: 1, currency: "SAR" }, error: null } as never)) as never);
   render(<MemoryRouter><TransportDashboardPanel companyId="gondal" businessUnitId="transport" startDate="2026-10-01" endDate="2026-10-10" /></MemoryRouter>);
   await waitFor(() => expect(screen.getByText("3")).toBeTruthy());
   expect(screen.queryByText("Posted trip revenue")).toBeNull();
