@@ -20,7 +20,7 @@ vi.mock('./TransportCostUpload',()=>({default:()=>null}));vi.mock('./TransportAu
 vi.mock('./TransportPartyReports',()=>({default:()=>null}));vi.mock('./TransportAccountStatement',()=>({default:()=>null}));
 beforeEach(()=>{
  Object.defineProperty(globalThis,'crypto',{value:webcrypto,configurable:true});
- mock.allow=true;mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[],count:0,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:name==='transport_prepare_trip_import'?{id:'job',completed:0}:name==='transport_import_trip_batch'?args.p_rows.map(()=>({id:'trip',trip_no:'OIC-1'})):name==='transport_create_trips'?[{id:'trip',trip_no:'OIC-1'}]:mock.allow,error:null}));
+ mock.allow=true;mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[],count:0,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:name==='transport_prepare_trip_import'?{id:'job',completed:0}:name==='transport_trip_customer_modes'?[{id:'c1',mode:'Credit'}]:name==='transport_import_trip_batch'?args.p_rows.map(()=>({id:'trip',trip_no:'OIC-1'})):name==='transport_create_trips'?[{id:'trip',trip_no:'OIC-1'}]:mock.allow,error:null}));
  mock.tables={customers:[{id:'c1',name:'Customer',is_active:true}],suppliers:[{id:'s',name:'Supplier',is_active:true}],employees:[{id:'e',name:'Employee',is_active:true}],
  transport_truck_types:[{id:'tt',name:'Flatbed',is_active:true},{id:'tt2',name:'Tanker',is_active:true}],
  transport_locations:[{id:'f',name:'From',is_active:true},{id:'t',name:'To',is_active:true}],
@@ -31,7 +31,7 @@ beforeEach(()=>{
 });afterEach(cleanup);
 async function view(){render(<MemoryRouter initialEntries={["/transport?view=new"]}><TransportWorkspace/></MemoryRouter>);await waitFor(()=>expect(screen.getByRole('button',{name:'Add Truck Type'})).toBeTruthy());await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_finance_allowed',{p_action:'driver'}));}
 function choose(placeholder:string,name:string){fireEvent.focus(screen.getByPlaceholderText(placeholder));fireEvent.mouseDown(screen.getByRole('button',{name}));}
-async function fill(){await view();choose('Search Customer','Customer');choose('Search From','From');choose('Search To','To');fireEvent.change(screen.getByLabelText('Sale Type'),{target:{value:'credit'}});}
+async function fill(){await view();choose('Search Customer','Customer');choose('Search From','From');choose('Search To','To');await waitFor(()=>expect(screen.getByLabelText('Customer billing mode').textContent).toContain('Credit Only'));}
 describe('New Trip master integration',()=>{
  it('restricts Plate choices to active compatible Truck Type and clears incompatible selection',async()=>{
   await view();choose('Search Truck Type','Flatbed');fireEvent.focus(screen.getByPlaceholderText('Search Plate'));
@@ -54,8 +54,14 @@ describe('New Trip master integration',()=>{
   fireEvent.change(screen.getByLabelText('PPR Status'),{target:{value:'received'}});fireEvent.click(screen.getByRole('button',{name:'Create Trip'}));
   expect(screen.getByText('PPR Received requires Employee and Date.')).toBeTruthy();expect(mock.rpc.mock.calls.filter(c=>c[0]==='transport_create_trips')).toHaveLength(0);
  });
- it('requires Cash/Credit and keeps calculated margin read-only',async()=>{
-  await view();fireEvent.click(screen.getByRole('button',{name:'Create Trip'}));expect(screen.getByText('Customer, Trip Date and Sale Type Cash or Credit are required.')).toBeTruthy();
+ it('shows automatic customer billing mode and requires a configured customer before creating a Trip',async()=>{
+  await view();
+  expect(screen.queryByLabelText('Sale Type')).toBeNull();
+  expect(screen.getByLabelText('Customer billing mode').textContent).toContain('Not Configured');
+  fireEvent.click(screen.getByRole('button',{name:'Create Trip'}));
+  expect(screen.getByText('Customer and Trip Date are required.')).toBeTruthy();
+  choose('Search Customer','Customer');
+  await waitFor(()=>expect(screen.getByLabelText('Customer billing mode').textContent).toContain('Credit Only'));
   expect((screen.getByLabelText('Estimated Operational Margin') as HTMLInputElement).readOnly).toBe(true);
  });
  it('saves Pending PPR through canonical entry RPC with scope and no caller owner snapshot',async()=>{
@@ -105,9 +111,11 @@ describe('New Trip master integration',()=>{
   fireEvent.change(screen.getByLabelText(/Select Transport Excel/),{target:{files:[file]}});await screen.findByText('trip.xlsx');
  }
  it('rejects supplier-driver earnings in daily bulk before import',async()=>{mock.tables.transport_drivers[0]={...mock.tables.transport_drivers[0],driver_type:'supplier',employee_id:null,supplier_id:'s'};await upload('Credit','Supplier','50');expect(screen.getByRole('button',{name:/Import Valid Rows/}).hasAttribute('disabled')).toBe(true);expect(screen.getByTitle(/Driver Pay entry is disabled/)).toBeTruthy();expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_import_trip_batch')).toBe(false)});
- it('rejects bulk invalid Cash/Credit and free-text Owner mismatch',async()=>{
-  await upload('Other','Fake Owner');expect(screen.getByRole('button',{name:/Import Valid Rows/}).hasAttribute('disabled')).toBe(true);
-  expect(screen.getByTitle(/Sale Type/).getAttribute('title')).toContain('Sale Type');expect(screen.getByTitle(/Sale Type/).getAttribute('title')).toContain('dated ownership');
+ it('ignores legacy Excel Cash/Credit selection but rejects incorrect owner',async()=>{
+  await upload('Other','Fake Owner');
+  expect(screen.getByRole('button',{name:/Import Valid Rows/}).hasAttribute('disabled')).toBe(true);
+  expect(screen.getByTitle(/dated ownership/).getAttribute('title')).toContain('dated ownership');
+  expect(screen.getByText('Credit Only')).toBeTruthy();
  });
  it('imports bulk through the same atomic entry RPC with separate rent/pay and no owner text',async()=>{
   vi.spyOn(window,'confirm').mockReturnValue(true);vi.spyOn(window,'alert').mockImplementation(()=>{});await upload();
