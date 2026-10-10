@@ -1,7 +1,6 @@
 import {downloadDailyTripTemplate,downloadHistoricalTemplate} from '@/modules/transport/transportImportTemplates';
 import {downloadExcelTemplate} from '@/modules/accounting/journalImportTemplates';
 import TransportExternalInvoiceImport from '@/modules/transport/TransportExternalInvoiceImport';
-import TransportCustomerBillingModes from '@/modules/transport/TransportCustomerBillingModes';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { ArrowRight, FileText, Landmark, Truck, Users, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -257,7 +256,26 @@ function TransportSettlementImports(){
 function TransportInvoiceImports(){
  const {activeBusinessUnit}=useAuth();
  const [mode,setMode]=useState<'trips'|'external'>('trips');
- return <div>{activeBusinessUnit?.business_unit_type==="transport"&&<TransportCustomerBillingModes/>}<p className="mb-1 text-xs text-slate-600">Ready invoices = no NAVILO trips needed. Existing trips = invoice the trips already saved in NAVILO.</p><label className="mb-2 block text-xs font-semibold">Invoice source<NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Invoice source" className="input ml-2" value={mode} onChange={e=>setMode(e.target.value as 'trips'|'external')}><option value="trips">Existing NAVILO trips</option><option value="external">Ready invoices from external source</option></NaviloSearchableSelect></label>{mode==='trips'?<TripLinkedInvoiceImports/>:<section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"><h2 className="mb-2 text-sm font-bold">Transport Sales Invoice Import</h2><TransportExternalInvoiceImport/></section>}</div>;
+ const isTransport=activeBusinessUnit?.business_unit_type==='transport';
+ return <section aria-label="Transport invoice import steps" className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+  <div className="flex flex-wrap items-start justify-between gap-2">
+   <div><h3 className="text-sm font-bold text-slate-900">Invoice Import</h3>
+    <p className="mt-0.5 text-[11px] text-slate-600">Choose where your invoice comes from. Import creates drafts for review; it does not receive cash or post accounting entries.</p>
+   </div>
+   {isTransport&&<Link className="text-xs font-semibold text-blue-700 underline" to="/master-data/customers?tab=billing">Customer Cash/Credit settings → Customer Master</Link>}
+  </div>
+  <div className="flex flex-wrap items-center gap-2">
+   <label htmlFor="transport-invoice-source" className="whitespace-nowrap text-xs font-bold text-slate-700">1 · Invoice source</label>
+   <NaviloSearchableSelect nativeCompatibility preserveLabel id="transport-invoice-source" aria-label="Invoice source" wrapperClassName="min-w-[240px] max-w-[400px] flex-1" className="input h-9 text-xs" value={mode} onChange={e=>setMode(e.target.value as 'trips'|'external')}>
+    <option value="trips">Existing NAVILO trips</option>
+    <option value="external">Ready invoices from external source</option>
+   </NaviloSearchableSelect>
+  </div>
+  <div className="flex flex-wrap gap-x-4 gap-y-1 border-y border-slate-100 py-2 text-[11px] font-medium text-slate-600" aria-label="Invoice import workflow">
+   <span>2 · Download template</span><span>3 · Upload Excel</span><span>4 · Validate & review</span><span>5 · Import drafts</span>
+  </div>
+  {mode==='trips'?<TripLinkedInvoiceImports/>:<section className="rounded-md bg-slate-50/60 p-2"><h2 className="mb-2 text-sm font-bold text-slate-900">Transport Sales Invoice Import</h2><TransportExternalInvoiceImport/></section>}
+ </section>;
 }
 
 function TripLinkedInvoiceImports(){
