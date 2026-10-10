@@ -8,7 +8,10 @@ declare
   v_bank public.chart_of_accounts%rowtype;
   v_existing public.chart_of_accounts%rowtype;
 begin
-  select id into strict v_company from public.companies where code='ORBITUSMAN';
+  select id into v_company from public.companies where code='ORBITUSMAN';
+  -- Fresh CI databases do not contain this tenant. Skip tenant-specific data
+  -- without weakening the strict mapped-account checks when ORBIT exists.
+  if v_company is null then return; end if;
   select a.* into strict v_cash
   from public.account_mappings m
   join public.chart_of_accounts a on a.id=m.account_id
