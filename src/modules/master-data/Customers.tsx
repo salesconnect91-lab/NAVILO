@@ -1,3 +1,5 @@
+import {useSearchParams} from 'react-router-dom';
+import TransportCustomerBillingModes from '@/modules/transport/TransportCustomerBillingModes';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import type { MasterQuickCreate } from "./MasterQuickCreate";
 import useTransportMasterClient from "./useTransportMasterClient";
@@ -39,7 +41,15 @@ const EMPTY = {
 
 export default function Customers({ quickCreate, transportEnglishOnly = false }: { quickCreate?: MasterQuickCreate; transportEnglishOnly?: boolean } = {}) {
  const supabase = useTransportMasterClient();
-  const { isPlatformOwner, activeCompany } = useAuth();
+  const { isPlatformOwner, activeCompany, activeBusinessUnit } = useAuth();
+  const isTransport=activeBusinessUnit?.business_unit_type==='transport';
+  const [searchParams,setSearchParams]=useSearchParams();
+  const billingView=isTransport&&searchParams.get('tab')==='billing';
+  const switchView=(view:'customers'|'billing')=>{
+    const next=new URLSearchParams(searchParams);
+    if(view==='billing')next.set('tab','billing');else next.delete('tab');
+    setSearchParams(next,{replace:true});
+  };
   const role = activeCompany?.membership_role ?? "";
   const canSetOpeningBalance = isPlatformOwner || role === "company_owner" || role === "admin";
   const mobilePartyQuickCreate = Boolean(quickCreate?.allowTransportMobileCreate);
@@ -376,10 +386,18 @@ export default function Customers({ quickCreate, transportEnglishOnly = false }:
 
   return <div className="space-y-4" data-navilo-master-standard="true">
     <MasterSummaryStrip kind="customers" title="Customers" subtitle="Manage customer accounts" total={rows.length} active={rows.filter(r=>r.is_active!==false).length} inactive={rows.filter(r=>r.is_active===false).length} fourthLabel="Displayed" fourthValue={filteredRows.length}/>
-    <div className="flex justify-end" data-no-print data-no-export><button onClick={openCreate} className="btn-primary">+ New Customer</button></div>
+    <div className="flex flex-wrap items-center justify-between gap-2" data-no-print data-no-export>
+      {isTransport?<div role="tablist" aria-label="Transport customer master sections" className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-0.5">
+        <button type="button" role="tab" aria-selected={!billingView} onClick={()=>switchView('customers')} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${!billingView?'bg-white text-blue-800 shadow-sm':'text-slate-600'}`}>Customers</button>
+        <button type="button" role="tab" aria-selected={billingView} onClick={()=>switchView('billing')} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${billingView?'bg-white text-blue-800 shadow-sm':'text-slate-600'}`}>Cash/Credit Billing Rules</button>
+      </div>:<span/>}
+      <button onClick={openCreate} className="btn-primary">+ New Customer</button>
+    </div>
     {error && <ErrorBanner message={error} />}
-    <div className="navilo-master-filterbar flex items-center gap-2 px-3 py-2" data-report-filters data-no-print data-no-export><Search className="h-4 w-4 text-slate-400" /><input className="w-full bg-transparent outline-none" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customer, phone, email, tax ID or address..." />{search && <button type="button" className="text-xs font-semibold text-primary-600" onClick={() => setSearch("")}>Clear</button>}</div>
-    <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable showSerialNumber columns={columns} rows={filteredRows} loading={loading} emptyMessage="No customers yet." /></div>
+    {billingView?<TransportCustomerBillingModes/>:<>
+      <div className="navilo-master-filterbar flex items-center gap-2 px-3 py-2" data-report-filters data-no-print data-no-export><Search className="h-4 w-4 text-slate-400" /><input className="w-full bg-transparent outline-none" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customer, phone, email, tax ID or address..." />{search && <button type="button" className="text-xs font-semibold text-primary-600" onClick={() => setSearch("")}>Clear</button>}</div>
+      <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable showSerialNumber columns={columns} rows={filteredRows} loading={loading} emptyMessage="No customers yet." /></div>
+    </>}
 
     {editor}
 
