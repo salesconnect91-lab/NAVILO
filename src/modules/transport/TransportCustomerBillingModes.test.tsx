@@ -30,7 +30,7 @@ describe('Transport customer billing modes',()=>{
   expect(screen.queryByText('Customer Cash/Credit Lock · Orbit')).toBeNull();
   fireEvent.change(screen.getByLabelText('Billing mode for Customer A'),{target:{value:'Cash'}});
   await waitFor(()=>expect(state.rpc).toHaveBeenCalledWith('transport_set_customer_billing_mode',{p_customer_id:'customer-a',p_mode:'Cash'}));
-  expect((screen.getByLabelText('Billing mode for Customer A') as HTMLSelectElement).value).toBe('Cash');
+  await waitFor(()=>expect((screen.getByLabelText('Billing mode for Customer A') as HTMLSelectElement).value).toBe('Cash'));
  });
  it('loads independent mode settings when the active transport business changes',async()=>{
   state.rpc.mockImplementation(async(name:string)=>{
