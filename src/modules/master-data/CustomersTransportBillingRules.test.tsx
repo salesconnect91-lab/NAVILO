@@ -10,7 +10,7 @@ vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({
  activeBusinessUnit:{business_unit_id:'unit',business_unit_type:state.type,membership_role:'admin'}
 })}));
 vi.mock('./useTransportMasterClient',()=>{
- const query={select:()=>query,order:()=>Promise.resolve({data:[],error:null})};
+ const query:any={};query.select=()=>query;query.order=()=>Promise.resolve({data:[],error:null});
  const client={from:()=>query};
  return {default:()=>client};
 });
