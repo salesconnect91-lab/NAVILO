@@ -6,6 +6,7 @@ import {supabase} from '@/lib/supabase';
 import {fetchAllPages} from '@/lib/fetchAllPages';
 import SearchableSelect from '@/components/SearchableSelect';
 import {parseExternalInvoiceRows,type ExternalInvoiceRow} from './transportExternalInvoiceImport';
+import {downloadImportTemplate} from '@/lib/importExcelTemplate';
 type Preview=ExternalInvoiceRow&{import_status:string;import_reason:string};
 export default function TransportExternalInvoiceImport(){
  const {activeCompany,activeBusinessUnit}=useAuth();const scope=`${activeCompany?.company_id}/${activeBusinessUnit?.business_unit_id}`;
@@ -16,7 +17,23 @@ export default function TransportExternalInvoiceImport(){
  void Promise.all([fetchAllPages<{id:string;name:string}>((from,to)=>supabase.from('chart_of_accounts').select('id,name').eq('company_id',activeCompany.company_id).eq('type','revenue').eq('is_active',true).eq('is_group',false).order('id').range(from,to)),supabase.from('account_mappings').select('account_id').eq('company_id',activeCompany.company_id).eq('mapping_key','sales_revenue').maybeSingle()]).then(([list,mapping])=>{if(request!==generation.current)return;if(mapping.error)throw mapping.error;setAccounts(list);if(list.some(a=>a.id===mapping.data?.account_id))setAccount(mapping.data!.account_id);}).catch(e=>{if(request===generation.current)setError(e.message)});
  return()=>{generation.current++};
  },[scope]);
- function download(){const headers=['TRIP NO.','DATE','TRUCK TYPE','PO-DO-JOB NO.','INVOICED','Invoice / Bill Date','COMPANY NAME','DRIVER NAME-MOBILE','OWNER','PLATE #','FROM','TO','RATE WITH COMPANY','TAX (%)','TAX AMOUNT','BILL AMOUNT','Cash/Credit','Discription'];const sample=['16512','2026-06-04','Small Dyna','PO007206','2026-03098','2026-08-31','Customer A','Driver','Owner','7979','Dammam','Haith',3000,15,450,3450,'Credit','Transport service'];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([headers,sample]),'Invoices');XLSX.writeFile(wb,'NAVILO-External-Transport-Invoices.xlsx');}
+ function download(){
+  const headers=['Source Reference','TRIP NO.','Reference Date','TRUCK TYPE','PO-DO-JOB NO.','Invoice No','Invoice / Bill Date','Customer','DRIVER NAME-MOBILE','OWNER','Vehicle No','FROM','TO','Amount','TAX (%)','TAX AMOUNT','BILL AMOUNT','Cash/Credit','Description'];
+  const sample=['EXT-REF-0001','LEGACY-TRIP-001','2026-06-04','Small Dyna','PO007206','2026-03098','2026-08-31','Replace with active Customer','Driver A','Owner','7979','Dammam','Haith',3000,15,450,3450,'Credit','Transport service'];
+  downloadImportTemplate({
+   filename:'NAVILO-External-Transport-Invoices.xlsx',sheetName:'Invoices',title:'Transport external ready Sales Invoices',
+   headers,example:sample,
+   notes:[
+    'Use this importer for ready external Sales Invoices; it does NOT require or create NAVILO Trips.',
+    'Source Reference must identify EACH unique Excel invoice line. Invoice No identifies the invoice; multiple lines can share one Invoice No, Customer, Invoice Date, mode and VAT rate.',
+    'Reference Date is the historical source Trip date (if known). Invoice / Bill Date is the actual invoice date used for the Sales draft.',
+    'Cash/Credit must match the active Transport Customer Master billing mode. Credit needs an Invoice No and positive VAT. Cash permits blank Invoice No but requires VAT 0 under current import validation.',
+    'Amount is the net before VAT; TAX AMOUNT = Amount × TAX (%) / 100; BILL AMOUNT = Amount + TAX AMOUNT.',
+    'Import creates draft Sales invoices / cash bills only. Posting and actual customer payment/receipt happen separately.',
+    'Replace placeholders and verify the effective Sales VAT rate before uploading. Maximum 500 Excel lines; one source reference cannot repeat.'
+   ]
+  });
+ }
  async function choose(e:React.ChangeEvent<HTMLInputElement>){const selected=e.target.files?.[0];e.target.value='';if(!selected||submitting.current||busy)return;const request=generation.current;setBusy(true);setError('');setMessage('');setRows([]);setFile('');try{if(selected.size>5*1024*1024)throw new Error('Maximum file size is 5 MB.');if(!source.trim())throw new Error('Enter the source company.');const wb=XLSX.read(await selected.arrayBuffer(),{type:'array',cellDates:true});const data=parseExternalInvoiceRows(XLSX.utils.sheet_to_json<Record<string,unknown>>(wb.Sheets[wb.SheetNames[0]],{defval:''}));if(request!==generation.current)return;const preview=await supabase.rpc('transport_preview_external_invoices',{p_source_company:source.trim(),p_rows:data});if(preview.error)throw preview.error;if(request===generation.current){setRows(preview.data.rows);setFile(selected.name);}}catch(e:any){if(request===generation.current)setError(e.message||'Unable to read invoices.');}finally{if(request===generation.current)setBusy(false);}}
  async function run(){if(submitting.current||busy||!account||!rows.length||rows.some(r=>r.import_status!=='New'))return;const request=generation.current;submitting.current=true;setBusy(true);setError('');setMessage('');try{const result=await supabase.rpc('transport_import_external_invoices',{p_source_company:source.trim(),p_revenue_account_id:account,p_rows:rows.map(({import_status,import_reason,...r})=>r)});if(result.error)throw result.error;if(request===generation.current){setMessage(`${result.data.invoices} draft invoice(s) / cash bill(s), ${result.data.lines} vehicle lines imported. Review and post in Sales. No trips or receipts were created.`);setRows([]);setFile('');}}catch(e:any){if(request===generation.current)setError(e.message||'Import failed.');}finally{submitting.current=false;if(request===generation.current)setBusy(false);}}
  const totals=rows.reduce((a,r)=>({net:a.net+r.amount,vat:a.vat+r.tax_amount,total:a.total+r.bill_amount}),{net:0,vat:0,total:0});
