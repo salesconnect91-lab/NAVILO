@@ -101,8 +101,12 @@ const paymentStatusBadge = (status?: string | null) => {
 
 export default function SalesInvoiceList() {
   const navigate = useNavigate();
-  const { activeCompany, isPlatformOwner } = useAuth();
+  const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
   const canCreateSales = canPerformModule(activeCompany?.membership_role, "sales", "create", activeCompany?.permissions, isPlatformOwner);
+  const role = activeBusinessUnit?.membership_role ?? activeCompany?.membership_role;
+  const permissions = activeBusinessUnit?.permissions ?? activeCompany?.permissions;
+  const canEditSales = canPerformModule(role, "sales", "edit", permissions, isPlatformOwner);
+  const canDeleteSales = canPerformModule(role, "sales", "delete", permissions, isPlatformOwner);
   const canReceivePayment = canPerformModule(activeCompany?.membership_role, "accounting", "post", activeCompany?.permissions, isPlatformOwner);
 
   const [rows, setRows] = useState<SalesInvoiceRow[]>([]);
@@ -586,6 +590,24 @@ export default function SalesInvoiceList() {
     }
   };
 
+  const [deletingDraftId,setDeletingDraftId] = useState<string | null>(null);
+  const deleteDraft = async (row: SalesInvoiceRow) => {
+    if (deletingDraftId || !canDeleteSales || row.status !== "draft") return;
+    if (!window.confirm(`Delete draft Sales Invoice ${row.order_no}? This will remove unposted import lines too. This cannot be undone.`)) return;
+    setDeletingDraftId(row.id);
+    setError(null);
+    try {
+      const {data, error: deleteError} = await supabase.rpc("delete_draft_sales_invoice",{p_order_id:row.id});
+      if (deleteError) throw deleteError;
+      if (data !== true) throw new Error("Draft was not deleted; refresh to check its status.");
+      await fetchRows();
+    } catch (e:any) {
+      setError(e?.message ?? "Unable to delete draft invoice.");
+    } finally {
+      setDeletingDraftId(null);
+    }
+  };
+
   const columns: Column<SalesInvoiceRow>[] = [
     {
       key: "order_no",
@@ -676,10 +698,20 @@ export default function SalesInvoiceList() {
             </button>
           )}
 
-          <button
+          {r.status === "draft" && r.document_kind !== "service" && canEditSales && (
+            <button type="button" onClick={() => navigate(`/sales/${r.id}/edit`)}
+              className="text-xs font-semibold text-blue-700 hover:underline">Edit</button>
+          )}
+          {r.status === "draft" && canDeleteSales && (
+            <button type="button" disabled={deletingDraftId !== null}
+              onClick={() => void deleteDraft(r)}
+              className="text-xs font-semibold text-rose-700 hover:underline disabled:opacity-50">
+              {deletingDraftId === r.id ? "Deleting…" : "Delete"}
+            </button>
+          )}
+          <button type="button"
             onClick={() => navigate(`/sales/${r.id}`)}
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-          >
+            className="text-blue-600 hover:text-blue-700 text-xs font-semibold">
             Open →
           </button>
         </div>
