@@ -1,0 +1,32 @@
+name: Owner posted cancellation isolated rehearsal
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/tests/owner_posted_cancel_isolated_rehearsal.sql'
+      - 'supabase/tests/replay_transport_isolated.mjs'
+      - 'supabase/migrations/20261010153000_platform_owner_only_posted_cancellation.sql'
+      - 'supabase/migrations/20261010154500_platform_owner_only_cancel_audit.sql'
+      - '.github/workflows/owner-posted-cancel-isolated.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-postgres-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NAVILO_OWNER_CANCEL_SMOKE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies without production credentials
+        run: npm ci --no-audit --no-fund
+      - name: Replay migrations and test synthetic owner cancellation in isolated PostgreSQL
+        run: node supabase/tests/replay_transport_isolated.mjs
