@@ -11,6 +11,7 @@ declare
   b uuid:=public.current_business_unit_id();
   loc uuid:=public.current_operating_location_id();
   result jsonb;
+  v_currency text;
 begin
   if auth.uid() is null or c is null or b is null or loc is null
      or not public.has_module_permission(c,'transport','view') then
@@ -19,6 +20,7 @@ begin
   if p_from is null or p_to is null or p_from>p_to then
     raise exception 'Valid Transport dashboard date range required';
   end if;
+  select coalesce(base_currency_code,'SAR') into v_currency from public.companies where id=c;
   with scoped as (
     select t.id,t.trip_status,t.lifecycle_status,t.status,t.ppr_status,
       t.ppr_received_date,t.ppr_received_by_name,t.ppr_received_by_employee_id,
@@ -39,7 +41,7 @@ begin
     'trips_without_linked_sales_invoice',count(*) filter(where sales_order_id is null),
     'customer_billed',count(*) filter(where sales_order_id is not null)
   ) into result from scoped;
-  return result;
+  return coalesce(result,'{}'::jsonb) || jsonb_build_object('currency',v_currency);
 end;
 $$;
 revoke all on function public.transport_dashboard_operational_summary(date,date) from public,anon;
