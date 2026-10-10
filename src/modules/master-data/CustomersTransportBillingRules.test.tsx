@@ -16,7 +16,7 @@ vi.mock('./useTransportMasterClient',()=>{
 });
 vi.mock('@/components/MasterSummaryStrip',()=>({default:()=>null}));
 vi.mock('@/components/DataTable',()=>({default:()=> <div data-testid="customer-table">Customer master list</div>}));
-vi.mock('@/components/ui',()=>({Modal:()=>null,ConfirmModal:()=>null,ErrorBanner:()=>null}));
+vi.mock('@/components/ui',()=>({PageHeader:()=>null,Modal:()=>null,ConfirmModal:()=>null,ErrorBanner:()=>null}));
 vi.mock('@/modules/transport/TransportCustomerBillingModes',()=>({default:()=> <div data-testid="transport-billing-rules">Transport billing rules</div>}));
 import Customers from './Customers';
 
