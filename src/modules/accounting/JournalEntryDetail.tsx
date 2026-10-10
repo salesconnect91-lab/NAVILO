@@ -2086,7 +2086,9 @@ export default function JournalEntryDetail() {
     try {
       setOwnerCancelling(true);
       setError(null);
-      const { data, error: rpcError } = await supabase.rpc("owner_cancel_manual_journal", {
+      const { data, error: rpcError } = await supabase.rpc(
+        ["Customer Receipt", "Supplier Payment"].includes(entry.trans_type || "")
+          ? "owner_cancel_unallocated_payment" : "owner_cancel_manual_journal", {
         p_entry_id: entry.id,
         p_reversal_date: ownerCancelDate,
         p_reason: ownerCancelReason.trim(),
@@ -2166,6 +2168,14 @@ export default function JournalEntryDetail() {
     !entry.entry_no.startsWith("COB-") &&
     (!entry.trans_type || ["General", "Journal Entry", "Manual Journal"].includes(entry.trans_type));
 
+  const isOwnerCancellablePayment =
+    isPosted && ownerCanCancel && !reversalEntry &&
+    !entry.reversal_of_entry_id && !sourceEntry.fiscal_year_closure_id &&
+    !sourceEntry.monthly_profit_closure_id &&
+    sourceEntry.source_module === "accounting" &&
+    ["customer_receipt", "supplier_payment"].includes(sourceEntry.source_document_type || "") &&
+    ["Customer Receipt", "Supplier Payment"].includes(entry.trans_type || "");
+
   /* =========================================================
      UI
   ========================================================= */
@@ -2230,13 +2240,13 @@ export default function JournalEntryDetail() {
             </button>
           )}
 
-          {isOwnerCancellableJournal && (
+          {(isOwnerCancellableJournal || isOwnerCancellablePayment) && (
             <button
               onClick={() => setOwnerCancelOpen(true)}
               disabled={ownerCancelling}
               className="px-3 py-2 text-sm font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200"
             >
-              Owner Cancel Posted
+              {isOwnerCancellablePayment ? "Owner Cancel Unallocated Payment" : "Owner Cancel Posted"}
             </button>
           )}
 
@@ -2971,7 +2981,7 @@ export default function JournalEntryDetail() {
       <Modal open={ownerCancelOpen} title={`Owner Cancel · ${entry.entry_no}`} onClose={() => !ownerCancelling && setOwnerCancelOpen(false)}>
         <div className="space-y-4">
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            This action is permanent. The original posted journal stays locked for audit, an opposite posted journal offsets its balance, and both are hidden from the normal Journal List. Financial ledgers retain the audit trail.
+            This action creates a permanent audit trail. The original posted journal remains locked, and an opposite posted journal offsets the financial effect. Allocated, transport-linked or FX payment vouchers are blocked until their specialized correction workflow is available.
           </div>
           <div>
             <label className="label">Cancellation Date</label>
