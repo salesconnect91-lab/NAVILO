@@ -5,17 +5,30 @@ import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
 import {formatNaviloDate} from "@/lib/naviloDate";
 import ConfigurableReport from './ConfigurableReport';
 import {useEffect,useState} from 'react';
-import {Link} from 'react-router-dom';
+import {Link,useNavigate} from 'react-router-dom';
 import {supabase} from '@/lib/supabase';
 import PrintLayout from '@/components/PrintLayout';
 import {fetchAllPages} from '@/lib/fetchAllPages';
 import {financialNumber,type ServiceBalance} from './transportFinancialTypes';
 type Line={id:string;description:string;amount:number;tax_percent:number;source_module?:string};
 type Charge={id:string;charge_key:string;charge_label:string|null;amount:number;tax_percent:number};
-export default function TransportServiceDocument({side,id,canPrint=true,canPost=false}:{side:'customer'|'supplier';id:string;canPrint?:boolean;canPost?:boolean}){
+export default function TransportServiceDocument({side,id,canPrint=true,canPost=false,canDelete=false}:{side:'customer'|'supplier';id:string;canPrint?:boolean;canPost?:boolean;canDelete?:boolean}){
+ const navigate=useNavigate();
  const [external,setExternal]=useState<any[]>([]);const [revision,setRevision]=useState(0);
  const [trips,setTrips]=useState<any[]>([]);const [order,setOrder]=useState<any>(null);const [lines,setLines]=useState<Line[]>([]);const [charges,setCharges]=useState<Charge[]>([]);const [company,setCompany]=useState<any>({});
- const [balance,setBalance]=useState<ServiceBalance|null>(null);const [cash,setCash]=useState(false);const [error,setError]=useState('');
+ const [balance,setBalance]=useState<ServiceBalance|null>(null);const [cash,setCash]=useState(false);const [error,setError]=useState('');const [deleting,setDeleting]=useState(false);
+ const deleteDraft=async()=>{
+  if(side!=='customer'||order?.status!=='draft'||!canDelete||deleting)return;
+  if(!window.confirm(`Delete draft Sales Invoice ${order.order_no}? Its unposted import lines will also be removed. This cannot be undone.`))return;
+  setDeleting(true);setError('');
+  try{
+   const {data,error:rpcError}=await supabase.rpc('delete_draft_sales_invoice',{p_order_id:id});
+   if(rpcError)throw rpcError;
+   if(data!==true)throw new Error('Draft invoice could not be deleted.');
+   navigate('/sales');
+  }catch(e:any){setError(e?.message||'Unable to delete draft Sales Invoice.')}
+  finally{setDeleting(false);}
+ };
  useEffect(()=>{let live=true;setOrder(null);setExternal([]);setError('');void Promise.all([
  supabase.from(side==='customer'?'sales_orders':'purchase_orders').select(side==='customer'?'*,party:customers(*)':'*,party:suppliers(*)').eq('id',id).single(),
  fetchAllPages<Line>((from,to)=>supabase.from(side==='customer'?'sales_service_lines':'purchase_service_lines').select('id,description,amount,tax_percent,source_module').eq('order_id',id).order('id').range(from,to)),
@@ -27,7 +40,7 @@ export default function TransportServiceDocument({side,id,canPrint=true,canPost=
  if(error)return <p role="alert" className="text-red-700">{error}</p>;if(!order)return <p>Loading service document…</p>;
  const baseNet=lines.reduce((sum,l)=>sum+Number(l.amount),0);const chargesNet=charges.reduce((sum,x)=>sum+Number(x.amount),0);const net=baseNet+chargesNet;const vat=lines.reduce((sum,l)=>sum+Math.round(Number(l.amount)*Number(l.tax_percent))/100,0)+charges.reduce((sum,x)=>sum+Math.round(Number(x.amount)*Number(x.tax_percent))/100,0);
  const title=side==='supplier'?'Purchase Service Invoice':String(order.transport_source_invoice_id||'').startsWith('debit:')?'Sales Debit Note':cash||order.payment_mode==='Cash'?'Cash Hand Bill':order.invoice_type==='Tax Invoice'?'Tax Invoice':'Sales Invoice';
- return <div><OwnerInvoiceCancellationReview side={side==='customer'?'sales':'purchase'} documentId={order.id} posted={order.status==='posted'} /><div className="print:hidden"><div className="mb-3 flex items-center justify-between"><h1 className="text-lg font-semibold">{title} · {order.order_no}</h1><div className="flex gap-2"><Link className="btn" to={side==='customer'?'/sales':'/purchase'}>Back</Link>{canPrint&&<button className="btn" onClick={()=>triggerPrint("#transport-service-print-document")}>Print</button>}</div></div><p>{order.party?.name} · {order.order_date} · {order.status}</p>
+ return <div><OwnerInvoiceCancellationReview side={side==='customer'?'sales':'purchase'} documentId={order.id} posted={order.status==='posted'} /><div className="print:hidden"><div className="mb-3 flex items-center justify-between"><h1 className="text-lg font-semibold">{title} · {order.order_no}</h1><div className="flex gap-2"><Link className="btn" to={side==='customer'?'/sales':'/purchase'}>Back</Link>{side==='customer'&&order.status==='draft'&&canDelete&&<button type="button" className="btn border border-rose-200 text-rose-700" disabled={deleting} onClick={()=>void deleteDraft()}>{deleting?'Deleting…':'Delete Draft'}</button>}{canPrint&&<button className="btn" onClick={()=>triggerPrint("#transport-service-print-document")}>Print</button>}</div></div><p>{order.party?.name} · {order.order_date} · {order.status}</p>
  <table className="my-3 w-full text-sm"><thead><tr><th className="text-left">Service / Charge</th><th className="text-left">Description</th><th className="text-right">Amount excluding VAT</th><th className="text-right">VAT</th><th className="text-right">Total</th></tr></thead><tbody>{lines.map(l=><tr key={l.id} className="border-t"><td>Route / Base Rent</td><td className="whitespace-pre-wrap">{l.description}</td><td className="text-right">{financialNumber(l.amount)}</td><td className="text-right">{financialNumber(Number(l.amount)*Number(l.tax_percent)/100)}</td><td className="text-right">{financialNumber(Number(l.amount)*(1+Number(l.tax_percent)/100))}</td></tr>)}{charges.map(x=><tr key={x.id} className="border-t"><td>{side==='customer'?'Customer Charge':'Supplier Charge'}</td><td>{x.charge_label||x.charge_key}</td><td className="text-right">{financialNumber(x.amount)}</td><td className="text-right">{financialNumber(Number(x.amount)*Number(x.tax_percent)/100)}</td><td className="text-right">{financialNumber(Number(x.amount)*(1+Number(x.tax_percent)/100))}</td></tr>)}</tbody><tfoot><tr className="border-t font-semibold"><td colSpan={2}>Net Total · Base {financialNumber(baseNet)} + Charges {financialNumber(chargesNet)}</td><td className="text-right">{financialNumber(net)}</td><td className="text-right">{financialNumber(vat)}</td><td className="text-right">{financialNumber(net+vat)}</td></tr></tfoot></table>
  {trips.length>0&&<ConfigurableReport preferenceKey={`${side}:service-invoice-trips`} report={{title:'Transport service Trip details',description:'Vehicle / Driver captured at original posting; missing history is left unattributed.',columns:['Trip','Date','From','To','Vehicle','Driver','Owner','Job / PO / DO'],rows:trips.map(t=>[t.trip_no,t.trip_date,t.from_location,t.to_location,vehicleDisplayLabel(t.vehicle_no,t.truck_type)||'Unattributed',t.driver_name||'Unattributed',t.owner_name||'',t.po_do_job_no||''])}}/>}
  {external.length>0&&<ExternalInvoiceDetails order={order} rows={external} canPost={canPost} onChanged={()=>setRevision(v=>v+1)}/>}
