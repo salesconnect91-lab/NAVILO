@@ -36,11 +36,7 @@ begin
     'settled_trips',count(*) filter(where lower(coalesce(trip_status,lifecycle_status,status,''))='settled'),
     'ppr_pending',count(*) filter(where ppr_received_date is null and
       lower(coalesce(ppr_status,'')) not in ('received','yes')),
-    'customer_unbilled',count(*) filter(where sales_order_id is null
-      and not exists(select 1 from public.transport_customer_documents d
-        where d.company_id=c and d.business_unit_id=b and d.operating_location_id=loc
-          and exists(select 1 from public.sales_orders so
-            where so.id=d.sales_order_id and so.id=scoped.sales_order_id))),
+    'trips_without_linked_sales_invoice',count(*) filter(where sales_order_id is null),
     'customer_billed',count(*) filter(where sales_order_id is not null)
   ) into result from scoped;
   return result;
