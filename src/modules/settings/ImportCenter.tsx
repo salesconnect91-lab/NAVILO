@@ -10,6 +10,7 @@ import { hasPermission, type ModuleKey } from "@/auth/permissions";
 import { supabase } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { fetchAllPages } from "@/lib/fetchAllPages";
+import {downloadImportTemplate} from "@/lib/importExcelTemplate";
 
 type MasterKind="vehicles"|"drivers"|"truck_types"|"locations"|"vehicle_expense_types"|"vehicle_ownership";
 const masterDefs:Record<MasterKind,{title:string;headers:string[];sample:(string|number)[]}>={
@@ -25,6 +26,19 @@ const defs:Record<RateKind,{title:string;headers:string[];sample:(string|number)
  customer:{title:"Customer Route Rates",headers:["Company","Truck Type","From","To","Rate","Effective From","Effective To"],sample:["Customer A","Flatbed","Dammam","Khobar",600,"2026-01-01","2026-12-31"]},
  supplier:{title:"Supplier Route Rates",headers:["Supplier","Truck Type","From","To","Rate","Effective From","Effective To"],sample:["Supplier A","Flatbed","Dammam","Khobar",450,"2026-01-01","2026-12-31"]},
  customer_charge:{title:"Customer Additional Charges",headers:["Company","Charge Code","Amount","Status","Effective From","Effective To"],sample:["Customer A","W",400,"Agreed","2026-01-01","2026-12-31"]}
+};
+const masterTemplateNotes:Record<MasterKind,string[]>={
+ vehicles:['Vehicle Number and dated ownership are created together. Owner Type: Company or Supplier; Supplier required when supplier-owned.','Truck Type must already exist in this Transport business.'],
+ drivers:['This import supports SUPPLIER drivers only. Company drivers must be linked to Employees via Driver Details.','Supplier must exist and be active. Identity, licence and mobile are optional.'],
+ truck_types:['Name must be unique in the current Transport business.'],
+ locations:['Name required; City Area optional.'],
+ vehicle_expense_types:['Expense Scope must be Trip, Vehicle, or Both. No journal is posted.'],
+ vehicle_ownership:['Vehicle must already exist. Owner Type: Company or Supplier.','Dates must not overlap existing Vehicle Ownership History; never invent a previous owner.']
+};
+const rateTemplateNotes:Record<RateKind,string[]>={
+ customer:['Company means CUSTOMER NAME (not business unit). Names, Truck Type and From/To locations must match active masters.','Rate is nonnegative and periods cannot overlap.'],
+ supplier:['Supplier, Truck Type and From/To must match active masters.','Rate is nonnegative and periods cannot overlap.'],
+ customer_charge:['Company means CUSTOMER NAME. Charge Code must already exist in Charge Types master.','Status is Agreed (amount required) or Pending (amount ignored). Periods cannot overlap.']
 };
 const key=(v:string)=>v.trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
 const iso=(v:any)=>{if(v instanceof Date)return v.toISOString().slice(0,10);if(typeof v==="number"){const d=XLSX.SSF.parse_date_code(v);return d?String(d.y).padStart(4,"0")+"-"+String(d.m).padStart(2,"0")+"-"+String(d.d).padStart(2,"0"):"";}const s=String(v??"").trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;const d=new Date(s);return Number.isNaN(d.valueOf())?"":d.toISOString().slice(0,10)};
@@ -60,10 +74,11 @@ function PartyMasterImportCard({canImport,kind}:{canImport:boolean;kind:"custome
  };
  const download=()=>{
   const headers=["Name","Urdu Name","Email","Phone","Address","Tax Status","NTN","STRN","CNIC"];
-  const ws=XLSX.utils.aoa_to_sheet([headers,[`Sample ${title}`,"","","","","unregistered","","",""]]);
-  ws["!cols"]=[{wch:50},...headers.slice(1).map(()=>({wch:20}))];
-  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,plural);
-  XLSX.writeFile(wb,`NAVILO-${plural}-Import-Template.xlsx`);
+  downloadImportTemplate({filename:`NAVILO-${plural}-Import-Template.xlsx`,sheetName:plural,title:`${title} master import`,
+   headers,example:[`Replace with ${title} name`,"","","","","unregistered","","",""],
+   notes:[`1 to 200 ${title.toLowerCase()} rows. Existing same-company names are skipped; no opening balances/invoices.`,
+    'Tax Status must be registered or unregistered. Registered parties require STRN or NTN.',
+    'Urdu Name is optional. This is a Company-shared master; select the intended Company before importing.']});
  };
  const choose=async(event:React.ChangeEvent<HTMLInputElement>)=>{
   const selected=event.target.files?.[0];event.target.value="";
@@ -194,13 +209,13 @@ function TransportMasterImports(){
  const {activeCompany,activeBusinessUnit}=useAuth(); const input=useRef<HTMLInputElement>(null);
  const [kind,setKind]=useState<MasterKind>("vehicles"),[rows,setRows]=useState<any[]>([]),[file,setFile]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
  const def=masterDefs[kind];
- const download=()=>{const ws=XLSX.utils.aoa_to_sheet([def.headers,def.sample]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Masters");XLSX.writeFile(wb,`NAVILO-Transport-${kind}-template.xlsx`)};
+ const download=()=>downloadImportTemplate({filename:`NAVILO-Transport-${kind}-template.xlsx`,sheetName:"Masters",title:`Transport ${def.title}`,headers:def.headers,example:def.sample,notes:[...masterTemplateNotes[kind],"Maximum 500 rows. No financial posting."]});
  const choose=async(e:React.ChangeEvent<HTMLInputElement>)=>{const f=e.target.files?.[0];if(!f||busy)return;setBusy(true);setRows([]);setFile("");setError("");setMessage("");try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array",cellDates:true});const data=XLSX.utils.sheet_to_json<any>(wb.Sheets[wb.SheetNames[0]],{defval:""});if(!data.length)throw new Error("File has no data rows.");const mapped=data.map((r:any)=>{const n=Object.fromEntries(Object.entries(r).map(([k,v])=>[key(k),v]));if(kind==="vehicles")return{vehicle_no:String(n.vehicle_no??"").trim(),truck_type:String(n.truck_type??"").trim(),owner_type:String(n.owner_type??"").trim(),supplier:String(n.supplier??"").trim(),effective_from:iso(n.effective_from)};if(kind==="drivers")return{driver_name:String(n.driver_name??"").trim(),driver_code:String(n.driver_code??"").trim(),mobile:String(n.mobile??"").trim(),driver_type:String(n.driver_type??"").trim(),supplier:String(n.supplier??"").trim(),identity_no:String(n.identity_no??"").trim(),licence_no:String(n.licence_no??"").trim(),licence_expiry:iso(n.licence_expiry)};if(kind==="truck_types")return{name:String(n.name??"").trim()};if(kind==="locations")return{name:String(n.name??"").trim(),city_area:String(n.city_area??"").trim()};if(kind==="vehicle_expense_types")return{name:String(n.name??"").trim(),expense_scope:String(n.expense_scope??"").trim()};return{vehicle_no:String(n.vehicle_no??"").trim(),owner_type:String(n.owner_type??"").trim(),supplier:String(n.supplier??"").trim(),effective_from:iso(n.effective_from),effective_to:iso(n.effective_to),change_reason:String(n.change_reason??"").trim()}});if(mapped.length>500)throw new Error("Maximum 500 rows per master import file.");if(kind==="drivers"&&mapped.some((row:any)=>row.driver_type.toLowerCase()!=="supplier"))throw new Error("Company drivers must be linked to an Employee. Open Employees → Driver Details. This template imports Supplier drivers only.");setRows(mapped);setFile(f.name)}catch(x:any){setRows([]);setError(x.message||"Unable to read file.")}finally{e.target.value="";setBusy(false)}};
  const run=async()=>{if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){setError("Select active company and business unit.");return}if(!rows.length)return;
  setBusy(true);setError("");setMessage("");try{const r=await supabase.rpc("transport_import_master_rows",{p_kind:kind,p_rows:rows});if(r.error)throw r.error;setMessage(`${r.data?.imported??rows.length} master row(s) imported.`);setRows([]);setFile("")}catch(x:any){setError(x.message||"Import failed. No partial rows are kept from the failed transaction.")}finally{setBusy(false)}};
  return <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
   <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h2 className="text-sm font-bold">Transport Master Imports</h2><p className="text-xs text-slate-600">Creates master records only; no financial posting. Existing records are kept. For company drivers, use Employees → Driver Details; the Drivers template is for Supplier drivers.</p></div><Upload className="h-5 w-5 shrink-0 text-emerald-700"/></div>
-  <div className="mt-3 flex flex-wrap items-end gap-2"><label className="text-xs font-semibold">Master Type<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 h-9 min-w-52" value={kind} disabled={busy} onChange={e=>{setKind(e.target.value as MasterKind);setRows([]);setFile("");setError("");setMessage("")}}>{(Object.keys(masterDefs) as MasterKind[]).filter(k=>k!=="vehicle_expense_types").map(k=><option key={k} value={k}>{masterDefs[k].title}</option>)}</NaviloSearchableSelect></label>
+  <div className="mt-3 flex flex-wrap items-end gap-2"><label className="text-xs font-semibold">Master Type<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 h-9 min-w-52" value={kind} disabled={busy} onChange={e=>{setKind(e.target.value as MasterKind);setRows([]);setFile("");setError("");setMessage("")}}>{(Object.keys(masterDefs) as MasterKind[]).map(k=><option key={k} value={k}>{masterDefs[k].title}</option>)}</NaviloSearchableSelect></label>
    <button className="btn h-9" onClick={download} disabled={busy}>Download Template</button><button className="btn h-9" onClick={()=>input.current?.click()} disabled={busy}>Choose File</button><input ref={input} className="hidden" type="file" accept=".xlsx,.xls,.csv" onChange={choose}/><button className="btn-primary h-9" disabled={busy||!rows.length} onClick={()=>void run()}>{busy?"Importing…":`Import ${rows.length||""} Rows`}</button></div>
   {file&&<p className="mt-2 text-xs text-slate-600">{file} · {rows.length} row(s) in preview. The server checks all rows; any invalid row rejects the whole file.</p>}
   {error&&<p role="alert" className="mt-2 rounded bg-red-50 p-2 text-xs text-red-700">{error}</p>}{message&&<p role="status" className="mt-2 rounded bg-emerald-50 p-2 text-xs text-emerald-700">{message}</p>}
@@ -213,7 +228,7 @@ function TransportRateImports(){
  const {activeCompany,activeBusinessUnit}=useAuth(); const input=useRef<HTMLInputElement>(null);
  const [kind,setKind]=useState<RateKind>("customer"),[rows,setRows]=useState<any[]>([]),[file,setFile]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
  const def=defs[kind];
- const download=()=>{const ws=XLSX.utils.aoa_to_sheet([def.headers,def.sample]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Rates");XLSX.writeFile(wb,`NAVILO-Transport-${kind}-template.xlsx`)};
+ const download=()=>downloadImportTemplate({filename:`NAVILO-Transport-${kind}-template.xlsx`,sheetName:"Rates",title:`Transport ${def.title}`,headers:def.headers,example:def.sample,notes:[...rateTemplateNotes[kind],"Maximum 500 rows. No invoice, receipt or journal is posted."]});
  const choose=async(e:React.ChangeEvent<HTMLInputElement>)=>{const f=e.target.files?.[0];if(!f||busy)return;setBusy(true);setRows([]);setFile("");setError("");setMessage("");try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array",cellDates:true});const data=XLSX.utils.sheet_to_json<any>(wb.Sheets[wb.SheetNames[0]],{defval:""});if(!data.length)throw new Error("File has no data rows.");const mapped=data.map((r:any)=>{const n=Object.fromEntries(Object.entries(r).map(([k,v])=>[key(k),v]));return kind==="customer"?{company:String(n.company??"").trim(),truck_type:String(n.truck_type??"").trim(),from:String(n.from??"").trim(),to:String(n.to??"").trim(),amount:Number(n.rate),effective_from:iso(n.effective_from),effective_to:iso(n.effective_to)}:kind==="supplier"?{supplier:String(n.supplier??"").trim(),truck_type:String(n.truck_type??"").trim(),from:String(n.from??"").trim(),to:String(n.to??"").trim(),amount:Number(n.rate),effective_from:iso(n.effective_from),effective_to:iso(n.effective_to)}:{company:String(n.company??"").trim(),charge_code:String(n.charge_code??"").trim(),amount:String(n.status??"Agreed").trim().toLowerCase()==="pending"?null:Number(n.amount),status:String(n.status??"Agreed").trim().toLowerCase(),effective_from:iso(n.effective_from),effective_to:iso(n.effective_to)}});if(mapped.length>500)throw new Error("Maximum 500 rows per rate import file.");setRows(mapped);setFile(f.name)}catch(x:any){setRows([]);setError(x.message||"Unable to read file.")}finally{e.target.value="";setBusy(false)}};
  const run=async()=>{if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){setError("Select active company and business unit.");return}if(!rows.length)return;setBusy(true);setError("");setMessage("");try{const r=await supabase.rpc("transport_import_rate_rows",{p_kind:kind,p_rows:rows});if(r.error)throw r.error;setMessage(`${r.data?.imported??rows.length} rate row(s) imported.`);setRows([]);setFile("")}catch(x:any){setError(x.message||"Import failed. No partial rows are kept from the failed transaction.")}finally{setBusy(false)}};
  return <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
