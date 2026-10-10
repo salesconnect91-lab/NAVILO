@@ -134,7 +134,7 @@ end $$;
 revoke all on function public.transport_set_customer_billing_mode(uuid,text) from public,anon;
 grant execute on function public.transport_set_customer_billing_mode(uuid,text) to authenticated;
 
--- Retain existing source validation, with additional policy checks and independent VAT/mode.
+-- Retain existing source validation, with additional customer-policy checks; existing VAT rules are preserved.
 create or replace function public.transport_preview_external_invoices(p_source_company text,p_rows jsonb) returns jsonb
 language plpgsql security definer set search_path=public,pg_temp as $$
 #variable_conflict use_column
@@ -155,7 +155,7 @@ begin
     or nullif(btrim(x->>'source_reference'),'') is null or nullif(btrim(x->>'description'),'') is null
     or x->>'sale_type' not in ('Cash','Credit') or x->>'sale_type' is null then
     raise exception 'Date, positive two-decimal Amount, Reference, Description and Cash/Credit required';end if;
-   if x->>'sale_type'='Credit' and nullif(btrim(x->>'invoice_no'),'') is null then raise exception 'Credit invoice number required';end if;
+   if (x->>'sale_type'='Cash' and tax<>0) or (x->>'sale_type'='Credit' and (tax<=0 or nullif(btrim(x->>'invoice_no'),'') is null)) then raise exception 'Credit requires Invoice No and VAT; Cash requires zero VAT';end if;
    if coalesce((x->>'tax_amount')::numeric,-1)<>round(amt*tax/100,2)
       or coalesce((x->>'bill_amount')::numeric,-1)<>amt+round(amt*tax/100,2) then
       raise exception 'Source net, VAT and gross do not reconcile';end if;
