@@ -1,3 +1,4 @@
+import {downloadHistoricalTemplate} from './transportImportTemplates';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import {useEffect,useMemo,useRef,useState} from 'react';
 import * as XLSX from 'xlsx';
@@ -7,7 +8,7 @@ import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
 import {fetchAllPages} from '@/lib/fetchAllPages';
 import {fileDigest,runImportJob,storedImport,saveImport,removeStoredImport,type ImportJob,type ImportRow} from './transportTripImport';
-import {HISTORY_COLUMNS,PAYMENT_COLUMNS,parseHistoricalFile,historicalTotals,type HistoricalRow} from './transportHistoricalImport';
+import {parseHistoricalFile,historicalTotals,type HistoricalRow} from './transportHistoricalImport';
 import {financialNumber} from './transportFinancialTypes';
 type Job=ImportJob&{settings:{cutoff:string;cost_account:string;opening_reviewed:boolean;batch_size?:number};expected:ReturnType<typeof historicalTotals>};
 type Status={id:string;file:string;source_hash:string;settings:Job['settings'];completed:number;batches:number;totals:ReturnType<typeof historicalTotals>};
@@ -24,13 +25,7 @@ export default function TransportHistoricalImport({validateMasters,onChanged}:{v
   .catch(e=>{if(live)setError(e.message)});
   return()=>{live=false;mounted.current=false;stop.current=true;};
  },[scope,activeCompany?.company_id]);
- async function template(){const w=XLSX.utils.book_new();const headers=['DATE','TRUCK TYPE','PO/DO/JOB NO.','INVOICED','COMPANY NAME','DRIVER NAME','OWNER','PLATE #','FROM','TO','PAPER RECEIVED BY','Customer Rate','Supplier Rent','Sale Type (Cash / Credit)',...HISTORY_COLUMNS];
-  XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([headers,['2026-10-01','FLATBED','JOB-1','Yes','Example Customer','Example Driver','Example Supplier','ABC-123','From','To','PPR PENDING',2000,1700,'Credit','OLD-0001','Yes','2026-10-01','No',2000,600,1400,'Yes','2026-10-01','No',1700,1000,700]]),'Trips');
-  XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([[...PAYMENT_COLUMNS],['OLD-0001','customer','2026-10-02',600,'YOUR-CASH-CODE','RCPT-1'],['OLD-0001','supplier','2026-10-02',1000,'YOUR-BANK-CODE','PAY-1']]),'Payments');
-  const notes=[['Historical Transport import'],['One Source Record ID per real trip. Same-date repeat journeys need distinct IDs.'],['Yes/No posted and VAT flags are independent for customer and supplier. Rates/rent exclude VAT. Gross and remaining include VAT.'],['Payments: one allocation per dated partial payment. Use the existing Chart of Accounts cash/bank code. Repeat a shared voucher reference for separate trip allocations.'],['This creates canonical service invoices, customer receipts and supplier payments. Each trip has its own NAVILO invoice; original invoice reference remains informational.'],['Add explicit historical columns and Payments sheet to an existing BuKu file. PAY TO DRIVER must equal Supplier Paid only when it actually represents supplier rent. Employee payroll and commissions require separately reconciled canonical entries.'],['Opening balances must exclude these imported invoices and payments. Reconcile starting cash/bank balances before confirmation. Closed accounting periods and dated ownership must be resolved through existing controls.'],['One historical dataset per business unit. After posting starts, resume the original file/settings. Completed imports cannot be repeated.']];
-  XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet(notes),'Instructions');for(const n of w.SheetNames)w.Sheets[n]['!cols']=(n==='Instructions'?[{wch:130}]:Array.from({length:n==='Trips'?headers.length:PAYMENT_COLUMNS.length},()=>({wch:22})));
-  XLSX.writeFile(w,'Transport-Historical-Import-Template.xlsx');
- }
+ const template=downloadHistoricalTemplate;
  async function parse(f:File){if(submitting.current||!initialized)return;submitting.current=true;setBusy(true);setError('');setRows([]);
   try{if(f.size>30*1024*1024)throw new Error('Maximum file size 30 MB');const buffer=await f.arrayBuffer();const digest=await fileDigest(buffer);if(status&&digest!==status.source_hash)throw new Error('Restore the original registered historical file. A different dataset cannot be imported.');const history=await parseHistoricalFile(buffer);
    const mapped=await validateMasters(history.map(r=>({...r,supplier_rent:Number(r.supplier_rent)===0?'':r.supplier_rent})));

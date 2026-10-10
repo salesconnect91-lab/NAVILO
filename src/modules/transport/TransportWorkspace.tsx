@@ -1,3 +1,4 @@
+import {TRANSPORT_TRIP_HEADERS,downloadDailyTripTemplate} from './transportImportTemplates';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import {useLocation,useNavigate,useSearchParams} from 'react-router-dom';
 import TransportHorizontalScroll from './TransportHorizontalScroll';
@@ -88,32 +89,7 @@ const BULK_TRIP_HEADERS=[
   "Notes", "Sale Type", "PPR Employee", "PPR Date"
 ] as const;
 
-const TRANSPORT_TRIP_HEADERS=[
-  "DATE",
-  "TRUCK TYPE",
-  "PO/DO/JOB NO.",
-  "INVOICED",
-  "COMPANY NAME",
-  "DRIVER NAME",
-  "OWNER",
-  "PLATE #",
-  "FROM",
-  "TO",
-  "PAPER RECEIVED BY",
-  "DATE",
-  "PAY TO DRIVER",
-  "Supplier Rent",
-  "REMAINING WITH US",
-  "PAYMENT DATE",
-  "AMOUNT",
-  "Customer Rate",
-  "received from company",
-  "remaining with company",
-  "PROFIT",
-  "paid commissin for trip",
-  "INVOICE NUMBER",
-  "Sale Type (Cash / Credit)"
-] as const;
+
 
 export default function TransportWorkspace(){
   const navigate=useNavigate();
@@ -720,58 +696,7 @@ export default function TransportWorkspace(){
     return Number.isNaN(d.getTime())?"":d.toISOString().slice(0,10);
   };
 
-  const downloadBulkTemplate=()=>{
-    const example=[
-      new Date(),
-      "FLATBED",
-      "PO-001",
-      "",
-      "Example Customer",
-      "Example Driver",
-      "Example Supplier",
-      "ABC-123",
-      "Dammam",
-      "Riyadh",
-      "PPR PENDING",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "Credit"
-    ];
-
-    const ws=XLSX.utils.aoa_to_sheet([
-      [...TRANSPORT_TRIP_HEADERS],
-      example
-    ]);
-
-    ws["!cols"]=TRANSPORT_TRIP_HEADERS.map((header)=>({
-      wch:Math.min(28,Math.max(12,String(header).length+3))
-    }));
-
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,"Trips");
-
-    const companies=XLSX.utils.aoa_to_sheet([["COMPANY NAME"]]);
-    const vehicles=XLSX.utils.aoa_to_sheet([["PLATE #","TRUCK TYPE"]]);
-    const owners=XLSX.utils.aoa_to_sheet([["OWNER"]]);
-    const places=XLSX.utils.aoa_to_sheet([["PLACE"]]);
-
-    XLSX.utils.book_append_sheet(wb,companies,"compnies");
-    XLSX.utils.book_append_sheet(wb,vehicles,"vehicles");
-    XLSX.utils.book_append_sheet(wb,owners,"owners");
-    XLSX.utils.book_append_sheet(wb,places,"places");
-
-    XLSX.writeFile(wb,"Transport_Trip_Excel_Upload_template-NAVILO.xlsx");
-  };
+  const downloadBulkTemplate=downloadDailyTripTemplate;
 
   const validateBulkRow=(row:BulkTripRow)=>{
     const errors:string[]=[];

@@ -21,7 +21,7 @@ describe("import center", () => {
     expect(screen.getByRole("heading", { name: "Transport Master Imports" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Transport Rate Imports" })).toBeTruthy();
     for (const name of ["Vehicles","Drivers","Truck Types","Locations","Vehicle Ownership History"]) expect(screen.getByRole("option", { name })).toBeTruthy();
-    expect(screen.getAllByRole("heading", { level: 2 }).map(node => node.textContent)).toEqual(["Daily Trip Upload","One-time Historical Import","Bulk Journal Entries","Customers","Suppliers","Transport Master Imports","Transport Rate Imports","Transport Receipts / Payments Import","Transport Sales Invoice Import","NAVILO → NAVILO Transport Transfer"]);
+    expect(screen.getAllByRole("heading", { level: 2 }).map(node => node.textContent)).toEqual(["Customers","Suppliers","Transport Master Imports","Transport Rate Imports","Daily Trip Upload","Transport Sales Invoice Import","Transport Receipts / Payments Import","Bulk Journal Entries","One-time Historical Import","NAVILO → NAVILO Transport Transfer"]);
     expect(screen.getByRole("option", { name: "Customer Route Rates" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Supplier Route Rates" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Customer Additional Charges" })).toBeTruthy();
@@ -55,7 +55,8 @@ describe("Import Center Customer Master upload",()=>{
 
   render(<MemoryRouter><ImportCenter /></MemoryRouter>);
   expect(screen.getAllByRole("button",{name:"Download Template"}).length).toBeGreaterThan(0);
-  expect(screen.getAllByRole("button",{name:"Upload Excel / CSV"})).toHaveLength(2);
+  expect(within(screen.getByRole("heading",{name:"Customers"}).closest("section")!).getByRole("button",{name:"Choose File"})).toBeTruthy();
+  expect(within(screen.getByRole("heading",{name:"Suppliers"}).closest("section")!).getByRole("button",{name:"Choose File"})).toBeTruthy();
   const file=customerFile([
    ["Name","Urdu Name","Email","Phone","Address","Tax Status","NTN","STRN","CNIC"],
    ["Existing Customer","","","","","unregistered","","",""],
