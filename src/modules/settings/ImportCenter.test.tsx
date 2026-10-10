@@ -10,7 +10,7 @@ vi.mock("@/lib/supabase", () => ({ supabase: { rpc: vi.fn(), from: vi.fn() } }))
 
 vi.mock("@/auth/AuthContext", () => ({ useAuth: () => ({
   activeCompany: { company_id: "gondal-company", membership_role: "company_owner", enabled_modules: ["master", "sales", "purchase", "accounting", "transport"] },
-  activeBusinessUnit: { business_unit_id: "gondal-bu", membership_role: "company_owner", enabled_modules: ["master", "sales", "purchase", "accounting", "transport"] },
+  activeBusinessUnit: { business_unit_id: "gondal-bu", business_unit_type: "transport", membership_role: "company_owner", enabled_modules: ["master", "sales", "purchase", "accounting", "transport"] },
   isPlatformOwner: true,
 }) }));
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.clearAllMocks(); });
@@ -21,6 +21,9 @@ describe("import center", () => {
     expect(screen.queryByText(/Twakkal/i)).toBeNull();
     expect(screen.getByText(/Have invoices from an external source/)).toBeTruthy();
     expect(screen.getByRole("option", { name: "Ready invoices from external source" })).toBeTruthy();
+    expect(screen.getByRole("link",{name:/Customer Cash\/Credit settings/}).getAttribute("href")).toBe("/master-data/customers?tab=billing");
+    expect(screen.queryByText(/Customer Cash\/Credit Lock · Transport/)).toBeNull();
+    expect(screen.getByLabelText("Invoice import workflow")).toBeTruthy();
   });
   it("shows centralized Transport rate imports and implemented destinations", () => {
     render(<MemoryRouter><ImportCenter /></MemoryRouter>);
