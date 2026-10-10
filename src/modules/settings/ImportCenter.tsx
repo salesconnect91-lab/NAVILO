@@ -1,3 +1,4 @@
+import TransportExternalInvoiceImport from '@/modules/transport/TransportExternalInvoiceImport';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { ArrowRight, FileText, Landmark, Truck, Users, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -251,6 +252,11 @@ function TransportSettlementImports(){
 }
 
 function TransportInvoiceImports(){
+ const [mode,setMode]=useState<'trips'|'external'>('trips');
+ return <div><label className="mb-2 block text-xs font-semibold">Invoice source<NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Invoice source" className="input ml-2" value={mode} onChange={e=>setMode(e.target.value as 'trips'|'external')}><option value="trips">Existing NAVILO trips</option><option value="external">Ready invoices from Twakkal / external source</option></NaviloSearchableSelect></label>{mode==='trips'?<TripLinkedInvoiceImports/>:<section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"><h2 className="mb-2 text-sm font-bold">Transport Sales Invoice Import</h2><TransportExternalInvoiceImport/></section>}</div>;
+}
+
+function TripLinkedInvoiceImports(){
  const {activeCompany,activeBusinessUnit}=useAuth(); const input=useRef<HTMLInputElement>(null);
  const [rows,setRows]=useState<any[]>([]),[file,setFile]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
  const headers=["Source Company","Source Invoice ID","Invoice No","Invoice Date","Customer","Trip No","Vehicle No","Amount","VAT","Description"];

@@ -341,7 +341,7 @@ export default function SalesInvoiceDetail() {
 
   if (loading) return <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">Loading invoice…</div>;
   if (!order) return <ErrorBanner message="Invoice not found." />;
-  if(order.document_kind==='service')return <TransportServiceDocument side="customer" id={order.id} canPrint={canPrint}/>;
+  if(order.document_kind==='service')return <TransportServiceDocument side="customer" id={order.id} canPrint={canPrint} canPost={canPost}/>;
 
   return (
     <div className="navilo-sales-neus navilo-invoice-detail space-y-3" data-navilo-commercial-standard="true" data-navilo-document-editor="true">
