@@ -178,9 +178,9 @@ function paymentBadge(status?: string | null) {
 export default function SalesInvoiceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { activeCompany, isPlatformOwner } = useAuth();
-  const role = activeCompany?.membership_role;
-  const permissions = activeCompany?.permissions;
+  const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
+  const role = activeBusinessUnit?.membership_role ?? activeCompany?.membership_role;
+  const permissions = activeBusinessUnit?.permissions ?? activeCompany?.permissions;
   const canEdit = canPerformModule(role, "sales", "edit", permissions, isPlatformOwner);
   const canDelete = canPerformModule(role, "sales", "delete", permissions, isPlatformOwner);
   const canPost = canPerformModule(role, "sales", "post", permissions, isPlatformOwner);
@@ -198,6 +198,7 @@ export default function SalesInvoiceDetail() {
   const [posting, setPosting] = useState(false);
   const [postSuccess, setPostSuccess] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
 
   const load = useCallback(async () => {
@@ -293,13 +294,20 @@ export default function SalesInvoiceDetail() {
   };
 
   const handleDelete = async () => {
-    if (!order || locked) return;
-    const { error: deleteError } = await supabase.from("sales_orders").delete().eq("id", order.id).eq("status", "draft");
-    if (deleteError) {
-      setError(deleteError.message);
-      return;
+    if (!order || order.status !== "draft" || !canDelete || deleting) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const {data,error:deleteError} = await supabase.rpc("delete_draft_sales_invoice",{p_order_id:order.id});
+      if (deleteError) throw deleteError;
+      if (data !== true) throw new Error("Draft invoice was not deleted.");
+      navigate("/sales");
+    } catch (e:any) {
+      setConfirmDelete(false);
+      setError(userFacingError(e,"Unable to delete draft invoice."));
+    } finally {
+      setDeleting(false);
     }
-    navigate("/sales");
   };
 
   const handlePrint = () => {
@@ -341,7 +349,7 @@ export default function SalesInvoiceDetail() {
 
   if (loading) return <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">Loading invoice…</div>;
   if (!order) return <ErrorBanner message="Invoice not found." />;
-  if(order.document_kind==='service')return <TransportServiceDocument side="customer" id={order.id} canPrint={canPrint} canPost={canPost}/>;
+  if(order.document_kind==='service')return <TransportServiceDocument side="customer" id={order.id} canPrint={canPrint} canPost={canPost} canDelete={canDelete}/>;
 
   return (
     <div className="navilo-sales-neus navilo-invoice-detail space-y-3" data-navilo-commercial-standard="true" data-navilo-document-editor="true">
@@ -388,7 +396,7 @@ export default function SalesInvoiceDetail() {
               <Printer className="h-3.5 w-3.5" /> Print / PDF
             </button>
           )}
-          {!locked && canDelete && (
+          {order.status === "draft" && canDelete && (
             <button type="button" className="btn-danger" onClick={() => setConfirmDelete(true)}>
               <Trash2 className="h-3.5 w-3.5" /> Delete
             </button>
@@ -467,7 +475,7 @@ export default function SalesInvoiceDetail() {
         </aside>
       </section>
 
-      <ConfirmModal open={confirmDelete} title="Delete Invoice" message="Delete this draft sales invoice permanently?" onConfirm={() => void handleDelete()} onCancel={() => setConfirmDelete(false)} />
+      <ConfirmModal open={confirmDelete} title="Delete Draft Invoice" message="Delete this unposted draft and its unposted lines? This cannot be undone." onConfirm={() => void handleDelete()} onCancel={() => {if(!deleting)setConfirmDelete(false)}} />
 
       {showPrint && (
         <div id="sales-invoice-print-root" data-print-root className="hidden print:block">
