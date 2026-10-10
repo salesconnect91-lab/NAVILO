@@ -356,6 +356,10 @@ export default function Ledgers() {
       try {
         setLoading(true);
         setError(null);
+        // Clear previous selections before any async read: failed cancellation
+        // filtering must never leave stale cancelled rows on screen.
+        setLedgerRows([]);
+        setPartyRows([]);
 
         if (viewMode === "general") {
           await Promise.all([fetchGeneralLedger(), fetchTransportContext()]);
