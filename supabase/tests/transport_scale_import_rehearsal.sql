@@ -52,6 +52,8 @@ begin
  execute 'set local role authenticated';
  canonical:=public.create_customer_with_ar('Entry Customer',null,'123',null);customer:=canonical.id;
  canonical_supplier:=public.create_supplier_with_ap('Entry Supplier',null,'456',null);supplier:=canonical_supplier.id;
+ -- Import scale uses one customer billing policy: Credit, never mixed Cash/Credit rows.
+ perform public.transport_set_party_billing_mode('customer',customer,'Credit');
  if canonical.company_id is distinct from c or canonical.account_id is distinct from ar or canonical_supplier.account_id is distinct from ap then raise exception 'Canonical party mapping/scope missing';end if;
  perform pg_temp.entry_rejected('select public.create_customer_with_ar('' entry  customer '',null,null,null)','Duplicate canonical');
  perform pg_temp.entry_rejected('select public.create_supplier_with_ap('' ENTRY SUPPLIER '',null,null,null)','Duplicate canonical');
@@ -108,7 +110,7 @@ begin
  select * into ctx from navilo_scale_context;
  perform set_config('request.jwt.claim.sub',ctx.user_id::text,true);execute 'set local role authenticated';
  select jsonb_agg(jsonb_build_object('trip_date',current_date,'customer_id',ctx.customer_id,'truck_type_id',ctx.truck_type_id,
-  'from_location_id',ctx.from_location_id,'to_location_id',ctx.to_location_id,'sale_type',case when i%2=0 then 'cash' else 'credit' end,
+  'from_location_id',ctx.from_location_id,'to_location_id',ctx.to_location_id,'sale_type','credit',
   'ppr_status','pending','customer_rate',10,'po_do_job_no','IMPORT-'||i) order by i) into batch_payload
   from generate_series(batch_no*100+1,(batch_no+1)*100) i;
  if batch_no=1 then
