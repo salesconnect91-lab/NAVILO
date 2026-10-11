@@ -46,6 +46,8 @@ begin
  if (select vehicle_no from public.transport_trip_register where id=t1)<>'2490'
  or (select driver_name from public.transport_trip_register where id=t1)<>'ALI-501055189'
  or (select driver_name from public.transport_financial_register where id=t2)<>'Driver B'
+ or (select owner_name from public.transport_financial_register where id=t1)<>'Owner A'
+ or (select owner_name from public.transport_financial_register where id=t2)<>'Owner B'
  then raise exception 'FAIL Register snapshot display';end if;
  register:=public.transport_register_query(p_filters=>jsonb_build_object('search','ALI-501055189'),p_sort=>'driver');
  if (register->>'count')::integer<>1 or register->'rows'->0->>'driver_name'<>'ALI-501055189'
