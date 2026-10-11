@@ -289,6 +289,7 @@ describe('Trip edit transition',()=>{
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button',{name:'FINALIZED-1'}));
   await screen.findByRole('button',{name:'Save Changes'});
+  await waitFor(()=>expect(screen.getByLabelText('Customer billing mode').textContent).toContain('Credit Only'));
   choose('Search Truck Type','Tanker');
   vi.spyOn(window,'prompt').mockReturnValue('Corrected commercial dimensions');
   try{
