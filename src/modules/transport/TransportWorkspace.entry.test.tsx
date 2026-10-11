@@ -279,6 +279,44 @@ describe('Transport register interactions',()=>{
 
 
 describe('Trip edit transition',()=>{
+ it('blocks finalized Truck Type edits before submitting replacement',async()=>{
+  const trip={id:'rate-finalized',trip_no:'FINALIZED-1',status:'incomplete',trip_date:'2026-10-01',customer_id:'c1',
+   truck_type_id:'tt',vehicle_id:'v',driver_id:'d',from_location:'From',to_location:'To',
+   customer_rate_state:'finalized',customer_rate:300,sale_type:'credit',ppr_status:'pending'};
+  mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_register_query'
+   ?{rows:[trip],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}
+   :name==='transport_edit_trip_read'?trip:name==='transport_trip_customer_modes'?[{id:'c1',mode:'Credit'}]:true,error:null}));
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button',{name:'FINALIZED-1'}));
+  await screen.findByRole('button',{name:'Save Changes'});
+  choose('Search Truck Type','Tanker');
+  fireEvent.click(screen.getByRole('button',{name:'Save Changes'}));
+  expect(await screen.findByText(/Finalized Customer Rate locks Truck Type/)).toBeTruthy();
+  expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_replace_trip_assignment'||c[0]==='transport_save_operational_trip_edit')).toBe(false);
+ });
+ it('uses one transaction RPC for a Driver replacement',async()=>{
+  mock.tables.transport_drivers.push({id:'d2',driver_name:'Second Driver',driver_type:'company',employee_id:'e',is_active:true});
+  const trip={id:'atomic-trip',trip_no:'ATOMIC-1',status:'draft',trip_date:'2026-10-01',customer_id:'c1',
+   truck_type_id:'tt',vehicle_id:'v',driver_id:'d',from_location:'From',to_location:'To',
+   customer_rate_state:'pending',sale_type:'credit',ppr_status:'pending'};
+  mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_register_query'
+   ?{rows:[trip],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}
+   :name==='transport_edit_trip_read'?trip:name==='transport_trip_customer_modes'?[{id:'c1',mode:'Credit'}]:true,error:null}));
+  vi.spyOn(window,'prompt').mockReturnValue('Driver corrected with approval');
+  try{
+   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+   fireEvent.click(await screen.findByRole('button',{name:'ATOMIC-1'}));
+   await screen.findByRole('button',{name:'Save Changes'});
+   choose('Search Driver','Second Driver');
+   fireEvent.click(screen.getByRole('button',{name:'Save Changes'}));
+   await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_save_operational_trip_edit',expect.objectContaining({
+     p_trip_id:'atomic-trip',p_driver_id:'d2',p_vehicle_id:'v',p_reason:'Driver corrected with approval',
+     p_changes:expect.objectContaining({truck_type_id:'tt'})
+   })));
+   expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_replace_trip_assignment')).toBe(false);
+  }finally{vi.restoreAllMocks();}
+ });
+
  it('opens an existing Trip from the register with global toolbar active',async()=>{
   await import('@/accountNameDisplayRuntime');
   await import('@/documentLanguageIsolationRuntime');

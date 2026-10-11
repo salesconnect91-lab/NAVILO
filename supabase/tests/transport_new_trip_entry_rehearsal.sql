@@ -14,7 +14,7 @@ declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;ar uuid;ap uuid;cost uu
  code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
  customer uuid;cash_customer uuid;supplier uuid;tt uuid;tt2 uuid;from_id uuid;to_id uuid;v uuid;company_v uuid;d uuid;company_d uuid;employee uuid;
  ownership uuid;rate uuid;result jsonb;payload jsonb;supplier_payload jsonb;trip uuid;trip2 uuid;request_id uuid:=gen_random_uuid();number text;
- other_bu uuid;foreign_v uuid;other_c uuid;other_customer uuid;before_count bigint;canonical public.customers;canonical_supplier public.suppliers;
+ other_bu uuid;foreign_v uuid;other_c uuid;other_customer uuid;before_count bigint;canonical public.customers;canonical_supplier public.suppliers; switch_vehicle uuid; edit_before_count bigint;
 begin
  insert into auth.users(id,role,email,created_at,updated_at)
  values(u,'authenticated','service-'||code||'@navilo.test',now(),now());
@@ -128,6 +128,36 @@ begin
  if not exists(select 1 from public.transport_trips where id=trip2 and owner_supplier_id is null and customer_rate_state='pending' and sale_type='cash') or
  exists(select 1 from public.transport_trip_supplier_rents where trip_id=trip2) then raise exception 'Company-owned pending semantics failed';end if;
  if number=(result->0->>'trip_no') then raise exception 'Trip number reused';end if;
+ -- Atomic Trip edit: pending rate supports changing Truck Type and Plate in one save.
+ switch_vehicle:=public.transport_create_vehicle_master('ENTRY-TANKER',tt2,'company',null,current_date-30);
+ select count(*) into edit_before_count from public.transport_trip_assignments where trip_id=trip2;
+ perform public.transport_save_operational_trip_edit(
+   trip2,jsonb_build_object('truck_type_id',tt2,'customer_id',cash_customer,'sale_type','cash',
+    'from_location','Entry From','to_location','Entry To'),
+   switch_vehicle,company_d,'Pending rate Truck Type + Plate updated');
+ if not exists(select 1 from public.transport_trips where id=trip2 and truck_type_id=tt2 and vehicle_id=switch_vehicle)
+   or (select count(*) from public.transport_trip_assignments where trip_id=trip2)<>edit_before_count+1
+ then raise exception 'Atomic Truck Type / Vehicle edit failed';end if;
+ -- A later operational validation error must roll back earlier assignment work.
+ perform pg_temp.entry_rejected(format(
+   'select public.transport_save_operational_trip_edit(%L,%L::jsonb,%L,%L,%L)',
+   trip2,jsonb_build_object('truck_type_id',tt,'customer_id',cash_customer,'sale_type','cash',
+    'from_location','not a location','to_location','Entry To')::text,company_v,company_d,'Must rollback'),
+   'From Location');
+ if not exists(select 1 from public.transport_trips where id=trip2 and truck_type_id=tt2 and vehicle_id=switch_vehicle)
+    or (select count(*) from public.transport_trip_assignments where trip_id=trip2)<>edit_before_count+1
+ then raise exception 'Failed Trip correction left partial assignment';end if;
+ -- Finalized customer rate still blocks the commercial dimension change.
+ perform pg_temp.entry_rejected(format(
+   'select public.transport_save_operational_trip_edit(%L,%L::jsonb,%L,%L,%L)',
+   trip,jsonb_build_object('truck_type_id',tt2,'customer_id',customer,'sale_type','credit',
+     'from_location','Entry From','to_location','Entry To')::text,switch_vehicle,d,'Cannot bypass'),
+   'Finalized Customer Rate locks Truck Type');
+ if (select truck_type_id from public.transport_trips where id=trip) is distinct from tt
+ then raise exception 'Finalized Customer Rate Truck Type changed';end if;
+ if has_function_privilege('anon','public.transport_save_operational_trip_edit(uuid,jsonb,uuid,uuid,text)','EXECUTE')
+ then raise exception 'Atomic Trip edit exposed to anonymous';end if;
+
  perform pg_temp.entry_rejected(format('select public.transport_create_trips(%L,%L,%L,%L::jsonb)',gen_random_uuid(),c,b,jsonb_set(payload,'{0,supplier_rent}','1')),'Supplier Owned Vehicle');
  update public.transport_drivers set mobile='999' where id=d;
  update public.transport_customer_rates set amount=2000 where id=rate;

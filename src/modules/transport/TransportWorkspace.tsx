@@ -245,6 +245,8 @@ export default function TransportWorkspace(){
     billingModes:Record<string,'cash'|'credit'>;
   }>({customers:[],truckTypes:[],locations:[],vehicles:[],drivers:[],suppliers:[],employees:[],ownership:[],rates:[],billingModes:{}});
 
+  const [editingOriginalTruckTypeId,setEditingOriginalTruckTypeId]=useState("");
+  const [editingOriginalRateState,setEditingOriginalRateState]=useState("");
   const [form,setForm]=useState({
     trip_date:new Date().toISOString().slice(0,10),
     customer_id:"",
@@ -898,6 +900,8 @@ export default function TransportWorkspace(){
       setEditingTripId(data.id);
       setEditingTripNo(data.trip_no);
       setEditingOriginalAssignment({vehicle_id:data.vehicle_id||"",driver_id:data.driver_id||""});
+      setEditingOriginalTruckTypeId(data.truck_type_id||"");
+      setEditingOriginalRateState(data.customer_rate_state||"");
       setNewTripMode("single");
       setTab("new");
     }catch(e:any){
@@ -932,6 +936,13 @@ export default function TransportWorkspace(){
     if(!form.from_location.trim()||!form.to_location.trim()){setError("From and To locations are required.");return}
 
     if(form.ppr_status==="received"&&(!form.ppr_received_by_employee_id||!form.ppr_received_date)){setError("PPR Received requires the receiving employee and date.");return}
+    const chosenVehicle=tripMasters.vehicles.find(v=>v.id===form.vehicle_id);
+    if(form.vehicle_id&&(!chosenVehicle||(form.truck_type_id&&chosenVehicle.truck_type_id!==form.truck_type_id))){
+      setError("Selected Plate does not match the selected Trip Truck Type. Choose a compatible Vehicle.");return;
+    }
+    if(form.truck_type_id!==editingOriginalTruckTypeId&&editingOriginalRateState==="finalized"){
+      setError("Finalized Customer Rate locks Truck Type. Use controlled rate correction/re-finalization before changing Truck Type or Plate.");return;
+    }
     const customer=tripMasters.customers.find((c:any)=>c.id===form.customer_id);
     if(!customer){setError("Selected Customer is no longer available.");return}
 
@@ -968,6 +979,7 @@ export default function TransportWorkspace(){
         form.vehicle_id!==editingOriginalAssignment.vehicle_id ||
         form.driver_id!==editingOriginalAssignment.driver_id);
 
+      let replacementReason:string|null=null;
       if(assignmentChanged){
         const reason=window.prompt(
           "Driver/vehicle replacement reason is required for the audit history:",
@@ -978,24 +990,10 @@ export default function TransportWorkspace(){
           return;
         }
 
-        const {error:replaceError}=await supabase.rpc("transport_replace_trip_assignment",{
-          p_trip_id:editingTripId,
-          p_vehicle_id:form.vehicle_id||null,
-          p_driver_id:form.driver_id||null,
-          p_reason:reason.trim()
-        });
-        if(replaceError)throw replaceError;
+        replacementReason=reason.trim();
       }
 
-      // Trip Date is permanent on the edit screen; avoid a second round-trip just
-      // to rediscover the date we opened with.
-      const originalTripDate=form.trip_date;
-      let correctionReason:string|null=null;
-      if(originalTripDate&&form.trip_date!==originalTripDate){
-        correctionReason=window.prompt("Trip Date correction reason is required for audit history:","")?.trim()||null;
-        if(!correctionReason){setError("Trip Date correction cancelled. A reason is required.");return;}
-      }
-      const safePayload={...payload,...(correctionReason?{correction_reason:correctionReason}:{})};
+      const safePayload={...payload};
       delete (safePayload as any).vehicle_id;
       delete (safePayload as any).driver_id;
       delete (safePayload as any).owner_name_snapshot;
@@ -1006,12 +1004,19 @@ export default function TransportWorkspace(){
         delete (safePayload as any).sale_type;
       }
 
-      const {error}=await supabase.rpc('transport_update_operational_trip',{p_trip_id:editingTripId,p_changes:safePayload});
+      // One RPC means assignment + operational correction either both succeed or both roll back.
+      const {error}=await supabase.rpc('transport_save_operational_trip_edit',{
+        p_trip_id:editingTripId,p_changes:safePayload,
+        p_vehicle_id:form.vehicle_id||null,p_driver_id:form.driver_id||null,
+        p_reason:replacementReason
+      });
       if(error)throw error;
 
       setEditingTripId(null);
       setEditingTripNo("");
       setEditingOriginalAssignment({vehicle_id:"",driver_id:""});
+      setEditingOriginalTruckTypeId("");
+      setEditingOriginalRateState("");
       const returnTo=entryReturnTab.current;
       setTab(returnTo);
       if(returnTo==="mobile")await loadMobileTrips(mobileSearch);else await load();
