@@ -42,6 +42,9 @@ begin
   -- The historical customer and cash customer each have an explicit master billing rule.
   perform public.transport_set_party_billing_mode('customer',customer,'Credit');
   perform public.transport_set_party_billing_mode('customer',cash_customer,'Cash');
+  -- Historical source invoice dates must have an effective-dated tax master.
+  insert into public.tax_rates(user_id,company_id,name,rate,applies_to,is_fixed,is_active,effective_from)
+  values(u,c,'Historical VAT',18,'both',true,true,current_date-3);
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
 
 
@@ -100,7 +103,7 @@ begin
  or (history_status->'totals'->>'customer_remaining')::numeric<>2800 or (history_status->'totals'->>'supplier_remaining')::numeric<>1400 then raise exception 'History control totals incorrect %',history_status;end if;
  execute 'reset role';
  insert into public.chart_of_accounts(user_id,company_id,code,name,type,detail_type,is_group,is_active) values(u,c,'HIST-BANK','Historical second bank','asset','Bank Account',false,true) returning id into secondary_bank;
- insert into public.tax_rates(user_id,company_id,name,rate,applies_to,is_fixed,is_active,effective_from) values(u,c,'Historical VAT',18,'both',true,true,current_date-3);
+ -- Historical VAT rate is already configured before creating invoice snapshots.
  payload:=jsonb_build_object('source_id','OLD-4','trip',jsonb_build_object('trip_date',current_date-2,'customer_id',customer,'vehicle_id',history_vehicle,'from_location_id',f,'to_location_id',dest,'ppr_status','pending','sale_type','credit','customer_rate',100,'supplier_rent',100),
  'customer_posted',true,'supplier_posted',true,'customer_date',current_date-2,'supplier_date',current_date-2,'customer_vat',true,'supplier_vat',true,
  'customer_gross',118,'supplier_gross',118,'received',50,'paid',50,'customer_remaining',68,'supplier_remaining',68,
