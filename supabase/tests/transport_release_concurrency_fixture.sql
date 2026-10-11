@@ -40,11 +40,14 @@ begin
  if ar is null or ap is null or acct is null or cash_id is null then raise exception 'Canonical accounting setup missing'; end if;
  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Service Customer',ar) returning id into customer;
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
+ -- Concurrent voucher assertions use net=1000 Cash bills and do not require VAT.
+ perform public.transport_set_party_billing_mode('customer',customer,'Cash');
+ perform public.transport_set_party_billing_mode('supplier',supplier,'Cash');
 
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
- values(c,b,'',current_date,customer,'A','B',1000,400,'credit') returning id into trip;
+ values(c,b,'',current_date,customer,'A','B',1000,400,'cash') returning id into trip;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
- values(c,b,'',current_date,customer,'A','B',1000,300,'credit') returning id into trip2;
+ values(c,b,'',current_date,customer,'A','B',1000,300,'cash') returning id into trip2;
 
  perform public.transport_finalize_customer_rate(trip,1000,'manual');
  perform public.transport_finalize_customer_rate(trip2,1000,'manual');
@@ -55,7 +58,7 @@ begin
  insert into public.transport_locations(company_id,business_unit_id,name) values(c,b,'Race To') returning id into to_id;
  vehicle:=public.transport_create_vehicle_master('RACE-V-'||code,truck_type,'company',null,current_date);
  vehicle2:=public.transport_create_vehicle_master('RACE-W-'||code,truck_type,'company',null,current_date);
- race_payload:=jsonb_build_array(jsonb_build_object('trip_date',current_date,'customer_id',customer,'vehicle_id',vehicle,'truck_type_id',truck_type,'from_location_id',from_id,'to_location_id',to_id,'sale_type','credit','customer_rate',1000,'driver_pay',0));
+ race_payload:=jsonb_build_array(jsonb_build_object('trip_date',current_date,'customer_id',customer,'vehicle_id',vehicle,'truck_type_id',truck_type,'from_location_id',from_id,'to_location_id',to_id,'sale_type','cash','customer_rate',1000,'driver_pay',0));
  insert into transport_rehearsal.fixture values(jsonb_build_object('user',u,'company',c,'unit',b,'location',loc,'trip',trip,'trip2',trip2,'rent',rent,'supplier',supplier,'customer',customer,'account',acct,'cash',cash_id,'date',current_date,'vehicle',vehicle,'vehicle2',vehicle2,'payload',race_payload));
 end $$;
 commit;
