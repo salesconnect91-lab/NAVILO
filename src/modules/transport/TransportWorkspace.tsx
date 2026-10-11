@@ -594,7 +594,8 @@ export default function TransportWorkspace(){
   useEffect(()=>{
     if(tab!=="trips"||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
     const refresh=()=>{if(document.visibilityState==="visible"&&!registerRequest.current)void load(true)};
-    const timer=window.setInterval(refresh,30000);
+    // Keep manual/focus/save refresh immediate; avoid saturating the 8s RPC pool with idle 30s polling.
+    const timer=window.setInterval(refresh,180000);
     window.addEventListener("focus",refresh);
     document.addEventListener("visibilitychange",refresh);
     return ()=>{
