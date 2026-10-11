@@ -171,6 +171,11 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
   try{const result=await supabase.rpc('transport_adjust_rate',{p_trip_id:singleRow.trip_id,p_side:'supplier',p_new_rate:Number(singleAmount),p_reason:reason.trim(),p_date:date,p_rent_id:singleRent.id,p_reference:'Trips grid supplier rent correction'});if(result.error)throw result.error;saved=true;await onChanged();onClose();}
   catch(e:any){setError(`${saved?'Correction posted; refresh failed. ':''}${e?.message||e}`);if(saved)setPermissions({});}finally{submitting.current=false;setBusy(false);}
  }
+ if(compact&&!loading&&singleRow&&singleRent&&!singlePosted&&!singleBlocked)return <TransportSupplierCharges
+  key={`${scopeKey}/${singleRent.id}`} rentId={singleRent.id} tripNo={singleRow.trip_no} editRate rateAllowed={canFinalize(singleRow.id)} onClose={onClose} onChanged={onChanged}
+  headerExtra={<><p className="mt-2 text-[10px] text-slate-500">{singleRow.customer_name} · {singleRow.from_location} → {singleRow.to_location} · {vehicleDisplayLabel(singleRow.vehicle_no,singleRow.truck_type_name??singleRow.truck_type)}</p>
+   {singleRows.length>1&&<label className="mt-2 block font-semibold">Supplier rent<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 h-8 w-full" value={singleRow.id} onChange={e=>setSingleRowKey(e.target.value)}>{singleRows.map(r=><option key={r.id} value={r.id}>{r.owner_name} · {financialNumber(r.billed_supplier_net??r.supplier_rent)}</option>)}</NaviloSearchableSelect></label>}</>}
+ />;
  if(compact)return <TransportDialog  onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const items=compactDialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)');if(items?.length){const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}}>
   <section ref={compactDialog} role="dialog" aria-modal="true" aria-labelledby="supplier-rate-title" className="w-full max-w-sm rounded bg-white p-4 text-sm shadow-xl">
    <h2 id="supplier-rate-title" className="font-semibold">{singlePosted?'Posted':'Update'} Supplier Rate · {singleRow?.trip_no||''}</h2>

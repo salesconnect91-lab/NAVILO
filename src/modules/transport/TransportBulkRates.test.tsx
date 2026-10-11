@@ -9,8 +9,11 @@ import {bulkLines,loadBulkTrips,validBulkMoney,type BulkTrip} from './transportB
 const mock=vi.hoisted(()=>({rpc:vi.fn(),trips:[] as any[],tables:{} as Record<string,any[]>,allowed:true,failCash:false,failCorrection:false,supplierCredit:false}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'company'},activeBusinessUnit:{business_unit_id:'unit'}})}));
 vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{
- const q:any={};let from=0,to=999;
+ const q:any={};let from=0,to=999;let id="";
  for(const method of ['select','eq','in','order'])q[method]=()=>q;
+ q.eq=(column:string,value:string)=>{if(column==='id')id=value;return q};
+ q.limit=()=>q;
+ q.single=async()=>({data:(mock.tables[table]??[]).find(r=>r.id===id),error:null});
  q.range=(a:number,b:number)=>{from=a;to=b;return q};
  q.then=(resolve:any)=>Promise.resolve({data:(mock.tables[table]??[]).slice(from,to+1),error:null}).then(resolve);return q;
 }}}));
@@ -43,20 +46,33 @@ describe('Compact supplier rate popup',()=>{
   mock.allowed=false;render(<TransportBulkSupplierRent compact initialTripId="trip" initialSupplierName="Supplier A" onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByLabelText('Supplier rate excluding VAT');
   fireEvent.change(screen.getByLabelText('Supplier rate excluding VAT'),{target:{value:'75'}});fireEvent.change(screen.getByLabelText('Reason'),{target:{value:'Supplier agreed rent revised'}});
-  expect((screen.getByRole('button',{name:'Save Rate'}) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button',{name:/Save Rate & Charges/}) as HTMLButtonElement).disabled).toBe(true);
  });
  it('saves the selected Trip rent without opening a bulk table or posting an invoice',async()=>{
   const close=vi.fn();render(<TransportBulkSupplierRent compact initialTripId="trip" initialSupplierName="Supplier A" onClose={close} onChanged={async()=>{}}/>);
   const input=await screen.findByLabelText('Supplier rate excluding VAT');
-  expect(screen.getByRole('dialog').className).toContain('max-w-sm');
+  expect(screen.getByRole('dialog').className).toContain('max-w-lg');
   expect(screen.queryByRole('table')).toBeNull();
   fireEvent.change(input,{target:{value:'75'}});fireEvent.change(screen.getByLabelText('Reason'),{target:{value:'Supplier agreed rent revised'}});
-  fireEvent.click(screen.getByRole('button',{name:'Save Rate'}));
+  fireEvent.click(screen.getByRole('button',{name:/Save Rate & Charges/}));
   await waitFor(()=>expect(close).toHaveBeenCalled());
   expect(mock.rpc).toHaveBeenCalledWith('transport_finalize_supplier_rent',{p_rent_id:'rent-a',p_amount:75,p_reason:'Supplier agreed rent revised'});
   expect(mock.rpc.mock.calls.some(([name])=>name==='transport_add_supplier_rent')).toBe(false);
   expect(mock.rpc.mock.calls.some(([name])=>name.startsWith('transport_post_supplier_bill'))).toBe(false);
   expect(mock.rpc.mock.calls.filter(([name])=>name==='transport_bulk_rate_page').every(([,args])=>args.p_filters.initialTrip==='trip')).toBe(true);
+ });
+ it('opens rate and charges together for the explicitly selected unposted supplier rent',async()=>{
+  const close=vi.fn();render(<TransportBulkSupplierRent compact initialTripId="trip" initialSupplierName="Supplier A" onClose={close} onChanged={async()=>{}}/>);
+  await screen.findByLabelText('Supplier rate excluding VAT');
+  fireEvent.change(screen.getByLabelText('Supplier rent'),{target:{value:'rent-b'}});
+  await waitFor(()=>expect((screen.getByLabelText('Supplier rate excluding VAT') as HTMLInputElement).value).toBe('30'));
+  expect(screen.getByLabelText('Supplier charge')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Supplier rate excluding VAT'),{target:{value:'35'}});
+  fireEvent.change(screen.getByLabelText('Reason'),{target:{value:'Supplier confirmation received'}});
+  fireEvent.click(screen.getByRole('button',{name:/Save Rate & Charges/}));
+  await waitFor(()=>expect(close).toHaveBeenCalled());
+  expect(mock.rpc).toHaveBeenCalledWith('transport_finalize_supplier_rent',{p_rent_id:'rent-b',p_amount:35,p_reason:'Supplier confirmation received'});
+  expect(mock.rpc.mock.calls.some(([name])=>name.startsWith('transport_post_supplier_bill'))).toBe(false);
  });
  it('keeps multiple supplier rents separate and requires explicit confirmation before correcting a posted rent',async()=>{
   mock.tables.transport_supplier_document_rents=[{id:'link-a',rent_id:'rent-a'},{id:'link-b',rent_id:'rent-b'}];
