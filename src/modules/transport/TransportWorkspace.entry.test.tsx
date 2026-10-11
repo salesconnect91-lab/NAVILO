@@ -151,6 +151,42 @@ describe('Transport register server pagination',()=>{
 });
 
 describe('Transport register interactions',()=>{
+ it('deletes only after selecting a Draft Trip and confirming a reason',async()=>{
+  let deleted=false;
+  mock.rpc.mockImplementation(async(name:string)=>{
+   if(name==='transport_delete_draft_trip'){deleted=true;return {data:{deleted:true,trip_no:'DEL-TRIP'},error:null};}
+   return {data:name==='transport_register_query'?{rows:deleted?[]:[{id:'delete-trip',trip_no:'DEL-TRIP',status:'draft'}],count:deleted?0:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:true,error:null};
+  });
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText('DEL-TRIP');
+  const remove=screen.getByRole('button',{name:'Delete selected Trip'}) as HTMLButtonElement;
+  expect(remove.disabled).toBe(true);
+  fireEvent.click(screen.getByLabelText('Select trip DEL-TRIP'));expect(remove.disabled).toBe(false);fireEvent.click(remove);
+  expect(screen.getByRole('dialog',{name:'Delete Draft Trip'})).toBeTruthy();
+  expect((screen.getByRole('button',{name:'Delete Draft Trip'}) as HTMLButtonElement).disabled).toBe(true);
+  expect(mock.rpc.mock.calls.filter(c=>c[0]==='transport_delete_draft_trip')).toHaveLength(0);
+  fireEvent.change(screen.getByLabelText('Trip deletion reason'),{target:{value:'Duplicate entry'}});
+  fireEvent.click(screen.getByRole('button',{name:'Delete Draft Trip'}));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_delete_draft_trip',{p_trip_id:'delete-trip',p_reason:'Duplicate entry'}));
+  await screen.findByText('No trips yet.');expect(screen.queryByRole('dialog',{name:'Delete Draft Trip'})).toBeNull();
+ });
+ it('keeps the Trip and confirmation open when the server blocks financial deletion',async()=>{
+  mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_register_query'?{rows:[{id:'blocked-trip',trip_no:'BLOCKED-TRIP',status:'draft'}],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:true,error:name==='transport_delete_draft_trip'?{message:'Trip has financial entries or documents.'}:null}));
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText('BLOCKED-TRIP');fireEvent.click(screen.getByLabelText('Select trip BLOCKED-TRIP'));fireEvent.click(screen.getByRole('button',{name:'Delete selected Trip'}));
+  fireEvent.change(screen.getByLabelText('Trip deletion reason'),{target:{value:'Mistake'}});fireEvent.click(screen.getByRole('button',{name:'Delete Draft Trip'}));
+  await screen.findByText('Trip has financial entries or documents.');expect(screen.getByRole('dialog',{name:'Delete Draft Trip'})).toBeTruthy();expect(screen.getByText('BLOCKED-TRIP')).toBeTruthy();
+ });
+ it('blocks selection of a non Draft Trip for deletion and honors denied delete permission',async()=>{
+  mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[{id:'locked-trip',trip_no:'LOCKED-TRIP',status:'locked'}],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:true,error:null}));
+  const view=render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText('LOCKED-TRIP');fireEvent.click(screen.getByLabelText('Select trip LOCKED-TRIP'));
+  expect((screen.getByRole('button',{name:'Delete selected Trip'}) as HTMLButtonElement).disabled).toBe(true);
+  view.unmount();
+  mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[],count:0,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:args?.p_action==='trip_delete'?false:true,error:null}));
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);await screen.findByText('No trips yet.');
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('has_transport_action_permission',{p_company_id:'c',p_action:'trip_delete'}));expect(screen.queryByRole('button',{name:'Delete selected Trip'})).toBeNull();
+ });
  it('keeps original Theme 1 and removes the theme switcher even for saved Theme 4',async()=>{
   const key='navilo:transport:trip-theme:user:c:b';localStorage.setItem(key,'theme4');
   try{

@@ -286,6 +286,28 @@ export default function TransportWorkspace(){
   const [supplierChargeTarget,setSupplierChargeTarget]=useState<{rentId:string;tripNo:string}|null>(null);
   const [showRateList,setShowRateList]=useState(false);
   
+  const [canDeleteTrip,setCanDeleteTrip]=useState(false);
+  const [deleteTripTarget,setDeleteTripTarget]=useState<Trip|null>(null);
+  const [deleteTripReason,setDeleteTripReason]=useState("");
+  const [deleteTripError,setDeleteTripError]=useState("");
+  const [deletingTrip,setDeletingTrip]=useState(false);
+  const deleteTripRequest=useRef(false);
+  const confirmTripDeletion=async()=>{
+    if(!deleteTripTarget||deleteTripRequest.current)return;
+    const reason=deleteTripReason.trim();
+    if(!reason){setDeleteTripError("Enter a deletion reason.");return;}
+    const scope=scopeRef.current,target=deleteTripTarget;
+    deleteTripRequest.current=true;setDeletingTrip(true);setDeleteTripError("");
+    try{
+      const result=await supabase.rpc('transport_delete_draft_trip',{p_trip_id:target.id,p_reason:reason});
+      if(scopeRef.current!==scope)return;
+      if(result.error)throw result.error;
+      setDeleteTripTarget(null);setDeleteTripReason("");setSelectedTripIds(current=>{const next=new Set(current);next.delete(target.id);return next;});
+      if(editingTripId===target.id){setEditingTripId(null);setTab("trips");}
+      await load();
+    }catch(e:any){if(scopeRef.current===scope)setDeleteTripError(e?.message||"Unable to delete Trip.");}
+    finally{deleteTripRequest.current=false;if(scopeRef.current===scope)setDeletingTrip(false);}
+  };
   const [invoiceTrip,setInvoiceTrip]=useState<Trip|null>(null);
   const [editingRateLocks,setEditingRateLocks]=useState({customer:false,supplier:false});
   const [editingTripId,setEditingTripId]=useState<string|null>(null);
@@ -515,11 +537,12 @@ export default function TransportWorkspace(){
     setForm(previous=>({...previous,customer_id:'',vehicle_id:'',driver_id:'',truck_type_id:'',from_location:'',to_location:'',customer_rate:'',supplier_rent:'',driver_pay:''}));
     setTripMasters({customers:[],truckTypes:[],locations:[],vehicles:[],drivers:[],suppliers:[],employees:[],ownership:[],rates:[],billingModes:{}});
     setEntryPermissions({master:false,owner:false,rate:false,rent:false,driver:false});
+    setCanDeleteTrip(false);setDeleteTripTarget(null);setDeleteTripReason("");setDeleteTripError("");setDeletingTrip(false);
     const action=(p_action:string)=>supabase.rpc('has_transport_action_permission',{p_company_id:activeCompany?.company_id,p_action});
     void Promise.all([action('master_manage'),action('vehicle_owner_change'),action('customer_rate_finalize'),action('rent_finalize'),
-      supabase.rpc('transport_finance_allowed',{p_action:'rent'}),supabase.rpc('transport_finance_allowed',{p_action:'driver'})])
+      supabase.rpc('transport_finance_allowed',{p_action:'rent'}),supabase.rpc('transport_finance_allowed',{p_action:'driver'}),action('trip_delete')])
       .then(results=>{if(active){if(results.some(r=>r.error)){setError('Unable to load entry permissions.');return;}
-        setEntryPermissions({master:results[0].data===true,owner:results[1].data===true,rate:results[2].data===true,rent:results[3].data===true&&results[4].data===true,driver:results[5].data===true});}});
+        setEntryPermissions({master:results[0].data===true,owner:results[1].data===true,rate:results[2].data===true,rent:results[3].data===true&&results[4].data===true,driver:results[5].data===true});setCanDeleteTrip(results[6].data===true);}});
     return()=>{active=false};
   },[scopeKey]);
 
@@ -1531,6 +1554,7 @@ export default function TransportWorkspace(){
           <button type="button" onClick={resetGrid} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Reset</button>
           <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-7 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold text-white border border-blue-500 bg-blue-600 hover:bg-blue-700"><RefreshCw className="h-3 w-3"/>Refresh</button>
           <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Columns</button>
+          {canDeleteTrip&&<button type="button" aria-label="Delete selected Trip" title="Select one Draft Trip to delete" disabled={selectedTripCount!==1||!gridRows.some(r=>selectedTripIds.has(r.id)&&r.status==='draft')} onClick={()=>{const selected=gridRows.find(r=>selectedTripIds.has(r.id));if(selected){setDeleteTripTarget(selected);setDeleteTripReason("");setDeleteTripError("");}}} className="flex h-7 items-center gap-1 rounded-md border border-rose-400 bg-rose-700 px-2 text-white disabled:opacity-40"><Trash2 className="h-4 w-4"/>Delete</button>}
           <span data-navilo-standard-tools-host="true" className="contents" />
         </div>
         <span className="navilo-transport-result-count">{gridRows.length.toLocaleString()} shown / {Number(registerMeta.count??0).toLocaleString()} filtered trips</span>
@@ -1589,6 +1613,7 @@ export default function TransportWorkspace(){
           </div>
         </section></TransportDialog>}
 
+      {deleteTripTarget&&<TransportDialog onClose={()=>{if(!deletingTrip)setDeleteTripTarget(null);}}><section role="dialog" aria-modal="true" aria-label="Delete Draft Trip" className="w-full max-w-md rounded-lg border border-rose-200 p-3 text-sm"><header className="mb-2 flex items-center justify-between"><strong>Delete Draft Trip · {deleteTripTarget.trip_no}</strong><button type="button" aria-label="Close Trip deletion" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>×</button></header><p className="mb-2 text-xs text-slate-600">This removes the Draft Trip and its unposted rent / charges. Trips with financial entries or documents are blocked. Trip Audit history is retained; the Trip No will not be reused.</p><label className="block text-xs font-semibold">Deletion reason<textarea aria-label="Trip deletion reason" maxLength={1000} disabled={deletingTrip} className="input mt-1 min-h-16 w-full" value={deleteTripReason} onChange={e=>setDeleteTripReason(e.target.value)}/></label>{deleteTripError&&<p role="alert" className="mt-2 text-xs text-rose-700">{deleteTripError}</p>}<footer className="mt-3 flex justify-end gap-2"><button type="button" className="btn" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>Keep Trip</button><button type="button" className="btn-danger" disabled={deletingTrip||!deleteTripReason.trim()} onClick={()=>void confirmTripDeletion()}>{deletingTrip?"Deleting…":"Delete Draft Trip"}</button></footer></section></TransportDialog>}
       {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
       <div
         ref={tripsGridRef}
