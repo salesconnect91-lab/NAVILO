@@ -51,9 +51,10 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
  <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="initial-rate-title" className="w-full max-w-sm rounded bg-white p-4 text-sm shadow-xl">
   <h2 id="initial-rate-title" className="font-semibold">{title} · {trip.trip_no}</h2>
   <p className="my-2 text-xs text-slate-600">{trip.customer_name}<br/>{trip.from_location} → {trip.to_location}<br/>{trip.vehicle_no}</p>
-  <label className="block text-xs font-semibold">{posted?'Company rate excluding VAT':'Customer Base Rate · excluding charges and VAT'}
+  <label className="block text-xs font-semibold">Company rate excluding VAT
    <input ref={input} className="input mt-1 w-full" type="number" min="0" step="0.01" value={amount} disabled={busy||saved||(posted&&!correctionMode)} onChange={e=>setAmount(e.target.value)}/>
   </label>
+  {!posted&&<p className="text-[10px] text-slate-500">This is the base rate, excluding separately saved charges.</p>}
   {posted&&correctionMode&&<label className="mt-2 block text-xs font-semibold">Correction Date
    <NaviloDateInput className="input mt-1 w-full" type="date" value={date} disabled={busy||saved} onChange={e=>setDate(e.target.value)}/>
   </label>}
