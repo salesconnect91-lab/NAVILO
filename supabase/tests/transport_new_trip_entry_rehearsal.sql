@@ -102,6 +102,15 @@ begin
  if not exists(select 1 from public.transport_trips where id=trip and customer_rate_snapshot=1000 and customer_rate_reference_id=rate and customer_rate_source='agreed' and owner_rent=0 and driver_pay=50)
  then raise exception 'Rate/Driver Pay snapshots or legacy rent zero missing';end if;
  if not exists(select 1 from public.transport_trip_supplier_rents where trip_id=trip and supplier_id=supplier and finalized_amount_snapshot=300 and state='finalized') then raise exception 'Supplier rent separate snapshot missing';end if;
+ -- Read-only Edit Trip RPC regression: UUID rent IDs cannot use min(uuid).
+ result:=public.transport_edit_trip_read(trip);
+ if (result->>'supplier_rent_count')::integer<>1 then
+    raise exception 'Trip Edit supplier rent count was not loaded';
+ end if;
+ if (result->>'supplier_rent_id')::uuid is distinct from
+    (select id from public.transport_trip_supplier_rents where trip_id=trip limit 1)
+ then raise exception 'Trip Edit single rent UUID was not loaded';end if;
+
  if not exists(select 1 from public.transport_trip_assignments where trip_id=trip and driver_supplier_id_snapshot=supplier and driver_mobile_snapshot='200') then raise exception 'Driver assignment relationship/mobile snapshot missing';end if;
  -- Supplier base rent 300 + waiting charge 400 must equal 700 (never 1100 on retry).
  insert into public.charge_master(user_id,company_id,charge_key,charge_name,applies_to,tax_applicable,cost_account_id,is_active)
