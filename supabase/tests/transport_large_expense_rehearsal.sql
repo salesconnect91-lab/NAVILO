@@ -39,6 +39,8 @@ begin
  if ar is null or ap is null or acct is null or cash_id is null then raise exception 'Canonical accounting setup missing'; end if;
  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Service Customer',ar) returning id into customer;
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
+ perform public.transport_set_party_billing_mode('customer',customer,'Credit');
+ perform public.transport_set_party_billing_mode('supplier',supplier,'Cash');
 
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,sale_type)
  values(c,b,'',current_date,customer,'A','B','credit') returning id into trip;

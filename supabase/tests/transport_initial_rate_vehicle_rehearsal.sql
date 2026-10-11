@@ -40,6 +40,8 @@ begin
  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Service Customer',ar) returning id into customer;
  perform public.transport_set_party_billing_mode('customer',customer,'Credit');
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
+ insert into public.tax_rates(user_id,company_id,name,rate,applies_to,is_fixed,is_active,effective_from)
+ values(u,c,'Fixture Credit VAT 15%',15,'both',true,true,current_date-30);
 
  insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,b,'Original') returning id into vehicle;
  insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,b,'Replacement') returning id into vehicle2;

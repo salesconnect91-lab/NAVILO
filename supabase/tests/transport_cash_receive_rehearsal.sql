@@ -39,6 +39,8 @@ begin
  if ar is null or ap is null or acct is null or cash_id is null then raise exception 'Canonical accounting setup missing'; end if;
  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Service Customer',ar) returning id into customer;
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
+ perform public.transport_set_party_billing_mode('customer',customer,'Cash');
+ perform public.transport_set_party_billing_mode('supplier',supplier,'Cash');
 
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,sale_type)
  values(c,b,'',current_date,customer,'A','B','cash') returning id into trip;
@@ -68,7 +70,7 @@ begin
  perform public.transport_finalize_initial_customer_rate(trip2,100);
  result:=public.transport_post_cash_bill_receive(gen_random_uuid(),trip2,current_date,cash_id,'cash',true,'CASH-VAT');
  sales2:=(result->'bill'->>'document_id')::uuid;
- if (result->>'received_gross')::numeric<>118 or (select outstanding_gross from public.transport_service_document_balances where side='customer' and order_id=sales2)<>0 then raise exception 'VAT cash receipt does not match gross bill';end if;
+ if (result->>'received_gross')::numeric<>100 or (select outstanding_gross from public.transport_service_document_balances where side='customer' and order_id=sales2)<>0 then raise exception 'Cash master unexpectedly charged VAT or left outstanding';end if;
  if (select trip_profit from public.transport_financial_register where id=trip2)<>100 then raise exception 'Cash profitability includes VAT';end if;
  raise notice 'PASS atomic cash bill/receipt, failed receipt rolls back bill, AR=0, exact retry and changed payload rejection';
 end $$;

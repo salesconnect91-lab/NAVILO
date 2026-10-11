@@ -39,9 +39,11 @@ begin
  if ar is null or ap is null or acct is null or cash_id is null then raise exception 'Canonical accounting setup missing'; end if;
  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Service Customer',ar) returning id into customer;
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
+ perform public.transport_set_party_billing_mode('customer',customer,'Cash');
+ perform public.transport_set_party_billing_mode('supplier',supplier,'Cash');
 
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,sale_type,customer_rate)
- values(c,b,'',current_date,customer,'A','B','credit',1000) returning id into trip;
+ values(c,b,'',current_date,customer,'A','B','cash',1000) returning id into trip;
  perform public.transport_finalize_customer_rate(trip,1000,'manual');
  result:=public.transport_post_customer_bill(trip,current_date,false);sales_id:=(result->>'document_id')::uuid;
  rent:=public.transport_add_supplier_rent(trip,supplier,600,'Rent');perform public.transport_finalize_supplier_rent(rent,600);result:=public.transport_post_supplier_bill(rent,current_date,acct,false);bill:=(result->>'document_id')::uuid;
