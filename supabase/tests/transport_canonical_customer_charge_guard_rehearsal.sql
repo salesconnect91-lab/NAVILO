@@ -50,6 +50,18 @@ begin
     raise exception 'Canonical customer charge row not stored correctly';
   end if;
 
+  perform public.transport_finalize_customer_rate(trip,1500,'manual','Customer base correction before post');
+  if (select customer_rate from public.transport_trips where id=trip)<>2100
+    or (select customer_base_rate from public.transport_trips where id=trip)<>1500
+   then raise exception '1500 base + 600 charges must equal 2100';end if;
+  result:=public.transport_replace_trip_customer_charges(trip,
+   jsonb_build_array(jsonb_build_object('charge_master_id',cm,'amount',400)),'Correct charge to 400');
+  if (result->>'final_rate')::numeric<>1900 or (result->>'base_rate')::numeric<>1500 then
+   raise exception '1500 base + 400 charges must equal 1900: %',result;end if;
+  perform public.transport_finalize_customer_rate(trip,1500,'manual','Re-confirm base with charges');
+  if (select customer_rate from public.transport_trips where id=trip)<>1900
+    then raise exception 'Customer repeated finalize double-counted charges';end if;
+
   -- Create the foreign synthetic master as the fixture administrator, then restore the tenant identity.
   insert into public.companies(name,code,status) values('Other charge company','OC'||code,'active') returning id into other_c;
   select id into other_b from public.business_units where company_id=other_c and is_default;
