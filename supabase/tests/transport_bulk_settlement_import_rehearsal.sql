@@ -39,6 +39,11 @@ begin
  if ar is null or ap is null or acct is null or cash_id is null then raise exception 'Canonical accounting setup missing'; end if;
  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Service Customer',ar) returning id into customer;
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
+ -- Synthetic billing masters must be explicitly configured, as in Transport Customer Master.
+ insert into public.tax_rates(user_id,company_id,name,rate,is_active,is_fixed,applies_to,effective_from,effective_to)
+ values(u,c,'Synthetic VAT 15',15,true,true,'both','2020-01-01',null);
+ perform public.transport_set_party_billing_mode('customer',customer,'Credit');
+ perform public.transport_set_party_billing_mode('supplier',supplier,'Cash');
 
  insert into public.transport_locations(company_id,business_unit_id,name,is_active) values(c,b,'A',true) returning id into from_loc;
  insert into public.transport_locations(company_id,business_unit_id,name,is_active) values(c,b,'B',true) returning id into to_loc;
