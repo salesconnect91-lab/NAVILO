@@ -54,6 +54,33 @@ begin
  or register->'rows'->0->>'vehicle_no'<>'2490' then raise exception 'FAIL Register search';end if;
  register:=public.transport_register_query(p_filters=>jsonb_build_object('vehicle','2490'),p_sort=>'driver');
  if (register->>'count')::integer<>2 then raise exception 'FAIL Plate filter';end if;
+ -- Source-mode exception must not change the Customer Master or ordinary Trip rule.
+ made:=public.transport_create_historical_source_trips(gen_random_uuid(),jsonb_build_array(
+ jsonb_build_object('source_company','Original CSV','source_trip_id','103','source_file_hash',source_hash,'source_row',4,
+ 'trip_date',current_date-3,'customer_id',customer,'from_location_id',f,'to_location_id',dest,'sale_type','credit','customer_rate',100)));
+ if (select sale_type from public.transport_trips where id=(made->0->>'id')::uuid)<>'credit'
+ or (select v->>'mode' from jsonb_array_elements(public.transport_trip_customer_modes()) v where v->>'id'=customer::text)<>'Cash'
+ or (select sale_type from public.transport_historical_billing_evidence where trip_id=(made->0->>'id')::uuid)<>'credit'
+ then raise exception 'FAIL historical mode or changed master';end if;
+ rejected:=false;
+ begin perform public.transport_create_trips(gen_random_uuid(),c,b,jsonb_build_array(jsonb_build_object(
+ 'trip_date',current_date,'customer_id',customer,'from_location_id',f,'to_location_id',dest,'sale_type','credit')));
+ exception when others then rejected:=position('disagrees' in sqlerrm)>0;end;
+ if not rejected then raise exception 'FAIL ordinary Trip billing guard weakened';end if;
+ rejected:=false;
+ begin perform public.transport_create_historical_source_trips(gen_random_uuid(),jsonb_build_array(jsonb_build_object(
+ 'source_company','Original CSV','source_trip_id','104','source_file_hash',repeat('b',64),'source_row',5,
+ 'trip_date',current_date,'customer_id',customer,'from_location_id',f,'to_location_id',dest,'sale_type','credit')));
+ exception when others then rejected:=position('registered source' in sqlerrm)>0;end;
+ if not rejected then raise exception 'FAIL unregistered source accepted';end if;
+ if has_table_privilege('authenticated','public.transport_historical_mode_gate','insert')
+ or has_table_privilege('authenticated','public.transport_historical_billing_evidence','insert')
+ or has_function_privilege('anon','public.transport_create_historical_source_trips(uuid,jsonb)','execute')
+ then raise exception 'FAIL historical mode privileges';end if;
+ execute 'reset role';
+ if exists(select 1 from public.transport_historical_mode_gate) then raise exception 'FAIL gate leaked';end if;
+ select jsonb_agg(to_jsonb(t) order by id) into before_rows from transport_trips t where company_id=c;
+ execute 'set local role authenticated';
  rejected:=false;
  begin perform public.transport_attach_historical_trip_identity(jsonb_build_array((payload->0)||jsonb_build_object('vehicle_no_snapshot','WRONG')));
  exception when others then rejected:=position('different source evidence' in sqlerrm)>0;end;
