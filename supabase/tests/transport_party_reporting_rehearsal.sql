@@ -38,13 +38,14 @@ begin
  if acct is null then acct:=cost; end if;
  if ar is null or ap is null or acct is null or cash_id is null then raise exception 'Canonical accounting setup missing'; end if;
  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Service Customer',ar) returning id into customer;
- perform public.transport_set_party_billing_mode('customer',customer,'Credit');
+ perform public.transport_set_party_billing_mode('customer',customer,'Cash');
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
+ perform public.transport_set_party_billing_mode('supplier',supplier,'Cash');
 
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
- values(c,b,'',current_date,customer,'A','B',1000,400,'credit') returning id into trip;
+ values(c,b,'',current_date,customer,'A','B',1000,400,'cash') returning id into trip;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
- values(c,b,'',current_date,customer,'A','B',1000,300,'credit') returning id into trip2;
+ values(c,b,'',current_date,customer,'A','B',1000,300,'cash') returning id into trip2;
  perform public.transport_finalize_customer_rate(trip,1000,'manual');
  result:=public.transport_post_customer_bill(trip,current_date,false);sales_id:=(result->>'document_id')::uuid;
  perform public.transport_finalize_customer_rate(trip2,1000,'manual');

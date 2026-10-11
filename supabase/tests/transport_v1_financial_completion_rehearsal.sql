@@ -41,12 +41,16 @@ begin
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
 
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Second Supplier',ap) returning id into supplier2;
+ -- Initial non-VAT service examples use Cash-mode masters, not unconfigured Credit bills.
+ perform public.transport_set_party_billing_mode('customer',customer,'Cash');
+ perform public.transport_set_party_billing_mode('supplier',supplier,'Cash');
+ perform public.transport_set_party_billing_mode('supplier',supplier2,'Cash');
  insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,b,'FIN-V') returning id into vehicle;
  insert into public.transport_drivers(company_id,business_unit_id,driver_name) values(c,b,'Financial Driver') returning id into driver;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,vehicle_id,driver_id,from_location,to_location,customer_rate,owner_rent,sale_type)
- values(c,b,'',current_date,customer,vehicle,driver,'A','B',1000,400,'credit') returning id into trip;
+ values(c,b,'',current_date,customer,vehicle,driver,'A','B',1000,400,'cash') returning id into trip;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
- values(c,b,'',current_date,customer,'A','B',200,0,'credit') returning id into trip2;
+ values(c,b,'',current_date,customer,'A','B',200,0,'cash') returning id into trip2;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
  values(c,b,'',current_date,customer,'A','B',100,0,'cash') returning id into cash_trip;
  perform public.transport_finalize_customer_rate(trip,1000,'manual');
@@ -186,6 +190,9 @@ end if;
  -- VAT is allocated on gross amounts and decomposed on original document basis.
  insert into public.company_tax_events(company_id,effective_from,tax_mode,authority_code) values(c,current_date,'tax_registered','REHEARSAL');
  insert into public.tax_rates(user_id,company_id,name,rate,applies_to,is_fixed,is_active,effective_from) values(u,c,'Transport VAT 18%',18,'both',true,true,current_date);
+ -- Next examples use effective-dated VAT on Credit customer/supplier invoices.
+ perform public.transport_set_party_billing_mode('customer',customer,'Credit');
+ perform public.transport_set_party_billing_mode('supplier',supplier,'Credit');
  update public.customers set tax_registration_status='registered',strn='CUSTOMER-VAT' where id=customer;
  update public.suppliers set tax_registration_status='registered',strn='SUPPLIER-VAT' where id=supplier;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
