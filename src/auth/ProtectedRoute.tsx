@@ -25,7 +25,7 @@ function moduleForPath(pathname:string):ModuleKey|null{
 }
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { user, loading, accessContext, accessError, isPlatformOwner, activeCompany, activeBusinessUnit, availableCompanies, requiresCompanySelection, switchingCompany, switchCompany, signOut } = useAuth();
+  const { user, loading, accessContext, accessError, isPlatformOwner, activeCompany, activeBusinessUnit, availableCompanies, requiresCompanySelection, switchingCompany, switchCompany, refreshAccess, signOut } = useAuth();
   const [selectionError,setSelectionError]=useState("");
   const location = useLocation();
 
@@ -77,7 +77,8 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const noCompanyAccess = accessContext && !isPlatformOwner && !activeCompany;
   if (accessError || !accessContext || profileBlocked || noCompanyAccess) {
     const reason = accessError ? accessError : profileBlocked ? "Your Login ID has been suspended by the software owner." : !accessContext ? "Your Login ID has not been provisioned." : "Your company access is suspended, expired, or inactive.";
-    return <div className="min-h-screen bg-slate-50 px-4 py-12"><div className="mx-auto max-w-lg rounded-2xl border border-amber-200 bg-white p-6 shadow-sm"><div className="text-xs font-semibold uppercase tracking-wider text-amber-600">NAVILO Access Control</div><h1 className="mt-2 text-xl font-bold text-slate-900">Access unavailable</h1><p className="mt-2 text-sm text-slate-600">{reason}</p><p className="mt-3 text-xs text-slate-500">Contact the NAVILO software owner or your company administrator.</p><button type="button" className="btn mt-5" onClick={() => void signOut()}>Sign out</button></div></div>;
+    const temporaryConnectionError = Boolean(accessError && /PGRST002|could not query the database for the schema cache|Access context timed out/i.test(accessError));
+    return <div className="min-h-screen bg-slate-50 px-4 py-12"><div className="mx-auto max-w-lg rounded-2xl border border-amber-200 bg-white p-6 shadow-sm"><div className="text-xs font-semibold uppercase tracking-wider text-amber-600">NAVILO Access Control</div><h1 className="mt-2 text-xl font-bold text-slate-900">Access unavailable</h1><p className="mt-2 text-sm text-slate-600">{reason}</p><p className="mt-3 text-xs text-slate-500">{temporaryConnectionError ? "Temporary database connection problem. Your records have not been deleted. NAVILO will retry automatically; use Retry Access if the error remains." : "Contact the NAVILO software owner or your company administrator."}</p><div className="mt-5 flex items-center gap-3">{temporaryConnectionError && <button type="button" className="btn-primary" onClick={() => void refreshAccess()}>Retry Access</button>}<button type="button" className="btn" onClick={() => void signOut()}>Sign out</button></div></div></div>;
   }
 
   const module=moduleForPath(location.pathname);
