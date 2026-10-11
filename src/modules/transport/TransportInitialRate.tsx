@@ -11,7 +11,8 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
  const {activeCompany,activeBusinessUnit}=useAuth();
  const posted=Boolean(trip.customer_rate_locked||trip.invoiced||Number(trip.billed_customer_net??0)>0);
  const finalized=trip.customer_rate_state==='finalized';
- const [amount,setAmount]=useState(trip.billed_customer_net==null?(trip.customer_rate==null?'':String(trip.customer_rate)):String(trip.billed_customer_net));
+ const initialBase=Number(trip.customer_base_rate??Math.max(0,Number(trip.customer_rate??0)-Number(trip.customer_charges??0)-Number(trip.customer_manual_adjustment??0)));
+ const [amount,setAmount]=useState(posted?String(trip.billed_customer_net??trip.customer_rate??''):String(initialBase));
  const [reason,setReason]=useState('');
  const [reasonPreset,setReasonPreset]=useState('');
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
@@ -28,7 +29,7 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
  },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,posted,finalized]);
 
  const valid=amount.trim()!==''&&Number.isFinite(Number(amount))&&Number(amount)>=0&&/^\d+(\.\d{1,2})?$/.test(amount);
- const changed=valid&&Number(amount)!==Number(posted?(trip.billed_customer_net??trip.customer_rate??0):(trip.customer_rate??0));
+ const changed=valid&&Number(amount)!==Number(posted?(trip.billed_customer_net??trip.customer_rate??0):initialBase);
  const reasonRequired=posted||finalized;
 
  async function save(){
@@ -50,7 +51,7 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
  <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="initial-rate-title" className="w-full max-w-sm rounded bg-white p-4 text-sm shadow-xl">
   <h2 id="initial-rate-title" className="font-semibold">{title} · {trip.trip_no}</h2>
   <p className="my-2 text-xs text-slate-600">{trip.customer_name}<br/>{trip.from_location} → {trip.to_location}<br/>{trip.vehicle_no}</p>
-  <label className="block text-xs font-semibold">Company rate excluding VAT
+  <label className="block text-xs font-semibold">{posted?'Company rate excluding VAT':'Customer Base Rate · excluding charges and VAT'}
    <input ref={input} className="input mt-1 w-full" type="number" min="0" step="0.01" value={amount} disabled={busy||saved||(posted&&!correctionMode)} onChange={e=>setAmount(e.target.value)}/>
   </label>
   {posted&&correctionMode&&<label className="mt-2 block text-xs font-semibold">Correction Date
@@ -68,7 +69,7 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
     <input className="input mt-1 w-full" value={reason} disabled={busy||saved} onChange={e=>setReason(e.target.value)} placeholder={posted?'Enter posted correction reason':'Enter rate override reason'}/>
    </label>}
   </>}
-  <p className="my-2 text-xs text-slate-600">{posted?(correctionMode?'This is a financial correction. Posting creates a separate canonical debit/credit adjustment; the original invoice stays unchanged.':'This Trip already has posted billing. Direct rate editing is locked here and will never post an invoice silently. Use the explicit financial correction action only when accounting must change.'):finalized?'This changes the finalized unposted Trip rate and records the override reason.':'Finalizing the initial rate records it in the Trip audit.'}</p>
+  <p className="my-2 text-xs text-slate-600">{posted?(correctionMode?'This is a financial correction. Posting creates a separate canonical debit/credit adjustment; the original invoice stays unchanged.':'This Trip already has posted billing. Direct rate editing is locked here and will never post an invoice silently. Use the explicit financial correction action only when accounting must change.'):finalized?'This changes the base rate. Saved charges stay separate; NAVILO recalculates the total and records the override reason.':'Finalizing the initial rate records it in the Trip audit.'}</p>
   {posted&&correctionMode&&<label className="my-2 flex items-start gap-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
    <input aria-label="Confirm financial correction posting" className="mt-0.5" type="checkbox" checked={confirmFinancialPost} disabled={busy||saved} onChange={e=>setConfirmFinancialPost(e.target.checked)}/>
    <span>I understand this posts a separate accounting debit/credit adjustment and does not overwrite the original invoice.</span>
