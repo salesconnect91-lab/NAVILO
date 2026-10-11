@@ -2,7 +2,7 @@
 begin;
 do $$
 declare u uuid:=gen_random_uuid();code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
- c uuid;b uuid;loc uuid;customer uuid;supplier uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;secondary_bank uuid;
+ c uuid;b uuid;loc uuid;customer uuid;cash_customer uuid;supplier uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;secondary_bank uuid;
  trip uuid;trip2 uuid;sales_id uuid;sales2 uuid;rent uuid;rent2 uuid;bill uuid;bill2 uuid;
  result jsonb;again jsonb;payload jsonb;request_id uuid:=gen_random_uuid();payment_id uuid;receipt_id uuid;
  history_job jsonb;history_manifest jsonb;history_settings jsonb;history_rows jsonb;history_id uuid;f uuid;dest uuid;history_vehicle uuid;bad jsonb;history_status jsonb;employee uuid;path text;vehicle uuid;vehicle2 uuid; count_before bigint;rejected boolean;other_bu uuid;other_loc uuid;other_c uuid;v numeric;
@@ -38,6 +38,10 @@ begin
  if acct is null then acct:=cost; end if;
  if ar is null or ap is null or acct is null or cash_id is null then raise exception 'Canonical accounting setup missing'; end if;
  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Service Customer',ar) returning id into customer;
+  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Historical Cash Customer',ar) returning id into cash_customer;
+  -- The historical customer and cash customer each have an explicit master billing rule.
+  perform public.transport_set_party_billing_mode('customer',customer,'Credit');
+  perform public.transport_set_party_billing_mode('customer',cash_customer,'Cash');
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
 
 
@@ -86,7 +90,7 @@ begin
  if not rejected then raise exception 'History changed payload accepted';end if;
  rejected:=false;begin perform public.transport_prepare_history_import(repeat('c',64),'history-copy.xlsx',history_manifest,history_settings);exception when others then rejected:=true;end;
  if not rejected then raise exception 'One-time history accepted second dataset';end if;
- payload:=jsonb_build_object('source_id','OLD-3','trip',jsonb_build_object('trip_date',current_date-2,'customer_id',customer,'from_location_id',f,'to_location_id',dest,'ppr_status','pending','sale_type','cash','customer_rate',2000),
+ payload:=jsonb_build_object('source_id','OLD-3','trip',jsonb_build_object('trip_date',current_date-2,'customer_id',cash_customer,'from_location_id',f,'to_location_id',dest,'ppr_status','pending','sale_type','cash','customer_rate',2000),
  'customer_posted',false,'supplier_posted',false,'customer_date','','supplier_date','','customer_vat',false,'supplier_vat',false,
  'customer_gross',0,'supplier_gross',0,'received',0,'paid',0,'customer_remaining',0,'supplier_remaining',0,'payments','[]'::jsonb);
  perform public.transport_import_history_batch(history_id,1,jsonb_build_array(payload));
