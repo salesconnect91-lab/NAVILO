@@ -239,13 +239,24 @@
   }
   .erp-shell #navilo-main-content [data-navilo-transport-register] [data-payment-shortcut] svg { width: 21px !important; height: 21px !important; stroke-width: 2; }
   .erp-shell #navilo-main-content [data-navilo-transport-register] tbody button[data-register-editable] {
-    display: inline-flex; align-items: center; width: 100%; min-height: 22px;
-    padding: 0 4px !important; border: 1px solid #ed8799 !important;
-    background: #fff3f5 !important; color: #a52c47 !important; border-radius: 3px !important;
+    display: inline-flex; align-items: center; width: 100%; height: 22px !important; min-height: 22px !important;
+    padding: 0 4px !important; border: 1px solid #dc566e !important;
+    background: #ffdfe5 !important; color: #a52c47 !important; border-radius: 3px !important;
     cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td:first-child button[data-register-editable] { width: calc(100% - 32px); vertical-align: middle; }
   .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td.text-right button[data-register-editable] { justify-content: flex-end; }
   .erp-shell #navilo-main-content [data-navilo-transport-register] tbody button[data-register-editable]:hover { background: #ffe1e7 !important; border-color: #ce4c67 !important; }
   .erp-shell #navilo-main-content [data-navilo-transport-register] tbody button[data-register-editable]:focus-visible { outline: 2px solid #c84060; outline-offset: 1px; }
+}
+
+/* Customer revenue uses green; supplier costs retain the red popup affordance. */
+@media screen {
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td[data-financial-group="customer"] button[data-register-editable] {
+    border: 1px solid #299b62 !important; background: #d6f2df !important; color: #14623b !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td[data-financial-group="customer"] button[data-register-editable]:hover {
+    background: #bde9cc !important; border-color: #187c48 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td[data-financial-group="customer"] button[data-register-editable]:focus-visible { outline-color: #187c48; }
 }
