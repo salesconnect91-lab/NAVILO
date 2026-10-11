@@ -1977,7 +1977,7 @@ export default function TransportWorkspace(){
         </TripField>
 
         <TripField label={editingTripId?"Customer Base Rate":"Customer Rate"}>
-          <input type="number" min="0" step="0.01" aria-label="Customer Rate" readOnly={editingTripLocked||(!editingTripId&&!entryPermissions.rate)} title={editingTripId?"Base excluding charge lines. Finalized unposted corrections require authorization and an audit reason.":""} value={form.customer_rate}
+          <input type="number" min="0" step="0.01" aria-label={editingTripId?"Customer Base Rate":"Customer Rate"} readOnly={editingTripLocked||(!editingTripId&&!entryPermissions.rate)} title={editingTripId?"Base excluding charge lines. Finalized unposted corrections require authorization and an audit reason.":""} value={form.customer_rate}
             onChange={e=>{setRateTouched(true);setError("");setForm({...form,customer_rate:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-right text-xs outline-none"/>
         </TripField>
