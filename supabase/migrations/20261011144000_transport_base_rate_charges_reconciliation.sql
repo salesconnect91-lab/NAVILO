@@ -48,7 +48,7 @@ begin
  into old_lines from public.transport_trip_customer_charges x left join public.charge_master charge_row on charge_row.id=x.charge_master_id where x.trip_id=t.id;
  -- Legacy NULL base is derived from old total before replacing charge lines.
  base:=coalesce(t.customer_base_rate,
- greatest(0,t.customer_rate-coalesce((select sum(amount) from public.transport_trip_customer_charges where trip_id=t.id),0)-coalesce(t.customer_manual_adjustment,0)),0);
+ greatest(0,t.customer_rate-coalesce((select sum(existing_line.amount) from public.transport_trip_customer_charges existing_line where existing_line.trip_id=t.id),0)-coalesce(t.customer_manual_adjustment,0)),0);
  delete from public.transport_trip_customer_charges where trip_id=t.id;
  for line in select value from jsonb_array_elements(coalesce(p_lines,'[]'::jsonb)) loop
   seq:=seq+1; amount:=coalesce(nullif(line->>'amount','')::numeric,0);
