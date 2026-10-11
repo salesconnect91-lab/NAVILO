@@ -1,3 +1,4 @@
+import TransportDialog from './TransportDialog';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import TransportVatPreview from './TransportVatPreview';
 import NaviloDateInput from '@/components/NaviloDateInput';
@@ -45,7 +46,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
   }catch(e:any){setError(e?.message||'Unable to post customer invoice. Refresh the Trip before retrying.')}finally{setBusy(false)}
  }
 
- return <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/40 p-3" onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const items=dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled)');if(items?.length){const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}}>
+ return <TransportDialog  onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const items=dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled)');if(items?.length){const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}}>
   <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="trip-invoice-title" className="w-full max-w-sm rounded bg-white p-4 text-sm shadow-xl">
    <h2 id="trip-invoice-title" className="font-semibold">Customer Invoice · {trip.trip_no}</h2>
    <p className="my-2 text-xs text-slate-600">{trip.customer_name}<br/>{trip.from_location} → {trip.to_location}<br/>Company Rate excluding VAT: {trip.customer_rate==null?'—':Number(trip.customer_rate).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
@@ -69,5 +70,5 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
    {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}
    <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={onClose}>Close</button>{!posted&&<button className="btn-primary" disabled={!canPost} onClick={()=>void post()}>{busy?'Posting…':'Post Invoice'}</button>}</div>
   </section>
- </div>;
+ </TransportDialog>;
 }

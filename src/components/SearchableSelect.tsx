@@ -112,6 +112,7 @@ export default function SearchableSelect({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
+  const centeredPopup=typeof window!=="undefined"&&/^\/transport(?:\/|$)/.test(window.location.pathname);
   const positionDropdown = () => {
     const rect = rootRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -214,11 +215,12 @@ export default function SearchableSelect({
         <div
           data-navilo-searchable-dropdown
           className="fixed z-[2147483000] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl"
-          style={{ left: dropdownPosition.left, top: dropdownPosition.top, width: dropdownPosition.width }}
+          style={centeredPopup?{left:"50%",top:"50%",transform:"translate(-50%,-50%)",width:"min(360px, calc(100vw - 24px))",maxHeight:"calc(100dvh - 24px)",background:"#f2f5f8"}:{ left: dropdownPosition.left, top: dropdownPosition.top, width: dropdownPosition.width }}
           onKeyDown={event => {
-            if (event.key === "Escape") closeDropdown();
+            if (event.key === "Escape") {event.stopPropagation();closeDropdown();}
           }}
         >
+          {centeredPopup&&<div className="flex items-center justify-between border-b px-3 py-2 text-sm font-semibold text-slate-800"><span>{props["aria-label"]||"Select an option"}</span><button type="button" aria-label="Close options" onClick={closeDropdown}>×</button></div>}
           <div className="border-b border-slate-100 p-2">
             <div className="flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-2 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500">
               <Search className="h-4 w-4 shrink-0 text-slate-400" />

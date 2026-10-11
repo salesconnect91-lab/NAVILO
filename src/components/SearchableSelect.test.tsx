@@ -43,3 +43,15 @@ describe("native form compatibility",()=>{
   expect(new FormData(form).get("party")).toBe("steel");
  });
 });
+
+it('centers Transport options while preserving anchored selection elsewhere',()=>{
+ const previous=window.location.pathname;
+ try{
+  window.history.replaceState({},'', '/transport');
+  const {unmount}=render(<SearchableSelect value="" aria-label="Transport party"><option value="">Select party</option><option value="p">Party</option></SearchableSelect>);
+  fireEvent.click(screen.getByRole('button',{name:'Transport party'}));
+  const popup=document.querySelector<HTMLElement>('[data-navilo-searchable-dropdown]')!;
+  expect(popup.style.left).toBe('50%');expect(popup.style.top).toBe('50%');
+  fireEvent.click(screen.getByRole('button',{name:'Close options'}));expect(screen.queryByRole('listbox')).toBeNull();unmount();
+ }finally{window.history.replaceState({},'',previous);}
+});

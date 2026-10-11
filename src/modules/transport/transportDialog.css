@@ -1,0 +1,22 @@
+.navilo-transport-dialog {
+ position: fixed; inset: 0; z-index: 10000; display: flex;
+ align-items: center; justify-content: center; padding: 12px;
+ background: rgb(24 42 66 / 38%); color: #24364b;
+ font-family: "Segoe UI", Arial, sans-serif;
+}
+.navilo-transport-dialog > :is(section,div) {
+ max-height: calc(100dvh - 24px); min-height: 0; overflow-y: auto;
+ background-color: #f2f5f8; color: #24364b;
+ box-shadow: 0 12px 42px rgb(24 42 66 / 22%);
+}
+.navilo-transport-dialog > :is(section,div) > :first-child {
+ position: sticky; top: 0; z-index: 2; background-color: #f2f5f8;
+}
+.navilo-transport-dialog input:not([type="checkbox"]),
+.navilo-transport-dialog textarea { background-color: #f9fafc; color: #203248; }
+.navilo-transport-dialog .navilo-transport-filter { width: min(360px,100%); border-radius: 8px; border: 1px solid #bdcbd9; padding: 12px; font-size: 12px; }
+.navilo-transport-filter > header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; font-size: 14px; font-weight: 600; }
+.navilo-transport-filter button { min-height: 28px; }
+.navilo-transport-filter input:not([type="checkbox"]) { height: 32px; font-size: 12px; }
+.navilo-transport-filter label { min-height: 28px; height: auto; font-size: 12px; }
+.navilo-transport-filter label span { font-size: 12px; }

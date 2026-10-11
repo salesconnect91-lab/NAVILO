@@ -1,3 +1,4 @@
+import TransportDialog from './TransportDialog';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import {useEffect,useMemo,useState} from 'react';
 import {supabase} from '@/lib/supabase';
@@ -26,7 +27,7 @@ export default function TransportSupplierCharges({rentId,tripNo,onClose,onChange
  async function save(){if(!rent||rent.posted||lines.some(x=>x.amount===''||Number(x.amount)<0)||(rent.state==='finalized'&&!reason.trim()))return;setBusy(true);setError('');try{
   const r=await supabase.rpc('transport_replace_trip_supplier_charges',{p_rent_id:rentId,p_lines:lines.map(x=>({charge_type_id:x.charge_type_id,amount:Number(x.amount)})),p_reason:reason.trim()||null});if(r.error)throw r.error;await onChanged();onClose();
  }catch(e:any){setError(e.message)}finally{setBusy(false)}}
- return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-3"><section role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg bg-white p-3 text-xs shadow-2xl">
+ return <TransportDialog ><section role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg bg-white p-3 text-xs shadow-2xl">
   <div className="flex items-start justify-between"><div><h2 className="text-sm font-bold">Supplier Charges · {tripNo}</h2><p className="text-[10px] text-slate-500">{rent?.supplier_name_snapshot||'Supplier'} · Base rent + purchase charges = total supplier rent</p></div><button className="btn h-7" disabled={busy} onClick={onClose}>Close</button></div>
   {rent?.posted&&<p className="my-2 rounded border border-amber-300 bg-amber-50 p-2 font-semibold text-amber-800">Supplier invoice posted — charges are locked. Use controlled AP correction.</p>}
   {error&&<p role="alert" className="my-2 rounded bg-red-50 p-2 text-red-700">{error}</p>}
@@ -36,5 +37,5 @@ export default function TransportSupplierCharges({rentId,tripNo,onClose,onChange
   {rent?.state==='finalized'&&!rent?.posted&&<label className="mt-2 block">Reason<input className="input h-8 w-full" value={reason} onChange={e=>setReason(e.target.value)} placeholder="Required because rent was already finalized"/></label>}
   <p className="mt-2 text-[10px] text-slate-500">Purchase/Both Charge Master items only. Each charge keeps its canonical cost-account and VAT mapping when the supplier invoice is posted.</p>
   {!rent?.posted&&<div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={onClose}>Cancel</button><button className="btn-primary" disabled={busy||lines.some(x=>x.amount===''||Number(x.amount)<0)||(rent?.state==='finalized'&&!reason.trim())} onClick={()=>void save()}>Save Charges · {total.toFixed(2)}</button></div>}
- </section></div>;
+ </section></TransportDialog>;
 }

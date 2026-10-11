@@ -1,3 +1,4 @@
+import TransportDialog from './TransportDialog';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import {useEffect,useMemo,useState} from 'react';
 import {supabase} from '@/lib/supabase';
@@ -49,7 +50,7 @@ export default function TransportRateList({onClose,onChanged}:Props){
   if(!customer||!chargeType||!effectiveFrom||(chargeStatus==='agreed'&&(chargeAmount===''||Number(chargeAmount)<0)))return;setBusy(true);setError('');setMessage('');
   try{const r=await supabase.rpc('transport_save_customer_charge_rate',{p_id:null,p_customer_id:customer,p_charge_type_id:chargeType,p_effective_from:effectiveFrom,p_effective_to:effectiveTo||null,p_amount:chargeStatus==='agreed'?Number(chargeAmount):null,p_status:chargeStatus,p_active:true});if(r.error)throw r.error;setChargeAmount('');setMessage('Customer charge rate added.');await load();await onChanged();}catch(e:any){setError(e.message)}finally{setBusy(false)}
  }
- return <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-3">
+ return <TransportDialog >
   <section role="dialog" aria-modal="true" className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white text-xs shadow-2xl">
    <header className="flex items-center justify-between border-b bg-slate-900 px-3 py-2 text-white"><div><h2 className="text-sm font-bold">Customer Rate List / Quotation</h2><p className="text-[10px] text-slate-300">Annual route rates + company-specific additional charges. Old periods remain historical.</p></div><button className="btn h-7" disabled={busy} onClick={onClose}>Close</button></header>
    {error&&<p role="alert" className="mx-3 mt-2 rounded bg-red-50 p-2 text-red-700">{error}</p>}{message&&<p role="status" className="mx-3 mt-2 rounded bg-emerald-50 p-2 text-emerald-700">{message}</p>}
@@ -77,5 +78,5 @@ export default function TransportRateList({onClose,onChanged}:Props){
     </section>
    </div>
   </section>
- </div>;
+ </TransportDialog>;
 }

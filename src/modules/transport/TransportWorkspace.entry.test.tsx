@@ -254,3 +254,29 @@ describe('Transport report isolation',()=>{
   expect(mock.rpc.mock.calls.some(call=>call[0]==='transport_register_query')).toBe(false);
  });
 });
+
+describe('Transport compact register and centered controls',()=>{
+ it('keeps saved visible columns compact and each financial group contiguous',async()=>{
+  const key='navilo:transport:trip-grid:v2:user:c:b';
+  localStorage.setItem(key,JSON.stringify({order:['trip_no','company','driver','supplier_charges','from'],hidden:[]}));
+  try{
+   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+   await screen.findByText('No trips yet.');
+   expect(screen.getAllByText('TRIP DETAILS')).toHaveLength(1);
+   const table=document.querySelector('[data-navilo-transport-register] table') as HTMLTableElement;
+   expect(table.className).not.toContain('min-w-full');expect(table.querySelectorAll('col').length).toBeGreaterThan(10);expect(table.style.width).toMatch(/px$/);
+  }finally{localStorage.removeItem(key);}
+ });
+ it('opens header filters and column settings outside the scrollport and closes them',async()=>{
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText('No trips yet.');fireEvent.click(screen.getByRole('button',{name:'Filter Trip No'}));
+  const dialog=screen.getByRole('dialog',{name:'Trip No filter popup'});expect(dialog.closest('[data-navilo-transport-register]')).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Close Trip No filter'}));expect(screen.queryByRole('dialog')).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Columns'}));expect(screen.getByRole('dialog',{name:'Trip columns'}).closest('[data-navilo-transport-register]')).toBeNull();
+ });
+ it('distinguishes failed loading from a successfully empty register',async()=>{
+  mock.rpc.mockImplementation(async(name:string)=>name==='transport_register_query'?{data:null,error:{message:'Failed to fetch'}}:{data:true,error:null});
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText('Data load failed.');expect(screen.queryByText('No trips yet.')).toBeNull();expect(screen.getByRole('button',{name:'Retry'})).toBeTruthy();
+ });
+});

@@ -1,3 +1,4 @@
+import TransportDialog from './TransportDialog';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import {useEffect,useRef,useState} from 'react';
@@ -45,7 +46,7 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
  }
 
  const title=posted?'Posted Company Rate':finalized?'Update Company Rate':'Add Company Rate';
- return <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/40 p-3" onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const items=dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)');if(items?.length){const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}}>
+ return <TransportDialog  onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const items=dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)');if(items?.length){const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}}>
  <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="initial-rate-title" className="w-full max-w-sm rounded bg-white p-4 text-sm shadow-xl">
   <h2 id="initial-rate-title" className="font-semibold">{title} · {trip.trip_no}</h2>
   <p className="my-2 text-xs text-slate-600">{trip.customer_name}<br/>{trip.from_location} → {trip.to_location}<br/>{trip.vehicle_no}</p>
@@ -79,5 +80,5 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
     <button className="btn-primary" disabled={!allowed||!valid||!changed||busy||saved||(reasonRequired&&!reason.trim())||(posted&&(!date||!confirmFinancialPost))} onClick={()=>void save()}>{saved?'Saved':posted?'Post Debit/Credit Note':'Save Rate'}</button>
    </>}
   </div>
- </section></div>;
+ </section></TransportDialog>;
 }

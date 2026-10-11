@@ -2,6 +2,7 @@ import {TRANSPORT_TRIP_HEADERS,downloadDailyTripTemplate} from './transportImpor
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import {useLocation,useNavigate,useSearchParams} from 'react-router-dom';
 import TransportHorizontalScroll from './TransportHorizontalScroll';
+import TransportDialog from './TransportDialog';
 import './transportScrolling.css';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { formatNaviloDate } from "@/lib/naviloDate";
@@ -132,6 +133,7 @@ export default function TransportWorkspace(){
   const [rows,setRows]=useState<Trip[]>([]);
   const [loading,setLoading]=useState(false);
   const [registerLoading,setRegisterLoading]=useState(false);
+  const [registerLoadError,setRegisterLoadError]=useState(false);
   const [mobileRows,setMobileRows]=useState<Trip[]>([]);
   const [mobileSearch,setMobileSearch]=useState("");
   const [mobileLoading,setMobileLoading]=useState(false);
@@ -201,7 +203,6 @@ export default function TransportWorkspace(){
   const [sortColumn,setSortColumn]=useState<string>("");
   const [sortDirection,setSortDirection]=useState<"asc"|"desc">("asc");
   const [openColumnFilter,setOpenColumnFilter]=useState<string|null>(null);
-  const [columnMenuPosition,setColumnMenuPosition]=useState({top:0,left:0});
 
   const requestedImport=params.get("import");
   const [newTripMode,setNewTripMode]=useState<"single"|"bulk"|"historical">(()=>requestedImport==="bulk"||requestedImport==="historical"?requestedImport:"single");
@@ -458,7 +459,7 @@ export default function TransportWorkspace(){
     // silently skipping the refresh (which left Supplier Balance unchanged).
     registerRequest.current?.abort();const controller=new AbortController();registerRequest.current=controller;
     const generation=++readGeneration.current;
-    if(!silent)setRegisterLoading(true);setError('');
+    if(!silent)setRegisterLoading(true);setRegisterLoadError(false);setError('');
     try {
       const result=await supabase.rpc('transport_register_query',{p_limit:500,p_offset:page*500,p_filters:registerFilters,p_sort:sortColumn,p_direction:sortDirection}).abortSignal(controller.signal);
       if(result.error)throw result.error;
@@ -467,7 +468,7 @@ export default function TransportWorkspace(){
       setRows((data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})));
       setRegisterMeta(data);
       if(page>Math.max(0,Math.ceil(data.count/500)-1))setPage(Math.max(0,Math.ceil(data.count/500)-1));
-    }catch(e:any){if(generation===readGeneration.current){setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});setError(e?.message||'Unable to load trips.');}}
+    }catch(e:any){if(generation===readGeneration.current){setRegisterLoadError(true);setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});setError(e?.message||'Unable to load trips.');}}
     finally{if(registerRequest.current===controller)registerRequest.current=null;if(generation===readGeneration.current)setRegisterLoading(false);}
   }
   const previousRegisterKey=useRef(registerKey);
@@ -1139,8 +1140,8 @@ export default function TransportWorkspace(){
 
   const tripDataGridKeys=["trip_no","trip_date","truck_type","job_no","from","to","charge"] as const;
   const vehicleDriverGridKeys=["driver","plate","owner"] as const;
-  const supplierGridKeys=["supplier_invoice_no","rent_driver","supplier_charges","supplier_paid","supplier_balance","payment_date","amount","supplier_credit"] as const;
-  const customerGridKeys=["invoice_no","company","company_rate","received_company","remaining_company","sale_type","customer_credit"] as const;
+  const supplierGridKeys=["owner","supplier_invoice_no","rent_driver","supplier_charges","supplier_paid","supplier_balance","payment_date","amount","supplier_credit","commission"] as const;
+  const customerGridKeys=["invoice_no","company","charge","company_rate","received_company","remaining_company","sale_type","customer_credit"] as const;
   const pprGridKeys=["paper_received_by"] as const;
   const profitCommissionGridKeys=["commission","profit"] as const;
   const isSupplierGridKey=(key:string)=>(supplierGridKeys as readonly string[]).includes(key);
@@ -1203,8 +1204,9 @@ export default function TransportWorkspace(){
   const readSupplier=registerMeta.permissions?.supplier===true;
   const columnAuthorized=(key:string)=>key==='profit'?readCustomer&&readSupplier:
     ['charge','company_rate','received_company','remaining_company','customer_credit','invoice_no','sale_type','invoiced'].includes(key)?readCustomer:
-    ['owner','supplier_invoice_no','rent_driver','supplier_paid','supplier_balance','supplier_credit','payment_date','amount','driver_pay','driver_paid','driver_balance','commission'].includes(key)?readSupplier:true;
-  const orderedGridColumns=allOrderedGridColumns.filter(column=>columnAuthorized(column[0])&&!hiddenTripColumns.includes(column[0]));
+    ['owner','supplier_invoice_no','supplier_charges','rent_driver','supplier_paid','supplier_balance','supplier_credit','payment_date','amount','driver_pay','driver_paid','driver_balance','commission'].includes(key)?readSupplier:true;
+  const groupOrder={trip:0,customer:1,supplier:2,ppr:3};
+  const orderedGridColumns=allOrderedGridColumns.filter(column=>columnAuthorized(column[0])&&!hiddenTripColumns.includes(column[0])).sort((a,b)=>groupOrder[visualGridGroup(a[0])]-groupOrder[visualGridGroup(b[0])]);
   const gridGroupSegments=orderedGridColumns.reduce<Array<{group:string;count:number}>>((segments,[key])=>{
     const group=visualGridGroup(key);
     const last=segments[segments.length-1];
@@ -1341,6 +1343,7 @@ export default function TransportWorkspace(){
   useEffect(()=>{setSelectedTripIds(new Set());},[scopeKey]);
   const amountGridKeys=new Set(['charge','rent_driver','supplier_charges','supplier_paid','supplier_balance','supplier_credit','driver_pay','driver_paid','driver_balance','amount','company_rate','received_company','remaining_company','customer_credit','profit','commission']);
   const gridTotal=(key:string)=>Number(registerMeta.totals?.[key]??0);
+  const registerColumnWidth=(key:string)=>Math.max(tripColumnWidths[key]??compactTripColumnWidths[key]??80,amountGridKeys.has(key)?financialNumber(gridTotal(key)).length*7+18:0,amountGridKeys.has(key)?96:60);
 
   const toggleColumnValue=(key:string,value:string)=>{
     setColumnFilters(current=>{
@@ -1901,7 +1904,7 @@ export default function TransportWorkspace(){
               <span>Status</span><span className="max-w-[135px] truncate text-slate-900">{statusFilters.length===0?"All Statuses":statusFilters.length===1?<> <span className={statusMark(statusFilters[0].replace(/^status:/,'')).className}>{statusMark(statusFilters[0].replace(/^status:/,'')).mark}</span> {statusOptions.find(option=>option.key===statusFilters[0])?.label??"1 selected"}</>:`${statusFilters.length} selected`}</span>
               <span aria-hidden>⌄</span>
             </button>
-            {statusOpen&&<div className="absolute left-0 top-8 z-[100] w-[240px] overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xl">
+            {statusOpen&&<TransportDialog onClose={()=>setStatusOpen(false)}><section role="dialog" aria-modal="true" aria-label="Trip status filter" className="navilo-transport-filter"><header><span>Trip Status</span><button type="button" aria-label="Close status filter" onClick={()=>setStatusOpen(false)}>×</button></header>
               <div className="border-b border-slate-100 p-1.5">
                 <input autoFocus className="input h-7 w-full px-2 text-[11px]" placeholder="Search status..." value={statusSearch} onChange={e=>setStatusSearch(e.target.value)}/>
               </div>
@@ -1920,7 +1923,7 @@ export default function TransportWorkspace(){
                 <button type="button" className="text-[9px] font-semibold text-slate-600 hover:text-slate-900" onClick={()=>setStatusFilters([])}>Clear</button>
                 <button type="button" className="rounded bg-slate-900 px-2 py-1 text-[9px] font-semibold text-white" onClick={()=>{setStatusSearch("");setStatusOpen(false)}}>Done</button>
               </div>
-            </div>}
+            </section></TransportDialog>}
           </div>
 
           <form className={`flex w-80 items-stretch ${tripTheme==='theme3'?'h-8':tripTheme==='theme2'?'h-7':'h-9'}`} onSubmit={e=>{e.preventDefault();setPage(0);setRegisterSearch(registerSearchDraft.trim());setRegisterSearchMode(registerSearchModeDraft)}}>
@@ -1936,9 +1939,9 @@ export default function TransportWorkspace(){
 
         </div>
 
-        {showTripColumnSetup&&<div className="mb-1 rounded-md border border-slate-200 bg-slate-50 p-1.5">
+        {showTripColumnSetup&&<TransportDialog onClose={()=>setShowTripColumnSetup(false)}><section role="dialog" aria-modal="true" aria-label="Trip columns" className="w-full max-w-3xl rounded-lg border p-3"><header className="mb-2 flex items-center justify-between"><strong>Trip Columns</strong><button type="button" className="btn h-7" onClick={()=>setShowTripColumnSetup(false)}>Close</button></header>
           <div className="mb-1 flex items-center justify-between gap-2">
-            <span className="text-[10px] font-bold text-slate-700">Trip columns — drag to reorder, tick to show</span>
+            <span className="text-[10px] font-bold text-slate-700">Drag within each group to reorder, tick to show</span>
             <div className="flex gap-1">
               <button type="button" onClick={resetTripGridLayout} className="h-5 rounded border bg-white px-2 text-[9px] font-semibold">Reset Default</button>
               <button type="button" onClick={saveTripGridLayout} className="h-5 rounded border border-blue-200 bg-blue-50 px-2 text-[9px] font-semibold text-blue-700">Save as Default</button>
@@ -1987,7 +1990,7 @@ export default function TransportWorkspace(){
               </div>;
             })}
           </div>
-        </div>}
+        </section></TransportDialog>}
 
         <div className="flex h-4 items-center justify-end text-[9px] font-bold text-slate-700">
           {gridRows.length.toLocaleString()} shown / {Number(registerMeta.count??0).toLocaleString()} filtered trips
@@ -1998,11 +2001,12 @@ export default function TransportWorkspace(){
         ref={tripsGridRef}
         className={`navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t ${tripTheme==='theme3'?'border-emerald-800 bg-[#f7faf9]':tripTheme==='theme2'?'border-blue-300 bg-slate-50':'border-slate-400 bg-white'}`}
       >
-        <table className={`w-max min-w-full table-auto whitespace-nowrap leading-none ${tripTheme==='theme3'?'text-[10.5px]':tripTheme==='theme2'?'text-[10px]':'text-[10.5px]'}`}>
+        <table style={{width:orderedGridColumns.reduce((sum,[key])=>sum+registerColumnWidth(key),0)}} className={`table-fixed whitespace-nowrap leading-none ${tripTheme==='theme3'?'text-[10.5px]':tripTheme==='theme2'?'text-[10px]':'text-[10.5px]'}`}>
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
+          <colgroup>{orderedGridColumns.map(([key])=><col key={key} style={{width:registerColumnWidth(key)}}/>)}</colgroup>
           <thead className={`sticky top-0 z-40 text-left uppercase tracking-normal shadow-[0_1px_2px_rgba(15,23,42,0.12)] ${tripTheme==='theme3'?'bg-[#102a25] text-[10.5px] text-white':tripTheme==='theme2'?'bg-slate-950 text-[10px] text-white':'bg-slate-900 text-[10.5px] text-white'}`}>
             <tr className={tripTheme==='theme3'?'h-10':tripTheme==='theme2'?'h-9':'h-11'}>
-              {gridGroupSegments.map((segment,index)=><th key={segment.group+index} colSpan={segment.count}
+              {gridGroupSegments.map((segment,index)=><th data-financial-group={segment.group} key={segment.group+index} colSpan={segment.count}
                 className={`border-b border-r px-3 py-0 text-center font-black tracking-[0.025em] ${tripTheme==='theme3'?'text-[12px]':tripTheme==='theme2'?'text-[11px]':'text-[13px]'} ${segment.group==="supplier"?(tripTheme==='theme3'?"border-orange-200 bg-orange-50 text-orange-900":tripTheme==='theme2'?"border-amber-300 bg-amber-50 text-amber-900":"border-rose-300 bg-rose-100 text-rose-800"):segment.group==="customer"?(tripTheme==='theme3'?"border-emerald-200 bg-emerald-50 text-emerald-900":tripTheme==='theme2'?"border-sky-300 bg-sky-50 text-sky-900":"border-blue-300 bg-blue-100 text-blue-800"):segment.group==="ppr"?"border-emerald-300 bg-emerald-100 text-emerald-800":(tripTheme==='theme3'?"border-slate-200 bg-slate-100 text-slate-900":tripTheme==='theme2'?"border-slate-300 bg-slate-50 text-slate-900":"border-slate-300 bg-slate-100 text-slate-800")}`}>
                 <span className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
                   <span aria-hidden="true" className="text-[17px] leading-none">{segment.group==="supplier"?"🚚":segment.group==="customer"?"👤":segment.group==="ppr"?"📄":"🚚"}</span>
@@ -2014,11 +2018,10 @@ export default function TransportWorkspace(){
               {orderedGridColumns.map(([key,label],i)=>{
                 const active=(columnFilters[key]?.length??0)>0;
                 const sorted=sortColumn===key;
-                const requestedWidth=tripColumnWidths[key]??compactTripColumnWidths[key]??60;
+                const columnWidth=registerColumnWidth(key);
                 const totalText=amountGridKeys.has(key)?financialNumber(gridTotal(key)):null;
-                const columnWidth=Math.max(requestedWidth,totalText?totalText.length*7+18:0,amountGridKeys.has(key)?96:52);
 
-                return <th key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
+                return <th data-financial-group={visualGridGroup(key)} key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
                   className={`sticky top-0 border-b border-r px-0.5 !py-0 font-bold leading-none ${tripTheme==='theme3'?(isSupplierGridKey(key)?"border-orange-700 bg-[#7c2d12] text-white":isCustomerGridKey(key)?"border-emerald-800 bg-[#065f46] text-white":isPprGridKey(key)?"border-teal-800 bg-[#115e59] text-white":"border-slate-700 bg-[#1f2937] text-white"):tripTheme==='theme2'?(isSupplierGridKey(key)?"border-amber-200 bg-amber-100 text-amber-950":isCustomerGridKey(key)?"border-sky-200 bg-sky-100 text-sky-950":isPprGridKey(key)?"border-emerald-200 bg-emerald-100 text-emerald-950":"border-slate-200 bg-slate-100 text-slate-800"):(isSupplierGridKey(key)?"border-rose-200 bg-rose-50 text-slate-800":isCustomerGridKey(key)?"border-blue-200 bg-blue-50 text-slate-800":isPprGridKey(key)?"border-emerald-200 bg-emerald-50 text-slate-800":"border-slate-300 bg-white text-slate-700")} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
                   <div className="flex min-h-[28px] w-full min-w-0 items-center gap-0.5">
@@ -2050,13 +2053,6 @@ export default function TransportWorkspace(){
                       onClick={e=>{
                         e.stopPropagation();
                         if(openColumnFilter===key){setOpenColumnFilter(null);return;}
-                        const rect=e.currentTarget.getBoundingClientRect();
-                        const width=240,gap=8;
-                        let left=Math.max(gap,rect.right-width);
-                        if(left+width>window.innerWidth-gap)left=Math.max(gap,window.innerWidth-width-gap);
-                        let top=rect.bottom+4;
-                        if(top+270>window.innerHeight-gap)top=Math.max(gap,rect.top-270);
-                        setColumnMenuPosition({top,left});
                         setOpenColumnFilter(key);
                       }}
                       className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded hover:bg-slate-200 ${active?"text-blue-700":"text-slate-400"}`}>
@@ -2079,8 +2075,6 @@ export default function TransportWorkspace(){
                   {openColumnFilter===key&&
                     <ColumnFilterMenu
                       label={label}
-                      top={columnMenuPosition.top}
-                      left={columnMenuPosition.left}
                       options={columnOptions(key)}
                       search={columnSearch} onSearch={setColumnSearch} loading={columnValuesLoading}
                       selected={columnFilters[key]??[]}
@@ -2101,6 +2095,7 @@ export default function TransportWorkspace(){
           </thead>
 
           <tbody>
+            {!gridRows.length&&<tr><td colSpan={Math.max(1,orderedGridColumns.length)}><div className="navilo-transport-empty-state">{registerLoading?"Loading trips…":registerLoadError?<><strong>Data load failed.</strong><button type="button" className="btn h-7" onClick={()=>void load()}>Retry</button></>:<><strong>{registerSearch||Object.values(columnFilters).some(v=>v.length)||statusFilters.length?"No trips match your filters.":"No trips yet."}</strong><button type="button" className="btn h-7" onClick={()=>{setEditingTripId(null);setTab("new")}}>Add Trip</button></>}</div></td></tr>}
             {gridRows.map(r=>{
               const tripSelected=selectedTripIds.has(String(r.id));
               return <tr key={r.id} data-trip-selected={tripSelected?"true":"false"} className={`align-middle transition-colors ${tripSelected?'outline outline-1 -outline-offset-1 outline-amber-400':''} ${tripTheme==='theme3'?'h-[30px] odd:bg-white even:bg-emerald-50/35 hover:bg-emerald-100/70':tripTheme==='theme2'?'h-[22px] odd:bg-white even:bg-sky-50/55 hover:bg-sky-100/70':'h-[26px] odd:bg-white even:bg-slate-50/45 hover:bg-blue-50/45'}`}>
@@ -2120,7 +2115,7 @@ export default function TransportWorkspace(){
                 const value=tripCellValue(r,key);
                 const numeric=["charge","rent_driver","supplier_charges","supplier_paid","supplier_balance","supplier_credit","customer_credit","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
                 const columnWidth=tripColumnWidths[key];
-                return <td key={key}
+                return <td data-financial-group={visualGridGroup(key)} key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
                   className={`overflow-hidden text-ellipsis whitespace-nowrap border-b border-r px-1.5 !py-0 leading-tight ${tripTheme==='theme3'?(isSupplierGridKey(key)?"h-[30px] max-h-[30px] border-orange-100 bg-orange-50/80":isCustomerGridKey(key)?"h-[30px] max-h-[30px] border-emerald-100 bg-emerald-50/80":isPprGridKey(key)?"h-[30px] max-h-[30px] border-teal-100 bg-teal-50/80":"h-[30px] max-h-[30px] border-slate-200 bg-white/80"):tripTheme==='theme2'?(isSupplierGridKey(key)?"h-[22px] max-h-[22px] border-amber-100 bg-amber-50":isCustomerGridKey(key)?"h-[22px] max-h-[22px] border-sky-100 bg-sky-50":isPprGridKey(key)?"h-[22px] max-h-[22px] border-emerald-100 bg-emerald-50":"h-[22px] max-h-[22px] border-slate-200 bg-white"):(isSupplierGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-rose-50/55":isCustomerGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-blue-50/45":isPprGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-emerald-50/50":"h-[26px] max-h-[26px] border-slate-200")} ${tripSelected?"!border-amber-300 !bg-amber-100":""} ${numeric?"text-right font-medium":""}`}>
                   {key==='charge'
@@ -2159,7 +2154,6 @@ export default function TransportWorkspace(){
       <TransportHorizontalScroll gridRef={tripsGridRef} revision={registerKey+String(page)+hiddenTripColumns.join()+JSON.stringify(tripColumnWidths)}/>
       <TransportPagination page={page} pageSize={500} count={Number(registerMeta.count??0)} busy={registerLoading} onPage={setPage}/>
       <p className="shrink-0 border-t border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-600">Header totals cover all filtered Trips, across every page.</p>
-      {!registerLoading&&!visible.length&&<div className="p-10 text-center text-sm text-slate-500">No trips found.</div>}
     </section>}
 
     {!showPartyReports&&tab==="new"&&
@@ -2697,7 +2691,7 @@ export default function TransportWorkspace(){
     </section>}
 
     {!showPartyReports&&tab==="audit"&&<TransportAudit trips={rows}/>}
-    {quickPprTrip&&<div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/30 p-4">
+    {quickPprTrip&&<TransportDialog>
       <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
         <div className="mb-3 flex items-center justify-between">
           <div><div className="text-sm font-bold">Receive PPR</div><div className="text-xs text-slate-500">{quickPprTrip.trip_no}</div></div>
@@ -2725,7 +2719,7 @@ export default function TransportWorkspace(){
           <button type="button" disabled={loading} onClick={()=>void saveQuickPpr()} className="rounded bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60">Mark Received</button>
         </div>
       </div>
-    </div>}
+    </TransportDialog>}
     {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={load}/>}
     {invoiceTrip&&<TransportInvoiceNumber trip={invoiceTrip} onClose={()=>setInvoiceTrip(null)} onChanged={load}/>}
     {showBulkSupplierRent&&<TransportBulkSupplierRent compact={Boolean(bulkSupplierRentTrip)} initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={async()=>{await load(true)}}/>}
@@ -2734,12 +2728,10 @@ export default function TransportWorkspace(){
   </div>
 }
 function ColumnFilterMenu({
-  label,top,left,options,selected,onToggle,onSelectAll,onClear,onClose,search,onSearch,loading
+  label,options,selected,onToggle,onSelectAll,onClear,onClose,search,onSearch,loading
 }:{
   search:string;onSearch:(value:string)=>void;loading:boolean;
   label:string;
-  top:number;
-  left:number;
   options:string[];
   selected:string[];
   onToggle:(value:string)=>void;
@@ -2749,16 +2741,9 @@ function ColumnFilterMenu({
 }){
   const shown=options;
 
-  return <div
-    className="fixed z-[9999] flex flex-col rounded-md border border-slate-200 bg-white p-1 text-[9px] normal-case shadow-lg"
-    aria-label={`${label} filter popup`}
-    style={{top,left,width:190,height:190,minWidth:150,minHeight:140,maxWidth:`calc(100vw - ${left+8}px)`,maxHeight:`calc(100vh - ${top+8}px)`,resize:'both',overflow:'hidden'}}
-    onClick={e=>e.stopPropagation()}
-  >
-    <div className="mb-0.5 flex items-center justify-between leading-none">
-      <span className="font-bold text-slate-800">{label}</span>
-      <button type="button" onClick={onClose} className="h-4 px-1 text-[9px] leading-none text-slate-400 hover:text-slate-800">×</button>
-    </div>
+  return <TransportDialog onClose={onClose} onClick={e=>e.stopPropagation()}>
+    <section role="dialog" aria-modal="true" aria-label={`${label} filter popup`} className="navilo-transport-filter flex flex-col" style={{height:420}}>
+    <header><span>{label}</span><button type="button" aria-label={`Close ${label} filter`} onClick={onClose}>×</button></header>
 
     <div className="relative mt-0.5">
       <Search className="absolute left-1 top-1 h-2.5 w-2.5 text-slate-400"/>
@@ -2801,8 +2786,9 @@ function ColumnFilterMenu({
         <div className="px-1 py-3 text-center text-slate-400">No values</div>
       }
     </div>
-    <div className="shrink-0 pt-0.5 pr-3 text-right text-[8px] leading-3 text-slate-400">Drag corner to resize ↘</div>
-  </div>
+    <button type="button" className="mt-2 shrink-0 rounded bg-slate-800 px-3 py-1 text-white" onClick={onClose}>Done</button>
+    </section>
+  </TransportDialog>
 }
 
 function SearchMasterInput({value,options,onSelect,placeholder,disabled=false}:{
@@ -2815,6 +2801,8 @@ function SearchMasterInput({value,options,onSelect,placeholder,disabled=false}:{
   const [query,setQuery]=useState(value);
   const [open,setOpen]=useState(false);
   const [activeIndex,setActiveIndex]=useState(-1);
+  const masterHost=useRef<HTMLDivElement>(null);
+  const close=()=>{setOpen(false);setQuery(value)};
 
   useEffect(()=>{setQuery(value)},[value]);
 
@@ -2831,7 +2819,7 @@ function SearchMasterInput({value,options,onSelect,placeholder,disabled=false}:{
     void onSelect(option.value);
   };
 
-  return <div className="relative min-w-0">
+  return <div ref={masterHost} tabIndex={-1} className="relative min-w-0">
     <input
       value={query}
       disabled={disabled}
@@ -2879,7 +2867,8 @@ function SearchMasterInput({value,options,onSelect,placeholder,disabled=false}:{
           commit(filtered[0]);
         }
       }}
-      onBlur={()=>{
+      onBlur={e=>{
+        if((e.relatedTarget as HTMLElement|null)?.closest("[data-master-options]"))return;
         window.setTimeout(()=>{
           setOpen(false);
           const exact=options.find(o=>o.label.toLocaleLowerCase()===query.trim().toLocaleLowerCase());
@@ -2895,7 +2884,10 @@ function SearchMasterInput({value,options,onSelect,placeholder,disabled=false}:{
     />
     {!disabled&&<span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-slate-400">▼</span>}
     {open&&!disabled&&
-      <div className="absolute left-0 right-0 top-full z-[80] max-h-52 overflow-y-auto rounded-b border border-slate-300 bg-white shadow-xl">
+      <TransportDialog onClose={close} restoreFocusTarget={masterHost.current}><section data-master-options role="dialog" aria-modal="true" aria-label={placeholder||"Master selection"} className="navilo-transport-filter">
+        <header><span>{placeholder||"Select"}</span><button type="button" aria-label="Close master options" onClick={close}>×</button></header>
+        <input autoFocus aria-label="Search master options" placeholder="Search options…" value={query===value?"":query} onChange={e=>{setQuery(e.target.value);setActiveIndex(-1)}} className="mb-2 w-full rounded border px-2" onKeyDown={e=>{if(e.key==='ArrowDown'){e.preventDefault();setActiveIndex(i=>Math.min(i+1,filtered.length-1))}else if(e.key==='ArrowUp'){e.preventDefault();setActiveIndex(i=>Math.max(0,i-1))}else if(e.key==='Enter'){e.preventDefault();commit(filtered[Math.max(activeIndex,0)])}}}/>
+        <div className="max-h-60 overflow-auto">
         {filtered.length?filtered.map((o,index)=>
           <button
             key={o.value}
@@ -2912,7 +2904,7 @@ function SearchMasterInput({value,options,onSelect,placeholder,disabled=false}:{
             {o.label}
           </button>
         ):<div className="px-2 py-2 text-xs text-slate-500">No match</div>}
-      </div>
+      </div></section></TransportDialog>
     }
   </div>
 }

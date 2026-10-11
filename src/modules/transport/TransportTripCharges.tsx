@@ -1,3 +1,4 @@
+import TransportDialog from './TransportDialog';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import {useEffect,useMemo,useState} from 'react';
 import {supabase} from '@/lib/supabase';
@@ -34,7 +35,7 @@ export default function TransportTripCharges({tripId,onClose,onChanged}:{tripId:
   setBusy(true);setError('');
   try{const r=await supabase.rpc('transport_replace_trip_customer_charges',{p_trip_id:tripId,p_lines:lines.map(l=>({charge_type_id:l.charge_type_id,amount:Number(l.amount)})),p_reason:reason.trim()||null});if(r.error)throw r.error;await onChanged();onClose();}catch(e:any){setError(e.message)}finally{setBusy(false)}
  }
- return <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/45 p-3"><section role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg bg-white p-3 text-xs shadow-2xl">
+ return <TransportDialog ><section role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg bg-white p-3 text-xs shadow-2xl">
   <div className="flex items-start justify-between"><div><h2 className="text-sm font-bold">Trip Charges · {trip?.trip_no??''}</h2><p className="text-[10px] text-slate-500">{trip?.customer_name_snapshot} · {trip?.from_location} → {trip?.to_location}</p></div><button className="btn h-7" disabled={busy} onClick={onClose}>Close</button></div>
   {trip?.posted&&<p className="my-2 rounded border border-amber-300 bg-amber-50 p-2 font-semibold text-amber-800">Customer invoice posted — customer-side Trip data and charges are locked. Use Credit / Debit Note for correction.</p>}
   {error&&<p role="alert" className="my-2 rounded bg-red-50 p-2 text-red-700">{error}</p>}
@@ -44,5 +45,5 @@ export default function TransportTripCharges({tripId,onClose,onChanged}:{tripId:
   {trip?.customer_rate_state==='finalized'&&!trip?.posted&&<label className="mt-2 block">Reason <input className="input h-8 w-full" value={reason} onChange={e=>setReason(e.target.value)} placeholder="Required because rate was already finalized"/></label>}
   <p className="mt-2 text-[10px] text-slate-500">Each charge is a separate line. Add/remove/edit recalculates the total; nothing is posted until the customer invoice is posted.</p>
   {!trip?.posted&&<div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={onClose}>Cancel</button><button className="btn-primary" disabled={busy||lines.some(l=>l.amount===''||Number(l.amount)<0)||(trip?.customer_rate_state==='finalized'&&!reason.trim())} onClick={()=>void save()}>Save Charges · {final.toFixed(2)}</button></div>}
- </section></div>;
+ </section></TransportDialog>;
 }

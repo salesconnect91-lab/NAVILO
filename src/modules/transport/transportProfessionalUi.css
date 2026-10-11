@@ -1,6 +1,4 @@
-/* Approved register presentation. Never set register/scrollport/table width,
-   overflow, position, column widths, or scrolling properties here. Existing
-   wheel handlers, sticky headers, resize handles and scrollbars own those. */
+/* Register presentation. Column sizing and scrolling are owned by the register. */
 @media screen {
   .erp-shell #navilo-main-content [data-navilo-transport-register] {
     --transport-ui-accent: #235ca4;
@@ -109,6 +107,7 @@
   }
 }
 
+
 /* Desktop controls adapt to the available content width when the sidebar opens.
    Grid/column sizing and wheel behavior inside the trips scrollport are unchanged. */
 @media screen and (min-width: 768px) {
@@ -168,5 +167,35 @@
     background: #2458a6 !important;
     color: #ffffff !important;
     border-color: #1c4686 !important;
+  }
+}
+
+/* A soft, low-glare reading surface shared by the four theme accents. */
+@media screen {
+  .erp-shell #navilo-main-content [data-navilo-transport-register],
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport {
+    background: #edf1f5 !important; color: #24364b;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody tr:not([data-trip-selected="true"]) > td {
+    background: #f0f3f6 !important; color: #25364b;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody tr:nth-child(even):not([data-trip-selected="true"]) > td {
+    background: #e7edf3 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody tr:not([data-trip-selected="true"]):hover > td {
+    background: #dce7f1 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead [data-financial-group="customer"] {
+    background: #e1ebf4 !important; color: #244f75 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead [data-financial-group="supplier"] {
+    background: #eee7db !important; color: #685129 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead [data-financial-group="ppr"] {
+    background: #e1ebe5 !important; color: #2d6041 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-empty-state {
+    display: flex; justify-content: center; align-items: center; gap: 12px;
+    min-height: 110px; padding: 16px; white-space: normal; color: #52657a;
   }
 }
