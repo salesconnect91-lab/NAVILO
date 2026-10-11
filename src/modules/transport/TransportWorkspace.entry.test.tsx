@@ -402,6 +402,6 @@ describe('Transport compact register and centered controls',()=>{
  it('distinguishes failed loading from a successfully empty register',async()=>{
   mock.rpc.mockImplementation(async(name:string)=>name==='transport_register_query'?{data:null,error:{message:'Failed to fetch'}}:{data:true,error:null});
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
-  await screen.findByText('Data load failed.');expect(screen.queryByText('No trips yet.')).toBeNull();expect(screen.getByRole('button',{name:'Retry'})).toBeTruthy();
+  await screen.findByText('Register query failed; existing Trips are safe.');expect(screen.queryByText('No trips yet.')).toBeNull();expect(screen.getByRole('button',{name:'Retry'})).toBeTruthy();
  });
 });
