@@ -313,6 +313,7 @@ describe('Trip edit transition',()=>{
    render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
    fireEvent.click(await screen.findByRole('button',{name:'ATOMIC-1'}));
    await screen.findByRole('button',{name:'Save Changes'});
+   await waitFor(()=>expect(screen.getByLabelText('Customer billing mode').textContent).toContain('Credit Only'));
    choose('Search Driver','Second Driver');
    fireEvent.click(screen.getByRole('button',{name:'Save Changes'}));
    await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_save_operational_trip_edit',expect.objectContaining({
