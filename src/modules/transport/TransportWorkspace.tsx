@@ -313,9 +313,13 @@ export default function TransportWorkspace(){
   const [invoiceTrip,setInvoiceTrip]=useState<Trip|null>(null);
   const [editingRateLocks,setEditingRateLocks]=useState({customer:false,supplier:false});
   const [editingTripId,setEditingTripId]=useState<string|null>(null);
-  const editingTripLocked=Boolean(editingTripId&&editingRateLocks.customer&&editingRateLocks.supplier);
+  const editingTripLocked=Boolean(editingTripId&&(editingRateLocks.customer||editingRateLocks.supplier));
   const [editingTripNo,setEditingTripNo]=useState("");
   const [editingOriginalAssignment,setEditingOriginalAssignment]=useState({vehicle_id:"",driver_id:""});
+  const [editingSupplierRentId,setEditingSupplierRentId]=useState("");
+  const [editingSupplierRentCount,setEditingSupplierRentCount]=useState(0);
+  const [editingChargeTotals,setEditingChargeTotals]=useState({customer:0,supplier:0});
+  const [editingBaseline,setEditingBaseline]=useState({trip_date:"",customer_id:"",truck_type_id:"",from_location:"",to_location:"",customer_rate:"",supplier_rent:"",driver_pay:""});
 
   const [quickAdd,setQuickAdd]=useState<QuickAddKind|null>(null);
   const [bulkFixRowNo,setBulkFixRowNo]=useState<number|null>(null);
@@ -876,6 +880,12 @@ export default function TransportWorkspace(){
       const {data,error}=await supabase.rpc('transport_edit_trip_read',{p_trip_id:row.id});
       if(error)throw error;
       const savedRents:Array<{amount:number;finalized_amount_snapshot:number}>=data.supplier_rent_total==null?[]:[{amount:Number(data.supplier_rent_total),finalized_amount_snapshot:Number(data.supplier_rent_total)}];
+      const editableBase=data.customer_base_rate==null?String(Math.max(0,Number(data.customer_rate||0)-Number(data.customer_charges_total||0)-Number(data.customer_manual_adjustment||0))):String(data.customer_base_rate);
+      const supplierBase=data.supplier_rent_count===1?String(data.supplier_base_rate??0):data.supplier_rent_count>1?String(data.supplier_rent_total??0):data.owner_rent==null?"":String(data.owner_rent);
+      setEditingSupplierRentId(data.supplier_rent_id||"");
+      setEditingSupplierRentCount(Number(data.supplier_rent_count||0));
+      setEditingChargeTotals({customer:Number(data.customer_charges_total||0),supplier:Number(data.supplier_charges_total||0)});
+      setEditingBaseline({trip_date:data.trip_date||"",customer_id:data.customer_id||"",truck_type_id:data.truck_type_id||"",from_location:data.from_location||"",to_location:data.to_location||"",customer_rate:editableBase,supplier_rent:supplierBase,driver_pay:data.driver_pay==null?"":String(data.driver_pay)});
       setForm({
         trip_date:data.trip_date||new Date().toISOString().slice(0,10),
         customer_id:data.customer_id||"",
@@ -890,8 +900,8 @@ export default function TransportWorkspace(){
         ppr_received_date:data.ppr_received_date||"",
         ppr_received_by_employee_id:data.ppr_received_by_employee_id||"",
         ppr_attachment_path:data.ppr_attachment_path||"",
-        customer_rate:data.customer_rate==null?"":String(data.customer_rate),
-        supplier_rent:savedRents.length?String(savedRents.reduce((total,r)=>total+Number(r.finalized_amount_snapshot??r.amount),0)):data.owner_rent==null?"":String(data.owner_rent),
+        customer_rate:editableBase,
+        supplier_rent:supplierBase,
         driver_pay:data.driver_pay==null?"":String(data.driver_pay),
         sale_type:data.sale_type||"",
         notes:data.notes||""
@@ -934,15 +944,17 @@ export default function TransportWorkspace(){
     if(!form.customer_id){setError("Customer is required.");return}
     if(!editingTripLocked&&!selectedCustomerMode){setError("Configure this customer's Cash/Credit mode in Transport Customer Master before saving.");return}
     if(!form.from_location.trim()||!form.to_location.trim()){setError("From and To locations are required.");return}
+    if(!editingTripLocked&&!([form.customer_rate,form.supplier_rent,form.driver_pay].every(v=>v===""||(/^\\d+(\\.\\d{1,2})?$/.test(v)&&Number.isFinite(Number(v)))))){
+      setError("Rates and Driver Pay must be nonnegative with at most two decimals.");return;
+    }
 
     if(form.ppr_status==="received"&&(!form.ppr_received_by_employee_id||!form.ppr_received_date)){setError("PPR Received requires the receiving employee and date.");return}
     const chosenVehicle=tripMasters.vehicles.find(v=>v.id===form.vehicle_id);
     if(form.vehicle_id&&(!chosenVehicle||(form.truck_type_id&&chosenVehicle.truck_type_id!==form.truck_type_id))){
       setError("Selected Plate does not match the selected Trip Truck Type. Choose a compatible Vehicle.");return;
     }
-    if(form.truck_type_id!==editingOriginalTruckTypeId&&editingOriginalRateState==="finalized"){
-      setError("Finalized Customer Rate locks Truck Type. Use controlled rate correction/re-finalization before changing Truck Type or Plate.");return;
-    }
+    // Finalized is not Posted. Commercial corrections require a reason and
+    // controlled re-confirmation in the same database transaction.
     const customer=tripMasters.customers.find((c:any)=>c.id===form.customer_id);
     if(!customer){setError("Selected Customer is no longer available.");return}
 
@@ -979,21 +991,27 @@ export default function TransportWorkspace(){
         form.vehicle_id!==editingOriginalAssignment.vehicle_id ||
         form.driver_id!==editingOriginalAssignment.driver_id);
 
+      const sensitiveChanged=!editingTripLocked&&(
+        assignmentChanged||form.trip_date!==editingBaseline.trip_date||
+        form.customer_id!==editingBaseline.customer_id||form.truck_type_id!==editingBaseline.truck_type_id||
+        form.from_location!==editingBaseline.from_location||form.to_location!==editingBaseline.to_location||
+        form.customer_rate!==editingBaseline.customer_rate||form.supplier_rent!==editingBaseline.supplier_rent||
+        form.driver_pay!==editingBaseline.driver_pay
+      );
       let replacementReason:string|null=null;
-      if(assignmentChanged){
-        const reason=window.prompt(
-          "Driver/vehicle replacement reason is required for the audit history:",
-          ""
-        );
-        if(!reason?.trim()){
-          setError("Driver/vehicle replacement cancelled. A reason is required.");
-          return;
-        }
-
+      if(sensitiveChanged){
+        const reason=window.prompt("Reason for pre-posting Trip correction (saved in audit history):","");
+        if(!reason?.trim()){setError("Correction cancelled. An audit reason is required.");return;}
         replacementReason=reason.trim();
       }
 
-      const safePayload={...payload};
+      const safePayload:any={...payload};
+      if(!editingTripLocked){
+        safePayload.customer_base_rate=form.customer_rate===""?null:Number(form.customer_rate);
+        safePayload.supplier_base_rent=form.supplier_rent===""?null:Number(form.supplier_rent);
+        safePayload.supplier_rent_id=editingSupplierRentId||null;
+        safePayload.driver_pay=form.driver_pay===""?null:Number(form.driver_pay);
+      }
       delete (safePayload as any).vehicle_id;
       delete (safePayload as any).driver_id;
       delete (safePayload as any).owner_name_snapshot;
@@ -1002,6 +1020,7 @@ export default function TransportWorkspace(){
         delete (safePayload as any).customer_rate;
         delete (safePayload as any).customer_id;
         delete (safePayload as any).sale_type;
+        delete (safePayload as any).customer_base_rate;
       }
 
       // One RPC means assignment + operational correction either both succeed or both roll back.
@@ -1017,6 +1036,7 @@ export default function TransportWorkspace(){
       setEditingOriginalAssignment({vehicle_id:"",driver_id:""});
       setEditingOriginalTruckTypeId("");
       setEditingOriginalRateState("");
+      setEditingSupplierRentId("");setEditingSupplierRentCount(0);
       const returnTo=entryReturnTab.current;
       setTab(returnTo);
       if(returnTo==="mobile")await loadMobileTrips(mobileSearch);else await load();
@@ -1790,7 +1810,7 @@ export default function TransportWorkspace(){
 
       {standaloneMobile&&currentVoiceDraftId&&<div className="mb-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900"><strong>Voice draft ready.</strong> Check the matched Customer, Vehicle, Driver, route and amounts, then tap Create Trip. If anything was not recognized, select it manually.</div>}
       <p className="text-xs text-slate-500">
-        {editingTripLocked?"Locked Trip is read-only. Use the controlled correction / reversal workflow for later changes.":editingTripId?"Trip No and Trip Date are permanent. Posted financial fields stay protected.":"Trip number is generated automatically by NAVILO."}
+        {editingTripLocked?"Locked Trip is read-only. Use the controlled correction / reversal workflow for later changes.":editingTripId?"Trip No is permanent. Unposted changes require an audit reason; posted financial fields stay protected.":"Trip number is generated automatically by NAVILO."}
       </p>
     </div>
 
@@ -1823,7 +1843,7 @@ export default function TransportWorkspace(){
     <div className={standaloneMobile?"overflow-visible bg-transparent":"overflow-visible rounded-lg border border-blue-300 bg-white"}>
       <div className="grid grid-cols-1 border-b border-slate-300 md:grid-cols-2 xl:grid-cols-7">
         <TripField label="Date">
-          <NaviloDateInput aria-label="Trip Date" type="date" disabled={Boolean(editingTripId)||editingTripLocked} value={form.trip_date}
+          <NaviloDateInput aria-label="Trip Date" type="date" disabled={editingTripLocked} value={form.trip_date}
             onChange={e=>{setError("");setForm({...form,trip_date:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-xs outline-none"/>
         </TripField>
@@ -1950,25 +1970,28 @@ export default function TransportWorkspace(){
             className="h-8 w-full border-0 bg-white px-2 text-xs outline-none disabled:bg-slate-50"/>
         </TripField>
 
-        <TripField label="Supplier / Owner Rent">
-          <input type="number" min="0" step="0.01" aria-label="Supplier / Owner Rent" readOnly={editingTripLocked||Boolean(editingTripId)||!entryPermissions.rent||!supplierOwned} value={form.supplier_rent}
+        <TripField label={editingTripId?"Supplier Base Rent":"Supplier / Owner Rent"}>
+          <input type="number" min="0" step="0.01" aria-label="Supplier / Owner Rent" readOnly={editingTripLocked||(Boolean(editingTripId)&&editingSupplierRentCount>1)||(!editingTripId&&!entryPermissions.rent)||!supplierOwned} value={form.supplier_rent}
             onChange={e=>{setError("");setForm({...form,supplier_rent:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-right text-xs outline-none"/>
         </TripField>
 
-        <TripField label="Customer Rate">
-          <input type="number" min="0" step="0.01" aria-label="Customer Rate" readOnly={editingTripLocked||Boolean(editingTripId)||!entryPermissions.rate} title={editingTripId?"Customer Rate is a financial field. Use Finance for controlled changes.":""} value={form.customer_rate}
+        <TripField label={editingTripId?"Customer Base Rate":"Customer Rate"}>
+          <input type="number" min="0" step="0.01" aria-label="Customer Rate" readOnly={editingTripLocked||(!editingTripId&&!entryPermissions.rate)} title={editingTripId?"Base excluding charge lines. Finalized unposted corrections require authorization and an audit reason.":""} value={form.customer_rate}
             onChange={e=>{setRateTouched(true);setError("");setForm({...form,customer_rate:e.target.value})}}
             className="h-8 w-full border-0 bg-white px-2 text-right text-xs outline-none"/>
         </TripField>
 
+        {editingTripId&&!editingTripLocked&&<TripField label="Driver Pay">
+          <input aria-label="Driver Pay" className="h-8 w-full border-0 bg-white px-2 text-right text-xs" type="number" min="0" step="0.01" value={form.driver_pay} onChange={e=>setForm({...form,driver_pay:e.target.value})}/>
+        </TripField>}
         <TripField label="Estimated Operational Margin">
-          <input aria-label="Estimated Operational Margin" value={estimatedMargin(form.customer_rate,form.supplier_rent,"",supplierOwned)} readOnly className="h-8 w-full border-0 bg-slate-50 px-2 text-right text-xs font-semibold"/>
+          <input aria-label="Estimated Operational Margin" value={estimatedMargin(String(Number(form.customer_rate||0)+(editingTripId?editingChargeTotals.customer:0)),String(Number(form.supplier_rent||0)+(editingTripId?editingChargeTotals.supplier:0)),"",supplierOwned)} readOnly className="h-8 w-full border-0 bg-slate-50 px-2 text-right text-xs font-semibold"/>
         </TripField>
       </div>
     </div>
 
-    <p className="mt-1 text-[10px] text-slate-600">{agreedRate?`Suggested Customer Rate: ${agreedRate.amount} (effective agreement). `:''}Entered Customer Rate and Supplier Rent finalize on creation with permission; blank means pending. Estimated margin excludes later expenses, fuel and charges. {editingTripId?'Use Finance for rate, rent or driver-pay corrections.':''}</p>
+    <p className="mt-1 text-[10px] text-slate-600">{agreedRate?`Suggested Customer Rate: ${agreedRate.amount} (effective agreement). `:''}Entered Customer Rate and Supplier Rent finalize on creation with permission; blank means pending. Estimated margin excludes later expenses, fuel and charges. {editingTripId?`Unposted base + charges: Customer ${(Number(form.customer_rate||0)+editingChargeTotals.customer).toFixed(2)}; Supplier ${(Number(form.supplier_rent||0)+editingChargeTotals.supplier).toFixed(2)}. ${editingSupplierRentCount>1?'Multiple supplier rents: edit each supplier in Bulk Supplier Rent.':''}`:''}</p>
     <div className="mt-3 grid gap-3 xl:grid-cols-[180px_1fr_auto]">
       <label className="text-[11px] font-semibold text-slate-700">
         Billing Mode · Customer Master
