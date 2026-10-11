@@ -31,6 +31,8 @@ begin
   if ar is null or revenue is null then raise exception 'Accounting fixture missing'; end if;
 
   insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Guard Customer',ar) returning id into customer;
+   -- Synthetic Trip has an explicitly configured customer master billing rule.
+   perform public.transport_set_party_billing_mode('customer',customer,'Credit');
   insert into public.charge_master(user_id,company_id,charge_key,charge_name,applies_to,tax_applicable,revenue_account_id,is_active)
   values(u,c,'wait-'||code,'Waiting','sales',true,revenue,true) returning id into cm;
   insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
