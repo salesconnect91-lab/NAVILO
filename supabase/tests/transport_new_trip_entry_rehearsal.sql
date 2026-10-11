@@ -151,7 +151,7 @@ begin
  perform pg_temp.entry_rejected(format(
    'select public.transport_save_operational_trip_edit(%L,%L::jsonb,%L,%L,%L)',
    trip,jsonb_build_object('truck_type_id',tt2,'customer_id',customer,'sale_type','credit',
-     'from_location','Entry From','to_location','Entry To')::text,switch_vehicle,d,'Cannot bypass'),
+     'from_location','Entry From','to_location','Entry To')::text,switch_vehicle,d,''),
    'Audit correction reason required');
  if (select truck_type_id from public.transport_trips where id=trip) is distinct from tt
  then raise exception 'Finalized Customer Rate Truck Type changed';end if;
