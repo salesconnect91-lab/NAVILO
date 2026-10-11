@@ -230,6 +230,8 @@ export default function TransportWorkspace(){
   const [registerMeta,setRegisterMeta]=useState<any>({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
   const readGeneration=useRef(0);
   const registerRequest=useRef<AbortController|null>(null);
+  // Keep the last valid page visible if the database times out on a background refresh.
+  const lastSuccessfulRegisterKey=useRef<string|null>(null);
   const columnOptionsRequest=useRef<AbortController|null>(null);
 
 
@@ -484,21 +486,40 @@ export default function TransportWorkspace(){
   const registerFilters={fromDate,toDate,customer:customerFilter,driver:driverFilter,vehicle:vehicleFilter,from:fromFilter,to:toFilter,ppr:pprFilter,statuses:statusFilters,columns:columnFilters,search:registerSearch,searchMode:registerSearchMode};
   const registerKey=JSON.stringify({scopeKey,registerFilters,sortColumn,sortDirection});
   async function load(silent=false){
+    // A timer/focus refresh must never abort an unfinished register request.
+    if(silent&&registerRequest.current)return;
     // A successful rent save must refresh the register immediately. A previous
     // in-flight register read is stale at this point, so cancel it instead of
     // silently skipping the refresh (which left Supplier Balance unchanged).
     registerRequest.current?.abort();const controller=new AbortController();registerRequest.current=controller;
     const generation=++readGeneration.current;
-    if(!silent)setRegisterLoading(true);setRegisterLoadError(false);setError('');
+    if(!silent){setRegisterLoading(true);setRegisterLoadError(false);setError('');}
     try {
       const result=await supabase.rpc('transport_register_query',{p_limit:500,p_offset:page*500,p_filters:registerFilters,p_sort:sortColumn,p_direction:sortDirection}).abortSignal(controller.signal);
       if(result.error)throw result.error;
       if(scopeRef.current!==scopeKey||generation!==readGeneration.current)return;
       const data=result.data;
+      lastSuccessfulRegisterKey.current=registerKey;
+      setRegisterLoadError(false);
+      setError('');
       setRows((data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})));
       setRegisterMeta(data);
       if(page>Math.max(0,Math.ceil(data.count/500)-1))setPage(Math.max(0,Math.ceil(data.count/500)-1));
-    }catch(e:any){if(generation===readGeneration.current){setRegisterLoadError(true);setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});setError(e?.message||'Unable to load trips.');}}
+    }catch(e:any){
+      if(generation===readGeneration.current&&!controller.signal.aborted){
+        setRegisterLoadError(true);
+        // Stale results from another filter must not masquerade as matching rows.
+        if(lastSuccessfulRegisterKey.current!==registerKey){
+          setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
+        }
+        if(!silent||lastSuccessfulRegisterKey.current===null){
+          const message=String(e?.message||'Unable to load trips.');
+          setError(/statement timeout|57014|timeout/i.test(message)
+            ? 'Trip Register database query timed out. Your Trips are still saved; retry when the server is available.'
+            : message);
+        }
+      }
+    }
     finally{if(registerRequest.current===controller)registerRequest.current=null;if(generation===readGeneration.current)setRegisterLoading(false);}
   }
   const previousRegisterKey=useRef(registerKey);
@@ -563,7 +584,7 @@ export default function TransportWorkspace(){
 
   useEffect(()=>{
     if(tab!=="trips"||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
-    const refresh=()=>{if(document.visibilityState==="visible")void load(true)};
+    const refresh=()=>{if(document.visibilityState==="visible"&&!registerRequest.current)void load(true)};
     const timer=window.setInterval(refresh,30000);
     window.addEventListener("focus",refresh);
     document.addEventListener("visibilitychange",refresh);
@@ -1522,7 +1543,7 @@ export default function TransportWorkspace(){
 
           <div className="flex items-center justify-between border border-blue-200 bg-blue-50 h-9 min-w-[104px] rounded-lg px-3 shadow-sm">
             <span className="text-[10px] font-extrabold uppercase text-blue-700">🚚 Trips</span>
-            <span className="text-sm font-bold text-slate-950">{Number(registerMeta.count??0).toLocaleString()}</span>
+            <span className="text-sm font-bold text-slate-950">{registerLoadError&&lastSuccessfulRegisterKey.current!==registerKey?'—':Number(registerMeta.count??0).toLocaleString()}</span>
           </div>
 
           <div className={`flex items-center gap-2 border ${selectedTripCount>0?'border-amber-400 bg-amber-100 text-amber-950':'border-slate-200 bg-slate-50 text-slate-500'} h-9 rounded-lg px-3 shadow-sm`} aria-live="polite" data-testid="trip-selection-count">
@@ -1583,7 +1604,7 @@ export default function TransportWorkspace(){
           {canDeleteTrip&&<button type="button" aria-label="Delete selected Trip" title="Select one Draft or Incomplete Trip without financial posting to delete" disabled={selectedTripCount!==1||!gridRows.some(r=>selectedTripIds.has(r.id)&&(r.status==='draft'||r.status==='incomplete'))} onClick={()=>{const selected=gridRows.find(r=>selectedTripIds.has(r.id));if(selected){setDeleteTripTarget(selected);setDeleteTripReason("");setDeleteTripError("");}}} className="flex h-7 items-center gap-1 rounded-md border border-rose-400 bg-rose-700 px-2 text-white disabled:opacity-40"><Trash2 className="h-4 w-4"/>Delete</button>}
           <span data-navilo-standard-tools-host="true" className="contents" />
         </div>
-        <span className="navilo-transport-result-count">{gridRows.length.toLocaleString()} shown / {Number(registerMeta.count??0).toLocaleString()} filtered trips</span>
+        <span className="navilo-transport-result-count">{registerLoadError&&lastSuccessfulRegisterKey.current!==registerKey?'Data unavailable':`${gridRows.length.toLocaleString()} shown / ${Number(registerMeta.count??0).toLocaleString()} filtered trips`}</span>
       </div>
 
         {showTripColumnSetup&&<TransportDialog onClose={()=>setShowTripColumnSetup(false)}><section role="dialog" aria-modal="true" aria-label="Trip columns" className="w-full max-w-3xl rounded-lg border p-3"><header className="mb-2 flex items-center justify-between"><strong>Trip Columns</strong><button type="button" className="btn h-7" onClick={()=>setShowTripColumnSetup(false)}>Close</button></header>
@@ -1739,7 +1760,7 @@ export default function TransportWorkspace(){
           </thead>
 
           <tbody>
-            {!gridRows.length&&<tr><td colSpan={Math.max(1,orderedGridColumns.length)}><div className="navilo-transport-empty-state">{registerLoading?"Loading trips…":registerLoadError?<><strong>Data load failed.</strong><button type="button" className="btn h-7" onClick={()=>void load()}>Retry</button></>:<><strong>{registerSearch||Object.values(columnFilters).some(v=>v.length)||statusFilters.length?"No trips match your filters.":"No trips yet."}</strong><button type="button" className="btn h-7" onClick={()=>{setEditingTripId(null);setTab("new")}}>Add Trip</button></>}</div></td></tr>}
+            {!gridRows.length&&<tr><td colSpan={Math.max(1,orderedGridColumns.length)}><div className="navilo-transport-empty-state">{registerLoading?"Loading trips…":registerLoadError?<><strong>Register query failed; existing Trips are safe.</strong><button type="button" className="btn h-7" onClick={()=>void load()}>Retry</button></>:<><strong>{registerSearch||Object.values(columnFilters).some(v=>v.length)||statusFilters.length?"No trips match your filters.":"No trips yet."}</strong><button type="button" className="btn h-7" onClick={()=>{setEditingTripId(null);setTab("new")}}>Add Trip</button></>}</div></td></tr>}
             {gridRows.map(r=>{
               const tripSelected=selectedTripIds.has(String(r.id));
               return <tr key={r.id} data-trip-selected={tripSelected?"true":"false"} className={`align-middle transition-colors ${tripSelected?'outline outline-1 -outline-offset-1 outline-amber-400':''} h-[26px] odd:bg-white even:bg-slate-50/45 hover:bg-blue-50/45`}>
