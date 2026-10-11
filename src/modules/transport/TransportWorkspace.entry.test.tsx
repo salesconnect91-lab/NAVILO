@@ -292,16 +292,19 @@ describe('Trip edit transition',()=>{
   await waitFor(()=>expect(screen.getByLabelText('Customer billing mode').textContent).toContain('Credit Only'));
   await waitFor(()=>expect((screen.getByRole('button',{name:'Save Changes'}) as HTMLButtonElement).disabled).toBe(false));
   choose('Search Truck Type','Tanker');
-  vi.spyOn(window,'prompt').mockReturnValue('Corrected commercial dimensions');
+  // The audit reason is selected in the Register's correction dialog.
   try{
    fireEvent.click(screen.getByRole('button',{name:'Save Changes'}));
+   expect(await screen.findByRole('dialog',{name:'Trip edit correction reason'})).toBeTruthy();
+   fireEvent.change(screen.getByLabelText('Correction reason selection'),{target:{value:'Truck Type / vehicle correction'}});
+   fireEvent.click(screen.getByRole('button',{name:'Continue Save'}));
    await waitFor(()=>{
     if(!mock.rpc.mock.calls.some(call=>call[0]==='transport_save_operational_trip_edit')){
       throw new Error('Trip edit was not submitted: '+(document.querySelector('.bg-red-50')?.textContent??'no error displayed'));
     }
    });
    await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_save_operational_trip_edit',expect.objectContaining({
-     p_trip_id:'rate-finalized',p_reason:'Corrected commercial dimensions'
+     p_trip_id:'rate-finalized',p_reason:'Truck Type / vehicle correction'
    })));
    expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_replace_trip_assignment')).toBe(false);
   }finally{vi.restoreAllMocks();}
@@ -314,7 +317,7 @@ describe('Trip edit transition',()=>{
   mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_register_query'
    ?{rows:[trip],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}
    :name==='transport_edit_trip_read'?trip:name==='transport_trip_customer_modes'?[{id:'c1',mode:'Credit'}]:true,error:null}));
-  vi.spyOn(window,'prompt').mockReturnValue('Driver corrected with approval');
+  // Selecting a preset reason replaces the previous native browser prompt.
   try{
    render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
    fireEvent.click(await screen.findByRole('button',{name:'ATOMIC-1'}));
@@ -323,8 +326,11 @@ describe('Trip edit transition',()=>{
    await waitFor(()=>expect((screen.getByRole('button',{name:'Save Changes'}) as HTMLButtonElement).disabled).toBe(false));
    choose('Search Driver','Second Driver');
    fireEvent.click(screen.getByRole('button',{name:'Save Changes'}));
+   expect(await screen.findByRole('dialog',{name:'Trip edit correction reason'})).toBeTruthy();
+   fireEvent.change(screen.getByLabelText('Correction reason selection'),{target:{value:'Driver / assignment replacement'}});
+   fireEvent.click(screen.getByRole('button',{name:'Continue Save'}));
    await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_save_operational_trip_edit',expect.objectContaining({
-     p_trip_id:'atomic-trip',p_driver_id:'d2',p_vehicle_id:'v',p_reason:'Driver corrected with approval',
+     p_trip_id:'atomic-trip',p_driver_id:'d2',p_vehicle_id:'v',p_reason:'Driver / assignment replacement',
      p_changes:expect.objectContaining({truck_type_id:'tt'})
    })));
    expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_replace_trip_assignment')).toBe(false);
