@@ -21,7 +21,7 @@ end $$;
 do $$
 declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;
  code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
- customer uuid;supplier uuid;second_supplier uuid;tt uuid;tt2 uuid;from_id uuid;to_id uuid;v uuid;company_v uuid;d uuid;company_d uuid;employee uuid;
+ customer uuid;cash_customer uuid;supplier uuid;second_supplier uuid;tt uuid;tt2 uuid;from_id uuid;to_id uuid;v uuid;company_v uuid;d uuid;company_d uuid;employee uuid;
  ownership uuid;rate uuid;result jsonb;payload jsonb;supplier_payload jsonb;trip uuid;trip2 uuid;request_id uuid:=gen_random_uuid();number text;deleted_number text;
  other_bu uuid;foreign_v uuid;other_c uuid;other_customer uuid;before_count bigint;canonical public.customers;canonical_supplier public.suppliers;
 data jsonb;bank_account uuid;fixed_account uuid;rent uuid;second_rent uuid;bill uuid;customer_trip uuid;
@@ -71,7 +71,14 @@ begin
  execute 'set local role authenticated';
  canonical:=public.create_customer_with_ar('Entry Customer',null,'123',null);customer:=canonical.id;
  canonical_supplier:=public.create_supplier_with_ap('Entry Supplier',null,'456',null);supplier:=canonical_supplier.id;
+ cash_customer:=(public.create_customer_with_ar('Entry Cash Customer',null,'789',null)).id;
+ perform public.transport_set_party_billing_mode('customer',customer,'Credit');
+ perform public.transport_set_party_billing_mode('customer',cash_customer,'Cash');
+ perform public.transport_set_party_billing_mode('supplier',supplier,'Cash');
  select id into second_supplier from public.create_supplier_with_ap('Entry Supplier Two',null,'789',null);
+ perform public.transport_set_party_billing_mode('supplier',second_supplier,'Cash');
+ insert into public.tax_rates(user_id,company_id,name,rate,applies_to,is_fixed,is_active,effective_from)
+ values(u,c,'Reader effective VAT',15,'both',true,true,current_date-30);
  if canonical.company_id is distinct from c or canonical.account_id is distinct from ar or canonical_supplier.account_id is distinct from ap then raise exception 'Canonical party mapping/scope missing';end if;
  perform pg_temp.entry_rejected('select public.create_customer_with_ar('' entry  customer '',null,null,null)','Duplicate canonical');
  perform pg_temp.entry_rejected('select public.create_supplier_with_ap('' ENTRY SUPPLIER '',null,null,null)','Duplicate canonical');
@@ -110,7 +117,7 @@ begin
  execute 'set local role authenticated';
  payload:=jsonb_build_array(jsonb_build_object('trip_date',current_date,'customer_id',customer,'vehicle_id',v,'driver_id',d,
  'truck_type_id',tt,'from_location_id',from_id,'to_location_id',to_id,'sale_type','credit','ppr_status','pending','customer_rate',1000,'supplier_rent',300,'po_do_job_no','TEST-1'),
- jsonb_build_object('trip_date',current_date-1,'customer_id',customer,'vehicle_id',company_v,'truck_type_id',tt,
+ jsonb_build_object('trip_date',current_date-1,'customer_id',cash_customer,'vehicle_id',company_v,'truck_type_id',tt,
  'from_location_id',from_id,'to_location_id',to_id,'sale_type','cash','ppr_status','pending','customer_rate',1000,'po_do_job_no','TEST-2'));
  result:=public.transport_create_trips(request_id,c,b,payload);trip:=(result->0->>'id')::uuid;customer_trip:=(result->1->>'id')::uuid;
  select trip_no into number from public.transport_trips where id=trip;
