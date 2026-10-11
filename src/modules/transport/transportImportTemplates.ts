@@ -19,7 +19,7 @@ export function createDailyTripTemplateWorkbook(){
   headers:TRANSPORT_TRIP_HEADERS,example,
   notes:[
    'Upload creates TRIP RECORDS ONLY. It does not create Sales/Purchase invoices, payment receipts or accounting journals.',
-   'Customer Cash Only / Credit Only comes automatically from Transport Customer Master > Cash/Credit Billing Rules. Do NOT add a Sale Type column.',
+   'Customer Cash (without VAT) / Credit (with VAT) comes automatically from Transport Customer Master > Cash/Credit Billing Rules. Do NOT add a Sale Type column.',
    'Customer, Truck Type, Vehicle, Driver, From and To must resolve to active records in the selected Transport business.',
    'OWNER is optional but, when entered, must match the dated Vehicle Ownership History. Supplier Rent is only for Supplier-owned vehicles.',
    'PAPER RECEIVED BY: PPR PENDING, N/A, or an actual receiving Employee name. The SECOND DATE column is the PPR receiving date (only for a received PPR).',

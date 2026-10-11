@@ -23,7 +23,7 @@ export default function TransportVatPreview({side,date,withTax,amounts,onReady}:
  useEffect(()=>{onReady?.(ready)},[ready,onReady]);
  const totals=ready?vatPreviewAmounts(amounts,withTax?result.rate!:0):null;
  return <div className="my-1 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-[11px]" aria-label="VAT posting preview">
- {totals?<p>Net: {financialNumber(totals.net)} · VAT {withTax?`${result.rate}%`:'off'}: {financialNumber(totals.vat)} · Total including VAT: <strong>{financialNumber(totals.total)}</strong></p>:<p role="status">{!valid?'Enter valid nonnegative net amounts.':result.key===key&&result.error?result.error:'Loading VAT rate…'}</p>}
+ {totals&&!withTax?<p>Amount: <strong>{financialNumber(totals.net)}</strong></p>:totals?<p>Net: {financialNumber(totals.net)} · VAT {withTax?`${result.rate}%`:'off'}: {financialNumber(totals.vat)} · Total including VAT: <strong>{financialNumber(totals.total)}</strong></p>:<p role="status">{!valid?'Enter valid nonnegative net amounts.':result.key===key&&result.error?result.error:'Loading VAT rate…'}</p>}
  {withTax&&<p className="text-[10px] text-slate-600">Company and party tax registration are validated on posting. Invoice date selects the VAT rate; payments include VAT. Preview only—no posting.</p>}
  </div>;
 }

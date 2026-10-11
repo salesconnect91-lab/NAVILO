@@ -5,7 +5,7 @@ import type { MasterQuickCreate } from "./MasterQuickCreate";
 import useTransportMasterClient from "./useTransportMasterClient";
 import SearchableSelect from "@/components/SearchableSelect";
 import MasterSummaryStrip from "@/components/MasterSummaryStrip";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { masterDeleteError } from "@/lib/masterDeleteError";
 import { toUrduName } from "@/lib/urdu";
@@ -38,6 +38,7 @@ const EMPTY = {
   opening_date: new Date().toISOString().slice(0, 10),
 };
 
+const TransportBillingRules=lazy(()=>import('@/modules/transport/TransportCustomerBillingModes'));
 export default function Suppliers({ quickCreate, transportEnglishOnly = false }: { quickCreate?: MasterQuickCreate; transportEnglishOnly?: boolean } = {}) {
  const supabase = useTransportMasterClient();
   const { isPlatformOwner, activeCompany, activeBusinessUnit } = useAuth();
@@ -314,6 +315,7 @@ export default function Suppliers({ quickCreate, transportEnglishOnly = false }:
     }
   };
 
+  const [billingView,setBillingView]=useState(false);
   const filteredRows = useMemo(() => { const q = search.trim().toLowerCase(); if (!q) return rows; return rows.filter((r) => [r.name, r.name_urdu, r.email, r.phone, r.address, r.ntn, r.strn, r.cnic, r.tax_registration_status].some((v) => String(v ?? "").toLowerCase().includes(q))); }, [rows, search]);
 
   const hardDelete = async () => {
@@ -370,12 +372,15 @@ export default function Suppliers({ quickCreate, transportEnglishOnly = false }:
 
   return <div className="space-y-4" data-navilo-master-standard="true">
     <MasterSummaryStrip kind="suppliers" title="Suppliers" subtitle="Manage supplier accounts" total={rows.length} active={rows.filter(r=>r.is_active!==false).length} inactive={rows.filter(r=>r.is_active===false).length} fourthLabel="Displayed" fourthValue={filteredRows.length}/>
+    {transportContext&&<div className="flex gap-2"><button className="btn-secondary" onClick={()=>setBillingView(false)}>Suppliers</button><button className="btn-secondary" onClick={()=>setBillingView(true)}>Billing Rules</button></div>}
+    {transportContext&&billingView?<Suspense fallback={<p>Loading billing rules…</p>}><TransportBillingRules side="supplier"/></Suspense>:<>
     <div className="flex justify-end" data-no-print data-no-export><button onClick={openCreate} className="btn-primary">+ New Supplier</button></div>
     {error && <ErrorBanner message={error} />}
     <div className="navilo-master-filterbar flex items-center gap-2 px-3 py-2" data-report-filters data-no-print data-no-export><Search className="h-4 w-4 text-slate-400" /><input className="w-full bg-transparent outline-none" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search supplier, phone, email, tax ID or address..." />{search && <button type="button" className="text-xs font-semibold text-primary-600" onClick={() => setSearch("")}>Clear</button>}</div>
     <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable showSerialNumber columns={columns} rows={filteredRows} loading={loading} emptyMessage="No suppliers yet." /></div>
 
     {editor}
+    </>}
 
     <ConfirmModal tone="danger" open={!!deleteId} title={`${rows.find((r) => r.id === deleteId)?.is_active === false ? "Activate" : "Deactivate"} Supplier`} message="Historical transactions will remain safe. Inactive suppliers cannot be selected for new transactions." onConfirm={handleStatusChange} onCancel={() => setDeleteId(null)} />
   

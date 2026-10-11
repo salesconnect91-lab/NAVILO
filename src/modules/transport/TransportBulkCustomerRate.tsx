@@ -18,7 +18,7 @@ const fmt=(v:string)=>{if(!v)return '—';const [y,m,d]=v.slice(0,10).split('-')
 export default function TransportBulkCustomerRate({onClose,onChanged}:{onClose:()=>void;onChanged:()=>Promise<void>}){
  const {activeCompany,activeBusinessUnit}=useAuth();
  const [rows,setRows]=useState<Row[]>([]),[selected,setSelected]=useState<string[]>([]),[amounts,setAmounts]=useState<Record<string,string>>({}),[accounts,setAccounts]=useState<Account[]>([]);
- const [search,setSearch]=useState(''),[status,setStatus]=useState(''),[account,setAccount]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[reason,setReason]=useState('Bulk customer rate'),[withTax,setWithTax]=useState(false);const [vatReady,setVatReady]=useState(true);
+ const [search,setSearch]=useState(''),[status,setStatus]=useState(''),[account,setAccount]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[reason,setReason]=useState('Bulk customer rate');const [vatReady,setVatReady]=useState(true);
  const [permissions,setPermissions]=useState<Record<string,boolean>>({}),[loading,setLoading]=useState(true),[customers,setCustomers]=useState<Array<{id:string;name:string;is_active:boolean}>>([]),[customer,setCustomer]=useState(''),[columnFilters,setColumnFilters]=useState<Record<string,string>>({});
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[correction,setCorrection]=useState<Row|null>(null),[correctionAmount,setCorrectionAmount]=useState('');
  const [descriptions,setDescriptions]=useState<Record<string,string>>({});
@@ -62,6 +62,8 @@ export default function TransportBulkCustomerRate({onClose,onChanged}:{onClose:(
   const timer=window.setTimeout(()=>void load().catch(e=>{if(active)setError(e.message)}),200);
   return()=>{active=false;window.clearTimeout(timer);generation.current++;};
  },[filterKey,page]);
+ const selectedModes=new Set(rows.filter(r=>selected.includes(r.id)).map(r=>r.sale_type));
+ const withTax=selectedModes.has('credit');
  const posted=(r:Row)=>Boolean(r.customer_rate_locked||r.invoiced||r.sales_order_id);
  const statuses=pageMeta.statuses;
  const visible=rows;
@@ -123,7 +125,7 @@ export default function TransportBulkCustomerRate({onClose,onChanged}:{onClose:(
    <label className="col-span-3">Revenue account<NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Revenue account" className="input h-7 px-1 text-[10px]" value={account} onChange={e=>setAccount(e.target.value)}><option value="">Select account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</NaviloSearchableSelect></label>
    <label className="col-span-2">Date<NaviloDateInput className="input h-7 px-1 text-[10px]" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
    <label className="col-span-3">Reason<input className="input h-7 px-1 text-[10px]" value={reason} onChange={e=>setReason(e.target.value)}/></label>
-   <label className="col-span-2 pb-1"><input type="checkbox" checked={withTax} onChange={e=>setWithTax(e.target.checked)}/> With VAT</label>
+   <p className="col-span-2 pb-1 font-semibold">{selectedModes.size>1?'Select one billing mode':withTax?'Credit · VAT automatic':'Cash · Without VAT'}</p>
    <label className="col-span-2">Trip Status<NaviloSearchableSelect nativeCompatibility preserveLabel className="input h-7 px-1 text-[10px]" value={status} onChange={e=>{setStatus(e.target.value);setSelected([])}}><option value="">All Statuses</option>{statuses.map(s=><option key={s} value={s}>{s}</option>)}</NaviloSearchableSelect></label>
    <label className="col-span-4">Search Trip / Company / Route / Vehicle<input className="input h-7 px-1 text-[10px]" value={search} onChange={e=>setSearch(e.target.value)}/></label>
    <label className="col-span-3">Invoice #<input aria-label="Invoice number" className="input h-7 px-1 text-[10px]" maxLength={80} placeholder="Auto — one invoice for selected trips" value={invoiceNumber} onChange={e=>setInvoiceNumber(e.target.value)}/></label>

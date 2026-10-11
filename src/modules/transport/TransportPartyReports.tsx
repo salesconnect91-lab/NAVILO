@@ -1,5 +1,6 @@
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
+import {billingReport,hasOnlyWithoutVatDocuments} from './transportBillingReports';
 import TransportVatGuide from './TransportVatGuide';
 import ConfigurableReport from './ConfigurableReport';
 import TransportTripReports from './TransportTripReports';
@@ -54,7 +55,7 @@ export default function TransportPartyReports({onClose,onChanged,initialSide='cu
  const balances=documentBalances(matchingDocs,matchingEvents,to).filter(d=>status==='all'||(status==='outstanding'?d.outstanding>0:status==='credit'?d.credit>0:d.outstanding===0&&d.credit===0));
  const selectedName=parties.find(p=>p[0]===party)?.[1]??'All parties';
  const dateError=!['outstanding','reconciliation'].includes(mode)&&!!(from&&to&&from>to);const needsParty=['statement','trip-statement','trip-ledger','canonical'].includes(mode)&&!party;
- const amount=(n:unknown)=>financialNumber(n);const report=useMemo<ReportTable>(()=>{
+ const amount=(n:unknown)=>financialNumber(n);const rawReport=useMemo<ReportTable>(()=>{
  const title=`Transport ${side==='customer'?'Customer':'Supplier'} ${mode}`;
  const description=`${activeCompany?.company_name??''} / ${activeBusinessUnit?.business_unit_name??''} / active branch · ${selectedName} · ${mode==='outstanding'?`As of ${to?formatNaviloDate(to):'all dates'}`:`${from?formatNaviloDate(from):'Beginning'} to ${to?formatNaviloDate(to):'all dates'}`} · Company base currency · Supplier positive balance = payable; customer positive balance = receivable. ${tripSearch?`Trip/document filter: ${tripSearch}. `:''}`;
  if(mode==='outstanding'){
@@ -78,12 +79,15 @@ export default function TransportPartyReports({onClose,onChanged,initialSide='cu
  columns:['Party','Trip','Document','Movement balance gross','Canonical outstanding less credit','Difference','Link count'],
  rows:current.map(d=>{const canonicalBalance=Number(d.current_outstanding_gross??0)-Number(d.current_credit_gross??0);return [d.party_name,d.trip_no,d.order_no,d.balance,canonicalBalance,money(cents(d.balance)-cents(canonicalBalance)),d.trip_ids.length]})};
  },[side,mode,activeCompany?.company_name,activeBusinessUnit?.business_unit_name,selectedName,to,from,tripSearch,status,balances,ledger,matchingEvents,matchingDocs]);
+ const withoutVat=hasOnlyWithoutVatDocuments(matchingDocs);
+ const report=billingReport(rawReport,withoutVat);
  const detailsByDocument=useMemo(()=>{const map=new Map<string,any[]>();for(const t of tripDetails){const key=t.side+':'+t.order_no;const rows=map.get(key)||[];rows.push(t);map.set(key,rows)}return map},[tripDetails]);
  const documentColumn=report.columns.findIndex(c=>c==='Document'||c==='Bill');
  const detailedReportBase:ReportTable=documentColumn<0?report:{...report,columns:[...report.columns,'Trip dates','From','To','Vehicles at posting','Drivers at posting','Owners at posting','Jobs / PO / DO','Document base amount','Document charges','Document VAT','Document gross','Charge description'],rows:report.rows.map(row=>{const details=detailsByDocument.get(side+':'+row[documentColumn])||[];return [...row,...['trip_date','from_location','to_location','vehicle_no','driver_name','owner_name','po_do_job_no'].map(key=>[...new Set(details.map(t=>t[key]?(key==='trip_date'?formatNaviloDate(t[key]):key==='vehicle_no'?vehicleDisplayLabel(t.vehicle_no,t.truck_type):t[key]):'Unattributed'))].join(' / ')),...['base_amount','charge_amount','tax_amount','total_amount','charge_breakdown'].map(key=>details.length?(key==='charge_breakdown'?details[0][key]||'':Number(details[0][key]||0)):'')]})};
- const detailedReport:ReportTable=['trip-statement','trip-ledger'].includes(mode)?{...detailedReportBase,columns:[detailedReportBase.columns[1],detailedReportBase.columns[0],...detailedReportBase.columns.slice(2)],rows:detailedReportBase.rows.map(r=>[r[1],r[0],...r.slice(2)])}:detailedReportBase;
+ const rawDetailedReport:ReportTable=['trip-statement','trip-ledger'].includes(mode)?{...detailedReportBase,columns:[detailedReportBase.columns[1],detailedReportBase.columns[0],...detailedReportBase.columns.slice(2)],rows:detailedReportBase.rows.map(r=>[r[1],r[0],...r.slice(2)])}:detailedReportBase;
+ const detailedReport=billingReport(rawDetailedReport,withoutVat);
  const canExport=!loading&&!error&&!dateError&&!needsParty&&!(mode==='canonical'&&!canLedger);
- async function exportAs(format:'xlsx'|'pdf'|'print'){if(!(format==='print'?outputAllowed.print:outputAllowed.export))return;try{await exportPartyReport(report,format)}catch(e){setError(e instanceof Error?e.message:'Export failed')}}
+ async function exportAs(format:'xlsx'|'pdf'|'print'){if(!(format==='print'?outputAllowed.print:outputAllowed.export))return;try{await exportPartyReport(detailedReport,format)}catch(e){setError(e instanceof Error?e.message:'Export failed')}}
  return <section className="rounded-lg border bg-white p-3 text-xs" aria-label="Transport party reports">
  <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">{allocationEntry?"Bulk Allocation":`${side==='supplier'?'Supplier':'Customer'} Reports`}</h2><div className="flex gap-2"><button className="btn" disabled={busy||loading} onClick={()=>void load()}>Refresh reports</button><button className="btn" disabled={busy} onClick={onClose}>Close reports</button></div></div>
  <p className="my-2">Scope: current Company / Business Unit / active branch. Amounts are in company base currency. Outstanding uses the As of date; From applies to statements and allocation movements. Historical allocations deleted by reversals before this update cannot be reconstructed automatically.</p>

@@ -1,5 +1,6 @@
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
+import useTransportBillingMode from './useTransportBillingMode';
 import TransportVatPreview from './TransportVatPreview';
 import './transportBulkRateLayout.css';
 import {useEffect,useMemo,useRef,useState} from 'react';
@@ -26,7 +27,9 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
  const {activeCompany,activeBusinessUnit}=useAuth();
  const [rows,setRows]=useState<Row[]>([]),[legacyRents,setLegacyRents]=useState<LegacyRent[]>([]),[suppliers,setSuppliers]=useState<Supplier[]>([]),[rents,setRents]=useState<Rent[]>([]),[accounts,setAccounts]=useState<Account[]>([]);
  const [supplier,setSupplier]=useState(''),[tripStatus,setTripStatus]=useState(''),[search,setSearch]=useState(''),[columnFilters,setColumnFilters]=useState<Record<string,string>>({}),[selected,setSelected]=useState<string[]>([]),[amounts,setAmounts]=useState<Record<string,string>>({});
- const [account,setAccount]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[reason,setReason]=useState(compact?'':'Bulk supplier rent'),[withTax,setWithTax]=useState(false);const [vatReady,setVatReady]=useState(true);
+ const [account,setAccount]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[reason,setReason]=useState(compact?'':'Bulk supplier rent');const [vatReady,setVatReady]=useState(true);
+ const selectedParties=[...new Set(rows.filter(r=>selected.includes(r.id)&&!r.posted).map(r=>r.party_id).filter(Boolean))];
+ const billing=useTransportBillingMode('supplier',supplier||(selectedParties.length===1?selectedParties[0]:''));const withTax=billing.withTax;
  const [compactReasonPreset,setCompactReasonPreset]=useState('');
  const [permissions,setPermissions]=useState<Record<string,boolean>>({}),[loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
@@ -97,6 +100,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
  function toggle(id:string,on:boolean){setSelected(v=>on?[...new Set([...v,id])]:v.filter(x=>x!==id));}
  function selectShown(){const ids=visible.filter(r=>canFinalize(r.id)||(!unavailableTripIds.has(r.id)&&existing.get(r.id)?.state==='finalized'&&permissions.rent)).map(r=>r.id);setSelected(ids);}
  async function runBatch(kind:'finalize'|'post',ids=selected){
+  if(kind==='post'&&!billing.ready){setError(billing.error||'Select a supplier with a configured Cash/Credit billing rule.');return;}
   if(kind==='post'&&withTax&&(!vatReady||!supplierReference.trim())){setError('Valid VAT preview and original supplier invoice reference required for the selected invoice.');return;}
   if(submitting.current||busy||loading||!ids.length)return;
   const candidates=rows.filter(r=>ids.includes(r.id)&&!unavailableTripIds.has(r.id)&&(kind==='finalize'?canFinalize(r.id):existing.get(r.id)?.state==='finalized'&&permissions.rent));
@@ -191,7 +195,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
    <label className="col-span-3">Expense account<NaviloSearchableSelect nativeCompatibility preserveLabel className="input h-7 px-1 text-[10px]" value={account} onChange={e=>setAccount(e.target.value)}><option value="">Select account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</NaviloSearchableSelect></label>
    <label className="col-span-2">Date<NaviloDateInput className="input h-7 px-1 text-[10px]" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
    <label className="col-span-3">Reason<input className="input h-7 px-1 text-[10px]" value={reason} onChange={e=>setReason(e.target.value)}/></label>
-   <label className="col-span-2 pb-1"><input type="checkbox" checked={withTax} onChange={e=>setWithTax(e.target.checked)}/> With VAT</label>
+   <p className="col-span-2 pb-1 font-semibold">{billing.error||(!billing.ready?'Select supplier billing rule':withTax?'Credit · VAT automatic':'Cash · Without VAT')}</p>
    <label className="col-span-2">Trip Status<NaviloSearchableSelect nativeCompatibility preserveLabel className="input h-7 px-1 text-[10px]" value={tripStatus} onChange={e=>{setTripStatus(e.target.value);setSelected([])}}><option value="">All Statuses</option>{tripStatuses.map(s=><option key={s} value={s}>{s}</option>)}</NaviloSearchableSelect></label>
    <label className="col-span-4">Search Trip / Company / Route / Vehicle<input className="input h-7 px-1 text-[10px]" value={search} onChange={e=>setSearch(e.target.value)}/></label>
    <label className="col-span-2">Invoice #<input aria-label="Invoice number" className="input h-7 px-1 text-[10px]" maxLength={80} placeholder="Auto — shared" value={invoiceNumber} onChange={e=>setInvoiceNumber(e.target.value)}/></label>

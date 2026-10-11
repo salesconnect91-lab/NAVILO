@@ -36,7 +36,7 @@ export default function TransportPartySettlement({side,party,documents,accounts,
  }catch(e){setError(`${e&&typeof e==='object'&&'message' in e?String(e.message):'Settlement failed'}. If the connection failed, retry the unchanged reviewed request safely.`)}
  finally{submitting.current=false;setBusy(false);onBusyChange(false)}
  }
- return <fieldset className="my-3 rounded border p-3" disabled={busy}><legend className="font-semibold">Cross-Trip {side==='customer'?'Receipt':'Supplier Payment'} — VAT included</legend>
+ return <fieldset className="my-3 rounded border p-3" disabled={busy}><legend className="font-semibold">Cross-Trip {side==='customer'?'Receipt':'Supplier Payment'} — Bill allocation</legend>
  <p className="mb-2">One selected party in the active branch. Auto Allocate prepares oldest invoices first for review; no payment is posted until confirmation. Report date/search filters do not limit this payment list.</p>
  {error&&<p role="alert" className="text-red-700">{error}</p>}{result&&<p role="status" className="text-emerald-700">{result.message} {result.journals.map(id=><a key={id} className="ml-2 underline" href={`/accounting/${id}`}>Voucher</a>)}</p>}
  <div className="my-2 flex flex-wrap items-end gap-2"><label>Payment date<NaviloDateInput className="input" type="date" value={date} onChange={e=>{setDate(e.target.value);changed()}}/></label>

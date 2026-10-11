@@ -20,8 +20,8 @@ begin
  ||E'\n'||v_old;
  if position(v_old in definition)=0 then raise exception 'Transport draft import validation anchor changed';end if;
  definition:=replace(definition,v_old,v_new);
- v_old:='tax,base,1,''service'',''Credit'',u) returning id into oid;';
- v_new:='tax,base,1,''service'',v_mode,u) returning id into oid;';
+ v_old:='tax,base,1,''service'',''Credit'',u)';
+ v_new:='tax,base,1,''service'',v_mode,u)';
  if position(v_old in definition)=0 then raise exception 'Transport draft import invoice mode anchor changed';end if;
  definition:=replace(definition,v_old,v_new);
  execute definition;

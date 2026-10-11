@@ -11,7 +11,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
  const posted=Boolean(trip.invoiced||trip.customer_rate_locked||trip.invoice_no||Number(trip.billed_customer_net??0)>0);
  const [invoiceNo,setInvoiceNo]=useState(trip.invoice_no??'');
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
- const [withTax,setWithTax]=useState(false);const [vatReady,setVatReady]=useState(true);
+ const withTax=trip.sale_type==='credit';const [vatReady,setVatReady]=useState(true);
  const [allowed,setAllowed]=useState(false);const [accounts,setAccounts]=useState<{id:string;name:string}[]>([]);const [account,setAccount]=useState('');const [busy,setBusy]=useState(false);const [error,setError]=useState('');
  const dialog=useRef<HTMLElement>(null);const input=useRef<HTMLInputElement>(null);
 
@@ -61,7 +61,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
       <label className="mt-2 block text-xs font-semibold">Invoice Date
        <NaviloDateInput className="input mt-1 w-full" type="date" value={date} disabled={busy} onChange={e=>setDate(e.target.value)}/>
       </label>
-      <label className="mt-2 inline-flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={withTax} disabled={busy} onChange={e=>setWithTax(e.target.checked)}/> With VAT</label>
+      <p className="mt-2 text-xs font-semibold">{withTax?'Credit · VAT automatic':'Cash · Without VAT'}</p>
       <TransportVatPreview side="customer" date={date} withTax={withTax} amounts={[Number(trip.customer_rate??0)]} onReady={setVatReady}/>
       {!rateReady&&<p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">Finalize a positive Company Rate first. Invoice posting remains disabled until then.</p>}
       <p className="mt-2 text-xs text-slate-600">Save here posts the canonical Sales/service invoice to the selected Revenue Account. Blank Invoice Number uses NAVILO automatic numbering.</p>
