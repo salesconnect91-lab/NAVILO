@@ -13,6 +13,7 @@ import { ErrorBanner, Modal, PageHeader } from "@/components/ui";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
 import type { ConfiguredChargeUnit } from "@/lib/chargeCalculation";
+import { availableChargeKey, chargeWriteError, makeChargeKey, overlappingCharge } from "@/lib/chargeMasterKeys";
 
 type ChargeType = "recovery" | "cost" | "both";
 type ChargeContext = "sales" | "purchase" | "both";
@@ -64,7 +65,7 @@ const emptyForm: ChargeForm = {
   description: "",
 };
 
-const makeKey = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+
 const clean = (value: unknown) => String(value ?? "").trim();
 const yes = (value: unknown, fallback = false) => {
   const text = clean(value).toLowerCase();
@@ -147,8 +148,11 @@ export default function ChargeMaster() {
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     const name = form.charge_name.trim();
-    const key = makeKey(name);
-    if (!name || !key) return setError("Valid Charge Name is required.");
+    const baseKey = makeChargeKey(name);
+    if (!name || !baseKey) return setError("Valid Charge Name is required.");
+    const conflict = overlappingCharge(charges, name, form.applies_to, editingId);
+    if (conflict) return setError(`"${name}" already exists for ${conflict.applies_to}. Edit that charge instead of creating another in the same scope.`);
+    const key = editingId ? null : availableChargeKey(name, form.applies_to, charges);
     const type = normalizedTypeForContext(form.applies_to, form.charge_type);
     const needsRevenue = form.applies_to !== "purchase" && (type === "recovery" || type === "both");
     const needsCost = form.applies_to !== "sales" && (type === "cost" || type === "both");
@@ -158,7 +162,6 @@ export default function ChargeMaster() {
 
     setSaving(true);
     const payload = {
-      charge_key: key,
       charge_name: name,
       charge_name_urdu: form.charge_name_urdu.trim() || toUrduName(name),
       charge_type: type,
@@ -177,9 +180,9 @@ export default function ChargeMaster() {
     };
     const result = editingId
       ? await supabase.from("charge_master").update(payload).eq("id", editingId)
-      : await supabase.from("charge_master").insert(payload);
+      : await supabase.from("charge_master").insert({ ...payload, charge_key: key });
     setSaving(false);
-    if (result.error) return setError(result.error.message);
+    if (result.error) return setError(chargeWriteError(result.error));
     setOpen(false); setEditingId(null); setForm(emptyForm); await load();
   };
 
@@ -235,15 +238,17 @@ export default function ChargeMaster() {
       const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
       const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
       const accountByCode = new Map(accounts.map((account) => [account.code.trim().toLowerCase(), account]));
-      const existing = new Set(charges.map((charge) => charge.charge_key));
-      const seen = new Set<string>();
+      const staged = charges.map(({ id, charge_key, charge_name, applies_to }) => ({ id, charge_key, charge_name, applies_to }));
       const payload: Record<string, unknown>[] = [];
       const errors: string[] = [];
       raw.forEach((row, index) => {
         const name = clean(row["Charge Name"] ?? row.Name ?? row.charge_name); if (!name) return;
-        const key = makeKey(name); if (!key || existing.has(key) || seen.has(key)) return errors.push(`Row ${index + 2}: Duplicate or invalid charge "${name}".`);
         const applies = (clean(row["Applies To"] ?? row.applies_to).toLowerCase() || "purchase") as ChargeContext;
         if (!["sales", "purchase", "both"].includes(applies)) return errors.push(`Row ${index + 2}: Applies To must be sales, purchase or both.`);
+        if (!makeChargeKey(name)) return errors.push(`Row ${index + 2}: Invalid charge name "${name}".`);
+        const conflict = overlappingCharge(staged, name, applies);
+        if (conflict) return errors.push(`Row ${index + 2}: "${name}" already exists for ${conflict.applies_to}.`);
+        const key = availableChargeKey(name, applies, staged);
         let type = (clean(row.Type ?? row.charge_type).toLowerCase() || (applies === "purchase" ? "cost" : applies === "sales" ? "recovery" : "both")) as ChargeType;
         type = normalizedTypeForContext(applies, type);
         const unit = (clean(row.Unit ?? row.unit).toLowerCase() || "fixed") as ChargeUnit;
@@ -258,13 +263,13 @@ export default function ChargeMaster() {
         if (needsCost && (!cost || cost.type !== "expense")) return errors.push(`Row ${index + 2}: Valid expense account code is required.`);
         const rate = unit === "manual" ? 0 : Number(clean(row.Rate ?? row.default_rate) || 0);
         if (!Number.isFinite(rate) || rate < 0) return errors.push(`Row ${index + 2}: Rate must be zero or greater.`);
-        seen.add(key);
+        staged.push({ charge_key: key, charge_name: name, applies_to: applies });
         payload.push({ charge_key: key, charge_name: name, charge_name_urdu: clean(row["Urdu Name"] ?? row.charge_name_urdu) || toUrduName(name), charge_type: type, revenue_account_id: needsRevenue ? revenue?.id ?? null : null, cost_account_id: needsCost ? cost?.id ?? null : null, tax_applicable: yes(row["Tax Applicable"] ?? row.tax_applicable), service_party_required: yes(row["Service Party Required"] ?? row.service_party_required), default_rate: rate, unit, applies_to: applies, purchase_treatment: applies === "sales" ? null : treatment, is_fixed: unit === "manual" ? false : yes(row["Lock Rate"] ?? row.is_fixed), is_active: yes(row.Active ?? row.is_active, true), description: clean(row.Description ?? row.description) || null, updated_at: new Date().toISOString() });
       });
       if (errors.length) throw new Error(errors.slice(0, 8).join(" "));
       if (!payload.length) throw new Error("No valid charge rows found in the file.");
       const { error: importError } = await supabase.from("charge_master").insert(payload); if (importError) throw importError; await load();
-    } catch (e) { setError(e instanceof Error ? e.message : "Charge import failed."); }
+    } catch (e) { setError(e && typeof e === "object" && "message" in e ? chargeWriteError(e as {code?: string; message: string}) : "Charge import failed."); }
     finally { setSaving(false); if (fileRef.current) fileRef.current.value = ""; }
   };
 
@@ -277,12 +282,13 @@ export default function ChargeMaster() {
   return <div className="space-y-5" data-navilo-master-standard="true">
     <MasterSummaryStrip kind="charges" title="Charge Master" subtitle="Central Sales/Purchase charges" total={charges.length} active={charges.filter(r=>r.is_active).length} inactive={charges.filter(r=>!r.is_active).length} fourthLabel="Displayed" fourthValue={visibleCharges.length}/>
     <div className="flex justify-end" data-no-print data-no-export>{actions}</div>
-    {error && <ErrorBanner message={error} />}
+    {error && !open && <ErrorBanner message={error} />}
     <div className="navilo-master-filterbar flex items-center gap-2 px-3 py-2" data-report-filters data-no-print data-no-export><Search className="h-4 w-4 text-slate-400" /><input className="w-full bg-transparent outline-none" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search charge, basis, account, treatment or status..." />{search && <button type="button" className="text-xs font-semibold text-primary-600" onClick={() => setSearch("")}>Clear</button>}</div>
     <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="contents"><DataTable showSerialNumber columns={cols} rows={visibleCharges} loading={loading}/></div>
 
     <Modal open={open} title={editingId ? "Edit Charge" : "Add Charge"} onClose={() => !saving && setOpen(false)}>
       <form onSubmit={save} className="space-y-4">
+        {error && <ErrorBanner message={error} />}
         <div><label className="label">Charge Name (English)</label><input className="input" value={form.charge_name} onChange={(e) => setForm((current) => ({ ...current, charge_name: e.target.value, charge_name_urdu: !current.charge_name_urdu || current.charge_name_urdu === toUrduName(current.charge_name) ? toUrduName(e.target.value) : current.charge_name_urdu }))} /></div>
         <div><div className="mb-1 flex items-center justify-between"><label className="label mb-0">Urdu Name</label><button type="button" className="btn-secondary text-xs" onClick={() => setForm((current) => ({ ...current, charge_name_urdu: toUrduName(current.charge_name) }))}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.charge_name_urdu} onChange={(e) => setForm((current) => ({ ...current, charge_name_urdu: e.target.value }))} /></div>
         <div><label className="label">Applies To / لاگو</label><SearchableSelect className="input" value={form.applies_to} onChange={(e) => changeContext(e.target.value as ChargeContext)}><option value="purchase">Purchase</option><option value="sales">Sales</option><option value="both">Sales + Purchase</option></SearchableSelect></div>
