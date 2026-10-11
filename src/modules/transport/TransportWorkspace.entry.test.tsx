@@ -286,6 +286,21 @@ describe('Transport report isolation',()=>{
 });
 
 describe('Transport compact register and centered controls',()=>{
+ it('opens the selected trip supplier rate setup when charges have no rent yet',async()=>{
+  const trip={id:'no-rent',trip_no:'OIC-NO-RENT',status:'draft',owner_name:'Supplier'};
+  const normal=mock.rpc.getMockImplementation()!;
+  mock.rpc.mockImplementation(async(name:string,args:any)=>{
+   if(name==='transport_register_query')return {data:{rows:[trip],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}},error:null};
+   if(name==='transport_bulk_rate_page')return {data:{rows:[{...trip,id:'pending-rent',trip_id:trip.id,party_id:'s',rent:null}],count:1,amount:0},error:null};
+   return normal(name,args);
+  });
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button',{name:'Open Supplier Charges OIC-NO-RENT'}));
+  await screen.findByRole('dialog',{name:'Update Supplier Rate · OIC-NO-RENT'});
+  expect(screen.queryByText(/No supplier rent exists/)).toBeNull();
+  expect(mock.rpc).toHaveBeenCalledWith('transport_bulk_rate_page',expect.objectContaining({p_filters:expect.objectContaining({initialTrip:'no-rent'})}));
+  expect(mock.rpc.mock.calls.some(([name])=>name==='transport_supplier_rent_save'||name==='transport_post_supplier_rent')).toBe(false);
+ });
  it('keeps saved visible columns compact and each financial group contiguous',async()=>{
   const key='navilo:transport:trip-grid:v2:user:c:b';
   localStorage.setItem(key,JSON.stringify({order:['trip_no','company','driver','supplier_charges','from'],hidden:[]}));

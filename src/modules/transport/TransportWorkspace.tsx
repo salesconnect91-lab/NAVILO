@@ -323,8 +323,7 @@ export default function TransportWorkspace(){
     const q=await supabase.from('transport_trip_supplier_rents').select('id,state,amount,created_at').eq('trip_id',r.id).order('created_at',{ascending:true});
     if(q.error){setError(q.error.message);return;}
     const rents=q.data??[];
-    if(!rents.length){setError(`No supplier rent exists for ${r.trip_no}. Add/finalize Supplier Rent first.`);return;}
-    if(rents.length>1){setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true);return;}
+    if(rents.length!==1){setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true);return;}
     setSupplierChargeTarget({rentId:rents[0].id,tripNo:r.trip_no});
   };
 
