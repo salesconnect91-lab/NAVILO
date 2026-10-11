@@ -42,11 +42,12 @@ begin
   -- The historical customer and cash customer each have an explicit master billing rule.
   perform public.transport_set_party_billing_mode('customer',customer,'Cash');
   perform public.transport_set_party_billing_mode('customer',vat_customer,'Credit');
-  perform public.transport_set_party_billing_mode('supplier',supplier,'Cash');
+  -- Supplier billing is configured after the synthetic supplier is inserted.
   -- Historical source invoice dates must have an effective-dated tax master.
   insert into public.tax_rates(user_id,company_id,name,rate,applies_to,is_fixed,is_active,effective_from)
   values(u,c,'Historical VAT',18,'both',true,true,current_date-3);
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Service Supplier',ap) returning id into supplier;
+ perform public.transport_set_party_billing_mode('supplier',supplier,'Cash');
 
 
  insert into public.business_unit_modules(company_id,business_unit_id,module_key,enabled) values(c,b,'master',true) on conflict(business_unit_id,module_key) do update set enabled=true;
