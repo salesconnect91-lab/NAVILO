@@ -2,7 +2,7 @@
 begin;
 do $$
 declare u uuid:=gen_random_uuid();code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
- c uuid;b uuid;loc uuid;customer uuid;cash_customer uuid;supplier uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;secondary_bank uuid;
+ c uuid;b uuid;loc uuid;customer uuid;vat_customer uuid;supplier uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;secondary_bank uuid;
  trip uuid;trip2 uuid;sales_id uuid;sales2 uuid;rent uuid;rent2 uuid;bill uuid;bill2 uuid;
  result jsonb;again jsonb;payload jsonb;request_id uuid:=gen_random_uuid();payment_id uuid;receipt_id uuid;
  history_job jsonb;history_manifest jsonb;history_settings jsonb;history_rows jsonb;history_id uuid;f uuid;dest uuid;history_vehicle uuid;bad jsonb;history_status jsonb;employee uuid;path text;vehicle uuid;vehicle2 uuid; count_before bigint;rejected boolean;other_bu uuid;other_loc uuid;other_c uuid;v numeric;
@@ -38,10 +38,11 @@ begin
  if acct is null then acct:=cost; end if;
  if ar is null or ap is null or acct is null or cash_id is null then raise exception 'Canonical accounting setup missing'; end if;
  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Service Customer',ar) returning id into customer;
-  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Historical Cash Customer',ar) returning id into cash_customer;
+  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Historical VAT Customer',ar) returning id into vat_customer;
   -- The historical customer and cash customer each have an explicit master billing rule.
-  perform public.transport_set_party_billing_mode('customer',customer,'Credit');
-  perform public.transport_set_party_billing_mode('customer',cash_customer,'Cash');
+  perform public.transport_set_party_billing_mode('customer',customer,'Cash');
+  perform public.transport_set_party_billing_mode('customer',vat_customer,'Credit');
+  perform public.transport_set_party_billing_mode('supplier',supplier,'Cash');
   -- Historical source invoice dates must have an effective-dated tax master.
   insert into public.tax_rates(user_id,company_id,name,rate,applies_to,is_fixed,is_active,effective_from)
   values(u,c,'Historical VAT',18,'both',true,true,current_date-3);
@@ -55,7 +56,7 @@ begin
  insert into public.journal_entries(user_id,company_id,business_unit_id,operating_location_id,entry_no,entry_date,description,status) values(u,c,b,loc,'CR-9999',current_date,'Counter threshold fixture','draft'),(u,c,b,loc,'SP-9999',current_date,'Counter threshold fixture','draft');
  history_manifest:='[["OLD-1","OLD-2"],["OLD-3"],["OLD-4"]]'::jsonb;
  history_settings:=jsonb_build_object('cutoff',current_date,'cost_account',acct,'opening_reviewed',true);
- payload:=jsonb_build_object('source_id','OLD-1','trip',jsonb_build_object('trip_date',current_date-2,'customer_id',customer,'vehicle_id',history_vehicle,'from_location_id',f,'to_location_id',dest,'ppr_status','pending','sale_type','credit','customer_rate',2000,'supplier_rent',1700,'source_invoice_no','SOURCE-SHARED'),
+ payload:=jsonb_build_object('source_id','OLD-1','trip',jsonb_build_object('trip_date',current_date-2,'customer_id',customer,'vehicle_id',history_vehicle,'from_location_id',f,'to_location_id',dest,'ppr_status','pending','sale_type','cash','customer_rate',2000,'supplier_rent',1700,'source_invoice_no','SOURCE-SHARED'),
  'customer_posted',true,'supplier_posted',true,'customer_date',current_date-2,'supplier_date',current_date-2,'customer_vat',false,'supplier_vat',false,
  'customer_gross',2000,'supplier_gross',1700,'received',600,'paid',1000,'customer_remaining',1400,'supplier_remaining',700,
  'payments',jsonb_build_array(jsonb_build_object('side','customer','date',current_date-1,'amount',600,'account_id',cash_id,'method','cash','reference','RCPT-SHARED'),
@@ -93,7 +94,7 @@ begin
  if not rejected then raise exception 'History changed payload accepted';end if;
  rejected:=false;begin perform public.transport_prepare_history_import(repeat('c',64),'history-copy.xlsx',history_manifest,history_settings);exception when others then rejected:=true;end;
  if not rejected then raise exception 'One-time history accepted second dataset';end if;
- payload:=jsonb_build_object('source_id','OLD-3','trip',jsonb_build_object('trip_date',current_date-2,'customer_id',cash_customer,'from_location_id',f,'to_location_id',dest,'ppr_status','pending','sale_type','cash','customer_rate',2000),
+ payload:=jsonb_build_object('source_id','OLD-3','trip',jsonb_build_object('trip_date',current_date-2,'customer_id',customer,'from_location_id',f,'to_location_id',dest,'ppr_status','pending','sale_type','cash','customer_rate',2000),
  'customer_posted',false,'supplier_posted',false,'customer_date','','supplier_date','','customer_vat',false,'supplier_vat',false,
  'customer_gross',0,'supplier_gross',0,'received',0,'paid',0,'customer_remaining',0,'supplier_remaining',0,'payments','[]'::jsonb);
  perform public.transport_import_history_batch(history_id,1,jsonb_build_array(payload));
@@ -103,8 +104,10 @@ begin
  or (history_status->'totals'->>'customer_remaining')::numeric<>2800 or (history_status->'totals'->>'supplier_remaining')::numeric<>1400 then raise exception 'History control totals incorrect %',history_status;end if;
  execute 'reset role';
  insert into public.chart_of_accounts(user_id,company_id,code,name,type,detail_type,is_group,is_active) values(u,c,'HIST-BANK','Historical second bank','asset','Bank Account',false,true) returning id into secondary_bank;
+ -- The old Cash supplier entries retain their posted evidence after the new Credit master setting.
+ perform public.transport_set_party_billing_mode('supplier',supplier,'Credit');
  -- Historical VAT rate is already configured before creating invoice snapshots.
- payload:=jsonb_build_object('source_id','OLD-4','trip',jsonb_build_object('trip_date',current_date-2,'customer_id',customer,'vehicle_id',history_vehicle,'from_location_id',f,'to_location_id',dest,'ppr_status','pending','sale_type','credit','customer_rate',100,'supplier_rent',100),
+ payload:=jsonb_build_object('source_id','OLD-4','trip',jsonb_build_object('trip_date',current_date-2,'customer_id',vat_customer,'vehicle_id',history_vehicle,'from_location_id',f,'to_location_id',dest,'ppr_status','pending','sale_type','credit','customer_rate',100,'supplier_rent',100),
  'customer_posted',true,'supplier_posted',true,'customer_date',current_date-2,'supplier_date',current_date-2,'customer_vat',true,'supplier_vat',true,
  'customer_gross',118,'supplier_gross',118,'received',50,'paid',50,'customer_remaining',68,'supplier_remaining',68,
  'payments',jsonb_build_array(jsonb_build_object('side','customer','date',current_date-1,'amount',50,'account_id',cash_id,'method','cash','reference','VAT-R'),jsonb_build_object('side','supplier','date',current_date-1,'amount',50,'account_id',secondary_bank,'method','bank','reference','VAT-P')));
