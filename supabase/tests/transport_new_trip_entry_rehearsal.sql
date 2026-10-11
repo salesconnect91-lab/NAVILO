@@ -14,7 +14,7 @@ declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;ar uuid;ap uuid;cost uu
  code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
  customer uuid;cash_customer uuid;supplier uuid;tt uuid;tt2 uuid;from_id uuid;to_id uuid;v uuid;company_v uuid;d uuid;company_d uuid;employee uuid;
  ownership uuid;rate uuid;result jsonb;payload jsonb;supplier_payload jsonb;trip uuid;trip2 uuid;request_id uuid:=gen_random_uuid();number text;
- other_bu uuid;foreign_v uuid;other_c uuid;other_customer uuid;before_count bigint;canonical public.customers;canonical_supplier public.suppliers; switch_vehicle uuid; edit_before_count bigint;
+ other_bu uuid;foreign_v uuid;other_c uuid;other_customer uuid;before_count bigint;canonical public.customers;canonical_supplier public.suppliers; switch_vehicle uuid; edit_before_count bigint; supplier_charge_id uuid; existing_rent_id uuid;
 begin
  insert into auth.users(id,role,email,created_at,updated_at)
  values(u,'authenticated','service-'||code||'@navilo.test',now(),now());
@@ -103,6 +103,20 @@ begin
  then raise exception 'Rate/Driver Pay snapshots or legacy rent zero missing';end if;
  if not exists(select 1 from public.transport_trip_supplier_rents where trip_id=trip and supplier_id=supplier and finalized_amount_snapshot=300 and state='finalized') then raise exception 'Supplier rent separate snapshot missing';end if;
  if not exists(select 1 from public.transport_trip_assignments where trip_id=trip and driver_supplier_id_snapshot=supplier and driver_mobile_snapshot='200') then raise exception 'Driver assignment relationship/mobile snapshot missing';end if;
+ -- Supplier base rent 300 + waiting charge 400 must equal 700 (never 1100 on retry).
+ insert into public.charge_master(user_id,company_id,charge_key,charge_name,applies_to,tax_applicable,cost_account_id,is_active)
+ values(u,c,'rent-wait-'||code,'Rent Waiting','purchase',false,acct,true) returning id into supplier_charge_id;
+ select id into existing_rent_id from public.transport_trip_supplier_rents where trip_id=trip and supplier_id=supplier limit 1;
+ result:=public.transport_replace_trip_supplier_charges(existing_rent_id,
+   jsonb_build_array(jsonb_build_object('charge_master_id',supplier_charge_id,'amount',400)),
+   'Add waiting rent charge');
+ if (result->>'total_rent')::numeric<>700 or (result->>'base_rent')::numeric<>300
+ then raise exception 'Supplier 300 base + 400 charges must equal 700: %',result;end if;
+ perform public.transport_finalize_supplier_rent(existing_rent_id,300,'Reconfirm base rent');
+ if not exists(select 1 from public.transport_trip_supplier_rents
+   where id=existing_rent_id and base_amount=300 and amount=700 and finalized_amount_snapshot=700)
+ then raise exception 'Repeated supplier finalization double-counted charges';end if;
+
  if exists(select 1 from public.transport_customer_document_trips where trip_id=trip) then raise exception 'Trip creation posted billing';end if;
  perform pg_temp.entry_rejected(format('select public.transport_create_trips(%L,%L,%L,%L::jsonb)',request_id,c,b,jsonb_set(payload,'{0,customer_rate}','999')),'Request ID already used');
  perform pg_temp.entry_rejected(format('select public.transport_create_trips(%L,%L,%L,%L::jsonb)',gen_random_uuid(),other_c,b,payload),'active Company/Business Unit');
