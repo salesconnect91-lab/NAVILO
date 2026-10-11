@@ -944,7 +944,7 @@ export default function TransportWorkspace(){
     if(!form.customer_id){setError("Customer is required.");return}
     if(!editingTripLocked&&!selectedCustomerMode){setError("Configure this customer's Cash/Credit mode in Transport Customer Master before saving.");return}
     if(!form.from_location.trim()||!form.to_location.trim()){setError("From and To locations are required.");return}
-    if(!editingTripLocked&&!([form.customer_rate,form.supplier_rent,form.driver_pay].every(v=>v===""||(/^\\d+(\\.\\d{1,2})?$/.test(v)&&Number.isFinite(Number(v)))))){
+    if(!editingTripLocked&&!([form.customer_rate,form.supplier_rent,form.driver_pay].every(v=>v===""||(/^\d+(\.\d{1,2})?$/.test(v)&&Number.isFinite(Number(v)))))){
       setError("Rates and Driver Pay must be nonnegative with at most two decimals.");return;
     }
 
