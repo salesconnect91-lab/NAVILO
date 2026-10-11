@@ -114,7 +114,7 @@ begin
   'ppr_status','pending','customer_rate',10,'po_do_job_no','IMPORT-'||i) order by i) into batch_payload
   from generate_series(batch_no*100+1,(batch_no+1)*100) i;
  if batch_no=1 then
-  perform pg_temp.entry_rejected(format('select public.transport_import_trip_batch(%L,1,%L::jsonb)',ctx.job_id,jsonb_set(batch_payload,'{99,sale_type}','"bad"')),'Cash or Credit');
+  perform pg_temp.entry_rejected(format('select public.transport_import_trip_batch(%L,1,%L::jsonb)',ctx.job_id,jsonb_set(batch_payload,'{99,sale_type}','"bad"')),'billing mode disagrees');
   if (select count(*) from public.transport_trips where company_id=ctx.company_id)<>100 then raise exception 'Invalid batch partially saved';end if;
  end if;
  result:=public.transport_import_trip_batch(ctx.job_id,batch_no,batch_payload);
