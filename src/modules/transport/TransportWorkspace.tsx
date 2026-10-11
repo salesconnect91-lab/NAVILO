@@ -34,6 +34,7 @@ import TransportQuickAdd from './TransportQuickAdd';
 import {loadTransportMobilePartyOptions} from './transportMobilePartyLookup';
 import {compatibleVehicles,ownershipOnDate,matchingCustomerRate,estimatedMargin,masterKey,validMoney,type QuickAddKind,type OwnershipPeriod} from './transportTripEntry';
 
+const REGISTER_PAGE_SIZE=100; // Keep the interactive Register comfortably within Supabase's 8s read budget.
 type MobileVoiceDraft={id:string;created_at:string;transcript:string;patch:Record<string,string>};
 type Tab="trips"|"new"|"mobile"|"audit";
 type Trip=FinancialTrip & {
@@ -499,7 +500,7 @@ export default function TransportWorkspace(){
     const generation=++readGeneration.current;
     if(!silent){setRegisterLoading(true);setRegisterLoadError(false);setError('');}
     try {
-      const result=await supabase.rpc('transport_register_query',{p_limit:500,p_offset:page*500,p_filters:registerFilters,p_sort:sortColumn,p_direction:sortDirection}).abortSignal(controller.signal);
+      const result=await supabase.rpc('transport_register_query',{p_limit:REGISTER_PAGE_SIZE,p_offset:page*REGISTER_PAGE_SIZE,p_filters:registerFilters,p_sort:sortColumn,p_direction:sortDirection}).abortSignal(controller.signal);
       if(result.error)throw result.error;
       if(scopeRef.current!==scopeKey||generation!==readGeneration.current)return;
       const data=result.data;
@@ -508,7 +509,7 @@ export default function TransportWorkspace(){
       setError('');
       setRows((data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})));
       setRegisterMeta(data);
-      if(page>Math.max(0,Math.ceil(data.count/500)-1))setPage(Math.max(0,Math.ceil(data.count/500)-1));
+      if(page>Math.max(0,Math.ceil(data.count/REGISTER_PAGE_SIZE)-1))setPage(Math.max(0,Math.ceil(data.count/REGISTER_PAGE_SIZE)-1));
     }catch(e:any){
       if(generation===readGeneration.current&&!controller.signal.aborted){
         setRegisterLoadError(true);
@@ -1828,7 +1829,7 @@ export default function TransportWorkspace(){
 
       
       <TransportHorizontalScroll gridRef={tripsGridRef} revision={registerKey+String(page)+hiddenTripColumns.join()+JSON.stringify(tripColumnWidths)}/>
-      <TransportPagination page={page} pageSize={500} count={Number(registerMeta.count??0)} busy={registerLoading} onPage={setPage}/>
+      <TransportPagination page={page} pageSize={REGISTER_PAGE_SIZE} count={Number(registerMeta.count??0)} busy={registerLoading} onPage={setPage}/>
       <p className="shrink-0 border-t border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-600">Header totals cover all filtered Trips, across every page.</p>
     </section>}
 
