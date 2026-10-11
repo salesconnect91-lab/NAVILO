@@ -178,7 +178,7 @@ describe('Transport register interactions',()=>{
   await screen.findByText('Trip has financial entries or documents.');expect(screen.getByRole('dialog',{name:'Delete Draft Trip'})).toBeTruthy();expect(screen.getByText('BLOCKED-TRIP')).toBeTruthy();
  });
  it('blocks selection of a non Draft Trip for deletion and honors denied delete permission',async()=>{
-  mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[{id:'locked-trip',trip_no:'LOCKED-TRIP',status:'locked'}],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:true,error:null}));
+  mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_register_query'?{rows:[{id:'locked-trip',trip_no:'LOCKED-TRIP',status:'locked'}],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:true,error:null}));
   const view=render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
   await screen.findByText('LOCKED-TRIP');fireEvent.click(screen.getByLabelText('Select trip LOCKED-TRIP'));
   expect((screen.getByRole('button',{name:'Delete selected Trip'}) as HTMLButtonElement).disabled).toBe(true);
