@@ -219,3 +219,33 @@
     background: #d9e5ef !important; border-color: #9bb5c9 !important; color: #284f6c !important;
   }
 }
+
+/* One dark control strip; popup cells have a consistent visible affordance. */
+@media screen {
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar {
+    height: auto !important; min-height: 32px; flex-wrap: wrap; gap: 3px !important;
+    padding: 3px 5px !important; background: #202c3b !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar > div:first-child { flex: 0 0 auto; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar {
+    flex: 1 1 850px; min-width: 0; width: auto !important; max-width: none !important;
+    background: transparent !important; padding: 0 !important; flex-wrap: wrap !important;
+    overflow: visible !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-actions { flex: 0 0 auto; margin-left: auto; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-result-count { font-size: 10px; color: #cbd5e1; white-space: nowrap; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar [data-payment-shortcut] {
+    width: 32px !important; min-width: 32px !important; height: 26px !important; min-height: 26px !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] [data-payment-shortcut] svg { width: 21px !important; height: 21px !important; stroke-width: 2; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody button[data-register-editable] {
+    display: inline-flex; align-items: center; width: 100%; min-height: 22px;
+    padding: 0 4px !important; border: 1px solid #ed8799 !important;
+    background: #fff3f5 !important; color: #a52c47 !important; border-radius: 3px !important;
+    cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td:first-child button[data-register-editable] { width: calc(100% - 32px); vertical-align: middle; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td.text-right button[data-register-editable] { justify-content: flex-end; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody button[data-register-editable]:hover { background: #ffe1e7 !important; border-color: #ce4c67 !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody button[data-register-editable]:focus-visible { outline: 2px solid #c84060; outline-offset: 1px; }
+}

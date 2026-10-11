@@ -159,6 +159,11 @@ describe('Transport register interactions',()=>{
    expect(document.querySelector('[data-navilo-transport-register]')?.getAttribute('data-navilo-theme')).toBe('theme1');
    expect(screen.queryByRole('button',{name:/Theme [1-4]/})).toBeNull();
    const pay=screen.getByRole('button',{name:'Pay Rent to Suppliers'}),receive=screen.getByRole('button',{name:'Receive Customer Payment'});
+   const strip=document.querySelector('.navilo-transport-topbar');
+   expect(strip?.contains(pay)).toBe(true);expect(strip?.contains(receive)).toBe(true);
+   expect(strip?.contains(screen.getByRole('button',{name:'Search Trips'}))).toBe(true);
+   expect(strip?.contains(screen.getAllByRole('button',{name:'Add Trip'})[0])).toBe(true);
+   expect(document.querySelector('.navilo-transport-toolbar-wrap')).toBeNull();
    expect(pay.textContent).toBe('');expect(receive.textContent).toBe('');expect(pay.getAttribute('title')).toContain('suppliers');expect(receive.getAttribute('title')).toContain('customers');
   }finally{localStorage.removeItem(key);}
  });
@@ -168,6 +173,7 @@ describe('Transport register interactions',()=>{
   await screen.findByText('INV-TRIP');
   expect(screen.getByTitle('Sort Customer Invoice ascending')).toBeTruthy();
   expect(screen.getByTitle('Sort Supplier Invoice ascending')).toBeTruthy();
+  expect(screen.getByRole('button',{name:'Open Invoice Number INV-TRIP'}).hasAttribute('data-register-editable')).toBe(true);
   expect(screen.getByRole('button',{name:'Open Invoice Number INV-TRIP'}).textContent).toContain('TR-S000010');
   expect(screen.getByText('TR-P000010')).toBeTruthy();
  });

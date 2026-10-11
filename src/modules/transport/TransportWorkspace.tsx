@@ -1445,7 +1445,6 @@ export default function TransportWorkspace(){
             flex-shrink: 0 !important;
           }
         }
-        }
 
         /* Theme 1: slightly stronger grid definition and one-step larger trip rows/type. */
         [data-navilo-transport-register][data-navilo-theme="theme1"] .navilo-transport-trips-scrollport {
@@ -1470,14 +1469,6 @@ export default function TransportWorkspace(){
       `}</style>
       <div className="navilo-transport-topbar relative z-[90] flex shrink-0 items-center justify-between px-3 text-white h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]">
         <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
-        <div className="flex items-center gap-1">
-          <button type="button" onClick={resetGrid} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Reset</button>
-          <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-7 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold text-white border border-blue-500 bg-blue-600 hover:bg-blue-700"><RefreshCw className="h-3 w-3"/>Refresh</button>
-          <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Columns</button>
-          <span data-navilo-standard-tools-host="true" className="contents" />
-        </div>
-      </div>
-      <div className="navilo-transport-toolbar-wrap relative z-[80] shrink-0 border-b border-slate-200 px-1 py-0.5">
         <div className="navilo-transport-register-toolbar flex flex-wrap items-center gap-2">
 
           <div className="flex items-center justify-between border border-blue-200 bg-blue-50 h-9 min-w-[104px] rounded-lg px-3 shadow-sm">
@@ -1532,10 +1523,18 @@ export default function TransportWorkspace(){
           <div className="flex shrink-0 items-center gap-1.5">
           <button type="button" onClick={()=>{entryReturnTab.current="trips";setEditingTripId(null);setTab("new")}} className="flex h-9 items-center gap-1 rounded-lg border border-blue-500 bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
           </div>
-          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=supplier&allocation=transport")} className="h-9 rounded-lg border border-amber-300 bg-amber-50 px-3 text-[11px] font-semibold text-amber-900 shadow-sm hover:bg-amber-100" aria-label="Pay Rent to Suppliers" title="Pay rent to suppliers" data-payment-shortcut="supplier"><BanknoteArrowUp aria-hidden="true" className="h-4 w-4"/></button>
-          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=customer&allocation=transport")} className="h-9 rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100" aria-label="Receive Customer Payment" title="Receive payment from customers" data-payment-shortcut="customer"><BanknoteArrowDown aria-hidden="true" className="h-4 w-4"/></button>
+          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=supplier&allocation=transport")} className="h-9 rounded-lg border border-amber-300 bg-amber-50 px-3 text-[11px] font-semibold text-amber-900 shadow-sm hover:bg-amber-100" aria-label="Pay Rent to Suppliers" title="Pay rent to suppliers" data-payment-shortcut="supplier"><BanknoteArrowUp aria-hidden="true" className="h-5 w-5"/></button>
+          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=customer&allocation=transport")} className="h-9 rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100" aria-label="Receive Customer Payment" title="Receive payment from customers" data-payment-shortcut="customer"><BanknoteArrowDown aria-hidden="true" className="h-5 w-5"/></button>
 
         </div>
+        <div className="navilo-transport-register-actions flex items-center gap-1">
+          <button type="button" onClick={resetGrid} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Reset</button>
+          <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-7 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold text-white border border-blue-500 bg-blue-600 hover:bg-blue-700"><RefreshCw className="h-3 w-3"/>Refresh</button>
+          <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Columns</button>
+          <span data-navilo-standard-tools-host="true" className="contents" />
+        </div>
+        <span className="navilo-transport-result-count">{gridRows.length.toLocaleString()} shown / {Number(registerMeta.count??0).toLocaleString()} filtered trips</span>
+      </div>
 
         {showTripColumnSetup&&<TransportDialog onClose={()=>setShowTripColumnSetup(false)}><section role="dialog" aria-modal="true" aria-label="Trip columns" className="w-full max-w-3xl rounded-lg border p-3"><header className="mb-2 flex items-center justify-between"><strong>Trip Columns</strong><button type="button" className="btn h-7" onClick={()=>setShowTripColumnSetup(false)}>Close</button></header>
           <div className="mb-1 flex items-center justify-between gap-2">
@@ -1590,10 +1589,6 @@ export default function TransportWorkspace(){
           </div>
         </section></TransportDialog>}
 
-        <div className="flex h-4 items-center justify-end text-[9px] font-bold text-slate-700">
-          {gridRows.length.toLocaleString()} shown / {Number(registerMeta.count??0).toLocaleString()} filtered trips
-        </div>
-      </div>
       {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
       <div
         ref={tripsGridRef}
@@ -1701,7 +1696,7 @@ export default function TransportWorkspace(){
                 style={tripColumnWidths[orderedGridColumns[0]?.[0]??""]?{width:tripColumnWidths[orderedGridColumns[0]?.[0]??""],minWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""]}:undefined}
                 className={`!sticky left-0 z-30 overflow-hidden whitespace-nowrap border-b border-r px-1.5 !py-0 font-bold leading-tight shadow-[2px_0_3px_rgba(15,23,42,0.06)] ${tripSelected?'!border-amber-400 !bg-amber-100 text-amber-950':'h-[26px] max-h-[26px] border-slate-200 bg-white text-slate-900'}`}>
   <input type="checkbox" aria-label={`Select trip ${r.trip_no}`} checked={tripSelected} onChange={()=>toggleTripSelection(String(r.id))} className="mr-1 h-3.5 w-3.5 cursor-pointer align-middle accent-amber-500"/>
-  <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
+  <button data-register-editable="true" type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
     className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
   </button>
@@ -1717,29 +1712,29 @@ export default function TransportWorkspace(){
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
                   className={`overflow-hidden text-ellipsis whitespace-nowrap border-b border-r px-1.5 !py-0 leading-tight ${(isSupplierGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-rose-50/55":isCustomerGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-blue-50/45":isPprGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-emerald-50/50":"h-[26px] max-h-[26px] border-slate-200")} ${tripSelected?"!border-amber-300 !bg-amber-100":""} ${numeric?"text-right font-medium":""}`}>
                   {key==='charge'
-                    ?<button type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
+                    ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
                     :key==='supplier_charges'
-                    ?<button type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-semibold leading-tight text-rose-700 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500" aria-label={`Open Supplier Charges ${r.trip_no}`} onClick={()=>void openSupplierCharges(r)}>{value||''}</button>
+                    ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-semibold leading-tight text-rose-700 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500" aria-label={`Open Supplier Charges ${r.trip_no}`} onClick={()=>void openSupplierCharges(r)}>{value||''}</button>
                     :key==='company_rate'
-                    ?<button type="button"
+                    ?<button data-register-editable="true" type="button"
                       className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
                       aria-label={`${r.customer_rate_state==='pending'?'Add':'Open'} Company Rate ${r.trip_no}`}
                       onClick={()=>setInitialRateTrip(r)}>
                       {r.customer_rate_state==='pending'&&!r.customer_rate_locked?'':value||'0.00'}
                     </button>
                     :key==='invoice_no'
-                      ?<button type="button"
+                      ?<button data-register-editable="true" type="button"
                         className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
                         aria-label={`${r.invoice_no?'Open':'Add'} Invoice Number ${r.trip_no}`}
                         onClick={()=>setInvoiceTrip(r)}>
                         {r.invoice_no||''}
                       </button>
                     :key==='rent_driver'&&r.customer_rate_state!==undefined
-                      ?<button type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-medium leading-tight text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
+                      ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-medium leading-tight text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
                     :key==='paper_received_by'
                       ?r.ppr_status==='received'
                         ?<span className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[8px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
-                        :<button type="button" onClick={()=>void openQuickPpr(r)} className="h-[22px] rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0 text-[9px] font-semibold leading-tight text-amber-800 hover:bg-amber-100">Receive PPR</button>
+                        :<button data-register-editable="true" type="button" onClick={()=>void openQuickPpr(r)} className="h-[22px] rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0 text-[9px] font-semibold leading-tight text-amber-800 hover:bg-amber-100">Receive PPR</button>
                       :value||""}
                 </td>;
               })}            </tr>;
