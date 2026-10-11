@@ -151,27 +151,15 @@ describe('Transport register server pagination',()=>{
 });
 
 describe('Transport register interactions',()=>{
- it('keeps both Transport themes and persists the selected register theme',async()=>{
-  const key='navilo:transport:trip-theme:user:c:b';localStorage.removeItem(key);
+ it('keeps original Theme 1 and removes the theme switcher even for saved Theme 4',async()=>{
+  const key='navilo:transport:trip-theme:user:c:b';localStorage.setItem(key,'theme4');
   try{
    render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
-   const theme1=await screen.findByRole('button',{name:'Theme 1'}),theme2=screen.getByRole('button',{name:'Theme 2'});
-   expect(theme1.getAttribute('aria-pressed')).toBe('true');
-   fireEvent.click(theme2);
-   expect(theme2.getAttribute('aria-pressed')).toBe('true');expect(localStorage.getItem(key)).toBe('theme2');
-   expect(document.querySelector('[data-navilo-transport-register]')?.getAttribute('data-navilo-theme')).toBe('theme2');
-   const theme3=screen.getByRole('button',{name:'Theme 3'});fireEvent.click(theme3);
-   expect(theme3.getAttribute('aria-pressed')).toBe('true');expect(localStorage.getItem(key)).toBe('theme3');
-   expect(document.querySelector('[data-navilo-transport-register]')?.getAttribute('data-navilo-theme')).toBe('theme3');
-   const scopedThemeCss=document.querySelector('[data-navilo-transport-register] style')?.textContent??'';
-   expect(scopedThemeCss).toContain('Theme 2 — BLUE OPERATIONS / spreadsheet console');
-   expect(scopedThemeCss).toContain('Theme 3 — MODERN EXECUTIVE / spacious cards + pills');
-   expect(scopedThemeCss).toContain('height: 29px !important');
-   expect(scopedThemeCss).toContain('height: 38px !important');
-   const theme4=screen.getByRole('button',{name:'Theme 4'});fireEvent.click(theme4);
-   expect(theme4.getAttribute('aria-pressed')).toBe('true');expect(localStorage.getItem(key)).toBe('theme4');
-   expect(document.querySelector('[data-navilo-transport-register]')?.getAttribute('data-navilo-theme')).toBe('theme4');
-   expect(scopedThemeCss).toContain('Theme 4 — CLASSIC LEDGER / serif + ivory + brass');
+   await screen.findByText('No trips yet.');
+   expect(document.querySelector('[data-navilo-transport-register]')?.getAttribute('data-navilo-theme')).toBe('theme1');
+   expect(screen.queryByRole('button',{name:/Theme [1-4]/})).toBeNull();
+   const pay=screen.getByRole('button',{name:'Pay Rent to Suppliers'}),receive=screen.getByRole('button',{name:'Receive Customer Payment'});
+   expect(pay.textContent).toBe('');expect(receive.textContent).toBe('');expect(pay.getAttribute('title')).toContain('suppliers');expect(receive.getAttribute('title')).toContain('customers');
   }finally{localStorage.removeItem(key);}
  });
  it('shows customer and supplier invoice numbers in their own financial groups',async()=>{

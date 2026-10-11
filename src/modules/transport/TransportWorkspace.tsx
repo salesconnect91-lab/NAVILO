@@ -8,7 +8,7 @@ import NaviloDateInput from '@/components/NaviloDateInput';
 import { formatNaviloDate } from "@/lib/naviloDate";
 import {vehicleDisplayLabel} from '@/lib/transportVehicleLabel';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment} from "react";
-import { Search, Plus, Upload, Route, History, ReceiptText, Truck, RefreshCw, LockKeyhole, Mic, Trash2 } from "lucide-react";
+import { Search, Plus, Upload, Route, History, ReceiptText, Truck, RefreshCw, LockKeyhole, Mic, Trash2, BanknoteArrowDown, BanknoteArrowUp } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
 import { useOptionalFeatureAccess } from "@/auth/FeatureAccess";
@@ -1182,10 +1182,7 @@ export default function TransportWorkspace(){
   const defaultTripColumnOrder=gridColumns.map(column=>column[0]);
   const legacyTripGridStorageKey=`navilo:transport:trip-grid:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
   const tripGridStorageKey=`navilo:transport:trip-grid:v2:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
-  const tripThemeStorageKey=`navilo:transport:trip-theme:${user?.id??"user"}:${activeCompany?.company_id??"company"}:${activeBusinessUnit?.business_unit_id??"unit"}`;
-  const [tripTheme,setTripTheme]=useState<'theme1'|'theme2'|'theme3'|'theme4'>(()=>{try{const saved=localStorage.getItem(tripThemeStorageKey);return saved==='theme2'||saved==='theme3'||saved==='theme4'?saved:'theme1'}catch{return 'theme1'}});
-  useEffect(()=>{try{const saved=localStorage.getItem(tripThemeStorageKey);setTripTheme(saved==='theme2'||saved==='theme3'||saved==='theme4'?saved:'theme1')}catch{setTripTheme('theme1')}},[tripThemeStorageKey]);
-  const chooseTripTheme=(next:'theme1'|'theme2'|'theme3'|'theme4')=>{setTripTheme(next);try{localStorage.setItem(tripThemeStorageKey,next)}catch{/* browser storage may be unavailable */}};
+  const tripTheme='theme1';
   const allOrderedGridColumns=useMemo(()=>{
     const byKey=new Map(gridColumns.map(column=>[column[0],column] as const));
     const order=tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0]);
@@ -1379,396 +1376,8 @@ export default function TransportWorkspace(){
 
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-    {!showPartyReports&&tab==="trips"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className={`relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden bg-white ${tripTheme==='theme3'?'rounded-xl border border-slate-200 shadow-[0_10px_30px_rgba(15,23,42,0.10)] [&_tbody_tr:nth-child(even)>td]:bg-slate-50/70 [&_tbody_tr:hover>td]:bg-emerald-50/70':tripTheme==='theme2'?'rounded-md border border-slate-300 shadow-[0_1px_4px_rgba(15,23,42,0.08)]':'rounded-lg border border-slate-700 shadow-sm shadow-slate-300'}`} data-navilo-theme={tripTheme} data-navilo-customizable="true">
+    {!showPartyReports&&tab==="trips"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className="relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden bg-white rounded-lg border border-slate-700 shadow-sm shadow-slate-300" data-navilo-theme={tripTheme} data-navilo-customizable="true">
       <style>{`
-        /* Theme 2 — BLUE OPERATIONS / spreadsheet console */
-        [data-navilo-transport-register][data-navilo-theme="theme2"] {
-          font-family: Arial, Helvetica, sans-serif !important;
-          background: #eaf2ff !important;
-          border: 2px solid #1d4ed8 !important;
-          border-radius: 0 !important;
-          box-shadow: none !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-topbar {
-          height: 44px !important;
-          background: #123b7a !important;
-          border-bottom: 4px solid #60a5fa !important;
-          border-radius: 0 !important;
-          text-transform: uppercase;
-          letter-spacing: .035em;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar {
-          background: #dbeafe !important;
-          border: 0 !important;
-          border-bottom: 2px solid #93c5fd !important;
-          border-radius: 0 !important;
-          padding: 6px !important;
-          gap: 5px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar > div,
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar > form,
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar > button {
-          border-radius: 0 !important;
-          box-shadow: none !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar button,
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar input {
-          border-radius: 0 !important;
-          font-family: Arial, Helvetica, sans-serif !important;
-          font-size: 10px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-trips-scrollport {
-          background: white !important;
-          border-top: 0 !important;
-          scrollbar-color: #2563eb #dbeafe;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] table {
-          font-family: Arial, Helvetica, sans-serif !important;
-          font-size: 10px !important;
-          letter-spacing: 0;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] thead tr:first-child {
-          height: 32px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] thead tr:first-child th {
-          background: #1e3a8a !important;
-          color: white !important;
-          border-color: #60a5fa !important;
-          border-radius: 0 !important;
-          font-size: 11px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] thead tr:nth-child(2) th {
-          background: #dbeafe !important;
-          color: #172554 !important;
-          border-color: #93c5fd !important;
-          min-height: 34px !important;
-          box-shadow: inset 0 -2px 0 #2563eb !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] tbody tr,
-        [data-navilo-transport-register][data-navilo-theme="theme2"] tbody td {
-          height: 29px !important;
-          max-height: 29px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] tbody td {
-          padding-left: 5px !important;
-          padding-right: 5px !important;
-          border-color: #bfdbfe !important;
-          background: white !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] tbody tr:nth-child(even) td {
-          background: #eff6ff !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] tbody tr:hover td {
-          background: #dbeafe !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] tbody button {
-          height: 23px !important;
-          font-size: 10px !important;
-          border-radius: 0 !important;
-        }
-
-        /* Theme 3 — MODERN EXECUTIVE / spacious cards + pills */
-        [data-navilo-transport-register][data-navilo-theme="theme3"] {
-          font-family: Inter, ui-sans-serif, system-ui, sans-serif !important;
-          background: #f2f7f5 !important;
-          border: 0 !important;
-          border-radius: 16px !important;
-          box-shadow: 0 14px 38px rgba(15,23,42,.16) !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-topbar {
-          height: 50px !important;
-          background: linear-gradient(100deg,#071f1b 0%,#064e3b 58%,#0f766e 100%) !important;
-          border: 0 !important;
-          padding-left: 18px !important;
-          padding-right: 18px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar {
-          background: white !important;
-          border: 1px solid #d7e5df !important;
-          border-radius: 14px !important;
-          margin: 8px 10px 6px !important;
-          padding: 8px !important;
-          gap: 8px !important;
-          box-shadow: 0 4px 14px rgba(15,118,110,.08) !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar > div,
-        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar > form,
-        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar > button {
-          border-radius: 999px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar button,
-        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar input {
-          min-height: 34px !important;
-          border-radius: 999px !important;
-          font-size: 11px !important;
-          font-weight: 700 !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-trips-scrollport {
-          margin: 0 10px 8px !important;
-          border: 1px solid #cfe2db !important;
-          border-radius: 12px !important;
-          background: white !important;
-          scrollbar-color: #0f766e #e7efed;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] table {
-          font-family: Inter, ui-sans-serif, system-ui, sans-serif !important;
-          font-size: 12px !important;
-          letter-spacing: .005em;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] thead tr:first-child {
-          height: 42px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] thead tr:first-child th {
-          background: #102a25 !important;
-          color: #ecfdf5 !important;
-          border-color: #28594f !important;
-          font-size: 13px !important;
-          letter-spacing: .035em !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] thead tr:first-child th:nth-child(2) {
-          background: #7c2d12 !important;
-          color: #fff7ed !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] thead tr:first-child th:nth-child(3) {
-          background: #065f46 !important;
-          color: #ecfdf5 !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] thead tr:nth-child(2) th {
-          min-height: 40px !important;
-          background: #f8fafc !important;
-          color: #1f2937 !important;
-          border-color: #d1d5db !important;
-          box-shadow: inset 0 -2px 0 #0f766e !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] tbody tr,
-        [data-navilo-transport-register][data-navilo-theme="theme3"] tbody td {
-          height: 38px !important;
-          max-height: 38px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] tbody td {
-          padding-left: 9px !important;
-          padding-right: 9px !important;
-          border-color: #e2e8f0 !important;
-          background: white !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] tbody tr:nth-child(even) td {
-          background: #f4fbf8 !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] tbody tr:hover td {
-          background: #dff7ee !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] tbody button {
-          height: 30px !important;
-          font-size: 11.5px !important;
-          border-radius: 8px !important;
-        }
-
-        /* Theme 4 — CLASSIC LEDGER / serif + ivory + brass */
-        [data-navilo-transport-register][data-navilo-theme="theme4"] {
-          font-family: Georgia, "Times New Roman", serif !important;
-          background: #f4ecdc !important;
-          border: 2px solid #8b6b32 !important;
-          border-radius: 3px !important;
-          box-shadow: 0 8px 24px rgba(69,49,22,.18) !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-topbar {
-          height: 46px !important;
-          background: #211d17 !important;
-          border-bottom: 4px double #d0a447 !important;
-          color: #fff2c9 !important;
-          font-family: Georgia, "Times New Roman", serif !important;
-          letter-spacing: .06em;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar {
-          background: #fff8e8 !important;
-          border: 1px solid #c9ad73 !important;
-          border-radius: 3px !important;
-          margin: 5px 7px !important;
-          padding: 7px !important;
-          gap: 7px !important;
-          box-shadow: inset 0 0 0 2px #f3e5c5 !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar > div,
-        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar > form,
-        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar > button {
-          border-radius: 3px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar button,
-        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar input {
-          min-height: 31px !important;
-          border-radius: 3px !important;
-          font-family: Georgia, "Times New Roman", serif !important;
-          font-size: 10.5px !important;
-          font-weight: 700 !important;
-          box-shadow: none !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-trips-scrollport {
-          margin: 0 7px 7px !important;
-          background: #fffdf7 !important;
-          border: 1px solid #b89b62 !important;
-          border-top: 3px double #8b6b32 !important;
-          border-radius: 0 !important;
-          scrollbar-color: #9a742f #f1e6cf;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] table {
-          font-family: Georgia, "Times New Roman", serif !important;
-          font-size: 11px !important;
-          letter-spacing: .01em;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] thead tr:first-child {
-          height: 38px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] thead tr:first-child th {
-          background: #29241c !important;
-          color: #f8e7b0 !important;
-          border-color: #6b5a38 !important;
-          font-size: 12px !important;
-          font-family: Georgia, "Times New Roman", serif !important;
-          letter-spacing: .07em !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] thead tr:first-child th:nth-child(2) {
-          background: #5a321d !important;
-          color: #ffe0a3 !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] thead tr:first-child th:nth-child(3) {
-          background: #29443a !important;
-          color: #d9f3e9 !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] thead tr:nth-child(2) th {
-          background: #ead9b5 !important;
-          color: #2b241a !important;
-          border-color: #b89b62 !important;
-          min-height: 37px !important;
-          box-shadow: inset 0 -2px 0 #8b6b32 !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] thead tr:nth-child(2) th button {
-          color: #2b241a !important;
-          font-family: Georgia, "Times New Roman", serif !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody tr,
-        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody td {
-          height: 32px !important;
-          max-height: 32px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody td {
-          padding-left: 7px !important;
-          padding-right: 7px !important;
-          border-color: #dfcfad !important;
-          color: #2f281f !important;
-          background: #fffdf7 !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody tr:nth-child(even) td {
-          background: #f6ecd8 !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody tr:hover td {
-          background: #ffeab0 !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody td:first-child {
-          background: #ead9b5 !important;
-          color: #5c421b !important;
-          border-right: 2px solid #8b6b32 !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] tbody button {
-          height: 25px !important;
-          font-family: Georgia, "Times New Roman", serif !important;
-          font-size: 10.5px !important;
-          border-radius: 2px !important;
-        }
-
-        /* Theme layout identities: 2/3/4 intentionally change composition, not only palette. */
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-topbar {
-          justify-content: flex-start !important;
-          gap: 18px !important;
-          padding: 0 8px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-topbar > div:last-child {
-          margin-left: auto !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar {
-          display: grid !important;
-          grid-template-columns: 92px 112px minmax(190px,1fr) 190px minmax(250px,1.35fr) auto auto auto !important;
-          align-items: center !important;
-          margin: 0 !important;
-          padding: 5px 6px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar > * {
-          min-width: 0 !important;
-          width: 100% !important;
-          height: 30px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-register-toolbar > form {
-          width: 100% !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme2"] .navilo-transport-trips-scrollport {
-          margin: 0 !important;
-          border-left: 5px solid #1d4ed8 !important;
-        }
-
-        [data-navilo-transport-register][data-navilo-theme="theme3"] {
-          padding: 10px !important;
-          gap: 8px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-topbar {
-          margin: 0 !important;
-          border-radius: 14px !important;
-          box-shadow: 0 8px 22px rgba(6,78,59,.18) !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar {
-          display: flex !important;
-          justify-content: center !important;
-          align-items: center !important;
-          margin: 0 !important;
-          padding: 10px 12px !important;
-          min-height: 58px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar > form {
-          order: -1 !important;
-          flex: 1 1 390px !important;
-          max-width: 520px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-register-toolbar > div:first-child {
-          min-width: 112px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme3"] .navilo-transport-trips-scrollport {
-          margin: 0 !important;
-          border-radius: 14px !important;
-          box-shadow: 0 8px 22px rgba(15,23,42,.08) !important;
-        }
-
-        [data-navilo-transport-register][data-navilo-theme="theme4"] {
-          padding: 6px !important;
-          gap: 4px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-topbar {
-          margin: 0 0 4px !important;
-          padding: 0 12px !important;
-          justify-content: space-between !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar {
-          display: grid !important;
-          grid-template-columns: 110px 130px minmax(250px,1fr) 210px minmax(280px,1.2fr) 150px 190px !important;
-          align-items: stretch !important;
-          margin: 0 0 4px !important;
-          padding: 8px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar > * {
-          min-width: 0 !important;
-          width: 100% !important;
-          height: 34px !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-register-toolbar > form {
-          grid-column: span 2 !important;
-          width: 100% !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] .navilo-transport-trips-scrollport {
-          margin: 0 !important;
-          border: 2px solid #8b6b32 !important;
-          border-top: 5px double #8b6b32 !important;
-        }
-        [data-navilo-transport-register][data-navilo-theme="theme4"] thead {
-          letter-spacing: .045em !important;
-        }
-
         /* Mobile containment: keep the register full viewport width and scroll the data grid instead of squeezing it. */
         @media (max-width: 767px) {
           [data-navilo-transport-register] {
@@ -1835,12 +1444,7 @@ export default function TransportWorkspace(){
           [data-navilo-transport-register] .navilo-transport-trips-scrollport td {
             flex-shrink: 0 !important;
           }
-          [data-navilo-transport-register][data-navilo-theme="theme2"],
-          [data-navilo-transport-register][data-navilo-theme="theme3"],
-          [data-navilo-transport-register][data-navilo-theme="theme4"] {
-            padding: 0 !important;
-            gap: 0 !important;
-          }
+        }
         }
 
         /* Theme 1: slightly stronger grid definition and one-step larger trip rows/type. */
@@ -1864,43 +1468,37 @@ export default function TransportWorkspace(){
           font-size: 11px !important;
         }
       `}</style>
-      <div className={`navilo-transport-topbar relative z-[90] flex shrink-0 items-center justify-between px-3 text-white ${tripTheme==='theme3'?'h-10 bg-gradient-to-r from-[#111827] via-[#16302b] to-[#0f3d34]':tripTheme==='theme2'?'h-9 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950':'h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]'}`}>
+      <div className="navilo-transport-topbar relative z-[90] flex shrink-0 items-center justify-between px-3 text-white h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]">
         <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
         <div className="flex items-center gap-1">
-          <div className="mr-1 inline-flex h-7 items-center rounded-md border border-white/20 bg-black/20 p-0.5" aria-label="Trips Register theme">
-            <button type="button" aria-pressed={tripTheme==='theme1'} onClick={()=>chooseTripTheme('theme1')} className={`h-6 rounded px-2 text-[9px] font-bold ${tripTheme==='theme1'?'bg-white text-slate-950 shadow-sm':'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Theme 1</button>
-            <button type="button" aria-pressed={tripTheme==='theme2'} onClick={()=>chooseTripTheme('theme2')} className={`h-6 rounded px-2 text-[9px] font-bold ${tripTheme==='theme2'?'bg-blue-500 text-white shadow-sm':'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Theme 2</button>
-            <button type="button" aria-pressed={tripTheme==='theme3'} onClick={()=>chooseTripTheme('theme3')} className={`h-6 rounded px-2 text-[9px] font-bold ${tripTheme==='theme3'?'bg-emerald-500 text-white shadow-sm':'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Theme 3</button>
-            <button type="button" aria-pressed={tripTheme==='theme4'} onClick={()=>chooseTripTheme('theme4')} className={`h-6 rounded px-2 text-[9px] font-bold ${tripTheme==='theme4'?'bg-amber-400 text-slate-950 shadow-sm':'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Theme 4</button>
-          </div>
-          <button type="button" onClick={resetGrid} className={`flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white ${tripTheme==='theme3'?'border border-emerald-600 bg-emerald-900/80 hover:bg-emerald-800':'border border-slate-500 bg-slate-900/70 hover:bg-slate-800'}`}>Reset</button>
-          <button type="button" onClick={()=>void load()} disabled={registerLoading} className={`flex h-7 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold text-white ${tripTheme==='theme3'?'border border-emerald-400 bg-emerald-600 hover:bg-emerald-500':'border border-blue-500 bg-blue-600 hover:bg-blue-700'}`}><RefreshCw className="h-3 w-3"/>Refresh</button>
-          <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)} className={`flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white ${tripTheme==='theme3'?'border border-emerald-600 bg-emerald-900/80 hover:bg-emerald-800':'border border-slate-500 bg-slate-900/70 hover:bg-slate-800'}`}>Columns</button>
+          <button type="button" onClick={resetGrid} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Reset</button>
+          <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-7 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold text-white border border-blue-500 bg-blue-600 hover:bg-blue-700"><RefreshCw className="h-3 w-3"/>Refresh</button>
+          <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Columns</button>
           <span data-navilo-standard-tools-host="true" className="contents" />
         </div>
       </div>
-      <div className={`relative z-[80] shrink-0 border-b border-slate-200 bg-white ${tripTheme==='theme3'?'px-2.5 py-1.5':tripTheme==='theme2'?'px-1.5 py-1':'px-2 py-2'}`}>
-        <div className={`navilo-transport-register-toolbar flex flex-wrap items-center ${tripTheme==='theme3'?'gap-2':tripTheme==='theme2'?'gap-1.5':'gap-2'}`}>
+      <div className="navilo-transport-toolbar-wrap relative z-[80] shrink-0 border-b border-slate-200 px-1 py-0.5">
+        <div className="navilo-transport-register-toolbar flex flex-wrap items-center gap-2">
 
-          <div className={`flex items-center justify-between border border-blue-200 bg-blue-50 ${tripTheme==='theme3'?'h-8 min-w-[96px] rounded-lg border-emerald-200 bg-emerald-50 px-2.5 shadow-sm':tripTheme==='theme2'?'h-7 min-w-[86px] rounded-md px-2':'h-9 min-w-[104px] rounded-lg px-3 shadow-sm'}`}>
+          <div className="flex items-center justify-between border border-blue-200 bg-blue-50 h-9 min-w-[104px] rounded-lg px-3 shadow-sm">
             <span className="text-[10px] font-extrabold uppercase text-blue-700">🚚 Trips</span>
             <span className="text-sm font-bold text-slate-950">{Number(registerMeta.count??0).toLocaleString()}</span>
           </div>
 
-          <div className={`flex items-center gap-2 border ${selectedTripCount>0?'border-amber-400 bg-amber-100 text-amber-950':'border-slate-200 bg-slate-50 text-slate-500'} ${tripTheme==='theme3'?'h-8 rounded-full px-3 shadow-sm':tripTheme==='theme2'?'h-7 rounded-none px-2':'h-9 rounded-lg px-3 shadow-sm'}`} aria-live="polite" data-testid="trip-selection-count">
+          <div className={`flex items-center gap-2 border ${selectedTripCount>0?'border-amber-400 bg-amber-100 text-amber-950':'border-slate-200 bg-slate-50 text-slate-500'} h-9 rounded-lg px-3 shadow-sm`} aria-live="polite" data-testid="trip-selection-count">
             <span className="text-[10px] font-extrabold uppercase">✓ Selected</span>
             <span className="min-w-[18px] text-center text-sm font-black tabular-nums">{selectedTripCount.toLocaleString()}</span>
             {selectedTripCount>0&&<button type="button" onClick={()=>setSelectedTripIds(new Set())} className="ml-0.5 text-[9px] font-bold underline underline-offset-2" aria-label="Clear selected trips">Clear</button>}
           </div>
 
-          <div className={`flex items-center gap-2 border border-slate-200 bg-slate-50 ${tripTheme==='theme3'?'h-8 min-w-[200px] rounded-lg border-slate-200 bg-white px-2.5 shadow-sm':tripTheme==='theme2'?'h-7 min-w-[180px] rounded-md px-2':'h-9 min-w-[215px] rounded-lg px-3 shadow-sm'}`}>
+          <div className="flex items-center gap-2 border border-slate-200 bg-slate-50 h-9 min-w-[215px] rounded-lg px-3 shadow-sm">
             <span className="text-[10px] font-extrabold uppercase text-slate-700">▣ Paper</span>
             <span className="text-[9px] font-semibold text-emerald-700">Received <b>{Number(dashboardSummary.paper?.received??0).toLocaleString()}</b></span>
             <span className="text-[9px] font-semibold text-amber-700">Not Received <b>{Number(dashboardSummary.paper?.not_received??0).toLocaleString()}</b></span>
           </div>
 
           <div className="relative">
-            <button type="button" onClick={()=>setStatusOpen(v=>!v)} className={`flex items-center justify-between gap-2 border border-slate-200 bg-white text-[10px] font-semibold text-slate-700 ${tripTheme==='theme3'?'h-8 min-w-[195px] rounded-lg border-emerald-200 bg-emerald-50/40 px-2.5 shadow-sm':tripTheme==='theme2'?'h-7 min-w-[190px] rounded-md px-2':'h-9 min-w-[200px] rounded-lg px-3 shadow-sm'}`}>
+            <button type="button" onClick={()=>setStatusOpen(v=>!v)} className="flex items-center justify-between gap-2 border border-slate-200 bg-white text-[10px] font-semibold text-slate-700 h-9 min-w-[200px] rounded-lg px-3 shadow-sm">
               <span>Status</span><span className="max-w-[135px] truncate text-slate-900">{statusFilters.length===0?"All Statuses":statusFilters.length===1?<> <span className={statusMark(statusFilters[0].replace(/^status:/,'')).className}>{statusMark(statusFilters[0].replace(/^status:/,'')).mark}</span> {statusOptions.find(option=>option.key===statusFilters[0])?.label??"1 selected"}</>:`${statusFilters.length} selected`}</span>
               <span aria-hidden>⌄</span>
             </button>
@@ -1926,16 +1524,16 @@ export default function TransportWorkspace(){
             </section></TransportDialog>}
           </div>
 
-          <form className={`flex w-80 items-stretch ${tripTheme==='theme3'?'h-8':tripTheme==='theme2'?'h-7':'h-9'}`} onSubmit={e=>{e.preventDefault();setPage(0);setRegisterSearch(registerSearchDraft.trim());setRegisterSearchMode(registerSearchModeDraft)}}>
+          <form className="flex w-80 items-stretch h-9" onSubmit={e=>{e.preventDefault();setPage(0);setRegisterSearch(registerSearchDraft.trim());setRegisterSearchMode(registerSearchModeDraft)}}>
             <NaviloSearchableSelect preserveLabel aria-label="Trip search mode" wrapperClassName="w-[120px] shrink-0" className="input h-7 text-xs" value={registerSearchModeDraft} onChange={e=>setRegisterSearchModeDraft(e.target.value as 'contains'|'starts_with')}><option value="contains">Contains</option><option value="starts_with">Starts with</option></NaviloSearchableSelect>
-            <input aria-label="Search all Trip data" placeholder="Search all Trip data…" className={`input min-w-0 flex-1 rounded-r-none text-[11px] ${tripTheme==='theme3'?'h-8 rounded-l-lg border-emerald-200 bg-emerald-50/20 shadow-sm':tripTheme==='theme2'?'h-7 rounded-l-md':'h-9 rounded-l-lg border-slate-200 shadow-sm'}`} value={registerSearchDraft} onChange={e=>setRegisterSearchDraft(e.target.value)}/>
-            <button type="submit" aria-label="Search Trips" className={`flex items-center justify-center border border-l-0 border-blue-300 bg-white text-blue-700 hover:bg-blue-50 ${tripTheme==='theme3'?'h-8 w-9 rounded-r-lg border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm':tripTheme==='theme2'?'h-7 w-8 rounded-r-md':'h-9 w-9 rounded-r-lg shadow-sm'}`}><Search className="h-3.5 w-3.5"/></button>
+            <input aria-label="Search all Trip data" placeholder="Search all Trip data…" className="input min-w-0 flex-1 rounded-r-none text-[11px] h-9 rounded-l-lg border-slate-200 shadow-sm" value={registerSearchDraft} onChange={e=>setRegisterSearchDraft(e.target.value)}/>
+            <button type="submit" aria-label="Search Trips" className="flex items-center justify-center border border-l-0 border-blue-300 bg-white text-blue-700 hover:bg-blue-50 h-9 w-9 rounded-r-lg shadow-sm"><Search className="h-3.5 w-3.5"/></button>
           </form>
           <div className="flex shrink-0 items-center gap-1.5">
           <button type="button" onClick={()=>{entryReturnTab.current="trips";setEditingTripId(null);setTab("new")}} className="flex h-9 items-center gap-1 rounded-lg border border-blue-500 bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
           </div>
-          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=supplier&allocation=transport")} className="h-9 rounded-lg border border-amber-300 bg-amber-50 px-3 text-[11px] font-semibold text-amber-900 shadow-sm hover:bg-amber-100">Pay Rent to Suppliers</button>
-          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=customer&allocation=transport")} className="h-9 rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100">Receive Customer Payment</button>
+          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=supplier&allocation=transport")} className="h-9 rounded-lg border border-amber-300 bg-amber-50 px-3 text-[11px] font-semibold text-amber-900 shadow-sm hover:bg-amber-100" aria-label="Pay Rent to Suppliers" title="Pay rent to suppliers" data-payment-shortcut="supplier"><BanknoteArrowUp aria-hidden="true" className="h-4 w-4"/></button>
+          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=customer&allocation=transport")} className="h-9 rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100" aria-label="Receive Customer Payment" title="Receive payment from customers" data-payment-shortcut="customer"><BanknoteArrowDown aria-hidden="true" className="h-4 w-4"/></button>
 
         </div>
 
@@ -1999,15 +1597,15 @@ export default function TransportWorkspace(){
       {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
       <div
         ref={tripsGridRef}
-        className={`navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t ${tripTheme==='theme3'?'border-emerald-800 bg-[#f7faf9]':tripTheme==='theme2'?'border-blue-300 bg-slate-50':'border-slate-400 bg-white'}`}
+        className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-400 bg-white"
       >
-        <table style={{width:orderedGridColumns.reduce((sum,[key])=>sum+registerColumnWidth(key),0)}} className={`table-fixed whitespace-nowrap leading-none ${tripTheme==='theme3'?'text-[10.5px]':tripTheme==='theme2'?'text-[10px]':'text-[10.5px]'}`}>
+        <table style={{width:orderedGridColumns.reduce((sum,[key])=>sum+registerColumnWidth(key),0)}} className="table-fixed whitespace-nowrap leading-none text-[10.5px]">
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
           <colgroup>{orderedGridColumns.map(([key])=><col key={key} style={{width:registerColumnWidth(key)}}/>)}</colgroup>
-          <thead className={`sticky top-0 z-40 text-left uppercase tracking-normal shadow-[0_1px_2px_rgba(15,23,42,0.12)] ${tripTheme==='theme3'?'bg-[#102a25] text-[10.5px] text-white':tripTheme==='theme2'?'bg-slate-950 text-[10px] text-white':'bg-slate-900 text-[10.5px] text-white'}`}>
-            <tr className={tripTheme==='theme3'?'h-10':tripTheme==='theme2'?'h-9':'h-11'}>
+          <thead className="sticky top-0 z-40 text-left uppercase tracking-normal shadow-[0_1px_2px_rgba(15,23,42,0.12)] bg-slate-900 text-[10.5px] text-white">
+            <tr className={'h-11'}>
               {gridGroupSegments.map((segment,index)=><th data-financial-group={segment.group} key={segment.group+index} colSpan={segment.count}
-                className={`border-b border-r px-3 py-0 text-center font-black tracking-[0.025em] ${tripTheme==='theme3'?'text-[12px]':tripTheme==='theme2'?'text-[11px]':'text-[13px]'} ${segment.group==="supplier"?(tripTheme==='theme3'?"border-orange-200 bg-orange-50 text-orange-900":tripTheme==='theme2'?"border-amber-300 bg-amber-50 text-amber-900":"border-rose-300 bg-rose-100 text-rose-800"):segment.group==="customer"?(tripTheme==='theme3'?"border-emerald-200 bg-emerald-50 text-emerald-900":tripTheme==='theme2'?"border-sky-300 bg-sky-50 text-sky-900":"border-blue-300 bg-blue-100 text-blue-800"):segment.group==="ppr"?"border-emerald-300 bg-emerald-100 text-emerald-800":(tripTheme==='theme3'?"border-slate-200 bg-slate-100 text-slate-900":tripTheme==='theme2'?"border-slate-300 bg-slate-50 text-slate-900":"border-slate-300 bg-slate-100 text-slate-800")}`}>
+                className={`border-b border-r px-3 py-0 text-center font-black tracking-[0.025em] text-[13px] ${segment.group==="supplier"?("border-rose-300 bg-rose-100 text-rose-800"):segment.group==="customer"?("border-blue-300 bg-blue-100 text-blue-800"):segment.group==="ppr"?"border-emerald-300 bg-emerald-100 text-emerald-800":("border-slate-300 bg-slate-100 text-slate-800")}`}>
                 <span className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
                   <span aria-hidden="true" className="text-[17px] leading-none">{segment.group==="supplier"?"🚚":segment.group==="customer"?"👤":segment.group==="ppr"?"📄":"🚚"}</span>
                   <span>{segment.group==="supplier"?"SUPPLIER · OUR COST":segment.group==="customer"?"CUSTOMER · OUR REVENUE":segment.group==="ppr"?"PPR":"TRIP DETAILS"}</span>
@@ -2023,8 +1621,8 @@ export default function TransportWorkspace(){
 
                 return <th data-financial-group={visualGridGroup(key)} key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`sticky top-0 border-b border-r px-0.5 !py-0 font-bold leading-none ${tripTheme==='theme3'?(isSupplierGridKey(key)?"border-orange-700 bg-[#7c2d12] text-white":isCustomerGridKey(key)?"border-emerald-800 bg-[#065f46] text-white":isPprGridKey(key)?"border-teal-800 bg-[#115e59] text-white":"border-slate-700 bg-[#1f2937] text-white"):tripTheme==='theme2'?(isSupplierGridKey(key)?"border-amber-200 bg-amber-100 text-amber-950":isCustomerGridKey(key)?"border-sky-200 bg-sky-100 text-sky-950":isPprGridKey(key)?"border-emerald-200 bg-emerald-100 text-emerald-950":"border-slate-200 bg-slate-100 text-slate-800"):(isSupplierGridKey(key)?"border-rose-200 bg-rose-50 text-slate-800":isCustomerGridKey(key)?"border-blue-200 bg-blue-50 text-slate-800":isPprGridKey(key)?"border-emerald-200 bg-emerald-50 text-slate-800":"border-slate-300 bg-white text-slate-700")} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
-                  <div className="flex min-h-[28px] w-full min-w-0 items-center gap-0.5">
+                  className={`sticky top-0 border-b border-r px-0.5 !py-0 font-bold leading-none ${(isSupplierGridKey(key)?"border-rose-200 bg-rose-50 text-slate-800":isCustomerGridKey(key)?"border-blue-200 bg-blue-50 text-slate-800":isPprGridKey(key)?"border-emerald-200 bg-emerald-50 text-slate-800":"border-slate-300 bg-white text-slate-700")} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
+                  <div className="flex min-h-[22px] w-full min-w-0 items-center gap-0.5">
                     {key==='trip_no'&&<input
                       type="checkbox"
                       aria-label={allVisibleTripsSelected?"Deselect all visible trips":"Select all visible trips"}
@@ -2098,10 +1696,10 @@ export default function TransportWorkspace(){
             {!gridRows.length&&<tr><td colSpan={Math.max(1,orderedGridColumns.length)}><div className="navilo-transport-empty-state">{registerLoading?"Loading trips…":registerLoadError?<><strong>Data load failed.</strong><button type="button" className="btn h-7" onClick={()=>void load()}>Retry</button></>:<><strong>{registerSearch||Object.values(columnFilters).some(v=>v.length)||statusFilters.length?"No trips match your filters.":"No trips yet."}</strong><button type="button" className="btn h-7" onClick={()=>{setEditingTripId(null);setTab("new")}}>Add Trip</button></>}</div></td></tr>}
             {gridRows.map(r=>{
               const tripSelected=selectedTripIds.has(String(r.id));
-              return <tr key={r.id} data-trip-selected={tripSelected?"true":"false"} className={`align-middle transition-colors ${tripSelected?'outline outline-1 -outline-offset-1 outline-amber-400':''} ${tripTheme==='theme3'?'h-[30px] odd:bg-white even:bg-emerald-50/35 hover:bg-emerald-100/70':tripTheme==='theme2'?'h-[22px] odd:bg-white even:bg-sky-50/55 hover:bg-sky-100/70':'h-[26px] odd:bg-white even:bg-slate-50/45 hover:bg-blue-50/45'}`}>
+              return <tr key={r.id} data-trip-selected={tripSelected?"true":"false"} className={`align-middle transition-colors ${tripSelected?'outline outline-1 -outline-offset-1 outline-amber-400':''} h-[26px] odd:bg-white even:bg-slate-50/45 hover:bg-blue-50/45`}>
               <td
                 style={tripColumnWidths[orderedGridColumns[0]?.[0]??""]?{width:tripColumnWidths[orderedGridColumns[0]?.[0]??""],minWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""]}:undefined}
-                className={`!sticky left-0 z-30 overflow-hidden whitespace-nowrap border-b border-r px-1.5 !py-0 font-bold leading-tight shadow-[2px_0_3px_rgba(15,23,42,0.06)] ${tripSelected?'!border-amber-400 !bg-amber-100 text-amber-950':tripTheme==='theme3'?'h-[30px] max-h-[30px] border-emerald-200 bg-[#ecfdf5] text-emerald-950':tripTheme==='theme2'?'h-[22px] max-h-[22px] border-sky-200 bg-[#eff6ff] text-slate-900':'h-[26px] max-h-[26px] border-slate-200 bg-white text-slate-900'}`}>
+                className={`!sticky left-0 z-30 overflow-hidden whitespace-nowrap border-b border-r px-1.5 !py-0 font-bold leading-tight shadow-[2px_0_3px_rgba(15,23,42,0.06)] ${tripSelected?'!border-amber-400 !bg-amber-100 text-amber-950':'h-[26px] max-h-[26px] border-slate-200 bg-white text-slate-900'}`}>
   <input type="checkbox" aria-label={`Select trip ${r.trip_no}`} checked={tripSelected} onChange={()=>toggleTripSelection(String(r.id))} className="mr-1 h-3.5 w-3.5 cursor-pointer align-middle accent-amber-500"/>
   <button type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
     className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
@@ -2117,7 +1715,7 @@ export default function TransportWorkspace(){
                 const columnWidth=tripColumnWidths[key];
                 return <td data-financial-group={visualGridGroup(key)} key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
-                  className={`overflow-hidden text-ellipsis whitespace-nowrap border-b border-r px-1.5 !py-0 leading-tight ${tripTheme==='theme3'?(isSupplierGridKey(key)?"h-[30px] max-h-[30px] border-orange-100 bg-orange-50/80":isCustomerGridKey(key)?"h-[30px] max-h-[30px] border-emerald-100 bg-emerald-50/80":isPprGridKey(key)?"h-[30px] max-h-[30px] border-teal-100 bg-teal-50/80":"h-[30px] max-h-[30px] border-slate-200 bg-white/80"):tripTheme==='theme2'?(isSupplierGridKey(key)?"h-[22px] max-h-[22px] border-amber-100 bg-amber-50":isCustomerGridKey(key)?"h-[22px] max-h-[22px] border-sky-100 bg-sky-50":isPprGridKey(key)?"h-[22px] max-h-[22px] border-emerald-100 bg-emerald-50":"h-[22px] max-h-[22px] border-slate-200 bg-white"):(isSupplierGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-rose-50/55":isCustomerGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-blue-50/45":isPprGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-emerald-50/50":"h-[26px] max-h-[26px] border-slate-200")} ${tripSelected?"!border-amber-300 !bg-amber-100":""} ${numeric?"text-right font-medium":""}`}>
+                  className={`overflow-hidden text-ellipsis whitespace-nowrap border-b border-r px-1.5 !py-0 leading-tight ${(isSupplierGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-rose-50/55":isCustomerGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-blue-50/45":isPprGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-emerald-50/50":"h-[26px] max-h-[26px] border-slate-200")} ${tripSelected?"!border-amber-300 !bg-amber-100":""} ${numeric?"text-right font-medium":""}`}>
                   {key==='charge'
                     ?<button type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
                     :key==='supplier_charges'
