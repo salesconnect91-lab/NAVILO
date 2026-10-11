@@ -39,6 +39,8 @@ begin
  perform set_config('request.jwt.claim.sub',u::text,true);
  insert into public.suppliers(user_id,company_id,name) values(u,c,'Owner One') returning id into s;
  insert into public.customers(user_id,company_id,name) values(u,c,'Transport Customer') returning id into customer;
+  -- Transport trip creation now requires an explicit customer billing master rule.
+  perform public.transport_set_party_billing_mode('customer',customer,'Cash');
  insert into public.transport_truck_types(company_id,business_unit_id,name) values(c,b,' Flatbed ') returning id into tt;
  perform pg_temp.expect_rejected(format('insert into public.transport_truck_types(company_id,business_unit_id,name) values(%L,%L,%L)',c,b,'flatbed'),'duplicate');
  insert into public.transport_locations(company_id,business_unit_id,name,city_area) values(c,b,'Jeddah  Port','Jeddah');
