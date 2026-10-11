@@ -131,15 +131,15 @@ describe('Transport register server pagination',()=>{
   mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[{id:'trip-'+args.p_offset,trip_no:'TRP-'+args.p_offset,trip_date:'2026-10-01',customer_rate:10,status:'draft'}],count:50000,statuses:[],permissions:{customer:true,supplier:true},totals:{company_rate:800000},completed:0,paper_pending:50000}:true,error:null}));
   render(<MemoryRouter><TransportWorkspace/></MemoryRouter>);
   await screen.findByText('TRP-0');expect(screen.getByText(/800,000.00/)).toBeTruthy();
-  fireEvent.click(screen.getByRole('button',{name:'Last'}));await screen.findByText('TRP-49500');
-  expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({p_limit:500,p_offset:49500}));
+  fireEvent.click(screen.getByRole('button',{name:'Last'}));await screen.findByText('TRP-49900');
+  expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({p_limit:100,p_offset:49900}));
   expect(screen.getByText(/800,000.00/)).toBeTruthy();expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_financial_register_page')).toBe(false);
  });
  it('resets to first page and sends searches to the server',async()=>{
   mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:args.p_filters?.search?[{id:'found',trip_no:'OFF-PAGE-TRIP',trip_date:'2026-10-01',customer_rate:50,status:'draft'}]:[],count:args.p_filters?.search?1:50000,statuses:[],permissions:{customer:true,supplier:true},totals:{company_rate:args.p_filters?.search?50:800000},completed:0,paper_pending:1}:true,error:null}));
   render(<MemoryRouter><TransportWorkspace/></MemoryRouter>);
   await waitFor(()=>expect((screen.getByRole('button',{name:'Last'}) as HTMLButtonElement).disabled).toBe(false));
-  fireEvent.click(screen.getByRole('button',{name:'Last'}));await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({p_offset:49500})));
+  fireEvent.click(screen.getByRole('button',{name:'Last'}));await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({p_offset:49900})));
   fireEvent.click(screen.getByRole('button',{name:'Trip search mode'}));
   fireEvent.click(screen.getByRole('option',{name:'Starts with'}));
   fireEvent.change(screen.getByLabelText('Search all Trip data'),{target:{value:'OFF-PAGE'}});
@@ -259,12 +259,12 @@ describe('Transport register interactions',()=>{
    expect(await screen.findByTitle('Sort Customer Credit / Advance ascending')).toBeTruthy();
   }finally{localStorage.removeItem(key);}
  });
- it('toggles header ASC/DESC through the server query while retaining the 500 row page limit',async()=>{
+ it('toggles header ASC/DESC through the server query while retaining the 100 row page limit',async()=>{
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
   const header=await screen.findByTitle('Sort Trip No ascending');fireEvent.click(header);
-  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({p_limit:500,p_offset:0,p_sort:'trip_no',p_direction:'asc'})));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({p_limit:100,p_offset:0,p_sort:'trip_no',p_direction:'asc'})));
   expect(header.closest('th')?.getAttribute('aria-sort')).toBe('ascending');fireEvent.click(header);
-  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({p_limit:500,p_offset:0,p_sort:'trip_no',p_direction:'desc'})));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({p_limit:100,p_offset:0,p_sort:'trip_no',p_direction:'desc'})));
   expect(header.closest('th')?.getAttribute('aria-sort')).toBe('descending');
  });
  it('scrolls horizontally on the header but leaves ordinary body wheel uncancelled',async()=>{
