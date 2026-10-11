@@ -295,6 +295,11 @@ describe('Trip edit transition',()=>{
   vi.spyOn(window,'prompt').mockReturnValue('Corrected commercial dimensions');
   try{
    fireEvent.click(screen.getByRole('button',{name:'Save Changes'}));
+   await waitFor(()=>{
+    if(!mock.rpc.mock.calls.some(call=>call[0]==='transport_save_operational_trip_edit')){
+      throw new Error('Trip edit was not submitted: '+(document.querySelector('.bg-red-50')?.textContent??'no error displayed'));
+    }
+   });
    await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_save_operational_trip_edit',expect.objectContaining({
      p_trip_id:'rate-finalized',p_reason:'Corrected commercial dimensions'
    })));
