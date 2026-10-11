@@ -315,6 +315,7 @@ describe('Trip edit transition',()=>{
    fireEvent.click(await screen.findByRole('button',{name:'ATOMIC-1'}));
    await screen.findByRole('button',{name:'Save Changes'});
    await waitFor(()=>expect(screen.getByLabelText('Customer billing mode').textContent).toContain('Credit Only'));
+   await waitFor(()=>expect((screen.getByRole('button',{name:'Save Changes'}) as HTMLButtonElement).disabled).toBe(false));
    choose('Search Driver','Second Driver');
    fireEvent.click(screen.getByRole('button',{name:'Save Changes'}));
    await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_save_operational_trip_edit',expect.objectContaining({
