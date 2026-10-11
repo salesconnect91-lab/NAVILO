@@ -1,0 +1,144 @@
+/* NAVILO shared interaction and visual identity — screen-only.
+   Consolidates button surfaces, pressed/focus/selected feedback, and modest
+   panel polish. Never changes data, control dimensions, print, or Transport
+   register's red/green editable-cell affordances. */
+:root {
+  --navilo-ui-primary: #2459c7;
+  --navilo-ui-primary-hover: #1948aa;
+  --navilo-ui-primary-pressed: #143c91;
+  --navilo-ui-ink: #172b49;
+  --navilo-ui-muted: #586a82;
+  --navilo-ui-border: #cbd7e7;
+  --navilo-ui-focus: rgba(37, 99, 235, 0.26);
+  --navilo-ui-card-shadow: 0 1px 2px rgba(16, 40, 78, 0.05), 0 5px 18px rgba(16, 40, 78, 0.055);
+}
+@media screen {
+  /* A .btn was historically transparent and borderless, unlike a real action. */
+  .erp-shell main .btn:not(.btn-primary):not(.btn-secondary):not(.btn-danger):not(:where([data-navilo-transport-register] *)) {
+    border: 1px solid var(--navilo-ui-border);
+    border-radius: 8px;
+    background: linear-gradient(180deg, #fff 0%, #f5f8fd 100%);
+    color: var(--navilo-ui-ink);
+    box-shadow: 0 1px 2px rgba(19, 47, 89, 0.08), inset 0 1px rgba(255,255,255,0.95);
+  }
+  .erp-shell main .btn:not(.btn-primary):not(.btn-secondary):not(.btn-danger):not(:where([data-navilo-transport-register] *)):hover:not(:disabled) {
+    border-color: #9fb7db;
+    background: #eaf2ff;
+    color: #173c82;
+    box-shadow: 0 2px 6px rgba(32, 78, 144, 0.11);
+  }
+  .erp-shell main .btn-primary:not(:where([data-navilo-transport-register] *)) {
+    border: 1px solid #1d4db3;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #2d67df 0%, var(--navilo-ui-primary) 100%);
+    color: #fff;
+    box-shadow: 0 2px 5px rgba(23, 70, 154, 0.20), inset 0 1px rgba(255,255,255,0.20);
+  }
+  .erp-shell main .btn-primary:not(:where([data-navilo-transport-register] *)):hover:not(:disabled) {
+    background: var(--navilo-ui-primary-hover);
+    border-color: #163d94;
+    box-shadow: 0 3px 10px rgba(28, 71, 151, 0.24);
+  }
+  .erp-shell main .btn-secondary:not(:where([data-navilo-transport-register] *)) {
+    border: 1px solid var(--navilo-ui-border);
+    border-radius: 8px;
+    background: linear-gradient(180deg, #fff 0%, #f5f8fd 100%);
+    color: #274361;
+    box-shadow: 0 1px 3px rgba(16, 40, 78, 0.07);
+  }
+  .erp-shell main .btn-secondary:not(:where([data-navilo-transport-register] *)):hover:not(:disabled) {
+    background: #eaf2ff;
+    border-color: #a5bbd9;
+    color: #174e99;
+  }
+  .erp-shell main .btn-danger:not(:where([data-navilo-transport-register] *)) {
+    border: 1px solid #b72c46;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #e34b64 0%, #c5314c 100%);
+    color: #fff;
+    box-shadow: 0 2px 5px rgba(158, 33, 61, 0.17);
+  }
+  .erp-shell main .btn-danger:not(:where([data-navilo-transport-register] *)):hover:not(:disabled) {
+    background: #af2541;
+    border-color: #9c1c39;
+  }
+  /* All real controls receive tactile click feedback, even if they use
+     module-specific Tailwind classes. This is visual, not a click handler. */
+  .erp-shell :is(main,header,aside) :is(button,a[role="button"],a.btn,a.btn-primary,a.btn-secondary,a.btn-danger):not(:disabled):not([aria-disabled="true"]) {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition-property: background-color, color, border-color, box-shadow, filter, transform;
+    transition-duration: 140ms;
+    transition-timing-function: ease-out;
+  }
+  .erp-shell :is(main,header,aside) :is(button,a[role="button"],a.btn,a.btn-primary,a.btn-secondary,a.btn-danger):not(:disabled):not([aria-disabled="true"]):active {
+    transform: translateY(1px) scale(0.985) !important;
+    filter: brightness(0.89);
+    box-shadow: inset 0 2px 5px rgba(11, 35, 72, 0.19) !important;
+    transition-duration: 55ms;
+  }
+  .erp-shell :is(main,header,aside) :is(button,a[role="button"],a.btn,a.btn-primary,a.btn-secondary,a.btn-danger):focus-visible {
+    outline: 2px solid var(--navilo-ui-primary) !important;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px var(--navilo-ui-focus);
+  }
+  /* Preserve the dedicated red supplier / green customer cell focus styles. */
+  .erp-shell #navilo-main-content [data-navilo-transport-register] button[data-register-editable]:focus-visible {
+    outline-color: currentColor !important;
+    outline-offset: 1px;
+  }
+  /* A selected filter/tab should stay visibly selected after mouse release. */
+  .erp-shell main :is(button,.btn,.btn-secondary)[aria-pressed="true"],
+  .erp-shell main :is(button,.btn,.btn-secondary)[data-state="active"] {
+    border-color: #739be2;
+    box-shadow: inset 0 2px 4px rgba(21, 67, 139, 0.13), 0 0 0 1px rgba(37, 99, 235, 0.12);
+  }
+  .erp-shell main :is(button,.btn,.btn-primary,.btn-secondary,.btn-danger)[aria-busy="true"] {
+    cursor: progress;
+    opacity: 0.78;
+  }
+  .erp-shell :is(main,header,aside) :is(button,.btn,.btn-primary,.btn-secondary,.btn-danger):disabled,
+  .erp-shell :is(main,header,aside) :is(button,.btn,.btn-primary,.btn-secondary,.btn-danger)[aria-disabled="true"] {
+    cursor: not-allowed;
+    filter: saturate(0.63);
+  }
+  /* Sidebar navigation has the same press/focus vocabulary as action buttons. */
+  .erp-shell .navilo-nav-link,
+  .erp-shell .navilo-nav-group {
+    transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 75ms ease;
+  }
+  .erp-shell .navilo-nav-link:active,
+  .erp-shell .navilo-nav-group:active {
+    transform: translateY(1px) scale(0.985);
+    background: #1c478f !important;
+    color: #fff;
+  }
+  .erp-shell .navilo-nav-link.is-active {
+    background: linear-gradient(90deg, #2460c7, #1b4ca6) !important;
+    color: #fff;
+    box-shadow: 0 2px 7px rgba(0, 19, 56, 0.20), inset 0 1px rgba(255,255,255,0.11);
+  }
+  /* Premium separation without changing compact ERP geometry or table density. */
+  .erp-shell #navilo-main-content :is(.card,.summary-card,.table-shell):not(:where([data-navilo-transport-register] *, .navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *)) {
+    border-color: #dbe4f0;
+    box-shadow: var(--navilo-ui-card-shadow);
+  }
+  .erp-shell #navilo-main-content :is(input,select,textarea):focus-visible {
+    outline-color: var(--navilo-ui-primary);
+  }
+  .erp-shell #navilo-main-content input[type="checkbox"],
+  .erp-shell #navilo-main-content input[type="radio"] {
+    accent-color: var(--navilo-ui-primary);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .erp-shell :is(main,header,aside) :is(button,a[role="button"],a.btn,a.btn-primary,a.btn-secondary,a.btn-danger) {
+      transition-duration: 0ms !important;
+    }
+    .erp-shell :is(main,header,aside) :is(button,a[role="button"],a.btn,a.btn-primary,a.btn-secondary,a.btn-danger):active,
+    .erp-shell .navilo-nav-link:active,
+    .erp-shell .navilo-nav-group:active {
+      transform: none !important;
+      filter: brightness(0.88);
+    }
+  }
+}
