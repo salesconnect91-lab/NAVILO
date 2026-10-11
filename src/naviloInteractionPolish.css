@@ -142,3 +142,131 @@
     }
   }
 }
+
+
+/* NAVILO ENTERPRISE UI V2 PREVIEW — color & interaction only.
+   Keep Transport Register geometry/financial cell colors, source logic and
+   print documents unchanged. This is deliberately screen-only. */
+@media screen {
+  .erp-shell {
+    --nv2-ink: #172b49;
+    --nv2-contrast: #274361;
+    --nv2-blue: #2459c7;
+    --nv2-stroke: #dae4f1;
+    --nv2-shadow: 0 2px 8px rgba(24,48,86,.055), 0 11px 26px rgba(24,48,86,.045);
+  }
+  /* Enterprise panels without introducing new heights or global padding. */
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is(.card,.summary-card,.table-shell,[data-report-content]):not(:where(.navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-print-preview] *)) {
+    border-color: var(--nv2-stroke) !important;
+    box-shadow: var(--nv2-shadow) !important;
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is(.page-title,.navilo-page-header h1) {
+    color: var(--nv2-ink) !important;
+    letter-spacing: -.025em;
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is(.page-subtitle,.summary-label) { color: #5c6d83 !important; }
+  /* Shared tables retain density / virtual scrolling / existing columns. */
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is([data-navilo-data-table],.table-shell,[data-report-content],[data-navilo-master-standard="true"])
+  table { font-variant-numeric: tabular-nums; }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is([data-navilo-data-table],.table-shell,[data-report-content],[data-navilo-master-standard="true"])
+  thead th:not(:where(.navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-print-preview] *)) {
+    background: #edf3fc !important;
+    border-bottom-color: #c5d4ea !important;
+    color: #294669 !important;
+    font-weight: 750 !important;
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is([data-navilo-data-table],.table-shell,[data-report-content],[data-navilo-master-standard="true"])
+  tbody tr { transition: background-color .14s ease,box-shadow .14s ease; }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is([data-navilo-data-table],.table-shell,[data-report-content],[data-navilo-master-standard="true"])
+  tbody tr:hover { background: #eff6ff !important; }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is([data-navilo-data-table],.table-shell,[data-report-content],[data-navilo-master-standard="true"])
+  tbody tr:is([aria-selected="true"],[data-selected="true"]) {
+    background: #dceafb !important;
+    box-shadow: inset 3px 0 var(--nv2-blue);
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is([data-navilo-data-table],.table-shell,[data-report-content]) th[aria-sort]:not([aria-sort="none"]) {
+    color: var(--nv2-blue) !important; background: #e3edfc !important;
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is([data-navilo-data-table],.table-shell,[data-report-content])
+  tbody td { border-bottom-color: #ebf0f6; }
+  /* Controls: outlines, hover and errors only, no width/height changes. */
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea,.input):not(:where(.navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-print-preview] *)),
+  [data-navilo-ui-dialog] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea,.input) {
+    border-color: #b9c9df;
+    border-radius: 8px;
+    transition: border-color .14s ease,box-shadow .14s ease,background-color .14s ease;
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea,.input):hover:not(:disabled):not(:focus),
+  [data-navilo-ui-dialog] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea,.input):hover:not(:disabled):not(:focus) {
+    border-color: #8da8d4;
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea,.input):focus,
+  [data-navilo-ui-dialog] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea,.input):focus {
+    border-color: var(--nv2-blue) !important;
+    box-shadow: 0 0 0 3px rgba(36,89,199,.13) !important;
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is(input,select,textarea)[aria-invalid="true"],
+  [data-navilo-ui-dialog] :is(input,select,textarea)[aria-invalid="true"] {
+    border-color: #c3384f !important;
+    box-shadow: 0 0 0 2px rgba(195,56,79,.10) !important;
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is(input,select,textarea):disabled,
+  [data-navilo-ui-dialog] :is(input,select,textarea):disabled {
+    background-color: #f2f5fa; color: #697b91; cursor: not-allowed;
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is(.label,label.font-semibold) { color: #354c69; }
+  /* Workflows keep tab semantics; no synthetic state changes. */
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is(button[role="tab"],[role="tablist"] button)[aria-selected="true"] {
+    border-color: #96b4e4; background: #e7f0ff; color: #164a9c;
+    box-shadow: inset 0 -2px var(--nv2-blue);
+  }
+  /* Modal body/position/height left to each route. */
+  [data-navilo-ui-dialog]:not(:where(.navilo-print-output *, .navilo-live-preview *, .navilo-generic-report *)) {
+    border-color: #dae4f1 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 12px 40px rgba(18,44,82,.15),0 2px 9px rgba(18,44,82,.08) !important;
+  }
+  [data-navilo-ui-dialog] :is(h2,h3,[data-dialog-title]) {
+    color: #172b49; font-weight: 750; letter-spacing: -.015em;
+  }
+  [data-navilo-ui-dialog] :is(.border-b,.border-t) { border-color: #e1e9f3; }
+  [data-navilo-ui-dialog] :is(button,[role="button"]):focus-visible {
+    outline: 2px solid #2459c7; outline-offset: 2px;
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is(.badge,[role="status"]):not(:where(.navilo-print-output *, .navilo-live-preview *)) {
+    border: 1px solid currentColor;
+    border-color: color-mix(in srgb,currentColor 23%,transparent);
+  }
+  /* Busy and success styling only if the current app exposes actual state. */
+  .erp-shell :is(button,a[role="button"]):is([aria-busy="true"],[data-loading="true"]) {
+    opacity: .76; cursor: progress !important;
+  }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is([role="alert"],[data-error]) { border-left-color: #c3384f; }
+  .erp-shell #navilo-main-content:not([data-neus-route^="/transport"])
+  :is([role="status"],[data-success]) { border-left-color: #13845c; }
+}
+@media screen and (prefers-reduced-motion: reduce) {
+  .erp-shell #navilo-main-content :is(table tr,input,select,textarea),
+  [data-navilo-ui-dialog] :is(input,select,textarea) {
+    transition-duration: 0ms !important;
+  }
+}
