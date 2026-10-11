@@ -36,6 +36,7 @@ describe('New Trip master integration',()=>{
  it('restricts Plate choices to active compatible Truck Type and clears incompatible selection',async()=>{
   await view();choose('Search Truck Type','Flatbed');fireEvent.focus(screen.getByPlaceholderText('Search Plate'));
   expect(screen.queryByRole('button',{name:'TANK-1'})).toBeNull();fireEvent.mouseDown(screen.getByRole('button',{name:'FLAT-1 · Flatbed - Company'}));
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Save Changes'}) as HTMLButtonElement).disabled).toBe(false));
   choose('Search Truck Type','Tanker');expect((screen.getByPlaceholderText('Search Plate') as HTMLInputElement).value).toBe('');expect((screen.getByLabelText('Trip Owner / Supplier') as HTMLInputElement).value).toBe('');
  });
  it('displays historical Supplier then Company by Trip Date, read-only',async()=>{
