@@ -2,11 +2,12 @@
 import {beforeEach,afterEach,it,expect,vi} from 'vitest';
 import {render,screen,fireEvent,waitFor,cleanup} from '@testing-library/react';
 import TransportSupplierCharges from './TransportSupplierCharges';
+import TransportTripCharges from './TransportTripCharges';
 const mock=vi.hoisted(()=>({rpc:vi.fn(),posted:false,base:null as number|null,amount:1500,charges:[] as any[]}));
 vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{
  const q:any={};for(const method of ['select','eq','in','order','limit'])q[method]=()=>q;
- q.single=async()=>({data:{id:'rent',company_id:'company',trip_id:'trip',state:'finalized',base_amount:mock.base,amount:mock.amount,supplier_name_snapshot:'Supplier A'},error:null});
- q.then=(resolve:any)=>Promise.resolve({data:table==='charge_master'?[{id:'waiting',charge_key:'W',charge_name:'Waiting',default_rate:400}]:table==='transport_trip_supplier_charges'?mock.charges:mock.posted?[{id:'posted'}]:[],error:null}).then(resolve);return q;
+ q.single=async()=>({data:table==='transport_trips'?{id:'trip',company_id:'company',business_unit_id:'unit',trip_no:'TRP-1',trip_date:'2026-10-11',customer_id:'customer',customer_name_snapshot:'Customer A',from_location:'DAMMAM',to_location:'RIYADH',customer_rate:mock.amount,customer_base_rate:mock.base,customer_rate_state:'finalized'}:{id:'rent',company_id:'company',trip_id:'trip',state:'finalized',base_amount:mock.base,amount:mock.amount,supplier_name_snapshot:'Supplier A'},error:null});
+ q.then=(resolve:any)=>Promise.resolve({data:table==='charge_master'?[{id:'waiting',charge_key:'W',charge_name:'Waiting',default_rate:400}]:table==='transport_trip_supplier_charges'?mock.charges:table==='transport_trip_customer_charges'?mock.charges.map(x=>({...x,code_snapshot:x.charge_key_snapshot})):mock.posted?[{id:'posted'}]:[],error:null}).then(resolve);return q;
 }}}));
 beforeEach(()=>{mock.posted=false;mock.base=null;mock.amount=1500;mock.charges=[];mock.rpc.mockReset().mockResolvedValue({data:{},error:null});});
 afterEach(cleanup);
@@ -49,4 +50,42 @@ it('keeps the popup open and explains a partial save so charges can be retried',
 it('disables combined save without rent permission',async()=>{
  show({rateAllowed:false});await screen.findByLabelText('Reason');fireEvent.change(screen.getByLabelText('Reason'),{target:{value:'Correction'}});
  expect((screen.getByRole('button',{name:/Save Rate & Charges/}) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('shows and saves rate plus charges before any supplier rent record exists',async()=>{
+ const close=vi.fn();mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_add_supplier_rent'?'new-rent':{},error:null}));
+ show({rentId:undefined,newRent:{tripId:'trip',supplierId:'supplier',companyId:'company',businessUnitId:'unit',amount:1500,supplierName:'Supplier A'},tripContext:{customer:'Customer A',from:'DAMMAM',to:'RIYADH',vehicle:'1235'},onClose:close});
+ await addWaiting();expect(screen.getByText('DAMMAM')).toBeTruthy();expect(screen.getByText('RIYADH')).toBeTruthy();
+ expect(screen.getByText('Trip · TRP-1')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Save Rate & Charges · 1900.00'}));
+ await waitFor(()=>expect(close).toHaveBeenCalled());
+ expect(mock.rpc).toHaveBeenCalledWith('transport_add_supplier_rent',{p_trip_id:'trip',p_supplier_id:'supplier',p_amount:1500,p_reason:'Supplier agreed rent revised'});
+ expect(mock.rpc).toHaveBeenCalledWith('transport_replace_trip_supplier_charges',expect.objectContaining({p_rent_id:'new-rent',p_lines:[{charge_type_id:'waiting',amount:400}]}));
+ expect(mock.rpc).toHaveBeenCalledWith('transport_finalize_supplier_rent',expect.objectContaining({p_rent_id:'new-rent',p_amount:1500}));
+ expect(mock.rpc.mock.calls.some(([name])=>name.includes('post_'))).toBe(false);
+});
+it('reuses a newly created supplier rent after a charge save failure',async()=>{
+ mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_add_supplier_rent'?'new-rent':{},error:name==='transport_replace_trip_supplier_charges'?{message:'Mapping missing'}:null}));
+ const close=vi.fn();show({rentId:undefined,newRent:{tripId:'trip',supplierId:'supplier',companyId:'company',businessUnitId:'unit',amount:1500,supplierName:'Supplier A'},tripContext:{from:'DAMMAM',to:'RIYADH'},onClose:close});await addWaiting();
+ fireEvent.click(screen.getByRole('button',{name:'Save Rate & Charges · 1900.00'}));
+ await screen.findByText(/Supplier rent created; Save did not finish/);
+ mock.rpc.mockResolvedValue({data:{},error:null});fireEvent.click(screen.getByRole('button',{name:'Save Rate & Charges · 1900.00'}));
+ await waitFor(()=>expect(close).toHaveBeenCalled());expect(mock.rpc.mock.calls.filter(([name])=>name==='transport_add_supplier_rent')).toHaveLength(1);
+});
+
+it('keeps the customer base fixed when adding a charge to a legacy rate',async()=>{
+ mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_customer_side_posted'?false:{},error:null}));
+ const close=vi.fn();render(<TransportTripCharges tripId="trip" onClose={close} onChanged={async()=>{}}/>);
+ await screen.findByText('DAMMAM');expect(screen.getByText('Trip · TRP-1')).toBeTruthy();
+ fireEvent.change(screen.getByLabelText('Customer charge'),{target:{value:'waiting'}});fireEvent.click(screen.getByRole('button',{name:'+ Add More Charge'}));
+ expect(screen.getByRole('button',{name:'Save Charges · 1900.00'})).toBeTruthy();
+ fireEvent.change(screen.getByLabelText('Charge correction reason'),{target:{value:'Waiting charge confirmed'}});fireEvent.click(screen.getByRole('button',{name:'Save Charges · 1900.00'}));
+ await waitFor(()=>expect(close).toHaveBeenCalled());
+ expect(mock.rpc).toHaveBeenCalledWith('transport_replace_trip_customer_charges',{p_trip_id:'trip',p_lines:[{charge_type_id:'waiting',amount:400}],p_reason:'Waiting charge confirmed'});
+});
+it('keeps the customer base fixed when removing a saved legacy charge',async()=>{
+ mock.amount=1900;mock.charges=[{id:'line',charge_master_id:'waiting',charge_key_snapshot:'W',name_snapshot:'Waiting',amount:400}];
+ mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_customer_side_posted'?false:{},error:null}));
+ render(<TransportTripCharges tripId="trip" onClose={vi.fn()} onChanged={async()=>{}}/>);await screen.findByLabelText('Waiting amount');
+ fireEvent.click(screen.getByRole('button',{name:'×'}));expect(screen.getByRole('button',{name:'Save Charges · 1500.00'})).toBeTruthy();
 });

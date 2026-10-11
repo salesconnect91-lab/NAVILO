@@ -1,3 +1,4 @@
+import TransportCommercialHeader,{TransportCommercialSummary} from './TransportCommercialHeader';
 import TransportReasonSelect from './TransportReasonSelect';
 import TransportDialog from './TransportDialog';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
@@ -171,16 +172,18 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
   try{const result=await supabase.rpc('transport_adjust_rate',{p_trip_id:singleRow.trip_id,p_side:'supplier',p_new_rate:Number(singleAmount),p_reason:reason.trim(),p_date:date,p_rent_id:singleRent.id,p_reference:'Trips grid supplier rent correction'});if(result.error)throw result.error;saved=true;await onChanged();onClose();}
   catch(e:any){setError(`${saved?'Correction posted; refresh failed. ':''}${e?.message||e}`);if(saved)setPermissions({});}finally{submitting.current=false;setBusy(false);}
  }
- if(compact&&!loading&&singleRow&&singleRent&&!singlePosted&&!singleBlocked)return <TransportSupplierCharges
-  key={`${scopeKey}/${singleRent.id}`} rentId={singleRent.id} tripNo={singleRow.trip_no} editRate rateAllowed={canFinalize(singleRow.id)} onClose={onClose} onChanged={onChanged}
-  headerExtra={<><p className="mt-2 text-[10px] text-slate-500">{singleRow.customer_name} · {singleRow.from_location} → {singleRow.to_location} · {vehicleDisplayLabel(singleRow.vehicle_no,singleRow.truck_type_name??singleRow.truck_type)}</p>
+ if(compact&&!loading&&singleRow&&!singlePosted&&!singleBlocked)return <TransportSupplierCharges
+  key={`${scopeKey}/${singleRow.id}`} rentId={singleRent?.id} tripNo={singleRow.trip_no} editRate rateAllowed={canFinalize(singleRow.id)} onClose={onClose} onChanged={onChanged}
+  newRent={singleRent?undefined:{tripId:singleRow.trip_id!,supplierId:singleRow.party_id||supplier,companyId:activeCompany!.company_id,businessUnitId:activeBusinessUnit!.business_unit_id,amount:Number(singleAmount)||0,supplierName:singleRow.owner_name||suppliers.find(s=>s.id===supplier)?.name||''}}
+  tripContext={{supplier:singleRow.owner_name,customer:singleRow.customer_name,from:singleRow.from_location,to:singleRow.to_location,vehicle:vehicleDisplayLabel(singleRow.vehicle_no,singleRow.truck_type_name??singleRow.truck_type)}}
+  headerExtra={<>
    {singleRows.length>1&&<label className="mt-2 block font-semibold">Supplier rent<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 h-8 w-full" value={singleRow.id} onChange={e=>setSingleRowKey(e.target.value)}>{singleRows.map(r=><option key={r.id} value={r.id}>{r.owner_name} · {financialNumber(r.billed_supplier_net??r.supplier_rent)}</option>)}</NaviloSearchableSelect></label>}</>}
  />;
  if(compact)return <TransportDialog  onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const items=compactDialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)');if(items?.length){const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}}>
-  <section ref={compactDialog} role="dialog" aria-modal="true" aria-labelledby="supplier-rate-title" className="w-full max-w-sm rounded bg-white p-4 text-sm shadow-xl">
-   <h2 id="supplier-rate-title" className="font-semibold">{singlePosted?'Posted':'Update'} Supplier Rate · {singleRow?.trip_no||''}</h2>
+  <section ref={compactDialog} role="dialog" aria-modal="true" aria-labelledby="supplier-rate-title" className="w-full max-h-[90vh] overflow-y-auto max-w-lg rounded-lg bg-white p-3 text-xs shadow-2xl">
+   <TransportCommercialHeader title={singlePosted?'Posted Supplier Rate':'Supplier Rate'} titleId="supplier-rate-title" side="supplier" tripNo={singleRow?.trip_no} party={singleRow?.owner_name} customer={singleRow?.customer_name} from={singleRow?.from_location} to={singleRow?.to_location} vehicle={vehicleDisplayLabel(singleRow?.vehicle_no,singleRow?.truck_type_name??singleRow?.truck_type)}/>
    {loading?<p role="status">Loading supplier rate…</p>:singleRow?<>
-    <p className="my-2 text-xs text-slate-600">{singleRow.customer_name}<br/>{singleRow.from_location} → {singleRow.to_location}<br/>{vehicleDisplayLabel(singleRow.vehicle_no,singleRow.truck_type_name??singleRow.truck_type)} · {singleRow.owner_name}</p>
+    <TransportCommercialSummary side="supplier" base={singlePosted?Math.max(0,(Number(singleAmount)||0)-Number(singleRow.supplier_charges??0)):Number(singleAmount)||0} charges={Number(singleRow.supplier_charges??0)} total={singlePosted?Number(singleAmount)||0:(Number(singleAmount)||0)+Number(singleRow.supplier_charges??0)}/>
     {singleRows.length>1&&<label className="block text-xs font-semibold">Supplier rent<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" disabled={busy} value={singleRow.id} onChange={e=>{setSingleRowKey(e.target.value);setSingleCorrectionMode(false);setSingleConfirmFinancialPost(false);setCompactReasonPreset('');setReason('');setError('')}}>{singleRows.map(r=><option key={r.id} value={r.id}>{r.owner_name} · {financialNumber(r.billed_supplier_net??r.supplier_rent)}</option>)}</NaviloSearchableSelect></label>}
     <label className="block text-xs font-semibold">Supplier rate excluding VAT<input autoFocus className="input mt-1 w-full" type="number" min="0" step="0.01" disabled={busy||singleBlocked||(singlePosted&&!singleCorrectionMode)} value={singleAmount} onChange={e=>setAmounts(v=>({...v,[singleRow.id]:e.target.value}))}/></label>
     {!singlePosted&&<p className="text-[10px] text-slate-500">Base rent only. Supplier charges are added separately.</p>}

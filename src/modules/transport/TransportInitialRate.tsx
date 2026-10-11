@@ -1,3 +1,4 @@
+import TransportCommercialHeader,{TransportCommercialSummary} from './TransportCommercialHeader';
 import TransportDialog from './TransportDialog';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import NaviloDateInput from '@/components/NaviloDateInput';
@@ -48,9 +49,9 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
 
  const title=posted?'Posted Company Rate':finalized?'Update Company Rate':'Add Company Rate';
  return <TransportDialog  onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const items=dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)');if(items?.length){const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}}>
- <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="initial-rate-title" className="w-full max-w-sm rounded bg-white p-4 text-sm shadow-xl">
-  <h2 id="initial-rate-title" className="font-semibold">{title} · {trip.trip_no}</h2>
-  <p className="my-2 text-xs text-slate-600">{trip.customer_name}<br/>{trip.from_location} → {trip.to_location}<br/>{trip.vehicle_no}</p>
+ <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="initial-rate-title" className="w-full max-h-[90vh] overflow-y-auto max-w-lg rounded-lg bg-white p-3 text-xs shadow-2xl">
+  <TransportCommercialHeader title={posted?'Posted Customer Rate':finalized?'Update Customer Rate':'Add Customer Rate'} titleId="initial-rate-title" side="customer" tripNo={trip.trip_no} party={trip.customer_name} from={trip.from_location} to={trip.to_location} vehicle={trip.vehicle_no}/>
+  <TransportCommercialSummary side="customer" base={posted?Math.max(0,(Number(amount)||0)-Number(trip.customer_charges??0)-Number(trip.customer_manual_adjustment??0)):Number(amount)||0} charges={Number(trip.customer_charges??0)} total={posted?Number(amount)||0:(Number(amount)||0)+Number(trip.customer_charges??0)+Number(trip.customer_manual_adjustment??0)}/>
   <label className="block text-xs font-semibold">Company rate excluding VAT
    <input ref={input} className="input mt-1 w-full" type="number" min="0" step="0.01" value={amount} disabled={busy||saved||(posted&&!correctionMode)} onChange={e=>setAmount(e.target.value)}/>
   </label>

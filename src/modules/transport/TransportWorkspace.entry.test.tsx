@@ -374,7 +374,9 @@ describe('Transport compact register and centered controls',()=>{
   });
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button',{name:'Open Supplier Charges OIC-NO-RENT'}));
-  await screen.findByRole('dialog',{name:'Update Supplier Rate · OIC-NO-RENT'});
+  await screen.findByRole('dialog',{name:'Supplier Rate & Charges'});
+  expect(screen.getByText('Trip · OIC-NO-RENT')).toBeTruthy();
+  expect(await screen.findByLabelText('Supplier charge')).toBeTruthy();
   expect(screen.queryByText(/No supplier rent exists/)).toBeNull();
   expect(mock.rpc).toHaveBeenCalledWith('transport_bulk_rate_page',expect.objectContaining({p_filters:expect.objectContaining({initialTrip:'no-rent'})}));
   expect(mock.rpc.mock.calls.some(([name])=>name==='transport_supplier_rent_save'||name==='transport_post_supplier_rent')).toBe(false);

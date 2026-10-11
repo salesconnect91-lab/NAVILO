@@ -74,6 +74,13 @@ describe('Compact supplier rate popup',()=>{
   expect(mock.rpc).toHaveBeenCalledWith('transport_finalize_supplier_rent',{p_rent_id:'rent-b',p_amount:35,p_reason:'Supplier confirmation received'});
   expect(mock.rpc.mock.calls.some(([name])=>name.startsWith('transport_post_supplier_bill'))).toBe(false);
  });
+ it('shows the unified rate and charges popup when no rent record exists yet',async()=>{
+  mock.tables.transport_trip_supplier_rents=[];
+  render(<TransportBulkSupplierRent compact initialTripId="trip" initialSupplierName="Supplier A" onClose={vi.fn()} onChanged={async()=>{}}/>);
+  await screen.findByLabelText('Supplier charge');expect(screen.getByText('Supplier Rate & Charges')).toBeTruthy();
+  expect(screen.getByLabelText('Supplier rate excluding VAT')).toBeTruthy();expect(screen.getByText('Trip · TRP-1')).toBeTruthy();
+  expect(screen.queryByRole('button',{name:'Save Rate'})).toBeNull();
+ });
  it('keeps multiple supplier rents separate and requires explicit confirmation before correcting a posted rent',async()=>{
   mock.tables.transport_supplier_document_rents=[{id:'link-a',rent_id:'rent-a'},{id:'link-b',rent_id:'rent-b'}];
   render(<TransportBulkSupplierRent compact initialTripId="trip" initialSupplierName="Supplier A" onClose={vi.fn()} onChanged={async()=>{}}/>);
