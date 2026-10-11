@@ -1639,17 +1639,6 @@ export default function TransportWorkspace(){
           </div>
         </section></TransportDialog>}
 
-      {editReasonOpen&&editingTripId&&<TransportDialog onClose={()=>setEditReasonOpen(false)}>
-       <section role="dialog" aria-modal="true" aria-label="Trip edit correction reason" className="w-full max-w-md rounded-lg border border-slate-300 bg-white p-3 text-sm shadow-xl">
-        <header className="mb-2 font-bold">Reason for Trip correction · {editingTripNo}</header>
-        <p className="mb-2 text-xs text-slate-600">Choose a reason for the audit history. Financially posted fields remain protected.</p>
-        <TransportReasonSelect kind="trip_edit" label="Correction reason" value={editCorrectionReason} onChange={setEditCorrectionReason}/>
-        <footer className="mt-3 flex justify-end gap-2">
-         <button type="button" className="btn" onClick={()=>setEditReasonOpen(false)}>Cancel</button>
-         <button type="button" className="btn-primary" disabled={!editCorrectionReason.trim()} onClick={()=>{setEditReasonOpen(false);void updateTrip(editCorrectionReason);}}>Continue Save</button>
-        </footer>
-       </section></TransportDialog>}
-
       {deleteTripTarget&&<TransportDialog onClose={()=>{if(!deletingTrip)setDeleteTripTarget(null);}}><section role="dialog" aria-modal="true" aria-label="Delete Unposted Trip" className="w-full max-w-md rounded-lg border border-rose-200 p-3 text-sm"><header className="mb-2 flex items-center justify-between"><strong>Delete Unposted Trip · {deleteTripTarget.trip_no}</strong><button type="button" aria-label="Close Trip deletion" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>×</button></header><p className="mb-2 text-xs text-slate-600">This removes an unposted Draft or Incomplete Trip, including a finalized-only rate and its unposted rent / charges. Trips with financial entries or documents are blocked. Trip Audit history is retained; the Trip No will not be reused.</p><TransportReasonSelect className="mb-2" kind="trip_delete" label="Deletion reason" value={deleteTripReason} onChange={setDeleteTripReason} disabled={deletingTrip}/><label className="block text-xs font-semibold">Reason details<textarea aria-label="Trip deletion reason" maxLength={1000} disabled={deletingTrip} className="input mt-1 min-h-16 w-full" value={deleteTripReason} onChange={e=>setDeleteTripReason(e.target.value)}/></label>{deleteTripError&&<p role="alert" className="mt-2 text-xs text-rose-700">{deleteTripError}</p>}<footer className="mt-3 flex justify-end gap-2"><button type="button" className="btn" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>Keep Trip</button><button type="button" className="btn-danger" disabled={deletingTrip||!deleteTripReason.trim()} onClick={()=>void confirmTripDeletion()}>{deletingTrip?"Deleting…":"Delete Unposted Trip"}</button></footer></section></TransportDialog>}
       {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
       <div
@@ -2028,6 +2017,17 @@ export default function TransportWorkspace(){
         </button>
       </div>
     </div>
+
+    {editReasonOpen&&editingTripId&&<TransportDialog onClose={()=>setEditReasonOpen(false)}>
+     <section role="dialog" aria-modal="true" aria-label="Trip edit correction reason" className="w-full max-w-md rounded-lg border border-slate-300 bg-white p-3 text-sm shadow-xl">
+      <header className="mb-2 font-bold">Reason for Trip correction · {editingTripNo}</header>
+      <p className="mb-2 text-xs text-slate-600">Choose a reason for the audit history. Financially posted fields remain protected.</p>
+      <TransportReasonSelect kind="trip_edit" label="Correction reason" value={editCorrectionReason} onChange={setEditCorrectionReason}/>
+      <footer className="mt-3 flex justify-end gap-2">
+       <button type="button" className="btn" onClick={()=>setEditReasonOpen(false)}>Cancel</button>
+       <button type="button" className="btn-primary" disabled={!editCorrectionReason.trim()} onClick={()=>{setEditReasonOpen(false);void updateTrip(editCorrectionReason);}}>Continue Save</button>
+      </footer>
+     </section></TransportDialog>}
 
     {quickAdd&&<TransportQuickAdd key={`${scopeKey}/${quickAdd}`} kind={quickAdd} truckTypeId={form.truck_type_id} supplierId={quickSupplierId}
       truckTypes={tripMasters.truckTypes} suppliers={tripMasters.suppliers} allowTransportMobileCreate={standaloneMobile&&mobileCanCreate} onCreated={quickMasterCreated} onClose={()=>setQuickAdd(null)}/>}
