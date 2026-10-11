@@ -95,6 +95,22 @@ async function withBootTimeout<T>(promise: PromiseLike<T>, label: string): Promi
   }
 }
 
+// PostgREST may briefly return PGRST002 while its schema cache reconnects.
+// Retry that infrastructure failure only; never retry or bypass denied access.
+async function fetchAccessContextWithRecovery() {
+  const delaysMs = [0, 1000, 2000, 4000];
+  for (let attempt = 0; attempt < delaysMs.length; attempt++) {
+    if (delaysMs[attempt] > 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, delaysMs[attempt]));
+    }
+    const result = await withBootTimeout(supabase.rpc("get_my_access_context"), "Access context");
+    const recoverable = result.error?.code === "PGRST002"
+      || /could not query the database for the schema cache/i.test(result.error?.message ?? "");
+    if (!recoverable || attempt === delaysMs.length - 1) return result;
+  }
+  throw new Error("Access context retry failed.");
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -123,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!session?.user.id) { setAccessContext(null); setAccessError(null); return null; }
     setAccessLoading(true); setAccessError(null);
     try {
-      const { data, error } = await withBootTimeout(supabase.rpc("get_my_access_context"), "Access context");
+      const { data, error } = await fetchAccessContextWithRecovery();
       if (error) { setAccessContext(null); setAccessError(error.message); return null; }
       if (!data) { setAccessContext(null); setAccessError("Your login profile has not been provisioned by the software owner."); return null; }
       const next = data as AccessContext;
