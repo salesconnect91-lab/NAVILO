@@ -13,7 +13,7 @@ import { ErrorBanner, Modal, PageHeader } from "@/components/ui";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
 import type { ConfiguredChargeUnit } from "@/lib/chargeCalculation";
-import { availableChargeKey, chargeWriteError, makeChargeKey, overlappingCharge } from "@/lib/chargeMasterKeys";
+import { availableChargeKey, chargeWriteError, makeChargeKey, overlappingCharge, type ExistingChargeKey } from "@/lib/chargeMasterKeys";
 
 type ChargeType = "recovery" | "cost" | "both";
 type ChargeContext = "sales" | "purchase" | "both";
@@ -238,7 +238,7 @@ export default function ChargeMaster() {
       const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
       const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
       const accountByCode = new Map(accounts.map((account) => [account.code.trim().toLowerCase(), account]));
-      const staged = charges.map(({ id, charge_key, charge_name, applies_to }) => ({ id, charge_key, charge_name, applies_to }));
+      const staged: ExistingChargeKey[] = charges.map(({ id, charge_key, charge_name, applies_to }) => ({ id, charge_key, charge_name, applies_to }));
       const payload: Record<string, unknown>[] = [];
       const errors: string[] = [];
       raw.forEach((row, index) => {
