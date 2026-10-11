@@ -190,6 +190,8 @@ export default function TransportWorkspace(){
 
   const [fromDate,setFromDate]=useState("");
   const [toDate,setToDate]=useState("");
+  const [dateFilterOpen,setDateFilterOpen]=useState(false);
+  const [dateDraft,setDateDraft]=useState({from:"",to:""});
   const [customerFilter,setCustomerFilter]=useState("");
   const [driverFilter,setDriverFilter]=useState("");
   const [vehicleFilter,setVehicleFilter]=useState("");
@@ -485,6 +487,8 @@ export default function TransportWorkspace(){
 
   const registerFilters={fromDate,toDate,customer:customerFilter,driver:driverFilter,vehicle:vehicleFilter,from:fromFilter,to:toFilter,ppr:pprFilter,statuses:statusFilters,columns:columnFilters,search:registerSearch,searchMode:registerSearchMode};
   const registerKey=JSON.stringify({scopeKey,registerFilters,sortColumn,sortDirection});
+  // A page has its own cached identity even when filters and sorting match.
+  const registerPageKey=`${registerKey}:page=${page}`;
   async function load(silent=false){
     // A timer/focus refresh must never abort an unfinished register request.
     if(silent&&registerRequest.current)return;
@@ -499,7 +503,7 @@ export default function TransportWorkspace(){
       if(result.error)throw result.error;
       if(scopeRef.current!==scopeKey||generation!==readGeneration.current)return;
       const data=result.data;
-      lastSuccessfulRegisterKey.current=registerKey;
+      lastSuccessfulRegisterKey.current=registerPageKey;
       setRegisterLoadError(false);
       setError('');
       setRows((data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})));
@@ -509,7 +513,7 @@ export default function TransportWorkspace(){
       if(generation===readGeneration.current&&!controller.signal.aborted){
         setRegisterLoadError(true);
         // Stale results from another filter must not masquerade as matching rows.
-        if(lastSuccessfulRegisterKey.current!==registerKey){
+        if(lastSuccessfulRegisterKey.current!==registerPageKey){
           setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
         }
         if(!silent||lastSuccessfulRegisterKey.current===null){
@@ -523,8 +527,12 @@ export default function TransportWorkspace(){
     finally{if(registerRequest.current===controller)registerRequest.current=null;if(generation===readGeneration.current)setRegisterLoading(false);}
   }
   const previousRegisterKey=useRef(registerKey);
+  const previousRegisterPage=useRef(page);
   useEffect(()=>{
+    const pageChanged=previousRegisterPage.current!==page;previousRegisterPage.current=page;
     const changed=previousRegisterKey.current!==registerKey;previousRegisterKey.current=registerKey;
+    // Never label rows from the previous page as results of the newly selected page.
+    if(pageChanged)setRows([]);
     // Keep the current page visible while a filter request is in flight.
     // Clearing rows made every header-filter click look like a dashboard hang.
     readGeneration.current++;setRegisterLoading(true);
@@ -1208,12 +1216,12 @@ export default function TransportWorkspace(){
     }
   };
 
-  const tripDataGridKeys=["trip_no","trip_date","truck_type","job_no","from","to","charge"] as const;
-  const vehicleDriverGridKeys=["driver","plate","owner"] as const;
+  const tripDataGridKeys=["trip_no","trip_date","truck_type","job_no","from","to"] as const;
+  const vehicleDriverGridKeys=["driver","plate"] as const;
   const supplierGridKeys=["owner","supplier_invoice_no","rent_driver","supplier_charges","supplier_paid","supplier_balance","payment_date","amount","supplier_credit","commission"] as const;
   const customerGridKeys=["invoice_no","company","charge","company_rate","received_company","remaining_company","sale_type","customer_credit"] as const;
   const pprGridKeys=["paper_received_by"] as const;
-  const profitCommissionGridKeys=["commission","profit"] as const;
+  const profitCommissionGridKeys=["profit"] as const;
   const isSupplierGridKey=(key:string)=>(supplierGridKeys as readonly string[]).includes(key);
   const isCustomerGridKey=(key:string)=>(customerGridKeys as readonly string[]).includes(key);
   const isPprGridKey=(key:string)=>(pprGridKeys as readonly string[]).includes(key);
@@ -1543,7 +1551,7 @@ export default function TransportWorkspace(){
 
           <div className="flex items-center justify-between border border-blue-200 bg-blue-50 h-9 min-w-[104px] rounded-lg px-3 shadow-sm">
             <span className="text-[10px] font-extrabold uppercase text-blue-700">🚚 Trips</span>
-            <span className="text-sm font-bold text-slate-950">{registerLoadError&&lastSuccessfulRegisterKey.current!==registerKey?'—':Number(registerMeta.count??0).toLocaleString()}</span>
+            <span className="text-sm font-bold text-slate-950">{registerLoadError&&lastSuccessfulRegisterKey.current!==registerPageKey?'—':Number(registerMeta.count??0).toLocaleString()}</span>
           </div>
 
           <div className={`flex items-center gap-2 border ${selectedTripCount>0?'border-amber-400 bg-amber-100 text-amber-950':'border-slate-200 bg-slate-50 text-slate-500'} h-9 rounded-lg px-3 shadow-sm`} aria-live="polite" data-testid="trip-selection-count">
@@ -1598,13 +1606,14 @@ export default function TransportWorkspace(){
 
         </div>
         <div className="navilo-transport-register-actions flex items-center gap-1">
+          <button type="button" onClick={()=>{setDateDraft({from:fromDate,to:toDate});setDateFilterOpen(true);}} className={`flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border ${fromDate||toDate?"border-amber-400 bg-amber-700":"border-slate-500 bg-slate-900/70"} hover:bg-slate-800`} aria-label="Filter Trip dates">Dates{fromDate||toDate?" ●":""}</button>
           <button type="button" onClick={resetGrid} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Reset</button>
           <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-7 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold text-white border border-blue-500 bg-blue-600 hover:bg-blue-700"><RefreshCw className="h-3 w-3"/>Refresh</button>
           <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Columns</button>
           {canDeleteTrip&&<button type="button" aria-label="Delete selected Trip" title="Select one Draft or Incomplete Trip without financial posting to delete" disabled={selectedTripCount!==1||!gridRows.some(r=>selectedTripIds.has(r.id)&&(r.status==='draft'||r.status==='incomplete'))} onClick={()=>{const selected=gridRows.find(r=>selectedTripIds.has(r.id));if(selected){setDeleteTripTarget(selected);setDeleteTripReason("");setDeleteTripError("");}}} className="flex h-7 items-center gap-1 rounded-md border border-rose-400 bg-rose-700 px-2 text-white disabled:opacity-40"><Trash2 className="h-4 w-4"/>Delete</button>}
           <span data-navilo-standard-tools-host="true" className="contents" />
         </div>
-        <span className="navilo-transport-result-count">{registerLoadError&&lastSuccessfulRegisterKey.current!==registerKey?'Data unavailable':`${gridRows.length.toLocaleString()} shown / ${Number(registerMeta.count??0).toLocaleString()} filtered trips`}</span>
+        <span className="navilo-transport-result-count">{registerLoadError&&lastSuccessfulRegisterKey.current!==registerPageKey?'Data unavailable':`${gridRows.length.toLocaleString()} shown / ${Number(registerMeta.count??0).toLocaleString()} filtered trips`}</span>
       </div>
 
         {showTripColumnSetup&&<TransportDialog onClose={()=>setShowTripColumnSetup(false)}><section role="dialog" aria-modal="true" aria-label="Trip columns" className="w-full max-w-3xl rounded-lg border p-3"><header className="mb-2 flex items-center justify-between"><strong>Trip Columns</strong><button type="button" className="btn h-7" onClick={()=>setShowTripColumnSetup(false)}>Close</button></header>
@@ -1638,7 +1647,7 @@ export default function TransportWorkspace(){
             </label>
             <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-emerald-800">
               <input type="checkbox" checked={profitCommissionDataVisible} onChange={e=>setGridGroupVisible(profitCommissionGridKeys,e.target.checked)}/>
-              Show Profit & Commission
+              Show Profit (Commission in Supplier)
             </label>
             <span className="text-[9px] text-slate-500">Toggle a group or tick individual columns below.</span>
           </div>
@@ -1659,6 +1668,8 @@ export default function TransportWorkspace(){
             })}
           </div>
         </section></TransportDialog>}
+
+      {dateFilterOpen&&<TransportDialog onClose={()=>setDateFilterOpen(false)}><section role="dialog" aria-modal="true" aria-label="Trip date filter" className="w-full max-w-sm rounded-lg border border-slate-300 bg-white p-3 text-xs"><div className="mb-3 flex items-center justify-between"><strong>Trip Date Range</strong><button type="button" aria-label="Close date filter" onClick={()=>setDateFilterOpen(false)}>×</button></div><div className="grid grid-cols-2 gap-2"><label className="font-semibold text-slate-700">From<input type="date" aria-label="Trips from date" className="input mt-1 h-8 w-full" max={dateDraft.to||undefined} value={dateDraft.from} onChange={e=>setDateDraft(x=>({...x,from:e.target.value}))}/></label><label className="font-semibold text-slate-700">To<input type="date" aria-label="Trips to date" className="input mt-1 h-8 w-full" min={dateDraft.from||undefined} value={dateDraft.to} onChange={e=>setDateDraft(x=>({...x,to:e.target.value}))}/></label></div><div className="mt-3 flex justify-end gap-2"><button type="button" className="btn" onClick={()=>setDateDraft({from:"",to:""})}>Clear Dates</button><button type="button" className="btn-primary" disabled={Boolean(dateDraft.from&&dateDraft.to&&dateDraft.from>dateDraft.to)} onClick={()=>{setFromDate(dateDraft.from);setToDate(dateDraft.to);setPage(0);setDateFilterOpen(false);}}>Apply Dates</button></div></section></TransportDialog>}
 
       {deleteTripTarget&&<TransportDialog onClose={()=>{if(!deletingTrip)setDeleteTripTarget(null);}}><section role="dialog" aria-modal="true" aria-label="Delete Unposted Trip" className="w-full max-w-md rounded-lg border border-rose-200 p-3 text-sm"><header className="mb-2 flex items-center justify-between"><strong>Delete Unposted Trip · {deleteTripTarget.trip_no}</strong><button type="button" aria-label="Close Trip deletion" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>×</button></header><p className="mb-2 text-xs text-slate-600">This removes an unposted Draft or Incomplete Trip, including a finalized-only rate and its unposted rent / charges. Trips with financial entries or documents are blocked. Trip Audit history is retained; the Trip No will not be reused.</p><TransportReasonSelect className="mb-2" kind="trip_delete" label="Deletion reason" value={deleteTripReason} onChange={setDeleteTripReason} disabled={deletingTrip}/><label className="block text-xs font-semibold">Reason details<textarea aria-label="Trip deletion reason" maxLength={1000} disabled={deletingTrip} className="input mt-1 min-h-16 w-full" value={deleteTripReason} onChange={e=>setDeleteTripReason(e.target.value)}/></label>{deleteTripError&&<p role="alert" className="mt-2 text-xs text-rose-700">{deleteTripError}</p>}<footer className="mt-3 flex justify-end gap-2"><button type="button" className="btn" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>Keep Trip</button><button type="button" className="btn-danger" disabled={deletingTrip||!deleteTripReason.trim()} onClick={()=>void confirmTripDeletion()}>{deletingTrip?"Deleting…":"Delete Unposted Trip"}</button></footer></section></TransportDialog>}
       {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{registerLoadError&&gridRows.length>0&&!registerLoading&&<p role="alert" className="shrink-0 px-2 text-[11px] text-amber-800">Register refresh failed. Showing last successfully loaded results. <button type="button" className="font-semibold underline" onClick={()=>void load()}>Retry</button></p>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
@@ -1747,7 +1758,7 @@ export default function TransportWorkspace(){
                       onSelectAll={()=>
                         setColumnFilters(current=>({
                           ...current,
-                          [key]:columnOptions(key)
+                          [key]:Array.from(new Set([...(current[key]??[]),...columnOptions(key)]))
                         }))
                       }
                       onClear={()=>clearColumnFilter(key)}
