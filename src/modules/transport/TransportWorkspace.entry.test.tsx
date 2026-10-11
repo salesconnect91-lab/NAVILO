@@ -279,7 +279,7 @@ describe('Transport register interactions',()=>{
 
 
 describe('Trip edit transition',()=>{
- it('blocks finalized Truck Type edits before submitting replacement',async()=>{
+ it('allows finalized but unposted Truck Type correction with an audit reason',async()=>{
   const trip={id:'rate-finalized',trip_no:'FINALIZED-1',status:'incomplete',trip_date:'2026-10-01',customer_id:'c1',
    truck_type_id:'tt',vehicle_id:'v',driver_id:'d',from_location:'From',to_location:'To',
    customer_rate_state:'finalized',customer_rate:300,sale_type:'credit',ppr_status:'pending'};
@@ -290,9 +290,14 @@ describe('Trip edit transition',()=>{
   fireEvent.click(await screen.findByRole('button',{name:'FINALIZED-1'}));
   await screen.findByRole('button',{name:'Save Changes'});
   choose('Search Truck Type','Tanker');
-  fireEvent.click(screen.getByRole('button',{name:'Save Changes'}));
-  expect(await screen.findByText(/Finalized Customer Rate locks Truck Type/)).toBeTruthy();
-  expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_replace_trip_assignment'||c[0]==='transport_save_operational_trip_edit')).toBe(false);
+  vi.spyOn(window,'prompt').mockReturnValue('Corrected commercial dimensions');
+  try{
+   fireEvent.click(screen.getByRole('button',{name:'Save Changes'}));
+   await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_save_operational_trip_edit',expect.objectContaining({
+     p_trip_id:'rate-finalized',p_reason:'Corrected commercial dimensions'
+   })));
+   expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_replace_trip_assignment')).toBe(false);
+  }finally{vi.restoreAllMocks();}
  });
  it('uses one transaction RPC for a Driver replacement',async()=>{
   mock.tables.transport_drivers.push({id:'d2',driver_name:'Second Driver',driver_type:'company',employee_id:'e',is_active:true});
@@ -327,7 +332,9 @@ describe('Trip edit transition',()=>{
   fireEvent.click(edit);
   await screen.findByRole('button',{name:'Save Changes'});
   expect((screen.getByPlaceholderText('Search Customer') as HTMLInputElement).value).toBe('Customer');
-  expect((screen.getByLabelText('Trip Date') as HTMLInputElement).disabled).toBe(true);
+  expect((screen.getByLabelText('Trip Date') as HTMLInputElement).disabled).toBe(false);
+  expect((screen.getByLabelText('Customer Base Rate') as HTMLInputElement).readOnly).toBe(false);
+  expect((screen.getByLabelText('Driver Pay') as HTMLInputElement).value).toBe('10');
   fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
   await screen.findByRole('button',{name:'EDIT-1'});
  });

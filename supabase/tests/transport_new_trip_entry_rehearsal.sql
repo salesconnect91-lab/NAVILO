@@ -147,14 +147,23 @@ begin
  if not exists(select 1 from public.transport_trips where id=trip2 and truck_type_id=tt2 and vehicle_id=switch_vehicle)
     or (select count(*) from public.transport_trip_assignments where trip_id=trip2)<>edit_before_count+1
  then raise exception 'Failed Trip correction left partial assignment';end if;
- -- Finalized customer rate still blocks the commercial dimension change.
+ -- Finalized but UNPOSTED requires an audit reason for the commercial edit.
  perform pg_temp.entry_rejected(format(
    'select public.transport_save_operational_trip_edit(%L,%L::jsonb,%L,%L,%L)',
    trip,jsonb_build_object('truck_type_id',tt2,'customer_id',customer,'sale_type','credit',
      'from_location','Entry From','to_location','Entry To')::text,switch_vehicle,d,'Cannot bypass'),
-   'Finalized Customer Rate locks Truck Type');
+   'Audit correction reason required');
  if (select truck_type_id from public.transport_trips where id=trip) is distinct from tt
  then raise exception 'Finalized Customer Rate Truck Type changed';end if;
+ -- Reconfirm finalized commercial dimensions with a reason, keeping posted evidence protected.
+ perform public.transport_finalize_customer_rate(trip2,1500,'manual','Initial unposted base');
+ perform public.transport_save_operational_trip_edit(
+   trip2,jsonb_build_object('truck_type_id',tt,'customer_id',cash_customer,'sale_type','cash',
+    'from_location','Entry From','to_location','Entry To'),
+   company_v,company_d,'Correct finalized unposted Truck Type and Plate');
+ if not exists(select 1 from public.transport_trips where id=trip2 and truck_type_id=tt
+   and vehicle_id=company_v and customer_base_rate=1500 and customer_rate=1500)
+ then raise exception 'Audited finalized unposted commercial edit failed';end if;
  if has_function_privilege('anon','public.transport_save_operational_trip_edit(uuid,jsonb,uuid,uuid,text)','EXECUTE')
  then raise exception 'Atomic Trip edit exposed to anonymous';end if;
 
