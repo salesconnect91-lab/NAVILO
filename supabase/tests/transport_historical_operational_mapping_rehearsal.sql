@@ -55,6 +55,12 @@ begin
  if answer<>jsonb_build_object('mapped',3,'skipped',0) then raise exception 'FAIL mapping result %',answer;end if;
  answer:=public.transport_complete_historical_operational_mapping(payload);
  if answer<>jsonb_build_object('mapped',0,'skipped',3) then raise exception 'FAIL idempotency';end if;
+ register:=public.transport_register_query(p_limit=>2);
+ if register is distinct from pg_temp.transport_register_reference(p_limit=>2) then raise exception 'FAIL unposted first-page reader parity new=% old=%',register,pg_temp.transport_register_reference(p_limit=>2);end if;
+ register:=public.transport_register_query(p_limit=>2,p_offset=>2);
+ if register is distinct from pg_temp.transport_register_reference(p_limit=>2,p_offset=>2) then raise exception 'FAIL unposted last-page reader parity';end if;
+ register:=public.transport_register_query(p_limit=>2,p_sort=>'trip_date',p_direction=>'asc');
+ if register is distinct from pg_temp.transport_register_reference(p_limit=>2,p_sort=>'trip_date',p_direction=>'asc') then raise exception 'FAIL unposted date sort parity';end if;
  perform set_config('plan_cache_mode','force_generic_plan',true);
  register:=public.transport_register_query(p_filters=>jsonb_build_object('search','INV-ORIGINAL'));
  if current_setting('plan_cache_mode')<>'force_generic_plan' or not exists(select 1 from pg_proc where oid='public.transport_register_query(integer,integer,jsonb,text,text,text,text)'::regprocedure and 'plan_cache_mode=force_custom_plan'=any(proconfig))
@@ -99,6 +105,8 @@ begin
  execute 'set local role authenticated';
  if exists(select 1 from public.transport_historical_operational_mapping) or exists(select 1 from public.transport_historical_trip_identity)
  then raise exception 'FAIL denied financial evidence permission';end if;
+ register:=public.transport_register_query(p_limit=>2);
+ if register is distinct from pg_temp.transport_register_reference(p_limit=>2) then raise exception 'FAIL unposted partial-finance reader parity';end if;
  execute 'reset role';
  perform set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);
  execute 'set local role authenticated';
