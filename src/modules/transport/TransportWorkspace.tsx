@@ -34,6 +34,8 @@ import TransportQuickAdd from './TransportQuickAdd';
 import {loadTransportMobilePartyOptions} from './transportMobilePartyLookup';
 import {compatibleVehicles,ownershipOnDate,matchingCustomerRate,estimatedMargin,masterKey,validMoney,type QuickAddKind,type OwnershipPeriod} from './transportTripEntry';
 import {registerOptionFilters} from './transportRegisterOptionFilters';
+import {transportWorkDesks, resolveTransportDesk, workDeskColumnVisible} from './transportWorkDesks';
+import TransportWorkQueue from './TransportWorkQueue';
 
 const REGISTER_PAGE_SIZE=100; // Keep the interactive Register comfortably within Supabase's 8s read budget.
 type MobileVoiceDraft={id:string;created_at:string;transcript:string;patch:Record<string,string>};
@@ -111,6 +113,18 @@ export default function TransportWorkspace(){
   const [entryPermissions,setEntryPermissions]=useState({master:false,owner:false,rate:false,rent:false,driver:false});
 
   const [params,setParams]=useSearchParams();
+  // Department desks are presentation-only projections of the same canonical trips.
+  // Switching desks never modifies the underlying trips or triggers a new RPC.
+  const workDesk=resolveTransportDesk(params.get('desk'));
+  const changeWorkDesk=(next:string)=>{
+    const p=new URLSearchParams(params);
+    if(next==='all')p.delete('desk');else p.set('desk',next);
+    setOpenColumnFilter(null);
+    setSelectedTripIds(new Set());
+    registerRequest.current?.abort();
+    setParams(p);
+  };
+
   const featureAccess=useOptionalFeatureAccess();
   const standaloneMobile=location.pathname==="/transport/mobile";
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role;
@@ -497,6 +511,9 @@ export default function TransportWorkspace(){
   // A page has its own cached identity even when filters and sorting match.
   const registerPageKey=`${registerKey}:page=${page}`;
   async function load(silent=false){
+    // Department queues own their bounded RPC; never start the heavyweight
+    // full-register RPC while the user is working in a department.
+    if(workDesk!=='all'&&tab==='trips')return;
     // A timer/focus refresh must never abort an unfinished register request.
     if(silent&&registerRequest.current)return;
     // A successful rent save must refresh the register immediately. A previous
@@ -544,11 +561,11 @@ export default function TransportWorkspace(){
     // Clearing rows made every header-filter click look like a dashboard hang.
     readGeneration.current++;setRegisterLoading(true);
     if(changed&&page!==0){setPage(0);return;}
-    if(tab!=="trips"||showPartyReports){setRegisterLoading(false);return;}
+    if(tab!=="trips"||showPartyReports||workDesk!=="all"){setRegisterLoading(false);return;}
     if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){setRegisterLoading(false);return;}
     const timer=window.setTimeout(()=>void load(),200);
     return()=>{window.clearTimeout(timer);registerRequest.current?.abort();registerRequest.current=null;readGeneration.current++;};
-  },[registerKey,page,tab,showPartyReports]);
+  },[registerKey,page,tab,showPartyReports,workDesk]);
 
   const mobileToday=new Date().toISOString().slice(0,10);
   const mobileFromDate=new Date(Date.now()-29*24*60*60*1000).toISOString().slice(0,10);
@@ -598,7 +615,7 @@ export default function TransportWorkspace(){
   },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,standaloneMobile,featureAccess?.loading,mobileCanCreate]);
 
   useEffect(()=>{
-    if(tab!=="trips"||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
+    if(tab!=="trips"||workDesk!=="all"||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
     const refresh=()=>{if(document.visibilityState==="visible"&&!registerRequest.current)void load(true)};
     // Keep manual/focus/save refresh immediate; avoid saturating the 8s RPC pool with idle 30s polling.
     const timer=window.setInterval(refresh,180000);
@@ -1289,7 +1306,7 @@ export default function TransportWorkspace(){
     ['charge','company_rate','received_company','remaining_company','customer_credit','invoice_no','sale_type','invoiced'].includes(key)?readCustomer:
     ['owner','supplier_invoice_no','supplier_charges','rent_driver','supplier_paid','supplier_balance','supplier_credit','payment_date','amount','driver_pay','driver_paid','driver_balance','commission'].includes(key)?readSupplier:true;
   const groupOrder={trip:0,customer:1,supplier:2,ppr:3};
-  const orderedGridColumns=allOrderedGridColumns.filter(column=>columnAuthorized(column[0])&&!hiddenTripColumns.includes(column[0])).sort((a,b)=>groupOrder[visualGridGroup(a[0])]-groupOrder[visualGridGroup(b[0])]);
+  const orderedGridColumns=allOrderedGridColumns.filter(column=>columnAuthorized(column[0])&&workDeskColumnVisible(workDesk,column[0],hiddenTripColumns)).sort((a,b)=>groupOrder[visualGridGroup(a[0])]-groupOrder[visualGridGroup(b[0])]);
   const gridGroupSegments=orderedGridColumns.reduce<Array<{group:string;count:number}>>((segments,[key])=>{
     const group=visualGridGroup(key);
     const last=segments[segments.length-1];
@@ -1470,7 +1487,16 @@ export default function TransportWorkspace(){
 
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-    {!showPartyReports&&tab==="trips"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className="relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden bg-white rounded-lg border border-slate-700 shadow-sm shadow-slate-300" data-navilo-theme={tripTheme} data-navilo-customizable="true">
+    {!showPartyReports&&tab==="trips"&&workDesk!=="all"&&
+      <TransportWorkQueue key={scopeKey+":"+workDesk} desk={workDesk} scopeKey={scopeKey}
+        onDeskChange={changeWorkDesk}
+        onOpenTrip={tripNo=>{
+          setRegisterSearchDraft(tripNo);setRegisterSearch(tripNo);setRegisterSearchModeDraft("contains");
+          setRegisterSearchMode("contains");setPage(0);changeWorkDesk("all");
+        }}
+        onCashCounter={side=>navigate("/accounting/cash-counter?mode="+side+"&allocation=transport")}
+      />}
+    {!showPartyReports&&tab==="trips"&&workDesk==="all"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className="relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden bg-white rounded-lg border border-slate-700 shadow-sm shadow-slate-300" data-navilo-theme={tripTheme} data-navilo-customizable="true">
       <style>{`
         /* Mobile containment: keep the register full viewport width and scroll the data grid instead of squeezing it. */
         @media (max-width: 767px) {
@@ -1562,7 +1588,13 @@ export default function TransportWorkspace(){
         }
       `}</style>
       <div className="navilo-transport-topbar relative z-[90] flex shrink-0 items-center justify-between px-3 text-white h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]">
-        <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
+        <div className="flex shrink-0 items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span>
+          <label className="sr-only" htmlFor="transport-work-desk">Transport working desk</label>
+          <select id="transport-work-desk" aria-label="Transport working desk" value={workDesk} onChange={e=>changeWorkDesk(e.target.value)}
+            className="h-7 max-w-[165px] rounded-md border border-slate-500 bg-slate-900 px-1.5 text-[10px] font-bold text-white focus:ring-2 focus:ring-blue-300"
+            title="Switch department view without reloading the Trip Register">
+            {transportWorkDesks.map(d=><option key={d.key} value={d.key}>{d.label}</option>)}
+          </select></div>
         <div className="navilo-transport-register-toolbar flex flex-wrap items-center gap-2">
 
           <div className="flex items-center justify-between border border-blue-200 bg-blue-50 h-9 min-w-[104px] rounded-lg px-3 shadow-sm">
