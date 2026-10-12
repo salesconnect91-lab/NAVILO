@@ -33,6 +33,7 @@ import TransportPagination from './TransportPagination';
 import TransportQuickAdd from './TransportQuickAdd';
 import {loadTransportMobilePartyOptions} from './transportMobilePartyLookup';
 import {compatibleVehicles,ownershipOnDate,matchingCustomerRate,estimatedMargin,masterKey,validMoney,type QuickAddKind,type OwnershipPeriod} from './transportTripEntry';
+import {registerOptionFilters} from './transportRegisterOptionFilters';
 
 const REGISTER_PAGE_SIZE=100; // Keep the interactive Register comfortably within Supabase's 8s read budget.
 type MobileVoiceDraft={id:string;created_at:string;transcript:string;patch:Record<string,string>};
@@ -1369,12 +1370,19 @@ export default function TransportWorkspace(){
   const [columnValues,setColumnValues]=useState<string[]>([]);
   const [columnSearch,setColumnSearch]=useState('');
   const [columnValuesLoading,setColumnValuesLoading]=useState(false);
+  const [columnValuesError,setColumnValuesError]=useState('');
+  const [columnOptionsRetry,setColumnOptionsRetry]=useState(0);
+  // A column's own selection and header sorting do not change its available
+  // options. Refetching on either action made the dropdown disappear/flash.
+  const optionFilters=registerOptionFilters(registerFilters,openColumnFilter);
+  const optionContextKey=JSON.stringify({scopeKey,filters:optionFilters,option:openColumnFilter});
   useEffect(()=>{setColumnSearch('');},[openColumnFilter]);
   useEffect(()=>{
     let live=true;
     columnOptionsRequest.current?.abort();
     columnOptionsRequest.current=null;
     setColumnValues([]);
+    setColumnValuesError('');
     if(!openColumnFilter){setColumnValuesLoading(false);return;}
     setColumnValuesLoading(true);
     const timer=window.setTimeout(()=>{
@@ -1382,12 +1390,13 @@ export default function TransportWorkspace(){
       columnOptionsRequest.current=controller;
       void (async()=>{
         try{
-          const r=await supabase.rpc('transport_register_query',{p_filters:registerFilters,p_option_key:openColumnFilter,p_option_search:columnSearch}).abortSignal(controller.signal);
+          const r=await supabase.rpc('transport_register_query',{p_filters:optionFilters,p_option_key:openColumnFilter,p_option_search:columnSearch}).abortSignal(controller.signal);
           if(!live||controller.signal.aborted)return;
-          if(r.error){setError(r.error.message);return;}
+          if(r.error)throw r.error;
           setColumnValues(r.data.options??[]);
+          setColumnValuesError('');
         }catch(e:any){
-          if(live&&!controller.signal.aborted)setError(e?.message||'Unable to load filter values.');
+          if(live&&!controller.signal.aborted)setColumnValuesError(String(e?.message||'Unable to load filter values.'));
         }finally{
           if(columnOptionsRequest.current===controller)columnOptionsRequest.current=null;
           if(live&&!controller.signal.aborted)setColumnValuesLoading(false);
@@ -1400,7 +1409,7 @@ export default function TransportWorkspace(){
       columnOptionsRequest.current?.abort();
       columnOptionsRequest.current=null;
     };
-  },[openColumnFilter,columnSearch,registerKey]);
+  },[optionContextKey,columnSearch,columnOptionsRetry]);
   const columnOptions=(_key:string)=>columnValues;
   const gridRows=rows;
   const [selectedTripIds,setSelectedTripIds]=useState<Set<string>>(()=>new Set());
@@ -1760,14 +1769,19 @@ export default function TransportWorkspace(){
                       label={label}
                       options={columnOptions(key)}
                       search={columnSearch} onSearch={setColumnSearch} loading={columnValuesLoading}
+                      loadError={columnValuesError} onRetry={()=>setColumnOptionsRetry(n=>n+1)}
                       selected={columnFilters[key]??[]}
                       onToggle={value=>toggleColumnValue(key,value)}
-                      onSelectAll={()=>
+                      onSelectAll={()=>{
+                        if(columnValuesLoading||columnValuesError||!columnOptions(key).length)return;
+                        // With no option search, all values selected means no
+                        // restriction; avoid sending thousands of IDs to SQL.
+                        if(!columnSearch.trim()){clearColumnFilter(key);return;}
                         setColumnFilters(current=>({
                           ...current,
                           [key]:Array.from(new Set([...(current[key]??[]),...columnOptions(key)]))
-                        }))
-                      }
+                        }));
+                      }}
                       onClear={()=>clearColumnFilter(key)}
                       onClose={()=>setOpenColumnFilter(null)}
                     />
@@ -2431,9 +2445,10 @@ export default function TransportWorkspace(){
   </div>
 }
 function ColumnFilterMenu({
-  label,options,selected,onToggle,onSelectAll,onClear,onClose,search,onSearch,loading
+  label,options,selected,onToggle,onSelectAll,onClear,onClose,search,onSearch,loading,loadError,onRetry
 }:{
   search:string;onSearch:(value:string)=>void;loading:boolean;
+  loadError:string;onRetry:()=>void;
   label:string;
   options:string[];
   selected:string[];
@@ -2471,8 +2486,8 @@ function ColumnFilterMenu({
     </div>
 
     <div className="mt-0.5 flex gap-px">
-      <button type="button" onClick={onSelectAll}
-        className="h-[18px] flex-1 rounded border border-slate-200 px-1 py-0 text-[8px] font-semibold leading-none hover:bg-slate-50">
+      <button type="button" onClick={onSelectAll} disabled={loading||!!loadError||!shown.length}
+        className="h-[18px] flex-1 rounded border border-slate-200 px-1 py-0 text-[8px] font-semibold leading-none hover:bg-slate-50 disabled:opacity-40">
         Select Shown
       </button>
 
@@ -2482,7 +2497,8 @@ function ColumnFilterMenu({
       </button>
     </div>
 
-    <div className="mt-1 shrink-0 text-[9px] text-slate-500" role="status">{loading?"Loading values…":`${shown.length.toLocaleString()} matching values`}</div>
+    {loadError&&<div role="alert" className="mt-1 flex items-center gap-1 text-[9px] text-red-700"><span>Filter values could not load: {loadError}</span><button type="button" className="shrink-0 underline" onClick={onRetry}>Retry</button></div>}
+    <div className="mt-1 shrink-0 text-[9px] text-slate-500" role="status">{loading?"Loading values…":loadError?"Load failed":`${shown.length.toLocaleString()} matching values`}</div>
     <div ref={optionScrollRef} onScroll={e=>setOptionScrollTop(e.currentTarget.scrollTop)} className="mt-1 min-h-0 flex-1 overflow-y-auto border-t border-slate-100">
       <div style={{height:shown.length*optionHeight,position:"relative"}}>
         <div style={{position:"absolute",top:optionStart*optionHeight,left:0,right:0}}>
@@ -2494,7 +2510,7 @@ function ColumnFilterMenu({
           )}
         </div>
       </div>
-      {!shown.length&&!loading&&<div className="px-1 py-3 text-center text-slate-400">No values</div>}
+      {!shown.length&&!loading&&!loadError&&<div className="px-1 py-3 text-center text-slate-400">No values</div>}
     </div>
     <button type="button" className="mt-2 shrink-0 rounded bg-slate-800 px-3 py-1 text-white" onClick={onClose}>Done</button>
     </section>
