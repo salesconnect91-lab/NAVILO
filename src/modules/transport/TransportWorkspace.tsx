@@ -37,6 +37,12 @@ import {registerOptionFilters} from './transportRegisterOptionFilters';
 import {normalizeTransportRegisterGridLayout,type TransportRegisterGridLayout} from './transportRegisterGridLayout';
 
 const REGISTER_PAGE_SIZE=100; // Keep the interactive Register comfortably within Supabase's 8s read budget.
+const registerPageCache=new Map<string,{rows:Trip[];meta:any;at:number}>();
+const registerFilterCache=new Map<string,{values:string[];at:number}>();
+function boundedCacheSet<T>(cache:Map<string,T>,key:string,value:T,limit:number){
+  cache.delete(key);cache.set(key,value);
+  if(cache.size>limit)cache.delete(cache.keys().next().value!);
+}
 type MobileVoiceDraft={id:string;created_at:string;transcript:string;patch:Record<string,string>};
 type Tab="trips"|"new"|"mobile"|"audit";
 type Trip=FinancialTrip & {
@@ -496,7 +502,7 @@ export default function TransportWorkspace(){
   const registerFilters={fromDate,toDate,customer:customerFilter,driver:driverFilter,vehicle:vehicleFilter,from:fromFilter,to:toFilter,ppr:pprFilter,statuses:statusFilters,columns:columnFilters,search:registerSearch,searchMode:registerSearchMode};
   const registerKey=JSON.stringify({scopeKey,registerFilters,sortColumn,sortDirection});
   // A page has its own cached identity even when filters and sorting match.
-  const registerPageKey=`${registerKey}:page=${page}`;
+  const registerPageKey=`${user?.id??'anonymous'}:${registerKey}:page=${page}`;
   async function load(silent=false){
     // A timer/focus refresh must never abort an unfinished register request.
     if(silent&&registerRequest.current)return;
@@ -516,6 +522,7 @@ export default function TransportWorkspace(){
       setError('');
       setRows((data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})));
       setRegisterMeta(data);
+      boundedCacheSet(registerPageCache,registerPageKey,{rows:(data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})),meta:data,at:Date.now()},12);
       if(page>Math.max(0,Math.ceil(data.count/REGISTER_PAGE_SIZE)-1))setPage(Math.max(0,Math.ceil(data.count/REGISTER_PAGE_SIZE)-1));
     }catch(e:any){
       if(generation===readGeneration.current&&!controller.signal.aborted){
@@ -539,17 +546,25 @@ export default function TransportWorkspace(){
   useEffect(()=>{
     const pageChanged=previousRegisterPage.current!==page;previousRegisterPage.current=page;
     const changed=previousRegisterKey.current!==registerKey;previousRegisterKey.current=registerKey;
-    // Never label rows from the previous page as results of the newly selected page.
-    if(pageChanged)setRows([]);
-    // Keep the current page visible while a filter request is in flight.
-    // Clearing rows made every header-filter click look like a dashboard hang.
-    readGeneration.current++;setRegisterLoading(true);
     if(changed&&page!==0){setPage(0);return;}
-    if(tab!=="trips"||showPartyReports){setRegisterLoading(false);return;}
-    if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){setRegisterLoading(false);return;}
-    const timer=window.setTimeout(()=>void load(),200);
+    if(tab!=="trips"||showPartyReports)return;
+    if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
+    const cached=registerPageCache.get(registerPageKey);
+    if(cached){
+      readGeneration.current++;
+      setRows(cached.rows);setRegisterMeta(cached.meta);
+      lastSuccessfulRegisterKey.current=registerPageKey;
+      setRegisterLoadError(false);setRegisterLoading(false);
+      if(Date.now()-cached.at<60000)return;
+    }else{
+      if(pageChanged||changed||lastSuccessfulRegisterKey.current!==registerPageKey){
+        setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
+      }
+      setRegisterLoading(true);
+    }
+    const timer=window.setTimeout(()=>void load(!!cached),200);
     return()=>{window.clearTimeout(timer);registerRequest.current?.abort();registerRequest.current=null;readGeneration.current++;};
-  },[registerKey,page,tab,showPartyReports]);
+  },[registerKey,page,tab,showPartyReports,user?.id]);
 
   const mobileToday=new Date().toISOString().slice(0,10);
   const mobileFromDate=new Date(Date.now()-29*24*60*60*1000).toISOString().slice(0,10);
@@ -1476,16 +1491,22 @@ export default function TransportWorkspace(){
   // A column's own selection and header sorting do not change its available
   // options. Refetching on either action made the dropdown disappear/flash.
   const optionFilters=registerOptionFilters(registerFilters,openColumnFilter);
-  const optionContextKey=JSON.stringify({scopeKey,filters:optionFilters,option:openColumnFilter});
+  const optionContextKey=JSON.stringify({userId:user?.id,scopeKey,filters:optionFilters,option:openColumnFilter});
   useEffect(()=>{setColumnSearch('');},[openColumnFilter]);
   useEffect(()=>{
     let live=true;
     columnOptionsRequest.current?.abort();
     columnOptionsRequest.current=null;
-    setColumnValues([]);
     setColumnValuesError('');
     if(!openColumnFilter){setColumnValuesLoading(false);return;}
-    setColumnValuesLoading(true);
+    const filterCacheKey=JSON.stringify({optionContextKey,search:columnSearch});
+    const cachedOptions=registerFilterCache.get(filterCacheKey);
+    if(cachedOptions){
+      setColumnValues(cachedOptions.values);setColumnValuesLoading(false);
+      if(Date.now()-cachedOptions.at<120000&&columnOptionsRetry===0)return;
+    }else{
+      setColumnValues([]);setColumnValuesLoading(true);
+    }
     const timer=window.setTimeout(()=>{
       const controller=new AbortController();
       columnOptionsRequest.current=controller;
@@ -1494,7 +1515,9 @@ export default function TransportWorkspace(){
           const r=await supabase.rpc('transport_register_query',{p_filters:optionFilters,p_option_key:openColumnFilter,p_option_search:columnSearch}).abortSignal(controller.signal);
           if(!live||controller.signal.aborted)return;
           if(r.error)throw r.error;
-          setColumnValues(r.data.options??[]);
+          const values=r.data.options??[];
+          setColumnValues(values);
+          boundedCacheSet(registerFilterCache,filterCacheKey,{values,at:Date.now()},40);
           setColumnValuesError('');
         }catch(e:any){
           if(live&&!controller.signal.aborted)setColumnValuesError(String(e?.message||'Unable to load filter values.'));
