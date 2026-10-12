@@ -28,7 +28,7 @@ export default function TransportTripDetail({tripId,onClose,onSaved}:{tripId:str
   const [supplier,setSupplier]=useState(""),[supplierAmount,setSupplierAmount]=useState(""),[vehicle,setVehicle]=useState(""),[driver,setDriver]=useState(""),[replacementReason,setReplacementReason]=useState("");
   const load=async()=>{
     const [t,r,a,e,s,v,d,tt]=await Promise.all([
-      supabase.from("transport_trips").select("*").eq("id",tripId).single(),
+      supabase.rpc("transport_edit_trip_read",{p_trip_id:tripId}),
       supabase.from("transport_trip_supplier_rents").select("id,supplier_name_snapshot,amount,state").eq("trip_id",tripId),
       supabase.from("transport_trip_audit").select("id,action,occurred_at,reason,old_value,new_value").eq("trip_id",tripId).order("occurred_at",{ascending:false}),
       supabase.from("employees").select("id,name").eq("is_active",true),

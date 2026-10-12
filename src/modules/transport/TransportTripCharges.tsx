@@ -12,7 +12,7 @@ export default function TransportTripCharges({tripId,onClose,onChanged}:{tripId:
  const [baseRate,setBaseRate]=useState(0);
  const [selected,setSelected]=useState(''),[reason,setReason]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
  async function load(){
-  const tr=await supabase.from('transport_trips').select('id,trip_no,trip_date,company_id,business_unit_id,customer_id,customer_name_snapshot,from_location,to_location,customer_rate,customer_base_rate,customer_manual_adjustment,customer_rate_state,sales_order_id').eq('id',tripId).single();
+  const tr=await supabase.rpc('transport_edit_trip_read',{p_trip_id:tripId});
   if(tr.error)throw tr.error;
   const [ct,cr,ln,posted]=await Promise.all([
    supabase.from('charge_master').select('id,charge_key,charge_name,is_active,default_rate').eq('company_id',tr.data.company_id).eq('is_active',true).in('applies_to',['sales','both']).order('charge_key'),
