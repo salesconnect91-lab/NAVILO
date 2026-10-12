@@ -2432,6 +2432,17 @@ function ColumnFilterMenu({
   onClose:()=>void;
 }){
   const shown=options;
+  // Keep complete server-filtered options available without mounting thousands
+  // of checkboxes when a large historical register has unique references.
+  const [optionScrollTop,setOptionScrollTop]=useState(0);
+  const optionScrollRef=useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    setOptionScrollTop(0);
+    if(optionScrollRef.current)optionScrollRef.current.scrollTop=0;
+  },[search,label]);
+  const optionHeight=18;
+  const optionStart=Math.max(0,Math.min(Math.floor(optionScrollTop/optionHeight)-5,Math.max(0,shown.length-48)));
+  const optionEnd=Math.min(shown.length,optionStart+48);
 
   return <TransportDialog onClose={onClose} onClick={e=>e.stopPropagation()}>
     <section role="dialog" aria-modal="true" aria-label={`${label} filter popup`} className="navilo-transport-filter flex flex-col" style={{height:420}}>
@@ -2460,23 +2471,19 @@ function ColumnFilterMenu({
       </button>
     </div>
 
-    <div className="mt-1 min-h-0 flex-1 overflow-y-auto border-t border-slate-100 pt-0.5">
-      {loading&&<p>Loading values…</p>}
-      <p className="text-slate-500">Up to 200 matches. Search for more.</p>
-      {shown.map(value=>
-        <label key={value} className="flex h-[18px] cursor-pointer items-center gap-1 rounded px-0.5 py-0 hover:bg-slate-50">
-          <input
-            type="checkbox"
-            checked={selected.includes(value)}
-            onChange={()=>onToggle(value)}
-          />
-          <span title={value} className="min-w-0 flex-1 truncate text-[9px]">{value}</span>
-        </label>
-      )}
-
-      {!shown.length&&
-        <div className="px-1 py-3 text-center text-slate-400">No values</div>
-      }
+    <div className="mt-1 shrink-0 text-[9px] text-slate-500" role="status">{loading?"Loading values…":`${shown.length.toLocaleString()} matching values`}</div>
+    <div ref={optionScrollRef} onScroll={e=>setOptionScrollTop(e.currentTarget.scrollTop)} className="mt-1 min-h-0 flex-1 overflow-y-auto border-t border-slate-100">
+      <div style={{height:shown.length*optionHeight,position:"relative"}}>
+        <div style={{position:"absolute",top:optionStart*optionHeight,left:0,right:0}}>
+          {shown.slice(optionStart,optionEnd).map(value=>
+            <label key={value} className="flex h-[18px] cursor-pointer items-center gap-1 rounded px-0.5 py-0 hover:bg-slate-50">
+              <input type="checkbox" checked={selected.includes(value)} onChange={()=>onToggle(value)}/>
+              <span title={value} className="min-w-0 flex-1 truncate text-[9px]">{value}</span>
+            </label>
+          )}
+        </div>
+      </div>
+      {!shown.length&&!loading&&<div className="px-1 py-3 text-center text-slate-400">No values</div>}
     </div>
     <button type="button" className="mt-2 shrink-0 rounded bg-slate-800 px-3 py-1 text-white" onClick={onClose}>Done</button>
     </section>
