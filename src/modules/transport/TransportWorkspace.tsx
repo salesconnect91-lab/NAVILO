@@ -255,6 +255,10 @@ export default function TransportWorkspace(){
   const [registerMeta,setRegisterMeta]=useState<any>({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
   const readGeneration=useRef(0);
   const registerRequest=useRef<AbortController|null>(null);
+  // After a database timeout, pause automatic refreshes so focus/polling cannot
+  // pile more expensive reads onto an already busy database. Manual Retry
+  // remains available immediately.
+  const registerAutoRefreshBlockedUntil=useRef(0);
   // Keep the last valid page visible if the database times out on a background refresh.
   const lastSuccessfulRegisterKey=useRef<string|null>(null);
   const columnOptionsRequest=useRef<AbortController|null>(null);
@@ -516,7 +520,7 @@ export default function TransportWorkspace(){
   const registerPageKey=`${user?.id??'anonymous'}:${registerKey}:page=${page}`;
   async function load(silent=false){
     // A timer/focus refresh must never abort an unfinished register request.
-    if(silent&&registerRequest.current)return;
+    if(silent&&(registerRequest.current||Date.now()<registerAutoRefreshBlockedUntil.current))return;
     // A successful rent save must refresh the register immediately. A previous
     // in-flight register read is stale at this point, so cancel it instead of
     // silently skipping the refresh (which left Supplier Balance unchanged).
@@ -529,6 +533,7 @@ export default function TransportWorkspace(){
       if(scopeRef.current!==scopeKey||generation!==readGeneration.current)return;
       const data=result.data;
       lastSuccessfulRegisterKey.current=registerPageKey;
+      registerAutoRefreshBlockedUntil.current=0;
       setRegisterLoadError(false);
       setError('');
       setRows((data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})));
@@ -544,6 +549,7 @@ export default function TransportWorkspace(){
         }
         if(!silent||lastSuccessfulRegisterKey.current===null){
           const message=String(e?.message||'Unable to load trips.');
+          if(/statement timeout|57014|timeout/i.test(message))registerAutoRefreshBlockedUntil.current=Date.now()+120000;
           setError(/statement timeout|57014|timeout/i.test(message)
             ? 'Trip Register database query timed out. Your Trips are still saved; retry when the server is available.'
             : message);
