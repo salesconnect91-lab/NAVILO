@@ -1225,15 +1225,26 @@ export default function TransportWorkspace(){
   };
 
   const tripDataGridKeys=["trip_no","trip_date","truck_type","job_no","from","to"] as const;
-  const vehicleDriverGridKeys=["driver","plate"] as const;
-  const supplierGridKeys=["owner","supplier_invoice_no","rent_driver","supplier_charges","supplier_paid","supplier_balance","payment_date","amount","supplier_credit","commission"] as const;
+  const vehicleDriverGridKeys=["driver","plate","owner"] as const;
+  const supplierGridKeys=["supplier_invoice_no","rent_driver","supplier_charges","supplier_paid","supplier_balance","payment_date","amount","supplier_credit","commission"] as const;
   const customerGridKeys=["invoice_no","company","charge","company_rate","received_company","remaining_company","sale_type","customer_credit"] as const;
   const pprGridKeys=["paper_received_by"] as const;
-  const profitCommissionGridKeys=["profit"] as const;
-  const isSupplierGridKey=(key:string)=>(supplierGridKeys as readonly string[]).includes(key);
-  const isCustomerGridKey=(key:string)=>(customerGridKeys as readonly string[]).includes(key);
-  const isPprGridKey=(key:string)=>(pprGridKeys as readonly string[]).includes(key);
-  const visualGridGroup=(key:string)=>isCustomerGridKey(key)?"customer":isSupplierGridKey(key)?"supplier":isPprGridKey(key)?"ppr":"trip";
+  const profitGridKeys=["profit"] as const;
+  const isInGridGroup=(keys:readonly string[],key:string)=>keys.includes(key);
+  const visualGridGroup=(key:string)=>
+    isInGridGroup(vehicleDriverGridKeys,key)?"vehicle":
+    isInGridGroup(customerGridKeys,key)?"customer":
+    isInGridGroup(supplierGridKeys,key)?"supplier":
+    isInGridGroup(pprGridKeys,key)?"ppr":
+    isInGridGroup(profitGridKeys,key)?"profit":"trip";
+  const tripColumnGroups=[
+    {id:"trip",label:"Trip Details",keys:tripDataGridKeys,accent:"border-slate-300 bg-slate-100 text-slate-800"},
+    {id:"vehicle",label:"Vehicle & Driver",keys:vehicleDriverGridKeys,accent:"border-violet-200 bg-violet-50 text-violet-900"},
+    {id:"customer",label:"Customer · Our Revenue",keys:customerGridKeys,accent:"border-emerald-200 bg-emerald-50 text-emerald-900"},
+    {id:"supplier",label:"Supplier · Our Cost",keys:supplierGridKeys,accent:"border-rose-200 bg-rose-50 text-rose-900"},
+    {id:"ppr",label:"PPR",keys:pprGridKeys,accent:"border-teal-200 bg-teal-50 text-teal-900"},
+    {id:"profit",label:"Profit",keys:profitGridKeys,accent:"border-amber-200 bg-amber-50 text-amber-900"}
+  ] as const;
 
   const gridColumns:ReadonlyArray<readonly [string,string]>=[
     ["trip_no","Trip No"],
@@ -1271,15 +1282,20 @@ export default function TransportWorkspace(){
   const tripTheme='theme1';
   const allOrderedGridColumns=useMemo(()=>{
     const byKey=new Map(gridColumns.map(column=>[column[0],column] as const));
-    const order=tripColumnOrder.length?tripColumnOrder:gridColumns.map(column=>column[0]);
-    const arranged=order.map(key=>byKey.get(key)).filter((column):column is readonly [string,string]=>Boolean(column));
+    const order=tripColumnOrder.length?tripColumnOrder:defaultTripColumnOrder;
+    const arranged:Array<readonly [string,string]>=[];
+    const seen=new Set<string>();
+    for(const key of order){
+      const column=byKey.get(key);
+      if(column&&!seen.has(key)){arranged.push(column);seen.add(key);}
+    }
     for(const column of gridColumns){
-      if(arranged.some(item=>item[0]===column[0]))continue;
-      if(column[0]==='supplier_invoice_no'){
-        const before=arranged.findIndex(item=>item[0]==='supplier_charges'||item[0]==='rent_driver');
-        if(before>=0){arranged.splice(before,0,column);continue;}
+      if(seen.has(column[0]))continue;
+      if(column[0]==="supplier_invoice_no"){
+        const before=arranged.findIndex(item=>item[0]==="supplier_charges"||item[0]==="rent_driver");
+        if(before>=0){arranged.splice(before,0,column);seen.add(column[0]);continue;}
       }
-      arranged.push(column);
+      arranged.push(column);seen.add(column[0]);
     }
     return arranged;
   },[tripColumnOrder]);
@@ -1288,7 +1304,7 @@ export default function TransportWorkspace(){
   const columnAuthorized=(key:string)=>key==='profit'?readCustomer&&readSupplier:
     ['charge','company_rate','received_company','remaining_company','customer_credit','invoice_no','sale_type','invoiced'].includes(key)?readCustomer:
     ['owner','supplier_invoice_no','supplier_charges','rent_driver','supplier_paid','supplier_balance','supplier_credit','payment_date','amount','driver_pay','driver_paid','driver_balance','commission'].includes(key)?readSupplier:true;
-  const groupOrder={trip:0,customer:1,supplier:2,ppr:3};
+  const groupOrder={trip:0,vehicle:1,customer:2,supplier:3,ppr:4,profit:5};
   const orderedGridColumns=allOrderedGridColumns.filter(column=>columnAuthorized(column[0])&&!hiddenTripColumns.includes(column[0])).sort((a,b)=>groupOrder[visualGridGroup(a[0])]-groupOrder[visualGridGroup(b[0])]);
   const gridGroupSegments=orderedGridColumns.reduce<Array<{group:string;count:number}>>((segments,[key])=>{
     const group=visualGridGroup(key);
@@ -1328,16 +1344,11 @@ export default function TransportWorkspace(){
     }
   },[tripGridStorageKey]);
 
-  const tripDataVisible=tripDataGridKeys.some(key=>!hiddenTripColumns.includes(key));
-  const vehicleDriverDataVisible=vehicleDriverGridKeys.some(key=>!hiddenTripColumns.includes(key));
-  const supplierDataVisible=supplierGridKeys.some(key=>!hiddenTripColumns.includes(key));
-  const customerDataVisible=customerGridKeys.some(key=>!hiddenTripColumns.includes(key));
-  const pprDataVisible=pprGridKeys.some(key=>!hiddenTripColumns.includes(key));
-  const profitCommissionDataVisible=profitCommissionGridKeys.some(key=>!hiddenTripColumns.includes(key));
   const setGridGroupVisible=(keys:readonly string[],show:boolean)=>{
+    const allowedKeys=keys.filter(columnAuthorized);
     setHiddenTripColumns(current=>show
-      ?current.filter(key=>!keys.includes(key))
-      :Array.from(new Set([...current,...keys])));
+      ?current.filter(key=>!allowedKeys.includes(key))
+      :Array.from(new Set([...current,...allowedKeys])));
   };
 
   const saveTripGridLayout=()=>{
@@ -1351,18 +1362,22 @@ export default function TransportWorkspace(){
 
   const resetTripGridLayout=()=>{
     localStorage.removeItem(tripGridStorageKey);
+    // Do not restore the old layout from the legacy fallback on reload.
+    localStorage.removeItem(legacyTripGridStorageKey);
     setTripColumnOrder([...defaultTripColumnOrder]);
     setHiddenTripColumns([]);
     setTripColumnWidths({});
   };
 
   const moveTripColumn=(dragKey:string,targetKey:string)=>{
-    if(dragKey===targetKey)return;
+    if(dragKey===targetKey||visualGridGroup(dragKey)!==visualGridGroup(targetKey))return;
     setTripColumnOrder(current=>{
-      const base=current.length?current:[...gridColumns.map(column=>column[0])];
-      const next=base.filter(key=>key!==dragKey);
-      const targetIndex=next.indexOf(targetKey);
-      next.splice(targetIndex<0?next.length:targetIndex,0,dragKey);
+      const base=current.length?current:[...defaultTripColumnOrder];
+      const from=base.indexOf(dragKey),to=base.indexOf(targetKey);
+      if(from<0||to<0)return current;
+      const next=[...base];
+      next.splice(from,1);
+      next.splice(to,0,dragKey);
       return next;
     });
   };
@@ -1632,60 +1647,63 @@ export default function TransportWorkspace(){
         <span className="navilo-transport-result-count">{registerLoadError&&lastSuccessfulRegisterKey.current!==registerPageKey?'Data unavailable':`${gridRows.length.toLocaleString()} shown / ${Number(registerMeta.count??0).toLocaleString()} filtered trips`}</span>
       </div>
 
-        {showTripColumnSetup&&<TransportDialog onClose={()=>setShowTripColumnSetup(false)}><section role="dialog" aria-modal="true" aria-label="Trip columns" className="w-full max-w-3xl rounded-lg border p-3"><header className="mb-2 flex items-center justify-between"><strong>Trip Columns</strong><button type="button" className="btn h-7" onClick={()=>setShowTripColumnSetup(false)}>Close</button></header>
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <span className="text-[10px] font-bold text-slate-700">Drag within each group to reorder, tick to show</span>
-            <div className="flex gap-1">
-              <button type="button" onClick={resetTripGridLayout} className="h-5 rounded border bg-white px-2 text-[9px] font-semibold">Reset Default</button>
-              <button type="button" onClick={saveTripGridLayout} className="h-5 rounded border border-blue-200 bg-blue-50 px-2 text-[9px] font-semibold text-blue-700">Save as Default</button>
+        {showTripColumnSetup&&<TransportDialog onClose={()=>setShowTripColumnSetup(false)}>
+          <section role="dialog" aria-modal="true" aria-label="Trip columns" className="w-full max-w-4xl rounded-lg border border-slate-300 p-3 text-xs">
+            <header className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+              <strong className="text-sm text-slate-900">Trip Columns</strong>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button type="button" onClick={resetTripGridLayout} className="h-7 rounded border border-slate-300 bg-white px-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-100">Reset Default</button>
+                <button type="button" onClick={saveTripGridLayout} className="h-7 rounded border border-blue-600 bg-blue-600 px-2.5 text-[11px] font-semibold text-white hover:bg-blue-700">Save as Default</button>
+                <button type="button" className="h-7 rounded border border-slate-300 bg-white px-2 text-[11px] font-semibold hover:bg-slate-100" onClick={()=>setShowTripColumnSetup(false)}>Close</button>
+              </div>
+            </header>
+            <p className="mb-2 text-[11px] leading-relaxed text-slate-600">Tick to show columns. Drag within a section to reorder, or focus a column and use left/right arrow keys. Changes appear in the Register immediately. Save as Default remembers this layout in this browser.</p>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              {tripColumnGroups.map(group=>{
+                const groupKeys=group.keys.filter(columnAuthorized);
+                if(!groupKeys.length)return null;
+                const groupColumns=allOrderedGridColumns.filter(([key])=>visualGridGroup(key)===group.id&&columnAuthorized(key));
+                const visibleKeys=groupKeys.filter(key=>!hiddenTripColumns.includes(key));
+                const partiallyVisible=visibleKeys.length>0&&visibleKeys.length<groupKeys.length;
+                return <section key={group.id} aria-label={group.label} data-trip-column-group={group.id} className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+                  <header className={`flex min-h-9 items-center justify-between gap-2 border-b px-2 py-1 ${group.accent}`}>
+                    <label className="inline-flex cursor-pointer items-center gap-2 text-[11px] font-bold">
+                      <input type="checkbox" aria-label={`Show ${group.label}`} checked={visibleKeys.length===groupKeys.length}
+                        aria-checked={partiallyVisible?"mixed":visibleKeys.length===groupKeys.length}
+                        ref={element=>{if(element)element.indeterminate=partiallyVisible;}}
+                        onChange={event=>setGridGroupVisible(groupKeys,event.target.checked)}/>
+                      {group.label}
+                    </label>
+                    <span className="whitespace-nowrap text-[10px] font-semibold opacity-70">{visibleKeys.length}/{groupKeys.length} visible</span>
+                  </header>
+                  <div role="list" aria-label={`${group.label} columns`} className="flex min-h-10 flex-wrap content-start gap-1.5 p-2">
+                    {groupColumns.map(([key,label])=><div key={key} role="listitem" draggable tabIndex={0} data-trip-column-key={key}
+                      aria-label={`${label}, drag or use left and right arrow keys to reorder`}
+                      onDragStart={event=>{tripColumnDragKey.current=key;if(event.dataTransfer){event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("text/plain",key);}}}
+                      onDragOver={event=>{if(tripColumnDragKey.current&&visualGridGroup(tripColumnDragKey.current)===group.id)event.preventDefault();}}
+                      onDrop={event=>{event.preventDefault();if(tripColumnDragKey.current)moveTripColumn(tripColumnDragKey.current,key);tripColumnDragKey.current=null;}}
+                      onDragEnd={()=>{tripColumnDragKey.current=null;}}
+                      onKeyDown={event=>{
+                        if(event.target!==event.currentTarget||!["ArrowLeft","ArrowRight"].includes(event.key))return;
+                        const keys=groupColumns.map(column=>column[0]);
+                        const index=keys.indexOf(key),target=index+(event.key==="ArrowLeft"?-1:1);
+                        if(target<0||target>=keys.length)return;
+                        event.preventDefault();moveTripColumn(key,keys[target]);
+                      }}
+                      className={`inline-flex min-h-7 cursor-grab items-center gap-1.5 rounded border px-2 py-1 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${hiddenTripColumns.includes(key)?"border-slate-200 bg-slate-50 text-slate-400":"border-slate-300 bg-white text-slate-800 hover:border-blue-400"}`}>
+                      <span aria-hidden="true" className="text-slate-400">⋮⋮</span>
+                      <input type="checkbox" aria-label={`Show column ${label}`} checked={!hiddenTripColumns.includes(key)}
+                        onChange={()=>setHiddenTripColumns(current=>current.includes(key)?current.filter(item=>item!==key):[...current,key])}/>
+                      <span>{label}</span>
+                    </div>)}
+                  </div>
+                </section>;
+              })}
             </div>
-          </div>
-          <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 rounded border border-slate-300 bg-white px-2 py-1">
-            <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-slate-800">
-              <input type="checkbox" checked={tripDataVisible} onChange={e=>setGridGroupVisible(tripDataGridKeys,e.target.checked)}/>
-              Show Trip Data
-            </label>
-            <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-violet-800">
-              <input type="checkbox" checked={vehicleDriverDataVisible} onChange={e=>setGridGroupVisible(vehicleDriverGridKeys,e.target.checked)}/>
-              Show Vehicle & Driver
-            </label>
-            <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-amber-800">
-              <input type="checkbox" checked={supplierDataVisible} onChange={e=>setGridGroupVisible(supplierGridKeys,e.target.checked)}/>
-              Show Supplier Data
-            </label>
-            <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-blue-800">
-              <input type="checkbox" checked={customerDataVisible} onChange={e=>setGridGroupVisible(customerGridKeys,e.target.checked)}/>
-              Show Customer Data
-            </label>
-            <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-teal-800">
-              <input type="checkbox" checked={pprDataVisible} onChange={e=>setGridGroupVisible(pprGridKeys,e.target.checked)}/>
-              Show PPR Data
-            </label>
-            <label className="inline-flex cursor-pointer items-center gap-1 text-[9px] font-bold text-emerald-800">
-              <input type="checkbox" checked={profitCommissionDataVisible} onChange={e=>setGridGroupVisible(profitCommissionGridKeys,e.target.checked)}/>
-              Show Profit (Commission in Supplier)
-            </label>
-            <span className="text-[9px] text-slate-500">Toggle a group or tick individual columns below.</span>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {allOrderedGridColumns.map(([key])=>{
-              const column=gridColumns.find(item=>item[0]===key);
-              if(!column)return null;
-              return <div key={key} draggable
-                onDragStart={()=>{tripColumnDragKey.current=key}}
-                onDragOver={e=>e.preventDefault()}
-                onDrop={()=>{if(tripColumnDragKey.current)moveTripColumn(tripColumnDragKey.current,key);tripColumnDragKey.current=null}}
-                className="flex cursor-grab items-center gap-1 rounded border border-slate-200 bg-white px-1.5 py-1 text-[9px] text-slate-700">
-                <span className="text-slate-400">⋮⋮</span>
-                <input type="checkbox" checked={!hiddenTripColumns.includes(key)}
-                  onChange={()=>setHiddenTripColumns(current=>current.includes(key)?current.filter(item=>item!==key):[...current,key])}/>
-                <span>{column[1]}</span>
-              </div>;
-            })}
-          </div>
-        </section></TransportDialog>}
+          </section>
+        </TransportDialog>}
 
-      {dateFilterOpen&&<TransportDialog onClose={()=>setDateFilterOpen(false)}><section role="dialog" aria-modal="true" aria-label="Trip date filter" className="w-full max-w-sm rounded-lg border border-slate-300 bg-white p-3 text-xs"><div className="mb-3 flex items-center justify-between"><strong>Trip Date Range</strong><button type="button" aria-label="Close date filter" onClick={()=>setDateFilterOpen(false)}>×</button></div><div className="grid grid-cols-2 gap-2"><label className="font-semibold text-slate-700">From<input type="date" aria-label="Trips from date" className="input mt-1 h-8 w-full" max={dateDraft.to||undefined} value={dateDraft.from} onChange={e=>setDateDraft(x=>({...x,from:e.target.value}))}/></label><label className="font-semibold text-slate-700">To<input type="date" aria-label="Trips to date" className="input mt-1 h-8 w-full" min={dateDraft.from||undefined} value={dateDraft.to} onChange={e=>setDateDraft(x=>({...x,to:e.target.value}))}/></label></div><div className="mt-3 flex justify-end gap-2"><button type="button" className="btn" onClick={()=>setDateDraft({from:"",to:""})}>Clear Dates</button><button type="button" className="btn-primary" disabled={Boolean(dateDraft.from&&dateDraft.to&&dateDraft.from>dateDraft.to)} onClick={()=>{setFromDate(dateDraft.from);setToDate(dateDraft.to);setPage(0);setDateFilterOpen(false);}}>Apply Dates</button></div></section></TransportDialog>}
+            {dateFilterOpen&&<TransportDialog onClose={()=>setDateFilterOpen(false)}><section role="dialog" aria-modal="true" aria-label="Trip date filter" className="w-full max-w-sm rounded-lg border border-slate-300 bg-white p-3 text-xs"><div className="mb-3 flex items-center justify-between"><strong>Trip Date Range</strong><button type="button" aria-label="Close date filter" onClick={()=>setDateFilterOpen(false)}>×</button></div><div className="grid grid-cols-2 gap-2"><label className="font-semibold text-slate-700">From<input type="date" aria-label="Trips from date" className="input mt-1 h-8 w-full" max={dateDraft.to||undefined} value={dateDraft.from} onChange={e=>setDateDraft(x=>({...x,from:e.target.value}))}/></label><label className="font-semibold text-slate-700">To<input type="date" aria-label="Trips to date" className="input mt-1 h-8 w-full" min={dateDraft.from||undefined} value={dateDraft.to} onChange={e=>setDateDraft(x=>({...x,to:e.target.value}))}/></label></div><div className="mt-3 flex justify-end gap-2"><button type="button" className="btn" onClick={()=>setDateDraft({from:"",to:""})}>Clear Dates</button><button type="button" className="btn-primary" disabled={Boolean(dateDraft.from&&dateDraft.to&&dateDraft.from>dateDraft.to)} onClick={()=>{setFromDate(dateDraft.from);setToDate(dateDraft.to);setPage(0);setDateFilterOpen(false);}}>Apply Dates</button></div></section></TransportDialog>}
 
       {deleteTripTarget&&<TransportDialog onClose={()=>{if(!deletingTrip)setDeleteTripTarget(null);}}><section role="dialog" aria-modal="true" aria-label="Delete Unposted Trip" className="w-full max-w-md rounded-lg border border-rose-200 p-3 text-sm"><header className="mb-2 flex items-center justify-between"><strong>Delete Unposted Trip · {deleteTripTarget.trip_no}</strong><button type="button" aria-label="Close Trip deletion" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>×</button></header><p className="mb-2 text-xs text-slate-600">This removes an unposted Draft or Incomplete Trip, including a finalized-only rate and its unposted rent / charges. Trips with financial entries or documents are blocked. Trip Audit history is retained; the Trip No will not be reused.</p><TransportReasonSelect className="mb-2" kind="trip_delete" label="Deletion reason" value={deleteTripReason} onChange={setDeleteTripReason} disabled={deletingTrip}/><label className="block text-xs font-semibold">Reason details<textarea aria-label="Trip deletion reason" maxLength={1000} disabled={deletingTrip} className="input mt-1 min-h-16 w-full" value={deleteTripReason} onChange={e=>setDeleteTripReason(e.target.value)}/></label>{deleteTripError&&<p role="alert" className="mt-2 text-xs text-rose-700">{deleteTripError}</p>}<footer className="mt-3 flex justify-end gap-2"><button type="button" className="btn" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>Keep Trip</button><button type="button" className="btn-danger" disabled={deletingTrip||!deleteTripReason.trim()} onClick={()=>void confirmTripDeletion()}>{deletingTrip?"Deleting…":"Delete Unposted Trip"}</button></footer></section></TransportDialog>}
       {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{registerLoadError&&gridRows.length>0&&!registerLoading&&<p role="alert" className="shrink-0 px-2 text-[11px] text-amber-800">Register refresh failed. Showing last successfully loaded results. <button type="button" className="font-semibold underline" onClick={()=>void load()}>Retry</button></p>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
@@ -1699,10 +1717,10 @@ export default function TransportWorkspace(){
           <thead className="sticky top-0 z-40 text-left uppercase tracking-normal shadow-[0_1px_2px_rgba(15,23,42,0.12)] bg-slate-900 text-[10.5px] text-white">
             <tr className={'h-11'}>
               {gridGroupSegments.map((segment,index)=><th data-financial-group={segment.group} key={segment.group+index} colSpan={segment.count}
-                className={`border-b border-r px-3 py-0 text-center font-black tracking-[0.025em] text-[13px] ${segment.group==="supplier"?("border-rose-300 bg-rose-100 text-rose-800"):segment.group==="customer"?("border-blue-300 bg-blue-100 text-blue-800"):segment.group==="ppr"?"border-emerald-300 bg-emerald-100 text-emerald-800":("border-slate-300 bg-slate-100 text-slate-800")}`}>
+                className={`border-b border-r px-3 py-0 text-center font-black tracking-[0.025em] text-[13px] ${segment.group==="supplier"?("border-rose-300 bg-rose-100 text-rose-800"):segment.group==="customer"?("border-blue-300 bg-blue-100 text-blue-800"):segment.group==="ppr"?"border-emerald-300 bg-emerald-100 text-emerald-800":segment.group==="vehicle"?"border-violet-300 bg-violet-100 text-violet-800":segment.group==="profit"?"border-amber-300 bg-amber-100 text-amber-800":("border-slate-300 bg-slate-100 text-slate-800")}`}>
                 <span className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
-                  <span aria-hidden="true" className="text-[17px] leading-none">{segment.group==="supplier"?"🚚":segment.group==="customer"?"👤":segment.group==="ppr"?"📄":"🚚"}</span>
-                  <span>{segment.group==="supplier"?"SUPPLIER · OUR COST":segment.group==="customer"?"CUSTOMER · OUR REVENUE":segment.group==="ppr"?"PPR":"TRIP DETAILS"}</span>
+                  <span aria-hidden="true" className="text-[17px] leading-none">{segment.group==="supplier"?"🚚":segment.group==="customer"?"👤":segment.group==="vehicle"?"🚚":segment.group==="profit"?"📈":segment.group==="ppr"?"📄":"🚚"}</span>
+                  <span>{segment.group==="supplier"?"SUPPLIER · OUR COST":segment.group==="customer"?"CUSTOMER · OUR REVENUE":segment.group==="vehicle"?"VEHICLE & DRIVER":segment.group==="profit"?"PROFIT":segment.group==="ppr"?"PPR":"TRIP DETAILS"}</span>
                 </span>
               </th>)}
             </tr>

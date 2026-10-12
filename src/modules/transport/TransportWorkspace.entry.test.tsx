@@ -392,6 +392,49 @@ describe('Transport compact register and centered controls',()=>{
    expect(table.className).not.toContain('min-w-full');expect(table.querySelectorAll('col').length).toBeGreaterThan(10);expect(table.style.width).toMatch(/px$/);
   }finally{localStorage.removeItem(key);}
  });
+ it('groups visible Trip Columns and puts vehicle owner and profit in matching sections',async()=>{
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText('No trips yet.');fireEvent.click(screen.getByRole('button',{name:'Columns'}));
+  const dialog=screen.getByRole('dialog',{name:'Trip columns'});
+  expect(dialog.querySelectorAll('[data-trip-column-group]')).toHaveLength(6);
+  expect(dialog.querySelector('[data-trip-column-key="owner"]')?.closest('[data-trip-column-group]')?.getAttribute('data-trip-column-group')).toBe('vehicle');
+  expect(dialog.querySelector('[data-trip-column-key="profit"]')?.closest('[data-trip-column-group]')?.getAttribute('data-trip-column-group')).toBe('profit');
+  expect(screen.getAllByText('VEHICLE & DRIVER').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('PROFIT').length).toBeGreaterThan(0);
+ });
+ it('reorders columns in both directions but blocks cross-group drops',async()=>{
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText('No trips yet.');fireEvent.click(screen.getByRole('button',{name:'Columns'}));
+  const dialog=screen.getByRole('dialog',{name:'Trip columns'}),trip=dialog.querySelector('[data-trip-column-group="trip"]')!;
+  const keys=()=>Array.from(trip.querySelectorAll('[data-trip-column-key]')).map(el=>el.getAttribute('data-trip-column-key'));
+  fireEvent.dragStart(trip.querySelector('[data-trip-column-key="trip_no"]')!);
+  fireEvent.dragOver(trip.querySelector('[data-trip-column-key="to"]')!);
+  fireEvent.drop(trip.querySelector('[data-trip-column-key="to"]')!);
+  expect(keys().at(-1)).toBe('trip_no');
+  fireEvent.dragStart(trip.querySelector('[data-trip-column-key="trip_no"]')!);
+  fireEvent.drop(trip.querySelector('[data-trip-column-key="trip_date"]')!);
+  expect(keys().indexOf('trip_no')).toBeGreaterThan(keys().indexOf('trip_date'));
+  const order=keys();
+  fireEvent.dragStart(trip.querySelector('[data-trip-column-key="trip_no"]')!);
+  fireEvent.drop(dialog.querySelector('[data-trip-column-key="company"]')!);
+  expect(keys()).toEqual(order);
+ });
+ it('marks partly hidden groups and clears legacy layouts when resetting',async()=>{
+  const legacy='navilo:transport:trip-grid:user:c:b',current='navilo:transport:trip-grid:v2:user:c:b';
+  localStorage.setItem(legacy,JSON.stringify({order:['trip_no','company'],hidden:['company','owner']}));
+  try{
+   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+   await screen.findByText('No trips yet.');fireEvent.click(screen.getByRole('button',{name:'Columns'}));
+   const dialog=screen.getByRole('dialog',{name:'Trip columns'});
+   const checkbox=dialog.querySelector('[data-trip-column-group="customer"] input[type="checkbox"]') as HTMLInputElement;
+   await waitFor(()=>expect(checkbox.indeterminate).toBe(true));
+   fireEvent.click(screen.getByRole('button',{name:'Reset Default'}));
+   expect(localStorage.getItem(legacy)).toBeNull();expect(localStorage.getItem(current)).toBeNull();
+   expect(checkbox.indeterminate).toBe(false);expect(checkbox.checked).toBe(true);
+   fireEvent.click(screen.getByRole('button',{name:'Save as Default'}));
+   expect(JSON.parse(localStorage.getItem(current)??'{}').hidden).toEqual([]);
+  }finally{localStorage.removeItem(legacy);localStorage.removeItem(current);}
+ });
  it('opens header filters and column settings outside the scrollport and closes them',async()=>{
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
   await screen.findByText('No trips yet.');fireEvent.click(screen.getByRole('button',{name:'Filter Trip No'}));
