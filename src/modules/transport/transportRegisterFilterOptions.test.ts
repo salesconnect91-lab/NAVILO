@@ -2,7 +2,7 @@ import {PGlite} from '@electric-sql/pglite';
 import {readFileSync} from 'node:fs';
 import {expect,it} from 'vitest';
 it('lists over 1200 options without the 200-value cutoff, with search',async()=>{
- const migration=readFileSync('supabase/migrations/20261012054718_transport_register_complete_filter_options.sql','utf8');
+ const migration=readFileSync('supabase/migrations/20261012060515_transport_register_complete_filter_options.sql','utf8');
  const start=migration.indexOf(' options as (select');
  const end=migration.indexOf('),\n statuses as (',start);
  expect(start).toBeGreaterThan(0);expect(end).toBeGreaterThan(start);
