@@ -1231,6 +1231,10 @@ export default function TransportWorkspace(){
   const pprGridKeys=["paper_received_by"] as const;
   const profitGridKeys=["profit"] as const;
   const isInGridGroup=(keys:readonly string[],key:string)=>keys.includes(key);
+  // Used for register financial cell styling as well as the column grouping.
+  const isSupplierGridKey=(key:string)=>isInGridGroup(supplierGridKeys,key);
+  const isCustomerGridKey=(key:string)=>isInGridGroup(customerGridKeys,key);
+  const isPprGridKey=(key:string)=>isInGridGroup(pprGridKeys,key);
   const visualGridGroup=(key:string)=>
     isInGridGroup(vehicleDriverGridKeys,key)?"vehicle":
     isInGridGroup(customerGridKeys,key)?"customer":

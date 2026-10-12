@@ -410,7 +410,7 @@ describe('Transport compact register and centered controls',()=>{
   fireEvent.dragStart(trip.querySelector('[data-trip-column-key="trip_no"]')!);
   fireEvent.dragOver(trip.querySelector('[data-trip-column-key="to"]')!);
   fireEvent.drop(trip.querySelector('[data-trip-column-key="to"]')!);
-  expect(keys().at(-1)).toBe('trip_no');
+  expect(keys()[keys().length-1]).toBe('trip_no');
   fireEvent.dragStart(trip.querySelector('[data-trip-column-key="trip_no"]')!);
   fireEvent.drop(trip.querySelector('[data-trip-column-key="trip_date"]')!);
   expect(keys().indexOf('trip_no')).toBeGreaterThan(keys().indexOf('trip_date'));
