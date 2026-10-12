@@ -91,6 +91,11 @@ begin
  or (select count(*) from public.transport_drivers where company_id=c and driver_type='supplier' and supplier_id is not null and employee_id is null)<>1
  or (select ownership_type from public.transport_vehicles where company_id=c and vehicle_no='2490') is not null
  then raise exception 'FAIL archived cost or fabricated financial/employment/history evidence';end if;
+ update public.business_unit_memberships set permissions=jsonb_build_object('transport_actions',jsonb_build_object('supplier_finance_view',false)) where company_id=c and business_unit_id=b and user_id=u;
+ execute 'set local role authenticated';
+ if exists(select 1 from public.transport_historical_operational_mapping) or exists(select 1 from public.transport_historical_trip_identity)
+ then raise exception 'FAIL denied financial evidence permission';end if;
+ execute 'reset role';
  perform set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);
  execute 'set local role authenticated';
  if exists(select 1 from public.transport_historical_operational_mapping) then raise exception 'FAIL cross-company evidence access';end if;
