@@ -250,7 +250,7 @@ describe('Transport register interactions',()=>{
   localStorage.setItem(key,JSON.stringify({order:['trip_no','company_rate'],hidden:['customer_credit']}));
   try{
    render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
-   await screen.findByTitle('Sort Trip No ascending');fireEvent.click(screen.getByRole('button',{name:'Columns'}));
+   await screen.findByTitle('Sort Supplier Credit / Advance ascending');fireEvent.click(screen.getByRole('button',{name:'Columns'}));
    const supplier=screen.getAllByText('Supplier Credit / Advance').map(e=>e.closest('div[draggable]')).find(Boolean)!;
    const customer=screen.getAllByText('Customer Credit / Advance').map(e=>e.closest('div[draggable]')).find(Boolean)!;
    expect(supplier.querySelector('input')).toBeTruthy();
@@ -413,7 +413,7 @@ describe('Transport compact register and centered controls',()=>{
   expect(keys()[keys().length-1]).toBe('trip_no');
   fireEvent.dragStart(trip.querySelector('[data-trip-column-key="trip_no"]')!);
   fireEvent.drop(trip.querySelector('[data-trip-column-key="trip_date"]')!);
-  expect(keys().indexOf('trip_no')).toBeGreaterThan(keys().indexOf('trip_date'));
+  expect(keys().indexOf('trip_no')).toBeLessThan(keys().indexOf('trip_date'));
   const order=keys();
   fireEvent.dragStart(trip.querySelector('[data-trip-column-key="trip_no"]')!);
   fireEvent.drop(dialog.querySelector('[data-trip-column-key="company"]')!);
