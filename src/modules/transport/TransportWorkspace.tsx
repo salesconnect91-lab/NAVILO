@@ -914,9 +914,28 @@ export default function TransportWorkspace(){
   };
 
   async function openQuickPpr(row:Trip){
-    setError("");setLoading(true);
-    try{await loadTripMasters();setQuickPprEmployee("");setQuickPprDate(new Date().toISOString().slice(0,10));setQuickPprFile(null);setQuickPprTrip(row);}
-    catch(e:any){setError(e?.message||"Unable to load PPR employees.");}finally{setLoading(false);}
+    setError("");
+    setQuickPprEmployee("");
+    setQuickPprDate(new Date().toISOString().slice(0,10));
+    setQuickPprFile(null);
+    // Employees are already available from the workspace master snapshot in normal use.
+    // Never re-fetch all ten master datasets just to open the PPR popup.
+    if(tripMasters.employees.length){
+      setQuickPprTrip(row);
+      return;
+    }
+    if(!activeCompany?.company_id){setError("Select a company before receiving PPR.");return;}
+    const startedScope=scopeKey;
+    setLoading(true);
+    try{
+      const employees=await fetchAllPages<any>((start,end)=>supabase.from('employees')
+        .select('id,name,is_active').eq('company_id',activeCompany.company_id)
+        .order('id').range(start,end));
+      if(scopeRef.current!==startedScope)return;
+      setTripMasters(current=>({...current,employees:employees.filter(employee=>employee.is_active)}));
+      setQuickPprTrip(row);
+    }catch(e:any){setError(e?.message||"Unable to load PPR employees.");}
+    finally{setLoading(false);}
   }
   async function saveQuickPpr(){
     if(!quickPprTrip||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
@@ -934,7 +953,13 @@ export default function TransportWorkspace(){
       if(uploadedPath)changes.ppr_attachment_path=uploadedPath;
       const {data,error}=await supabase.rpc('transport_update_operational_trip',{p_trip_id:quickPprTrip.id,p_changes:changes});
       if(error||!data){if(uploadedPath)await supabase.storage.from('transport-ppr').remove([uploadedPath]);throw error||new Error('PPR is no longer pending.');}
-      setQuickPprTrip(null);setQuickPprEmployee("");setQuickPprFile(null);await load();
+      setQuickPprTrip(null);setQuickPprEmployee("");setQuickPprFile(null);
+      // The successful RPC is authoritative; refresh the grid asynchronously so the
+      // PPR dialog does not wait for an expensive full-register aggregate.
+      for(const key of registerPageCache.keys()){
+        if(key.startsWith(`${user?.id??'anonymous'}:${scopeKey}:`))registerPageCache.delete(key);
+      }
+      void load(true);
     }catch(e:any){if(uploadedPath)await supabase.storage.from('transport-ppr').remove([uploadedPath]);setError(e?.message||"Unable to receive PPR.");}finally{setLoading(false);}
   }
 
