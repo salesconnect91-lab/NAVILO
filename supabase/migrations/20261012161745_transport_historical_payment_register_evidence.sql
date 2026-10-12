@@ -90,7 +90,6 @@ CREATE OR REPLACE VIEW public.transport_financial_register AS
     t.rent_finalized_by,
     t.owner_supplier_id,
     t.ownership_id,
-    t.sale_type,
     t.trip_status,
     t.customer_rate_status,
     t.supplier_rent,
@@ -147,7 +146,8 @@ CREATE OR REPLACE VIEW public.transport_financial_register AS
     hm.supplier_invoice_ref AS historical_supplier_invoice_ref,
     hm.company_owned AS historical_company_owned,
     hm.company_cost_net AS historical_company_cost_net,
-    hm.paper_status AS historical_paper_status
+    hm.paper_status AS historical_paper_status,
+    t.sale_type
    FROM transport_trips t
      JOIN transport_trip_financial_summary f ON f.id = t.id
      LEFT JOIN customers c ON c.id = t.customer_id
