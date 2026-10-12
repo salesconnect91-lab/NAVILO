@@ -309,6 +309,8 @@ export default function TransportWorkspace(){
   const [bulkSupplierRentTrip,setBulkSupplierRentTrip]=useState<Trip|null>(null);
   const [quickPprTrip,setQuickPprTrip]=useState<Trip|null>(null);
   const [quickPprEmployee,setQuickPprEmployee]=useState("");
+  const [quickPprReceiverType,setQuickPprReceiverType]=useState<"employee"|"driver"|"supplier"|"other">("other");
+  const [quickPprReceiverName,setQuickPprReceiverName]=useState("");
   const [quickPprDate,setQuickPprDate]=useState(new Date().toISOString().slice(0,10));
   const [quickPprFile,setQuickPprFile]=useState<File|null>(null);
   const [initialRateTrip,setInitialRateTrip]=useState<Trip|null>(null);
@@ -914,32 +916,12 @@ export default function TransportWorkspace(){
   };
 
   async function openQuickPpr(row:Trip){
-    setError("");
-    setQuickPprEmployee("");
-    setQuickPprDate(new Date().toISOString().slice(0,10));
-    setQuickPprFile(null);
-    // Employees are already available from the workspace master snapshot in normal use.
-    // Never re-fetch all ten master datasets just to open the PPR popup.
-    if(tripMasters.employees.length){
-      setQuickPprTrip(row);
-      return;
-    }
-    if(!activeCompany?.company_id){setError("Select a company before receiving PPR.");return;}
-    const startedScope=scopeKey;
-    setLoading(true);
-    try{
-      const employees=await fetchAllPages<any>((start,end)=>supabase.from('employees')
-        .select('id,name,is_active').eq('company_id',activeCompany.company_id)
-        .order('id').range(start,end));
-      if(scopeRef.current!==startedScope)return;
-      setTripMasters(current=>({...current,employees:employees.filter(employee=>employee.is_active)}));
-      setQuickPprTrip(row);
-    }catch(e:any){setError(e?.message||"Unable to load PPR employees.");}
-    finally{setLoading(false);}
+    setError("");setQuickPprEmployee("");setQuickPprReceiverType("other");setQuickPprReceiverName("");
+    setQuickPprDate(new Date().toISOString().slice(0,10));setQuickPprFile(null);setQuickPprTrip(row);
   }
   async function saveQuickPpr(){
     if(!quickPprTrip||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
-    if(!quickPprEmployee||!quickPprDate){setError("Select Received By employee and PPR date.");return;}
+    if(!quickPprReceiverName.trim()||!quickPprDate){setError("Select or enter receiver name and PPR date.");return;}
     if(quickPprFile&&(quickPprFile.size>10*1024*1024||!['application/pdf','image/jpeg','image/png','image/webp'].includes(quickPprFile.type))){setError('Choose a PDF, JPEG, PNG or WebP up to 10 MB.');return;}
     setLoading(true);setError("");
     let uploadedPath="";
@@ -949,9 +931,11 @@ export default function TransportWorkspace(){
         uploadedPath=`${activeCompany.company_id}/${activeBusinessUnit.business_unit_id}/${branch}/${quickPprTrip.id}/${crypto.randomUUID()}.${quickPprFile.type==='application/pdf'?'pdf':quickPprFile.type.split('/')[1]}`;
         const {error:uploadError}=await supabase.storage.from('transport-ppr').upload(uploadedPath,quickPprFile,{upsert:false});if(uploadError)throw uploadError;
       }
-      const changes:any={ppr_status:'received',ppr_received_by_employee_id:quickPprEmployee,ppr_received_date:quickPprDate};
-      if(uploadedPath)changes.ppr_attachment_path=uploadedPath;
-      const {data,error}=await supabase.rpc('transport_update_operational_trip',{p_trip_id:quickPprTrip.id,p_changes:changes});
+      const {data,error}=await supabase.rpc('transport_receive_ppr_flexible',{
+        p_trip_id:quickPprTrip.id,p_receiver_type:quickPprReceiverType,
+        p_receiver_name:quickPprReceiverName.trim(),p_date:quickPprDate,
+        p_attachment:uploadedPath||null,p_employee_id:quickPprReceiverType==='employee'&&quickPprEmployee?quickPprEmployee:null
+      });
       if(error||!data){if(uploadedPath)await supabase.storage.from('transport-ppr').remove([uploadedPath]);throw error||new Error('PPR is no longer pending.');}
       setQuickPprTrip(null);setQuickPprEmployee("");setQuickPprFile(null);
       // The successful RPC is authoritative; refresh the grid asynchronously so the
@@ -2585,22 +2569,34 @@ export default function TransportWorkspace(){
           <button type="button" onClick={()=>setQuickPprTrip(null)} className="rounded border px-2 py-1 text-xs">Close</button>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <label className="text-xs font-semibold">Received By
-            <NaviloSearchableSelect nativeCompatibility preserveLabel value={quickPprEmployee} onChange={e=>setQuickPprEmployee(e.target.value)} className="mt-1 h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs">
-              <option value="">Select employee</option>
-              {tripMasters.employees.map((employee:any)=><option key={employee.id} value={employee.id}>{employee.name}</option>)}
+          <label className="text-xs font-semibold">Receiver Type
+            <NaviloSearchableSelect nativeCompatibility preserveLabel value={quickPprReceiverType} onChange={e=>{setQuickPprReceiverType(e.target.value as typeof quickPprReceiverType);setQuickPprReceiverName("");setQuickPprEmployee("");}} className="mt-1 h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs">
+              <option value="other">Other / Any Person</option><option value="employee">Employee</option><option value="driver">Driver</option><option value="supplier">Supplier</option>
             </NaviloSearchableSelect>
           </label>
           <label className="text-xs font-semibold">PPR Date
             <NaviloDateInput aria-label="PPR Received Date" type="date" value={quickPprDate} onChange={e=>setQuickPprDate(e.target.value)} className="mt-1 h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs"/>
           </label>
         </div>
+        <label className="mt-3 block text-xs font-semibold">Received By Name
+          {quickPprReceiverType==="other"
+            ?<input aria-label="PPR Receiver Name" value={quickPprReceiverName} onChange={e=>setQuickPprReceiverName(e.target.value)} maxLength={150} placeholder="Enter receiver name" className="mt-1 h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs"/>
+            :<NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="PPR Receiver Name" value={quickPprReceiverType==="employee"?quickPprEmployee:quickPprReceiverName} onChange={e=>{
+              if(quickPprReceiverType==="employee"){
+                setQuickPprEmployee(e.target.value);
+                setQuickPprReceiverName(tripMasters.employees.find(v=>v.id===e.target.value)?.name??"");
+              }else setQuickPprReceiverName(e.target.value);
+            }} className="mt-1 h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs">
+              <option value="">Select receiver</option>
+              {(quickPprReceiverType==="employee"?tripMasters.employees:quickPprReceiverType==="driver"?tripMasters.drivers:tripMasters.suppliers).map((option:any)=><option key={option.id} value={quickPprReceiverType==="employee"?option.id:quickPprReceiverType==="driver"?option.driver_name:option.name}>{quickPprReceiverType==="driver"?option.driver_name:option.name}</option>)}
+            </NaviloSearchableSelect>}
+        </label>
         <label className="mt-3 block text-xs font-semibold">PPR Photo / Attachment (optional)
           <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={loading} onChange={e=>setQuickPprFile(e.target.files?.[0]??null)} className="mt-1 block w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs"/>
           <span className="mt-1 block text-[10px] font-normal text-slate-500">Choose photo or PDF · max 10 MB</span>
         </label>
         {error&&<div role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] font-semibold text-red-700">{error}</div>}
-        {!quickPprEmployee&&<div className="mt-2 text-[10px] font-medium text-amber-700">Select Received By employee, then click Mark Received.</div>}
+        {!quickPprReceiverName.trim()&&<div className="mt-2 text-[10px] font-medium text-amber-700">Enter or select the receiver name, then click Mark Received.</div>}
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={()=>setQuickPprTrip(null)} className="rounded border px-3 py-2 text-xs font-semibold">Cancel</button>
           <button type="button" disabled={loading} onClick={()=>void saveQuickPpr()} className="rounded bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60">Mark Received</button>
