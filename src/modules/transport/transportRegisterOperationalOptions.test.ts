@@ -19,7 +19,7 @@ it('fetches complete scoped cascaded operational options without the financial v
   await db.exec(`insert into public.transport_historical_trip_identity(trip_id,company_id,business_unit_id,operating_location_id,driver_name_snapshot,vehicle_no_snapshot) select md5(i::text)::uuid,'${c}'::uuid,'${b}'::uuid,'${loc}'::uuid,'Driver '||lpad((i%1205)::text,4,'0'),case when i%2=0 then '5731' else '9988' end from generate_series(1,12000) i;`);
   await db.exec(`insert into public.transport_trips(id,company_id,business_unit_id,operating_location_id,customer_name_snapshot,trip_no,trip_date,truck_type,from_location,to_location,ppr_status) values ('ffffffff-ffff-ffff-ffff-ffffffffffff','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','${b}','${loc}','OUT OF SCOPE','OIC-SECRET','2026-10-01','Flatbed','Dammam','Jeddah','pending');`);
   await db.exec('create unique index hi_trip_lookup_test on public.transport_historical_trip_identity(trip_id);create index trips_scope_test on public.transport_trips(company_id,business_unit_id,operating_location_id);analyze public.transport_trips; analyze public.transport_historical_trip_identity;');
-  const migration=readFileSync('supabase/migrations/20261012073000_transport_register_operational_filter_fast_path.sql','utf8');
+  const migration=readFileSync('supabase/migrations/20261012073522_transport_register_operational_filter_fast_path.sql','utf8');
   const original=readFileSync('supabase/migrations/20261012060515_transport_register_complete_filter_options.sql','utf8');
   const startText='CREATE OR REPLACE FUNCTION public.transport_register_query(';
   await db.exec('set check_function_bodies=off');
