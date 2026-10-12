@@ -19,18 +19,21 @@ create table if not exists public.transport_register_layout_preferences (
 
 alter table public.transport_register_layout_preferences enable row level security;
 
+drop policy if exists transport_register_layout_select on public.transport_register_layout_preferences;
 create policy transport_register_layout_select on public.transport_register_layout_preferences
   for select to authenticated
   using (user_id=(select auth.uid())
     and company_id=(select public.current_company_id())
     and business_unit_id=(select public.current_business_unit_id()));
 
+drop policy if exists transport_register_layout_insert on public.transport_register_layout_preferences;
 create policy transport_register_layout_insert on public.transport_register_layout_preferences
   for insert to authenticated
   with check (user_id=(select auth.uid())
     and company_id=(select public.current_company_id())
     and business_unit_id=(select public.current_business_unit_id()));
 
+drop policy if exists transport_register_layout_update on public.transport_register_layout_preferences;
 create policy transport_register_layout_update on public.transport_register_layout_preferences
   for update to authenticated
   using (user_id=(select auth.uid())
