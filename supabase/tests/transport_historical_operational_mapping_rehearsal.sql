@@ -55,7 +55,11 @@ begin
  if answer<>jsonb_build_object('mapped',3,'skipped',0) then raise exception 'FAIL mapping result %',answer;end if;
  answer:=public.transport_complete_historical_operational_mapping(payload);
  if answer<>jsonb_build_object('mapped',0,'skipped',3) then raise exception 'FAIL idempotency';end if;
+ perform set_config('plan_cache_mode','force_generic_plan',true);
  register:=public.transport_register_query(p_filters=>jsonb_build_object('search','INV-ORIGINAL'));
+ if current_setting('plan_cache_mode')<>'force_generic_plan' or not exists(select 1 from pg_proc where oid='public.transport_register_query(integer,integer,jsonb,text,text,text,text)'::regprocedure and 'plan_cache_mode=force_custom_plan'=any(proconfig))
+ then raise exception 'FAIL Register scoped read plan or caller setting leak';end if;
+ perform set_config('plan_cache_mode','auto',true);
  if (register->>'count')::integer<>1 or register->'rows'->0->>'invoice_no'<>'INV-ORIGINAL'
  or (register->'rows'->0->>'invoiced')::boolean or (register->'rows'->0->>'supplier_rent')::numeric<>125
  or register->'rows'->0->>'driver_name'<>'Company Driver' or register->'rows'->0->>'vehicle_no'<>'2490'
