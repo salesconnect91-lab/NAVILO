@@ -1070,13 +1070,13 @@ CREATE OR REPLACE VIEW public.transport_financial_register AS
     t.rent_finalized_by,
     t.owner_supplier_id,
     t.ownership_id,
-    t.sale_type,
     t.trip_status,
     t.customer_rate_status,
     t.supplier_rent,
     t.supplier_rent_status,
     t.ppr_received_by,
     t.updated_by,
+    t.sale_type,
     COALESCE(c.name, t.customer_name_snapshot) AS customer_name,
         CASE
             WHEN NOT hm.vehicle_master_id IS DISTINCT FROM t.vehicle_id THEN COALESCE(hi.vehicle_no_snapshot, v.vehicle_no)
