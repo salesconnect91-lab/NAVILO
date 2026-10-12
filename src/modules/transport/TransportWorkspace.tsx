@@ -37,6 +37,10 @@ import {registerOptionFilters} from './transportRegisterOptionFilters';
 import {normalizeTransportRegisterGridLayout,type TransportRegisterGridLayout} from './transportRegisterGridLayout';
 
 const REGISTER_PAGE_SIZE=100; // Keep the interactive Register comfortably within Supabase's 8s read budget.
+type RegisterViewState={fromDate:string;toDate:string;customerFilter:string;driverFilter:string;vehicleFilter:string;fromFilter:string;toFilter:string;pprFilter:string;statusFilters:string[];columnFilters:Record<string,string[]>;sortColumn:string;sortDirection:"asc"|"desc";registerSearch:string;registerSearchMode:"contains"|"starts_with";page:number};
+function readRegisterViewState(key:string):Partial<RegisterViewState>{
+  try{return JSON.parse(sessionStorage.getItem(key)??"{}") as Partial<RegisterViewState>;}catch{return {};}
+}
 // Test fixtures represent independent sessions; do not reuse module-level cache across them.
 const enableRegisterCache=import.meta.env.MODE!=="test";
 const registerPageCache=new Map<string,{rows:Trip[];meta:any;at:number}>();
@@ -204,23 +208,25 @@ export default function TransportWorkspace(){
   const reportPanel=requestedPanel&&panelFeature[requestedPanel]&&canViewFeature(panelFeature[requestedPanel])?requestedPanel:null;
   const showPartyReports=Boolean(reportPanel);
 
-  const [fromDate,setFromDate]=useState("");
-  const [toDate,setToDate]=useState("");
+  const registerViewStorageKey=`navilo:transport:view:${user?.id??"anonymous"}:${scopeKey}`;
+  const savedRegisterView=useMemo(()=>readRegisterViewState(registerViewStorageKey),[registerViewStorageKey]);
+  const [fromDate,setFromDate]=useState(()=>savedRegisterView.fromDate??"");
+  const [toDate,setToDate]=useState(()=>savedRegisterView.toDate??"");
   const [dateFilterOpen,setDateFilterOpen]=useState(false);
   const [dateDraft,setDateDraft]=useState({from:"",to:""});
-  const [customerFilter,setCustomerFilter]=useState("");
-  const [driverFilter,setDriverFilter]=useState("");
-  const [vehicleFilter,setVehicleFilter]=useState("");
-  const [fromFilter,setFromFilter]=useState("");
-  const [toFilter,setToFilter]=useState("");
-  const [pprFilter,setPprFilter]=useState("");
-  const [statusFilters,setStatusFilters]=useState<string[]>([]);
+  const [customerFilter,setCustomerFilter]=useState(()=>savedRegisterView.customerFilter??"");
+  const [driverFilter,setDriverFilter]=useState(()=>savedRegisterView.driverFilter??"");
+  const [vehicleFilter,setVehicleFilter]=useState(()=>savedRegisterView.vehicleFilter??"");
+  const [fromFilter,setFromFilter]=useState(()=>savedRegisterView.fromFilter??"");
+  const [toFilter,setToFilter]=useState(()=>savedRegisterView.toFilter??"");
+  const [pprFilter,setPprFilter]=useState(()=>savedRegisterView.pprFilter??"");
+  const [statusFilters,setStatusFilters]=useState<string[]>(()=>savedRegisterView.statusFilters??[]);
   const [statusSearch,setStatusSearch]=useState("");
   const [statusOpen,setStatusOpen]=useState(false);
 
-  const [columnFilters,setColumnFilters]=useState<Record<string,string[]>>({});
-  const [sortColumn,setSortColumn]=useState<string>("");
-  const [sortDirection,setSortDirection]=useState<"asc"|"desc">("asc");
+  const [columnFilters,setColumnFilters]=useState<Record<string,string[]>>(()=>savedRegisterView.columnFilters??{});
+  const [sortColumn,setSortColumn]=useState<string>(()=>savedRegisterView.sortColumn??"");
+  const [sortDirection,setSortDirection]=useState<"asc"|"desc">(()=>savedRegisterView.sortDirection??"asc");
   const [openColumnFilter,setOpenColumnFilter]=useState<string|null>(null);
 
   const requestedImport=params.get("import");
@@ -240,11 +246,11 @@ export default function TransportWorkspace(){
   const importScope=`${user?.id??'session'}/${scopeKey}`;
   const importScopeRef=useRef(importScope);importScopeRef.current=importScope;
   useEffect(()=>{importStop.current=true;setImportJob(null);void storedImport(importScope).then(job=>{if(importScopeRef.current===importScope)setImportJob(job)}).catch(()=>{});return()=>{importStop.current=true}},[importScope]);
-  const [page,setPage]=useState(0);
-  const [registerSearch,setRegisterSearch]=useState('');
-  const [registerSearchDraft,setRegisterSearchDraft]=useState('');
-  const [registerSearchMode,setRegisterSearchMode]=useState<'contains'|'starts_with'>('contains');
-  const [registerSearchModeDraft,setRegisterSearchModeDraft]=useState<'contains'|'starts_with'>('contains');
+  const [page,setPage]=useState(()=>savedRegisterView.page??0);
+  const [registerSearch,setRegisterSearch]=useState(()=>savedRegisterView.registerSearch??'');
+  const [registerSearchDraft,setRegisterSearchDraft]=useState(()=>savedRegisterView.registerSearch??'');
+  const [registerSearchMode,setRegisterSearchMode]=useState<'contains'|'starts_with'>(()=>savedRegisterView.registerSearchMode??'contains');
+  const [registerSearchModeDraft,setRegisterSearchModeDraft]=useState<'contains'|'starts_with'>(()=>savedRegisterView.registerSearchMode??'contains');
   const [registerMeta,setRegisterMeta]=useState<any>({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
   const readGeneration=useRef(0);
   const registerRequest=useRef<AbortController|null>(null);
@@ -543,7 +549,11 @@ export default function TransportWorkspace(){
     }
     finally{if(registerRequest.current===controller)registerRequest.current=null;if(generation===readGeneration.current)setRegisterLoading(false);}
   }
-  const previousRegisterKey=useRef(registerKey);
+  useEffect(()=>{
+    const state:RegisterViewState={fromDate,toDate,customerFilter,driverFilter,vehicleFilter,fromFilter,toFilter,pprFilter,statusFilters,columnFilters,sortColumn,sortDirection,registerSearch,registerSearchMode,page};
+    try{sessionStorage.setItem(registerViewStorageKey,JSON.stringify(state));}catch{/* Private browsing or storage disabled */}
+  },[registerViewStorageKey,fromDate,toDate,customerFilter,driverFilter,vehicleFilter,fromFilter,toFilter,pprFilter,statusFilters,columnFilters,sortColumn,sortDirection,registerSearch,registerSearchMode,page]);
+    const previousRegisterKey=useRef(registerKey);
   const previousRegisterPage=useRef(page);
   useEffect(()=>{
     const pageChanged=previousRegisterPage.current!==page;previousRegisterPage.current=page;
@@ -1578,6 +1588,7 @@ export default function TransportWorkspace(){
   };
 
   const resetGrid=()=>{
+    try{sessionStorage.removeItem(registerViewStorageKey);}catch{/* Storage disabled */}
     resetFilters();
     setColumnFilters({});
     setSortColumn("");
