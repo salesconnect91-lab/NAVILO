@@ -34,6 +34,7 @@ import TransportQuickAdd from './TransportQuickAdd';
 import {loadTransportMobilePartyOptions} from './transportMobilePartyLookup';
 import {compatibleVehicles,ownershipOnDate,matchingCustomerRate,estimatedMargin,masterKey,validMoney,type QuickAddKind,type OwnershipPeriod} from './transportTripEntry';
 import {registerOptionFilters} from './transportRegisterOptionFilters';
+import {normalizeTransportRegisterGridLayout,type TransportRegisterGridLayout} from './transportRegisterGridLayout';
 
 const REGISTER_PAGE_SIZE=100; // Keep the interactive Register comfortably within Supabase's 8s read budget.
 type MobileVoiceDraft={id:string;created_at:string;transcript:string;patch:Record<string,string>};
@@ -1333,20 +1334,69 @@ export default function TransportWorkspace(){
   },[registerKey,tab,showPartyReports,JSON.stringify(orderedGridColumns)]);
   useEffect(()=>()=>{exportRequest.current?.abort()},[scopeKey]);
 
+  const [tripLayoutLoading,setTripLayoutLoading]=useState(false);
+  const [tripLayoutSaving,setTripLayoutSaving]=useState(false);
+  const [tripLayoutError,setTripLayoutError]=useState('');
+  const [tripLayoutNotice,setTripLayoutNotice]=useState('');
+  const tripLayoutScopeRef=useRef(tripGridStorageKey);
+  tripLayoutScopeRef.current=tripGridStorageKey;
+
+  // Cloud defaults win when present. On a first login with no cloud profile,
+  // automatically migrate a previously saved browser layout once.
   useEffect(()=>{
+    let active=true;
+    const key=tripGridStorageKey;
+    const available=gridColumns.map(column=>column[0]);
+    let localProfile:TransportRegisterGridLayout|null=null;
+    setTripLayoutError('');
+    setTripLayoutNotice('');
     try{
-      const saved=localStorage.getItem(tripGridStorageKey)??localStorage.getItem(legacyTripGridStorageKey);
-      if(!saved){setTripColumnOrder([...defaultTripColumnOrder]);setHiddenTripColumns([]);setTripColumnWidths({});return;}
-      const parsed=JSON.parse(saved);
-      setTripColumnOrder(Array.isArray(parsed.order)?parsed.order:[]);
-      setHiddenTripColumns(Array.isArray(parsed.hidden)?parsed.hidden:[]);
-      setTripColumnWidths(parsed.widths&&typeof parsed.widths==="object"?parsed.widths:{});
-    }catch{
-      setTripColumnOrder([...defaultTripColumnOrder]);
-      setHiddenTripColumns([]);
-      setTripColumnWidths({});
+      const saved=localStorage.getItem(key)??localStorage.getItem(legacyTripGridStorageKey);
+      if(saved)localProfile=normalizeTransportRegisterGridLayout(JSON.parse(saved),available);
+    }catch{localProfile=null;}
+    const apply=(profile:TransportRegisterGridLayout)=>{
+      setTripColumnOrder(profile.order);
+      setHiddenTripColumns(profile.hidden);
+      setTripColumnWidths(profile.widths);
+    };
+    apply(localProfile??normalizeTransportRegisterGridLayout(null,available));
+    if(!user?.id||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){
+      setTripLayoutLoading(false);
+      return ()=>{active=false;};
     }
-  },[tripGridStorageKey]);
+    const actor=user.id,company=activeCompany.company_id,unit=activeBusinessUnit.business_unit_id;
+    setTripLayoutLoading(true);
+    void (async()=>{
+      try{
+        const {data,error}=await supabase.from('transport_register_layout_preferences')
+          .select('layout').eq('user_id',actor).eq('company_id',company)
+          .eq('business_unit_id',unit).maybeSingle();
+        if(!active||tripLayoutScopeRef.current!==key)return;
+        if(error)throw error;
+        if(data?.layout){
+          const profile=normalizeTransportRegisterGridLayout(data.layout,available);
+          apply(profile);
+          localStorage.setItem(key,JSON.stringify(profile));
+        }else if(localProfile){
+          // No cloud profile exists yet: carry forward this device's saved default.
+          const {error:saveError}=await supabase.from('transport_register_layout_preferences')
+            .upsert({user_id:actor,company_id:company,business_unit_id:unit,layout:localProfile,updated_at:new Date().toISOString()},
+              {onConflict:'user_id,company_id,business_unit_id'});
+          if(saveError)throw saveError;
+          if(active&&tripLayoutScopeRef.current===key){
+            localStorage.setItem(key,JSON.stringify(localProfile));
+            setTripLayoutNotice('Your existing column layout is now synced to your login.');
+          }
+        }
+      }catch(error:any){
+        if(active&&tripLayoutScopeRef.current===key)
+          setTripLayoutError('Column settings could not sync. Current browser layout is still available. '+String(error?.message??''));
+      }finally{
+        if(active&&tripLayoutScopeRef.current===key)setTripLayoutLoading(false);
+      }
+    })();
+    return ()=>{active=false;};
+  },[tripGridStorageKey,user?.id,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
 
   const setGridGroupVisible=(keys:readonly string[],show:boolean)=>{
     const allowedKeys=keys.filter(columnAuthorized);
@@ -1355,22 +1405,54 @@ export default function TransportWorkspace(){
       :Array.from(new Set([...current,...allowedKeys])));
   };
 
+  const persistTripGridLayout=async (profile:TransportRegisterGridLayout,close:boolean,saveLocal:boolean)=>{
+    if(tripLayoutLoading||tripLayoutSaving)return;
+    const key=tripGridStorageKey;
+    const safe=normalizeTransportRegisterGridLayout(profile,gridColumns.map(column=>column[0]));
+    setTripLayoutError('');
+    setTripLayoutNotice('');
+    try{
+      if(saveLocal)localStorage.setItem(key,JSON.stringify(safe));
+      if(!user?.id||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){
+        setTripLayoutNotice('Saved in this browser only. Sign in to sync to other devices.');
+        if(close)setShowTripColumnSetup(false);
+        return;
+      }
+      setTripLayoutSaving(true);
+      const {error}=await supabase.from('transport_register_layout_preferences')
+        .upsert({
+          user_id:user.id,company_id:activeCompany.company_id,
+          business_unit_id:activeBusinessUnit.business_unit_id,
+          layout:safe,updated_at:new Date().toISOString()
+        },{onConflict:'user_id,company_id,business_unit_id'});
+      if(error)throw error;
+      if(tripLayoutScopeRef.current!==key)return;
+      setTripLayoutNotice(close?'Default columns saved for your login on all devices.':'Default columns reset for your login on all devices.');
+      if(close)setShowTripColumnSetup(false);
+    }catch(error:any){
+      if(tripLayoutScopeRef.current===key)
+        setTripLayoutError('Could not save columns to your account. Try again. '+String(error?.message??''));
+    }finally{
+      if(tripLayoutScopeRef.current===key)setTripLayoutSaving(false);
+    }
+  };
+
   const saveTripGridLayout=()=>{
-    localStorage.setItem(tripGridStorageKey,JSON.stringify({
+    void persistTripGridLayout({
       order:tripColumnOrder.length?tripColumnOrder:defaultTripColumnOrder,
-      hidden:hiddenTripColumns,
-      widths:tripColumnWidths
-    }));
-    setShowTripColumnSetup(false);
+      hidden:hiddenTripColumns,widths:tripColumnWidths
+    },true,true);
   };
 
   const resetTripGridLayout=()=>{
+    if(tripLayoutLoading||tripLayoutSaving)return;
     localStorage.removeItem(tripGridStorageKey);
-    // Do not restore the old layout from the legacy fallback on reload.
     localStorage.removeItem(legacyTripGridStorageKey);
     setTripColumnOrder([...defaultTripColumnOrder]);
     setHiddenTripColumns([]);
     setTripColumnWidths({});
+    // Reset is immediately persistent, just like the previous browser-only Reset.
+    void persistTripGridLayout({order:[...defaultTripColumnOrder],hidden:[],widths:{}},false,false);
   };
 
   const moveTripColumn=(dragKey:string,targetKey:string)=>{
@@ -1656,12 +1738,16 @@ export default function TransportWorkspace(){
             <header className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
               <strong className="text-sm text-slate-900">Trip Columns</strong>
               <div className="flex flex-wrap items-center gap-1.5">
-                <button type="button" onClick={resetTripGridLayout} className="h-7 rounded border border-slate-300 bg-white px-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-100">Reset Default</button>
-                <button type="button" onClick={saveTripGridLayout} className="h-7 rounded border border-blue-600 bg-blue-600 px-2.5 text-[11px] font-semibold text-white hover:bg-blue-700">Save as Default</button>
+                <button type="button" onClick={resetTripGridLayout} disabled={tripLayoutLoading||tripLayoutSaving} className="h-7 rounded border border-slate-300 bg-white px-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-100">Reset Default</button>
+                <button type="button" onClick={saveTripGridLayout} disabled={tripLayoutLoading||tripLayoutSaving} className="h-7 rounded border border-blue-600 bg-blue-600 px-2.5 text-[11px] font-semibold text-white hover:bg-blue-700">Save as Default</button>
                 <button type="button" className="h-7 rounded border border-slate-300 bg-white px-2 text-[11px] font-semibold hover:bg-slate-100" onClick={()=>setShowTripColumnSetup(false)}>Close</button>
               </div>
             </header>
-            <p className="mb-2 text-[11px] leading-relaxed text-slate-600">Tick to show columns. Drag within a section to reorder, or focus a column and use left/right arrow keys. Changes appear in the Register immediately. Save as Default remembers this layout in this browser.</p>
+            <p className="mb-2 text-[11px] leading-relaxed text-slate-600">Tick to show columns. Drag within a section to reorder, or focus a column and use left/right arrow keys. Changes appear immediately. Save as Default syncs this layout to your login across browsers and devices.</p>
+            {tripLayoutLoading&&<p role="status" className="mb-2 text-[11px] font-medium text-blue-700">Loading your saved columns…</p>}
+            {tripLayoutSaving&&<p role="status" className="mb-2 text-[11px] font-medium text-blue-700">Syncing your default columns…</p>}
+            {tripLayoutError&&<p role="alert" className="mb-2 rounded border border-rose-200 bg-rose-50 p-1.5 text-[11px] text-rose-800">{tripLayoutError}</p>}
+            {tripLayoutNotice&&<p role="status" className="mb-2 text-[11px] font-medium text-emerald-700">{tripLayoutNotice}</p>}
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {tripColumnGroups.map(group=>{
                 const groupKeys=group.keys.filter(columnAuthorized);

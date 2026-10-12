@@ -11,16 +11,31 @@ import {MemoryRouter} from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {webcrypto} from 'node:crypto';
 vi.mock('./transportTripImport',async original=>({...await original<any>(),saveImport:async()=>{},storedImport:async()=>null}));
-const mock=vi.hoisted(()=>({rpc:vi.fn(),tables:{} as Record<string,any[]>,allow:true}));
-vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'c',membership_role:'company_owner',enabled_modules:['transport']},activeBusinessUnit:{business_unit_id:'b',membership_role:'company_owner',business_unit_type:'transport',enabled_modules:['transport']}})}));
-vi.mock('@/lib/supabase',()=>({supabase:{auth:{getUser:async()=>({data:{user:null}}),getSession:async()=>({data:{session:null}})},rpc:(...args:any[])=>{const request=mock.rpc(...args);request.abortSignal=()=>request;return request;},from:(table:string)=>{const q:any={select:()=>q,eq:()=>q,in:()=>q,order:()=>q,update:()=>q,
+const mock=vi.hoisted(()=>({rpc:vi.fn(),tables:{} as Record<string,any[]>,allow:true,
+ layoutUserId:null as string|null,remoteLayout:null as any,
+ savedLayout:null as any,layoutReads:0,layoutWriteError:false,layoutReadError:false,
+ layoutQueries:[] as Array<Record<string,string>>}));
+vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({user:mock.layoutUserId?{id:mock.layoutUserId}:null,activeCompany:{company_id:'c',membership_role:'company_owner',enabled_modules:['transport']},activeBusinessUnit:{business_unit_id:'b',membership_role:'company_owner',business_unit_type:'transport',enabled_modules:['transport']}})}));
+vi.mock('@/lib/supabase',()=>({supabase:{auth:{getUser:async()=>({data:{user:null}}),getSession:async()=>({data:{session:null}})},rpc:(...args:any[])=>{const request=mock.rpc(...args);request.abortSignal=()=>request;return request;},from:(table:string)=>{
+ if(table==='transport_register_layout_preferences'){
+  const filters:Record<string,string>={};
+  const q:any={
+   select:()=>q,
+   eq:(name:string,value:string)=>{filters[name]=value;return q;},
+   maybeSingle:async()=>{mock.layoutReads++;mock.layoutQueries.push({...filters});return {data:mock.remoteLayout?{layout:mock.remoteLayout}:null,error:mock.layoutReadError?{message:'Cloud offline'}:null};},
+   upsert:async(value:any,options:any)=>{mock.savedLayout={...value,options};if(!mock.layoutWriteError)mock.remoteLayout=value.layout;return {data:null,error:mock.layoutWriteError?{message:'Save rejected'}:null};}
+  };
+  return q;
+ }
+ const q:any={select:()=>q,eq:()=>q,in:()=>q,order:()=>q,update:()=>q,
  insert:(values:any)=>{const row={...values,id:'added',is_active:true};(mock.tables[table]??=[]).push(row);return {select:()=>({single:async()=>({data:row,error:null})})};},range:()=>Promise.resolve({data:mock.tables[table]??[],error:null}),then:(resolve:any)=>Promise.resolve({data:mock.tables[table]??[],error:null}).then(resolve)};return q;}}}));
 vi.mock('./TransportFinancialPanel',()=>({default:()=>null}));vi.mock('./TransportInitialRate',()=>({default:()=>null}));
 vi.mock('./TransportCostUpload',()=>({default:()=>null}));vi.mock('./TransportAudit',()=>({default:()=>null}));
 vi.mock('./TransportPartyReports',()=>({default:()=>null}));vi.mock('./TransportAccountStatement',()=>({default:()=>null}));
 beforeEach(()=>{
  Object.defineProperty(globalThis,'crypto',{value:webcrypto,configurable:true});
- mock.allow=true;mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[],count:0,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:name==='transport_prepare_trip_import'?{id:'job',completed:0}:name==='transport_trip_customer_modes'?[{id:'c1',mode:'Credit'}]:name==='transport_import_trip_batch'?args.p_rows.map(()=>({id:'trip',trip_no:'OIC-1'})):name==='transport_create_trips'?[{id:'trip',trip_no:'OIC-1'}]:mock.allow,error:null}));
+ mock.allow=true;mock.layoutUserId=null;mock.remoteLayout=null;mock.savedLayout=null;mock.layoutReads=0;mock.layoutWriteError=false;mock.layoutReadError=false;mock.layoutQueries=[];
+ mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[],count:0,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:name==='transport_prepare_trip_import'?{id:'job',completed:0}:name==='transport_trip_customer_modes'?[{id:'c1',mode:'Credit'}]:name==='transport_import_trip_batch'?args.p_rows.map(()=>({id:'trip',trip_no:'OIC-1'})):name==='transport_create_trips'?[{id:'trip',trip_no:'OIC-1'}]:mock.allow,error:null}));
  mock.tables={customers:[{id:'c1',name:'Customer',is_active:true}],suppliers:[{id:'s',name:'Supplier',is_active:true}],employees:[{id:'e',name:'Employee',is_active:true}],
  transport_truck_types:[{id:'tt',name:'Flatbed',is_active:true},{id:'tt2',name:'Tanker',is_active:true}],
  transport_locations:[{id:'f',name:'From',is_active:true},{id:'t',name:'To',is_active:true}],
@@ -434,6 +449,64 @@ describe('Transport compact register and centered controls',()=>{
    fireEvent.click(screen.getByRole('button',{name:'Save as Default'}));
    expect(JSON.parse(localStorage.getItem(current)??'{}').hidden).toEqual([]);
   }finally{localStorage.removeItem(legacy);localStorage.removeItem(current);}
+ });
+ it('loads a saved cloud layout for this login, company and business unit',async()=>{
+  const id='10000000-0000-0000-0000-000000000001';
+  const key=`navilo:transport:trip-grid:v2:${id}:c:b`;
+  mock.layoutUserId=id;
+  localStorage.setItem(key,JSON.stringify({order:['trip_no'],hidden:[]}));
+  mock.remoteLayout={order:['company','trip_no'],hidden:['owner'],widths:{driver:124}};
+  try{
+   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+   await screen.findByTitle('Sort Customer ascending');
+   await waitFor(()=>expect(mock.layoutReads).toBe(1));
+   await waitFor(()=>expect(screen.queryByTitle('Sort Vehicle Owner ascending')).toBeNull());
+   expect(mock.layoutQueries[0]).toEqual({user_id:id,company_id:'c',business_unit_id:'b'});
+   expect(JSON.parse(localStorage.getItem(key)??'{}').hidden).toEqual(['owner']);
+  }finally{localStorage.removeItem(key);}
+ });
+ it('saves layout changes to the signed-in user and makes them available next session',async()=>{
+  const id='20000000-0000-0000-0000-000000000002',key=`navilo:transport:trip-grid:v2:${id}:c:b`;
+  mock.layoutUserId=id;
+  try{
+   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+   await screen.findByTitle('Sort Trip Profit ascending');
+   await waitFor(()=>expect(mock.layoutReads).toBe(1));
+   fireEvent.click(screen.getByRole('button',{name:'Columns'}));
+   const hide=screen.getByRole('checkbox',{name:'Show column Trip Profit'});
+   fireEvent.click(hide);
+   fireEvent.click(screen.getByRole('button',{name:'Save as Default'}));
+   await waitFor(()=>expect(mock.savedLayout?.layout?.hidden).toContain('profit'));
+   expect(mock.savedLayout).toEqual(expect.objectContaining({
+    user_id:id,company_id:'c',business_unit_id:'b',
+    options:{onConflict:'user_id,company_id,business_unit_id'}
+   }));
+   expect(JSON.parse(localStorage.getItem(key)??'{}').hidden).toContain('profit');
+  }finally{localStorage.removeItem(key);}
+ });
+ it('migrates an existing local default once when no cloud profile exists',async()=>{
+  const id='30000000-0000-0000-0000-000000000003',key=`navilo:transport:trip-grid:v2:${id}:c:b`;
+  mock.layoutUserId=id;
+  localStorage.setItem(key,JSON.stringify({order:['trip_no'],hidden:['driver'],widths:{trip_no:112}}));
+  try{
+   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+   await waitFor(()=>expect(mock.savedLayout?.layout?.hidden).toContain('driver'));
+   expect(mock.savedLayout.layout.widths.trip_no).toBe(112);
+   expect(mock.savedLayout.user_id).toBe(id);
+  }finally{localStorage.removeItem(key);}
+ });
+ it('keeps the columns popup open and shows an error if cloud save fails',async()=>{
+  const id='40000000-0000-0000-0000-000000000004',key=`navilo:transport:trip-grid:v2:${id}:c:b`;
+  mock.layoutUserId=id;mock.layoutWriteError=true;
+  try{
+   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+   await screen.findByTitle('Sort Trip No ascending');
+   await waitFor(()=>expect(mock.layoutReads).toBe(1));
+   fireEvent.click(screen.getByRole('button',{name:'Columns'}));
+   fireEvent.click(screen.getByRole('button',{name:'Save as Default'}));
+   await waitFor(()=>expect(screen.getByRole('alert').textContent).toContain('Could not save columns'));
+   expect(screen.getByRole('dialog',{name:'Trip columns'})).toBeTruthy();
+  }finally{localStorage.removeItem(key);}
  });
  it('opens header filters and column settings outside the scrollport and closes them',async()=>{
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
