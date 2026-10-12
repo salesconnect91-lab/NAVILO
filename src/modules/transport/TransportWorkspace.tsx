@@ -616,8 +616,15 @@ export default function TransportWorkspace(){
 
   useEffect(()=>{
     if(tab!=="trips"||workDesk!=="all"||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
-    const refresh=()=>{if(document.visibilityState==="visible"&&!registerRequest.current)void load(true)};
-    // Keep manual/focus/save refresh immediate; avoid saturating the 8s RPC pool with idle 30s polling.
+    let lastBackgroundRead=Date.now();
+    const refresh=()=>{
+      const now=Date.now();
+      // Rapid focus/visibility changes previously repeated the expensive full
+      // register RPC. Manual Refresh and explicit saves still bypass this guard.
+      if(document.visibilityState!=="visible"||registerRequest.current||now-lastBackgroundRead<120000)return;
+      lastBackgroundRead=now;
+      void load(true);
+    };
     const timer=window.setInterval(refresh,180000);
     window.addEventListener("focus",refresh);
     document.addEventListener("visibilitychange",refresh);
@@ -1488,7 +1495,7 @@ export default function TransportWorkspace(){
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
     {!showPartyReports&&tab==="trips"&&workDesk!=="all"&&
-      <TransportWorkQueue key={scopeKey+":"+workDesk} desk={workDesk} scopeKey={scopeKey}
+      <TransportWorkQueue key={`${user?.id??"signed-out"}/${scopeKey}/${workDesk}`} desk={workDesk} scopeKey={`${user?.id??"signed-out"}/${scopeKey}`}
         onDeskChange={changeWorkDesk}
         onOpenTrip={tripNo=>{
           setRegisterSearchDraft(tripNo);setRegisterSearch(tripNo);setRegisterSearchModeDraft("contains");

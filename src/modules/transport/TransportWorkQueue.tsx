@@ -1,7 +1,8 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {supabase} from '@/lib/supabase';
 import {formatNaviloDate} from '@/lib/naviloDate';
 import {transportWorkDesks,type TransportWorkDesk} from './transportWorkDesks';
+import {readWorkQueueCache,writeWorkQueueCache,workQueueCacheKey} from './transportWorkQueueCache';
 
 type QueueDesk=Exclude<TransportWorkDesk,'all'>;
 type QueueRow={
@@ -33,16 +34,27 @@ export default function TransportWorkQueue({
   const [search,setSearch]=useState('');
   const [page,setPage]=useState(0);
   const [rows,setRows]=useState<QueueRow[]>([]);
+  const [hasLoaded,setHasLoaded]=useState(false);
   const [hasMore,setHasMore]=useState(false);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
   const [refresh,setRefresh]=useState(0);
+  const shownKey=useRef<string|null>(null);
 
   useEffect(()=>{
     const controller=new AbortController();
+    const key=workQueueCacheKey(scopeKey,desk,page,search);
+    // A short-lived, user-scoped snapshot makes revisiting a desk immediate.
+    // Manual Refresh bypasses the snapshot. Never display another scope's rows.
+    const cached=readWorkQueueCache<QueueRow>(key);
+    const keepVisible=shownKey.current===key;
+    if(cached){
+      setRows(cached.rows);setHasMore(cached.hasMore);setHasLoaded(true);shownKey.current=key;
+      setLoading(false);setError('');
+    }else if(!keepVisible){
+      shownKey.current=null;setHasLoaded(false);setRows([]);setHasMore(false);
+    }
     setLoading(true);setError('');
-    // Do not keep a previous department's rows visible under the new heading.
-    setRows([]);
     void (async()=>{
       try{
         const {data,error:rpcError}=await supabase.rpc('transport_work_queue',{
@@ -50,10 +62,12 @@ export default function TransportWorkQueue({
         }).abortSignal(controller.signal);
         if(controller.signal.aborted)return;
         if(rpcError)throw rpcError;
-        setRows(Array.isArray(data?.rows)?data.rows:[]);
-        setHasMore(data?.has_more===true);
+        const nextRows:QueueRow[]=Array.isArray(data?.rows)?data.rows:[];
+        const more=data?.has_more===true;
+        setRows(nextRows);setHasMore(more);setHasLoaded(true);shownKey.current=key;
+        writeWorkQueueCache(key,nextRows,more);
       }catch(e:any){
-        if(!controller.signal.aborted){setError(e?.message||'Unable to load working queue');setHasMore(false);}
+        if(!controller.signal.aborted){setError(e?.message||'Unable to load working queue');if(!cached&&!keepVisible)setHasMore(false);setHasLoaded(true);}
       }finally{if(!controller.signal.aborted)setLoading(false);}
     })();
     return ()=>controller.abort();
@@ -83,7 +97,7 @@ export default function TransportWorkQueue({
       </div>}
     </div>
     {error&&<div role="alert" className="m-3 rounded border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">{error} <button type="button" className="ml-2 font-bold underline" onClick={()=>setRefresh(x=>x+1)}>Retry</button></div>}
-    {loading&&<p role="status" className="px-3 py-2 text-xs text-blue-700">Loading {titles[desk]} (50 trips per page)…</p>}
+    {loading&&!hasLoaded&&<p role="status" className="px-3 py-2 text-xs text-blue-700">Loading {titles[desk]} (50 trips per page)…</p>}
     <div className="min-h-0 flex-1 overflow-auto">
       <table className="w-full min-w-[900px] border-collapse text-[11px]">
         <thead className="sticky top-0 bg-slate-100 text-left text-slate-800">
@@ -106,7 +120,7 @@ export default function TransportWorkQueue({
       </table>
     </div>
     <footer className="flex shrink-0 items-center justify-between border-t border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
-      <span>{rows.length} shown · Page {page+1} · No historical total-count scan</span>
+      <span>{rows.length} shown · Page {page+1} · No historical total-count scan{loading&&hasLoaded?' · Updating…':''}</span>
       <div className="flex gap-2">
         <button type="button" disabled={loading||page===0} onClick={()=>setPage(x=>Math.max(0,x-1))} className="rounded border bg-white px-3 py-1 disabled:opacity-40">Previous</button>
         <button type="button" disabled={loading||!hasMore} onClick={()=>setPage(x=>x+1)} className="rounded border bg-white px-3 py-1 disabled:opacity-40">Next</button>
