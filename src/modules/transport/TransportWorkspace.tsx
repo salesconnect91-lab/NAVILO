@@ -255,10 +255,6 @@ export default function TransportWorkspace(){
   const [registerMeta,setRegisterMeta]=useState<any>({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
   const readGeneration=useRef(0);
   const registerRequest=useRef<AbortController|null>(null);
-  // After a database timeout, pause automatic refreshes so focus/polling cannot
-  // pile more expensive reads onto an already busy database. Manual Retry
-  // remains available immediately.
-  const registerAutoRefreshBlockedUntil=useRef(0);
   // Keep the last valid page visible if the database times out on a background refresh.
   const lastSuccessfulRegisterKey=useRef<string|null>(null);
   const columnOptionsRequest=useRef<AbortController|null>(null);
@@ -520,7 +516,7 @@ export default function TransportWorkspace(){
   const registerPageKey=`${user?.id??'anonymous'}:${registerKey}:page=${page}`;
   async function load(silent=false){
     // A timer/focus refresh must never abort an unfinished register request.
-    if(silent&&(registerRequest.current||Date.now()<registerAutoRefreshBlockedUntil.current))return;
+    if(silent&&registerRequest.current)return;
     // A successful rent save must refresh the register immediately. A previous
     // in-flight register read is stale at this point, so cancel it instead of
     // silently skipping the refresh (which left Supplier Balance unchanged).
@@ -533,7 +529,6 @@ export default function TransportWorkspace(){
       if(scopeRef.current!==scopeKey||generation!==readGeneration.current)return;
       const data=result.data;
       lastSuccessfulRegisterKey.current=registerPageKey;
-      registerAutoRefreshBlockedUntil.current=0;
       setRegisterLoadError(false);
       setError('');
       setRows((data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})));
@@ -543,31 +538,12 @@ export default function TransportWorkspace(){
     }catch(e:any){
       if(generation===readGeneration.current&&!controller.signal.aborted){
         setRegisterLoadError(true);
-        // A financial read failure must not make all operational Trips disappear.
-        // Recovery rows have no financial figures; the UI keeps the warning active.
-        if(/statement timeout|57014|timeout/i.test(String(e?.message||'')) &&
-           !Object.values(columnFilters).some(values=>values.length>0) &&
-           statusFilters.length===0 && !fromDate && !toDate &&
-           !customerFilter && !driverFilter && !vehicleFilter && !fromFilter && !toFilter && !pprFilter &&
-           (sortColumn==='' || sortColumn==='trip_date')){
-          try{
-            const rescue=await supabase.rpc('transport_register_operational_recovery',{
-              p_limit:REGISTER_PAGE_SIZE,p_offset:page*REGISTER_PAGE_SIZE,p_search:registerSearch
-            }).abortSignal(controller.signal);
-            if(!rescue.error && rescue.data?.recovery_only &&
-               generation===readGeneration.current && scopeRef.current===scopeKey){
-              setRows((rescue.data.rows??[]).map((row:any)=>({...row,status:row.status??row.lifecycle_status})));
-              setRegisterMeta({count:rescue.data.count,totals:{},completed:0,paper_pending:0,statuses:[],recovery_only:true});
-              lastSuccessfulRegisterKey.current=registerPageKey;
-            }
-          }catch{/* Keep the error visible; never replace financial values with guesses. */}
+        // Stale results from another filter must not masquerade as matching rows.
+        if(lastSuccessfulRegisterKey.current!==registerPageKey){
+          setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
         }
-        // Keep the last successful rows visible when the database read fails.
-        // A timeout is not evidence that the user's Trips were deleted.
-        // The error banner and unavailable-count indicator distinguish stale data.
         if(!silent||lastSuccessfulRegisterKey.current===null){
           const message=String(e?.message||'Unable to load trips.');
-          if(/statement timeout|57014|timeout/i.test(message))registerAutoRefreshBlockedUntil.current=Date.now()+120000;
           setError(/statement timeout|57014|timeout/i.test(message)
             ? 'Trip Register database query timed out. Your Trips are still saved; retry when the server is available.'
             : message);
@@ -596,8 +572,9 @@ export default function TransportWorkspace(){
       setRegisterLoadError(false);setRegisterLoading(false);
       if(Date.now()-cached.at<60000)return;
     }else{
-      // Preserve the previous page during a new read. Clearing it here made
-      // transient timeouts appear as an empty database.
+      if(pageChanged||changed||lastSuccessfulRegisterKey.current!==registerPageKey){
+        setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
+      }
       setRegisterLoading(true);
     }
     const timer=window.setTimeout(()=>void load(!!cached),200);
@@ -1865,7 +1842,7 @@ export default function TransportWorkspace(){
             {dateFilterOpen&&<TransportDialog onClose={()=>setDateFilterOpen(false)}><section role="dialog" aria-modal="true" aria-label="Trip date filter" className="w-full max-w-sm rounded-lg border border-slate-300 bg-white p-3 text-xs"><div className="mb-3 flex items-center justify-between"><strong>Trip Date Range</strong><button type="button" aria-label="Close date filter" onClick={()=>setDateFilterOpen(false)}>×</button></div><div className="grid grid-cols-2 gap-2"><label className="font-semibold text-slate-700">From<input type="date" aria-label="Trips from date" className="input mt-1 h-8 w-full" max={dateDraft.to||undefined} value={dateDraft.from} onChange={e=>setDateDraft(x=>({...x,from:e.target.value}))}/></label><label className="font-semibold text-slate-700">To<input type="date" aria-label="Trips to date" className="input mt-1 h-8 w-full" min={dateDraft.from||undefined} value={dateDraft.to} onChange={e=>setDateDraft(x=>({...x,to:e.target.value}))}/></label></div><div className="mt-3 flex justify-end gap-2"><button type="button" className="btn" onClick={()=>setDateDraft({from:"",to:""})}>Clear Dates</button><button type="button" className="btn-primary" disabled={Boolean(dateDraft.from&&dateDraft.to&&dateDraft.from>dateDraft.to)} onClick={()=>{setFromDate(dateDraft.from);setToDate(dateDraft.to);setPage(0);setDateFilterOpen(false);}}>Apply Dates</button></div></section></TransportDialog>}
 
       {deleteTripTarget&&<TransportDialog onClose={()=>{if(!deletingTrip)setDeleteTripTarget(null);}}><section role="dialog" aria-modal="true" aria-label="Delete Unposted Trip" className="w-full max-w-md rounded-lg border border-rose-200 p-3 text-sm"><header className="mb-2 flex items-center justify-between"><strong>Delete Unposted Trip · {deleteTripTarget.trip_no}</strong><button type="button" aria-label="Close Trip deletion" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>×</button></header><p className="mb-2 text-xs text-slate-600">This removes an unposted Draft or Incomplete Trip, including a finalized-only rate and its unposted rent / charges. Trips with financial entries or documents are blocked. Trip Audit history is retained; the Trip No will not be reused.</p><TransportReasonSelect className="mb-2" kind="trip_delete" label="Deletion reason" value={deleteTripReason} onChange={setDeleteTripReason} disabled={deletingTrip}/><label className="block text-xs font-semibold">Reason details<textarea aria-label="Trip deletion reason" maxLength={1000} disabled={deletingTrip} className="input mt-1 min-h-16 w-full" value={deleteTripReason} onChange={e=>setDeleteTripReason(e.target.value)}/></label>{deleteTripError&&<p role="alert" className="mt-2 text-xs text-rose-700">{deleteTripError}</p>}<footer className="mt-3 flex justify-end gap-2"><button type="button" className="btn" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>Keep Trip</button><button type="button" className="btn-danger" disabled={deletingTrip||!deleteTripReason.trim()} onClick={()=>void confirmTripDeletion()}>{deletingTrip?"Deleting…":"Delete Unposted Trip"}</button></footer></section></TransportDialog>}
-      {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{registerLoadError&&gridRows.length>0&&!registerLoading&&<p role="alert" className="shrink-0 px-2 text-[11px] text-amber-800">{registerMeta.recovery_only?'Operational recovery view: financial figures and totals are unavailable until the main Register loads.':'Register refresh failed. Showing last successfully loaded results.'} <button type="button" className="font-semibold underline" onClick={()=>void load()}>Retry</button></p>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
+      {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{registerLoadError&&gridRows.length>0&&!registerLoading&&<p role="alert" className="shrink-0 px-2 text-[11px] text-amber-800">Register refresh failed. Showing last successfully loaded results. <button type="button" className="font-semibold underline" onClick={()=>void load()}>Retry</button></p>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
       <div
         ref={tripsGridRef}
         className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-400 bg-white"
