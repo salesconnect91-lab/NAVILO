@@ -63,6 +63,11 @@ type Trip=FinancialTrip & {
   customer_manual_adjustment?:number|null;
   invoice_no:string|null;
   supplier_invoice_no?:string|null;
+  historical_customer_invoice_ref?:string|null;
+  historical_supplier_invoice_ref?:string|null;
+  historical_company_owned?:boolean|null;
+  historical_company_cost_net?:number|null;
+  historical_paper_status?:string|null;
   supplier_charges?:number|null;
 };
 
@@ -1249,7 +1254,7 @@ export default function TransportWorkspace(){
     ["customer_credit","Customer Credit / Advance"],
     ["supplier_invoice_no","Supplier Invoice"],
     ["supplier_charges","Supplier Charges"],
-    ["rent_driver","Supplier Rent (Net)"],
+    ["rent_driver","Rent / Trip Cost (Net)"],
     ["supplier_paid","Supplier Rent Paid (Net)"],
     ["supplier_balance","Supplier Bill Balance"],
     ["payment_date","Supplier Payment Date"],
@@ -1807,6 +1812,8 @@ export default function TransportWorkspace(){
                       onClick={()=>setInitialRateTrip(r)}>
                       {r.customer_rate_state==='pending'&&!r.customer_rate_locked?'':value||'0.00'}
                     </button>
+                    :key==='invoice_no'&&!r.invoiced&&r.historical_customer_invoice_ref
+                      ?<span title="Original historical invoice reference — unposted">{r.invoice_no}<span className="ml-1 text-[8px] text-slate-500">Historical</span></span>
                     :key==='invoice_no'
                       ?<button data-register-editable="true" type="button"
                         className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
@@ -1814,12 +1821,16 @@ export default function TransportWorkspace(){
                         onClick={()=>setInvoiceTrip(r)}>
                         {r.invoice_no||''}
                       </button>
+                    :key==='rent_driver'&&r.historical_company_owned
+                      ?<span title="Original total Company Trip cost — not a Supplier payable or Driver salary">{value}<span className="ml-1 text-[8px] text-slate-500">Company</span></span>
                     :key==='rent_driver'&&r.customer_rate_state!==undefined
                       ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-medium leading-tight text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
                     :key==='paper_received_by'
                       ?r.ppr_status==='received'
-                        ?<span className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[8px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
+                        ?<span title={r.historical_paper_status==='received'?'Original historical paper receipt evidence':undefined} className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[8px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
                         :<button data-register-editable="true" type="button" onClick={()=>void openQuickPpr(r)} className="h-[22px] rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0 text-[9px] font-semibold leading-tight text-amber-800 hover:bg-amber-100">Receive PPR</button>
+                      :key==='supplier_invoice_no'&&r.billed_supplier_net==null&&r.historical_supplier_invoice_ref
+                      ?<span title="Original historical Supplier invoice reference — unposted">{value}<span className="ml-1 text-[8px] text-slate-500">Historical</span></span>
                       :value||""}
                 </td>;
               })}            </tr>;
