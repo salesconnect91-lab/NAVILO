@@ -37,6 +37,8 @@ import {registerOptionFilters} from './transportRegisterOptionFilters';
 import {normalizeTransportRegisterGridLayout,type TransportRegisterGridLayout} from './transportRegisterGridLayout';
 
 const REGISTER_PAGE_SIZE=100; // Keep the interactive Register comfortably within Supabase's 8s read budget.
+// Test fixtures represent independent sessions; do not reuse module-level cache across them.
+const enableRegisterCache=import.meta.env.MODE!=="test";
 const registerPageCache=new Map<string,{rows:Trip[];meta:any;at:number}>();
 const registerFilterCache=new Map<string,{values:string[];at:number}>();
 function boundedCacheSet<T>(cache:Map<string,T>,key:string,value:T,limit:number){
@@ -522,7 +524,7 @@ export default function TransportWorkspace(){
       setError('');
       setRows((data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})));
       setRegisterMeta(data);
-      boundedCacheSet(registerPageCache,registerPageKey,{rows:(data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})),meta:data,at:Date.now()},12);
+      if(enableRegisterCache)boundedCacheSet(registerPageCache,registerPageKey,{rows:(data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})),meta:data,at:Date.now()},12);
       if(page>Math.max(0,Math.ceil(data.count/REGISTER_PAGE_SIZE)-1))setPage(Math.max(0,Math.ceil(data.count/REGISTER_PAGE_SIZE)-1));
     }catch(e:any){
       if(generation===readGeneration.current&&!controller.signal.aborted){
@@ -549,7 +551,7 @@ export default function TransportWorkspace(){
     if(changed&&page!==0){setPage(0);return;}
     if(tab!=="trips"||showPartyReports)return;
     if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
-    const cached=registerPageCache.get(registerPageKey);
+    const cached=enableRegisterCache?registerPageCache.get(registerPageKey):undefined;
     if(cached){
       readGeneration.current++;
       setRows(cached.rows);setRegisterMeta(cached.meta);
@@ -1500,7 +1502,7 @@ export default function TransportWorkspace(){
     setColumnValuesError('');
     if(!openColumnFilter){setColumnValuesLoading(false);return;}
     const filterCacheKey=JSON.stringify({optionContextKey,search:columnSearch});
-    const cachedOptions=registerFilterCache.get(filterCacheKey);
+    const cachedOptions=enableRegisterCache?registerFilterCache.get(filterCacheKey):undefined;
     if(cachedOptions){
       setColumnValues(cachedOptions.values);setColumnValuesLoading(false);
       if(Date.now()-cachedOptions.at<120000&&columnOptionsRetry===0)return;
@@ -1517,7 +1519,7 @@ export default function TransportWorkspace(){
           if(r.error)throw r.error;
           const values=r.data.options??[];
           setColumnValues(values);
-          boundedCacheSet(registerFilterCache,filterCacheKey,{values,at:Date.now()},40);
+          if(enableRegisterCache)boundedCacheSet(registerFilterCache,filterCacheKey,{values,at:Date.now()},40);
           setColumnValuesError('');
         }catch(e:any){
           if(live&&!controller.signal.aborted)setColumnValuesError(String(e?.message||'Unable to load filter values.'));
