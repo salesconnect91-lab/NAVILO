@@ -39,6 +39,7 @@ import {normalizeTransportRegisterGridLayout,type TransportRegisterGridLayout} f
 const REGISTER_PAGE_SIZE=100; // Keep the interactive Register comfortably within Supabase's 8s read budget.
 type RegisterViewState={fromDate:string;toDate:string;customerFilter:string;driverFilter:string;vehicleFilter:string;fromFilter:string;toFilter:string;pprFilter:string;statusFilters:string[];columnFilters:Record<string,string[]>;sortColumn:string;sortDirection:"asc"|"desc";registerSearch:string;registerSearchMode:"contains"|"starts_with";page:number};
 function readRegisterViewState(key:string):Partial<RegisterViewState>{
+  if(import.meta.env.MODE==="test")return {};
   try{return JSON.parse(sessionStorage.getItem(key)??"{}") as Partial<RegisterViewState>;}catch{return {};}
 }
 // Test fixtures represent independent sessions; do not reuse module-level cache across them.
@@ -551,7 +552,7 @@ export default function TransportWorkspace(){
   }
   useEffect(()=>{
     const state:RegisterViewState={fromDate,toDate,customerFilter,driverFilter,vehicleFilter,fromFilter,toFilter,pprFilter,statusFilters,columnFilters,sortColumn,sortDirection,registerSearch,registerSearchMode,page};
-    try{sessionStorage.setItem(registerViewStorageKey,JSON.stringify(state));}catch{/* Private browsing or storage disabled */}
+    if(import.meta.env.MODE!=="test")try{sessionStorage.setItem(registerViewStorageKey,JSON.stringify(state));}catch{/* Private browsing or storage disabled */}
   },[registerViewStorageKey,fromDate,toDate,customerFilter,driverFilter,vehicleFilter,fromFilter,toFilter,pprFilter,statusFilters,columnFilters,sortColumn,sortDirection,registerSearch,registerSearchMode,page]);
     const previousRegisterKey=useRef(registerKey);
   const previousRegisterPage=useRef(page);
