@@ -538,10 +538,7 @@ export default function TransportWorkspace(){
     }catch(e:any){
       if(generation===readGeneration.current&&!controller.signal.aborted){
         setRegisterLoadError(true);
-        // Stale results from another filter must not masquerade as matching rows.
-        if(lastSuccessfulRegisterKey.current!==registerPageKey){
-          setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
-        }
+        // Keep the last confirmed rows on timeout. Banner labels mismatched filters as stale.
         if(!silent||lastSuccessfulRegisterKey.current===null){
           const message=String(e?.message||'Unable to load trips.');
           setError(/statement timeout|57014|timeout/i.test(message)
@@ -572,9 +569,7 @@ export default function TransportWorkspace(){
       setRegisterLoadError(false);setRegisterLoading(false);
       if(Date.now()-cached.at<60000)return;
     }else{
-      if(pageChanged||changed||lastSuccessfulRegisterKey.current!==registerPageKey){
-        setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
-      }
+      // Keep the last confirmed page while the new query loads; do not blank the grid.
       setRegisterLoading(true);
     }
     const timer=window.setTimeout(()=>void load(!!cached),200);
@@ -1842,7 +1837,7 @@ export default function TransportWorkspace(){
             {dateFilterOpen&&<TransportDialog onClose={()=>setDateFilterOpen(false)}><section role="dialog" aria-modal="true" aria-label="Trip date filter" className="w-full max-w-sm rounded-lg border border-slate-300 bg-white p-3 text-xs"><div className="mb-3 flex items-center justify-between"><strong>Trip Date Range</strong><button type="button" aria-label="Close date filter" onClick={()=>setDateFilterOpen(false)}>×</button></div><div className="grid grid-cols-2 gap-2"><label className="font-semibold text-slate-700">From<input type="date" aria-label="Trips from date" className="input mt-1 h-8 w-full" max={dateDraft.to||undefined} value={dateDraft.from} onChange={e=>setDateDraft(x=>({...x,from:e.target.value}))}/></label><label className="font-semibold text-slate-700">To<input type="date" aria-label="Trips to date" className="input mt-1 h-8 w-full" min={dateDraft.from||undefined} value={dateDraft.to} onChange={e=>setDateDraft(x=>({...x,to:e.target.value}))}/></label></div><div className="mt-3 flex justify-end gap-2"><button type="button" className="btn" onClick={()=>setDateDraft({from:"",to:""})}>Clear Dates</button><button type="button" className="btn-primary" disabled={Boolean(dateDraft.from&&dateDraft.to&&dateDraft.from>dateDraft.to)} onClick={()=>{setFromDate(dateDraft.from);setToDate(dateDraft.to);setPage(0);setDateFilterOpen(false);}}>Apply Dates</button></div></section></TransportDialog>}
 
       {deleteTripTarget&&<TransportDialog onClose={()=>{if(!deletingTrip)setDeleteTripTarget(null);}}><section role="dialog" aria-modal="true" aria-label="Delete Unposted Trip" className="w-full max-w-md rounded-lg border border-rose-200 p-3 text-sm"><header className="mb-2 flex items-center justify-between"><strong>Delete Unposted Trip · {deleteTripTarget.trip_no}</strong><button type="button" aria-label="Close Trip deletion" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>×</button></header><p className="mb-2 text-xs text-slate-600">This removes an unposted Draft or Incomplete Trip, including a finalized-only rate and its unposted rent / charges. Trips with financial entries or documents are blocked. Trip Audit history is retained; the Trip No will not be reused.</p><TransportReasonSelect className="mb-2" kind="trip_delete" label="Deletion reason" value={deleteTripReason} onChange={setDeleteTripReason} disabled={deletingTrip}/><label className="block text-xs font-semibold">Reason details<textarea aria-label="Trip deletion reason" maxLength={1000} disabled={deletingTrip} className="input mt-1 min-h-16 w-full" value={deleteTripReason} onChange={e=>setDeleteTripReason(e.target.value)}/></label>{deleteTripError&&<p role="alert" className="mt-2 text-xs text-rose-700">{deleteTripError}</p>}<footer className="mt-3 flex justify-end gap-2"><button type="button" className="btn" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>Keep Trip</button><button type="button" className="btn-danger" disabled={deletingTrip||!deleteTripReason.trim()} onClick={()=>void confirmTripDeletion()}>{deletingTrip?"Deleting…":"Delete Unposted Trip"}</button></footer></section></TransportDialog>}
-      {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{registerLoadError&&gridRows.length>0&&!registerLoading&&<p role="alert" className="shrink-0 px-2 text-[11px] text-amber-800">Register refresh failed. Showing last successfully loaded results. <button type="button" className="font-semibold underline" onClick={()=>void load()}>Retry</button></p>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
+      {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{registerLoadError&&gridRows.length>0&&!registerLoading&&<p role="alert" className="shrink-0 px-2 text-[11px] text-amber-800">{lastSuccessfulRegisterKey.current!==registerPageKey?'Register query failed. Previous page shown for reference only; it may not match current filters. Financial totals are from the previous page.':'Register refresh failed. Showing last successfully loaded results.'} <button type="button" className="font-semibold underline" onClick={()=>void load()}>Retry</button></p>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
       <div
         ref={tripsGridRef}
         className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-400 bg-white"
