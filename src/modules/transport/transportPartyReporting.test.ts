@@ -3,6 +3,15 @@ import {statement,documentBalances,fifoPreview,reviewedAllocations,type PartyDoc
 const document=(id:string,outstanding=118):PartyDocument=>({side:'supplier',order_id:id,party_id:'supplier',party_name:'Supplier',order_no:id,order_date:'2026-09-01',trip_ids:[id],trip_no:id,kind:'rent',original_net:100,original_gross:118,journal_entry_id:`j-${id}`,current_billed_gross:118,current_paid_gross:0,current_refunded_gross:0,current_outstanding_gross:outstanding,current_credit_gross:0});
 const event=(id:string,date:string,type:string,amount:number,net=amount):PartyMovement=>({event_id:id,side:'supplier',party_id:'supplier',party_name:'Supplier',order_id:'A',order_no:'A',trip_no:'A',journal_entry_id:id,entry_no:id,event_date:date,created_at:`${date}T00:00:00Z`,event_type:type,debit:Math.max(-amount,0),credit:Math.max(amount,0),amount,net_amount:net,description:type});
 describe('Transport statements and allocations',()=>{
+ it('carries original totals and historic settlement without repeating historical turnover or cash',()=>{
+  const d={...document('A'),kind:'opening_balance',original_net:100,original_gross:115,historical_settled:65,current_outstanding_gross:30};
+  const opening={...event('opening','2026-10-12','opening_balance',50,0),original_net:100,original_gross:115,historical_settled:65};
+  const paid=event('payment','2026-10-13','payment',-20,0),reversed=event('reverse','2026-10-14','reversal_payment',20,0);
+  expect(documentBalances([d],[opening,paid,reversed],'2026-10-12')[0]).toMatchObject({billed:115,net:100,vat:15,paid:65,outstanding:50});
+  expect(documentBalances([d],[opening,paid,reversed],'2026-10-13')[0]).toMatchObject({paid:85,outstanding:30});
+  expect(documentBalances([d],[opening,paid,reversed],'2026-10-14')[0]).toMatchObject({paid:65,outstanding:50});
+  expect(statement([opening,paid,reversed],'','2026-10-12').closing).toBe(50);
+ });
  it('keeps older partial payments in opening and shows dated reversals only when effective',()=>{
  const rows=[event('bill','2026-09-01','bill',118,100),event('receipt','2026-09-02','payment',-59,-50),event('reverse','2026-10-05','reversal_payment',59,50)];
  const september=statement(rows,'2026-09-02','2026-09-30');expect(september.opening).toBe(118);expect(september.closing).toBe(59);expect(september.rows[0].running).toBe(59);

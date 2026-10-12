@@ -8,8 +8,22 @@ vi.mock('@/lib/supabase',()=>({supabase:{rpc}}));
 afterEach(()=>{cleanup();vi.clearAllMocks()});
 function doc(id:string,side:PartySide,outstanding:number,date:string):PartyDocument{return {side,order_id:id,order_no:`INV-${id}`,order_date:date,party_id:'party',party_name:'Party',trip_ids:[id],trip_no:`OIC-${id}`,kind:'rent',original_net:outstanding,original_gross:outstanding,journal_entry_id:id,current_billed_gross:outstanding,current_paid_gross:0,current_refunded_gross:0,current_outstanding_gross:outstanding,current_credit_gross:0}}
 describe('Cash Counter Transport allocations',()=>{
+ for(const side of ['customer','supplier'] as const)it(`${side}: imported invoice uses opening settlement and loads beyond report filters`,async()=>{
+  const opening={...doc('OPEN',side,100,'2026-10-12'),kind:'opening_balance',historical_settled:50};
+  rpc.mockImplementation(async(name:string)=>name==='transport_finance_allowed'?{data:true,error:null}:name==='transport_party_report_query'?{data:[],error:null}:name==='transport_opening_invoice_query'?{data:[opening],error:null}:{data:{success:true,journal_entry_id:'opening-voucher'},error:null});
+  const posted=vi.fn(async()=>{});
+  render(<TransportPartySettlement side={side} party="party" documents={[]} accounts={[{id:'cash',name:'Cash',detail_type:'Cash on Hand'}]} onPosted={posted} onBusyChange={()=>{}}/>);
+  await screen.findByLabelText('Allocate INV-OPEN');
+  fireEvent.change(screen.getByLabelText('Allocate INV-OPEN'),{target:{value:'30'}});fireEvent.change(screen.getByLabelText('Cash / Bank'),{target:{value:'cash'}});
+  fireEvent.click(screen.getByText('Review allocations'));expect(rpc.mock.calls.some(([name])=>name==='transport_settle_opening_invoices')).toBe(false);
+  fireEvent.click(screen.getByText('Confirm and post'));await waitFor(()=>expect(posted).toHaveBeenCalledOnce());
+  expect(rpc).toHaveBeenCalledWith('transport_settle_opening_invoices',expect.objectContaining({p_side:side,p_party_id:'party',p_allocations:[{document_id:'OPEN',amount:30}]}));
+  expect(rpc.mock.calls.some(([name])=>name==='transport_settle_reviewed_documents')).toBe(false);
+  expect(rpc).toHaveBeenCalledWith('transport_opening_invoice_query',expect.objectContaining({p_filters:{party:'party',to:'',search:''}}));
+ });
  for(const side of ['customer','supplier'] as const)it(`${side}: selected invoices, partial FIFO and reviewed canonical posting`,async()=>{
-  rpc.mockImplementation(async(name:string)=>name==='transport_finance_allowed'?{data:true,error:null}:{data:{success:true,journal_entry_id:'voucher'},error:null});
+  const docs=[doc('A',side,100,'2026-10-01'),doc('B',side,200,'2026-10-02')];
+  rpc.mockImplementation(async(name:string)=>name==='transport_party_report_query'?{data:docs,error:null}:name==='transport_opening_invoice_query'?{data:[],error:null}:name==='transport_finance_allowed'?{data:true,error:null}:{data:{success:true,journal_entry_id:'voucher'},error:null});
   const onPosted=vi.fn(async()=>{}),busy=vi.fn();
   render(<TransportPartySettlement side={side} party="party" documents={[doc('A',side,100,'2026-10-01'),doc('B',side,200,'2026-10-02')]} accounts={[{id:'cash',name:'Cash',detail_type:'Cash on Hand'}]} onPosted={onPosted} onBusyChange={busy}/>);
   await waitFor(()=>expect((screen.getByLabelText('Select INV-B') as HTMLInputElement).disabled).toBe(false));
@@ -30,7 +44,7 @@ describe('Cash Counter Transport allocations',()=>{
   expect(payload.p_request_id).toBeTruthy();
  });
  it('blocks excess selected allocation and retains the same request on a retry',async()=>{
-  let tries=0;rpc.mockImplementation(async(name:string)=>name==='transport_finance_allowed'?{data:true,error:null}:++tries===1?{data:null,error:{message:'Connection lost'}}:{data:{success:true},error:null});
+  let tries=0;rpc.mockImplementation(async(name:string)=>name==='transport_party_report_query'?{data:[doc('A','supplier',100,'2026-10-01')],error:null}:name==='transport_opening_invoice_query'?{data:[],error:null}:name==='transport_finance_allowed'?{data:true,error:null}:++tries===1?{data:null,error:{message:'Connection lost'}}:{data:{success:true},error:null});
   const posted=vi.fn(async()=>{});
   render(<TransportPartySettlement side="supplier" party="party" documents={[doc('A','supplier',100,'2026-10-01')]} accounts={[{id:'cash',name:'Cash',detail_type:'Cash on Hand'}]} onPosted={posted} onBusyChange={()=>{}}/>);
   await waitFor(()=>expect((screen.getByLabelText('Select INV-A') as HTMLInputElement).disabled).toBe(false));

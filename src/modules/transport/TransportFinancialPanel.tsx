@@ -1,5 +1,6 @@
 import TransportReasonSelect from './TransportReasonSelect';
 import TransportDialog from './TransportDialog';
+import TransportPartyReports from './TransportPartyReports';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import useTransportBillingMode from './useTransportBillingMode';
 import TransportVatPreview from './TransportVatPreview';
@@ -12,7 +13,12 @@ import {financeActions, financialNumber, type FinancialTrip, type ServiceBalance
 type Rent={id:string;supplier_id:string;amount:number;reason:string};
 type Option={id:string;name:string};
 type Adjustment={id:string;side:string;old_value:number;new_value:number;difference:number;reason:string;reference:string|null;created_by:string;created_at:string;accounting_evidence:Array<{document_id?:string;note_id?:string;journal_entry_id?:string}>};
-export default function TransportFinancialPanel({trip,onClose,onChanged}:{trip:FinancialTrip;onClose:()=>void;onChanged:()=>Promise<void>}) {
+export default function TransportFinancialPanel(props:{trip:FinancialTrip;onClose:()=>void;onChanged:()=>Promise<void>}) {
+ const {trip,onClose,onChanged}=props;
+ if(trip.opening_customer_document_id||trip.opening_supplier_document_id){const side=trip.opening_customer_document_id?'customer':'supplier';return <TransportDialog onClose={onClose}><div role="dialog" aria-modal="true" aria-label="Imported Trip balances" className="max-h-[94vh] w-full max-w-6xl overflow-auto rounded-lg bg-white"><TransportPartyReports initialSide={side} initialPartyId={(side==='customer'?trip.customer_id:trip.owner_supplier_id)||''} allocationEntry onClose={onClose} onChanged={onChanged}/></div></TransportDialog>}
+ return <NativeTransportFinancialPanel {...props}/>;
+}
+function NativeTransportFinancialPanel({trip,onClose,onChanged}:{trip:FinancialTrip;onClose:()=>void;onChanged:()=>Promise<void>}) {
  const {activeCompany,activeBusinessUnit}=useAuth();
  const company=activeCompany?.company_id;const unit=activeBusinessUnit?.business_unit_id;
  const [mode,setMode]=useState<'customer'|'supplier'|'expense'|'driver'|'correction'|'details'>('customer');

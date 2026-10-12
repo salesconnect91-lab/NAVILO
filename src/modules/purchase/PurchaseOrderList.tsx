@@ -1,3 +1,4 @@
+import TransportOpeningInvoices from '../transport/TransportOpeningInvoices';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -148,6 +149,7 @@ export default function PurchaseOrderList() {
         </div>}
       />
 
+      <TransportOpeningInvoices side="supplier"/>
       <div className="grid gap-3 md:grid-cols-4" data-no-export>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-blue-50 p-2 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Visible Invoices</div><div className="font-bold">{filteredRows.length}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-emerald-50 p-2 text-emerald-600"><Landmark className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Purchase Total</div><div className="font-bold">{formatCurrency(visiblePurchaseTotal)}</div></div></div>

@@ -1,3 +1,4 @@
+import TransportOpeningInvoices from '../transport/TransportOpeningInvoices';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import { FileText, Coins, Clock3, Users, RotateCcw, Search } from "lucide-react";
@@ -723,10 +724,11 @@ export default function SalesInvoiceList() {
   return (
     <div data-navilo-commercial-standard="true" className="space-y-4">
 
-      <PageHeader title="Sales Invoices" subtitle="Customer invoices, receivables and posting" action={<div className="flex flex-wrap items-center gap-2" data-navilo-standard-tools-host>{canReceivePayment && <button onClick={() => openReceivePayment()} className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">Receive Payment</button>}{canCreateSales && <button onClick={() => navigate("/sales/new")} className="btn-primary">+ New Invoice</button>}</div>} />
+      <PageHeader title="Sales Invoices" subtitle="Customer invoices, receivables and posting" action={<div className="flex flex-wrap items-center gap-2" data-navilo-standard-tools-host>{canReceivePayment && <button onClick={() => activeBusinessUnit?.business_unit_type==='transport'?navigate('/accounting/cash-counter'):openReceivePayment()} className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">Receive Payment</button>}{canCreateSales && <button onClick={() => navigate("/sales/new")} className="btn-primary">+ New Invoice</button>}</div>} />
 
       {error && <ErrorBanner message={error} />}
 
+      <TransportOpeningInvoices side="customer"/>
       <section className="grid grid-cols-1 gap-3 md:grid-cols-4" data-no-print data-no-export>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-blue-50 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Visible Invoices</div><div className="text-lg font-bold text-slate-900">{filteredRows.length}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-50 text-emerald-600"><Coins className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Invoice Total</div><div className="text-lg font-bold text-slate-900">{formatCurrency(filteredInvoiceTotal)}</div></div></div>

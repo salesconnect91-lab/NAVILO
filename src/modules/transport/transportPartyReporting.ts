@@ -4,11 +4,13 @@ export type PartyDocument = {
  trip_ids:string[];trip_no:string;kind:string;original_net:number;original_gross:number;journal_entry_id:string;
  current_billed_gross:number|null;current_paid_gross:number|null;current_refunded_gross:number|null;
  current_outstanding_gross:number|null;current_credit_gross:number|null;
+ historical_settled?:number;opening_remaining?:number;
 };
 export type PartyMovement = {
  event_id:string;side:PartySide;party_id:string;party_name:string;order_id?:string;order_no?:string;
  trip_ids?:string[];trip_no?:string;kind?:string;event_type?:string;journal_entry_id:string;entry_no:string;
  event_date:string;created_at:string;description:string;debit:number;credit:number;amount:number;net_amount?:number;
+ original_net?:number;original_gross?:number;historical_settled?:number;
 };
 export const cents=(value:unknown)=>Math.round(Number(value??0)*100);
 export const money=(value:number)=>value/100;
@@ -27,6 +29,7 @@ export function documentBalances(documents:PartyDocument[],events:PartyMovement[
  const v=totals.get(e.order_id)??{billed:0,net:0,paid:0,refund:0,balance:0};
  const a=cents(e.amount);v.balance+=a;
  const type=(e.event_type??'').replace(/^reversal_/,'');
+ if(type==='opening_balance'){v.billed+=cents(e.original_gross);v.net+=cents(e.original_net);v.paid+=cents(e.historical_settled);}
  if(type==='bill'||type==='credit_note'){v.billed+=a;v.net+=cents(e.net_amount);}
  if(type==='receipt'||type==='payment')v.paid-=a;
  if(type==='refund'||type==='recovery')v.refund+=a;

@@ -1,0 +1,1 @@
+create index transport_opening_invoice_lines_trip_side_idx on public.transport_opening_invoice_lines(trip_id,side) include(document_id,opening_remaining);

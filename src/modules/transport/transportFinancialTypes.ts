@@ -2,6 +2,7 @@ export type TransportFinanceAction = 'billing' | 'rent' | 'settlement' | 'driver
 export const financeActions: TransportFinanceAction[] = ['billing','rent','settlement','driver','cost','adjustment','close'];
 export type FinancialTrip = {
  id: string; trip_no: string; customer_id?: string; driver_id?: string; vehicle_id?: string;
+ opening_customer_document_id?:string|null;opening_supplier_document_id?:string|null;owner_supplier_id?:string|null;
  customer_name?: string|null; driver_name?: string|null; vehicle_no?: string|null; customer_rate?: number|null; customer_base_rate?: number|null; customer_charges?: number|null; customer_manual_adjustment?: number|null;
  owner_rent?: number|null; supplier_rent?: number|null; driver_pay?: number|null; trip_status?: string; financial_status?: string;
  sale_type?: string|null; customer_rate_state?: 'pending'|'finalized'; from_location?: string; to_location?: string; other_cost_net?: number; customer_rate_locked?: boolean; supplier_rate_locked?: boolean; invoiced?: boolean;
