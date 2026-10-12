@@ -543,10 +543,9 @@ export default function TransportWorkspace(){
     }catch(e:any){
       if(generation===readGeneration.current&&!controller.signal.aborted){
         setRegisterLoadError(true);
-        // Stale results from another filter must not masquerade as matching rows.
-        if(lastSuccessfulRegisterKey.current!==registerPageKey){
-          setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
-        }
+        // Keep the last successful rows visible when the database read fails.
+        // A timeout is not evidence that the user's Trips were deleted.
+        // The error banner and unavailable-count indicator distinguish stale data.
         if(!silent||lastSuccessfulRegisterKey.current===null){
           const message=String(e?.message||'Unable to load trips.');
           if(/statement timeout|57014|timeout/i.test(message))registerAutoRefreshBlockedUntil.current=Date.now()+120000;
@@ -578,9 +577,8 @@ export default function TransportWorkspace(){
       setRegisterLoadError(false);setRegisterLoading(false);
       if(Date.now()-cached.at<60000)return;
     }else{
-      if(pageChanged||changed||lastSuccessfulRegisterKey.current!==registerPageKey){
-        setRows([]);setRegisterMeta({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
-      }
+      // Preserve the previous page during a new read. Clearing it here made
+      // transient timeouts appear as an empty database.
       setRegisterLoading(true);
     }
     const timer=window.setTimeout(()=>void load(!!cached),200);
