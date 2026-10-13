@@ -99,6 +99,8 @@ begin
  again:=public.transport_convert_register_invoice_batch('supplier',100);
  if (again->>'posted')::int<>0 then raise exception 'Repeated supplier conversion created duplicates';end if;
  if has_table_privilege('authenticated','public.transport_register_conversion_gates','insert') or has_function_privilege('authenticated','public.transport_register_conversion_allowed(uuid,text)','execute') then raise exception 'Private conversion authority exposed';end if;
+ answer:=public.transport_register_query(500,0,'{}');
+ if (answer->>'count')::int<>3 or (answer->'totals'->>'company_rate')::numeric<>600 or (answer->'totals'->>'received_company')::numeric<>340 or (answer->'totals'->>'remaining_company')::numeric<>260 then raise exception 'Grouped native Register invoice amounts repeat per Trip: %',answer;end if;
  execute 'reset role';perform set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);execute 'set local role authenticated';
  rejected:=false;begin perform public.transport_convert_register_invoice_batch('supplier',100);exception when others then rejected:=true;end;if not rejected then raise exception 'Foreign conversion accepted';end if;
  execute 'reset role';
