@@ -100,6 +100,10 @@ begin
  register:=public.transport_register_query(p_limit=>500);
  if (register->>'count')::int<>3 or (register->'totals'->>'remaining_company')::numeric<>210 or (register->'totals'->>'supplier_balance')::numeric<>15 then raise exception 'Register did not reflect payments %',register;end if;
  if (select count(*) from jsonb_array_elements(register->'rows') x where (x->>'customer_rate_locked')::boolean)<>3 then raise exception 'Linked customer commercial fields not locked';end if;
+ register:=public.transport_register_query(p_limit=>1,p_sort=>'supplier_balance',p_direction=>'desc');if register->'rows'->0->>'id'<>t3::text or (register->'totals'->>'supplier_balance')::numeric<>15 then raise exception 'Full-book supplier numeric sort incorrect';end if;
+ register:=public.transport_register_query(p_limit=>1,p_sort=>'remaining_company',p_direction=>'asc');if register->'rows'->0->>'id'<>t3::text then raise exception 'Full-book customer numeric sort incorrect';end if;
+ register:=public.transport_register_query(p_filters=>jsonb_build_object('columns',jsonb_build_object('supplier_balance',jsonb_build_array('15.00'))));if (register->>'count')::int<>1 or (register->'totals'->>'supplier_balance')::numeric<>15 then raise exception 'Supplier amount filter did not filter page and totals';end if;
+ register:=public.transport_register_query(p_filters=>jsonb_build_object('fromDate',to_char(current_date-2,'YYYY-MM-DD'),'toDate',to_char(current_date-2,'YYYY-MM-DD')));if (register->>'count')::int<>1 or register->'rows'->0->>'id'<>t2::text then raise exception 'Trip date range filter incorrect';end if;
  register:=public.transport_register_query(p_filters=>jsonb_build_object('search','INV-100'),p_sort=>'remaining_company',p_direction=>'desc');
  if (register->>'count')::int<>3 or (register->'totals'->>'remaining_company')::numeric<>210 then raise exception 'Invoice filter totals incorrect';end if;
  register:=public.transport_register_query(p_filters=>jsonb_build_object('columns',jsonb_build_object('trip_no',jsonb_build_array('101'))));
