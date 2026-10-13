@@ -1,3 +1,4 @@
+import {recordDisplayText} from '@/lib/recordDisplayText';
 import {detailedTransportLedger,partySearchKey,type DetailedPartyLedger} from './transportLedgerRows';
 import {registerPrintSource,printTableMarkup} from '@/lib/printDocument';
 import {useAuth} from '@/auth/AuthContext';
@@ -592,7 +593,7 @@ export default function Ledgers() {
           [
             escapeCsv(row.entry_date),
             escapeCsv(row.account?.name || ""),
-            escapeCsv(row.description || ""),
+            escapeCsv(recordDisplayText(row.description)),
             Number(row.debit) || 0,
             Number(row.credit) || 0,
             escapeCsv(signedBalanceLabel(Number(row.displayBalance) || 0)),
@@ -625,7 +626,7 @@ export default function Ledgers() {
         documentRefs: transport.documentRefs, trip: transport.trip, from: transport.from, to: transport.to, vehicle: transport.vehicle,
         driver: transport.driver, owner: transport.owner, job: transport.job,
         sourceNet:row.source_net??"",sourceTax:row.source_gross==null?"":Number(row.source_gross)-Number(row.source_net||0),sourceGross:row.source_gross??"",sourceSettled:row.source_settled??"",sourceRemaining:row.source_remaining??"",
-        description: row.description || "", base: transport.base || "", charges: transport.charges || "", tax: transport.tax || "", postedTotal: transport.postedTotal || "", debit: Number(row.debit) || "", credit: Number(row.credit) || "",
+        description: recordDisplayText(row.description), base: transport.base || "", charges: transport.charges || "", tax: transport.tax || "", postedTotal: transport.postedTotal || "", debit: Number(row.debit) || "", credit: Number(row.credit) || "",
         balance: signedBalanceLabel(Number(row.displayBalance) || 0),
       };
       return exportColumns.map(([key]) => escapeCsv(values[key])).join(",");
@@ -650,7 +651,7 @@ export default function Ledgers() {
     const table=partyTableRef.current;if(!table||viewMode!=="party")return;
     return registerPrintSource(table,()=>{
       if(loading)throw new Error("Ledger details are loading. Wait before printing.");
-      const data=partyRowsWithBalance.map(row=>{const t=transportInfoByJournal(row);const values:Record<PartyColumnKey,unknown>={date:formatDate(row.entry_date),party:row.party_name,reference:row.reference,documentRefs:t.documentRefs,trip:t.trip,from:t.from,to:t.to,vehicle:t.vehicle,driver:t.driver,owner:t.owner,job:t.job,description:row.description,sourceNet:row.source_net??'',sourceTax:row.source_gross==null?'':Number(row.source_gross)-Number(row.source_net||0),sourceGross:row.source_gross??'',sourceSettled:row.source_settled??'',sourceRemaining:row.source_remaining??'',base:t.base||'',charges:t.charges||'',tax:t.tax||'',postedTotal:t.postedTotal||'',debit:Number(row.debit)||'',credit:Number(row.credit)||'',balance:signedBalanceLabel(row.displayBalance)};return displayedPartyColumns.map(([key])=>values[key]);});
+      const data=partyRowsWithBalance.map(row=>{const t=transportInfoByJournal(row);const values:Record<PartyColumnKey,unknown>={date:formatDate(row.entry_date),party:row.party_name,reference:row.reference,documentRefs:t.documentRefs,trip:t.trip,from:t.from,to:t.to,vehicle:t.vehicle,driver:t.driver,owner:t.owner,job:t.job,description:recordDisplayText(row.description),sourceNet:row.source_net??'',sourceTax:row.source_gross==null?'':Number(row.source_gross)-Number(row.source_net||0),sourceGross:row.source_gross??'',sourceSettled:row.source_settled??'',sourceRemaining:row.source_remaining??'',base:t.base||'',charges:t.charges||'',tax:t.tax||'',postedTotal:t.postedTotal||'',debit:Number(row.debit)||'',credit:Number(row.credit)||'',balance:signedBalanceLabel(row.displayBalance)};return displayedPartyColumns.map(([key])=>values[key]);});
       data.push(displayedPartyColumns.map(([key],index)=>key==='debit'?totalDebit:key==='credit'?totalCredit:key==='balance'?(selectedPartyKey?signedBalanceLabel(statementBalance):'Per Party'):index===0?'Total:':''));
       return printTableMarkup('Party Statement',displayedPartyColumns.map(([,label])=>label),data);
     });
@@ -943,7 +944,7 @@ export default function Ledgers() {
                       </td>
 
                       <td className="py-2.5 px-3 text-slate-700">
-                        {row.description ?? ""}
+                        {recordDisplayText(row.description)}
                       </td>
 
                       <td className="py-2.5 px-3 text-right text-slate-700">
@@ -1014,7 +1015,7 @@ export default function Ledgers() {
                     documentRefs: transport.documentRefs, trip: transport.trip, from: transport.from, to: transport.to, vehicle: transport.vehicle,
                     driver: transport.driver, owner: transport.owner, job: transport.job,
                     sourceNet:row.source_net==null?"":formatCurrency(row.source_net),sourceTax:row.source_gross==null?"":formatCurrency(Number(row.source_gross)-Number(row.source_net||0)),sourceGross:row.source_gross==null?"":formatCurrency(row.source_gross),sourceSettled:row.source_settled==null?"":formatCurrency(row.source_settled),sourceRemaining:row.source_remaining==null?"":formatCurrency(row.source_remaining),
-                    description: row.description || "",
+                    description: recordDisplayText(row.description),
                     base: transport.base ? formatCurrency(transport.base) : "",
                     charges: transport.charges ? <span title={transport.chargeBreakdown || undefined}>{formatCurrency(transport.charges)}</span> : "",
                     tax: transport.tax ? formatCurrency(transport.tax) : "",

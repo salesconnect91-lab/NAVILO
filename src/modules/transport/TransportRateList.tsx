@@ -52,7 +52,7 @@ export default function TransportRateList({onClose,onChanged}:Props){
  }
  return <TransportDialog >
   <section role="dialog" aria-modal="true" className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white text-xs shadow-2xl">
-   <header className="flex items-center justify-between border-b bg-slate-900 px-3 py-2 text-white"><div><h2 className="text-sm font-bold">Customer Rate List / Quotation</h2><p className="text-[10px] text-slate-300">Annual route rates + company-specific additional charges. Old periods remain historical.</p></div><button className="btn h-7" disabled={busy} onClick={onClose}>Close</button></header>
+   <header className="flex items-center justify-between border-b bg-slate-900 px-3 py-2 text-white"><div><h2 className="text-sm font-bold">Customer Rate List / Quotation</h2><p className="text-[10px] text-slate-300">Annual route rates + company-specific additional charges. Previous periods remain unchanged.</p></div><button className="btn h-7" disabled={busy} onClick={onClose}>Close</button></header>
    {error&&<p role="alert" className="mx-3 mt-2 rounded bg-red-50 p-2 text-red-700">{error}</p>}{message&&<p role="status" className="mx-3 mt-2 rounded bg-emerald-50 p-2 text-emerald-700">{message}</p>}
    <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-auto p-3 lg:grid-cols-2">
     <section className="rounded border p-2"><h3 className="mb-2 font-bold">Base Route Rates</h3>

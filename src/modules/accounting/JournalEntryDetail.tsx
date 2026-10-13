@@ -1,3 +1,4 @@
+import {recordDisplayText} from '@/lib/recordDisplayText';
 import {useAuth} from '@/auth/AuthContext';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
@@ -1402,7 +1403,7 @@ export default function JournalEntryDetail() {
                 row.debit,
               credit:
                 row.credit,
-              description: row.description,
+              description: recordDisplayText(row.description),
             };
           }
         );
@@ -2205,7 +2206,7 @@ export default function JournalEntryDetail() {
             />
           </div>
 
-          {entry.description && <p className="text-sm text-slate-500 mt-1">{entry.description}</p>}
+          {entry.description && <p className="text-sm text-slate-500 mt-1">{recordDisplayText(entry.description)}</p>}
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">

@@ -26,7 +26,7 @@ export default function TransportExternalInvoiceImport(){
    notes:[
     'Use this importer for ready external Sales Invoices; it does NOT require or create NAVILO Trips.',
     'Source Reference must identify EACH unique Excel invoice line. Invoice No identifies the invoice; multiple lines can share one Invoice No, Customer, Invoice Date, mode and VAT rate.',
-    'Reference Date is the historical source Trip date (if known). Invoice / Bill Date is the actual invoice date used for the Sales draft.',
+    'Reference Date is the source Trip date (if known). Invoice / Bill Date is the actual invoice date used for the Sales draft.',
     'Cash/Credit must match the active Transport Customer Master billing mode. Credit needs an Invoice No and positive VAT. Cash permits blank Invoice No but requires VAT 0 under current import validation.',
     'Amount is the net before VAT; TAX AMOUNT = Amount × TAX (%) / 100; BILL AMOUNT = Amount + TAX AMOUNT.',
     'Import creates draft Sales invoices / cash bills only. Posting and actual customer payment/receipt happen separately.',

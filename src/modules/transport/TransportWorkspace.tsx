@@ -805,7 +805,7 @@ export default function TransportWorkspace(){
     if(!row.trip_date)errors.push('Trip Date required');
     if(!row.customer)errors.push('Customer required');
     if(!row.from_location||!row.to_location)errors.push('From and To required');
-    if(preserveHistory&&!['cash','credit'].includes(row.sale_type))errors.push('Historical Sale Type must be Cash or Credit');
+    if(preserveHistory&&!['cash','credit'].includes(row.sale_type))errors.push('Sale Type must be Cash or Credit');
     if(!['pending','received','not_required'].includes(row.ppr_status))errors.push('Invalid PPR Status');
     if(row.ppr_status==='received'&&(!row.ppr_employee||!row.ppr_date))errors.push('PPR Received requires Employee and Date');
     for(const [label,value] of [['Customer Rate',row.customer_rate],['Supplier Rent',row.supplier_rent],['Driver Pay',row.driver_pay]])
@@ -892,7 +892,7 @@ export default function TransportWorkspace(){
     try {
       if(file.size>30*1024*1024)throw new Error('Maximum upload size is 30 MB.');
       const buffer=await file.arrayBuffer();const hash=await fileDigest(buffer);const normalized=await parseTripFile(buffer);
-      if(normalized.some(row=>row.has_accounting_evidence))throw new Error('This file contains historical payments or accounting evidence. Use One-time Historical Import so receipts and paid rent are reconciled instead of omitted.');
+      if(normalized.some(row=>row.has_accounting_evidence))throw new Error('This file contains payments or accounting evidence. Use One-time Import so receipts and paid rent are reconciled instead of omitted.');
       const validated=await validateBulkMasters(normalized);
       if(scopeRef.current!==startedScope)return;
       setBulkRows(validated);setBulkFileName(file.name);setBulkSourceHash(hash);setBulkPreviewPage(0);
@@ -1976,7 +1976,7 @@ export default function TransportWorkspace(){
                       {r.customer_rate_state==='pending'&&!r.customer_rate_locked?'':value||'0.00'}
                     </button>
                     :key==='invoice_no'&&!r.invoiced&&r.historical_customer_invoice_ref
-                      ?<span title="Original historical invoice reference — unposted">{r.invoice_no}<span className="ml-1 text-[8px] text-slate-500">Historical</span></span>
+                      ?<span title="Original invoice reference — unposted">{r.invoice_no}</span>
                     :key==='invoice_no'
                       ?<button data-register-editable="true" type="button"
                         className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
@@ -1990,10 +1990,10 @@ export default function TransportWorkspace(){
                       ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-medium leading-tight text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
                     :key==='paper_received_by'
                       ?r.ppr_status==='received'
-                        ?<span title={r.historical_paper_status==='received'?'Original historical paper receipt evidence':undefined} className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[8px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
+                        ?<span title={r.historical_paper_status==='received'?'Original paper receipt evidence':undefined} className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[8px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
                         :<button data-register-editable="true" type="button" onClick={()=>void openQuickPpr(r)} className="h-[22px] rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0 text-[9px] font-semibold leading-tight text-amber-800 hover:bg-amber-100">Receive PPR</button>
                       :key==='supplier_invoice_no'&&r.billed_supplier_net==null&&r.historical_supplier_invoice_ref
-                      ?<span title="Original historical Supplier invoice reference — unposted">{value}<span className="ml-1 text-[8px] text-slate-500">Historical</span></span>
+                      ?<span title="Original Supplier invoice reference — unposted">{value}</span>
                       :value||""}
                 </td>;
               })}            </tr>;
@@ -2041,7 +2041,7 @@ export default function TransportWorkspace(){
       >
         Bulk Upload
       </button>
-      <button type="button" className={`btn ${newTripMode==='historical'?'bg-slate-900 text-white':''}`} onClick={()=>setNewTripMode('historical')}>One-time Historical Import</button>
+      <button type="button" className={`btn ${newTripMode==='historical'?'bg-slate-900 text-white':''}`} onClick={()=>setNewTripMode('historical')}>One-time Import</button>
     </div>}
   </div>
 
@@ -2249,7 +2249,7 @@ export default function TransportWorkspace(){
     {quickAdd&&bulkFixRowNo!==null&&<TransportQuickAdd key={`${scopeKey}/bulk/${bulkFixRowNo}/${quickAdd}`} kind={quickAdd} truckTypeId="" supplierId=""
       initialName={(()=>{const row=bulkRows.find(r=>r.rowNo===bulkFixRowNo);if(!row)return "";if(quickAdd==="customer")return row.customer;if(quickAdd==="driver")return row.driver;if(quickAdd==="locationFrom")return row.from_location;if(quickAdd==="locationTo")return row.to_location;if(quickAdd==="truckType")return row.truck_type;if(quickAdd==="vehicle")return row.vehicle;if(quickAdd==="supplier")return row.owner_supplier;return "";})()}
       truckTypes={tripMasters.truckTypes} suppliers={tripMasters.suppliers} onCreated={quickMasterCreated} onClose={()=>{setQuickAdd(null);setBulkFixRowNo(null)}}/>}
-    <p className="text-xs">Daily operational upload: creates Trips and agreed charges only. Historical receipts and paid rent require the separate One-time Historical Import.</p>
+    <p className="text-xs">Daily operational upload: creates Trips and agreed charges only. receipts and paid rent require the separate One-time Import.</p>
 
     <div className="flex flex-wrap items-center gap-2">
 
