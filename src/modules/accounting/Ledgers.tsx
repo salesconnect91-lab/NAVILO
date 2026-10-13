@@ -1,3 +1,5 @@
+import {detailedTransportLedger,partySearchKey,type DetailedPartyLedger} from './transportLedgerRows';
+import {registerPrintSource,printTableMarkup} from '@/lib/printDocument';
 import {useAuth} from '@/auth/AuthContext';
 import type {PartyMovement} from '@/modules/transport/transportPartyReporting';
 import {linkedPartyRows} from '@/modules/transport/transportOpeningInvoices';
@@ -10,7 +12,6 @@ import {
   ChartOfAccount,
   Customer,
   Supplier,
-  PartyLedger,
   PartyType,
 } from "@/types";
 import {
@@ -28,9 +29,7 @@ type LedgerRow = Ledger & {
   account?: ChartOfAccount | null;
 };
 
-type PartyLedgerRow = PartyLedger & {
-  party_name?: string | null;
-};
+type PartyLedgerRow = DetailedPartyLedger;
 
 type TransportDetail = {
   order_id?: string | null;
@@ -53,7 +52,7 @@ type TransportDetail = {
   charge_breakdown?: string | null;
 };
 
-type TransportMovementLink = {
+type TransportMovementLink = Partial<PartyMovement> & {
   order_id?: string | null;
   party_id?: string | null;
   event_type?: string | null;
@@ -67,11 +66,12 @@ const PARTY_COLUMNS = [
   ["date", "Date"], ["party", "Party"], ["reference", "Reference"], ["documentRefs", "Linked invoices"],
   ["trip", "Trip"], ["from", "From"], ["to", "To"], ["vehicle", "Vehicle"],
   ["driver", "Driver"], ["owner", "Owner"], ["job", "Job / PO / DO"],
+  ["sourceNet", "Source Net"], ["sourceTax", "Source Tax Difference"], ["sourceGross", "Source Gross"], ["sourceSettled", "Historical Settled"], ["sourceRemaining", "Opening Remaining"],
   ["description", "Description"], ["base", "Base Amount"], ["charges", "Charges"], ["tax", "VAT / Tax"], ["postedTotal", "Posted Total"], ["debit", "Debit"], ["credit", "Credit"], ["balance", "Balance"],
 ] as const;
 type PartyColumnKey = (typeof PARTY_COLUMNS)[number][0];
 const DEFAULT_PARTY_COLUMNS: PartyColumnKey[] = [
-  "date","party","reference","documentRefs","trip","from","to","vehicle","description","base","charges","tax","postedTotal","debit","credit","balance",
+  "sourceGross","sourceSettled","sourceRemaining","date","party","reference","documentRefs","trip","from","to","vehicle","description","base","charges","tax","postedTotal","debit","credit","balance",
 ];
 
 const escapeCsv = (value: unknown) => {
@@ -107,12 +107,14 @@ export function buildTransportLedgerContext(transportDetails: TransportDetail[],
     return (row: PartyLedgerRow | LedgerRow) => {
       const reference = "reference" in row ? row.reference : null;
       const orderNos = new Set<string>();
-      if(reference && "party_type" in row){
+      const explicitOrder = "transport_order_id" in row ? row.transport_order_id : null;
+      if(explicitOrder && "party_type" in row)orderNos.add(`${row.party_type}:id:${explicitOrder}`);
+      if(!explicitOrder && reference && "party_type" in row){
         for(const [key,details] of detailsByOrder){const first=details[0];
           if(first.side===row.party_type && first.order_no===reference && (!first.party_id||first.party_id===row.party_id))orderNos.add(key);
         }
       }
-      if (row.journal_entry_id) {
+      if (!explicitOrder && row.journal_entry_id) {
         for (const orderNo of ordersByJournal.get(row.journal_entry_id) || []) {
           const detail=detailsByOrder.get(orderNo)?.[0];
           if(!detail)continue;
@@ -121,7 +123,7 @@ export function buildTransportLedgerContext(transportDetails: TransportDetail[],
           orderNos.add(orderNo);
         }
       }
-      const details = [...orderNos].flatMap((orderNo) => detailsByOrder.get(orderNo) || []);
+      const details = [...orderNos].flatMap((orderNo) => detailsByOrder.get(orderNo) || []).filter(d=>!("transport_trip_no" in row)||!row.transport_trip_no||d.trip_no===row.transport_trip_no);
       // Financial fields returned by transport_document_trip_detail_query are document-level
       // snapshots repeated on each Trip row. Sum each order once; Trip context remains multi-row.
       const financialDetails = [...orderNos].map((orderNo) => (detailsByOrder.get(orderNo) || [])[0]).filter((d): d is TransportDetail => Boolean(d)&&d?.kind!=='opening_balance');
@@ -177,7 +179,9 @@ export default function Ledgers() {
   const [error, setError] = useState<string | null>(null);
   const [transportWarning, setTransportWarning] = useState<string | null>(null);
   const [transportDetails, setTransportDetails] = useState<TransportDetail[]>([]);
-  const [transportMovements, setTransportMovements] = useState<TransportMovementLink[]>([]);
+  const [transportMovements, setTransportMovements] = useState<PartyMovement[]>([]);
+  const [partyPage,setPartyPage]=useState(0);
+  const partyTableRef=useRef<HTMLTableElement|null>(null);
   const [showColumns, setShowColumns] = useState(false);
   const partyColumnDragKey = useRef<PartyColumnKey | null>(null);
   const [partyColumnOrder, setPartyColumnOrder] = useState<PartyColumnKey[]>(() => {
@@ -200,7 +204,7 @@ export default function Ledgers() {
         const parsed = JSON.parse(saved) as PartyColumnKey[];
         const allowed = new Set(PARTY_COLUMNS.map(([key]) => key));
         const valid = parsed.filter((key) => allowed.has(key));
-        if (valid.length) return valid;
+        if (valid.length) return [...new Set<PartyColumnKey>([...valid,"sourceGross","sourceSettled","sourceRemaining"])];
       }
     } catch {}
     return DEFAULT_PARTY_COLUMNS;
@@ -308,7 +312,7 @@ export default function Ledgers() {
     const sides: PartyType[] = selected ? [selected[0]] : partyFilterType === "all" ? ["customer", "supplier"] : [partyFilterType];
     setTransportWarning(null);
     const details: TransportDetail[] = [];
-    const movements: TransportMovementLink[] = [];
+    const movements: PartyMovement[] = [];
 
     await Promise.all(sides.map(async (side) => {
       try {
@@ -377,7 +381,8 @@ export default function Ledgers() {
         setPartyRows([]);
 
         if (viewMode === "general") {
-          await Promise.all([fetchGeneralLedger(), fetchTransportContext()]);
+          setTransportDetails([]);setTransportMovements([]);setTransportWarning(null);
+          await fetchGeneralLedger();
         } else {
           await Promise.all([fetchPartyLedger(), fetchTransportContext()]);
         }
@@ -394,6 +399,7 @@ export default function Ledgers() {
 
     return () => {
       mounted = false;
+      transportRequest.current++;
     };
   }, [viewMode, fetchGeneralLedger, fetchPartyLedger, fetchTransportContext]);
 
@@ -439,7 +445,7 @@ export default function Ledgers() {
   }, [customers, suppliers, partyFilterType]);
 
   const filteredPartyOptions = useMemo(() => {
-    const search = partySearch.trim().toLowerCase();
+    const search = partySearchKey(partySearch);
 
     if (!search) {
       return partyOptions.slice(0, 50);
@@ -451,7 +457,7 @@ export default function Ledgers() {
           party.type === "customer" ? "customer" : "supplier";
 
         return (
-          party.name.toLowerCase().includes(search) ||
+          partySearchKey(party.name).includes(search) ||
           typeLabel.includes(search)
         );
       })
@@ -518,10 +524,13 @@ export default function Ledgers() {
     });
   }, [ledgerRows, selectedAccount]);
 
+  const detailedRows=useMemo(()=>detailedTransportLedger(partyRows,transportMovements,transportDetails),[partyRows,transportMovements,transportDetails]);
+  const filteredLedgerRows=useMemo(()=>detailedRows.rows.filter(row=>selectedPartyKey||!partySearchKey(partySearch)||partySearchKey(`${row.party_name||getPartyName(row.party_type,row.party_id)} ${row.party_type}`).includes(partySearchKey(partySearch))),[detailedRows,selectedPartyKey,partySearch,getPartyName]);
+  useEffect(()=>setPartyPage(0),[partySearch,selectedPartyKey,partyFilterType,partyRows,transportMovements]);
   const partyRowsWithBalance = useMemo(() => {
     const balances = new Map<string, number>();
 
-    return partyRows.map((row) => {
+    return filteredLedgerRows.map((row) => {
       const key = `${row.party_type}:${row.party_id}`;
       const debit = Number(row.debit) || 0;
       const credit = Number(row.credit) || 0;
@@ -537,7 +546,7 @@ export default function Ledgers() {
         displayBalance: nextBalance,
       };
     });
-  }, [partyRows, getPartyName]);
+  }, [filteredLedgerRows, getPartyName]);
 
   const transportInfoByJournal = useMemo(() => buildTransportLedgerContext(transportDetails, transportMovements), [transportDetails, transportMovements]);
 
@@ -562,14 +571,14 @@ export default function Ledgers() {
   };
 
   const totalDebit = useMemo(() => {
-    const source = viewMode === "general" ? ledgerRows : partyRows;
+    const source = viewMode === "general" ? ledgerRows : filteredLedgerRows;
     return source.reduce((sum, row) => sum + (Number(row.debit) || 0), 0);
-  }, [viewMode, ledgerRows, partyRows]);
+  }, [viewMode, ledgerRows, filteredLedgerRows]);
 
   const totalCredit = useMemo(() => {
-    const source = viewMode === "general" ? ledgerRows : partyRows;
+    const source = viewMode === "general" ? ledgerRows : filteredLedgerRows;
     return source.reduce((sum, row) => sum + (Number(row.credit) || 0), 0);
-  }, [viewMode, ledgerRows, partyRows]);
+  }, [viewMode, ledgerRows, filteredLedgerRows]);
 
   const statementBalance = totalDebit - totalCredit;
 
@@ -615,6 +624,7 @@ export default function Ledgers() {
         date: row.entry_date, party: row.party_name || "", reference: row.reference || "",
         documentRefs: transport.documentRefs, trip: transport.trip, from: transport.from, to: transport.to, vehicle: transport.vehicle,
         driver: transport.driver, owner: transport.owner, job: transport.job,
+        sourceNet:row.source_net??"",sourceTax:row.source_gross==null?"":Number(row.source_gross)-Number(row.source_net||0),sourceGross:row.source_gross??"",sourceSettled:row.source_settled??"",sourceRemaining:row.source_remaining??"",
         description: row.description || "", base: transport.base || "", charges: transport.charges || "", tax: transport.tax || "", postedTotal: transport.postedTotal || "", debit: Number(row.debit) || "", credit: Number(row.credit) || "",
         balance: signedBalanceLabel(Number(row.displayBalance) || 0),
       };
@@ -635,6 +645,16 @@ export default function Ledgers() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+
+  useEffect(()=>{
+    const table=partyTableRef.current;if(!table||viewMode!=="party")return;
+    return registerPrintSource(table,()=>{
+      if(loading)throw new Error("Ledger details are loading. Wait before printing.");
+      const data=partyRowsWithBalance.map(row=>{const t=transportInfoByJournal(row);const values:Record<PartyColumnKey,unknown>={date:formatDate(row.entry_date),party:row.party_name,reference:row.reference,documentRefs:t.documentRefs,trip:t.trip,from:t.from,to:t.to,vehicle:t.vehicle,driver:t.driver,owner:t.owner,job:t.job,description:row.description,sourceNet:row.source_net??'',sourceTax:row.source_gross==null?'':Number(row.source_gross)-Number(row.source_net||0),sourceGross:row.source_gross??'',sourceSettled:row.source_settled??'',sourceRemaining:row.source_remaining??'',base:t.base||'',charges:t.charges||'',tax:t.tax||'',postedTotal:t.postedTotal||'',debit:Number(row.debit)||'',credit:Number(row.credit)||'',balance:signedBalanceLabel(row.displayBalance)};return displayedPartyColumns.map(([key])=>values[key]);});
+      data.push(displayedPartyColumns.map(([key],index)=>key==='debit'?totalDebit:key==='credit'?totalCredit:key==='balance'?(selectedPartyKey?signedBalanceLabel(statementBalance):'Per Party'):index===0?'Total:':''));
+      return printTableMarkup('Party Statement',displayedPartyColumns.map(([,label])=>label),data);
+    });
+  },[viewMode,loading,partyRowsWithBalance,transportInfoByJournal,displayedPartyColumns,totalDebit,totalCredit,statementBalance,selectedPartyKey]);
 
   const exportToPDF = () => {
     window.print();
@@ -681,6 +701,7 @@ export default function Ledgers() {
       />
 
       {error && <ErrorBanner message={error} />}
+      {detailedRows.unmatched.length>0 && <p role="alert">Some imported invoice details do not reconcile with their posted voucher. Original posted rows are shown for those vouchers.</p>}
       {transportWarning && <p role="alert" className="rounded border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900">{transportWarning}</p>}
 
       <div className="card p-4 print:hidden">
@@ -969,7 +990,9 @@ export default function Ledgers() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-max">
+            <p className="text-sm p-2">Imported invoice rows explain the existing opening voucher. Source gross and historical settled amounts are register evidence. Debit, credit and balance show the posted opening remaining. Original invoice dates were not supplied.</p>
+            <div className="flex gap-3 p-2 print:hidden"><button disabled={!partyPage} onClick={()=>setPartyPage(p=>p-1)}>Previous</button><span>{partyPage*200+Math.min(partyRowsWithBalance.length,1)}–{Math.min((partyPage+1)*200,partyRowsWithBalance.length)} / {partyRowsWithBalance.length} rows</span><button disabled={(partyPage+1)*200>=partyRowsWithBalance.length} onClick={()=>setPartyPage(p=>p+1)}>Next</button><span>Print and export include all matching rows.</span></div>
+            <table ref={partyTableRef} className="w-full text-sm min-w-max">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
                   {displayedPartyColumns.map(([key, label]) => (
@@ -982,7 +1005,7 @@ export default function Ledgers() {
                   <tr><td colSpan={visiblePartyColumns.length} className="text-center py-8 text-slate-400">Loading Party Statement...</td></tr>
                 ) : partyRowsWithBalance.length === 0 ? (
                   <tr><td colSpan={visiblePartyColumns.length} className="text-center py-8 text-slate-400">No party ledger entries found for this selection.</td></tr>
-                ) : partyRowsWithBalance.map((row) => {
+                ) : partyRowsWithBalance.slice(partyPage*200,(partyPage+1)*200).map((row) => {
                   const transport = transportInfoByJournal(row);
                   const cells: Record<PartyColumnKey, ReactNode> = {
                     date: formatDate(row.entry_date),
@@ -990,6 +1013,7 @@ export default function Ledgers() {
                     reference: row.reference || "",
                     documentRefs: transport.documentRefs, trip: transport.trip, from: transport.from, to: transport.to, vehicle: transport.vehicle,
                     driver: transport.driver, owner: transport.owner, job: transport.job,
+                    sourceNet:row.source_net==null?"":formatCurrency(row.source_net),sourceTax:row.source_gross==null?"":formatCurrency(Number(row.source_gross)-Number(row.source_net||0)),sourceGross:row.source_gross==null?"":formatCurrency(row.source_gross),sourceSettled:row.source_settled==null?"":formatCurrency(row.source_settled),sourceRemaining:row.source_remaining==null?"":formatCurrency(row.source_remaining),
                     description: row.description || "",
                     base: transport.base ? formatCurrency(transport.base) : "",
                     charges: transport.charges ? <span title={transport.chargeBreakdown || undefined}>{formatCurrency(transport.charges)}</span> : "",

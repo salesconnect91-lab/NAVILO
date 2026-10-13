@@ -46,3 +46,14 @@ it('matches native document IDs when a legacy detail DTO has no party field',()=
  [{side:'customer',party_id:'party-1',order_id:'native-1',order_no:'SALE-1',journal_entry_id:'native-je'}]);
  expect(lookup({party_type:'customer',party_id:'party-1',journal_entry_id:'native-je'} as any).trip).toBe('N1');
 });
+
+it('limits invoice-detail rows to their document and Trip instead of the whole opening journal',()=>{
+ const lookup=buildTransportLedgerContext([
+ {side:'supplier',party_id:'p',order_id:'one',order_no:'INV1',trip_no:'T1',kind:'opening_balance'},
+ {side:'supplier',party_id:'p',order_id:'one',order_no:'INV1',trip_no:'T2',kind:'opening_balance'},
+ {side:'supplier',party_id:'p',order_id:'two',order_no:'INV2',trip_no:'T3',kind:'opening_balance'}],
+ [{side:'supplier',party_id:'p',order_id:'one',order_no:'INV1',journal_entry_id:'opening'},
+ {side:'supplier',party_id:'p',order_id:'two',order_no:'INV2',journal_entry_id:'opening'}]);
+ expect(lookup({party_type:'supplier',party_id:'p',journal_entry_id:'opening',transport_order_id:'one',transport_trip_no:'T1'} as any).trip).toBe('T1');
+ expect(lookup({party_type:'supplier',party_id:'p',journal_entry_id:'opening',transport_order_id:'two'} as any).documentRefs).toBe('INV2');
+});
