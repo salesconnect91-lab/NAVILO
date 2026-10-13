@@ -37,7 +37,7 @@ for(const file of fs.readdirSync(root+'/supabase/migrations').filter(f=>f.endsWi
 }
 console.log('REPLAY PASS',count);
 if(process.env.NAVILO_OPENING_BRIDGE_SMOKE==='1'){
- try{await db.exec(fs.readFileSync(root+'/supabase/tests/transport_opening_invoice_bridge_rehearsal.sql','utf8'));console.log('PASS transport_opening_invoice_bridge_rehearsal.sql')}catch(e){console.log('FAIL OPENING',e.message,e.where||'');await db.close();process.exit(1)}
+ try{for(const file of ['transport_opening_invoice_bridge_rehearsal.sql','transport_imported_primary_assignment_rehearsal.sql']){await db.exec(fs.readFileSync(root+'/supabase/tests/'+file,'utf8'));console.log('PASS',file)}}catch(e){console.log('FAIL OPENING',e.message,e.where||'');await db.close();process.exit(1)}
  await db.close();process.exit(0);
 }
 if(process.env.NAVILO_PROFILE_REHEARSAL==='1'){if(process.env.NAVILO_NATIVE_REHEARSAL!=='1')throw new Error('Profile only the isolated native CI service');await db.exec("CREATE EXTENSION pg_stat_statements; SET pg_stat_statements.track='all'; SET pg_stat_statements.track_planning=on; SELECT pg_stat_statements_reset();");}
