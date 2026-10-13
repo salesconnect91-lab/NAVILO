@@ -28,3 +28,21 @@ it('excludes owner-cancelled original and reversal from normal GL, party stateme
  expect(visible.reduce((n,x)=>n+x.debit-x.credit,0)).toBeCloseTo(133443.66);
  expect(excludeOwnerCancelledLedgerRows(rows,new Set())).toBe(rows);
 });
+
+it('links imported shared cutover rows to the correct party and keeps source totals out of posted invoice columns',()=>{
+ const lookup=buildTransportLedgerContext([
+  {side:'customer',party_id:'a',order_id:'oa',order_no:'INV-1',trip_no:'101',kind:'opening_balance',base_amount:100,tax_amount:15,total_amount:115},
+  {side:'customer',party_id:'b',order_id:'ob',order_no:'INV-1',trip_no:'202',kind:'opening_balance',base_amount:200,tax_amount:30,total_amount:230},
+ ],[{side:'customer',party_id:'a',order_id:'oa',order_no:'INV-1',journal_entry_id:'cutover'},
+ {side:'customer',party_id:'b',order_id:'ob',order_no:'INV-1',journal_entry_id:'cutover'}]);
+ const a=lookup({party_type:'customer',party_id:'a',journal_entry_id:'cutover'} as any);
+ expect(a.trip).toBe('101');expect(a.documentRefs).toBe('INV-1');expect(a.postedTotal).toBe(0);expect(a.tax).toBe(0);
+ expect(lookup({party_type:'customer',party_id:'b',journal_entry_id:'cutover'} as any).trip).toBe('202');
+ expect(lookup({journal_entry_id:'cutover'} as any).trip).toBe('');
+});
+
+it('matches native document IDs when a legacy detail DTO has no party field',()=>{
+ const lookup=buildTransportLedgerContext([{side:'customer',order_id:'native-1',order_no:'SALE-1',trip_no:'N1',total_amount:115}],
+ [{side:'customer',party_id:'party-1',order_id:'native-1',order_no:'SALE-1',journal_entry_id:'native-je'}]);
+ expect(lookup({party_type:'customer',party_id:'party-1',journal_entry_id:'native-je'} as any).trip).toBe('N1');
+});

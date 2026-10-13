@@ -1,3 +1,6 @@
+import {useAuth} from '@/auth/AuthContext';
+import type {PartyMovement} from '@/modules/transport/transportPartyReporting';
+import {linkedPartyRows} from '@/modules/transport/transportOpeningInvoices';
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fetchAllPages, fetchByIdChunks } from "@/lib/fetchAllPages";
@@ -30,6 +33,9 @@ type PartyLedgerRow = PartyLedger & {
 };
 
 type TransportDetail = {
+  order_id?: string | null;
+  party_id?: string | null;
+  kind?: string | null;
   side: PartyType;
   order_no?: string | null;
   trip_no?: string | null;
@@ -48,6 +54,9 @@ type TransportDetail = {
 };
 
 type TransportMovementLink = {
+  order_id?: string | null;
+  party_id?: string | null;
+  event_type?: string | null;
   side: PartyType;
   journal_entry_id?: string | null;
   order_no?: string | null;
@@ -55,14 +64,14 @@ type TransportMovementLink = {
 };
 
 const PARTY_COLUMNS = [
-  ["date", "Date"], ["party", "Party"], ["reference", "Reference"],
+  ["date", "Date"], ["party", "Party"], ["reference", "Reference"], ["documentRefs", "Linked invoices"],
   ["trip", "Trip"], ["from", "From"], ["to", "To"], ["vehicle", "Vehicle"],
   ["driver", "Driver"], ["owner", "Owner"], ["job", "Job / PO / DO"],
   ["description", "Description"], ["base", "Base Amount"], ["charges", "Charges"], ["tax", "VAT / Tax"], ["postedTotal", "Posted Total"], ["debit", "Debit"], ["credit", "Credit"], ["balance", "Balance"],
 ] as const;
 type PartyColumnKey = (typeof PARTY_COLUMNS)[number][0];
 const DEFAULT_PARTY_COLUMNS: PartyColumnKey[] = [
-  "date","party","reference","trip","from","to","vehicle","description","base","charges","tax","postedTotal","debit","credit","balance",
+  "date","party","reference","documentRefs","trip","from","to","vehicle","description","base","charges","tax","postedTotal","debit","credit","balance",
 ];
 
 const escapeCsv = (value: unknown) => {
@@ -81,7 +90,7 @@ export function buildTransportLedgerContext(transportDetails: TransportDetail[],
     const detailsByOrder = new Map<string, TransportDetail[]>();
     for (const detail of transportDetails) {
       if (!detail.order_no) continue;
-      const key = `${detail.side}:${detail.order_no}`;
+      const key = detail.order_id?`${detail.side}:id:${detail.order_id}`:`${detail.side}:ref:${detail.party_id??''}:${detail.order_no}`;
       const list = detailsByOrder.get(key) || [];
       list.push(detail);
       detailsByOrder.set(key, list);
@@ -90,7 +99,7 @@ export function buildTransportLedgerContext(transportDetails: TransportDetail[],
     for (const movement of transportMovements) {
       if (!movement.journal_entry_id || !movement.order_no) continue;
       const set = ordersByJournal.get(movement.journal_entry_id) || new Set<string>();
-      set.add(`${movement.side}:${movement.order_no}`);
+      set.add(movement.order_id?`${movement.side}:id:${movement.order_id}`:`${movement.side}:ref:${movement.party_id??''}:${movement.order_no}`);
       ordersByJournal.set(movement.journal_entry_id, set);
     }
     const unique = (values: Array<string | null | undefined>) =>
@@ -98,18 +107,26 @@ export function buildTransportLedgerContext(transportDetails: TransportDetail[],
     return (row: PartyLedgerRow | LedgerRow) => {
       const reference = "reference" in row ? row.reference : null;
       const orderNos = new Set<string>();
-      const referenceKey = reference && "party_type" in row ? `${row.party_type}:${reference}` : null;
-      if (referenceKey && detailsByOrder.has(referenceKey)) orderNos.add(referenceKey);
+      if(reference && "party_type" in row){
+        for(const [key,details] of detailsByOrder){const first=details[0];
+          if(first.side===row.party_type && first.order_no===reference && (!first.party_id||first.party_id===row.party_id))orderNos.add(key);
+        }
+      }
       if (row.journal_entry_id) {
         for (const orderNo of ordersByJournal.get(row.journal_entry_id) || []) {
-          if (!("party_type" in row) || orderNo.startsWith(`${row.party_type}:`)) orderNos.add(orderNo);
+          const detail=detailsByOrder.get(orderNo)?.[0];
+          if(!detail)continue;
+          if("party_type" in row){if(detail.side!==row.party_type || (detail.party_id&&detail.party_id!==row.party_id))continue;}
+          else if(detail.kind==='opening_balance')continue;
+          orderNos.add(orderNo);
         }
       }
       const details = [...orderNos].flatMap((orderNo) => detailsByOrder.get(orderNo) || []);
       // Financial fields returned by transport_document_trip_detail_query are document-level
       // snapshots repeated on each Trip row. Sum each order once; Trip context remains multi-row.
-      const financialDetails = [...orderNos].map((orderNo) => (detailsByOrder.get(orderNo) || [])[0]).filter((d): d is TransportDetail => Boolean(d));
+      const financialDetails = [...orderNos].map((orderNo) => (detailsByOrder.get(orderNo) || [])[0]).filter((d): d is TransportDetail => Boolean(d)&&d?.kind!=='opening_balance');
       return {
+        documentRefs: unique(details.map(d=>d.order_no)),
         trip: unique(details.map((d) => d.trip_no)),
         from: unique(details.map((d) => d.from_location)),
         to: unique(details.map((d) => d.to_location)),
@@ -138,6 +155,9 @@ export function excludeOwnerCancelledLedgerRows<T extends { journal_entry_id?: s
 }
 
 export default function Ledgers() {
+  const {activeCompany,activeBusinessUnit,accessContext}=useAuth();
+  const scope=accessContext as unknown as {current_operating_location?:{id?:string;operating_location_id?:string};operating_location_id?:string}|null;
+  const branch=scope?.current_operating_location?.id??scope?.current_operating_location?.operating_location_id??scope?.operating_location_id;
   const [viewMode, setViewMode] = useState<ViewMode>("general");
 
   const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
@@ -280,7 +300,10 @@ export default function Ledgers() {
     setPartyRows(excludeOwnerCancelledLedgerRows(data, excluded));
   }, [partyFilterType, selectedPartyKey, fetchOwnerCancelledJournalIds]);
 
+  const transportRequest=useRef(0);
   const fetchTransportContext = useCallback(async () => {
+    const request=++transportRequest.current;
+    setTransportDetails([]);setTransportMovements([]);
     const selected = selectedPartyKey ? selectedPartyKey.split(":") as [PartyType, string] : null;
     const sides: PartyType[] = selected ? [selected[0]] : partyFilterType === "all" ? ["customer", "supplier"] : [partyFilterType];
     setTransportWarning(null);
@@ -293,7 +316,7 @@ export default function Ledgers() {
         if (allowed.error) throw allowed.error;
         if (allowed.data !== true) return;
         const party = selected?.[0] === side ? selected[1] : "";
-        const [detailRows, movementRows] = await Promise.all([
+        const [detailRows, movementRows,openingDetails] = await Promise.all([
           fetchAllPages<TransportDetail>((fromRow, toRow) =>
             supabase.rpc("transport_document_trip_detail_query", {
               p_side: side,
@@ -302,26 +325,18 @@ export default function Ledgers() {
               p_offset: fromRow,
             })
           ),
-          fetchAllPages<TransportMovementLink>((fromRow, toRow) =>
-            supabase.rpc("transport_party_report_query", {
-              p_kind: "movements",
-              p_side: side,
-              p_filters: { party, to: "", search: "" },
-              p_limit: toRow - fromRow + 1,
-              p_offset: fromRow,
-            })
-          ),
+          linkedPartyRows<PartyMovement>('movements',side,{party,to:'',search:''}),
+          fetchAllPages<TransportDetail>((start,end)=>supabase.rpc('transport_opening_invoice_query',{p_kind:'details',p_side:side,p_filters:{party,to:'',search:''},p_limit:end-start+1,p_offset:start})),
         ]);
-        details.push(...detailRows.map(row => ({ ...row, side })));
+        details.push(...detailRows.map(row => ({ ...row, side })),...openingDetails.map(row=>({...row,side,kind:'opening_balance'})));
         movements.push(...movementRows.map(row => ({ ...row, side })));
       } catch {
-        setTransportWarning("Transport trip and charge details could not be loaded. Ledger balances are available; refresh before relying on the trip details.");
+        if(request===transportRequest.current)setTransportWarning("Transport trip and charge details could not be loaded. Ledger balances are available; refresh before relying on the trip details.");
       }
     }));
 
-    setTransportDetails(details);
-    setTransportMovements(movements);
-  }, [partyFilterType, selectedPartyKey]);
+    if(request===transportRequest.current){setTransportDetails(details);setTransportMovements(movements);}
+  }, [partyFilterType, selectedPartyKey,activeCompany?.company_id,activeBusinessUnit?.business_unit_id,branch]);
 
   useEffect(() => {
     try {
@@ -598,7 +613,7 @@ export default function Ledgers() {
       const transport = transportInfoByJournal(row);
       const values: Record<PartyColumnKey, unknown> = {
         date: row.entry_date, party: row.party_name || "", reference: row.reference || "",
-        trip: transport.trip, from: transport.from, to: transport.to, vehicle: transport.vehicle,
+        documentRefs: transport.documentRefs, trip: transport.trip, from: transport.from, to: transport.to, vehicle: transport.vehicle,
         driver: transport.driver, owner: transport.owner, job: transport.job,
         description: row.description || "", base: transport.base || "", charges: transport.charges || "", tax: transport.tax || "", postedTotal: transport.postedTotal || "", debit: Number(row.debit) || "", credit: Number(row.credit) || "",
         balance: signedBalanceLabel(Number(row.displayBalance) || 0),
@@ -973,7 +988,7 @@ export default function Ledgers() {
                     date: formatDate(row.entry_date),
                     party: <><div className="font-medium text-slate-900">{row.party_name || ""}</div><div className="text-[11px] text-slate-400 capitalize">{row.party_type}</div></>,
                     reference: row.reference || "",
-                    trip: transport.trip, from: transport.from, to: transport.to, vehicle: transport.vehicle,
+                    documentRefs: transport.documentRefs, trip: transport.trip, from: transport.from, to: transport.to, vehicle: transport.vehicle,
                     driver: transport.driver, owner: transport.owner, job: transport.job,
                     description: row.description || "",
                     base: transport.base ? formatCurrency(transport.base) : "",

@@ -84,6 +84,14 @@ begin
  if exists(select 1 from public.transport_opening_invoice_documents where original_invoice_date is not null) or (select count(*) from public.transport_opening_invoice_lines)<>4 then raise exception 'Invented invoice date or self supplier invoices';end if;
  select jsonb_build_object('journals',(select jsonb_agg(to_jsonb(x) order by id) from public.journal_entries x where company_id=c),'lines',(select jsonb_agg(to_jsonb(x) order by id) from public.journal_lines x where company_id=c),'ledgers',(select jsonb_agg(to_jsonb(x) order by id) from public.ledgers x where company_id=c)) into after_finance;
  if before_finance is distinct from after_finance then raise exception 'Linking changed posted money';end if;
+ if (select count(*) from public.customer_receivable_aging_report where company_id=c)<>1 or (select sum(outstanding_amount) from public.customer_receivable_aging_report where company_id=c)<>260 then raise exception 'Opening customer aging double counted or missing';end if;
+ if (select count(*) from public.supplier_payable_aging_report where company_id=c)<>1 or (select sum(outstanding_amount) from public.supplier_payable_aging_report where company_id=c)<>20 then raise exception 'Opening supplier aging double counted or missing';end if;
+ if exists(select 1 from public.customer_receivable_aging_report where company_id=c and (invoice_no<>'INV-100' or due_date is not null or days_outstanding<>0 or source_type<>'Imported opening reference')) then raise exception 'Invented original invoice date, age, or lost reference';end if;
+ if jsonb_array_length(public.transport_party_aging_query('customer',1000,0))<>1 or jsonb_array_length(public.transport_party_aging_query('supplier',1000,0))<>1 then raise exception 'Scoped combined aging API missing opening references';end if;
+ register:=public.transport_trip_report('customer',500,0,jsonb_build_object('posting','opening','search','INV-100'));
+ if (register->>'count')::int<>3 or (register->'summary'->>'source_customer_net')::numeric<>600 or (register->'summary'->>'source_customer_vat')::numeric<>90 or (register->'summary'->>'revenue')::numeric<>0 then raise exception 'Imported Trip references or source/posted totals incorrect %',register;end if;
+ register:=public.transport_trip_report('supplier',500,0,jsonb_build_object('posting','opening','party',party::text,'search','SUP-200'));
+ if (register->>'count')::int<>1 or register->'rows'->0->>'supplier_invoice_ref'<>'SUP-200' then raise exception 'Imported supplier party/reference filter missing';end if;
  args:=jsonb_build_array(jsonb_build_object('document_id',customer_doc,'amount',50));
  answer:=public.transport_settle_opening_invoices(req,'customer',customer,current_date,cash,'cash',args,'Customer partial');
  again:=public.transport_settle_opening_invoices(req,'customer',customer,current_date,cash,'cash',args,'Customer partial');
@@ -92,6 +100,7 @@ begin
  if (select current_outstanding_gross from public.transport_opening_invoice_balances where id=customer_doc)<>210
  or (select sum(amount) from public.transport_opening_invoice_allocations where journal_entry_id=receipt)<>50
  or exists(select 1 from public.transport_opening_invoice_allocations where trip_id=t3 and journal_entry_id=receipt) then raise exception 'Partial Trip allocation incorrect';end if;
+ if (select sum(outstanding_amount) from public.customer_receivable_aging_report where company_id=c)<>210 then raise exception 'New receipt did not update general aging';end if;
  if (select sum(credit-debit) from public.journal_lines where entry_id=receipt and account_id=ar)<>50 or (select sum(debit-credit) from public.journal_lines where entry_id=receipt and account_id=cash)<>50 then raise exception 'Customer cash/AR posting incorrect';end if;
  rejected:=false;begin perform public.transport_settle_opening_invoices(gen_random_uuid(),'customer',customer,current_date,cash,'cash',jsonb_build_array(jsonb_build_object('document_id',customer_doc,'amount',211)));exception when others then rejected:=position('exceeds' in sqlerrm)>0;end;if not rejected then raise exception 'Overpayment accepted';end if;
  rejected:=false;begin perform public.transport_settle_opening_invoices(gen_random_uuid(),'customer',gen_random_uuid(),current_date,cash,'cash',args);exception when others then rejected:=true;end;if not rejected then raise exception 'Wrong party accepted';end if;
@@ -119,6 +128,7 @@ begin
  rejected:=false;begin perform public.transport_cancel_opening_invoice_settlement(receipt,current_date,'Duplicate cancellation must be rejected');exception when others then rejected:=true;end;if not rejected then raise exception 'Duplicate reversal accepted';end if;
  if (select count(*) from public.journal_entries where company_id=c)<>4 or exists(select 1 from public.sales_orders where company_id=c) or exists(select 1 from public.purchase_orders where company_id=c) then raise exception 'Historical turnover/invoices reposted';end if;
  answer:=public.transport_opening_invoice_query('movements','customer','{}');if jsonb_array_length(answer)<>3 then raise exception 'Opening receipt/reversal movements missing';end if;
+ if (select sum(outstanding_amount) from public.customer_receivable_aging_report where company_id=c)<>260 or (select sum(outstanding_amount) from public.supplier_payable_aging_report where company_id=c)<>15 then raise exception 'Aging reversal/partial payable mismatch';end if;
  -- New native invoices beside the imported book must continue through their
  -- original accounting reader, with complete combined Register totals.
  execute 'reset role';
@@ -129,8 +139,11 @@ begin
  perform public.transport_post_customer_bill(t3,current_date,false);
  register:=public.transport_register_query(p_limit=>500);
  if (register->>'count')::int<>4 or (register->'totals'->>'remaining_company')::numeric<>460 then raise exception 'Native plus imported Register totals incorrect %',register;end if;
+ if (select sum(outstanding_amount) from public.customer_receivable_aging_report where company_id=c)<>460 then raise exception 'Native plus opening aging double counted';end if;
  if has_function_privilege('anon','public.transport_settle_opening_invoices(uuid,text,uuid,date,uuid,text,jsonb,text)','execute') or has_function_privilege('authenticated','public._transport_opening_register_rows(uuid,uuid,uuid)','execute') or has_table_privilege('authenticated','public.transport_opening_invoice_documents','insert') then raise exception 'Opening authorization grants unsafe';end if;
  execute 'reset role';perform set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);execute 'set local role authenticated';
+ rejected:=false;begin perform public.transport_party_aging_query('customer',1000,0);exception when others then rejected:=true;end;if not rejected then raise exception 'Foreign actor aging API read accepted';end if;
+ if exists(select 1 from public.customer_receivable_aging_report) or exists(select 1 from public.supplier_payable_aging_report) or exists(select 1 from public.transport_opening_aging_rows) then raise exception 'Cross tenant linked aging leak';end if;
  if exists(select 1 from public.transport_opening_invoice_documents) then raise exception 'Cross tenant opening data leak';end if;
  rejected:=false;begin perform public.transport_opening_invoice_query('documents','customer','{}');exception when others then rejected:=true;end;if not rejected then raise exception 'Foreign actor read accepted';end if;
  execute 'reset role';

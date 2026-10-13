@@ -22,3 +22,12 @@ it('keeps trip descriptions and aligns all amount columns and totals',async()=>{
  expect(mock.report.rows[0][mock.report.columns.indexOf('Description / Notes')]).toBe('Waiting charge agreed with customer');
  for(const row of mock.report.rows)expect(row).toHaveLength(mock.report.columns.length);
 });
+
+it('prints imported invoice references and source tax separately from native posting status',async()=>{
+ mock.rpc.mockResolvedValue({data:{rows:[{trip_no:'101',customer_invoice_ref:'INV-100',customer_opening_linked:true,source_customer_net:200,source_customer_vat:30,source_customer_gross:230}],count:1,summary:{source_customer_net:200,source_customer_vat:30,source_customer_gross:230}},error:null});
+ render(<TransportTripReports/>);await screen.findByText('Report ready');
+ const row=mock.report.rows[0];expect(row[mock.report.columns.indexOf('Customer invoice')]).toBe('INV-100');
+ expect(row[mock.report.columns.indexOf('Customer link status')]).toBe('Imported opening');
+ expect(row[mock.report.columns.indexOf('Imported customer tax difference')]).toBe(30);
+ expect(row[mock.report.columns.indexOf('Posted revenue net')]).toBe(0);
+});
