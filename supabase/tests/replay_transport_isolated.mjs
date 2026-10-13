@@ -36,6 +36,10 @@ for(const file of fs.readdirSync(root+'/supabase/migrations').filter(f=>f.endsWi
  catch(e){console.log('FAIL',file,e.message,e.position||'',e.where||'',e.internalQuery||'');await db.close();throw new Error(file+': '+e.message)}
 }
 console.log('REPLAY PASS',count);
+if(process.env.NAVILO_NATIVE_CONVERSION_SMOKE==='1'){
+ try{for(const file of ['transport_register_native_conversion_cash_rehearsal.sql','transport_register_native_conversion_tax_rehearsal.sql']){await db.exec(fs.readFileSync(root+'/supabase/tests/'+file,'utf8'));console.log('PASS',file)}}catch(e){console.log('FAIL CONVERSION',e.message,e.where||'');await db.close();process.exit(1)}
+ await db.close();process.exit(0);
+}
 if(process.env.NAVILO_OPENING_BRIDGE_SMOKE==='1'){
  try{for(const file of ['transport_opening_invoice_bridge_rehearsal.sql','transport_imported_primary_assignment_rehearsal.sql']){await db.exec(fs.readFileSync(root+'/supabase/tests/'+file,'utf8'));console.log('PASS',file)}}catch(e){console.log('FAIL OPENING',e.message,e.where||'');await db.close();process.exit(1)}
  await db.close();process.exit(0);
