@@ -36,6 +36,10 @@ for(const file of fs.readdirSync(root+'/supabase/migrations').filter(f=>f.endsWi
  catch(e){console.log('FAIL',file,e.message,e.position||'',e.where||'',e.internalQuery||'');await db.close();throw new Error(file+': '+e.message)}
 }
 console.log('REPLAY PASS',count);
+if(process.env.NAVILO_SUPPLIER_PAID_SMOKE==='1'){
+ try{await db.exec(fs.readFileSync(root+'/supabase/tests/transport_supplier_paid_projection_rehearsal.sql','utf8'));console.log('PASS supplier paid source projection')}catch(e){console.log('FAIL PAID',e.message,e.where||'');await db.close();process.exit(1)}
+ await db.close();process.exit(0);
+}
 if(process.env.NAVILO_PARTNER_CLEANUP_SMOKE==='1'){
  try{await db.exec(fs.readFileSync(root+'/supabase/tests/transport_partner_purchase_cleanup_rehearsal.sql','utf8'));console.log('PASS partner Purchase cleanup')}catch(e){console.log('FAIL CLEANUP',e.message,e.where||'');await db.close();process.exit(1)}
  await db.close();process.exit(0);
