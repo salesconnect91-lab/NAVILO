@@ -1,4 +1,6 @@
-import {registerPrintSource, printTableMarkup} from "@/lib/printDocument";
+import {registerPrintSource} from "@/lib/printDocument";
+import {useAuth} from '@/auth/AuthContext';
+import {transportRegisteredPrintMarkup} from './transportReportPrint';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {exportPartyReport,type ReportTable} from './transportPartyExport';
 import {useTransportOutputPermissions} from './useTransportOutputPermissions';
@@ -6,16 +8,17 @@ import {financialNumber} from './transportFinancialTypes';
 import {projectReport} from './reportProjection';
 export default function ConfigurableReport({report,preferenceKey,loadExport,module='transport',outputPrefix=''}:{report:ReportTable;preferenceKey:string;loadExport?:()=>Promise<ReportTable>;module?:string;outputPrefix?:string}){
  const printRoot=useRef<HTMLElement|null>(null);
+ const {activeCompany,activeBusinessUnit}=useAuth();
  const allowed=useTransportOutputPermissions(module);const [error,setError]=useState('');const [exporting,setExporting]=useState(false);const [page,setPage]=useState(0);const dragKey=useRef<string|null>(null);
  const [config,setConfig]=useState<{title:string;hideZero:boolean;hideZeroCells?:boolean;columns:{key:string;label:string;visible:boolean}[]}>(()=>{try{return JSON.parse(localStorage.getItem('transport-report:'+preferenceKey)||'null')||{title:'',hideZero:false,columns:[]}}catch{return {title:'',hideZero:false,columns:[]}}});
  const columns=[...config.columns.filter(c=>report.columns.includes(c.key)),...report.columns.filter(k=>!config.columns.some(c=>c.key===k)).map(key=>({key,label:key,visible:true}))];
  const table=useMemo(()=>projectReport(report,columns,config.title,config.hideZero,config.hideZeroCells),[report,columns,config]);
  function update(next:typeof config){setConfig(next);setPage(0);try{localStorage.setItem('transport-report:'+preferenceKey,JSON.stringify(next))}catch{/* browser storage may be unavailable */}}
  function moveColumn(source:string,target:string){if(source===target)return;const from=columns.findIndex(c=>c.key===source),to=columns.findIndex(c=>c.key===target);if(from<0||to<0)return;const next=[...columns];const [item]=next.splice(from,1);next.splice(to,0,item);update({...config,columns:next})}
- async function output(format:'print'|'pdf'|'xlsx'){setExporting(true);setError('');try{await exportPartyReport(loadExport?projectReport(await loadExport(),columns,config.title,config.hideZero,config.hideZeroCells):table,format)}catch(e){setError(e instanceof Error?e.message:'Export failed')}finally{setExporting(false)}}
+ async function output(format:'print'|'pdf'|'xlsx'){setExporting(true);setError('');try{await exportPartyReport(loadExport?projectReport(await loadExport(),columns,config.title,config.hideZero,config.hideZeroCells):table,format,{companyName:activeCompany?.company_name,businessUnitName:activeBusinessUnit?.business_unit_name})}catch(e){setError(e instanceof Error?e.message:'Export failed')}finally{setExporting(false)}}
  useEffect(()=>{const root=printRoot.current;if(!root)return;return registerPrintSource(root,async()=>{
    const all=loadExport?projectReport(await loadExport(),columns,config.title,config.hideZero,config.hideZeroCells):table;
-   return printTableMarkup(all.title,all.columns,all.rows,all.description);
+   return transportRegisteredPrintMarkup(all);
  })},[table,loadExport,columns,config]);
  const pages=Math.max(1,Math.ceil(table.rows.length/100));const current=Math.min(page,pages-1);
  return <section ref={printRoot} className="space-y-2"><details className="rounded border p-2"><summary>Customize report headers and columns</summary><label>Report title<input className="input" value={config.title} placeholder={report.title} onChange={e=>update({...config,title:e.target.value})}/></label><label className="ml-3"><input type="checkbox" checked={config.hideZero} onChange={e=>update({...config,hideZero:e.target.checked})}/> Hide zero-value rows</label><label className="ml-3"><input type="checkbox" checked={!!config.hideZeroCells} onChange={e=>update({...config,hideZeroCells:e.target.checked})}/> Hide zero values in cells</label><div className="grid gap-2 md:grid-cols-3">{columns.map((c,i)=><div key={c.key} className="flex gap-1 items-center"><input aria-label={'Show '+c.key} type="checkbox" checked={c.visible} onChange={e=>update({...config,columns:columns.map(x=>x.key===c.key?{...x,visible:e.target.checked}:x)})}/><input aria-label={'Header '+c.key} className="input" value={c.label} onChange={e=>update({...config,columns:columns.map(x=>x.key===c.key?{...x,label:e.target.value}:x)})}/><button className="btn" disabled={i===0} aria-label={'Move '+c.key+' left'} onClick={()=>{const next=[...columns];[next[i-1],next[i]]=[next[i],next[i-1]];update({...config,columns:next})}}>←</button></div>)}</div><button className="btn" onClick={()=>update({title:'',hideZero:false,columns:[]})}>Reset layout</button></details>

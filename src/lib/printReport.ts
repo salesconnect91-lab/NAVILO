@@ -80,7 +80,8 @@ export async function buildReport(target: HTMLElement, identity: PrintIdentity, 
   if (statusRoot.querySelector('[aria-busy=true]') || Array.from(statusRoot.querySelectorAll('[role=status],p,div,td')).some(node=>!node.closest('button,details,[data-no-print]') && /^loading\b.{0,150}(?:…|\.{3})$/i.test(text(node))) || statusRoot.getAttribute('aria-busy') === 'true') throw new Error('Wait for the report to finish loading before printing.');
   const filters = reportFilterSnapshot(target);
   const clone = await clonePrintSource(target);
-  const reportTitle = text(target.querySelector('.page-title,h1,h2')) || text(target.closest('main,[role=dialog]')?.querySelector('.page-title,h1,h2') || null) || title || 'Report';
+  const specificTitle = clone.querySelector<HTMLElement>('[data-print-report-title]')?.dataset.printReportTitle?.trim();
+  const reportTitle = specificTitle || text(target.querySelector('.page-title,h1,h2')) || text(target.closest('main,[role=dialog]')?.querySelector('.page-title,h1,h2') || null) || title || 'Report';
   const primary = clone.querySelector<HTMLElement>('[data-print-primary-source]');
   const tables = [...((primary || clone).matches('table') ? [(primary || clone) as HTMLTableElement] : []),...Array.from((primary || clone).querySelectorAll<HTMLTableElement>('table'))].filter(table => (Boolean(primary) || !table.closest('[role=dialog],details,[data-no-print],.no-print')) && table.style.display !== 'none').map(cleanReportTable);
   const summaries = Array.from(clone.querySelectorAll<HTMLElement>('.summary-card,[data-export-summary-item]')).map(card => ({label:text(card.querySelector('.summary-label,[data-summary-label]') || card.children[0] || null), value:text(card.querySelector('.summary-value,[data-summary-value]') || card.children[1] || null)})).filter(row=>row.label && row.value);
@@ -104,7 +105,7 @@ export async function buildReport(target: HTMLElement, identity: PrintIdentity, 
     if(empty)report.insertAdjacentHTML('beforeend',`<p>${escapePrintHtml(text(empty))}</p>`);
     else throw new Error('This screen has no document or report data to print. Open the relevant report first.');
   }
-  const preferred = primary?.dataset.reportOrientation || primary?.querySelector<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation || (!primary ? target.querySelector<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation || target.closest<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation : undefined);
+  const preferred = clone.querySelector<HTMLElement>('[data-print-report-title][data-report-orientation]')?.dataset.reportOrientation || primary?.dataset.reportOrientation || primary?.querySelector<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation || (!primary ? target.querySelector<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation || target.closest<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation : undefined);
   const width = tables.reduce((max,t)=>Math.max(max,Array.from(t.tHead?.rows[0]?.cells || []).reduce((sum,c)=>sum+c.colSpan,0)),0);
   const orientation: PrintOrientation = preferred === 'portrait' || preferred === 'landscape' ? preferred : width >= 7 ? 'landscape' : 'portrait';
   return {html:report.outerHTML,title:reportTitle,orientation};

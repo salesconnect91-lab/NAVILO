@@ -13,6 +13,17 @@ afterEach(()=>{cleanup();document.body.innerHTML='';localStorage.clear();vi.rest
 if(!globalThis.CSS)Object.defineProperty(globalThis,'CSS',{value:{escape:(s:string)=>s},configurable:true});
 
 describe('document report data contract',()=>{
+  it('uses the exact financial report title and orientation supplied by an async print source', async () => {
+    const main = document.createElement('main');
+    main.innerHTML = '<h1>Transport Reports</h1><details data-print-primary-source data-report-orientation="portrait"><section></section></details>';
+    const slot = main.querySelector('section')!;
+    const unregister = registerPrintSource(slot, () => '<div data-print-report-title="Transport Supplier Statement" data-report-orientation="landscape"><table><thead><tr><th>Trip</th><th>Amount</th></tr></thead><tbody><tr><td>0001</td><td>1700</td></tr></tbody></table></div>');
+    const result = await buildReport(main, {companyName:'Orbit',businessUnitName:'Transport'});
+    expect(result.title).toBe('Transport Supplier Statement');
+    expect(result.orientation).toBe('landscape');
+    expect(result.html).toContain('1700');
+    unregister();
+  });
  it('prints scope and period once without technical explanations or duplicate report headings',async()=>{
   const root=document.createElement('main');root.innerHTML='<h1>Trip Statement</h1><section></section>';
   const metadata='Orbit / Transport · Trip dates 01-Oct-26 to 31-Oct-26 · Company base currency · Totals cover the complete filter. Unposted agreed rates are estimates, excluded from posted balances.';
