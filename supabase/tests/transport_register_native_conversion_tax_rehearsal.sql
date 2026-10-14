@@ -102,6 +102,9 @@ begin
  answer:=public.transport_convert_register_invoice_batch('customer',100,true);
  if (answer->>'posted')::int<>1 or (answer->>'blocked')::int<>0 then raise exception 'Tax invoice should post after valid company registration: %',answer;end if;
  if (select sum(debit-credit) from public.party_ledgers where company_id=c and party_type='customer')<>260 then raise exception 'Tax retry changed closing AR';end if;
+ answer:=public.transport_register_query(500,0,'{}');
+ if (answer->'totals'->>'received_company')::numeric<>(select sum(historical_settled) from public.transport_register_invoice_conversions where company_id=c and side='customer') then raise exception 'Register customer received excludes VAT';end if;
+ if (answer->'totals'->>'supplier_paid')::numeric<>(answer->'totals'->>'amount')::numeric then raise exception 'Register supplier payment cells mix net and gross';end if;
  execute 'reset role';
  if exists(select 1 from public.transport_conversion_balance_queue) then raise exception 'Balance queue was not flushed';end if;
  execute 'set local role authenticated';
