@@ -95,6 +95,10 @@ begin
  if (answer->>'posted')::int<>1 or (answer->>'blocked')::int<>0 then raise exception 'Cash conversion failed: %',answer;end if;
  if (select sum(amount) from public.invoice_payment_allocations where company_id=c)<>340 then raise exception 'Historical settled customer balance missing';end if;
  if exists(select 1 from public.transport_opening_invoice_balances where company_id=c and side='customer') then raise exception 'Cash invoice counted twice';end if;
+ perform public.transport_set_register_supplier_posting_hold(party,true,'Synthetic partner hold');
+ answer:=public.transport_convert_register_invoice_batch('supplier',100);
+ if (answer->>'posted')::int<>0 or exists(select 1 from public.purchase_orders where company_id=c) then raise exception 'Held supplier purchase was posted';end if;
+ perform public.transport_set_register_supplier_posting_hold(party,false,'Release synthetic hold');
  answer:=public.transport_convert_register_invoice_batch('supplier',100);
  if (answer->>'posted')::int<>1 or (answer->>'blocked')::int<>0 then raise exception 'Supplier conversion failed: %',answer;end if;
  if (select count(*) from public.purchase_orders where company_id=c and status='posted')<>1 then raise exception 'Posted supplier invoice missing';end if;
