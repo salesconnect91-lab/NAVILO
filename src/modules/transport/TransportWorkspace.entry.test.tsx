@@ -539,8 +539,57 @@ describe('Transport compact register and centered controls',()=>{
    expect(grid.textContent).toContain('Supplier Bill Balance');
    expect(grid.textContent).not.toContain('1,700.00');
    expect(grid.getAttribute('style')).not.toContain('display: none');
-   expect(screen.getByText(/Full financial query is still being checked/)).toBeTruthy();
+   expect(screen.getByText(/Saved Trips loaded; verifying page financial amounts/)).toBeTruthy();
   }finally{shortened.mockRestore()}
+ });
+ it('restores verified customer and supplier amounts only for matching recovered Trip IDs',async()=>{
+  mock.rpc.mockImplementation(async(name:string,args:any)=>{
+   if(name==='transport_register_query')return {data:null,error:{code:'57014',message:'statement timeout'}};
+   if(name==='transport_register_operational_recovery')return {data:{
+    recovery_only:true,permissions:{customer:true,supplier:true},count:16732,
+    rows:[{id:'saved-trip-1',trip_no:'19535',display_trip_no:'19535',trip_date:'2026-10-10',
+     customer_name:'Restored customer',driver_name:'Driver',vehicle_no:'FLAT-1',
+     from_location:'Dammam',to_location:'Riyadh',ppr_status:'pending'}]},error:null};
+   if(name==='transport_register_financial_recovery_page'){
+     expect(args.p_trip_ids).toEqual(['saved-trip-1']);
+     return {data:{rows:[{
+      id:'saved-trip-1',recovery_financial_verified:true,trip_no:'19535',
+      billed_customer_net:1700,customer_rate:1700,customer_rate_state:'finalized',
+      customer_outstanding_gross:1200,received_from_company:500,
+      billed_supplier_net:850,supplier_rent:850,supplier_outstanding_gross:250,
+      supplier_paid_net:600,owner_rent:850,supplier_rate_locked:true
+     }]},error:null};
+   }
+   return {data:true,error:null};
+  });
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  const table=screen.getByRole('table',{name:/Trips register/i});
+  await waitFor(()=>expect(table.textContent).toContain('1,700.00'));
+  expect(table.textContent).toContain('1,200.00');
+  expect(table.textContent).toContain('850.00');
+  expect(table.textContent).toContain('250.00');
+  expect(table.textContent).toContain('Restored customer');
+  expect(screen.getByRole('button',{name:'Open Customer Charges 19535'})).toBeTruthy();
+  expect(screen.getByText(/Visible Trip amounts verified/)).toBeTruthy();
+ });
+ it('never assigns financial amounts from a different Trip ID',async()=>{
+  mock.rpc.mockImplementation(async(name:string)=>{
+   if(name==='transport_register_query')return {data:null,error:{code:'57014',message:'statement timeout'}};
+   if(name==='transport_register_operational_recovery')return {data:{
+    recovery_only:true,permissions:{customer:true,supplier:true},count:1,
+    rows:[{id:'saved-trip-1',trip_no:'19535',display_trip_no:'19535',trip_date:'2026-10-10',
+      customer_name:'Protected customer',driver_name:'Driver',vehicle_no:'FLAT-1',ppr_status:'pending'}]},error:null};
+   if(name==='transport_register_financial_recovery_page')
+     return {data:{rows:[{id:'different-trip',recovery_financial_verified:true,
+        billed_customer_net:999999}]},error:null};
+   return {data:true,error:null};
+  });
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText(/Original Trip Register · 1 saved Trips/);
+  const table=screen.getByRole('table',{name:/Trips register/i});
+  await waitFor(()=>expect(table.textContent).toContain('Protected customer'));
+  expect(table.textContent).not.toContain('999,999.00');
+  expect(table.textContent).toContain('—');
  });
  it('uses the bounded operational recovery for a timed-out Register without fake financial figures',async()=>{
   mock.rpc.mockImplementation(async(name:string)=>{
