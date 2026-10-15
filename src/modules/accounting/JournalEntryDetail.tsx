@@ -185,7 +185,6 @@ export default function JournalEntryDetail() {
   const [entry, setEntry] =
     useState<JournalEntry | null>(null);
   const [draftEntryDate, setDraftEntryDate] = useState("");
-  const [savingEntryDate, setSavingEntryDate] = useState(false);
   const [companyBaseCurrency, setCompanyBaseCurrency] = useState("");
 
   const [lines, setLines] =
@@ -447,7 +446,7 @@ export default function JournalEntryDetail() {
         account.allow_manual_entries
     );
   const journalExcludedAccounts = accounts.length - postingAccounts.length;
-  const eligibleVehicles=companyVehicles.filter(v=>vehicleOwnedOnDate(v.id,entry?.entry_date,vehicleOwnership));
+  const eligibleVehicles=companyVehicles.filter(v=>vehicleOwnedOnDate(v.id,entry?.status==='draft' ? draftEntryDate : entry?.entry_date,vehicleOwnership));
 
   const customerAccountIds =
     new Set(
@@ -1434,48 +1433,6 @@ export default function JournalEntryDetail() {
     }
   };
 
-  /* Draft date changes are allowed only before saved lines exist.
-     Existing database FX guards intentionally prevent changing a dated
-     journal with saved lines, so never bypass them from the browser. */
-  const handleSaveDraftDate = async () => {
-    if (!entry || entry.status !== "draft") return;
-    const parsed = new Date(`${draftEntryDate}T00:00:00Z`);
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(draftEntryDate) ||
-        Number.isNaN(parsed.getTime()) ||
-        parsed.toISOString().slice(0,10) !== draftEntryDate) {
-      setError("Select a valid journal date before saving.");
-      return;
-    }
-    if (draftEntryDate === entry.entry_date) return;
-    if (lines.length > 0) {
-      setError("The date of this draft cannot be changed after journal lines are saved under the current accounting safeguards. No lines have been changed.");
-      return;
-    }
-    try {
-      setSavingEntryDate(true);
-      setError(null);
-      setSuccess(null);
-      const {data, error: dateError} = await supabase
-        .from("journal_entries")
-        .update({entry_date: draftEntryDate})
-        .eq("id", entry.id)
-        .eq("status", "draft")
-        .select("id,entry_date,exchange_rate")
-        .single();
-      if (dateError) throw new Error(dateError.message);
-      if (!data) throw new Error("The draft journal was not updated.");
-      setEntry(previous => previous && previous.id === data.id
-        ? {...previous, entry_date:data.entry_date, exchange_rate:data.exchange_rate}
-        : previous);
-      setDraftEntryDate(data.entry_date);
-      setSuccess("Draft journal date saved successfully.");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Unable to save journal date.");
-    } finally {
-      setSavingEntryDate(false);
-    }
-  };
-
   /* =========================================================
      SAVE ALL NEW LINES
   ========================================================= */
@@ -1483,11 +1440,6 @@ export default function JournalEntryDetail() {
   const handleSaveAllLines =
     async () => {
       if (!id || !entry) return;
-      if (draftEntryDate !== entry.entry_date) {
-        setError("Save the changed journal date before adding journal lines.");
-        return;
-      }
-
       if (
         entry.status === "posted"
       ) {
@@ -1504,13 +1456,22 @@ export default function JournalEntryDetail() {
       const activeLines =
         getActiveDraftLines();
 
-      if (
-        activeLines.length === 0
-      ) {
-        setError(
-          "Please enter at least one journal line."
-        );
-
+      const dateChanged = draftEntryDate !== entry.entry_date;
+      if (dateChanged) {
+        const date = new Date(`${draftEntryDate}T00:00:00Z`);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(draftEntryDate) ||
+            Number.isNaN(date.getTime()) ||
+            date.toISOString().slice(0, 10) !== draftEntryDate) {
+          setError("Select a valid journal date.");
+          return;
+        }
+        if (lines.length > 0) {
+          setError("Existing journal lines are already saved. The current accounting database requires a controlled date correction for drafts with saved lines.");
+          return;
+        }
+      }
+      if (activeLines.length === 0 && !dateChanged) {
+        setError("No unsaved changes to save.");
         return;
       }
 
@@ -1738,28 +1699,40 @@ export default function JournalEntryDetail() {
         });
       }
 
+      let dateSaved = false;
       try {
         setSaving(true);
+        if (dateChanged) {
+          // Save the header first while the journal has no existing lines:
+          // the FX/date snapshot is maintained by the database trigger.
+          const { data: updated, error: updateError } = await supabase
+            .from("journal_entries")
+            .update({ entry_date: draftEntryDate })
+            .eq("id", entry.id)
+            .eq("status", "draft")
+            .select("id,entry_date,exchange_rate")
+            .single();
+          if (updateError) throw new Error(updateError.message);
+          if (!updated) throw new Error("Draft journal date could not be updated.");
+          dateSaved = true;
+          setEntry(previous => previous && previous.id === updated.id
+            ? {...previous,entry_date:updated.entry_date,exchange_rate:updated.exchange_rate}
+            : previous);
+          setDraftEntryDate(updated.entry_date);
+        }
+        if (rowsToInsert.length === 0) {
+          setSuccess("Journal date saved.");
+          return;
+        }
 
-        const {
-          data,
-          error,
-        } =
-          await supabase
-            .from("journal_lines")
-            .insert(
-              rowsToInsert
-            )
-            .select(`
+        const { data, error } = await supabase
+          .from("journal_lines")
+          .insert(rowsToInsert)
+          .select(`
               *,
               coa:chart_of_accounts(*)
             `);
-
-        if (error) {
-          throw new Error(
-            error.message
-          );
-        }
+        if (error) throw new Error(error.message);
 
         const mappedLines =
           (data ?? []).map(
@@ -1795,7 +1768,7 @@ export default function JournalEntryDetail() {
         ]);
 
         setSuccess(
-          `${mappedLines.length} journal line${
+          `${dateSaved ? "Journal date and " : ""}${mappedLines.length} journal line${
             mappedLines.length ===
             1
               ? ""
@@ -1804,8 +1777,7 @@ export default function JournalEntryDetail() {
         );
       } catch (err: any) {
         setError(
-          err?.message ||
-            "Failed to save journal lines."
+          `${dateSaved ? "Journal date was saved, but lines could not be saved. " : ""}${err?.message || "Failed to save journal changes."}`
         );
       } finally {
         setSaving(false);
@@ -1889,7 +1861,7 @@ export default function JournalEntryDetail() {
     async () => {
       if (!entry) return;
       if (draftEntryDate !== entry.entry_date) {
-        setError("Save the changed journal date before posting.");
+        setError("Save the journal changes before posting.");
         return;
       }
 
@@ -2280,7 +2252,6 @@ export default function JournalEntryDetail() {
                 posting ||
                 saving ||
                 importing ||
-                savingEntryDate ||
                 hasUnsavedDraftDate ||
                 !balanced
               }
@@ -2389,20 +2360,13 @@ export default function JournalEntryDetail() {
                 type="date"
                 value={draftEntryDate}
                 onChange={event => { setDraftEntryDate(event.target.value); setError(null); }}
-                disabled={savingEntryDate || saving || posting || importing}
+                disabled={saving || posting || importing}
               />
-              <button
-                type="button"
-                className="shrink-0 rounded bg-blue-600 px-2.5 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-                onClick={() => void handleSaveDraftDate()}
-                disabled={savingEntryDate || saving || posting || importing || !hasUnsavedDraftDate || !draftEntryDate}
-              >{savingEntryDate ? "Saving..." : "Save"}</button>
             </div>
           ) : (
             <div className="font-semibold text-slate-800 mt-1">{formatDate(entry.entry_date)}</div>
           )}
-          {canEditDraftDate && lines.length > 0 && <p className="mt-1 text-[10px] text-amber-700">Saved lines: changing this date requires a controlled correction.</p>}
-          {hasUnsavedDraftDate && <p className="mt-1 text-[10px] font-medium text-blue-700">Save the date before saving lines or posting.</p>}
+          {hasUnsavedDraftDate && <p className="mt-1 text-[10px] font-medium text-blue-700">Date will be saved with journal changes.</p>}
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -2975,14 +2939,13 @@ export default function JournalEntryDetail() {
                     saving ||
                     posting ||
                     importing ||
-                    activeDraftCount ===
-                      0
+                    (activeDraftCount === 0 && !hasUnsavedDraftDate)
                   }
                   className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving
                     ? "Saving..."
-                    : "✓ Save All Lines"}
+                    : "✓ Save Changes"}
                 </button>
               </div>
             </div>
