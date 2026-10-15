@@ -612,10 +612,10 @@ export default function TransportWorkspace(){
         }
       }catch{/* Keep saved Trip identities; never invent unavailable financial amounts. */}
     };
-    const recoveryTimer=window.setTimeout(()=>{
-      if(!silent&&!controller.signal.aborted&&lastSuccessfulRegisterKey.current===null)void startRecovery();
-    },6500);
-    const deadlineTimer=window.setTimeout(()=>{deadlineHit=true;controller.abort();},45000);
+    // Do not start an expensive financial fallback while the authoritative query
+    // is still running. Parallel reads competed for the same database resources.
+    // Recovery remains available in catch after an actual timeout/failure.
+    const deadlineTimer=window.setTimeout(()=>{deadlineHit=true;controller.abort();},58000);
     if(!silent){setRegisterLoading(true);setError('');if(lastSuccessfulRegisterKey.current===null)setOperationalRecovery(null);}
     try {
       const result=await supabase.rpc('transport_register_query',{p_limit:REGISTER_PAGE_SIZE,p_offset:page*REGISTER_PAGE_SIZE,p_filters:registerFilters,p_sort:sortColumn,p_direction:sortDirection}).abortSignal(controller.signal);
@@ -653,7 +653,6 @@ export default function TransportWorkspace(){
       }
     }
     finally{
-      window.clearTimeout(recoveryTimer);
       window.clearTimeout(deadlineTimer);
       // A failed authoritative request must not cancel an independently
       // verified page-financial read; supersede recovery only on success.
