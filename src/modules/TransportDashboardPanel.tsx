@@ -34,27 +34,34 @@ export default function TransportDashboardPanel({
   const [contributions, setContributions] = useState<Contribution[] | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     setSummary(null);
     setContributions(null);
     setError("");
     void (async () => {
-      const [operational, financial] = await Promise.all([
-        supabase.rpc("transport_dashboard_operational_summary", { p_from: startDate, p_to: endDate }),
-        supabase.rpc("transport_contribution_summary", { p_from: startDate, p_to: endDate }),
-      ]);
-      if (cancelled) return;
-      if (operational.error) {
-        setError(operational.error.message);
-        return;
-      }
-      setSummary(operational.data as TransportSummary);
-      // Server-side permission checks protect both sides of financial data.
-      if (!financial.error && Array.isArray(financial.data)) {
-        setContributions(financial.data as Contribution[]);
+      try {
+        // Heavy finance aggregation must not compete with operational summary or
+        // continue running after the user leaves the Dashboard for Trips.
+        const operational = await supabase.rpc("transport_dashboard_operational_summary",
+          { p_from: startDate, p_to: endDate }).abortSignal(controller.signal);
+        if (controller.signal.aborted) return;
+        if (operational.error) {
+          setError(operational.error.message);
+          return;
+        }
+        setSummary(operational.data as TransportSummary);
+        const financial = await supabase.rpc("transport_contribution_summary",
+          { p_from: startDate, p_to: endDate }).abortSignal(controller.signal);
+        if (controller.signal.aborted) return;
+        // Server-side permissions protect both sides of financial data.
+        if (!financial.error && Array.isArray(financial.data)) {
+          setContributions(financial.data as Contribution[]);
+        }
+      } catch(error) {
+        if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Dashboard unavailable");
       }
     })();
-    return () => { cancelled = true; };
+    return () => { controller.abort(); };
   }, [companyId, businessUnitId, startDate, endDate]);
 
   const tiles = [
