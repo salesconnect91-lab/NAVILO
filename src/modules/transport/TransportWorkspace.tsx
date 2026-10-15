@@ -596,7 +596,7 @@ export default function TransportWorkspace(){
       // Keep the last confirmed page while the new query loads; do not blank the grid.
       setRegisterLoading(true);
     }
-    const timer=window.setTimeout(()=>void load(!!cached),200);
+    const timer=window.setTimeout(()=>void load(!!cached),350);
     return()=>{window.clearTimeout(timer);registerRequest.current?.abort();registerRequest.current=null;readGeneration.current++;};
   },[registerKey,page,tab,showPartyReports,user?.id]);
 
@@ -1567,7 +1567,7 @@ export default function TransportWorkspace(){
           if(live&&!controller.signal.aborted)setColumnValuesLoading(false);
         }
       })();
-    },300);
+    },650);
     return()=>{
       live=false;
       window.clearTimeout(timer);
