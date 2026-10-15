@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import DataTable from "./DataTable";
 
@@ -44,6 +44,25 @@ describe("shared ERP table", () => {
     localStorage.setItem(key, JSON.stringify({ density: "comfortable", densityVersion: 1 }));
     const {container} = render(<DataTable columns={columns} rows={rows} />);
     expect(container.querySelector("[data-navilo-data-table]")?.getAttribute("data-density")).toBe("comfortable");
+  });
+
+  it("uses server result totals, paging and sorting without client re-pagination", () => {
+    const onPageChange=vi.fn();
+    const onSortChange=vi.fn();
+    const remoteRows=Array.from({length:25},(_,i)=>({
+      id:`remote-${i}`, customer:`Remote ${i}`, amount:i+1,
+    }));
+    render(<DataTable columns={columns} rows={remoteRows} remote={{
+      total:8970,page:2,pageSize:25,onPageChange,
+      sort:null,onSortChange,
+    }}/>);
+    expect(screen.getByText(/Showing 26–50 of 8970/)).toBeTruthy();
+    expect(screen.getByText("Remote 0")).toBeTruthy();
+    expect(screen.getByText("Remote 24")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button",{name:"Next"}));
+    expect(onPageChange).toHaveBeenCalledWith(3,25);
+    fireEvent.click(screen.getByRole("button",{name:"Customer"}));
+    expect(onSortChange).toHaveBeenCalledWith({key:"customer",dir:"asc"});
   });
 
 });
