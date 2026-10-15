@@ -45,13 +45,14 @@ export function accountingStatementLayout(report: ReportTable): AccountingPrintL
       /^(?:total|closing cash|net (?:profit|cash|change)|gross profit|operating profit)/.test(first)) kind = 'total';
     else if (accountLabel === 'section total' || /^(?:sub ?total|section total)/.test(first)) kind = 'subtotal';
     if (groupSections && accountLabel === 'section total') {
-      values[values.indexOf(source[accountIndex])] = 'Total ' + section;
+      const accountColumn = indexes.indexOf(accountIndex);
+      if (accountColumn >= 0) values[accountColumn] = 'Total ' + section;
     }
     rows.push({ kind, cells: values });
   }
   return {
     title: report.title,
-    subtitle: printReportDescription(report.description),
+    subtitle: printReportDescription(report.description).replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_match,year:string,month:string,day:string) => `${day}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(month)-1]}-${year.slice(2)}`),
     columns,
     rows,
     orientation: columns.length >= 6 ? 'landscape' : 'portrait',
@@ -64,12 +65,12 @@ function renderRow(row: AccountingPrintRow, width: number, numberColumns: Set<nu
     `<td${numberColumns.has(index) || typeof value === 'number' ? ' class="acct-number"' : ''}>${escapePrintHtml(displayAmount(value))}</td>`).join('')}</tr>`;
 }
 
-export function accountingStatementMarkup(report: ReportTable) {
+export function accountingStatementMarkup(report: ReportTable, includeDescription=true) {
   const layout = accountingStatementLayout(report);
   const numeric = new Set(layout.columns.flatMap((column, index) =>
     /amount|debit|credit|balance|movement|opening|closing|total|\bdr\b|\bcr\b/i.test(column)
       ? [index] : []));
-  return `<div data-print-report-title="${escapePrintHtml(layout.title)}" data-report-orientation="${layout.orientation}" data-print-accounting-statement="true"><p data-print-description>${escapePrintHtml(layout.subtitle)}</p><table class="accounting-statement-table"><thead><tr>${layout.columns.map(c=>`<th scope="col">${escapePrintHtml(c)}</th>`).join('')}</tr></thead><tbody>${layout.rows.map(row => renderRow(row,layout.columns.length,numeric)).join('')}</tbody></table></div>`;
+  return `<div data-print-report-title="${escapePrintHtml(layout.title)}" data-report-orientation="${layout.orientation}" data-print-accounting-statement="true">${includeDescription?`<p data-print-description>${escapePrintHtml(layout.subtitle)}</p>`:''}<table class="accounting-statement-table"><thead><tr>${layout.columns.map((c,i)=>`<th scope="col"${numeric.has(i)?' class="acct-number"':''}>${escapePrintHtml(c)}</th>`).join('')}</tr></thead><tbody>${layout.rows.map(row => renderRow(row,layout.columns.length,numeric)).join('')}</tbody></table></div>`;
 }
 
 export const ACCOUNTING_STATEMENT_PRINT_CSS = `
@@ -96,5 +97,5 @@ export const ACCOUNTING_STATEMENT_PRINT_CSS = `
 export function accountingStandalonePrintHtml(report: ReportTable, identity?: {companyName?:string;businessUnitName?:string}, when = new Date()) {
   const layout = accountingStatementLayout(report);
   const generated = new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(when);
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${escapePrintHtml(layout.title)}</title><style>@page{size:A4 ${layout.orientation};margin:10mm}body{background:white;margin:0}${ACCOUNTING_STATEMENT_PRINT_CSS}</style></head><body><article class="accounting-statement-print"><header><div><div class="acct-company">${escapePrintHtml(identity?.companyName || 'Company')}</div><div class="acct-unit">${escapePrintHtml(identity?.businessUnitName || '')}</div></div><div class="acct-topmeta">FINANCIAL STATEMENT<div>Prepared ${escapePrintHtml(generated)}</div></div></header><h1>${escapePrintHtml(layout.title)}</h1><p class="acct-period">${escapePrintHtml(layout.subtitle)}</p>${accountingStatementMarkup(report)}</article></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${escapePrintHtml(layout.title)}</title><style>@page{size:A4 ${layout.orientation};margin:10mm}body{background:white;margin:0}${ACCOUNTING_STATEMENT_PRINT_CSS}</style></head><body><article class="accounting-statement-print"><header><div><div class="acct-company">${escapePrintHtml(identity?.companyName || 'Company')}</div><div class="acct-unit">${escapePrintHtml(identity?.businessUnitName || '')}</div></div><div class="acct-topmeta">FINANCIAL STATEMENT<div>Prepared ${escapePrintHtml(generated)}</div></div></header><h1>${escapePrintHtml(layout.title)}</h1><p class="acct-period">${escapePrintHtml(layout.subtitle)}</p>${accountingStatementMarkup(report,false)}</article></body></html>`;
 }
