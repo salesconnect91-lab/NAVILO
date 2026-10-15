@@ -690,7 +690,9 @@ export default function TransportWorkspace(){
       setRows(cached.rows);setRegisterMeta(cached.meta);
       lastSuccessfulRegisterKey.current=registerPageKey;
       setRegisterLoadError(false);setRegisterLoading(false);
-      if(Date.now()-cached.at<60000)return;
+      // Render the saved page immediately, then revalidate on every entry.
+      // Invoices/payments may have changed on another screen while this
+      // Register was unmounted; a fresh cache age is not proof of fresh finance.
     }else{
       // Keep the last confirmed page while the new query loads; do not blank the grid.
       setRegisterLoading(true);

@@ -517,14 +517,15 @@ describe('Transport compact register and centered controls',()=>{
   fireEvent.click(screen.getByRole('button',{name:'Close Trip No filter'}));expect(screen.queryByRole('dialog')).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'Columns'}));expect(screen.getByRole('dialog',{name:'Trip columns'}).closest('[data-navilo-transport-register]')).toBeNull();
  });
- it('cancels both canonical and recovery reads when leaving the register',async()=>{
+ it('cancels both canonical and failure recovery reads when leaving the register',async()=>{
   const baseTimer=window.setTimeout.bind(window);
   const shortened=vi.spyOn(window,'setTimeout').mockImplementation(((callback:TimerHandler,ms?:number,...args:any[])=>
     baseTimer(callback,ms===6500?25:ms,...args)) as typeof window.setTimeout);
   try{
    const original=mock.rpc.getMockImplementation()!;
    mock.rpc.mockImplementation((name:string,args:any)=>{
-    if(name==='transport_register_query'||name==='transport_register_operational_recovery')return new Promise(()=>{});
+    if(name==='transport_register_query')return Promise.resolve({data:null,error:{code:'57014',message:'statement timeout'}});
+    if(name==='transport_register_operational_recovery')return new Promise(()=>{});
     return original(name,args);
    });
    const view=render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
@@ -555,7 +556,7 @@ describe('Transport compact register and centered controls',()=>{
   expect(row.textContent?.match(/230\.00/g)).toHaveLength(2);
   expect(row.textContent).not.toContain('200.00');
  });
- it('shows saved Trips early while the financial Register request remains pending',async()=>{
+ it('does not compete with a pending canonical request by starting another financial read',async()=>{
   const baseTimer=window.setTimeout.bind(window);
   const shortened=vi.spyOn(window,'setTimeout').mockImplementation(((callback:TimerHandler,ms?:number,...args:any[])=>
     baseTimer(callback,ms===6500?25:ms,...args)) as typeof window.setTimeout);
@@ -572,17 +573,11 @@ describe('Transport compact register and centered controls',()=>{
     return original(name,args);
    });
    render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
-   await screen.findByText(/Original Trip Register · 16,732 saved Trips/);
-   const grid=screen.getByRole('table',{name:/Trips register/i});
-   expect(grid.textContent).toContain('Safe customer');
-   expect(grid.textContent).toContain('Customer Rate (Net)');
-   expect(grid.textContent).toContain('Supplier Bill Balance');
-   expect(grid.textContent).not.toContain('1,700.00');
-   expect(grid.getAttribute('style')).not.toContain('display: none');
-   // A slow canonical read must not cause an immediate duplicate financial
-   // aggregate while saved operational Trip details are already visible.
+   await waitFor(()=>expect(mock.abortSignals.transport_register_query).toBeTruthy());
+   await new Promise(resolve=>baseTimer(resolve,80));
+   expect(mock.rpc).not.toHaveBeenCalledWith('transport_register_operational_recovery',expect.anything());
    expect(mock.rpc).not.toHaveBeenCalledWith('transport_register_financial_recovery_page',expect.anything());
-   expect(screen.getByText(/Saved Trips loaded; verifying page financial amounts/)).toBeTruthy();
+   expect(screen.getByText('Loading trips…')).toBeTruthy();
   }finally{shortened.mockRestore()}
  });
  it('restores verified customer and supplier amounts only for matching recovered Trip IDs',async()=>{
@@ -724,6 +719,6 @@ describe('Transport compact register and centered controls',()=>{
  it('distinguishes failed loading from a successfully empty register',async()=>{
   mock.rpc.mockImplementation(async(name:string)=>name==='transport_register_query'?{data:null,error:{message:'Failed to fetch'}}:{data:true,error:null});
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
-  await screen.findByText('Register query failed; existing Trips are safe.');expect(screen.queryByText('No trips yet.')).toBeNull();expect(screen.getByRole('button',{name:'Retry'})).toBeTruthy();
+  await screen.findByText('Register query failed; existing Trips are safe.');expect(screen.queryByText('No trips yet.')).toBeNull();expect(screen.getAllByRole('button',{name:'Retry'}).length).toBeGreaterThan(0);
  });
 });

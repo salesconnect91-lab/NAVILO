@@ -18,6 +18,43 @@ declare voucher public.journal_entries;begin
  from public.chart_of_accounts a where a.id in (p_debit,p_credit);
  perform public.post_journal_entry(voucher.id);
 end $$;
+-- Compare the optimized page projection with the original all-Trip invoice
+-- aggregation on synthetic posted invoices, adjustments and partial settlements.
+create function pg_temp.assert_register_invoice_projection() returns void language plpgsql security definer set search_path to public,pg_temp as $test$
+declare definition text; actual jsonb; expected jsonb; test_case jsonb; header_key text; direction text;
+begin
+ definition:=pg_get_functiondef('public.transport_register_query(integer,integer,jsonb,text,text,text,text)'::regprocedure);
+ definition:=replace(definition,'public.transport_register_query(', 'pg_temp.register_invoice_reference(');
+ definition:=replace(definition,'needs_invoice_cells:=','needs_invoice_cells:=true or ');
+ definition:=replace(definition,'coalesce(pb.customer_outstanding_gross,fr.customer_outstanding_gross)','fr.customer_outstanding_gross');
+ definition:=replace(definition,'coalesce(pb.supplier_outstanding_gross,fr.supplier_outstanding_gross)','fr.supplier_outstanding_gross');
+ execute definition;
+ for test_case in select value from jsonb_array_elements('[
+   {"limit":100,"offset":0,"sort":"","direction":"asc","filters":{}},
+   {"limit":1,"offset":1,"sort":"trip_date","direction":"desc","filters":{}},
+   {"limit":500,"offset":0,"sort":"supplier_paid","direction":"desc","filters":{}},
+   {"limit":100,"offset":0,"sort":"invoice_no","direction":"asc","filters":{}},
+   {"limit":100,"offset":0,"sort":"supplier_invoice_no","direction":"desc","filters":{}},
+   {"limit":100,"offset":0,"sort":"","direction":"asc","filters":{"search":"Entry"}},
+   {"limit":100,"offset":0,"sort":"","direction":"asc","filters":{"columns":{"invoice_no":["?"]}}}
+ ]'::jsonb)
+ loop
+ actual:=public.transport_register_query((test_case->>'limit')::integer,(test_case->>'offset')::integer,test_case->'filters',test_case->>'sort',test_case->>'direction');
+ expected:=pg_temp.register_invoice_reference((test_case->>'limit')::integer,(test_case->>'offset')::integer,test_case->'filters',test_case->>'sort',test_case->>'direction');
+ if actual is distinct from expected then raise exception 'Page invoice parity failed: %',test_case; end if;
+ end loop;
+ foreach header_key in array array['trip_no','trip_date','truck_type','job_no','from','to','driver','plate','owner','invoice_no','company','sale_type','charge','company_rate','received_company','remaining_company','customer_credit','supplier_invoice_no','supplier_charges','rent_driver','supplier_paid','supplier_balance','payment_date','amount','supplier_credit','commission','paper_received_by','profit'] loop
+   actual:=public.transport_register_query(100,0,'{}','','asc',header_key,'');
+   expected:=pg_temp.register_invoice_reference(100,0,'{}','','asc',header_key,'');
+   if actual is distinct from expected then raise exception 'Header options changed: %',header_key; end if;
+   foreach direction in array array['asc','desc'] loop
+     actual:=public.transport_register_query(100,0,'{}',header_key,direction);
+     expected:=pg_temp.register_invoice_reference(100,0,'{}',header_key,direction);
+     if actual is distinct from expected then raise exception 'Header sort changed: % %',header_key,direction; end if;
+   end loop;
+ end loop;
+ drop function pg_temp.register_invoice_reference(integer,integer,jsonb,text,text,text,text);
+end $test$;
 do $$
 declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;
  code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
@@ -223,6 +260,7 @@ begin
  data:=public.transport_contribution_summary(current_date-1,current_date);
  if not exists(select 1 from jsonb_array_elements(data) x where x->>'ownership'='company' and (x->>'revenue')::numeric=1000) then raise exception 'Company fleet attribution failed: %',data;end if;
  if (select sum((x->>'revenue')::numeric) from jsonb_array_elements(data) x)<>1000 or (select sum((x->>'cost')::numeric) from jsonb_array_elements(data) x)<>25 then raise exception 'Ownership comparison omitted posted sources';end if;
+ perform pg_temp.assert_register_invoice_projection();
  -- Server file lock prevents another user from importing the same file again.
  perform public.transport_prepare_trip_import(repeat('b',64),'same-workspace.xlsx','[[2]]');
  execute 'reset role';
