@@ -1602,6 +1602,24 @@ export default function TransportWorkspace(){
     };
   },[optionContextKey,columnSearch,columnOptionsRetry]);
   const columnOptions=(_key:string)=>columnValues;
+  // Recovery must not disable the existing per-Trip popups. Resolve the latest
+  // authorized Trip before opening one so an operational-only row cannot become
+  // an incomplete financial edit payload.
+  const openRecoveredPopup=async(row:Trip,key:string)=>{
+    try{
+      const result=await supabase.rpc('transport_edit_trip_read',{p_trip_id:row.id});
+      if(result.error)throw result.error;
+      if(!result.data||result.data.id!==row.id)throw new Error('Trip details could not be verified.');
+      const trip:Trip={...row,...result.data,trip_no:row.trip_no,
+        customer_name:row.customer_name,driver_name:row.driver_name,vehicle_no:row.vehicle_no};
+      if(key==='charge')setChargeTrip(trip);
+      else if(key==='supplier_charges')await openSupplierCharges(trip);
+      else if(key==='company_rate')setInitialRateTrip(trip);
+      else if(key==='invoice_no')setInvoiceTrip(trip);
+      else if(key==='rent_driver'){setBulkSupplierRentTrip(trip);setShowBulkSupplierRent(true);}
+      else if(key==='paper_received_by')await openQuickPpr(trip);
+    }catch(e:any){setError(e?.message||'Unable to open saved Trip details.');}
+  };
   const operationalRecoveryActive=registerLoadError&&operationalRecovery?.key===registerPageKey;
   // Keep the original register/grid visible even when the financial RPC fails.
   // The operational fallback contains only saved Trip identity (no money).
@@ -2066,9 +2084,18 @@ export default function TransportWorkspace(){
                     from:String(r.from_location??''),to:String(r.to_location??''),
                     paper_received_by:r.ppr_status==='received'?String(r.ppr_received_by_name??'Received'):'Pending'
                   };
+                  const actionable=['charge','supplier_charges','company_rate','invoice_no','rent_driver'].includes(key)
+                    ||(key==='paper_received_by'&&r.ppr_status!=='received');
                   return <td data-financial-group={visualGridGroup(key)} key={key}
                     className="h-[26px] max-h-[26px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-slate-200 px-1.5 !py-0 text-[10.5px]">
-                    {known[key]??'—'}
+                    {actionable
+                      ?<button type="button" data-register-editable="true"
+                          aria-label={`Open ${key.replaceAll('_',' ')} ${r.trip_no}`}
+                          className={`w-full cursor-pointer rounded px-1 py-0 text-left font-semibold underline-offset-2 hover:underline ${isSupplierGridKey(key)?'text-rose-800':'text-blue-800'}`}
+                          onClick={()=>void openRecoveredPopup(r,key)}>
+                          {key==='paper_received_by'?'Receive PPR':'Open'}
+                        </button>
+                      :known[key]??'—'}
                   </td>;
                 }
                 const numeric=["charge","rent_driver","supplier_charges","supplier_paid","supplier_balance","supplier_credit","customer_credit","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
