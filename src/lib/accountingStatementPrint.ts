@@ -2,7 +2,7 @@ import { escapePrintHtml, printReportDescription } from '@/lib/printDocument';
 import type { ReportTable, ExportCell } from '@/modules/transport/transportPartyExport';
 
 /** Print-only financial statement structure: rows and values are never recalculated. */
-export type AccountingPrintRowKind = 'section' | 'detail' | 'subtotal' | 'total' | 'check';
+export type AccountingPrintRowKind = 'section' | 'group' | 'subheading' | 'detail' | 'subtotal' | 'total' | 'check';
 export type AccountingPrintRow = { cells: ExportCell[]; kind: AccountingPrintRowKind };
 export type AccountingPrintLayout = {
   title: string;
@@ -40,9 +40,13 @@ export function accountingStatementLayout(report: ReportTable): AccountingPrintL
     const values = indexes.map(index => source[index] ?? '');
     const first = norm(values[0]);
     let kind: AccountingPrintRowKind = 'detail';
-    if (norm(report.title) === 'balance sheet' &&
-        /^(?:current assets|non current assets|current liabilities|non current liabilities|capital reserves)$/.test(accountLabel) &&
-        values.slice(1).every(value => clean(value) === '')) kind = 'subtotal';
+    if (groupSections && ['assets','liabilities','equity'].includes(sectionLabel)
+        && values.slice(1).every(value => clean(value) === '')) {
+      // Only actual statement categories have empty amount cells; printed classification
+      // headings are distinct from group headings, with subtotals calculated upstream.
+      kind = /^(?:current assets|non current assets|current liabilities|non current liabilities|capital reserves)$/.test(accountLabel)
+        ? 'group' : 'subheading';
+    }
     else if (sectionLabel === 'check' || /^(?:difference|accounting equation)/.test(accountLabel)) kind = 'check';
     else if (sectionLabel === 'total' || sectionLabel === 'result' ||
       /^(?:total|closing cash|net (?:profit|cash|change)|gross profit|operating profit)/.test(first)) kind = 'total';
@@ -89,6 +93,9 @@ export const ACCOUNTING_STATEMENT_PRINT_CSS = `
 .accounting-statement-print th,.accounting-statement-print td{padding:1.6mm 2mm;line-height:1.25;border:0;border-bottom:1px solid #dbe2ea;vertical-align:top}
 .accounting-statement-print thead th{background:#eaf0f6;color:#213d5b;font-weight:bold;text-align:left;border-top:1px solid #b8c7d6;border-bottom:1px solid #b8c7d6}
 .accounting-statement-print .acct-section th{padding-top:3mm;padding-bottom:1.5mm;background:#f0f4f8;color:#173858;text-transform:uppercase;letter-spacing:.03em;font-size:8pt;border-bottom:1px solid #b7c6d5}
+.accounting-statement-print .acct-group td{font-weight:700;background:#edf2f8;border-top:1px solid #c1d0df;padding-top:2mm;padding-bottom:2mm}
+.accounting-statement-print .acct-subheading td{font-weight:700;background:#f5f8fc;color:#24466a;border-top:1px solid #d9e3ed;padding-left:5mm}
+.accounting-statement-print .acct-detail td:first-child{padding-left:9mm}
 .accounting-statement-print .acct-subtotal td{font-weight:700;background:#f7f9fc;border-top:1px solid #bac7d6}
 .accounting-statement-print .acct-total td{font-weight:700;background:#edf3f9;border-top:1.5px solid #23466a;border-bottom:1.5px solid #23466a}
 .accounting-statement-print .acct-check td{font-weight:700;background:#f7f9fc;border-top:1px solid #c4ced8}
