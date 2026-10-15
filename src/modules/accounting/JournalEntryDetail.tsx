@@ -1465,8 +1465,11 @@ export default function JournalEntryDetail() {
           setError("Select a valid journal date.");
           return;
         }
-        if (lines.length > 0) {
-          setError("Existing journal lines are already saved. The current accounting database requires a controlled date correction for drafts with saved lines.");
+        // Existing base-currency draft lines retain their amounts and can be
+        // re-dated. Foreign-currency drafts need a separate FX-safe correction.
+        if (lines.length > 0 && (!companyBaseCurrency || !entry.currency_code ||
+            entry.currency_code !== companyBaseCurrency)) {
+          setError("Saved foreign-currency journal lines require a controlled FX correction before changing the date.");
           return;
         }
       }
