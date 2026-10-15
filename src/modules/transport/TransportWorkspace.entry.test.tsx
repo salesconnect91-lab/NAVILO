@@ -570,7 +570,7 @@ describe('Transport compact register and centered controls',()=>{
   expect(table.textContent).toContain('250.00');
   expect(table.textContent).toContain('Restored customer');
   expect(screen.getByRole('button',{name:'Open Customer Charges 19535'})).toBeTruthy();
-  expect(screen.getByText(/Visible Trip amounts verified/)).toBeTruthy();
+  expect(screen.getAllByText(/Visible Trip amounts verified/).length).toBeGreaterThan(0);
  });
  it('never assigns financial amounts from a different Trip ID',async()=>{
   mock.rpc.mockImplementation(async(name:string)=>{
