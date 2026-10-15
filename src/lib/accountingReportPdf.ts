@@ -91,6 +91,11 @@ export async function downloadAccountingReportPdf({ fileName, title, subtitle, c
         cell.cell.styles.fontSize=8.2;
         cell.cell.styles.cellPadding={top:2.6,right:1.8,bottom:2,left:1.8};
         cell.cell.styles.halign="left";
+      } else if (kind === "group" || kind === "subheading") {
+        cell.cell.styles.fontStyle="bold";
+        cell.cell.styles.fillColor=kind === "group" ? [231,239,247] : [245,249,252];
+        cell.cell.styles.textColor=[31,65,98];
+        cell.cell.styles.cellPadding={top:2,right:1.8,bottom:2,left:kind === "group" ? 2 : 6};
       } else if (kind === "subtotal" || kind === "total" || kind === "check") {
         cell.cell.styles.fontStyle="bold";
         cell.cell.styles.fillColor=kind === "total" ? [232, 241, 249] : [246, 249, 252];
