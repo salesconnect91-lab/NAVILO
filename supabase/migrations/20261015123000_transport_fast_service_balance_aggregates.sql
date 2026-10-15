@@ -47,6 +47,12 @@ $joins$;
 ), amounts AS (
 $ctes$;
 BEGIN
+ IF position('transport_service_document_balances_fast' IN parent_view)>0
+    AND to_regclass('public.transport_service_document_balances_fast') IS NOT NULL
+ THEN
+   RAISE NOTICE 'Set-based service balance aggregation already active';
+   RETURN;
+ END IF;
  IF position('), amounts AS (' IN source_view)=0 OR
     position('FROM sources s' IN source_view)=0 OR
     position(E'\n        )\n SELECT side,' IN source_view)=0 OR
