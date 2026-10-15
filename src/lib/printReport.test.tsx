@@ -3,6 +3,7 @@ import {afterEach,describe,expect,it,vi} from 'vitest';
 import {cleanup,render,fireEvent,screen,waitFor} from '@testing-library/react';
 import DataTable from '@/components/DataTable';
 import {buildReport,cleanReportTable,reportFilterSnapshot,applyReportPrintSettings} from './printReport';
+import {accountingStatementMarkup} from './accountingStatementPrint';
 import {createPrintDocument,registerPrintSource,printTableMarkup,printReportDescription} from './printDocument';
 import {paginatePrintDocument,paperCSS} from './printPagination';
 import PrintPreviewController,{brandStandaloneDocument} from '@/components/PrintPreviewController';
@@ -34,6 +35,27 @@ describe('document report data contract',()=>{
   const doc=new DOMParser().parseFromString(result.html,'text/html');expect(doc.querySelector('caption')).toBeNull();
   expect(doc.querySelectorAll('h1')).toHaveLength(1);expect(doc.querySelectorAll('tbody tr')).toHaveLength(2);
   expect(result.html).toContain('Waiting charge as agreed');expect(result.html).toContain('TOTAL');
+ });
+ it('keeps statement section bands and all financial rows in the global print preview',async()=>{
+  const root=document.createElement('main');
+  root.innerHTML='<h1>Balance Sheet</h1><section data-print-primary-source><div id="statement"></div></section>';
+  const unregister=registerPrintSource(root.querySelector('#statement')!,()=>accountingStatementMarkup({
+   title:'Balance Sheet',description:'As of 2026-10-15 · Canonical posted ledger',
+   columns:['Section','Account','Amount'],
+   rows:[['Assets','Bank',1500],['Assets','Cash',700],['Total','Assets',2200],['Check','Equation difference',0]],
+  }));
+  const result=await buildReport(root,{companyName:'Orbit',businessUnitName:'Head Office'});
+  const doc=new DOMParser().parseFromString(result.html,'text/html');
+  const table=doc.querySelector('table');
+  expect(result.title).toBe('Balance Sheet');
+  expect(result.orientation).toBe('portrait');
+  expect(table?.classList.contains('accounting-statement-table')).toBe(true);
+  expect(table?.querySelector('.acct-section')?.textContent).toContain('Assets');
+  expect(table?.querySelector('.acct-total')?.textContent).toContain('2,200.00');
+  expect(table?.querySelector('.acct-check')?.textContent).toContain('0.00');
+  expect(table?.querySelectorAll('tbody tr')).toHaveLength(5);
+  expect(table?.querySelectorAll('.print-number').length).toBeGreaterThan(0);
+  unregister();
  });
  it('shortens only report metadata and retains dates, currency and financial totals',()=>{
   expect(printReportDescription('Orbit · 01-Oct-26 to 31-Oct-26 · Canonical posted ledger; monthly closing excluded · Company base currency · Revenue 1000')).toBe('Orbit · 01-Oct-26 to 31-Oct-26 · Company base currency · Revenue 1000');
