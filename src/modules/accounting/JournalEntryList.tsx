@@ -799,6 +799,26 @@ export default function JournalEntryList() {
         );
       }
 
+      // A customer name in AccountName is not a Chart of Accounts entry.
+      // Do not silently post customer balances to an unlinked GL account.
+      const customerLikeRows = parsedRows.filter(
+        (item) =>
+          !item.accountCode &&
+          /accounts?\s+receivables?/i.test(item.accountHead) &&
+          item.accountName &&
+          !/accounts?\s+receivables?/i.test(item.accountName)
+      );
+      if (customerLikeRows.length > 0) {
+        throw new Error(
+          "This file appears to contain customer-wise receivables in AccountName. " +
+          "Bulk Journal Import currently accepts Chart of Accounts names, not Customer Master names. " +
+          "Use individual Journal Entry > Import Excel with Account Code 1130 and Party Type/Party Name; " +
+          "do not post until customer balances have been reconciled. " +
+          "Affected Excel rows: " +
+          customerLikeRows.map((item) => item.rowNumber).join(", ")
+        );
+      }
+
       setImportRows(
         parsedRows
       );
