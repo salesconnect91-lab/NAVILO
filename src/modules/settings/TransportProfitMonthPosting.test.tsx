@@ -25,5 +25,5 @@ it.each([false,true])('preserves source history and reports remainder after post
   const source=screen.getByText(/Undistributed for this review:/);
   expect(source.textContent).toContain(reversed?'80.00':'0.00');
  });
- expect(screen.getByText('Historical fleet net profit')).toBeTruthy();
+ expect(screen.getByText('Fleet opening net profit')).toBeTruthy();
 });

@@ -30,7 +30,7 @@ describe("import center", () => {
     expect(screen.getByRole("heading", { name: "Transport Master Imports" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Transport Rate Imports" })).toBeTruthy();
     for (const name of ["Vehicles","Drivers","Truck Types","Locations","Vehicle Ownership History"]) expect(screen.getByRole("option", { name })).toBeTruthy();
-    expect(screen.getAllByRole("heading", { level: 2 }).map(node => node.textContent)).toEqual(["Customers","Suppliers","Transport Master Imports","Transport Rate Imports","Daily Trip Upload","Transport Sales Invoice Import","Transport Receipts / Payments Import","Bulk Journal Entries","One-time Historical Import","NAVILO → NAVILO Transport Transfer"]);
+    expect(screen.getAllByRole("heading", { level: 2 }).map(node => node.textContent)).toEqual(["Customers","Suppliers","Transport Master Imports","Transport Rate Imports","Daily Trip Upload","Transport Sales Invoice Import","Transport Receipts / Payments Import","Bulk Journal Entries","One-time Import","NAVILO → NAVILO Transport Transfer"]);
     expect(screen.getByRole("option", { name: "Customer Route Rates" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Supplier Route Rates" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Customer Additional Charges" })).toBeTruthy();
