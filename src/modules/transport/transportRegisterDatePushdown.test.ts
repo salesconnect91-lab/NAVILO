@@ -44,11 +44,12 @@ describe('Transport Register date-filter pushdown',()=>{
         )
         SELECT t.id,f.customer_due,f.supplier_due
         FROM eligible_ids t JOIN finance f ON f.trip_id=t.id ORDER BY t.id`;
-      const oldRows=(await db.query(late)).rows;
-      const newRows=(await db.query(early)).rows;
+      type FinancialRow={id:number;customer_due:string|number;supplier_due:string|number};
+      const oldRows=(await db.query<FinancialRow>(late)).rows;
+      const newRows=(await db.query<FinancialRow>(early)).rows;
       expect(newRows).toEqual(oldRows);
       expect(newRows.map(r=>r.id)).toEqual([2,4,6]);
-      const total=(rows:Record<string,unknown>[])=>rows.reduce((sum,r)=>sum+Number(r.customer_due)+Number(r.supplier_due),0);
+      const total=(rows:FinancialRow[])=>rows.reduce((sum,r)=>sum+Number(r.customer_due)+Number(r.supplier_due),0);
       expect(total(newRows)).toBe(745);
       expect(total(newRows)).toBe(total(oldRows));
     }finally{await db.close()}
