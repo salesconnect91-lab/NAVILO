@@ -532,10 +532,13 @@ describe('Transport compact register and centered controls',()=>{
     return original(name,args);
    });
    render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
-   const recovery=await screen.findByRole('region',{name:'Operational Trip recovery'});
-   expect(recovery.textContent).toContain('Safe customer');
-   expect(recovery.textContent).toContain('16,732 matching Trips');
-   expect(recovery.textContent).not.toContain('1,700.00');
+   await screen.findByText(/Original Trip Register · 16,732 saved Trips/);
+   const grid=screen.getByRole('table',{name:/Trips register/i});
+   expect(grid.textContent).toContain('Safe customer');
+   expect(grid.textContent).toContain('Customer Rate (Net)');
+   expect(grid.textContent).toContain('Supplier Bill Balance');
+   expect(grid.textContent).not.toContain('1,700.00');
+   expect(grid.getAttribute('style')).not.toContain('display: none');
    expect(screen.getByText(/Full financial query is still being checked/)).toBeTruthy();
   }finally{shortened.mockRestore()}
  });
@@ -550,12 +553,15 @@ describe('Transport compact register and centered controls',()=>{
    return {data:true,error:null};
   });
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
-  const result=await screen.findByRole('region',{name:'Operational Trip recovery'});
+  await screen.findByText(/Original Trip Register · 1 saved Trips/);
+  const result=screen.getByRole('table',{name:/Trips register/i});
   expect(result.textContent).toContain('19535');
   expect(result.textContent).toContain('Recovery Customer');
-  expect(result.textContent).toContain('Financial figures');
+  expect(result.textContent).toContain('Customer Rate (Net)');
+  expect(result.textContent).toContain('Supplier Bill Balance');
   expect(result.textContent).not.toContain('1,700.00');
-  expect(result.querySelector('button')?.textContent).toContain('Retry full Register');
+  expect(result.closest('[style*="display: none"]')).toBeNull();
+  expect(screen.getByRole('button',{name:'Retry financial data'})).toBeTruthy();
   expect(mock.rpc).toHaveBeenCalledWith('transport_register_operational_recovery',expect.objectContaining({p_offset:0,p_search:''}));
  });
  it('checks all shown header-filter values without silently clearing the filter',async()=>{
