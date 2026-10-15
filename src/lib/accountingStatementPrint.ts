@@ -40,7 +40,10 @@ export function accountingStatementLayout(report: ReportTable): AccountingPrintL
     const values = indexes.map(index => source[index] ?? '');
     const first = norm(values[0]);
     let kind: AccountingPrintRowKind = 'detail';
-    if (sectionLabel === 'check' || /^(?:difference|accounting equation)/.test(accountLabel)) kind = 'check';
+    if (norm(report.title) === 'balance sheet' &&
+        /^(?:current assets|non current assets|current liabilities|non current liabilities|capital reserves)$/.test(accountLabel) &&
+        values.slice(1).every(value => clean(value) === '')) kind = 'subtotal';
+    else if (sectionLabel === 'check' || /^(?:difference|accounting equation)/.test(accountLabel)) kind = 'check';
     else if (sectionLabel === 'total' || sectionLabel === 'result' ||
       /^(?:total|closing cash|net (?:profit|cash|change)|gross profit|operating profit)/.test(first)) kind = 'total';
     else if (accountLabel === 'section total' || /^(?:sub ?total|section total)/.test(first)) kind = 'subtotal';
