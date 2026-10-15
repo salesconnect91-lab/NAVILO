@@ -1594,8 +1594,12 @@ export default function TransportWorkspace(){
     };
   },[optionContextKey,columnSearch,columnOptionsRetry]);
   const columnOptions=(_key:string)=>columnValues;
-  const gridRows=rows;
   const operationalRecoveryActive=registerLoadError&&operationalRecovery?.key===registerPageKey;
+  // Keep the original register/grid visible even when the financial RPC fails.
+  // The operational fallback contains only saved Trip identity (no money).
+  const gridRows:Trip[]=operationalRecoveryActive&&operationalRecovery
+    ?operationalRecovery.rows.map((r:any)=>({...r,trip_no:r.display_trip_no??r.trip_no,truck_type:r.truck_type??'',status:''} as Trip))
+    :rows;
   // Totals and status counts are meaningful only for the currently confirmed filter/page.
   const registerDataCurrent=!registerLoadError&&lastSuccessfulRegisterKey.current===registerPageKey;
   const [selectedTripIds,setSelectedTripIds]=useState<Set<string>>(()=>new Set());
@@ -1838,7 +1842,7 @@ export default function TransportWorkspace(){
           {canDeleteTrip&&<button type="button" aria-label="Delete selected Trip" title="Select one Draft or Incomplete Trip without financial posting to delete" disabled={selectedTripCount!==1||!gridRows.some(r=>selectedTripIds.has(r.id)&&(r.status==='draft'||r.status==='incomplete'))} onClick={()=>{const selected=gridRows.find(r=>selectedTripIds.has(r.id));if(selected){setDeleteTripTarget(selected);setDeleteTripReason("");setDeleteTripError("");}}} className="flex h-7 items-center gap-1 rounded-md border border-rose-400 bg-rose-700 px-2 text-white disabled:opacity-40"><Trash2 className="h-4 w-4"/>Delete</button>}
           <span data-navilo-standard-tools-host="true" className="contents" />
         </div>
-        <span className="navilo-transport-result-count">{registerLoadError&&lastSuccessfulRegisterKey.current!==registerPageKey?'Data unavailable':`${gridRows.length.toLocaleString()} shown / ${Number(registerMeta.count??0).toLocaleString()} filtered trips`}</span>
+        <span className="navilo-transport-result-count">{registerLoadError&&lastSuccessfulRegisterKey.current!==registerPageKey?'Data unavailable':`${gridRows.length.toLocaleString()} shown / ${Number(operationalRecoveryActive?operationalRecovery?.count:registerMeta.count??0).toLocaleString()} filtered trips`}</span>
       </div>
 
         {showTripColumnSetup&&<TransportDialog onClose={()=>setShowTripColumnSetup(false)}>
@@ -1911,35 +1915,14 @@ export default function TransportWorkspace(){
           <button type="button" className="ml-2 font-bold underline" onClick={resetGrid}>Clear filters &amp; show saved Trips</button>
         </p>}
       {operationalRecoveryActive&&operationalRecovery&&(
-        <section className="min-h-0 flex-1 overflow-auto border-t border-amber-400 bg-white" aria-label="Operational Trip recovery">
-          <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-            <div><strong>Operational Recovery — {operationalRecovery.count.toLocaleString()} matching Trips</strong>
-              <span className="ml-2">Financial figures, full-data search, sorting and header filters are unavailable in this view. No amounts are shown.</span></div>
-            <button type="button" className="shrink-0 rounded border border-amber-500 bg-white px-2 py-1 font-bold hover:bg-amber-100" disabled={registerLoading} onClick={()=>void load()}>Retry full Register</button>
-          </div>
-          <table className="w-full text-left text-xs">
-            <thead className="sticky top-[38px] bg-slate-100 text-[11px] uppercase text-slate-700"><tr>
-              {['Trip No','Date','Customer','Driver','Vehicle','From','To','PPR','Action'].map(title=><th key={title} className="border-b border-r p-2">{title}</th>)}
-            </tr></thead>
-            <tbody>{operationalRecovery.rows.map((row:any)=>(
-              <tr key={row.id} className="border-b even:bg-slate-50">
-                <td className="px-2 py-1 font-semibold">{row.display_trip_no??row.trip_no}</td>
-                <td className="px-2 py-1">{row.trip_date}</td>
-                <td className="px-2 py-1">{row.customer_name||'—'}</td>
-                <td className="px-2 py-1">{row.driver_name||'—'}</td>
-                <td className="px-2 py-1">{row.vehicle_no||'—'}</td>
-                <td className="px-2 py-1">{row.from_location||'—'}</td>
-                <td className="px-2 py-1">{row.to_location||'—'}</td>
-                <td className="px-2 py-1">{row.ppr_status||'—'}</td>
-                <td className="px-2 py-1"><button type="button" className="rounded border border-blue-300 px-2 py-1 font-semibold text-blue-800 hover:bg-blue-50" onClick={()=>void startEditTrip(row as Trip)}>Open Trip</button></td>
-              </tr>
-            ))}</tbody>
-          </table>
-          {!operationalRecovery.rows.length&&<p className="p-4 text-sm">No operational Trips match this search.</p>}
-        </section>
+        <div role="status" className="shrink-0 flex items-center justify-between gap-2 border-t border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+          <span><strong>Original Trip Register · {operationalRecovery.count.toLocaleString()} saved Trips</strong>
+          {' '}All columns are retained. Unverified financial figures show — until the complete accounting request succeeds.</span>
+          <button type="button" onClick={()=>void load()} disabled={registerLoading}
+            className="shrink-0 rounded border border-amber-500 bg-white px-2 py-1 font-semibold">Retry financial data</button>
+        </div>
       )}
       <div
-        style={operationalRecoveryActive?{display:'none'}:undefined}
         ref={tripsGridRef}
         className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-400 bg-white"
       >
@@ -1967,7 +1950,7 @@ export default function TransportWorkspace(){
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
                   className={`sticky top-0 border-b border-r px-0.5 !py-0 font-bold leading-none ${(isSupplierGridKey(key)?"border-rose-200 bg-rose-50 text-slate-800":isCustomerGridKey(key)?"border-blue-200 bg-blue-50 text-slate-800":isPprGridKey(key)?"border-emerald-200 bg-emerald-50 text-slate-800":"border-slate-300 bg-white text-slate-700")} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
                   <div className="flex min-h-[22px] w-full min-w-0 items-center gap-0.5">
-                    {key==='trip_no'&&<input
+                    {key==='trip_no'&&!operationalRecoveryActive&&<input
                       type="checkbox"
                       aria-label={allVisibleTripsSelected?"Deselect all visible trips":"Select all visible trips"}
                       title={allVisibleTripsSelected?"Deselect all visible trips":"Select all visible trips"}
@@ -2056,17 +2039,30 @@ export default function TransportWorkspace(){
               <td
                 style={{width:displayRegisterColumnWidth(orderedGridColumns[0]?.[0]??"trip_no")}}
                 className={`!sticky left-0 z-30 overflow-hidden whitespace-nowrap border-b border-r px-1.5 !py-0 font-bold leading-tight shadow-[2px_0_3px_rgba(15,23,42,0.06)] ${tripSelected?'!border-amber-400 !bg-amber-100 text-amber-950':'h-[26px] max-h-[26px] border-slate-200 bg-white text-slate-900'}`}>
-  <input type="checkbox" aria-label={`Select trip ${r.trip_no}`} checked={tripSelected} onChange={()=>toggleTripSelection(String(r.id))} className="mr-1 h-3.5 w-3.5 cursor-pointer align-middle accent-amber-500"/>
+  {!operationalRecoveryActive&&<input type="checkbox" aria-label={`Select trip ${r.trip_no}`} checked={tripSelected} onChange={()=>toggleTripSelection(String(r.id))} className="mr-1 h-3.5 w-3.5 cursor-pointer align-middle accent-amber-500"/>}
   <button data-register-editable="true" type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
     className="font-bold leading-none text-blue-700 underline-offset-2 hover:underline">
     {r.trip_no}
   </button>
-  <span title={`Trip status: ${statusMark(r.status).title}`} aria-label={`Trip status ${statusMark(r.status).title}`} className={`ml-0.5 inline-flex h-3 w-3 items-center justify-center align-middle text-[9px] font-bold leading-none ${statusMark(r.status).className}`}>{statusMark(r.status).mark}</span>
+  {!operationalRecoveryActive&&<span title={`Trip status: ${statusMark(r.status).title}`} aria-label={`Trip status ${statusMark(r.status).title}`} className={`ml-0.5 inline-flex h-3 w-3 items-center justify-center align-middle text-[9px] font-bold leading-none ${statusMark(r.status).className}`}>{statusMark(r.status).mark}</span>}
 </td>
 
               {/* Transport operational register order - one canonical mapping for display/filter/sort */}
               {orderedGridColumns.slice(1).map(([key])=>{
                 const value=tripCellValue(r,key);
+                if(operationalRecoveryActive){
+                  const known:Record<string,string>={
+                    trip_date:formatNaviloDate(r.trip_date),truck_type:String(r.truck_type??''),
+                    job_no:String(r.po_do_job_no??''),company:String(r.customer_name??''),
+                    driver:String(r.driver_name??''),plate:String(r.vehicle_no??''),
+                    from:String(r.from_location??''),to:String(r.to_location??''),
+                    paper_received_by:r.ppr_status==='received'?String(r.ppr_received_by_name??'Received'):'Pending'
+                  };
+                  return <td data-financial-group={visualGridGroup(key)} key={key}
+                    className="h-[26px] max-h-[26px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-slate-200 px-1.5 !py-0 text-[10.5px]">
+                    {known[key]??'—'}
+                  </td>;
+                }
                 const numeric=["charge","rent_driver","supplier_charges","supplier_paid","supplier_balance","supplier_credit","customer_credit","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
                 const columnWidth=displayRegisterColumnWidth(key);
                 return <td data-financial-group={visualGridGroup(key)} key={key}
@@ -2112,8 +2108,8 @@ export default function TransportWorkspace(){
 
       
       <TransportHorizontalScroll gridRef={tripsGridRef} revision={registerKey+String(page)+hiddenTripColumns.join()+JSON.stringify(tripColumnWidths)}/>
-      <TransportPagination page={page} pageSize={REGISTER_PAGE_SIZE} count={Number(registerMeta.count??0)} busy={registerLoading} onPage={setPage}/>
-      <p className="shrink-0 border-t border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-600">Header totals cover all filtered Trips, across every page.</p>
+      <TransportPagination page={page} pageSize={REGISTER_PAGE_SIZE} count={Number(operationalRecoveryActive?operationalRecovery?.count:registerMeta.count??0)} busy={registerLoading&&!operationalRecoveryActive} onPage={setPage}/>
+      <p className="shrink-0 border-t border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-600">{operationalRecoveryActive?'Financial amounts and totals are temporarily unverified.':'Header totals cover all filtered Trips, across every page.'}</p>
     </section>}
 
     {!showPartyReports&&tab==="new"&&
