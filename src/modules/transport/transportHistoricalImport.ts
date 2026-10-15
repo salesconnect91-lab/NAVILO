@@ -16,10 +16,10 @@ export function parseHistoricalWorkbook(buffer:ArrayBuffer):HistoricalRow[]{
  if(!name)throw new Error('Trips worksheet required.');
  const matrix=XLSX.utils.sheet_to_json<unknown[]>(w.Sheets[name],{header:1,defval:'',raw:true});
  const headers=(matrix[0]??[]).map(key);const missing=HISTORY_COLUMNS.filter(h=>!headers.includes(key(h)));
- if(missing.length)throw new Error('Historical import needs explicit accounting columns: '+missing.join(', ')+'. Download the historical template.');
+ if(missing.length)throw new Error('One-time import needs explicit accounting columns: '+missing.join(', ')+'. Download the one-time import template.');
  const paymentsName=w.SheetNames.find(n=>key(n)==='payments');
  const payments=paymentsName?XLSX.utils.sheet_to_json<Record<string,unknown>>(w.Sheets[paymentsName],{defval:''}):[];
- if(payments.length>100000)throw new Error('Maximum 100,000 payment allocations per historical file.');
+ if(payments.length>100000)throw new Error('Maximum 100,000 payment allocations per import file.');
  const bySource=new Map<string,HistoricalPayment[]>();
  for(const [i,p] of payments.entries()){
   if(Object.values(p).every(v=>str(v)===''))continue;
@@ -48,7 +48,7 @@ export function parseHistoricalWorkbook(buffer:ArrayBuffer):HistoricalRow[]{
     if(str(get(old))!==''&&cents(money(get(old),old))!==cents(current))errors.push(`${old} does not match the explicit historical amount`);
    }
    for(const h of ['AMOUNT','paid commissin for trip'])if(str(get(h))!==''&&Number(get(h))!==0)errors.push(`${h}: unsupported expense/payment evidence. Reconcile separately before importing`);
-  }catch(e){errors.push(e instanceof Error?e.message:'Invalid financial history');}
+  }catch(e){errors.push(e instanceof Error?e.message:'Invalid financial records');}
   return {...row,...details,source_id:id,payments:bySource.get(id)??[],errors};
  });
  for(const id of bySource.keys())if(!ids.has(id))throw new Error(`Payment references unknown Source Record ID: ${id}`);
@@ -58,5 +58,5 @@ export function historicalTotals(rows:HistoricalRow[]){const total={trips:rows.l
 export async function parseHistoricalFile(buffer:ArrayBuffer):Promise<HistoricalRow[]>{
  if(typeof Worker==='undefined')return parseHistoricalWorkbook(buffer);
  const worker=new Worker(new URL('./transportHistoricalImport.worker.ts',import.meta.url),{type:'module'});
- return new Promise((resolve,reject)=>{worker.onmessage=event=>{worker.terminate();if(event.data.error)reject(new Error(event.data.error));else resolve(event.data.rows);};worker.onerror=()=>{worker.terminate();reject(new Error('Unable to read historical workbook'));};worker.postMessage(buffer,[buffer]);});
+ return new Promise((resolve,reject)=>{worker.onmessage=event=>{worker.terminate();if(event.data.error)reject(new Error(event.data.error));else resolve(event.data.rows);};worker.onerror=()=>{worker.terminate();reject(new Error('Unable to read import workbook'));};worker.postMessage(buffer,[buffer]);});
 }

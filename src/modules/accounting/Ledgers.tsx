@@ -67,7 +67,7 @@ const PARTY_COLUMNS = [
   ["date", "Date"], ["party", "Party"], ["reference", "Reference"], ["documentRefs", "Linked invoices"],
   ["trip", "Trip"], ["from", "From"], ["to", "To"], ["vehicle", "Vehicle"],
   ["driver", "Driver"], ["owner", "Owner"], ["job", "Job / PO / DO"],
-  ["sourceNet", "Source Net"], ["sourceTax", "Source Tax Difference"], ["sourceGross", "Source Gross"], ["sourceSettled", "Historical Settled"], ["sourceRemaining", "Opening Remaining"],
+  ["sourceNet", "Source Net"], ["sourceTax", "Source Tax Difference"], ["sourceGross", "Source Gross"], ["sourceSettled", "Previously Settled"], ["sourceRemaining", "Opening Remaining"],
   ["description", "Description"], ["base", "Base Amount"], ["charges", "Charges"], ["tax", "VAT / Tax"], ["postedTotal", "Posted Total"], ["debit", "Debit"], ["credit", "Credit"], ["balance", "Balance"],
 ] as const;
 type PartyColumnKey = (typeof PARTY_COLUMNS)[number][0];
@@ -991,7 +991,7 @@ export default function Ledgers() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <p className="text-sm p-2">Imported invoice rows explain the existing opening voucher. Source gross and historical settled amounts are register evidence. Debit, credit and balance show the posted opening remaining. Original invoice dates were not supplied.</p>
+            <p className="text-sm p-2">Imported invoice rows explain the existing opening voucher. Source gross and previously settled amounts are register evidence. Debit, credit and balance show the posted opening remaining. Original invoice dates were not supplied.</p>
             <div className="flex gap-3 p-2 print:hidden"><button disabled={!partyPage} onClick={()=>setPartyPage(p=>p-1)}>Previous</button><span>{partyPage*200+Math.min(partyRowsWithBalance.length,1)}–{Math.min((partyPage+1)*200,partyRowsWithBalance.length)} / {partyRowsWithBalance.length} rows</span><button disabled={(partyPage+1)*200>=partyRowsWithBalance.length} onClick={()=>setPartyPage(p=>p+1)}>Next</button><span>Print and export include all matching rows.</span></div>
             <table ref={partyTableRef} className="w-full text-sm min-w-max">
               <thead>

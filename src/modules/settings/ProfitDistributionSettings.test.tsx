@@ -28,7 +28,7 @@ it('requires expense review and an equity account, confirms closing and never al
  expect(rpc.mock.calls.some(x=>String(x[0]).includes('distribution'))).toBe(false);
 });
 it('historical opening cannot be closed again',async()=>{
- setup({...preview,historical_opening:true,ready:false});await screen.findByText(/Historical opening profit is already recorded/);
+ setup({...preview,historical_opening:true,ready:false});await screen.findByText(/Opening profit is already recorded/);
  expect(screen.queryByRole('button',{name:'Close Month'})).toBeNull();
 });
 it('already closed month exposes history without a second post button',async()=>{

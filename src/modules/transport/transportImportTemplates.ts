@@ -55,11 +55,11 @@ export function createHistoricalTemplateWorkbook(){
   'OLD-0001','Yes','2026-10-01','No',2000,600,1400,'Yes','2026-10-01','No',1700,1000,700
  ];
  const wb=createImportTemplateWorkbook({
-  filename:'Transport-Historical-Import-Template.xlsx',sheetName:'Trips',
-  headers,example:sample,title:'One-time Transport historical invoices, trips and settlements',
+  filename:'Transport-One-time-Import-Template.xlsx',sheetName:'Trips',
+  headers,example:sample,title:'One-time Transport invoices, trips and settlements',
   notes:[
-   'WARNING: Historical Import may POST financial invoices, purchases and dated payments. Use only after opening balance reconciliation and approval.',
-   'Unlike DAILY Trip Upload, historical records require an explicit Sale Type (Cash / Credit) as source evidence. This must agree with the target Customer Master policy; do not reclassify posted history silently.',
+   'WARNING: One-time Import may POST financial invoices, purchases and dated payments. Use only after opening balance reconciliation and approval.',
+   'Unlike DAILY Trip Upload, one-time records require an explicit Sale Type (Cash / Credit) as source evidence. This must agree with the target Customer Master policy; do not reclassify posted history silently.',
    'Source Record ID must be unique for each real Trip. Same-date repeat journeys need different Source Record IDs.',
    'Customer Posted / Supplier Posted / Customer VAT / Supplier VAT accept ONLY Yes or No. Rates and Supplier Rent are EXCLUDING VAT; gross and remaining amounts include VAT.',
    'Unposted sides require zero gross, payment and remaining, with VAT No. Posted sides require invoice date and positive gross within the cutoff date.',
@@ -81,5 +81,5 @@ export function createHistoricalTemplateWorkbook(){
  return wb;
 }
 export function downloadHistoricalTemplate(){
- XLSX.writeFile(createHistoricalTemplateWorkbook(),'Transport-Historical-Import-Template.xlsx');
+ XLSX.writeFile(createHistoricalTemplateWorkbook(),'Transport-One-time-Import-Template.xlsx');
 }

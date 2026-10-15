@@ -90,7 +90,7 @@ export default function TransportCustomerBillingModes({side='customer'}:{side?:'
     </tr></thead>
     <tbody>{filtered.map(r=><tr key={r.id} className="border-t border-slate-100">
      <td className="px-2 py-1.5 font-semibold text-slate-800">{r.name}</td>
-     <td className="px-2 py-1.5 tabular-nums text-slate-600">{r.cash_invoices} / {r.credit_invoices}{r.cash_invoices>0&&r.credit_invoices>0?<span className="ml-1 text-amber-700">Mixed history</span>:null}</td>
+     <td className="px-2 py-1.5 tabular-nums text-slate-600">{r.cash_invoices} / {r.credit_invoices}{r.cash_invoices>0&&r.credit_invoices>0?<span className="ml-1 text-amber-700">Mixed billing</span>:null}</td>
      <td className="px-2 py-1"><select aria-label={`Billing mode for ${r.name}`} className="input h-8 w-full min-w-[145px] py-0 text-[11px]" value={r.mode??''} disabled={!canEdit||busy!==null} onChange={e=>{if(e.target.value==='Cash'||e.target.value==='Credit')void save(r.id,e.target.value as Mode)}}>
       <option value="">Not configured</option><option value="Cash">Cash · Without VAT</option><option value="Credit">Credit · With VAT</option>
      </select></td>

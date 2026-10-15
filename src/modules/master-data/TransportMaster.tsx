@@ -163,7 +163,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
       {allowed&&<>
       <button className="btn-secondary px-2 py-1 text-xs" onClick={() => openEdit(row)}><Pencil className="inline h-3.5 w-3.5" /> Edit</button>
       <MasterActionButton tone="danger" title={`${row.active ? "Deactivate" : "Activate"} ${vehicle ? "Vehicle" : "Driver"}`}
-        message="Historical Transport records remain unchanged. Inactive masters cannot be selected for new Trips."
+        message="Existing Transport records remain unchanged. Inactive masters cannot be selected for new Trips."
         onConfirm={() => toggle(row)} className="btn-secondary px-2 py-1 text-xs"><Power className="inline h-3.5 w-3.5" /> {row.active ? "Deactivate" : "Activate"}</MasterActionButton></>}
     </div> },
   ];

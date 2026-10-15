@@ -326,7 +326,7 @@ export default function ImportCenter() {
   const scope=`${activeCompany?.company_id??""}:${activeBusinessUnit?.business_unit_id??""}`;
   return <div className="w-full space-y-2 py-2">
    <div><h1 className="text-base font-bold text-slate-900">Import Center</h1><p className="text-xs text-slate-600">1. Download template → 2. Choose file → 3. Review rows → 4. Import. Invoices and journals are saved as drafts; receipts/payments are posted.</p></div>
-   <nav aria-label="Import sections" className="flex flex-wrap gap-2 text-xs"><a className="btn" href="#import-masters">Masters &amp; rates</a><a className="btn" href="#import-daily">Trips &amp; invoices</a><a className="btn" href="#import-accounting">Receipts &amp; journals</a><a className="btn" href="#import-history">Historical &amp; transfer</a></nav>
+   <nav aria-label="Import sections" className="flex flex-wrap gap-2 text-xs"><a className="btn" href="#import-masters">Masters &amp; rates</a><a className="btn" href="#import-daily">Trips &amp; invoices</a><a className="btn" href="#import-accounting">Receipts &amp; journals</a><a className="btn" href="#import-history">One-time &amp; transfer</a></nav>
    <div key={scope} className="space-y-3">
     <ImportGroup id="import-masters" title="1. Masters & rates" detail="Set up names, vehicles and agreed rates. No accounting entries.">
      <div className="grid gap-2 lg:grid-cols-2"><PartyMasterImportCard kind="customer" canImport={canImport("master")}/><PartyMasterImportCard kind="supplier" canImport={canImport("master")}/></div>
@@ -340,8 +340,8 @@ export default function ImportCenter() {
      {canImport("transport")&&canImport("accounting")&&<TransportSettlementImports/>}
      <ImportEntry title="Bulk Journal Entries" effect="Drafts first; post after review" detail="One Entry No and Description per journal; add balanced debit and credit rows. Account code is optional. Post after review in Accounting." to="/accounting?import=journal" label="Open Journal Import" download={downloadExcelTemplate}/>
     </ImportGroup>}
-    {canImport("transport")&&<ImportGroup id="import-history" title="4. Historical records & company transfer" detail="Use only when bringing in old records or moving trip records between NAVILO companies.">
-     <ImportEntry title="One-time Historical Import" effect="Historical accounting import" detail="Old trips, invoices, expenses and settlements. Review cutoff, opening balances and accounts before posting." to="/transport?view=new&import=historical" label="Open Historical Import" download={downloadHistoricalTemplate}/>
+    {canImport("transport")&&<ImportGroup id="import-history" title="4. One-time records & company transfer" detail="Use only when bringing in old records or moving trip records between NAVILO companies.">
+     <ImportEntry title="One-time Import" effect="One-time accounting import" detail="Old trips, invoices, expenses and settlements. Review cutoff, opening balances and accounts before posting." to="/transport?view=new&import=historical" label="Open One-time Import" download={downloadHistoricalTemplate}/>
      <details className="rounded border bg-slate-50 p-2"><summary className="cursor-pointer text-xs font-semibold">Company-to-company trip transfer · optional</summary><div className="mt-2"><TransportTransferTripImports/></div></details>
     </ImportGroup>}
    </div>
