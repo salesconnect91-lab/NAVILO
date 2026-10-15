@@ -38,6 +38,7 @@ it("searches both original account and Receivables parent by code/name before op
   ];
   render(<OwnerOpeningAccountCorrection accounts={accounts} onCompleted={async () => {}} />);
   fireEvent.click(await screen.findByRole("button", { name: "Correct Opening Account" }));
+  fireEvent.click(screen.getByRole("button", { name: "Correct Account Name / Group" }));
   expect(document.querySelectorAll('select').length).toBe(0);
 
   fireEvent.click(screen.getByRole("button", { name: "Wrong posted Opening Account" }));
