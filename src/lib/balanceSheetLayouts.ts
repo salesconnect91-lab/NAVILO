@@ -16,7 +16,7 @@ export type ClassifiedStatementRow = {
   classification: string;
   current: number | null;
   previous: number | null;
-  kind: "section" | "group" | "detail" | "subtotal" | "total" | "check";
+  kind: "section" | "group" | "subheading" | "detail" | "subtotal" | "total" | "check";
 };
 
 const groupOrder: Record<StatementSection["title"], string[]> = {
@@ -27,6 +27,7 @@ const groupOrder: Record<StatementSection["title"], string[]> = {
 
 const accountType = { Assets: "asset", Liabilities: "liability", Equity: "equity" } as const;
 
+/** Classify once, then group report presentation; no accounting balances are changed. */
 export function classifiedBalanceSheetRows(
   sections: StatementSection[],
   view: BalanceSheetView,
@@ -36,6 +37,7 @@ export function classifiedBalanceSheetRows(
 ): ClassifiedStatementRow[] {
   const rows: ClassifiedStatementRow[] = [];
   for (const section of sections) {
+    const type = accountType[section.title];
     const byHead = new Map(section.groups.map(group => [group.head, group]));
     const priorByHead = new Map((section.previousGroups ?? []).map(group => [group.head, group]));
     const allHeads = Array.from(new Set([...byHead.keys(), ...(view === "comparative" ? priorByHead.keys() : [])]))
@@ -50,20 +52,41 @@ export function classifiedBalanceSheetRows(
       const group = byHead.get(head);
       const priorGroup = priorByHead.get(head);
       rows.push({section:section.title,account:head,classification:"",current:null,previous:null,kind:"group"});
-      const expanded = view !== "summary" && (view !== "custom" || expandedGroups[section.title+":"+head] !== false);
+      const expanded = view !== "summary" &&
+        (view !== "custom" || expandedGroups[section.title+":"+head] !== false);
       if (expanded) {
         const current = new Map((group?.items ?? []).map(item => [item.name,item]));
         const prior = new Map((priorGroup?.items ?? []).map(item => [item.name,item]));
-        const items = Array.from(new Set([...current.keys(), ...(view === "comparative" ? prior.keys() : [])]));
-        for (const name of items) {
-          const entry = current.get(name), prev = prior.get(name);
-          rows.push({
-            section:section.title, account:name,
-            classification:balanceSheetClassification(accountType[section.title],entry?.detailType ?? prev?.detailType,name).label,
-            current:entry?.amount ?? 0,
-            previous:view === "comparative" ? (prev?.amount ?? 0) : null,
-            kind:"detail",
-          });
+        const names = Array.from(new Set([...current.keys(), ...(view === "comparative" ? prior.keys() : [])]));
+        const categories = new Map<string, {rank:number; names:string[]}>();
+        for (const name of names) {
+          const item = current.get(name) ?? prior.get(name);
+          const {label,rank} = balanceSheetClassification(type,item?.detailType,name);
+          const category = categories.get(label) ?? {rank,names:[]};
+          category.rank = Math.min(category.rank,rank);
+          category.names.push(name);
+          categories.set(label,category);
+        }
+        const sortedCategories = [...categories.entries()].sort((a,b) =>
+          a[1].rank-b[1].rank || a[0].localeCompare(b[0],"en",{numeric:true}));
+        for (const [label,category] of sortedCategories) {
+          rows.push({section:section.title,account:label,classification:label,
+            current:null,previous:null,kind:"subheading"});
+          let categoryCurrent=0;
+          let categoryPrevious=0;
+          for (const name of category.names.sort((a,b)=>a.localeCompare(b,"en",{numeric:true}))) {
+            const item=current.get(name);
+            const prev=prior.get(name);
+            const amount=item?.amount ?? 0;
+            const before=prev?.amount ?? 0;
+            categoryCurrent+=amount;
+            categoryPrevious+=before;
+            rows.push({section:section.title,account:name,classification:label,
+              current:amount,previous:view==="comparative"?before:null,kind:"detail"});
+          }
+          rows.push({section:section.title,account:"Subtotal "+label,classification:label,
+            current:categoryCurrent,previous:view==="comparative"?categoryPrevious:null,
+            kind:"subtotal"});
         }
       }
       rows.push({section:section.title,account:"Subtotal "+head,classification:"",
@@ -93,15 +116,13 @@ export function classifiedBalanceSheetExport(
   currentDate: string,
   previousDate: string,
 ): {columns:string[];rows:(string|number)[][]} {
-  const detailed = view === "detailed";
   const comparative = view === "comparative";
-  const columns = ["Section","Account",...(detailed ? ["Classification"] : []),
+  const columns = ["Section","Account",
     comparative ? "As of "+currentDate : "Amount",...(comparative ? ["As of "+previousDate] : [])];
   return {
     columns,
     rows:rows.filter(row=>row.kind!=="section").map(row=>[
-      row.section,row.account,...(detailed ? [row.kind==="detail" ? row.classification : ""] : []),
-      row.current ?? "",...(comparative ? [row.previous ?? ""] : [])
+      row.section,row.account,row.current ?? "",...(comparative ? [row.previous ?? ""] : [])
     ]),
   };
 }
