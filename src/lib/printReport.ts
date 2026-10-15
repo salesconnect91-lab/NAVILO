@@ -66,10 +66,13 @@ export function cleanReportTable(table: HTMLTableElement) {
     el.removeAttribute('style');
     el.removeAttribute('width');
     el.removeAttribute('height');
-    const numeric = el.classList.contains('text-right') || el.classList.contains('invoice-num') || (el.tagName==='TD' && /^[-+]?\d[\d,]*(?:\.\d+)?$/.test(text(el)));
-    el.className = numeric ? 'print-number' : '';
+    const rowKind = el.tagName === 'TR' ? ['acct-section','acct-detail','acct-subtotal','acct-total','acct-check'].find(kind => el.classList.contains(kind)) : undefined;
+    const numeric = el.classList.contains('acct-number') || el.classList.contains('text-right') || el.classList.contains('invoice-num') || (el.tagName==='TD' && /^[-+]?\d[\d,]*(?:\.\d+)?$/.test(text(el)));
+    el.className = [rowKind, numeric ? 'print-number' : ''].filter(Boolean).join(' ');
   });
-  clone.removeAttribute('style'); clone.removeAttribute('class');
+  const statementTable = clone.classList.contains('accounting-statement-table');
+  clone.removeAttribute('style');
+  clone.className = statementTable ? 'accounting-statement-table' : '';
   return clone;
 }
 
@@ -134,7 +137,13 @@ body{font:9pt Arial,Helvetica,sans-serif;color:#172033;background:white;margin:0
 .document-heading>div:last-child{text-align:right}.document-heading strong{font-size:12pt}.document-heading h1{font-size:13pt;margin:0 0 1mm}.document-heading small{font-size:8pt;color:#536477}
 .document-filters{border:1px solid #cbd5e1;padding:1.5mm;margin-bottom:2mm;font-size:8pt}.document-filters>div{display:flex;flex-wrap:wrap;gap:1mm 3mm;margin-top:.5mm}
 .document-summary{display:flex;flex-wrap:wrap;gap:2mm;margin-bottom:2mm}.document-summary>div{flex:1;min-width:30mm;border:1px solid #cbd5e1;padding:1.5mm}.document-summary span{display:block;font-size:8pt;color:#536477}.document-summary strong{display:block;font-size:10pt;margin-top:.5mm}
-caption{text-align:left;font-size:8pt;font-weight:bold;color:#183e61;margin:2mm 0}h2{font-size:11pt;margin:2mm 0 1mm}table{width:100%;border-collapse:collapse;table-layout:auto;margin:0 0 3mm;font-size:8pt}th,td{padding:1mm 1.2mm;border:1px solid #cbd5e1;vertical-align:top;overflow-wrap:anywhere;white-space:normal}th{background:#edf2f7;font-size:7.5pt;text-align:left;color:#183e61}tfoot{font-weight:bold;background:#edf2f7}.print-number{white-space:nowrap;overflow-wrap:normal;text-align:right;font-variant-numeric:tabular-nums}thead{display:table-header-group}tr{break-inside:avoid}.document-note{white-space:pre-wrap;line-height:1.3}
+caption{text-align:left;font-size:8pt;font-weight:bold;color:#183e61;margin:2mm 0}h2{font-size:10pt;margin:2mm 0 1mm}table{width:100%;border-collapse:collapse;table-layout:auto;margin:0 0 3mm;font-size:8pt}th,td{padding:1.4mm 1.6mm;border:0;border-bottom:1px solid #d7e0e9;vertical-align:top;overflow-wrap:anywhere;white-space:normal}th{background:#e9f0f7;font-size:7.5pt;text-align:left;color:#173858;border-top:1px solid #aebfd0;border-bottom:1px solid #aebfd0}tfoot{font-weight:bold;background:#e9f0f7}.print-number{white-space:nowrap;overflow-wrap:normal;text-align:right;font-variant-numeric:tabular-nums}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}.document-note{white-space:pre-wrap;line-height:1.3}
+.accounting-statement-table{margin-top:1mm!important;font-size:8pt}
+.accounting-statement-table .acct-section th{padding:2.6mm 1.8mm 1.5mm;background:#eef3f8;color:#183a5c;text-transform:uppercase;letter-spacing:.035em;font-weight:bold;border-top:1px solid #c0cfdd;border-bottom:1px solid #b7c7d6}
+.accounting-statement-table .acct-subtotal td{font-weight:bold;background:#f7f9fc;border-top:1px solid #adbed0}
+.accounting-statement-table .acct-total td{font-weight:bold;background:#e9f1f8;border-top:1.5px solid #234e76;border-bottom:1.5px solid #234e76}
+.accounting-statement-table .acct-check td{font-weight:bold;background:#f7f9fc;border-top:1px solid #b7c7d6}
+.document-heading{break-after:avoid}thead tr{break-inside:avoid}table{page-break-inside:auto}
 `;
 
 /** Applies to every preview/print route, including standalone legacy voucher builders. */
