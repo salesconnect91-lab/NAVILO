@@ -1,0 +1,70 @@
+name: NAVILO partner release validation
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/partner-release-validation.yml'
+      - 'ops/partner-handoff.patch'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  partner-frontend:
+    name: Isolated patch / TypeScript / Vitest / production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate exact NAVILO baseline and patch
+        run: |
+          git apply --check ops/partner-handoff.patch
+          git apply ops/partner-handoff.patch
+          git diff --check
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Full TypeScript typecheck
+        run: npm run typecheck
+      - name: All frontend tests
+        run: npm test -- --run
+      - name: Production build
+        run: npm run build
+  partner-db:
+    name: Partner isolated PostgreSQL 17 acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: navilo_transport_rehearsal
+          POSTGRES_PASSWORD: navilo-rehearsal-only
+        ports:
+          - 6543:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d navilo_transport_rehearsal"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply Partner handoff only within runner
+        run: |
+          git apply --check ops/partner-handoff.patch
+          git apply ops/partner-handoff.patch
+          git diff --check
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Install isolated PostgreSQL client
+        run: npm install --prefix "$RUNNER_TEMP/navilo-rehearsal-driver" --no-save --package-lock=false --no-audit --no-fund pg@8.16.3
+      - name: Run Partner isolated native PostgreSQL tests
+        env:
+          NAVILO_NATIVE_REHEARSAL: '1'
+          NAVILO_PG_DRIVER: ${{ runner.temp }}/navilo-rehearsal-driver/node_modules/pg/lib/index.js
+        run: npm run test:partner-db
