@@ -61,11 +61,42 @@ describe("COA-driven classified balance sheet",()=>{
   it("detailed print/export retains category and ledger classification",()=>{
     const rows=classifiedBalanceSheetRows(sections,"detailed");
     const data=classifiedBalanceSheetExport(rows,"detailed","2026-10-15","2025-10-15");
-    expect(data.columns).toEqual(["Section","Account","Classification","Amount"]);
-    expect(data.rows.some(r=>r[1]==="Machinery & Equipment"&&r[2]==="Property & Equipment")).toBe(true);
+    expect(data.columns).toEqual(["Section","Account","Amount"]);
+    expect(data.rows.some(r=>r[1]==="Machinery & Equipment"&&r[2]===379000)).toBe(true);
+    expect(data.rows.some(r=>r[1]==="Property & Equipment"&&r[2]==="")).toBe(true);
+    expect(data.rows.some(r=>r[1]==="Subtotal Property & Equipment"&&r[2]===379000)).toBe(true);
     const print=accountingStatementLayout({title:"Balance Sheet",description:"As of 2026-10-15",columns:data.columns,rows:data.rows});
     expect(print.rows.some(r=>r.kind==="section"&&r.cells[0]==="Assets")).toBe(true);
     expect(print.rows.some(r=>r.cells.includes("Subtotal Non-Current Assets"))).toBe(true);
+    expect(print.rows.some(r=>r.kind==="group"&&r.cells.includes("Non-Current Assets"))).toBe(true);
+    expect(print.rows.some(r=>r.kind==="subheading"&&r.cells.includes("Property & Equipment"))).toBe(true);
+  });
+  it("nests matching ledger classifications with correct subtotals and no duplicate balances",()=>{
+    const extra:StatementSection[]=[{
+      title:"Assets",total:115,groups:[{
+        head:"Current Assets",total:115,items:[
+          {name:"Ledger Alpha",detailType:"other_current_asset",amount:25},
+          {name:"Ledger Beta",detailType:"other_current_asset",amount:90},
+        ]
+      }]
+    },{
+      title:"Liabilities",total:15,groups:[],
+    },{
+      title:"Equity",total:100,groups:[]
+    }];
+    const rows=classifiedBalanceSheetRows(extra,"detailed");
+    const title=rows.findIndex(r=>r.kind==="subheading"&&r.account==="Other Current Asset");
+    expect(title).toBeGreaterThan(-1);
+    expect(rows.slice(title+1,title+3).map(r=>r.account)).toEqual(["Ledger Alpha","Ledger Beta"]);
+    expect(rows[title+3].account).toBe("Subtotal Other Current Asset");
+    expect(rows[title+3].current).toBe(115);
+    expect(rows.find(r=>r.account==="Subtotal Current Assets")?.current).toBe(115);
+    expect(rows.find(r=>r.account==="Total Assets")?.current).toBe(115);
+    expect(rows.find(r=>r.account==="Accounting Equation Difference")?.current).toBe(0);
+    const exported=classifiedBalanceSheetExport(rows,"detailed","2026-10-15","2025-10-15");
+    const printable=accountingStatementLayout({title:"Balance Sheet",description:"",...exported});
+    expect(printable.rows.filter(r=>r.kind==="subheading").map(r=>r.cells[0])).toContain("Other Current Asset");
+    expect(printable.rows.find(r=>r.cells.includes("Subtotal Other Current Asset"))?.kind).toBe("subtotal");
   });
   it("comparative pulls aligned prior balances into both screen and export",()=>{
     const rows=classifiedBalanceSheetRows(sections,"comparative");
