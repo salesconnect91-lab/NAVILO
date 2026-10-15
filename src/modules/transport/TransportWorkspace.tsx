@@ -34,7 +34,7 @@ import TransportQuickAdd from './TransportQuickAdd';
 import {loadTransportMobilePartyOptions} from './transportMobilePartyLookup';
 import {compatibleVehicles,ownershipOnDate,matchingCustomerRate,estimatedMargin,masterKey,validMoney,type QuickAddKind,type OwnershipPeriod} from './transportTripEntry';
 import {registerOptionFilters} from './transportRegisterOptionFilters';
-import {normalizeTransportRegisterGridLayout,type TransportRegisterGridLayout} from './transportRegisterGridLayout';
+import {fitTransportRegisterColumnWidths,normalizeTransportRegisterGridLayout,type TransportRegisterGridLayout} from './transportRegisterGridLayout';
 
 const REGISTER_PAGE_SIZE=100; // Keep the interactive Register comfortably within Supabase's 8s read budget.
 type RegisterViewState={fromDate:string;toDate:string;customerFilter:string;driverFilter:string;vehicleFilter:string;fromFilter:string;toFilter:string;pprFilter:string;statusFilters:string[];columnFilters:Record<string,string[]>;sortColumn:string;sortDirection:"asc"|"desc";registerSearch:string;registerSearchMode:"contains"|"starts_with";page:number};
@@ -168,6 +168,7 @@ export default function TransportWorkspace(){
   },[location.pathname,navigate,params]);
 
   const [tripColumnWidths,setTripColumnWidths]=useState<Record<string,number>>({});
+  const [tripGridViewportWidth,setTripGridViewportWidth]=useState(0);
   const [tripColumnOrder,setTripColumnOrder]=useState<string[]>([]);
   const [hiddenTripColumns,setHiddenTripColumns]=useState<string[]>([]);
   const [showTripColumnSetup,setShowTripColumnSetup]=useState(false);
@@ -1576,6 +1577,28 @@ export default function TransportWorkspace(){
   const amountGridKeys=new Set(['charge','rent_driver','supplier_charges','supplier_paid','supplier_balance','supplier_credit','driver_pay','driver_paid','driver_balance','amount','company_rate','received_company','remaining_company','customer_credit','profit','commission']);
   const gridTotal=(key:string)=>Number(registerMeta.totals?.[key]??0);
   const registerColumnWidth=(key:string)=>Math.max(tripColumnWidths[key]??compactTripColumnWidths[key]??80,amountGridKeys.has(key)?financialNumber(gridTotal(key)).length*7+18:0,amountGridKeys.has(key)?96:60);
+  useEffect(()=>{
+    if(tab!=="trips"||showPartyReports)return;
+    const element=tripsGridRef.current;
+    if(!element)return;
+    const measure=()=>{
+      const next=Math.max(0,Math.floor(element.clientWidth));
+      setTripGridViewportWidth(current=>current===next?current:next);
+    };
+    measure();
+    if(typeof ResizeObserver!=="undefined"){
+      const observer=new ResizeObserver(measure);
+      observer.observe(element);
+      return ()=>observer.disconnect();
+    }
+    window.addEventListener("resize",measure);
+    return ()=>window.removeEventListener("resize",measure);
+  },[tab,showPartyReports]);
+  const fittedTripColumnWidths=fitTransportRegisterColumnWidths(
+    orderedGridColumns.map(([key])=>key),registerColumnWidth,tripColumnWidths,tripGridViewportWidth
+  );
+  const displayRegisterColumnWidth=(key:string)=>fittedTripColumnWidths[key]??registerColumnWidth(key);
+
 
   const toggleColumnValue=(key:string,value:string)=>{
     setColumnFilters(current=>{
@@ -1842,9 +1865,9 @@ export default function TransportWorkspace(){
         ref={tripsGridRef}
         className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-400 bg-white"
       >
-        <table style={{width:orderedGridColumns.reduce((sum,[key])=>sum+registerColumnWidth(key),0)}} className="table-fixed whitespace-nowrap leading-none text-[10.5px]">
+        <table style={{width:orderedGridColumns.reduce((sum,[key])=>sum+displayRegisterColumnWidth(key),0)}} className="table-fixed whitespace-nowrap leading-none text-[10.5px]">
           <caption className="sr-only">Trips register. Summary filters and column headers remain fixed while trip rows scroll.</caption>
-          <colgroup>{orderedGridColumns.map(([key])=><col key={key} style={{width:registerColumnWidth(key)}}/>)}</colgroup>
+          <colgroup>{orderedGridColumns.map(([key])=><col key={key} style={{width:displayRegisterColumnWidth(key)}}/>)}</colgroup>
           <thead className="sticky top-0 z-40 text-left uppercase tracking-normal shadow-[0_1px_2px_rgba(15,23,42,0.12)] bg-slate-900 text-[10.5px] text-white">
             <tr className={'h-11'}>
               {gridGroupSegments.map((segment,index)=><th data-financial-group={segment.group} key={segment.group+index} colSpan={segment.count}
@@ -1859,7 +1882,7 @@ export default function TransportWorkspace(){
               {orderedGridColumns.map(([key,label],i)=>{
                 const active=(columnFilters[key]?.length??0)>0;
                 const sorted=sortColumn===key;
-                const columnWidth=registerColumnWidth(key);
+                const columnWidth=displayRegisterColumnWidth(key);
                 const totalText=amountGridKeys.has(key)?financialNumber(gridTotal(key)):null;
 
                 return <th data-financial-group={visualGridGroup(key)} key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
@@ -1946,7 +1969,7 @@ export default function TransportWorkspace(){
               const tripSelected=selectedTripIds.has(String(r.id));
               return <tr key={r.id} data-trip-selected={tripSelected?"true":"false"} className={`align-middle transition-colors ${tripSelected?'outline outline-1 -outline-offset-1 outline-amber-400':''} h-[26px] odd:bg-white even:bg-slate-50/45 hover:bg-blue-50/45`}>
               <td
-                style={tripColumnWidths[orderedGridColumns[0]?.[0]??""]?{width:tripColumnWidths[orderedGridColumns[0]?.[0]??""],minWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""],maxWidth:tripColumnWidths[orderedGridColumns[0]?.[0]??""]}:undefined}
+                style={{width:displayRegisterColumnWidth(orderedGridColumns[0]?.[0]??"trip_no")}}
                 className={`!sticky left-0 z-30 overflow-hidden whitespace-nowrap border-b border-r px-1.5 !py-0 font-bold leading-tight shadow-[2px_0_3px_rgba(15,23,42,0.06)] ${tripSelected?'!border-amber-400 !bg-amber-100 text-amber-950':'h-[26px] max-h-[26px] border-slate-200 bg-white text-slate-900'}`}>
   <input type="checkbox" aria-label={`Select trip ${r.trip_no}`} checked={tripSelected} onChange={()=>toggleTripSelection(String(r.id))} className="mr-1 h-3.5 w-3.5 cursor-pointer align-middle accent-amber-500"/>
   <button data-register-editable="true" type="button" title="Edit Trip" onClick={()=>void startEditTrip(r)}
@@ -1960,7 +1983,7 @@ export default function TransportWorkspace(){
               {orderedGridColumns.slice(1).map(([key])=>{
                 const value=tripCellValue(r,key);
                 const numeric=["charge","rent_driver","supplier_charges","supplier_paid","supplier_balance","supplier_credit","customer_credit","driver_pay","driver_paid","driver_balance","amount","company_rate","received_company","remaining_company","profit","commission"].includes(key);
-                const columnWidth=tripColumnWidths[key];
+                const columnWidth=displayRegisterColumnWidth(key);
                 return <td data-financial-group={visualGridGroup(key)} key={key}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
                   className={`overflow-hidden text-ellipsis whitespace-nowrap border-b border-r px-1.5 !py-0 leading-tight ${(isSupplierGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-rose-50/55":isCustomerGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-blue-50/45":isPprGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-emerald-50/50":"h-[26px] max-h-[26px] border-slate-200")} ${tripSelected?"!border-amber-300 !bg-amber-100":""} ${numeric?"text-right font-medium":""}`}>
