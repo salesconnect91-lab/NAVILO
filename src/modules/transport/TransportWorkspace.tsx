@@ -256,6 +256,7 @@ export default function TransportWorkspace(){
   const [registerMeta,setRegisterMeta]=useState<any>({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
   const readGeneration=useRef(0);
   const registerRequest=useRef<AbortController|null>(null);
+  const [operationalRecovery,setOperationalRecovery]=useState<{key:string;rows:any[];count:number}|null>(null);
   // Keep the last valid page visible if the database times out on a background refresh.
   const lastSuccessfulRegisterKey=useRef<string|null>(null);
   const columnOptionsRequest=useRef<AbortController|null>(null);
@@ -523,7 +524,7 @@ export default function TransportWorkspace(){
     // silently skipping the refresh (which left Supplier Balance unchanged).
     registerRequest.current?.abort();const controller=new AbortController();registerRequest.current=controller;
     const generation=++readGeneration.current;
-    if(!silent){setRegisterLoading(true);setError('');}
+    if(!silent){setRegisterLoading(true);setError('');setOperationalRecovery(null);}
     try {
       const result=await supabase.rpc('transport_register_query',{p_limit:REGISTER_PAGE_SIZE,p_offset:page*REGISTER_PAGE_SIZE,p_filters:registerFilters,p_sort:sortColumn,p_direction:sortDirection}).abortSignal(controller.signal);
       if(result.error)throw result.error;
@@ -531,6 +532,7 @@ export default function TransportWorkspace(){
       const data=result.data;
       lastSuccessfulRegisterKey.current=registerPageKey;
       setRegisterLoadError(false);
+      setOperationalRecovery(null);
       setError('');
       setRows((data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})));
       setRegisterMeta(data);
@@ -540,11 +542,31 @@ export default function TransportWorkspace(){
       if(generation===readGeneration.current&&!controller.signal.aborted){
         setRegisterLoadError(true);
         // Keep the last confirmed rows on timeout. Banner labels mismatched filters as stale.
-        if(!silent||lastSuccessfulRegisterKey.current===null){
-          const message=String(e?.message||'Unable to load trips.');
-          setError(/statement timeout|57014|timeout/i.test(message)
-            ? 'Trip Register database query timed out. Your Trips are still saved; retry when the server is available.'
+        const message=String(e?.message||'Unable to load trips.');
+        if(!silent||lastSuccessfulRegisterKey.current===null) {
+          setError(/statement timeout|57014|timeout|failed to fetch|fetch failed|520|network/i.test(message)
+            ? 'Financial Trip Register is temporarily unavailable. Your saved Trips are safe; retry the full register.'
             : message);
+        }
+        // Operational recovery has its own bounded, permission-checked RPC.
+        // Do not fake finance values or silently ignore active filters/sorting.
+        const recoveryEligible=!fromDate&&!toDate&&!customerFilter&&!driverFilter&&!vehicleFilter
+          &&!fromFilter&&!toFilter&&!pprFilter&&!statusFilters.length
+          &&!Object.values(columnFilters).some(values=>values.length>0)
+          &&!sortColumn&&registerSearchMode==='contains';
+        if(recoveryEligible && /timeout|57014|failed to fetch|fetch failed|network|520|gateway/i.test(message.toLowerCase())){
+          try{
+            const recovered=await supabase.rpc('transport_register_operational_recovery',{
+              p_limit:Math.min(REGISTER_PAGE_SIZE,100),
+              p_offset:page*REGISTER_PAGE_SIZE,
+              p_search:registerSearch.trim()
+            }).abortSignal(controller.signal);
+            if(recovered.error)throw recovered.error;
+            if(generation===readGeneration.current&&!controller.signal.aborted&&scopeRef.current===scopeKey){
+              setOperationalRecovery({key:registerPageKey,rows:Array.isArray(recovered.data?.rows)?recovered.data.rows:[],count:Number(recovered.data?.count||0)});
+              setError('Financial Register timed out. Operational Trip recovery is available below; amounts, financial totals and advanced filters are not available in recovery mode.');
+            }
+          }catch{/* No recovery shown unless its authenticated read succeeds. */}
         }
       }
     }
@@ -1554,6 +1576,7 @@ export default function TransportWorkspace(){
   },[optionContextKey,columnSearch,columnOptionsRetry]);
   const columnOptions=(_key:string)=>columnValues;
   const gridRows=rows;
+  const operationalRecoveryActive=registerLoadError&&operationalRecovery?.key===registerPageKey;
   const [selectedTripIds,setSelectedTripIds]=useState<Set<string>>(()=>new Set());
   const selectedTripCount=selectedTripIds.size;
   const visibleTripIds=gridRows.map(row=>String(row.id));
@@ -1743,8 +1766,8 @@ export default function TransportWorkspace(){
 
           <div className="flex items-center gap-2 border border-slate-200 bg-slate-50 h-9 min-w-[215px] rounded-lg px-3 shadow-sm">
             <span className="text-[10px] font-extrabold uppercase text-slate-700">▣ Paper</span>
-            <span className="text-[9px] font-semibold text-emerald-700">Received <b>{Number(dashboardSummary.paper?.received??0).toLocaleString()}</b></span>
-            <span className="text-[9px] font-semibold text-amber-700">Not Received <b>{Number(dashboardSummary.paper?.not_received??0).toLocaleString()}</b></span>
+            <span className="text-[9px] font-semibold text-emerald-700">Received <b>{registerLoadError?'—':Number(dashboardSummary.paper?.received??0).toLocaleString()}</b></span>
+            <span className="text-[9px] font-semibold text-amber-700">Not Received <b>{registerLoadError?'—':Number(dashboardSummary.paper?.not_received??0).toLocaleString()}</b></span>
           </div>
 
           <div className="relative">
@@ -1861,7 +1884,36 @@ export default function TransportWorkspace(){
 
       {deleteTripTarget&&<TransportDialog onClose={()=>{if(!deletingTrip)setDeleteTripTarget(null);}}><section role="dialog" aria-modal="true" aria-label="Delete Unposted Trip" className="w-full max-w-md rounded-lg border border-rose-200 p-3 text-sm"><header className="mb-2 flex items-center justify-between"><strong>Delete Unposted Trip · {deleteTripTarget.trip_no}</strong><button type="button" aria-label="Close Trip deletion" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>×</button></header><p className="mb-2 text-xs text-slate-600">This removes an unposted Draft or Incomplete Trip, including a finalized-only rate and its unposted rent / charges. Trips with financial entries or documents are blocked. Trip Audit history is retained; the Trip No will not be reused.</p><TransportReasonSelect className="mb-2" kind="trip_delete" label="Deletion reason" value={deleteTripReason} onChange={setDeleteTripReason} disabled={deletingTrip}/><label className="block text-xs font-semibold">Reason details<textarea aria-label="Trip deletion reason" maxLength={1000} disabled={deletingTrip} className="input mt-1 min-h-16 w-full" value={deleteTripReason} onChange={e=>setDeleteTripReason(e.target.value)}/></label>{deleteTripError&&<p role="alert" className="mt-2 text-xs text-rose-700">{deleteTripError}</p>}<footer className="mt-3 flex justify-end gap-2"><button type="button" className="btn" disabled={deletingTrip} onClick={()=>setDeleteTripTarget(null)}>Keep Trip</button><button type="button" className="btn-danger" disabled={deletingTrip||!deleteTripReason.trim()} onClick={()=>void confirmTripDeletion()}>{deletingTrip?"Deleting…":"Delete Unposted Trip"}</button></footer></section></TransportDialog>}
       {exportProgress&&<div role="status" className="flex items-center gap-2 text-xs"><span>{exportProgress}</span><button className="btn" onClick={()=>exportRequest.current?.abort()}>Cancel export</button></div>}{lastSuccessfulRegisterKey.current!==null&&lastSuccessfulRegisterKey.current!==registerPageKey&&gridRows.length>0&&<p role="status" className="shrink-0 px-2 text-[11px] text-amber-800">Previous results displayed for reference only — current search, filters, sort or page have not loaded. Do not use these totals for current selection. {registerLoadError&&!registerLoading&&<button type="button" className="font-semibold underline" onClick={()=>void load()}>Retry</button>}</p>}{registerLoadError&&lastSuccessfulRegisterKey.current===registerPageKey&&gridRows.length>0&&!registerLoading&&<p role="alert" className="shrink-0 px-2 text-[11px] text-amber-800">Register refresh failed. Showing last successfully loaded results. <button type="button" className="font-semibold underline" onClick={()=>void load()}>Retry</button></p>}{registerLoading&&<p role="status" className="shrink-0 px-2 text-[11px] text-blue-700">Loading filtered totals and page…</p>}
+      {operationalRecoveryActive&&operationalRecovery&&(
+        <section className="min-h-0 flex-1 overflow-auto border-t border-amber-400 bg-white" aria-label="Operational Trip recovery">
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+            <div><strong>Operational Recovery — {operationalRecovery.count.toLocaleString()} matching Trips</strong>
+              <span className="ml-2">Financial figures, full-data search, sorting and header filters are unavailable in this view. No amounts are shown.</span></div>
+            <button type="button" className="shrink-0 rounded border border-amber-500 bg-white px-2 py-1 font-bold hover:bg-amber-100" disabled={registerLoading} onClick={()=>void load()}>Retry full Register</button>
+          </div>
+          <table className="w-full text-left text-xs">
+            <thead className="sticky top-[38px] bg-slate-100 text-[11px] uppercase text-slate-700"><tr>
+              {['Trip No','Date','Customer','Driver','Vehicle','From','To','PPR','Action'].map(title=><th key={title} className="border-b border-r p-2">{title}</th>)}
+            </tr></thead>
+            <tbody>{operationalRecovery.rows.map((row:any)=>(
+              <tr key={row.id} className="border-b even:bg-slate-50">
+                <td className="px-2 py-1 font-semibold">{row.display_trip_no??row.trip_no}</td>
+                <td className="px-2 py-1">{row.trip_date}</td>
+                <td className="px-2 py-1">{row.customer_name||'—'}</td>
+                <td className="px-2 py-1">{row.driver_name||'—'}</td>
+                <td className="px-2 py-1">{row.vehicle_no||'—'}</td>
+                <td className="px-2 py-1">{row.from_location||'—'}</td>
+                <td className="px-2 py-1">{row.to_location||'—'}</td>
+                <td className="px-2 py-1">{row.ppr_status||'—'}</td>
+                <td className="px-2 py-1"><button type="button" className="rounded border border-blue-300 px-2 py-1 font-semibold text-blue-800 hover:bg-blue-50" onClick={()=>void startEditTrip(row as Trip)}>Open Trip</button></td>
+              </tr>
+            ))}</tbody>
+          </table>
+          {!operationalRecovery.rows.length&&<p className="p-4 text-sm">No operational Trips match this search.</p>}
+        </section>
+      )}
       <div
+        style={operationalRecoveryActive?{display:'none'}:undefined}
         ref={tripsGridRef}
         className="navilo-transport-trips-scrollport min-h-0 flex-1 overscroll-contain overflow-auto border-t border-slate-400 bg-white"
       >
