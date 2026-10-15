@@ -18,4 +18,7 @@ describe("posted journal manual reversal action",()=>{
     expect(mayReverse({...base,fiscal_year_closure_id:"closure"})).toBe(false);
     expect(mayReverse({...base,monthly_profit_closure_id:"month"})).toBe(false);
     expect(mayReverse({...base,entry_no:"COB-10"})).toBe(false);
-    expect(mayReverse({...base,entry_no:"REV-JE-10"})).toBe(fal¶»§q«^
+    expect(mayReverse({...base,entry_no:"REV-JE-10"})).toBe(false);
+    expect(mayReverse({...base,status:"draft"})).toBe(false);
+  });
+});
