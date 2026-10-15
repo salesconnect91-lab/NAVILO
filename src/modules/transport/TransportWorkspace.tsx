@@ -524,6 +524,33 @@ export default function TransportWorkspace(){
     // silently skipping the refresh (which left Supplier Balance unchanged).
     registerRequest.current?.abort();const controller=new AbortController();registerRequest.current=controller;
     const generation=++readGeneration.current;
+    // A broken financial query must never leave the Trip screen loading indefinitely.
+    // The emergency operational read is permission-scoped and never invents money.
+    const recoveryEligible=!fromDate&&!toDate&&!customerFilter&&!driverFilter&&!vehicleFilter
+      &&!fromFilter&&!toFilter&&!pprFilter&&!statusFilters.length
+      &&!Object.values(columnFilters).some(values=>values.length>0)
+      &&!sortColumn&&registerSearchMode==='contains';
+    const recoveryController=new AbortController();
+    let deadlineHit=false;
+    let emergencyStarted=false;
+    const startRecovery=async()=>{
+      if(!recoveryEligible||emergencyStarted||generation!==readGeneration.current)return;
+      emergencyStarted=true;
+      try {
+        const recovered=await supabase.rpc('transport_register_operational_recovery',{
+          p_limit:Math.min(REGISTER_PAGE_SIZE,100),p_offset:page*REGISTER_PAGE_SIZE,p_search:registerSearch.trim()
+        }).abortSignal(recoveryController.signal);
+        if(recovered.error||recovered.data?.recovery_only!==true||!Array.isArray(recovered.data.rows))return;
+        if(generation!==readGeneration.current||scopeRef.current!==scopeKey||recoveryController.signal.aborted)return;
+        setOperationalRecovery({key:registerPageKey,rows:recovered.data.rows,count:Number(recovered.data.count||0)});
+        setRegisterLoadError(true);
+        setError('Financial Register is slow. Saved Trips are visible in temporary operational recovery; financial amounts are not confirmed. Full financial query is still being checked.');
+      }catch{/* The financial request remains authoritative; never invent fallback data. */}
+    };
+    const recoveryTimer=window.setTimeout(()=>{
+      if(!silent&&!controller.signal.aborted)void startRecovery();
+    },6500);
+    const deadlineTimer=window.setTimeout(()=>{deadlineHit=true;controller.abort();},25000);
     if(!silent){setRegisterLoading(true);setError('');setOperationalRecovery(null);}
     try {
       const result=await supabase.rpc('transport_register_query',{p_limit:REGISTER_PAGE_SIZE,p_offset:page*REGISTER_PAGE_SIZE,p_filters:registerFilters,p_sort:sortColumn,p_direction:sortDirection}).abortSignal(controller.signal);
@@ -539,7 +566,7 @@ export default function TransportWorkspace(){
       if(enableRegisterCache)boundedCacheSet(registerPageCache,registerPageKey,{rows:(data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})),meta:data,at:Date.now()},12);
       if(page>Math.max(0,Math.ceil(data.count/REGISTER_PAGE_SIZE)-1))setPage(Math.max(0,Math.ceil(data.count/REGISTER_PAGE_SIZE)-1));
     }catch(e:any){
-      if(generation===readGeneration.current&&!controller.signal.aborted){
+      if(generation===readGeneration.current&&(!controller.signal.aborted||deadlineHit)){
         setRegisterLoadError(true);
         // Keep the last confirmed rows on timeout. Banner labels mismatched filters as stale.
         const message=String(e?.message||'Unable to load trips.');
@@ -550,28 +577,19 @@ export default function TransportWorkspace(){
         }
         // Operational recovery has its own bounded, permission-checked RPC.
         // Do not fake finance values or silently ignore active filters/sorting.
-        const recoveryEligible=!fromDate&&!toDate&&!customerFilter&&!driverFilter&&!vehicleFilter
-          &&!fromFilter&&!toFilter&&!pprFilter&&!statusFilters.length
-          &&!Object.values(columnFilters).some(values=>values.length>0)
-          &&!sortColumn&&registerSearchMode==='contains';
-        if(recoveryEligible && /timeout|57014|failed to fetch|fetch failed|network|520|gateway/i.test(message.toLowerCase())){
-          try{
-            const recovered=await supabase.rpc('transport_register_operational_recovery',{
-              p_limit:Math.min(REGISTER_PAGE_SIZE,100),
-              p_offset:page*REGISTER_PAGE_SIZE,
-              p_search:registerSearch.trim()
-            }).abortSignal(controller.signal);
-            if(recovered.error)throw recovered.error;
-            if(recovered.data?.recovery_only!==true||!Array.isArray(recovered.data.rows))throw new Error('Operational recovery response not available');
-            if(generation===readGeneration.current&&!controller.signal.aborted&&scopeRef.current===scopeKey){
-              setOperationalRecovery({key:registerPageKey,rows:Array.isArray(recovered.data?.rows)?recovered.data.rows:[],count:Number(recovered.data?.count||0)});
-              setError('Financial Register timed out. Operational Trip recovery is available below; amounts, financial totals and advanced filters are not available in recovery mode.');
-            }
-          }catch{/* No recovery shown unless its authenticated read succeeds. */}
+        if(recoveryEligible&&/timeout|57014|failed to fetch|fetch failed|network|520|gateway|abort/i.test(message.toLowerCase())){
+          // Avoid re-submitting the same recovery RPC if the early read already started.
+          if(!emergencyStarted)await startRecovery();
         }
       }
     }
-    finally{if(registerRequest.current===controller)registerRequest.current=null;if(generation===readGeneration.current)setRegisterLoading(false);}
+    finally{
+      window.clearTimeout(recoveryTimer);
+      window.clearTimeout(deadlineTimer);
+      if(!controller.signal.aborted&&registerRequest.current===controller){recoveryController.abort();}
+      if(registerRequest.current===controller)registerRequest.current=null;
+      if(generation===readGeneration.current)setRegisterLoading(false);
+    }
   }
   useEffect(()=>{
     const state:RegisterViewState={fromDate,toDate,customerFilter,driverFilter,vehicleFilter,fromFilter,toFilter,pprFilter,statusFilters,columnFilters,sortColumn,sortDirection,registerSearch,registerSearchMode,page};
