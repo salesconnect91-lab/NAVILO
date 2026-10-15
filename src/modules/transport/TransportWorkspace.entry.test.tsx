@@ -539,6 +539,9 @@ describe('Transport compact register and centered controls',()=>{
    expect(grid.textContent).toContain('Supplier Bill Balance');
    expect(grid.textContent).not.toContain('1,700.00');
    expect(grid.getAttribute('style')).not.toContain('display: none');
+   // A slow canonical read must not cause an immediate duplicate financial
+   // aggregate while saved operational Trip details are already visible.
+   expect(mock.rpc).not.toHaveBeenCalledWith('transport_register_financial_recovery_page',expect.anything());
    expect(screen.getByText(/Saved Trips loaded; verifying page financial amounts/)).toBeTruthy();
   }finally{shortened.mockRestore()}
  });

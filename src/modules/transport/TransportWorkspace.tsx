@@ -534,6 +534,8 @@ export default function TransportWorkspace(){
     let deadlineHit=false;
     let emergencyStarted=false;
     let fullRegisterSucceeded=false;
+    let fullRegisterFailed=false;
+    let resumePageFinance:(()=>void)|null=null;
     const startRecovery=async()=>{
       if(!recoveryEligible||emergencyStarted||generation!==readGeneration.current)return;
       emergencyStarted=true;
@@ -557,6 +559,18 @@ export default function TransportWorkspace(){
         // The canonical all-trip RPC can time out. Load only the visible 100
         // financial rows by exact ID; never match by row order or Trip number.
         if(recovered.data.rows.length>0){
+          // The full RPC normally completes in ~20 seconds. Avoid running a
+          // second expensive finance aggregation unless the canonical read
+          // fails or remains slow; keep the operational Trip rows visible.
+          if(!fullRegisterFailed&&!fullRegisterSucceeded){
+            await new Promise<void>(resolve=>{
+              const timer=window.setTimeout(resolve,18000);
+              resumePageFinance=()=>{window.clearTimeout(timer);resolve();};
+            });
+            resumePageFinance=null;
+            if(fullRegisterSucceeded||recoveryController.signal.aborted
+              ||generation!==readGeneration.current||scopeRef.current!==scopeKey)return;
+          }
           const requestedIds=recovered.data.rows.map((r:any)=>String(r.id));
           const detail=await supabase.rpc('transport_register_financial_recovery_page',{
             p_trip_ids:requestedIds
@@ -592,6 +606,7 @@ export default function TransportWorkspace(){
       if(scopeRef.current!==scopeKey||generation!==readGeneration.current)return;
       const data=result.data;
       fullRegisterSucceeded=true;
+      resumePageFinance?.();
       lastSuccessfulRegisterKey.current=registerPageKey;
       setRegisterLoadError(false);
       setOperationalRecovery(null);
@@ -601,6 +616,8 @@ export default function TransportWorkspace(){
       if(enableRegisterCache)boundedCacheSet(registerPageCache,registerPageKey,{rows:(data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})),meta:data,at:Date.now()},12);
       if(page>Math.max(0,Math.ceil(data.count/REGISTER_PAGE_SIZE)-1))setPage(Math.max(0,Math.ceil(data.count/REGISTER_PAGE_SIZE)-1));
     }catch(e:any){
+      fullRegisterFailed=true;
+      resumePageFinance?.();
       if(generation===readGeneration.current&&(!controller.signal.aborted||deadlineHit)){
         setRegisterLoadError(true);
         // Keep the last confirmed rows on timeout. Banner labels mismatched filters as stale.
