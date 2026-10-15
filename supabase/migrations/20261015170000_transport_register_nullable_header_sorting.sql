@@ -5,7 +5,8 @@ DO $fix$
 DECLARE
   fn text:=pg_get_functiondef('public.transport_register_query(integer,integer,jsonb,text,text,text,text)'::regprocedure);
   start_pos int:=position('chosen as materialized (' in fn);
-  final_pos int:=position('), page as (' in fn);
+  final_pos int:=position('chosen as materialized (' in fn)
+    + position('), page as (' in substr(fn,position('chosen as materialized (' in fn))) - 1;
   chosen text;
 BEGIN
   IF start_pos<=0 OR final_pos<=start_pos THEN
