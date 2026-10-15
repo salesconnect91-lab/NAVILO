@@ -552,8 +552,33 @@ export default function TransportWorkspace(){
           }
         }));
         setRegisterLoadError(true);
-        setError('Financial Register is slow. Saved Trips are visible in temporary operational recovery; financial amounts are not confirmed. Full financial query is still being checked.');
-      }catch{/* The financial request remains authoritative; never invent fallback data. */}
+        setError('Saved Trips loaded; verifying page financial amounts by exact Trip ID. Full-register totals remain unavailable until verified.');
+        // The canonical all-trip RPC can time out. Load only the visible 100
+        // financial rows by exact ID; never match by row order or Trip number.
+        if(recovered.data.rows.length>0){
+          const requestedIds=recovered.data.rows.map((r:any)=>String(r.id));
+          const detail=await supabase.rpc('transport_register_financial_recovery_page',{
+            p_trip_ids:requestedIds
+          }).abortSignal(recoveryController.signal);
+          if(detail.error||!Array.isArray(detail.data?.rows))return;
+          if(generation!==readGeneration.current||scopeRef.current!==scopeKey||recoveryController.signal.aborted)return;
+          const rowsById=new Map<string,any>(detail.data.rows.map((r:any)=>[String(r.id),r]));
+          if(rowsById.size!==requestedIds.length
+            ||requestedIds.some((id:string)=>rowsById.get(id)?.recovery_financial_verified!==true))return;
+          setOperationalRecovery(current=>{
+            if(current?.key!==registerPageKey)return current;
+            return {...current,rows:current.rows.map((base:any)=>{
+              const full=rowsById.get(String(base.id));
+              return {...base,...full,
+                trip_no:base.display_trip_no??base.trip_no,
+                customer_name:base.customer_name,driver_name:base.driver_name,vehicle_no:base.vehicle_no,
+                status:base.status
+              };
+            })};
+          });
+          setError('Visible Trip amounts verified. Full-register filtered totals are still loading separately.');
+        }
+      }catch{/* Keep saved Trip identities; never invent unavailable financial amounts. */}
     };
     const recoveryTimer=window.setTimeout(()=>{
       if(!silent&&!controller.signal.aborted)void startRecovery();
@@ -1624,8 +1649,10 @@ export default function TransportWorkspace(){
   // Keep the original register/grid visible even when the financial RPC fails.
   // The operational fallback contains only saved Trip identity (no money).
   const gridRows:Trip[]=operationalRecoveryActive&&operationalRecovery
-    ?operationalRecovery.rows.map((r:any)=>({...r,trip_no:r.display_trip_no??r.trip_no,truck_type:r.truck_type??'',status:''} as Trip))
+    ?operationalRecovery.rows.map((r:any)=>({...r,trip_no:r.display_trip_no??r.trip_no,truck_type:r.truck_type??'',status:r.status??''} as Trip))
     :rows;
+  const recoveryPageFinancialReady=operationalRecoveryActive&&gridRows.length>0
+    &&gridRows.every(r=>(r as any).recovery_financial_verified===true);
   // Totals and status counts are meaningful only for the currently confirmed filter/page.
   const registerDataCurrent=!registerLoadError&&lastSuccessfulRegisterKey.current===registerPageKey;
   const [selectedTripIds,setSelectedTripIds]=useState<Set<string>>(()=>new Set());
@@ -1943,7 +1970,7 @@ export default function TransportWorkspace(){
       {operationalRecoveryActive&&operationalRecovery&&(
         <div role="status" className="shrink-0 flex items-center justify-between gap-2 border-t border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
           <span><strong>Original Trip Register · {operationalRecovery.count.toLocaleString()} saved Trips</strong>
-          {' '}All columns are retained. Unverified financial figures show — until the complete accounting request succeeds.</span>
+          {' '}All original columns and popups are retained. {recoveryPageFinancialReady?'Visible Trip amounts verified; all-page totals are pending.':'Amounts are being verified for this page; unavailable figures show —.'}</span>
           <button type="button" onClick={()=>void load()} disabled={registerLoading}
             className="shrink-0 rounded border border-amber-500 bg-white px-2 py-1 font-semibold">Retry financial data</button>
         </div>
@@ -2076,7 +2103,7 @@ export default function TransportWorkspace(){
               {/* Transport operational register order - one canonical mapping for display/filter/sort */}
               {orderedGridColumns.slice(1).map(([key])=>{
                 const value=tripCellValue(r,key);
-                if(operationalRecoveryActive){
+                if(operationalRecoveryActive&&!(r as any).recovery_financial_verified){
                   const known:Record<string,string>={
                     trip_date:formatNaviloDate(r.trip_date),truck_type:String(r.truck_type??''),
                     job_no:String(r.po_do_job_no??''),company:String(r.customer_name??''),
@@ -2144,7 +2171,7 @@ export default function TransportWorkspace(){
       
       <TransportHorizontalScroll gridRef={tripsGridRef} revision={registerKey+String(page)+hiddenTripColumns.join()+JSON.stringify(tripColumnWidths)}/>
       <TransportPagination page={page} pageSize={REGISTER_PAGE_SIZE} count={Number(operationalRecoveryActive?operationalRecovery?.count:registerMeta.count??0)} busy={registerLoading&&!operationalRecoveryActive} onPage={setPage}/>
-      <p className="shrink-0 border-t border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-600">{operationalRecoveryActive?'Financial amounts and totals are temporarily unverified.':'Header totals cover all filtered Trips, across every page.'}</p>
+      <p className="shrink-0 border-t border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-600">{operationalRecoveryActive?(recoveryPageFinancialReady?'Current page amounts are verified. Header totals across all filtered Trips are still unavailable.':'Financial amounts and totals are temporarily unverified.'):'Header totals cover all filtered Trips, across every page.'}</p>
     </section>}
 
     {!showPartyReports&&tab==="new"&&
