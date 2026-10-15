@@ -1023,6 +1023,29 @@ export default function JournalEntryList() {
           );
 
         /* ---------------------------------------------------
+           FETCH TENANT-SCOPED AR/AP CONTROL MAPPINGS
+           A linked party may only use its assigned control account.
+        --------------------------------------------------- */
+
+        const { data: scopedCompanyId, error: scopedCompanyError } =
+          await supabase.rpc("current_company_id");
+        if (scopedCompanyError || !scopedCompanyId) {
+          throw new Error("Choose an active company before validating journals.");
+        }
+        const { data: mappedAccounts, error: mappingError } = await supabase
+          .from("account_mappings")
+          .select("mapping_key,account_id")
+          .eq("company_id", String(scopedCompanyId))
+          .in("mapping_key", ["accounts_receivable", "accounts_payable"]);
+        if (mappingError) throw new Error(mappingError.message);
+        const receivableAccountId = mappedAccounts?.find(
+          (record) => record.mapping_key === "accounts_receivable"
+        )?.account_id;
+        const payableAccountId = mappedAccounts?.find(
+          (record) => record.mapping_key === "accounts_payable"
+        )?.account_id;
+
+        /* ---------------------------------------------------
            FETCH ACCOUNTS
         --------------------------------------------------- */
 
@@ -1449,14 +1472,6 @@ export default function JournalEntryList() {
             let account: any =
               null;
 
-            /* PARTY-LINKED ACCOUNT PRECHECK */
-            if (row.partyType || row.partyName) {
-              errors.push(
-                `Row ${row.rowNumber}: Party-linked bulk journal import requires the verified database migration before loading. Do not use an unlinked AR/AP entry.`
-              );
-              continue;
-            }
-
             /* ACCOUNT CODE */
 
             if (
@@ -1585,6 +1600,34 @@ export default function JournalEntryList() {
               continue;
             }
 
+            /* CUSTOMER / SUPPLIER PARTY SAFETY */
+            const partyType = normalizeKey(row.partyType);
+            const partyName = normalize(row.partyName);
+            if (partyType && partyType !== "customer" && partyType !== "supplier") {
+              errors.push(`Row ${row.rowNumber}: Party Type must be Customer or Supplier.`);
+            }
+            if (partyName && !partyType) {
+              errors.push(`Row ${row.rowNumber}: Party Type is required with Party Name.`);
+            }
+            if (partyType && !partyName) {
+              errors.push(`Row ${row.rowNumber}: Party Name is required for ${partyType}.`);
+            }
+            if (account.id === receivableAccountId && (partyType !== "customer" || !partyName)) {
+              errors.push(`Row ${row.rowNumber}: Accounts Receivable requires an existing Customer Party Name.`);
+            }
+            if (account.id === payableAccountId && (partyType !== "supplier" || !partyName)) {
+              errors.push(`Row ${row.rowNumber}: Accounts Payable requires an existing Supplier Party Name.`);
+            }
+            if (partyType === "customer" &&
+              (!receivableAccountId || account.id !== receivableAccountId)) {
+              errors.push(`Row ${row.rowNumber}: Customer must use the mapped Accounts Receivable account.`);
+            }
+            if (partyType === "supplier" &&
+              (!payableAccountId || account.id !== payableAccountId)) {
+              errors.push(`Row ${row.rowNumber}: Supplier must use the mapped Accounts Payable account.`);
+            }
+            /* Exact active-party lookup is also enforced by the backend during Draft Load. */
+
             /* HEAD CHECK */
 
             if (
@@ -1702,7 +1745,7 @@ export default function JournalEntryList() {
               newGroups.length === 1
                 ? "entry"
                 : "entries"
-            } passed validation and is ready.`
+            } passed preliminary validation. Existing party names are checked when loading Drafts.`
           );
         } else {
           setError(
