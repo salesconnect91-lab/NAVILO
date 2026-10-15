@@ -12,11 +12,12 @@ import * as XLSX from 'xlsx';
 import {webcrypto} from 'node:crypto';
 vi.mock('./transportTripImport',async original=>({...await original<any>(),saveImport:async()=>{},storedImport:async()=>null}));
 const mock=vi.hoisted(()=>({rpc:vi.fn(),tables:{} as Record<string,any[]>,allow:true,
+ abortSignals:{} as Record<string,AbortSignal>,
  layoutUserId:null as string|null,remoteLayout:null as any,
  savedLayout:null as any,layoutReads:0,layoutWriteError:false,layoutReadError:false,
  layoutQueries:[] as Array<Record<string,string>>}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({user:mock.layoutUserId?{id:mock.layoutUserId}:null,activeCompany:{company_id:'c',membership_role:'company_owner',enabled_modules:['transport']},activeBusinessUnit:{business_unit_id:'b',membership_role:'company_owner',business_unit_type:'transport',enabled_modules:['transport']}})}));
-vi.mock('@/lib/supabase',()=>({supabase:{auth:{getUser:async()=>({data:{user:null}}),getSession:async()=>({data:{session:null}})},rpc:(...args:any[])=>{const request=mock.rpc(...args);request.abortSignal=()=>request;return request;},from:(table:string)=>{
+vi.mock('@/lib/supabase',()=>({supabase:{auth:{getUser:async()=>({data:{user:null}}),getSession:async()=>({data:{session:null}})},rpc:(...args:any[])=>{const request=mock.rpc(...args);request.abortSignal=(signal:AbortSignal)=>{mock.abortSignals[args[0]]=signal;return request;};return request;},from:(table:string)=>{
  if(table==='transport_register_layout_preferences'){
   const filters:Record<string,string>={};
   const q:any={
@@ -35,6 +36,7 @@ vi.mock('./TransportPartyReports',()=>({default:()=>null}));vi.mock('./Transport
 beforeEach(()=>{
  Object.defineProperty(globalThis,'crypto',{value:webcrypto,configurable:true});
  mock.allow=true;mock.layoutUserId=null;mock.remoteLayout=null;mock.savedLayout=null;mock.layoutReads=0;mock.layoutWriteError=false;mock.layoutReadError=false;mock.layoutQueries=[];
+ mock.abortSignals={};
  mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[],count:0,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:name==='transport_prepare_trip_import'?{id:'job',completed:0}:name==='transport_trip_customer_modes'?[{id:'c1',mode:'Credit'}]:name==='transport_import_trip_batch'?args.p_rows.map(()=>({id:'trip',trip_no:'OIC-1'})):name==='transport_create_trips'?[{id:'trip',trip_no:'OIC-1'}]:mock.allow,error:null}));
  mock.tables={customers:[{id:'c1',name:'Customer',is_active:true}],suppliers:[{id:'s',name:'Supplier',is_active:true}],employees:[{id:'e',name:'Employee',is_active:true}],
  transport_truck_types:[{id:'tt',name:'Flatbed',is_active:true},{id:'tt2',name:'Tanker',is_active:true}],
@@ -514,6 +516,44 @@ describe('Transport compact register and centered controls',()=>{
   const dialog=screen.getByRole('dialog',{name:'Trip No filter popup'});expect(dialog.closest('[data-navilo-transport-register]')).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'Close Trip No filter'}));expect(screen.queryByRole('dialog')).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'Columns'}));expect(screen.getByRole('dialog',{name:'Trip columns'}).closest('[data-navilo-transport-register]')).toBeNull();
+ });
+ it('cancels both canonical and recovery reads when leaving the register',async()=>{
+  const baseTimer=window.setTimeout.bind(window);
+  const shortened=vi.spyOn(window,'setTimeout').mockImplementation(((callback:TimerHandler,ms?:number,...args:any[])=>
+    baseTimer(callback,ms===6500?25:ms,...args)) as typeof window.setTimeout);
+  try{
+   const original=mock.rpc.getMockImplementation()!;
+   mock.rpc.mockImplementation((name:string,args:any)=>{
+    if(name==='transport_register_query'||name==='transport_register_operational_recovery')return new Promise(()=>{});
+    return original(name,args);
+   });
+   const view=render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+   await waitFor(()=>expect(mock.abortSignals.transport_register_operational_recovery).toBeTruthy());
+   const canonical=mock.abortSignals.transport_register_query;
+   const recovery=mock.abortSignals.transport_register_operational_recovery;
+   expect(recovery.aborted).toBe(false);
+   view.unmount();
+   expect(canonical.aborted).toBe(true);
+   expect(recovery.aborted).toBe(true);
+  }finally{shortened.mockRestore()}
+ });
+ it('shows actual gross receipts and supplier payments consistently with payment amount',async()=>{
+  const original=mock.rpc.getMockImplementation()!;
+  mock.rpc.mockImplementation((name:string,args:any)=>{
+   if(name==='transport_register_query')return Promise.resolve({data:{rows:[{
+    id:'gross-trip',trip_no:'GROSS-1',trip_date:'2026-10-10',ppr_status:'pending',
+    received_from_company:100,customer_received_gross:115,
+    supplier_paid_net:200,payment_amount:230,supplier_paid_gross:230
+   }],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}},error:null});
+   return original(name,args);
+  });
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  const trip=await screen.findByRole('button',{name:/^GROSS-1$/});
+  const row=trip.closest('tr')!;
+  expect(row.textContent).toContain('115.00');
+  expect(row.textContent).not.toContain('100.00');
+  expect(row.textContent?.match(/230\.00/g)).toHaveLength(2);
+  expect(row.textContent).not.toContain('200.00');
  });
  it('shows saved Trips early while the financial Register request remains pending',async()=>{
   const baseTimer=window.setTimeout.bind(window);

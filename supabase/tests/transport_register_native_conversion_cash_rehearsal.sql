@@ -101,6 +101,14 @@ begin
  if has_table_privilege('authenticated','public.transport_register_conversion_gates','insert') or has_function_privilege('authenticated','public.transport_register_conversion_allowed(uuid,text)','execute') then raise exception 'Private conversion authority exposed';end if;
  answer:=public.transport_register_query(500,0,'{}');
  if (answer->>'count')::int<>3 or (answer->'totals'->>'company_rate')::numeric<>600 or (answer->'totals'->>'received_company')::numeric<>340 or (answer->'totals'->>'remaining_company')::numeric<>260 then raise exception 'Grouped native Register invoice amounts repeat per Trip: %',answer;end if;
+ execute 'reset role';
+ select jsonb_agg(to_jsonb(r) order by r.id) into before_rows
+ from public._transport_linked_register_source(c,b,loc) r;
+ select jsonb_agg(to_jsonb(r) order by r.id) into after_rows
+ from public.transport_financial_register r join public.transport_trips t on t.id=r.id
+ where t.company_id=c and t.business_unit_id=b and t.operating_location_id=loc;
+ if jsonb_array_length(before_rows)<>3 or before_rows is distinct from after_rows
+ then raise exception 'Single-scan Register changed canonical Trip fields or duplicated linked invoices';end if;
  execute 'reset role';perform set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);execute 'set local role authenticated';
  rejected:=false;begin perform public.transport_convert_register_invoice_batch('supplier',100);exception when others then rejected:=true;end;if not rejected then raise exception 'Foreign conversion accepted';end if;
  execute 'reset role';

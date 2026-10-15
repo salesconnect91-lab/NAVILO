@@ -256,6 +256,7 @@ export default function TransportWorkspace(){
   const [registerMeta,setRegisterMeta]=useState<any>({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
   const readGeneration=useRef(0);
   const registerRequest=useRef<AbortController|null>(null);
+  const registerRecoveryRequest=useRef<AbortController|null>(null);
   const [operationalRecovery,setOperationalRecovery]=useState<{key:string;rows:any[];count:number}|null>(null);
   // Keep the last valid page visible if the database times out on a background refresh.
   const lastSuccessfulRegisterKey=useRef<string|null>(null);
@@ -522,7 +523,8 @@ export default function TransportWorkspace(){
     // A successful rent save must refresh the register immediately. A previous
     // in-flight register read is stale at this point, so cancel it instead of
     // silently skipping the refresh (which left Supplier Balance unchanged).
-    registerRequest.current?.abort();const controller=new AbortController();registerRequest.current=controller;
+    registerRequest.current?.abort();registerRecoveryRequest.current?.abort();
+    const controller=new AbortController();registerRequest.current=controller;
     const generation=++readGeneration.current;
     // A broken financial query must never leave the Trip screen loading indefinitely.
     // The emergency operational read is permission-scoped and never invents money.
@@ -531,6 +533,7 @@ export default function TransportWorkspace(){
       &&!Object.values(columnFilters).some(values=>values.length>0)
       &&!sortColumn&&registerSearchMode==='contains';
     const recoveryController=new AbortController();
+    registerRecoveryRequest.current=recoveryController;
     let deadlineHit=false;
     let emergencyStarted=false;
     let fullRegisterSucceeded=false;
@@ -564,8 +567,15 @@ export default function TransportWorkspace(){
           // fails or remains slow; keep the operational Trip rows visible.
           if(!fullRegisterFailed&&!fullRegisterSucceeded){
             await new Promise<void>(resolve=>{
-              const timer=window.setTimeout(resolve,18000);
-              resumePageFinance=()=>{window.clearTimeout(timer);resolve();};
+              const finish=()=>{
+                window.clearTimeout(timer);
+                recoveryController.signal.removeEventListener('abort',finish);
+                resolve();
+              };
+              const timer=window.setTimeout(finish,18000);
+              resumePageFinance=finish;
+              recoveryController.signal.addEventListener('abort',finish,{once:true});
+              if(recoveryController.signal.aborted)finish();
             });
             resumePageFinance=null;
             if(fullRegisterSucceeded||recoveryController.signal.aborted
@@ -669,7 +679,7 @@ export default function TransportWorkspace(){
       setRegisterLoading(true);
     }
     const timer=window.setTimeout(()=>void load(!!cached),350);
-    return()=>{window.clearTimeout(timer);registerRequest.current?.abort();registerRequest.current=null;readGeneration.current++;};
+    return()=>{window.clearTimeout(timer);registerRequest.current?.abort();registerRequest.current=null;registerRecoveryRequest.current?.abort();registerRecoveryRequest.current=null;readGeneration.current++;};
   },[registerKey,page,tab,showPartyReports,user?.id]);
 
   const mobileToday=new Date().toISOString().slice(0,10);
@@ -1329,7 +1339,7 @@ export default function TransportWorkspace(){
       case "to": return String(r.to_location??"");
       case "charge": return financialNumber(Number((r as any).customer_charges??(r as any).cells?.charge??0));
       case "paper_received_by": return r.ppr_status==="received"?[String(r.ppr_received_by_name??"—"),r.ppr_received_date?formatNaviloDate(r.ppr_received_date):""].filter(Boolean).join(" · "):"Pending";
-      case "supplier_paid": return financialNumber(r.supplier_paid_net??r.supplier_paid_gross??0);
+      case "supplier_paid": return financialNumber(r.payment_amount??r.supplier_paid_gross??r.supplier_paid_net??0);
       case "supplier_balance": return financialNumber(Math.max(0,Number(r.supplier_outstanding_gross??r.remaining_with_us??0)));
       case "supplier_credit": return financialNumber(Math.max(0,Number(r.supplier_credit_gross??0)));
       case "customer_credit": return financialNumber(Math.max(0,Number(r.customer_credit_gross??0)));
@@ -1342,7 +1352,7 @@ export default function TransportWorkspace(){
       case "payment_date": return r.payment_date?formatNaviloDate(r.payment_date):"";
       case "amount": return financialNumber(r.payment_amount??0);
       case "company_rate": return financialNumber(r.billed_customer_net??r.customer_rate);
-      case "received_company": return financialNumber(r.received_from_company??0);
+      case "received_company": return financialNumber(r.customer_received_gross??r.received_from_company??0);
       case "remaining_company": return financialNumber(Math.max(0,Number(r.customer_outstanding_gross??r.remaining_with_company??0)));
       case "profit": return financialNumber(r.trip_profit);
       case "commission": return financialNumber(r.commission_paid_net??0);
@@ -1400,7 +1410,7 @@ export default function TransportWorkspace(){
     ["supplier_invoice_no","Supplier Invoice"],
     ["supplier_charges","Supplier Charges"],
     ["rent_driver","Rent / Trip Cost (Net)"],
-    ["supplier_paid","Supplier Rent Paid (Net)"],
+    ["supplier_paid","Supplier Rent Paid"],
     ["supplier_balance","Supplier Bill Balance"],
     ["payment_date","Supplier Payment Date"],
     ["amount","Supplier Payment Amount"],
