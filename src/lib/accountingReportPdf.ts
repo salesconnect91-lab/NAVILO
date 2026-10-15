@@ -16,7 +16,7 @@ interface ReportPdfOptions {
   columns: string[];
   rows: Array<Array<string | number>>;
   summaryRows?: Array<[string, string | number]>;
-  rowKinds?: Array<'section' | 'detail' | 'subtotal' | 'total' | 'check'>;
+  rowKinds?: Array<'section' | 'group' | 'subheading' | 'detail' | 'subtotal' | 'total' | 'check'>;
   orientation?: 'portrait' | 'landscape';
 }
 
