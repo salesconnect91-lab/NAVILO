@@ -336,7 +336,7 @@ export default function BalanceSheet() {
     };
     };
     const current=calculateSections(ledgerRes);
-    let previous={assets:{total:0,items:[]},liabilities:{total:0,items:[]},equity:{total:0,items:[]}};
+    let previous:{assets:BSSection;liabilities:BSSection;equity:BSSection}={assets:{total:0,items:[]},liabilities:{total:0,items:[]},equity:{total:0,items:[]}};
     if(statementView==="comparative"){
       if(!comparisonDate || comparisonDate>=asOfDate){
         setError("Comparison date must be earlier than the as-of date.");
@@ -409,7 +409,7 @@ export default function BalanceSheet() {
   );
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 pb-12" aria-busy={loading}><AccountingReportScopeSelect value={scope} onChange={setScope}/><details data-print-primary-source data-report-orientation={comparable?"landscape":"portrait"} className="no-print"><summary>Print / PDF / Excel · Selected Balance Sheet layout</summary><ConfigurableReport module="accounting" preferenceKey={"accounting-balance-sheet-"+statementView} report={printReport}/></details>
+    <div className="mx-auto max-w-[1500px] space-y-6 pb-12" aria-busy={loading}><AccountingReportScopeSelect value={scope} onChange={setScope}/>{!loading && !error && <details data-print-primary-source data-report-orientation={comparable?"landscape":"portrait"} className="no-print"><summary>Print / PDF / Excel · Selected Balance Sheet layout</summary><ConfigurableReport module="accounting" preferenceKey={"accounting-balance-sheet-"+statementView} report={printReport}/></details>}
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -544,7 +544,7 @@ export default function BalanceSheet() {
             <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-sm font-bold text-slate-900">Statement of Financial Position</div>
-                <div className="mt-0.5 text-xs text-slate-500">As of {formatReportDate(asOfDate)}</div>
+                <div className="mt-0.5 text-xs text-slate-500">As of {formatReportDate(asOfDate)}{comparable?" · Compared with "+formatReportDate(comparisonDate):""}</div>
               </div>
               <div className="flex items-center gap-3 text-xs">
                 <span className="text-slate-500">Accounting equation</span>
@@ -566,7 +566,7 @@ export default function BalanceSheet() {
                   {statementRows.map((row,index)=>{
                     const isSection=row.kind==="section";
                     if(isSection)return <tr key={index} className="bg-slate-100">
-                      <th scope="rowgroup" colSpan={statementColumnCount-1}
+                      <th scope="rowgroup" colSpan={statementColumnCount}
                         className="px-4 py-2 text-left text-xs font-bold uppercase tracking-wider text-slate-800">{row.account}</th>
                     </tr>;
                     const emphasis=row.kind==="total"||row.kind==="subtotal"||row.kind==="check";
