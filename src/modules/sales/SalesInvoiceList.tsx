@@ -696,7 +696,7 @@ export default function SalesInvoiceList() {
 
       <TransportOpeningInvoices side="customer"/>
       <section className="grid grid-cols-1 gap-3 md:grid-cols-4" data-no-print data-no-export>
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-blue-50 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Filtered Invoices</div><div className="text-lg font-bold text-slate-900">{listSummary.count}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-blue-50 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Filtered Invoices</div><div className="text-lg font-bold text-slate-900">{error && listSummary.count===0 ? '—' : listSummary.count}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-50 text-emerald-600"><Coins className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Invoice Total</div><div className="text-lg font-bold text-slate-900">{formatCurrency(filteredInvoiceTotal)}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-rose-50 text-rose-600"><Clock3 className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Balance Due</div><div className="text-lg font-bold text-rose-700">{formatCurrency(filteredBalanceDue)}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-violet-50 text-violet-600"><Users className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Customers</div><div className="text-lg font-bold text-slate-900">{visibleCustomerCount}</div></div></div>
@@ -712,7 +712,7 @@ export default function SalesInvoiceList() {
       </div></div>
 
       <section data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3"><h2 className="navilo-report-title text-base font-bold text-slate-900">Sales Invoices <span className="text-slate-400">({listSummary.count})</span></h2><div data-navilo-standard-tools-host /></div>
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3"><h2 className="navilo-report-title text-base font-bold text-slate-900">Sales Invoices <span className="text-slate-400">({error && listSummary.count===0 ? '—' : listSummary.count})</span></h2><div data-navilo-standard-tools-host /></div>
         <DataTable showSerialNumber columns={columns} rows={filteredRows} loading={loading} emptyMessage={error?"Query failed; retry Sales invoices.":"No invoices match the selected filters."} remote={{total:listSummary.count,page:listPage,pageSize:listPageSize,onPageChange:(page,pageSize)=>{setListPage(page);setListPageSize(pageSize)},sort:listSort,onSortChange:sort=>setListSort(sort)}} />
       </section>
 

@@ -151,7 +151,7 @@ export default function PurchaseOrderList() {
 
       <TransportOpeningInvoices side="supplier"/>
       <div className="grid gap-3 md:grid-cols-4" data-no-export>
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-blue-50 p-2 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Filtered Invoices</div><div className="font-bold">{listSummary.count}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-blue-50 p-2 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Filtered Invoices</div><div className="font-bold">{error && listSummary.count===0 ? '—' : listSummary.count}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-emerald-50 p-2 text-emerald-600"><Landmark className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Purchase Total</div><div className="font-bold">{formatCurrency(visiblePurchaseTotal)}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-rose-50 p-2 text-rose-600"><Clock3 className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Balance Due</div><div className="font-bold text-rose-600">{formatCurrency(visibleBalance)}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-violet-50 p-2 text-violet-600"><Truck className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Suppliers</div><div className="font-bold">{visibleSuppliers}</div></div></div>
@@ -169,7 +169,7 @@ export default function PurchaseOrderList() {
 
       {error && <div className="flex items-center gap-2"><ErrorBanner message={error}/><button type="button" className="btn-secondary" onClick={()=>void fetchRows()}>Retry invoices</button></div>}
       <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-bold text-slate-900">Purchase Invoices <span className="text-slate-500">({listSummary.count})</span></h2></div>
+        <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-bold text-slate-900">Purchase Invoices <span className="text-slate-500">({error && listSummary.count===0 ? '—' : listSummary.count})</span></h2></div>
         <DataTable columns={columns} rows={filteredRows} loading={loading} emptyMessage={error?"Query failed; retry Purchase invoices.":"No Main Purchase Invoices found."} showSerialNumber remote={{total:listSummary.count,page:listPage,pageSize:listPageSize,onPageChange:(page,pageSize)=>{setListPage(page);setListPageSize(pageSize)},sort:listSort,onSortChange:sort=>setListSort(sort)}} />
       </div>
     </div>
