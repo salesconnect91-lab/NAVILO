@@ -8,6 +8,14 @@ DECLARE
   new_rows jsonb;
   sample_ids uuid[];
 BEGIN
+  IF position('JOIN service_balances b ON' IN
+       pg_get_viewdef('public.transport_trip_financial_summary'::regclass,true))>0
+     AND position('FROM transport_supplier_trip_document_balances' IN
+       pg_get_viewdef('public.transport_trip_financial_summary'::regclass,true))=0
+  THEN
+    RAISE NOTICE 'Supplier service-balance reuse already applied';
+    RETURN;
+  END IF;
   SELECT pg_get_viewdef('public.transport_trip_financial_summary'::regclass,true)
     INTO parent_view;
   SELECT pg_get_viewdef('public.transport_supplier_trip_document_balances'::regclass,true)
