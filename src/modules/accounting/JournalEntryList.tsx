@@ -37,6 +37,8 @@ type ImportRow = {
 
   accountHead: string;
   accountName: string;
+  partyType: string;
+  partyName: string;
 
   debit: number;
   credit: number;
@@ -746,6 +748,11 @@ export default function JournalEntryList() {
             ]
           );
 
+        const partyTypeIndex = columnIndex("partytype");
+        const partyNameIndex = columnIndex("partyname");
+        const partyType = partyTypeIndex >= 0 ? normalize(row[partyTypeIndex]).toLowerCase() : "";
+        const partyName = partyNameIndex >= 0 ? normalize(row[partyNameIndex]) : "";
+
         const debit =
           parseAmount(
             row[
@@ -771,6 +778,8 @@ export default function JournalEntryList() {
           !accountCode &&
           !accountHead &&
           !accountName &&
+          !partyType &&
+          !partyName &&
           debit === 0 &&
           credit === 0;
 
@@ -786,6 +795,8 @@ export default function JournalEntryList() {
           accountCode,
           accountHead,
           accountName,
+          partyType,
+          partyName,
           debit,
           credit,
         });
@@ -803,6 +814,7 @@ export default function JournalEntryList() {
       // Do not silently post customer balances to an unlinked GL account.
       const customerLikeRows = parsedRows.filter(
         (item) =>
+          !item.partyType &&
           !item.accountCode &&
           /accounts?\s+receivables?/i.test(item.accountHead) &&
           item.accountName &&
@@ -1437,6 +1449,14 @@ export default function JournalEntryList() {
             let account: any =
               null;
 
+            /* PARTY-LINKED ACCOUNT PRECHECK */
+            if (row.partyType || row.partyName) {
+              errors.push(
+                `Row ${row.rowNumber}: Party-linked bulk journal import requires the verified database migration before loading. Do not use an unlinked AR/AP entry.`
+              );
+              continue;
+            }
+
             /* ACCOUNT CODE */
 
             if (
@@ -1735,6 +1755,9 @@ export default function JournalEntryList() {
               account_name:
                 row.accountName ||
                 null,
+
+              party_type: row.partyType || null,
+              party_name: row.partyName || null,
 
               debit:
                 roundMoney(
