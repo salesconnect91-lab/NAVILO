@@ -1,7 +1,7 @@
 import NaviloDateInput from '@/components/NaviloDateInput';
 import TransportDashboardPanel from '@/modules/TransportDashboardPanel';
 import DashboardGlobalSearch from '@/components/DashboardGlobalSearch';
-import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, Banknote, Boxes, Building2, ChevronDown, ChevronUp, Eye, EyeOff, Factory, Landmark, RefreshCw, Settings2, ShoppingCart, WalletCards } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -36,9 +36,37 @@ export default function Dashboard(){
  const[dragging,setDragging]=useState<WidgetId|null>(null);
  useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem(widgetOrderKey)||"[]") as WidgetId[];setKpiOrder(saved.length?saved:["sales","purchases","receivables","payables","cash","bank","inventory","net_liquidity"])}catch{setKpiOrder(["sales","purchases","receivables","payables","cash","bank","inventory","net_liquidity"])}},[widgetOrderKey]);
  const moveKpi=(target:WidgetId)=>{if(!dragging||dragging===target)return;setKpiOrder(current=>{const next=current.filter(id=>id!==dragging);const at=Math.max(0,next.indexOf(target));next.splice(at,0,dragging);localStorage.setItem(widgetOrderKey,JSON.stringify(next));return next});setDragging(null)};
- const load=useCallback(async()=>{setLoading(true);setError(null);const bucket=bucketFor(startDate,endDate);const{data,error:rpcError}=await supabase.rpc("dashboard_professional_analytics",{p_start_date:startDate,p_end_date:endDate,p_bucket:bucket});if(rpcError)setError(rpcError.message);else setSummary({...EMPTY,...((data||{}) as Partial<Summary>),trend:Array.isArray((data as any)?.trend)?(data as any).trend:[],cash_accounts:Array.isArray((data as any)?.cash_accounts)?(data as any).cash_accounts:[],bank_accounts:Array.isArray((data as any)?.bank_accounts)?(data as any).bank_accounts:[]});setLoading(false)},[startDate,endDate]);
+ const analyticsRequest=useRef<AbortController|null>(null);
+ const load=useCallback(async()=>{
+   // Heavy dashboard aggregates must not keep running after navigation,
+   // or overlap with the Transport Register and exhaust the REST worker pool.
+   analyticsRequest.current?.abort();
+   const controller=new AbortController();analyticsRequest.current=controller;
+   setLoading(true);setError(null);
+   try{
+     const bucket=bucketFor(startDate,endDate);
+     const {data,error:rpcError}=await supabase.rpc("dashboard_professional_analytics",
+       {p_start_date:startDate,p_end_date:endDate,p_bucket:bucket}).abortSignal(controller.signal);
+     if(controller.signal.aborted)return;
+     if(rpcError)setError(rpcError.message);
+     else setSummary({...EMPTY,...((data||{}) as Partial<Summary>),
+       trend:Array.isArray((data as any)?.trend)?(data as any).trend:[],
+       cash_accounts:Array.isArray((data as any)?.cash_accounts)?(data as any).cash_accounts:[],
+       bank_accounts:Array.isArray((data as any)?.bank_accounts)?(data as any).bank_accounts:[]});
+   }catch(err){
+     if(!controller.signal.aborted)setError(err instanceof Error?err.message:'Unable to load analytics.');
+   }finally{
+     if(analyticsRequest.current===controller){analyticsRequest.current=null;setLoading(false);}
+   }
+ },[startDate,endDate]);
  const loadPreferences=useCallback(async()=>{if(!companyId)return;let q=supabase.from("dashboard_widget_preferences").select("id,hidden_widgets").eq("company_id",companyId);q=businessUnitId?q.eq("business_unit_id",businessUnitId):q.is("business_unit_id",null);const{data,error:e}=await q.maybeSingle();if(e){setError(e.message);return}setPreferenceId(data?.id??null);setHidden(((data?.hidden_widgets??DEFAULT_HIDDEN) as string[]).filter((id):id is WidgetId=>WIDGETS.some(w=>w.id===id)))},[companyId,businessUnitId]);
- useEffect(()=>{void load()},[load,companyId,businessUnitId]);useEffect(()=>{void loadPreferences()},[loadPreferences]);useEffect(()=>{const t=window.setInterval(()=>void load(),60000);return()=>window.clearInterval(t)},[load]);
+ useEffect(()=>{void load();return()=>{analyticsRequest.current?.abort();analyticsRequest.current=null;}},[load,companyId,businessUnitId]);
+ useEffect(()=>{void loadPreferences()},[loadPreferences]);
+ useEffect(()=>{
+  const refresh=()=>{if(document.visibilityState==='visible'&&!analyticsRequest.current)void load();};
+  const t=window.setInterval(refresh,180000);
+  return()=>window.clearInterval(t);
+ },[load]);
  const applyRange=(key:RangeKey)=>{setRangeKey(key);if(key!=="custom"){const r=rangeFor(key);setStartDate(r.start);setEndDate(r.end)}};
  const saveHidden=async(next:WidgetId[])=>{if(!companyId)return;setSavingPreference(true);const payload={hidden_widgets:next,updated_at:new Date().toISOString()};const r=preferenceId?await supabase.from("dashboard_widget_preferences").update(payload).eq("id",preferenceId).select("id").single():await supabase.from("dashboard_widget_preferences").insert({...payload,company_id:companyId,business_unit_id:businessUnitId}).select("id").single();setSavingPreference(false);if(r.error){setError(r.error.message);return}if(!preferenceId)setPreferenceId(r.data.id);setHidden(next)};
  const visible=(id:WidgetId)=>!hidden.includes(id)&&(!isTransportBusiness||!['inventory','operations'].includes(id));const toggle=(id:WidgetId)=>void saveHidden(hidden.includes(id)?hidden.filter(x=>x!==id):[...hidden,id]);
