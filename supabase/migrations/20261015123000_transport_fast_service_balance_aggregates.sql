@@ -89,3 +89,5 @@ BEGIN
  RAISE NOTICE 'Parity checked % Trip summaries',array_length(samples,1);
 END;
 $migration$;
+-- Keep the internal derived balance view inaccessible through exposed REST roles.
+REVOKE ALL PRIVILEGES ON TABLE public.transport_service_document_balances_fast FROM PUBLIC, anon, authenticated;
