@@ -1578,6 +1578,8 @@ export default function TransportWorkspace(){
   const columnOptions=(_key:string)=>columnValues;
   const gridRows=rows;
   const operationalRecoveryActive=registerLoadError&&operationalRecovery?.key===registerPageKey;
+  // Totals and status counts are meaningful only for the currently confirmed filter/page.
+  const registerDataCurrent=!registerLoadError&&lastSuccessfulRegisterKey.current===registerPageKey;
   const [selectedTripIds,setSelectedTripIds]=useState<Set<string>>(()=>new Set());
   const selectedTripCount=selectedTripIds.size;
   const visibleTripIds=gridRows.map(row=>String(row.id));
@@ -1756,7 +1758,7 @@ export default function TransportWorkspace(){
 
           <div className="flex items-center justify-between border border-blue-200 bg-blue-50 h-9 min-w-[104px] rounded-lg px-3 shadow-sm">
             <span className="text-[10px] font-extrabold uppercase text-blue-700">🚚 Trips</span>
-            <span className="text-sm font-bold text-slate-950">{registerLoadError&&lastSuccessfulRegisterKey.current!==registerPageKey?'—':Number(registerMeta.count??0).toLocaleString()}</span>
+            <span className="text-sm font-bold text-slate-950">{registerDataCurrent?Number(registerMeta.count??0).toLocaleString():'—'}</span>
           </div>
 
           <div className={`flex items-center gap-2 border ${selectedTripCount>0?'border-amber-400 bg-amber-100 text-amber-950':'border-slate-200 bg-slate-50 text-slate-500'} h-9 rounded-lg px-3 shadow-sm`} aria-live="polite" data-testid="trip-selection-count">
@@ -1767,8 +1769,8 @@ export default function TransportWorkspace(){
 
           <div className="flex items-center gap-2 border border-slate-200 bg-slate-50 h-9 min-w-[215px] rounded-lg px-3 shadow-sm">
             <span className="text-[10px] font-extrabold uppercase text-slate-700">▣ Paper</span>
-            <span className="text-[9px] font-semibold text-emerald-700">Received <b>{registerLoadError?'—':Number(dashboardSummary.paper?.received??0).toLocaleString()}</b></span>
-            <span className="text-[9px] font-semibold text-amber-700">Not Received <b>{registerLoadError?'—':Number(dashboardSummary.paper?.not_received??0).toLocaleString()}</b></span>
+            <span className="text-[9px] font-semibold text-emerald-700">Received <b>{registerDataCurrent?Number(dashboardSummary.paper?.received??0).toLocaleString():'—'}</b></span>
+            <span className="text-[9px] font-semibold text-amber-700">Not Received <b>{registerDataCurrent?Number(dashboardSummary.paper?.not_received??0).toLocaleString():'—'}</b></span>
           </div>
 
           <div className="relative">
@@ -1783,11 +1785,11 @@ export default function TransportWorkspace(){
               <div className="max-h-44 overflow-y-auto p-1">
                 <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[10px] font-semibold hover:bg-slate-50">
                   <input type="checkbox" checked={statusFilters.length===0} onChange={()=>setStatusFilters([])}/>
-                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2"><span>All Statuses</span><span className="tabular-nums text-slate-500">{Number(registerMeta.count??0).toLocaleString()}</span></span>
+                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2"><span>All Statuses</span><span className="tabular-nums text-slate-500">{registerDataCurrent?Number(registerMeta.count??0).toLocaleString():'—'}</span></span>
                 </label>
                 {visibleStatusOptions.map(option=><label key={option.key} className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[10px] hover:bg-slate-50 ${statusFilters.includes(option.key)?"bg-blue-50 font-bold text-blue-800":""}`}>
                   <input type="checkbox" checked={statusFilters.includes(option.key)} onChange={()=>setStatusFilters(current=>current.includes(option.key)?current.filter(key=>key!==option.key):[...current,option.key])}/>
-                  <span className="flex min-w-0 flex-1 items-start justify-between gap-2"><span className="flex min-w-0 items-start gap-1.5"><span title={statusMark(String(option.key).replace(/^status:/,'')).title} className={`mt-px inline-flex w-3 shrink-0 justify-center text-[11px] font-bold ${statusMark(String(option.key).replace(/^status:/,'')).className}`}>{statusMark(String(option.key).replace(/^status:/,'')).mark}</span><span className="min-w-0"><span className="block">{option.label}</span><span className="block text-[8px] font-normal leading-tight text-slate-500">{statusNarration(option)}</span></span></span><span className="shrink-0 tabular-nums text-[10px] font-bold text-slate-600">{Number(option.count??0).toLocaleString()}</span></span>
+                  <span className="flex min-w-0 flex-1 items-start justify-between gap-2"><span className="flex min-w-0 items-start gap-1.5"><span title={statusMark(String(option.key).replace(/^status:/,'')).title} className={`mt-px inline-flex w-3 shrink-0 justify-center text-[11px] font-bold ${statusMark(String(option.key).replace(/^status:/,'')).className}`}>{statusMark(String(option.key).replace(/^status:/,'')).mark}</span><span className="min-w-0"><span className="block">{option.label}</span><span className="block text-[8px] font-normal leading-tight text-slate-500">{statusNarration(option)}</span></span></span><span className="shrink-0 tabular-nums text-[10px] font-bold text-slate-600">{registerDataCurrent?Number(option.count??0).toLocaleString():'—'}</span></span>
                 </label>)}
                 {visibleStatusOptions.length===0&&<div className="px-2 py-2 text-[10px] text-slate-500">No matching status</div>}
               </div>
@@ -1936,7 +1938,7 @@ export default function TransportWorkspace(){
                 const active=(columnFilters[key]?.length??0)>0;
                 const sorted=sortColumn===key;
                 const columnWidth=displayRegisterColumnWidth(key);
-                const totalText=amountGridKeys.has(key)?financialNumber(gridTotal(key)):null;
+                const totalText=amountGridKeys.has(key)?registerDataCurrent?financialNumber(gridTotal(key)):'—':null;
 
                 return <th data-financial-group={visualGridGroup(key)} key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
