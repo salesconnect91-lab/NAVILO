@@ -1,5 +1,6 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {Link} from 'react-router-dom';
+import SearchableSelect from '@/components/SearchableSelect';
 import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
 interface Account {id:string;code:string;name:string;}
@@ -35,7 +36,7 @@ export default function ProfitDistributionSettings(){
  return <section className="space-y-3 rounded border bg-white p-3 text-sm">
   <h1 className="text-base font-semibold">Monthly Profit Closing · Journal Entries</h1>
   <p>Scope: {branch?.name||'active branch'}. Close each branch separately. Review all posted income and expenses, including salaries, before closing. Partner allocation remains manual.</p>
-  <div className="flex flex-wrap items-end gap-2"><label>Profit month<input aria-label="Profit month" type="month" className="input block" value={month} disabled={posting} onChange={e=>{setMonth(e.target.value);setSuccess('');}}/></label><label>Undistributed Profit account<select aria-label="Undistributed Profit account" className="input block" value={account} disabled={posting} onChange={e=>setAccount(e.target.value)}><option value="">Select equity account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.code} · {a.name}</option>)}</select></label><button className="btn btn-secondary" disabled={loading||posting} onClick={()=>void load()}>Refresh</button></div>
+  <div className="flex flex-wrap items-end gap-2"><label>Profit month<input aria-label="Profit month" type="month" className="input block" value={month} disabled={posting} onChange={e=>{setMonth(e.target.value);setSuccess('');}}/></label><label>Undistributed Profit account<SearchableSelect aria-label="Undistributed Profit account" className="input block" searchPlaceholder="Search Undistributed Profit account..." preserveLabel value={account} disabled={posting} onChange={e=>setAccount(e.target.value)}><option value="">Select equity account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.code} · {a.name}</option>)}</SearchableSelect></label><button className="btn btn-secondary" disabled={loading||posting} onClick={()=>void load()}>Refresh</button></div>
   <p className="text-xs text-slate-600">Use one equity account named Undistributed Profit for both opening balances and future monthly closing. The journal date and description identify the month; do not record opening profit again.</p>
   {error&&<p role="alert" className="text-red-700">{error}</p>}{success&&<p role="status" className="text-green-700">{success}</p>}
   {loading?<p>Loading preview…</p>:preview&&<>
