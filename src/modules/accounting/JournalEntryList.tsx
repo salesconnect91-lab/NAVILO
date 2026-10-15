@@ -101,6 +101,31 @@ const parseAmount = (value: unknown): number => {
 const roundMoney = (value: number) =>
   Math.round((value + Number.EPSILON) * 100) / 100;
 
+const normalizeJournalImportDate = (value: unknown): string => {
+  const input = normalize(value);
+  if (!input) return "";
+  const iso = input.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const slash = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+  let year: number;
+  let month: number;
+  let day: number;
+  if (iso) {
+    year = Number(iso[1]); month = Number(iso[2]); day = Number(iso[3]);
+  } else if (slash) {
+    month = Number(slash[1]); day = Number(slash[2]);
+    year = Number(slash[3]);
+    if (slash[3].length === 2) year += year >= 70 ? 1900 : 2000;
+  } else if (/^\d{5}$/.test(input)) {
+    const date = new Date(Date.UTC(1899, 11, 30) + Number(input) * 86400000);
+    return date.toISOString().slice(0, 10);
+  } else {
+    return input;
+  }
+  const valid = new Date(Date.UTC(year, month - 1, day));
+  if (valid.getUTCFullYear() !== year || valid.getUTCMonth() + 1 !== month || valid.getUTCDate() !== day) return input;
+  return [String(year).padStart(4, "0"), String(month).padStart(2, "0"), String(day).padStart(2, "0")].join("-");
+};
+
 const isValidDate = (value: string) => {
   if (!value) {
     return false;
@@ -672,7 +697,7 @@ export default function JournalEntryList() {
           );
 
         const entryDate =
-          normalize(
+          normalizeJournalImportDate(
             row[
               columnIndex(
                 "entrydate"
