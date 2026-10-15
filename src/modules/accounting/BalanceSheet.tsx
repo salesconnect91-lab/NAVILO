@@ -3,6 +3,8 @@ import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
 import {salarySheetPosition} from '@/lib/salaryBalanceSheet';
 import {balanceSheetClassification,compareBalanceSheetPresentation} from '@/lib/balanceSheetPresentation';
+import {classifiedBalanceSheetRows, classifiedBalanceSheetExport, coaBalanceSheetGroup, type BalanceSheetView} from '@/lib/balanceSheetLayouts';
+import SearchableSelect from '@/components/SearchableSelect';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -58,34 +60,6 @@ function balanceSheetAccountName(type: string, accountName: string, detailType?:
   if (type === "asset" && detail === "accountsreceivable") return "Accounts Receivable (Total)";
   if (type === "liability" && detail === "accountspayable") return "Accounts Payable (Total)";
   return accountName;
-}
-
-function professionalParentHead(type: string, accountName: string, detailType?: string, configuredHead?: string) {
-  const text = normalizedDetailType(`${accountName} ${detailType ?? ""} ${configuredHead ?? ""}`);
-
-  if (type === "asset") {
-    const isNonCurrent = [
-      "noncurrent",
-      "fixedasset",
-      "machinery",
-      "equipment",
-      "building",
-      "land",
-      "vehicle",
-      "furniture",
-      "accumulateddepreciation",
-    ].some((keyword) => text.includes(keyword));
-    return isNonCurrent ? "Non-Current Assets" : "Current Assets";
-  }
-
-  if (type === "liability") {
-    const isNonCurrent = ["noncurrent", "longterm", "termloan", "deferredtax"].some((keyword) =>
-      text.includes(keyword)
-    );
-    return isNonCurrent ? "Non-Current Liabilities" : "Current Liabilities";
-  }
-
-  return "Capital & Reserves";
 }
 
 function groupItems(items: BSItem[], preferredOrder: string[], accountType:'asset'|'liability'|'equity'): BSGroup[] {
@@ -183,6 +157,15 @@ export default function BalanceSheet() {
   const [error, setError] = useState<string | null>(null);
   const [reportPrintSettings, setReportPrintSettings] = useState<any>(null);
   const [asOfDate, setAsOfDate] = useState(getLocalToday);
+  const [statementView, setStatementView] = useState<BalanceSheetView>("classified");
+  const [comparisonDate,setComparisonDate] = useState(() => {
+    const today=new Date();today.setFullYear(today.getFullYear()-1);
+    return [today.getFullYear(),String(today.getMonth()+1).padStart(2,"0"),String(today.getDate()).padStart(2,"0")].join("-");
+  });
+  const [customExpanded,setCustomExpanded] = useState<Record<string,boolean>>({});
+  const [priorAssets,setPriorAssets] = useState<BSSection>({total:0,items:[]});
+  const [priorLiabilities,setPriorLiabilities] = useState<BSSection>({total:0,items:[]});
+  const [priorEquity,setPriorEquity] = useState<BSSection>({total:0,items:[]});
   const [hideZeroBalances, setHideZeroBalances] = useState(true);
   const [scope,setScope]=useState<AccountingReportScope>('branch');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -199,7 +182,7 @@ export default function BalanceSheet() {
         fetchAllPages<any>((fromRow,toRow) =>
           supabase
             .from("chart_of_accounts")
-            .select("id, code, name, type, parent_head, detail_type, is_group, allow_manual_entries, is_active")
+            .select("id, code, name, type, parent_id, parent_head, detail_type, is_group, allow_manual_entries, is_active")
             .order("id",{ascending:true})
             .range(fromRow,toRow)
         ),
@@ -215,8 +198,19 @@ export default function BalanceSheet() {
     if(salaryLinks===null){setLoading(false);return;}
     const salaryNames=new Map<string,string>(salaryLinks.map(s=>[s.account_id,`${s.employees?.name||'Driver'} Salary Running Account`]));
     const accounts = accountsRes;
-    const ledgerLines = ledgerRes;
+    const accountIndex = new Map<string,any>(accounts.map(a => [String(a.id),a]));
+    const getAncestorNames=(account:any) => {
+      const names:string[]=[];const visited=new Set<string>();
+      let id=account.parent_id as string|null;
+      while(id && !visited.has(id) && names.length < 24) {
+        visited.add(id); const parent=accountIndex.get(id);
+        if(!parent) break;
+        names.push(String(parent.name??""));id=parent.parent_id??null;
+      }
+      return names;
+    };
 
+    const calculateSections=(ledgerLines:any[])=>{
     const accountMetaMap: Record<
       string,
       {
@@ -235,11 +229,12 @@ export default function BalanceSheet() {
       accountMetaMap[acc.id] = {
         name: acc.name,
         type,
-        parentHead: professionalParentHead(
+        parentHead: coaBalanceSheetGroup(
           type,
           acc.name,
           acc.detail_type,
-          acc.parent_head
+          acc.parent_head,
+          getAncestorNames(acc)
         ),
         detailType: acc.detail_type || "General",
         isGroup: Boolean(acc.is_group),
@@ -398,12 +393,34 @@ export default function BalanceSheet() {
       }))
       .filter((item) => !hideZeroBalances || Math.abs(item.amount) >= 0.005);
 
-    setAssets({ total: assetList.reduce((sum, item) => sum + item.amount, 0), items: assetList });
-    setLiabilities({ total: liabilityList.reduce((sum, item) => sum + item.amount, 0), items: liabilityList });
-    setEquity({ total: equityList.reduce((sum, item) => sum + item.amount, 0), items: equityList });
+    return {
+      assets:{total:assetList.reduce((sum,item)=>sum+item.amount,0),items:assetList},
+      liabilities:{total:liabilityList.reduce((sum,item)=>sum+item.amount,0),items:liabilityList},
+      equity:{total:equityList.reduce((sum,item)=>sum+item.amount,0),items:equityList},
+    };
+    };
+    const current=calculateSections(ledgerRes);
+    let previous={assets:{total:0,items:[]},liabilities:{total:0,items:[]},equity:{total:0,items:[]}};
+    if(statementView==="comparative"){
+      if(!comparisonDate || comparisonDate>=asOfDate){
+        setError("Comparison date must be earlier than the as-of date.");
+        setLoading(false);return;
+      }
+      const r=await supabase.rpc("accounting_report_balances_scoped",{
+        p_from:null,p_to:comparisonDate,p_exclude_closing:false,p_scope:scope
+      });
+      if(r.error){setError(r.error.message);setLoading(false);return;}
+      previous=calculateSections(r.data||[]);
+    }
+    setAssets(current.assets);
+    setLiabilities(current.liabilities);
+    setEquity(current.equity);
+    setPriorAssets(previous.assets);
+    setPriorLiabilities(previous.liabilities);
+    setPriorEquity(previous.equity);
     setLastUpdated(new Date());
     setLoading(false);
-  }, [asOfDate, hideZeroBalances, scope]);
+  }, [asOfDate, hideZeroBalances, scope, statementView, comparisonDate]);
 
   useEffect(() => {
     void loadDocumentPrintSettings("reports")
