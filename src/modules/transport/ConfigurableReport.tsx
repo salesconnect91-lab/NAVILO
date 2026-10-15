@@ -1,15 +1,16 @@
-import {createPrintDocument,registerPrintSource} from "@/lib/printDocument";
-import {accountingStatementLayout,accountingStatementMarkup,accountingStandalonePrintHtml} from '@/lib/accountingStatementPrint';
+import {showPrintDocument,registerPrintSource} from "@/lib/printDocument";
+import {accountingStatementLayout,accountingStatementMarkup} from '@/lib/accountingStatementPrint';
 import {downloadAccountingReportPdf} from '@/lib/accountingReportPdf';
 import {useAuth} from '@/auth/AuthContext';
 import {transportRegisteredPrintMarkup} from './transportReportPrint';
-import {useEffect,useMemo,useRef,useState} from 'react';
+import {useEffect,useId,useMemo,useRef,useState} from 'react';
 import {exportPartyReport,type ReportTable} from './transportPartyExport';
 import {useTransportOutputPermissions} from './useTransportOutputPermissions';
 import {financialNumber} from './transportFinancialTypes';
 import {projectReport} from './reportProjection';
 export default function ConfigurableReport({report,preferenceKey,loadExport,module='transport',outputPrefix=''}:{report:ReportTable;preferenceKey:string;loadExport?:()=>Promise<ReportTable>;module?:string;outputPrefix?:string}){
  const printRoot=useRef<HTMLElement|null>(null);
+ const printRootId='navilo-accounting-report-'+useId().replace(/:/g,'');
  const {activeCompany,activeBusinessUnit}=useAuth();
  const allowed=useTransportOutputPermissions(module);const [error,setError]=useState('');const [exporting,setExporting]=useState(false);const [page,setPage]=useState(0);const dragKey=useRef<string|null>(null);
  const [config,setConfig]=useState<{title:string;hideZero:boolean;hideZeroCells?:boolean;columns:{key:string;label:string;visible:boolean}[]}>(()=>{try{return JSON.parse(localStorage.getItem('transport-report:'+preferenceKey)||'null')||{title:'',hideZero:false,columns:[]}}catch{return {title:'',hideZero:false,columns:[]}}});
@@ -23,9 +24,9 @@ export default function ConfigurableReport({report,preferenceKey,loadExport,modu
    const reportToExport=loadExport?projectReport(await loadExport(),columns,config.title,config.hideZero,config.hideZeroCells):table;
    const identity={companyName:activeCompany?.company_name,businessUnitName:activeBusinessUnit?.business_unit_name};
    if(module==='accounting' && format==='print'){
-    const win=createPrintDocument();
-    win.document.write(accountingStandalonePrintHtml(reportToExport,identity));
-    win.document.close();win.focus();win.print();
+    // Use the shared print preview so company logo, configured stationery,
+    // signatures, pagination and dates match all other NAVILO reports.
+    showPrintDocument({selector:`#${printRootId}`});
    } else if(module==='accounting' && format==='pdf'){
     const layout=accountingStatementLayout(reportToExport);
     await downloadAccountingReportPdf({
@@ -44,7 +45,7 @@ export default function ConfigurableReport({report,preferenceKey,loadExport,modu
    return module==='accounting'?accountingStatementMarkup(all):transportRegisteredPrintMarkup(all);
  })},[table,loadExport,columns,config]);
  const pages=Math.max(1,Math.ceil(table.rows.length/100));const current=Math.min(page,pages-1);
- return <section ref={printRoot} className="space-y-2"><details className="rounded border p-2"><summary>Customize report headers and columns</summary><label>Report title<input className="input" value={config.title} placeholder={report.title} onChange={e=>update({...config,title:e.target.value})}/></label><label className="ml-3"><input type="checkbox" checked={config.hideZero} onChange={e=>update({...config,hideZero:e.target.checked})}/> Hide zero-value rows</label><label className="ml-3"><input type="checkbox" checked={!!config.hideZeroCells} onChange={e=>update({...config,hideZeroCells:e.target.checked})}/> Hide zero values in cells</label><div className="grid gap-2 md:grid-cols-3">{columns.map((c,i)=><div key={c.key} className="flex gap-1 items-center"><input aria-label={'Show '+c.key} type="checkbox" checked={c.visible} onChange={e=>update({...config,columns:columns.map(x=>x.key===c.key?{...x,visible:e.target.checked}:x)})}/><input aria-label={'Header '+c.key} className="input" value={c.label} onChange={e=>update({...config,columns:columns.map(x=>x.key===c.key?{...x,label:e.target.value}:x)})}/><button className="btn" disabled={i===0} aria-label={'Move '+c.key+' left'} onClick={()=>{const next=[...columns];[next[i-1],next[i]]=[next[i],next[i-1]];update({...config,columns:next})}}>←</button></div>)}</div><button className="btn" onClick={()=>update({title:'',hideZero:false,columns:[]})}>Reset layout</button></details>
+ return <section id={printRootId} ref={printRoot} className="space-y-2"><details className="rounded border p-2"><summary>Customize report headers and columns</summary><label>Report title<input className="input" value={config.title} placeholder={report.title} onChange={e=>update({...config,title:e.target.value})}/></label><label className="ml-3"><input type="checkbox" checked={config.hideZero} onChange={e=>update({...config,hideZero:e.target.checked})}/> Hide zero-value rows</label><label className="ml-3"><input type="checkbox" checked={!!config.hideZeroCells} onChange={e=>update({...config,hideZeroCells:e.target.checked})}/> Hide zero values in cells</label><div className="grid gap-2 md:grid-cols-3">{columns.map((c,i)=><div key={c.key} className="flex gap-1 items-center"><input aria-label={'Show '+c.key} type="checkbox" checked={c.visible} onChange={e=>update({...config,columns:columns.map(x=>x.key===c.key?{...x,visible:e.target.checked}:x)})}/><input aria-label={'Header '+c.key} className="input" value={c.label} onChange={e=>update({...config,columns:columns.map(x=>x.key===c.key?{...x,label:e.target.value}:x)})}/><button className="btn" disabled={i===0} aria-label={'Move '+c.key+' left'} onClick={()=>{const next=[...columns];[next[i-1],next[i]]=[next[i],next[i-1]];update({...config,columns:next})}}>←</button></div>)}</div><button className="btn" onClick={()=>update({title:'',hideZero:false,columns:[]})}>Reset layout</button></details>
  <h3 className="font-semibold">{table.title}</h3><p>{table.description}</p><div className="flex flex-wrap gap-2">{(['print','pdf','xlsx'] as const).map(f=><button className="btn" data-navilo-keep-local-action="true" key={f} disabled={exporting||!table.columns.length||!(f==='print'?allowed.print:allowed.export)} onClick={()=>void output(f)}>{outputPrefix+(f==='xlsx'?'Excel':f.toUpperCase())}</button>)}<button className="btn" disabled={current===0} onClick={()=>setPage(current-1)}>Previous</button><span>Page {current+1} / {pages} · {table.rows.length} rows · Export includes all rows</span><button className="btn" disabled={current+1>=pages} onClick={()=>setPage(current+1)}>Next</button></div>{error&&<p role="alert" className="text-red-700">{error}</p>}
  <div className="max-h-[55vh] overflow-auto"><table className="w-full whitespace-nowrap text-left"><thead><tr>{table.columns.map((c,i)=>{const visible=columns.filter(x=>x.visible);const key=visible[i]?.key??c;return <th className="cursor-grab select-none p-2 active:cursor-grabbing" key={key} draggable onDragStart={e=>{dragKey.current=key;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',key)}} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect='move'}} onDrop={e=>{e.preventDefault();const source=dragKey.current||e.dataTransfer.getData('text/plain');dragKey.current=null;if(source)moveColumn(source,key)}} onDragEnd={()=>{dragKey.current=null}} title="Drag left or right to reorder">{c}</th>})}</tr></thead><tbody data-business-data>{table.rows.slice(current*100,(current+1)*100).map((r,i)=><tr className="border-t" key={i}>{r.map((v,k)=><td className="p-2" key={k}>{typeof v==='number'?financialNumber(v):v}</td>)}</tr>)}</tbody></table></div></section>;
 }
