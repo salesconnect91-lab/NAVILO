@@ -28,6 +28,7 @@ export async function downloadAccountingReportPdf({ fileName, title, subtitle, c
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 8;
   let y = 8;
+  let logoDrawn = false;
 
   if (visibility.show_logo && company.logo_url) {
     try {
@@ -41,6 +42,7 @@ export async function downloadAccountingReportPdf({ fileName, title, subtitle, c
           reader.readAsDataURL(blob);
         });
         doc.addImage(dataUrl, blob.type.includes("jpeg") ? "JPEG" : "PNG", margin, y, 26, 14);
+        logoDrawn = true;
       }
     } catch { /* continue without image */ }
   }
@@ -55,6 +57,7 @@ export async function downloadAccountingReportPdf({ fileName, title, subtitle, c
   if (visibility.show_tax_details) { const value = documentTaxText(company); if (value) { y += 4; doc.text(value, pageWidth / 2, y, { align: "center" }); } }
   if (visibility.show_header && company.document_header) { y += 5; doc.setFont("helvetica", "bold"); doc.text(company.document_header, pageWidth / 2, y, { align: "center" }); }
 
+  if (logoDrawn) y = Math.max(y, 20); // Keep the title divider clear of the logo.
   y += 6; doc.setDrawColor(30, 41, 59); doc.setLineWidth(0.55); doc.line(margin, y, pageWidth - margin, y);
   y += 7; doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text(title, margin, y);
   if (subtitle) {
@@ -66,12 +69,12 @@ export async function downloadAccountingReportPdf({ fileName, title, subtitle, c
   }
   y += 5;
 
-  const numericIndexes = new Set(columns.flatMap((column, index) => /debit|credit|balance|amount|total|opening\s+dr|opening\s+cr|period\s+dr|period\s+cr|closing\s+dr|closing\s+cr|\bdr\b|\bcr\b/i.test(column) ? [index] : []));
+  const numericIndexes = new Set(columns.flatMap((column, index) => /debit|credit|balance|amount|total|movement|vouchers|opening|closing|\bdr\b|\bcr\b/i.test(column) ? [index] : []));
   autoTable(doc, {
     startY: y,
     head: [columns],
     body: rows.map((row, index) =>
-      rowKinds[index] === "section" ? [{content:String(row[0] ?? ""),colSpan:columns.length}] : row),
+      rowKinds[index] === "section" ? [{content:String(row[0] ?? ""),colSpan:columns.length}] : row.map(cell => typeof cell === "number" ? cell.toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2}) : cell)),
     theme: "plain",
     showHead: "everyPage",
     styles: { font: "helvetica", fontSize: 7.7, cellPadding: { top: 1.55, right: 1.8, bottom: 1.55, left: 1.8 }, textColor: [30, 41, 59], lineColor: [216, 226, 236], lineWidth: { bottom: 0.12 }, overflow: "linebreak", valign: "middle" },
