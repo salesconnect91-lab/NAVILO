@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -123,6 +124,11 @@ export default function SalesInvoiceList() {
   const [paymentFilter, setPaymentFilter] = useState<"all" | PaymentStatus>("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [listPage,setListPage]=useState(1);
+  const [listPageSize,setListPageSize]=useState(25);
+  const [listSort,setListSort]=useState<{key:string;dir:"asc"|"desc"}|null>(null);
+  const [listSummary,setListSummary]=useState({count:0,total:0,balance:0,parties:0});
+  const listRequest=useRef(0);
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentSaving, setPaymentSaving] = useState(false);
@@ -144,43 +150,43 @@ export default function SalesInvoiceList() {
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
 
-  const fetchRows = useCallback(async () => {
+  const fetchRows=useCallback(async()=>{
+    const request=++listRequest.current;
     setLoading(true);
-
-    const [ordersResult, linksResult] = await Promise.all([
-      supabase
-        .from("sales_orders")
-        .select("*, customer:customers(*)")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("sales_order_hawala_invoices")
-        .select("sales_order_id,hawala_invoice:consolidated_sales_invoices(invoice_no)"),
-    ]);
-
-    if (ordersResult.error) {
-      setError(ordersResult.error.message);
-    } else if (linksResult.error) {
-      setError(linksResult.error.message);
-    } else {
-      const linkedNumbers = new Map<string, string[]>();
-      for (const link of linksResult.data ?? []) {
-        const linked = Array.isArray((link as any).hawala_invoice)
-          ? (link as any).hawala_invoice[0]
-          : (link as any).hawala_invoice;
-        const invoiceNo = linked?.invoice_no;
-        if (!invoiceNo) continue;
-        const current = linkedNumbers.get((link as any).sales_order_id) ?? [];
-        current.push(invoiceNo);
-        linkedNumbers.set((link as any).sales_order_id, current);
+    setError(null);
+    try{
+      const {data,error:readError}=await supabase.rpc("commercial_invoice_list_query",{
+        p_side:"sales",p_search:listSearch,p_status:postingFilter,p_payment:paymentFilter,
+        p_type:"all",p_from:fromDate||null,p_to:toDate||null,
+        p_sort:listSort?.key??"created_at",p_desc:listSort?listSort.dir==="desc":true,
+        p_limit:listPageSize,p_offset:(listPage-1)*listPageSize
+      });
+      if(readError)throw readError;
+      const pageRows=(data?.rows??[]) as SalesInvoiceRow[];
+      const ids=pageRows.map(row=>row.id);
+      const linked=ids.length?await supabase.from("sales_order_hawala_invoices")
+        .select("sales_order_id,hawala_invoice:consolidated_sales_invoices(invoice_no)")
+        .in("sales_order_id",ids):null;
+      if(linked?.error)throw linked.error;
+      if(request!==listRequest.current)return;
+      const numbers=new Map<string,string[]>();
+      for(const link of linked?.data??[]){
+        const invoice=Array.isArray((link as any).hawala_invoice)
+          ?(link as any).hawala_invoice[0]:(link as any).hawala_invoice;
+        if(invoice?.invoice_no){
+          const k=(link as any).sales_order_id;
+          numbers.set(k,[...(numbers.get(k)??[]),invoice.invoice_no]);
+        }
       }
-      setRows((ordersResult.data ?? []).map((row: any) => ({
-        ...row,
-        consolidated_invoice_numbers: linkedNumbers.get(row.id) ?? [],
-      })) as SalesInvoiceRow[]);
+      setRows(pageRows.map(row=>({...row,consolidated_invoice_numbers:numbers.get(row.id)??[]})));
+      setListSummary({count:Number(data?.count??0),total:Number(data?.total??0),
+        balance:Number(data?.balance??0),parties:Number(data?.parties??0)});
+    }catch(e:any){
+      if(request===listRequest.current)setError(e?.message??"Unable to read Sales invoices. Retry.");
+    }finally{
+      if(request===listRequest.current)setLoading(false);
     }
-
-    setLoading(false);
-  }, []);
+  },[listSearch,postingFilter,paymentFilter,fromDate,toDate,listSort,listPage,listPageSize,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
 
   const fetchPaymentMasterData = useCallback(async () => {
     const [customersResult, accountsResult] = await Promise.all([
@@ -228,13 +234,14 @@ export default function SalesInvoiceList() {
     );
   }, []);
 
-  useEffect(() => {
-    fetchRows();
-
-    fetchPaymentMasterData().catch((err: any) => {
-      setError(err?.message || "Failed to load payment master data.");
-    });
-  }, [fetchRows, fetchPaymentMasterData]);
+  useEffect(()=>{
+    const timer=window.setTimeout(()=>void fetchRows(),250);
+    return()=>{window.clearTimeout(timer);listRequest.current++};
+  },[fetchRows]);
+  useEffect(()=>{
+    fetchPaymentMasterData().catch((e:any)=>setError(e?.message||"Failed to load payment master data."));
+  },[fetchPaymentMasterData]);
+  useEffect(()=>{setListPage(1)},[listSearch,postingFilter,paymentFilter,fromDate,toDate,listSort]);
 
   const fetchOpenInvoices = useCallback(async (customerId: string) => {
     if (!customerId) {
@@ -342,53 +349,12 @@ export default function SalesInvoiceList() {
     });
   }, [openInvoices, invoiceSearch, invoiceSort]);
 
-  const filteredRows = useMemo(() => {
-    const q = listSearch.trim().toLowerCase();
+  // Full-dataset search/filter/sort is enforced by the RLS-scoped SQL query.
+  const filteredRows=rows;
 
-    return rows.filter((row) => {
-      const matchesSearch =
-        !q ||
-        [
-          row.order_no,
-          row.customer?.name || "",
-          row.sales_person || "",
-          row.order_date || "",
-          row.due_date || "",
-          row.status || "",
-          row.payment_status || "",
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(q);
-
-      const matchesPosting =
-        postingFilter === "all" || row.status === postingFilter;
-
-      const matchesPayment =
-        paymentFilter === "all" ||
-        (row.payment_status || "unpaid") === paymentFilter;
-      const matchesFrom = !fromDate || String(row.order_date || "") >= fromDate;
-      const matchesTo = !toDate || String(row.order_date || "") <= toDate;
-
-      return matchesSearch && matchesPosting && matchesPayment && matchesFrom && matchesTo;
-    });
-  }, [rows, listSearch, postingFilter, paymentFilter, fromDate, toDate]);
-
-  const visibleCustomerCount = useMemo(() => new Set(filteredRows.map((row) => row.customer_id).filter(Boolean)).size, [filteredRows]);
-
-  const filteredInvoiceTotal = useMemo(
-    () => filteredRows.reduce((sum, row) => sum + toNumber(row.total), 0),
-    [filteredRows]
-  );
-
-  const filteredBalanceDue = useMemo(
-    () =>
-      filteredRows.reduce(
-        (sum, row) => sum + toNumber(row.outstanding_amount),
-        0
-      ),
-    [filteredRows]
-  );
+  const visibleCustomerCount=listSummary.parties;
+  const filteredInvoiceTotal=listSummary.total;
+  const filteredBalanceDue=listSummary.balance;
 
   const allocatedTotal = useMemo(
     () =>
@@ -726,11 +692,11 @@ export default function SalesInvoiceList() {
 
       <PageHeader title="Sales Invoices" subtitle="Customer invoices, receivables and posting" action={<div className="flex flex-wrap items-center gap-2" data-navilo-standard-tools-host>{canReceivePayment && <button onClick={() => activeBusinessUnit?.business_unit_type==='transport'?navigate('/accounting/cash-counter'):openReceivePayment()} className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">Receive Payment</button>}{canCreateSales && <button onClick={() => navigate("/sales/new")} className="btn-primary">+ New Invoice</button>}</div>} />
 
-      {error && <ErrorBanner message={error} />}
+      {error && <div className="flex items-center gap-2"><ErrorBanner message={error}/><button type="button" className="btn-secondary" onClick={()=>void fetchRows()}>Retry invoices</button></div>}
 
       <TransportOpeningInvoices side="customer"/>
       <section className="grid grid-cols-1 gap-3 md:grid-cols-4" data-no-print data-no-export>
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-blue-50 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Visible Invoices</div><div className="text-lg font-bold text-slate-900">{filteredRows.length}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-blue-50 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Filtered Invoices</div><div className="text-lg font-bold text-slate-900">{listSummary.count}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-50 text-emerald-600"><Coins className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Invoice Total</div><div className="text-lg font-bold text-slate-900">{formatCurrency(filteredInvoiceTotal)}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-rose-50 text-rose-600"><Clock3 className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Balance Due</div><div className="text-lg font-bold text-rose-700">{formatCurrency(filteredBalanceDue)}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-violet-50 text-violet-600"><Users className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Customers</div><div className="text-lg font-bold text-slate-900">{visibleCustomerCount}</div></div></div>
@@ -746,8 +712,8 @@ export default function SalesInvoiceList() {
       </div></div>
 
       <section data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3"><h2 className="navilo-report-title text-base font-bold text-slate-900">Sales Invoices <span className="text-slate-400">({filteredRows.length})</span></h2><div data-navilo-standard-tools-host /></div>
-        <DataTable showSerialNumber columns={columns} rows={filteredRows} loading={loading} emptyMessage="No invoices match the selected filters." />
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3"><h2 className="navilo-report-title text-base font-bold text-slate-900">Sales Invoices <span className="text-slate-400">({listSummary.count})</span></h2><div data-navilo-standard-tools-host /></div>
+        <DataTable showSerialNumber columns={columns} rows={filteredRows} loading={loading} emptyMessage={error?"Query failed; retry Sales invoices.":"No invoices match the selected filters."} remote={{total:listSummary.count,page:listPage,pageSize:listPageSize,onPageChange:(page,pageSize)=>{setListPage(page);setListPageSize(pageSize)},sort:listSort,onSortChange:sort=>setListSort(sort)}} />
       </section>
 
       <Modal

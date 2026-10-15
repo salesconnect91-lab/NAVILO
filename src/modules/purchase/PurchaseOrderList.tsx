@@ -1,7 +1,7 @@
 import TransportOpeningInvoices from '../transport/TransportOpeningInvoices';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import NaviloDateInput from '@/components/NaviloDateInput';
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { PurchaseOrder } from "@/types";
@@ -49,29 +49,51 @@ export default function PurchaseOrderList() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [consolidatedLinks, setConsolidatedLinks] = useState<Record<string, string[]>>({});
+  const [listPage,setListPage]=useState(1);
+  const [listPageSize,setListPageSize]=useState(25);
+  const [listSort,setListSort]=useState<{key:string;dir:"asc"|"desc"}|null>(null);
+  const [listSummary,setListSummary]=useState({count:0,total:0,balance:0,parties:0});
+  const listRequest=useRef(0);
 
-  const fetchRows = useCallback(async () => {
-    setLoading(true);
-    const [ordersRes, linksRes] = await Promise.all([
-      supabase.from("purchase_orders").select("*, supplier:suppliers(*)").order("created_at", { ascending: false }),
-      supabase.from("purchase_order_consolidated_invoices").select("purchase_order_id,consolidated_invoice:consolidated_purchase_invoices(invoice_no)"),
-    ]);
-    const loadError = ordersRes.error || linksRes.error;
-    if (loadError) setError(loadError.message);
-    else {
-      setRows((ordersRes.data ?? []) as PurchaseOrder[]);
-      const links: Record<string, string[]> = {};
-      for (const link of linksRes.data ?? []) {
-        const invoice = Array.isArray((link as any).consolidated_invoice) ? (link as any).consolidated_invoice[0] : (link as any).consolidated_invoice;
-        if (!invoice?.invoice_no) continue;
-        (links[(link as any).purchase_order_id] ||= []).push(invoice.invoice_no);
+  const fetchRows=useCallback(async()=>{
+    const request=++listRequest.current;
+    setLoading(true);setError(null);
+    try{
+      const {data,error:readError}=await supabase.rpc("commercial_invoice_list_query",{
+        p_side:"purchase",p_search:search,p_status:statusFilter,p_payment:paymentFilter,
+        p_type:typeFilter,p_from:fromDate||null,p_to:toDate||null,
+        p_sort:listSort?.key??"created_at",p_desc:listSort?listSort.dir==="desc":true,
+        p_limit:listPageSize,p_offset:(listPage-1)*listPageSize
+      });
+      if(readError)throw readError;
+      const pageRows=(data?.rows??[]) as PurchaseOrder[];
+      const ids=pageRows.map(row=>row.id);
+      const linked=ids.length?await supabase.from("purchase_order_consolidated_invoices")
+        .select("purchase_order_id,consolidated_invoice:consolidated_purchase_invoices(invoice_no)")
+        .in("purchase_order_id",ids):null;
+      if(linked?.error)throw linked.error;
+      if(request!==listRequest.current)return;
+      const numbers:Record<string,string[]>={};
+      for(const link of linked?.data??[]){
+        const invoice=Array.isArray((link as any).consolidated_invoice)
+          ?(link as any).consolidated_invoice[0]:(link as any).consolidated_invoice;
+        if(invoice?.invoice_no)(numbers[(link as any).purchase_order_id]??=[]).push(invoice.invoice_no);
       }
-      setConsolidatedLinks(links);
+      setRows(pageRows);setConsolidatedLinks(numbers);
+      setListSummary({count:Number(data?.count??0),total:Number(data?.total??0),
+        balance:Number(data?.balance??0),parties:Number(data?.parties??0)});
+    }catch(e:any){
+      if(request===listRequest.current)setError(e?.message??"Unable to read Purchase invoices. Retry.");
+    }finally{
+      if(request===listRequest.current)setLoading(false);
     }
-    setLoading(false);
-  }, []);
+  },[search,typeFilter,statusFilter,paymentFilter,fromDate,toDate,listSort,listPage,listPageSize,activeCompany?.company_id]);
 
-  useEffect(() => { void fetchRows(); }, [fetchRows]);
+  useEffect(()=>{
+    const timer=window.setTimeout(()=>void fetchRows(),250);
+    return()=>{window.clearTimeout(timer);listRequest.current++};
+  },[fetchRows]);
+  useEffect(()=>{setListPage(1)},[search,typeFilter,statusFilter,paymentFilter,fromDate,toDate,listSort]);
 
   const deleteDraft = async (row: PurchaseOrder) => {
     if (String(row.status).toLowerCase() !== "draft") return;
@@ -83,32 +105,10 @@ export default function PurchaseOrderList() {
     await fetchRows();
   };
 
-  const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return rows.filter((row) => {
-      const invoiceType = row.invoice_type === "Tax Invoice" ? "with-tax" : "without-tax";
-      const matchesSearch = !q || [row.order_no, row.supplier?.name ?? "", row.status ?? "", row.invoice_type ?? ""]
-        .join(" ")
-        .toLowerCase()
-        .includes(q);
-      const matchesType = typeFilter === "all" || typeFilter === invoiceType;
-      const matchesStatus = statusFilter === "all" || String(row.status ?? "").toLowerCase() === statusFilter;
-      const rowPayment = String(row.payment_status ?? "unpaid").toLowerCase();
-      const matchesPayment = paymentFilter === "all" || rowPayment === paymentFilter;
-      const matchesFrom = !fromDate || String(row.order_date || "") >= fromDate;
-      const matchesTo = !toDate || String(row.order_date || "") <= toDate;
-      return matchesSearch && matchesType && matchesStatus && matchesPayment && matchesFrom && matchesTo;
-    });
-  }, [rows, search, typeFilter, statusFilter, paymentFilter, fromDate, toDate]);
+  // Whole-result filtering is done by the database.
+  const filteredRows=rows;
 
-  const visiblePurchaseTotal = useMemo(
-    () => filteredRows.reduce((sum, row) => sum + (Number(row.total) || 0), 0),
-    [filteredRows],
-  );
-  const visiblePostedTotal = useMemo(
-    () => filteredRows.reduce((sum, row) => String(row.status ?? "").toLowerCase() === "posted" ? sum + (Number(row.total) || 0) : sum, 0),
-    [filteredRows],
-  );
+  const visiblePurchaseTotal=listSummary.total;
 
   const paymentBadge = (row: PurchaseOrder) => {
     const status = String(row.payment_status ?? "unpaid").toLowerCase();
@@ -116,8 +116,8 @@ export default function PurchaseOrderList() {
     const cls = status === "paid" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : status === "partial" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-rose-200 bg-rose-50 text-rose-700";
     return <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${cls}`}>{label}</span>;
   };
-  const visibleBalance = useMemo(() => filteredRows.reduce((sum, row) => sum + (Number(row.outstanding_amount ?? row.total) || 0), 0), [filteredRows]);
-  const visibleSuppliers = useMemo(() => new Set(filteredRows.map((row) => row.supplier_id).filter(Boolean)).size, [filteredRows]);
+  const visibleBalance=listSummary.balance;
+  const visibleSuppliers=listSummary.parties;
 
   const columns: Column<PurchaseOrder>[] = [
     { key: "order_no", label: "Purchase Invoice #", sortable: true, render: (r) => <span className="font-semibold text-blue-600">{r.order_no}</span> },
@@ -151,7 +151,7 @@ export default function PurchaseOrderList() {
 
       <TransportOpeningInvoices side="supplier"/>
       <div className="grid gap-3 md:grid-cols-4" data-no-export>
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-blue-50 p-2 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Visible Invoices</div><div className="font-bold">{filteredRows.length}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-blue-50 p-2 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Filtered Invoices</div><div className="font-bold">{listSummary.count}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-emerald-50 p-2 text-emerald-600"><Landmark className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Purchase Total</div><div className="font-bold">{formatCurrency(visiblePurchaseTotal)}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-rose-50 p-2 text-rose-600"><Clock3 className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Balance Due</div><div className="font-bold text-rose-600">{formatCurrency(visibleBalance)}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-violet-50 p-2 text-violet-600"><Truck className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Suppliers</div><div className="font-bold">{visibleSuppliers}</div></div></div>
@@ -167,10 +167,10 @@ export default function PurchaseOrderList() {
         {(search || typeFilter !== "all" || statusFilter !== "all" || paymentFilter !== "all" || fromDate || toDate) && <button className="btn-secondary self-end" onClick={() => { setSearch(""); setTypeFilter("all"); setStatusFilter("all"); setPaymentFilter("all"); setFromDate(""); setToDate(""); }}><RotateCcw className="h-4 w-4"/>Clear</button>}
       </div>
 
-      {error && <ErrorBanner message={error} />}
+      {error && <div className="flex items-center gap-2"><ErrorBanner message={error}/><button type="button" className="btn-secondary" onClick={()=>void fetchRows()}>Retry invoices</button></div>}
       <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-bold text-slate-900">Purchase Invoices <span className="text-slate-500">({filteredRows.length})</span></h2></div>
-        <DataTable columns={columns} rows={filteredRows} loading={loading} emptyMessage="No Main Purchase Invoices found." showSerialNumber />
+        <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-bold text-slate-900">Purchase Invoices <span className="text-slate-500">({listSummary.count})</span></h2></div>
+        <DataTable columns={columns} rows={filteredRows} loading={loading} emptyMessage={error?"Query failed; retry Purchase invoices.":"No Main Purchase Invoices found."} showSerialNumber remote={{total:listSummary.count,page:listPage,pageSize:listPageSize,onPageChange:(page,pageSize)=>{setListPage(page);setListPageSize(pageSize)},sort:listSort,onSortChange:sort=>setListSort(sort)}} />
       </div>
     </div>
   );

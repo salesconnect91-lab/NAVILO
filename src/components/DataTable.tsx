@@ -63,9 +63,15 @@ function readPrefs<T>(columns: Column<T>[]): ViewPrefs {
   } catch { return fallback; }
 }
 
+type RemotePaging = {
+  total: number; page: number; pageSize: number;
+  onPageChange: (page: number, pageSize: number) => void;
+  sort: { key: string; dir: "asc" | "desc" } | null;
+  onSortChange: (sort: { key: string; dir: "asc" | "desc" }) => void;
+};
 export default function DataTable<T extends { id: string }>({
-  columns, rows, loading, emptyMessage, showSerialNumber = false,
-}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; showSerialNumber?: boolean }) {
+  columns, rows, loading, emptyMessage, showSerialNumber = false, remote,
+}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; showSerialNumber?: boolean; remote?: RemotePaging }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const configurableColumns = useMemo(() => columns.filter(c => c.key !== "actions" && c.key !== "action"), [columns]);
   const key = useMemo(() => storageKey(columns), [columns]);
@@ -116,7 +122,7 @@ export default function DataTable<T extends { id: string }>({
     persistHidden(next);
   };
 
-  useEffect(() => { setPage(1); setSelected(new Set()); }, [rows.length, prefs.pageSize]);
+  useEffect(() => { setPage(1); setSelected(new Set()); }, [rows.length, prefs.pageSize, remote?.page]);
 
   const orderedColumns = useMemo(() => {
     const rank = new Map(prefs.order.map((k, i) => [k, i]));
@@ -125,17 +131,22 @@ export default function DataTable<T extends { id: string }>({
 
   const visibleColumns = orderedColumns.filter(c => c.key === "actions" || c.key === "action" || !hiddenKeys.has(c.key));
   const sortedRows = useMemo(() => {
-    if (!prefs.sort) return rows;
+    if (remote || !prefs.sort) return rows;
     const { key: sortKey, dir } = prefs.sort;
     const d = dir === "asc" ? 1 : -1;
     return [...rows].sort((a,b) => String((a as Record<string,unknown>)[sortKey] ?? "").localeCompare(
       String((b as Record<string,unknown>)[sortKey] ?? ""), undefined, { numeric: true, sensitivity: "base" }
     ) * d);
-  }, [rows, prefs.sort]);
-
-  const totalPages = Math.max(1, Math.ceil(sortedRows.length / prefs.pageSize));
-  const safePage = Math.min(page, totalPages);
-  const pagedRows = sortedRows.slice((safePage - 1) * prefs.pageSize, safePage * prefs.pageSize);
+  }, [rows, prefs.sort, remote]);
+  const effectivePageSize = remote?.pageSize ?? prefs.pageSize;
+  const totalRecords = remote?.total ?? sortedRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / effectivePageSize));
+  const safePage = Math.min(remote?.page ?? page, totalPages);
+  const pagedRows = remote ? sortedRows : sortedRows.slice((safePage - 1) * effectivePageSize, safePage * effectivePageSize);
+  const changePage = (p: number, n = effectivePageSize) => {
+    if (remote) remote.onPageChange(p,n);
+    else setPage(p);
+  };
   useEffect(() => {
     const root = rootRef.current;
     if (!root || loading) return;
@@ -208,9 +219,15 @@ export default function DataTable<T extends { id: string }>({
                   className={`relative select-none bg-slate-50 ${cellPad} ${prefs.density === "compact" ? "py-2" : prefs.density === "spacious" ? "py-4" : "py-3"} text-left font-medium text-slate-600 ${col.className ?? ""}`}>
                   <button type="button" className="inline-flex items-center gap-1 text-left"
                     disabled={action || col.sortable === false}
-                    onClick={() => !action && col.sortable !== false && savePrefs({ ...prefs, sort: prefs.sort?.key === col.key ? { key:col.key, dir:prefs.sort.dir === "asc" ? "desc" : "asc" } : { key:col.key, dir:"asc" } })}>
+                    onClick={() => {
+                    if (action || col.sortable === false) return;
+                    const current=remote ? remote.sort : prefs.sort;
+                    const next={key:col.key,dir:(current?.key===col.key && current.dir==="asc"?"desc":"asc") as "asc"|"desc"};
+                    if (remote) remote.onSortChange(next);
+                    else savePrefs({...prefs,sort:next});
+                  }}>
                     <span className={!action ? "cursor-grab" : ""}>{col.key === "actions" && !col.label ? "Actions" : col.label}</span>
-                    {prefs.sort?.key === col.key ? <span aria-hidden="true">{prefs.sort.dir === "asc" ? "↑" : "↓"}</span> : null}
+                    {(remote ? remote.sort : prefs.sort)?.key===col.key ? <span aria-hidden="true">{(remote ? remote.sort : prefs.sort)?.dir==="asc"?"↑":"↓"}</span> : null}
                   </button>
                   {!action ? <span aria-hidden="true" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-slate-300"
                     onMouseDown={e => { e.preventDefault(); beginResize(col.key,e.clientX,e.currentTarget.parentElement?.getBoundingClientRect().width || 160); }}/> : null}
@@ -225,7 +242,7 @@ export default function DataTable<T extends { id: string }>({
                   const next = new Set(selected); next.has(row.id) ? next.delete(row.id) : next.add(row.id); setSelected(next);
                 }}/>
               </td>
-              {showSerialNumber ? <td className={`${cellPad} ${rowPad} text-slate-500`} style={{width:72,minWidth:72}}>{(safePage - 1) * prefs.pageSize + rowIndex + 1}</td> : null}
+              {showSerialNumber ? <td className={`${cellPad} ${rowPad} text-slate-500`} style={{width:72,minWidth:72}}>{(safePage - 1) * effectivePageSize + rowIndex + 1}</td> : null}
               {visibleColumns.map(col => {
                 const action = col.key === "actions" || col.key === "action";
                 return <td key={col.key} data-no-print={action || undefined} data-no-export={action || undefined}
@@ -240,21 +257,21 @@ export default function DataTable<T extends { id: string }>({
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3" data-no-print data-no-export>
         <div className="text-xs text-slate-500">
-          Showing {(safePage-1)*prefs.pageSize+1}–{Math.min(safePage*prefs.pageSize,sortedRows.length)} of {sortedRows.length}
+          Showing {(safePage-1)*effectivePageSize+1}–{Math.min(safePage*effectivePageSize,totalRecords)} of {totalRecords}
           {selected.size ? <span className="ml-3 font-semibold">{selected.size} selected · <button type="button" className="underline" onClick={() => setSelected(new Set())}>Clear</button></span> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Table density" className="input h-8 min-h-8 w-auto py-0 text-xs" value={prefs.density} onChange={e => savePrefs({ ...prefs, density:e.target.value as Density })}>
             <option value="compact">Compact</option><option value="comfortable">Comfortable</option><option value="spacious">Spacious</option>
           </NaviloSearchableSelect>
-          <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Rows per page" className="input h-8 min-h-8 w-auto py-0 text-xs" value={prefs.pageSize} onChange={e => savePrefs({ ...prefs, pageSize:Number(e.target.value) })}>
+          <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Rows per page" className="input h-8 min-h-8 w-auto py-0 text-xs" value={effectivePageSize} onChange={e => remote?remote.onPageChange(1,Number(e.target.value)):savePrefs({...prefs,pageSize:Number(e.target.value)})}>
             {[25,50,100,250].map(n => <option key={n} value={n}>{n} / page</option>)}
           </NaviloSearchableSelect>
-          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage<=1} onClick={()=>setPage(1)}>First</button>
-          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage<=1} onClick={()=>setPage(p=>Math.max(1,p-1))}>Previous</button>
+          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage<=1} onClick={()=>changePage(1)}>First</button>
+          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage<=1} onClick={()=>changePage(Math.max(1,safePage-1))}>Previous</button>
           <span className="text-xs font-semibold text-slate-600">{safePage} / {totalPages}</span>
-          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage>=totalPages} onClick={()=>setPage(p=>Math.min(totalPages,p+1))}>Next</button>
-          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage>=totalPages} onClick={()=>setPage(totalPages)}>Last</button>
+          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage>=totalPages} onClick={()=>changePage(Math.min(totalPages,safePage+1))}>Next</button>
+          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage>=totalPages} onClick={()=>changePage(totalPages)}>Last</button>
         </div>
       </div>
     </div>
