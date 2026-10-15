@@ -91,7 +91,7 @@ SELECT jsonb_build_object(
  'count',(SELECT count(*) FROM filtered),
  'total',(SELECT COALESCE(sum(total),0) FROM filtered),
  'balance',(SELECT COALESCE(sum(outstanding_amount),0) FROM filtered),
- 'parties',(SELECT count(DISTINCT party_id) FROM filtered) INTO v_result;
+ 'parties',(SELECT count(DISTINCT party_id) FROM filtered)) INTO v_result;
  RETURN v_result;
 END
 $fast$;

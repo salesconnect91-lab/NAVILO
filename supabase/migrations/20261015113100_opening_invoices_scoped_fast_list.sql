@@ -152,7 +152,7 @@ begin
  select coalesce(jsonb_agg(q.row),'[]') into answer from(
  select row from (select d.order_id::text sort_key,to_jsonb(d) row from docs d where p_kind='documents' union all select e.event_id,to_jsonb(e) from events e where p_kind='movements') r order by sort_key limit greatest(1,least(coalesce(p_limit,1000),1000)) offset greatest(coalesce(p_offset,0),0))q;
  return answer;
-end $function$
+end $function$;
 
 REVOKE ALL ON FUNCTION public.transport_opening_invoice_query(text,text,jsonb,integer,integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.transport_opening_invoice_query(text,text,jsonb,integer,integer) TO authenticated;
