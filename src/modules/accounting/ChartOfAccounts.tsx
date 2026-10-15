@@ -1,4 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
+import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
   import {
     useEffect,
     useMemo,
@@ -1319,6 +1320,7 @@ import SearchableSelect from "@/components/SearchableSelect";
         {/* Main */}
 
         <main className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
+          <OwnerOpeningAccountCorrection accounts={accounts} onCompleted={loadAccounts} />
           {error && (
             <div className="mb-4 flex items-start justify-between gap-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               <span>{error}</span>
