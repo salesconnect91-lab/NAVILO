@@ -562,6 +562,7 @@ export default function TransportWorkspace(){
               p_search:registerSearch.trim()
             }).abortSignal(controller.signal);
             if(recovered.error)throw recovered.error;
+            if(recovered.data?.recovery_only!==true||!Array.isArray(recovered.data.rows))throw new Error('Operational recovery response not available');
             if(generation===readGeneration.current&&!controller.signal.aborted&&scopeRef.current===scopeKey){
               setOperationalRecovery({key:registerPageKey,rows:Array.isArray(recovered.data?.rows)?recovered.data.rows:[],count:Number(recovered.data?.count||0)});
               setError('Financial Register timed out. Operational Trip recovery is available below; amounts, financial totals and advanced filters are not available in recovery mode.');
