@@ -2209,9 +2209,11 @@ export default function JournalEntryDetail() {
     entry.status === "posted";
   const isForeignJournal = Boolean(companyBaseCurrency && entry.currency_code && entry.currency_code !== companyBaseCurrency);
 
+  // Older manually created journals use trans_type "General". Treat them as
+  // manual journals too, so their Draft Posting Date remains editable.
   const isManualJournal =
     !entry.reversal_of_entry_id &&
-    (!entry.trans_type || entry.trans_type === "Journal Entry" || entry.trans_type === "Manual Journal");
+    (!entry.trans_type || ["General", "Journal Entry", "Manual Journal"].includes(entry.trans_type));
   const sourceEntry = entry as JournalEntry & {
     source_module?: string | null;
     source_document_type?: string | null;
