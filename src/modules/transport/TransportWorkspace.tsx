@@ -638,7 +638,7 @@ export default function TransportWorkspace(){
       if(generation===readGeneration.current&&(!controller.signal.aborted||deadlineHit)){
         setRegisterLoadError(true);
         // Keep the last confirmed rows on timeout. Banner labels mismatched filters as stale.
-        const message=deadlineHit?'Financial Register exceeded the 45-second safety timeout.':String(e?.message||'Unable to load trips.');
+        const message=deadlineHit?'Financial Register exceeded the 58-second safety timeout.':String(e?.message||'Unable to load trips.');
         if(!silent||lastSuccessfulRegisterKey.current===null) {
           setError(/statement timeout|57014|timeout|failed to fetch|fetch failed|520|network/i.test(message)
             ? 'Financial Trip Register is temporarily unavailable. Your saved Trips are safe; retry the full register.'
