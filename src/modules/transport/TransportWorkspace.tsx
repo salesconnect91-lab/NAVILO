@@ -533,6 +533,7 @@ export default function TransportWorkspace(){
     const recoveryController=new AbortController();
     let deadlineHit=false;
     let emergencyStarted=false;
+    let fullRegisterSucceeded=false;
     const startRecovery=async()=>{
       if(!recoveryEligible||emergencyStarted||generation!==readGeneration.current)return;
       emergencyStarted=true;
@@ -590,6 +591,7 @@ export default function TransportWorkspace(){
       if(result.error)throw result.error;
       if(scopeRef.current!==scopeKey||generation!==readGeneration.current)return;
       const data=result.data;
+      fullRegisterSucceeded=true;
       lastSuccessfulRegisterKey.current=registerPageKey;
       setRegisterLoadError(false);
       setOperationalRecovery(null);
@@ -619,7 +621,9 @@ export default function TransportWorkspace(){
     finally{
       window.clearTimeout(recoveryTimer);
       window.clearTimeout(deadlineTimer);
-      if(!controller.signal.aborted&&registerRequest.current===controller){recoveryController.abort();}
+      // A failed authoritative request must not cancel an independently
+      // verified page-financial read; supersede recovery only on success.
+      if(fullRegisterSucceeded&&registerRequest.current===controller){recoveryController.abort();}
       if(registerRequest.current===controller)registerRequest.current=null;
       if(generation===readGeneration.current)setRegisterLoading(false);
     }
