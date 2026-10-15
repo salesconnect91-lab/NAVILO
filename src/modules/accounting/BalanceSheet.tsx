@@ -394,8 +394,7 @@ export default function BalanceSheet() {
   const statementRows=classifiedBalanceSheetRows(statementSections,statementView,customExpanded,equationDifference,comparisonDifference);
   const reportData=classifiedBalanceSheetExport(statementRows,statementView,asOfDate,comparisonDate);
   const comparable=statementView==="comparative";
-  const detailed=statementView==="detailed";
-  const statementColumnCount=2+(detailed?1:0)+(comparable?1:0);
+  const statementColumnCount=2+(comparable?1:0);
   const printReport={
     title:"Balance Sheet",
     description:"As of "+asOfDate+(comparable?" compared with "+comparisonDate:"")+" · "+statementView+" presentation · Posted ledger · Difference "+equationDifference.toFixed(2),
@@ -558,7 +557,6 @@ export default function BalanceSheet() {
               <table className="w-full min-w-[680px] border-collapse text-sm" data-business-data>
                 <thead><tr className="bg-white text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="border-b border-slate-200 px-4 py-2 font-semibold">Account / Group</th>
-                  {detailed && <th className="border-b border-slate-200 px-4 py-2 font-semibold">Classification</th>}
                   <th className="border-b border-slate-200 px-4 py-2 text-right font-semibold">{comparable?"As of "+formatReportDate(asOfDate):"Amount"}</th>
                   {comparable && <th className="border-b border-slate-200 px-4 py-2 text-right font-semibold">As of {formatReportDate(comparisonDate)}</th>}
                 </tr></thead>
@@ -570,13 +568,14 @@ export default function BalanceSheet() {
                         className="px-4 py-2 text-left text-xs font-bold uppercase tracking-wider text-slate-800">{row.account}</th>
                     </tr>;
                     const emphasis=row.kind==="total"||row.kind==="subtotal"||row.kind==="check";
-                    const style=row.kind==="group"?"bg-slate-100/80 font-bold text-slate-800":row.kind==="total"?
+                    const style=row.kind==="group"?"bg-slate-100/80 font-bold text-slate-800":row.kind==="subheading"?
+                      "border-t border-slate-200 bg-blue-50/60 font-semibold text-slate-800":row.kind==="total"?
                       "border-t-2 border-slate-600 bg-slate-50 font-bold":row.kind==="subtotal"?
                       "border-t border-slate-300 bg-slate-50 font-semibold":row.kind==="check"?
                       "border-t border-slate-300 bg-blue-50 font-bold":"border-t border-slate-100";
+                    const leftPadding=row.kind==="detail"?"pl-12":row.kind==="subheading"?"pl-7":row.kind==="subtotal"&&row.classification?"pl-7":"pl-4";
                     return <tr key={index} className={style}>
-                      <td className={`px-4 py-1.5 text-xs ${row.kind==="detail"?"pl-8":"font-semibold"}`}>{row.account}</td>
-                      {detailed && <td className="px-4 py-1.5 text-xs text-slate-500">{row.kind==="detail"?row.classification:""}</td>}
+                      <td className={`py-1.5 pr-4 text-xs ${leftPadding} ${row.kind==="detail"?"":"font-semibold"}`}>{row.account}</td>
                       <td className={`px-4 py-1.5 text-right font-mono text-xs ${emphasis?"font-bold":""}`}>
                         {row.current===null?"":formatCurrency(row.current)}
                       </td>
