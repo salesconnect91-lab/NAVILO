@@ -543,6 +543,14 @@ export default function TransportWorkspace(){
         if(recovered.error||recovered.data?.recovery_only!==true||!Array.isArray(recovered.data.rows))return;
         if(generation!==readGeneration.current||scopeRef.current!==scopeKey||recoveryController.signal.aborted)return;
         setOperationalRecovery({key:registerPageKey,rows:recovered.data.rows,count:Number(recovered.data.count||0)});
+        // Preserve authorized financial HEADINGS even though recovery has no money.
+        // Permission flags come from the same secured server-side Trip recovery RPC.
+        if(recovered.data.permissions) setRegisterMeta((previous:any)=>({
+          ...previous,permissions:{
+            customer:recovered.data.permissions.customer===true,
+            supplier:recovered.data.permissions.supplier===true
+          }
+        }));
         setRegisterLoadError(true);
         setError('Financial Register is slow. Saved Trips are visible in temporary operational recovery; financial amounts are not confirmed. Full financial query is still being checked.');
       }catch{/* The financial request remains authoritative; never invent fallback data. */}
