@@ -1629,7 +1629,9 @@ export default function TransportWorkspace(){
     columnOptionsRequest.current=null;
     setColumnValuesError('');
     if(!openColumnFilter){setColumnValuesLoading(false);return;}
-    const filterCacheKey=JSON.stringify({optionContextKey,search:columnSearch});
+    // Fetch the complete distinct-value set once per cascading filter context.
+    // Searching within the dropdown is local, like Excel, never a per-keystroke RPC.
+    const filterCacheKey=optionContextKey;
     const cachedOptions=enableRegisterCache?registerFilterCache.get(filterCacheKey):undefined;
     if(cachedOptions){
       setColumnValues(cachedOptions.values);setColumnValuesLoading(false);
@@ -1642,7 +1644,7 @@ export default function TransportWorkspace(){
       columnOptionsRequest.current=controller;
       void (async()=>{
         try{
-          const r=await supabase.rpc('transport_register_query',{p_filters:optionFilters,p_option_key:openColumnFilter,p_option_search:columnSearch}).abortSignal(controller.signal);
+          const r=await supabase.rpc('transport_register_query',{p_filters:optionFilters,p_option_key:openColumnFilter,p_option_search:''}).abortSignal(controller.signal);
           if(!live||controller.signal.aborted)return;
           if(r.error)throw r.error;
           const values=r.data.options??[];
@@ -1663,8 +1665,11 @@ export default function TransportWorkspace(){
       columnOptionsRequest.current?.abort();
       columnOptionsRequest.current=null;
     };
-  },[optionContextKey,columnSearch,columnOptionsRetry]);
-  const columnOptions=(_key:string)=>columnValues;
+  },[optionContextKey,columnOptionsRetry]);
+  const columnOptions=(_key:string)=>{
+    const query=columnSearch.trim().toLocaleLowerCase();
+    return query?columnValues.filter(value=>String(value).toLocaleLowerCase().includes(query)):columnValues;
+  };
   // Recovery must not disable the existing per-Trip popups. Resolve the latest
   // authorized Trip before opening one so an operational-only row cannot become
   // an incomplete financial edit payload.
