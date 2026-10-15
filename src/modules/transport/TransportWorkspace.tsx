@@ -661,6 +661,17 @@ export default function TransportWorkspace(){
       if(generation===readGeneration.current)setRegisterLoading(false);
     }
   }
+  function refreshRegisterAfterChange():Promise<void>{
+    // A write invalidates every cached page for this user/workspace, including
+    // pages carrying prior balances and cascading filter options.
+    const prefix=`${user?.id??'anonymous'}:${scopeKey}:`;
+    for(const key of registerPageCache.keys())if(key.startsWith(prefix))registerPageCache.delete(key);
+    registerFilterCache.clear();
+    // Cancel/supersede any stale pending financial read; do not use load(true),
+    // which intentionally skips when a query is already in flight.
+    void load();
+    return Promise.resolve();
+  }
   useEffect(()=>{
     const state:RegisterViewState={fromDate,toDate,customerFilter,driverFilter,vehicleFilter,fromFilter,toFilter,pprFilter,statusFilters,columnFilters,sortColumn,sortDirection,registerSearch,registerSearchMode,page};
     if(import.meta.env.MODE!=="test")try{sessionStorage.setItem(registerViewStorageKey,JSON.stringify(state));}catch{/* Private browsing or storage disabled */}
@@ -1047,10 +1058,7 @@ export default function TransportWorkspace(){
       setQuickPprTrip(null);setQuickPprEmployee("");setQuickPprFile(null);
       // The successful RPC is authoritative; refresh the grid asynchronously so the
       // PPR dialog does not wait for an expensive full-register aggregate.
-      for(const key of registerPageCache.keys()){
-        if(key.startsWith(`${user?.id??'anonymous'}:${scopeKey}:`))registerPageCache.delete(key);
-      }
-      void load(true);
+      void refreshRegisterAfterChange();
     }catch(e:any){if(uploadedPath)await supabase.storage.from('transport-ppr').remove([uploadedPath]);setError(e?.message||"Unable to receive PPR.");}finally{setLoading(false);}
   }
 
@@ -1771,10 +1779,10 @@ export default function TransportWorkspace(){
   return <div className={standaloneMobile?"relative min-h-dvh w-full max-w-none bg-slate-100":"relative w-full max-w-none space-y-1"} style={{width:"100%",maxWidth:"none",marginInline:0}}>
 
 
-      {chargeTrip&&<TransportTripCharges tripId={chargeTrip.id} onClose={()=>setChargeTrip(null)} onChanged={load}/>}
-    {supplierChargeTarget&&<TransportSupplierCharges rentId={supplierChargeTarget.rentId} tripNo={supplierChargeTarget.tripNo} onClose={()=>setSupplierChargeTarget(null)} onChanged={load}/>} 
+      {chargeTrip&&<TransportTripCharges tripId={chargeTrip.id} onClose={()=>setChargeTrip(null)} onChanged={refreshRegisterAfterChange}/>}
+    {supplierChargeTarget&&<TransportSupplierCharges rentId={supplierChargeTarget.rentId} tripNo={supplierChargeTarget.tripNo} onClose={()=>setSupplierChargeTarget(null)} onChanged={refreshRegisterAfterChange}/>} 
 
-    {showPartyReports&&<TransportPartyReports key={`${scopeKey}:${reportPanel}`} initialSide={reportPanel==='supplier-reports'?'supplier':'customer'} allocationEntry={reportPanel==='bulk-allocation'} onClose={()=>setTab('trips')} onChanged={load}/>}
+    {showPartyReports&&<TransportPartyReports key={`${scopeKey}:${reportPanel}`} initialSide={reportPanel==='supplier-reports'?'supplier':'customer'} allocationEntry={reportPanel==='bulk-allocation'} onClose={()=>setTab('trips')} onChanged={refreshRegisterAfterChange}/>}
 
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
@@ -2302,7 +2310,7 @@ export default function TransportWorkspace(){
   </div>
 
 
-  {!standaloneMobile&&newTripMode==='historical'&&<TransportHistoricalImport key={importScope} validateMasters={rows=>validateBulkMasters(rows,true,true)} onChanged={load}/>}
+  {!standaloneMobile&&newTripMode==='historical'&&<TransportHistoricalImport key={importScope} validateMasters={rows=>validateBulkMasters(rows,true,true)} onChanged={refreshRegisterAfterChange}/>}
 
   {newTripMode==="single"&&
   <div className={standaloneMobile?"transport-mobile-trip-form px-3 pb-8 pt-3":"p-3"}>
@@ -2854,10 +2862,10 @@ export default function TransportWorkspace(){
         </div>
       </div>
     </TransportDialog>}
-    {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={load}/>}
-    {invoiceTrip&&<TransportInvoiceNumber trip={invoiceTrip} onClose={()=>setInvoiceTrip(null)} onChanged={load}/>}
-    {showBulkSupplierRent&&<TransportBulkSupplierRent compact={Boolean(bulkSupplierRentTrip)} initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={async()=>{await load(true)}}/>}
-      {showBulkCustomerRate&&<TransportBulkCustomerRate onClose={()=>setShowBulkCustomerRate(false)} onChanged={async()=>{await load(true)}}/>}
+    {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={refreshRegisterAfterChange}/>}
+    {invoiceTrip&&<TransportInvoiceNumber trip={invoiceTrip} onClose={()=>setInvoiceTrip(null)} onChanged={refreshRegisterAfterChange}/>}
+    {showBulkSupplierRent&&<TransportBulkSupplierRent compact={Boolean(bulkSupplierRentTrip)} initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={refreshRegisterAfterChange}/>}
+      {showBulkCustomerRate&&<TransportBulkCustomerRate onClose={()=>setShowBulkCustomerRate(false)} onChanged={refreshRegisterAfterChange}/>}
 
   </div>
 }
