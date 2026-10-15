@@ -1769,6 +1769,47 @@ export default function TransportWorkspace(){
 
     {!showPartyReports&&tab==="trips"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className="relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden bg-white rounded-lg border border-slate-700 shadow-sm shadow-slate-300" data-navilo-theme={tripTheme} data-navilo-customizable="true">
       <style>{`
+        /* Desktop toolbar: separate the primary controls and actions into two deliberate rows.
+           Do not allow the register count/search controls to wrap into arbitrary positions. */
+        @media (min-width: 768px) {
+          [data-navilo-transport-register] .navilo-transport-topbar {
+            display: grid !important;
+            grid-template-columns: max-content minmax(0, 1fr);
+            grid-template-rows: auto auto;
+            align-items: center;
+            column-gap: 10px;
+            row-gap: 5px;
+            height: auto !important;
+            min-height: 78px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+          }
+          [data-navilo-transport-register] .navilo-transport-register-toolbar {
+            min-width: 0;
+            display: flex;
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+            overflow-y: hidden;
+            gap: 5px;
+            scrollbar-width: thin;
+          }
+          [data-navilo-transport-register] .navilo-transport-register-toolbar > * {
+            flex-shrink: 0;
+          }
+          [data-navilo-transport-register] .navilo-transport-register-actions {
+            grid-column: 2;
+            grid-row: 2;
+            justify-self: end;
+            flex-wrap: nowrap;
+          }
+          [data-navilo-transport-register] .navilo-transport-result-count {
+            grid-column: 1;
+            grid-row: 2;
+            font-size: 10px;
+            white-space: nowrap;
+            color: #cbd5e1;
+          }
+        }
         /* Mobile containment: keep the register full viewport width and scroll the data grid instead of squeezing it. */
         @media (max-width: 767px) {
           [data-navilo-transport-register] {
