@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import SearchableSelect from "@/components/SearchableSelect";
+import OwnerCustomerOpeningCredit from "./OwnerCustomerOpeningCredit";
 
 type AccountItem = {
   id: string;
@@ -35,6 +36,7 @@ export default function OwnerOpeningAccountCorrection({
 }) {
   const [isOwner, setIsOwner] = useState(false);
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"credit" | "identity">("credit");
   const [accountId, setAccountId] = useState("");
   const [parentId, setParentId] = useState("");
   const [newName, setNewName] = useState("");
@@ -140,6 +142,11 @@ export default function OwnerOpeningAccountCorrection({
       </div>
       {open && (
         <div className="mt-3 space-y-3 border-t border-amber-200 pt-3">
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={()=>setMode("credit")} className={`rounded px-3 py-1.5 text-xs font-semibold ${mode==="credit"?"bg-blue-600 text-white":"border border-slate-300 bg-white text-slate-700"}`}>Customer Opening Credit</button>
+            <button type="button" onClick={()=>setMode("identity")} className={`rounded px-3 py-1.5 text-xs font-semibold ${mode==="identity"?"bg-blue-600 text-white":"border border-slate-300 bg-white text-slate-700"}`}>Correct Account Name / Group</button>
+          </div>
+          {mode === "credit" ? <OwnerCustomerOpeningCredit accounts={accounts} onCompleted={onCompleted} /> : (<div className="space-y-3">
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             <label className="text-xs font-semibold text-slate-700">Wrong posted Opening Account
               <SearchableSelect
@@ -210,6 +217,7 @@ export default function OwnerOpeningAccountCorrection({
               Confirm Owner Correction
             </button>
           </div>
+          </div>)}
         </div>
       )}
     </section>
