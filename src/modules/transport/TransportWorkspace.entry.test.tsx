@@ -524,7 +524,7 @@ describe('Transport compact register and centered controls',()=>{
    mock.rpc.mockImplementation((name:string,args:any)=>{
     if(name==='transport_register_query'&&!args?.p_option_key)return new Promise(()=>{});
     if(name==='transport_register_operational_recovery')return Promise.resolve({
-     data:{recovery_only:true,count:16732,rows:[{
+     data:{recovery_only:true,permissions:{customer:true,supplier:true},count:16732,rows:[{
       id:'early-trip',trip_no:'19535',display_trip_no:'19535',trip_date:'2026-10-15',
       customer_name:'Safe customer',driver_name:'Driver',vehicle_no:'FLAT-1',
       from_location:'Dammam',to_location:'Riyadh',ppr_status:'pending'
@@ -545,7 +545,7 @@ describe('Transport compact register and centered controls',()=>{
  it('uses the bounded operational recovery for a timed-out Register without fake financial figures',async()=>{
   mock.rpc.mockImplementation(async(name:string)=>{
    if(name==='transport_register_query')return {data:null,error:{message:'canceling statement due to statement timeout',code:'57014'}};
-   if(name==='transport_register_operational_recovery')return {data:{recovery_only:true,count:1,rows:[{
+   if(name==='transport_register_operational_recovery')return {data:{recovery_only:true,permissions:{customer:true,supplier:true},count:1,rows:[{
      id:'recovered-trip',trip_no:'19535',display_trip_no:'19535',trip_date:'2026-10-10',
      customer_name:'Recovery Customer',driver_name:'Driver',vehicle_no:'FLAT-1',
      from_location:'Dammam',to_location:'Riyadh',ppr_status:'pending'
