@@ -515,6 +515,25 @@ describe('Transport compact register and centered controls',()=>{
   fireEvent.click(screen.getByRole('button',{name:'Close Trip No filter'}));expect(screen.queryByRole('dialog')).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'Columns'}));expect(screen.getByRole('dialog',{name:'Trip columns'}).closest('[data-navilo-transport-register]')).toBeNull();
  });
+ it('uses the bounded operational recovery for a timed-out Register without fake financial figures',async()=>{
+  mock.rpc.mockImplementation(async(name:string)=>{
+   if(name==='transport_register_query')return {data:null,error:{message:'canceling statement due to statement timeout',code:'57014'}};
+   if(name==='transport_register_operational_recovery')return {data:{recovery_only:true,count:1,rows:[{
+     id:'recovered-trip',trip_no:'19535',display_trip_no:'19535',trip_date:'2026-10-10',
+     customer_name:'Recovery Customer',driver_name:'Driver',vehicle_no:'FLAT-1',
+     from_location:'Dammam',to_location:'Riyadh',ppr_status:'pending'
+   }]},error:null};
+   return {data:true,error:null};
+  });
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  const result=await screen.findByRole('region',{name:'Operational Trip recovery'});
+  expect(result.textContent).toContain('19535');
+  expect(result.textContent).toContain('Recovery Customer');
+  expect(result.textContent).toContain('Financial figures');
+  expect(result.textContent).not.toContain('1,700.00');
+  expect(result.querySelector('button')?.textContent).toContain('Retry full Register');
+  expect(mock.rpc).toHaveBeenCalledWith('transport_register_operational_recovery',expect.objectContaining({p_offset:0,p_search:''}));
+ });
  it('distinguishes failed loading from a successfully empty register',async()=>{
   mock.rpc.mockImplementation(async(name:string)=>name==='transport_register_query'?{data:null,error:{message:'Failed to fetch'}}:{data:true,error:null});
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
