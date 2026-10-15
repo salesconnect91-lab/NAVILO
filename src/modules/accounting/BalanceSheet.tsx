@@ -2,7 +2,7 @@ import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
 import {salarySheetPosition} from '@/lib/salaryBalanceSheet';
-import {balanceSheetClassification,compareBalanceSheetPresentation} from '@/lib/balanceSheetPresentation';
+import {compareBalanceSheetPresentation} from '@/lib/balanceSheetPresentation';
 import {classifiedBalanceSheetRows, classifiedBalanceSheetExport, coaBalanceSheetGroup, type BalanceSheetView} from '@/lib/balanceSheetLayouts';
 import SearchableSelect from '@/components/SearchableSelect';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
@@ -83,70 +83,6 @@ function groupItems(items: BSItem[], preferredOrder: string[], accountType:'asse
       if (bIndex === -1) return -1;
       return aIndex - bIndex;
     });
-}
-
-function StatementRows({
-  title,
-  groups,
-  totalLabel,
-  total,
-  accountType,
-}: {
-  title: string;
-  groups: BSGroup[];
-  totalLabel: string;
-  total: number;
-  accountType:'asset'|'liability'|'equity';
-}) {
-  return (
-    <>
-      <tr className="bg-slate-100">
-        <td colSpan={3} className="px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-800">
-          {title}
-        </td>
-      </tr>
-      {groups.length === 0 ? (
-        <tr>
-          <td colSpan={3} className="px-4 py-7 text-center text-sm text-slate-400">
-            No balances found.
-          </td>
-        </tr>
-      ) : (
-        groups.map((group) => (
-          <tbody key={`${title}-${group.head}`} className="contents">
-            <tr className="bg-slate-50/80">
-              <td className="px-4 py-2 text-xs font-semibold text-slate-700">{group.head}</td>
-              <td className="px-4 py-2 text-xs text-slate-500">Subtotal</td>
-              <td className="px-4 py-2 text-right font-mono text-xs font-semibold text-slate-700">
-                {formatCurrency(group.total)}
-              </td>
-            </tr>
-            {group.items.map((item,idx) => (
-              <tr key={`${group.head}-${item.name}`} className={idx>0 && balanceSheetClassification(accountType,group.items[idx-1].detailType,group.items[idx-1].name).label !== balanceSheetClassification(accountType,item.detailType,item.name).label ? 'border-t border-slate-200' : 'border-t border-slate-100'}>
-                <td className="px-6 py-2.5 text-sm font-medium text-slate-800">{item.name}</td>
-                <td className="px-4 py-2.5 text-xs font-medium text-slate-600">{balanceSheetClassification(accountType,item.detailType,item.name).label}</td>
-                <td
-                  className={`px-4 py-2.5 text-right font-mono text-sm font-semibold ${
-                    item.amount < -0.005 ? "text-rose-700" : "text-slate-900"
-                  }`}
-                >
-                  {formatCurrency(item.amount)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        ))
-      )}
-      <tr data-report-total className="border-t-2 border-slate-700 bg-white">
-        <td colSpan={2} className="px-4 py-3 text-sm font-bold text-slate-900">
-          {totalLabel}
-        </td>
-        <td className="px-4 py-3 text-right font-mono text-sm font-bold text-slate-900">
-          {formatCurrency(total)}
-        </td>
-      </tr>
-    </>
-  );
 }
 
 export default function BalanceSheet() {
@@ -446,6 +382,26 @@ export default function BalanceSheet() {
   );
   const equityGroups = useMemo(() => groupItems(equity.items, ["Capital & Reserves"], "equity"), [equity.items]);
 
+  const priorAssetGroups=useMemo(()=>groupItems(priorAssets.items,["Current Assets","Non-Current Assets"],"asset"),[priorAssets.items]);
+  const priorLiabilityGroups=useMemo(()=>groupItems(priorLiabilities.items,["Current Liabilities","Non-Current Liabilities"],"liability"),[priorLiabilities.items]);
+  const priorEquityGroups=useMemo(()=>groupItems(priorEquity.items,["Capital & Reserves"],"equity"),[priorEquity.items]);
+  const comparisonDifference=priorAssets.total-priorLiabilities.total-priorEquity.total;
+  const statementSections=[
+    {title:"Assets" as const,groups:assetGroups,total:assets.total,previousGroups:priorAssetGroups,previousTotal:priorAssets.total},
+    {title:"Liabilities" as const,groups:liabilityGroups,total:liabilities.total,previousGroups:priorLiabilityGroups,previousTotal:priorLiabilities.total},
+    {title:"Equity" as const,groups:equityGroups,total:equity.total,previousGroups:priorEquityGroups,previousTotal:priorEquity.total},
+  ];
+  const statementRows=classifiedBalanceSheetRows(statementSections,statementView,customExpanded,equationDifference,comparisonDifference);
+  const reportData=classifiedBalanceSheetExport(statementRows,statementView,asOfDate,comparisonDate);
+  const comparable=statementView==="comparative";
+  const detailed=statementView==="detailed";
+  const statementColumnCount=2+(detailed?1:0)+(comparable?1:0);
+  const printReport={
+    title:"Balance Sheet",
+    description:"As of "+asOfDate+(comparable?" compared with "+comparisonDate:"")+" · "+statementView+" presentation · Posted ledger · Difference "+equationDifference.toFixed(2),
+    columns:reportData.columns,rows:reportData.rows,
+  };
+
   const negativeInventoryItems = assets.items.filter(
     (item) =>
       normalizedDetailType(`${item.name} ${item.detailType ?? ""}`).includes("inventory") &&
@@ -453,7 +409,7 @@ export default function BalanceSheet() {
   );
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 pb-12" aria-busy={loading}><AccountingReportScopeSelect value={scope} onChange={setScope}/><details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Balance Sheet</summary><ConfigurableReport module="accounting" preferenceKey="accounting-balance-sheet" report={{title:'Balance Sheet',description:`As of ${asOfDate} · Canonical posted ledger · Difference ${equationDifference.toFixed(2)}`,columns:['Section','Account','Amount'],rows:[...assets.items.map(i=>['Assets',i.name,i.amount]),...liabilities.items.map(i=>['Liabilities',i.name,i.amount]),...equity.items.map(i=>['Equity',i.name,i.amount]),['Total','Assets',assets.total],['Total','Liabilities',liabilities.total],['Total','Equity',equity.total],['Total','Liabilities and Equity',totalLiabilitiesAndEquity],['Check','Equation difference',equationDifference]]}}/></details>
+    <div className="mx-auto max-w-[1500px] space-y-6 pb-12" aria-busy={loading}><AccountingReportScopeSelect value={scope} onChange={setScope}/><details data-print-primary-source data-report-orientation={comparable?"landscape":"portrait"} className="no-print"><summary>Print / PDF / Excel · Selected Balance Sheet layout</summary><ConfigurableReport module="accounting" preferenceKey={"accounting-balance-sheet-"+statementView} report={printReport}/></details>
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -511,7 +467,7 @@ export default function BalanceSheet() {
         {error && <ErrorBanner message={error} />}
 
         <div data-report-filters className="no-print rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[260px_1fr_auto] lg:items-end">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">As-of Date</span>
               <NaviloDateInput
@@ -523,6 +479,24 @@ export default function BalanceSheet() {
               />
             </label>
 
+            <label className="block" data-report-filter-label="Statement layout" data-report-filter-value={statementView}>
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Statement layout</span>
+              <SearchableSelect preserveLabel className="input h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                aria-label="Statement layout" searchPlaceholder="Search statement format..."
+                value={statementView} onChange={e=>setStatementView(e.target.value as BalanceSheetView)}>
+                <option value="classified">Classified (default)</option>
+                <option value="summary">Summary · Group totals</option>
+                <option value="detailed">Detailed · Ledger classifications</option>
+                <option value="comparative">Comparative · Two dates</option>
+                <option value="custom">Custom · Expand selected groups</option>
+              </SearchableSelect>
+            </label>
+            {comparable && <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Compare as of</span>
+              <NaviloDateInput type="date" value={comparisonDate} max={asOfDate}
+                onChange={e=>setComparisonDate(e.target.value)}
+                className="input h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"/>
+            </label>}
             <label className="flex h-10 cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3">
               <input
                 type="checkbox"
@@ -539,6 +513,20 @@ export default function BalanceSheet() {
             </div>
           </div>
         </div>
+
+        {statementView==="custom" && <div className="no-print rounded-lg border border-slate-200 bg-white p-3">
+          <p className="mb-2 text-xs font-semibold text-slate-700">Expand or collapse group details (totals remain visible)</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {statementSections.flatMap(section=>section.groups.map(group=>{
+              const key=section.title+":"+group.head;
+              return <label key={key} className="inline-flex items-center gap-2 text-xs text-slate-700">
+                <input type="checkbox" checked={customExpanded[key]!==false}
+                  onChange={e=>setCustomExpanded(previous=>({...previous,[key]:e.target.checked}))}/>
+                {section.title} / {group.head}
+              </label>;
+            }))}
+          </div>
+        </div>}
 
         {negativeInventoryItems.length > 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -567,24 +555,36 @@ export default function BalanceSheet() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] border-collapse text-sm">
-                <thead>
-                  <tr className="bg-white text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold">Account</th>
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold">Classification</th>
-                    <th className="border-b border-slate-200 px-4 py-3 text-right font-semibold">Amount</th>
-                  </tr>
-                </thead>
+              <table className="w-full min-w-[680px] border-collapse text-sm" data-business-data>
+                <thead><tr className="bg-white text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="border-b border-slate-200 px-4 py-2 font-semibold">Account / Group</th>
+                  {detailed && <th className="border-b border-slate-200 px-4 py-2 font-semibold">Classification</th>}
+                  <th className="border-b border-slate-200 px-4 py-2 text-right font-semibold">{comparable?"As of "+formatReportDate(asOfDate):"Amount"}</th>
+                  {comparable && <th className="border-b border-slate-200 px-4 py-2 text-right font-semibold">As of {formatReportDate(comparisonDate)}</th>}
+                </tr></thead>
                 <tbody>
-                  <StatementRows title="Assets" groups={assetGroups} totalLabel="Total Assets" total={assets.total} accountType="asset" />
-                  <StatementRows title="Liabilities" groups={liabilityGroups} totalLabel="Total Liabilities" total={liabilities.total} accountType="liability" />
-                  <StatementRows title="Equity" groups={equityGroups} totalLabel="Total Equity" total={equity.total} accountType="equity" />
-                  <tr data-report-total className="border-t-2 border-slate-900 bg-slate-50">
-                    <td colSpan={2} className="px-4 py-3.5 text-sm font-bold text-slate-900">Total Liabilities & Equity</td>
-                    <td className="px-4 py-3.5 text-right font-mono text-sm font-bold text-slate-900">
-                      {formatCurrency(totalLiabilitiesAndEquity)}
-                    </td>
-                  </tr>
+                  {statementRows.map((row,index)=>{
+                    const isSection=row.kind==="section";
+                    if(isSection)return <tr key={index} className="bg-slate-100">
+                      <th scope="rowgroup" colSpan={statementColumnCount-1}
+                        className="px-4 py-2 text-left text-xs font-bold uppercase tracking-wider text-slate-800">{row.account}</th>
+                    </tr>;
+                    const emphasis=row.kind==="total"||row.kind==="subtotal"||row.kind==="check";
+                    const style=row.kind==="group"?"bg-slate-100/80 font-bold text-slate-800":row.kind==="total"?
+                      "border-t-2 border-slate-600 bg-slate-50 font-bold":row.kind==="subtotal"?
+                      "border-t border-slate-300 bg-slate-50 font-semibold":row.kind==="check"?
+                      "border-t border-slate-300 bg-blue-50 font-bold":"border-t border-slate-100";
+                    return <tr key={index} className={style}>
+                      <td className={`px-4 py-1.5 text-xs ${row.kind==="detail"?"pl-8":"font-semibold"}`}>{row.account}</td>
+                      {detailed && <td className="px-4 py-1.5 text-xs text-slate-500">{row.kind==="detail"?row.classification:""}</td>}
+                      <td className={`px-4 py-1.5 text-right font-mono text-xs ${emphasis?"font-bold":""}`}>
+                        {row.current===null?"":formatCurrency(row.current)}
+                      </td>
+                      {comparable && <td className={`px-4 py-1.5 text-right font-mono text-xs ${emphasis?"font-bold":""}`}>
+                        {row.previous===null?"":formatCurrency(row.previous)}
+                      </td>}
+                    </tr>;
+                  })}
                 </tbody>
               </table>
             </div>
