@@ -73,7 +73,7 @@ BEGIN
  EXECUTE 'CREATE OR REPLACE VIEW public.transport_service_document_balances_fast AS '||new_source;
  parent_view:=replace(parent_view,
    'FROM transport_service_document_balances',
-   'FROM public.transport_service_document_balances_fast');
+   'FROM public.transport_service_document_balances_fast transport_service_document_balances');
  EXECUTE 'CREATE OR REPLACE VIEW public.transport_trip_financial_summary AS '||parent_view;
  SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) INTO new_rows
  FROM (SELECT * FROM public.transport_trip_financial_summary WHERE id=ANY(samples)) x;
