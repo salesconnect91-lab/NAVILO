@@ -2001,12 +2001,19 @@ export default function TransportWorkspace(){
                       onToggle={value=>toggleColumnValue(key,value)}
                       onSelectAll={()=>{
                         if(columnValuesLoading||columnValuesError||!columnOptions(key).length)return;
-                        // With no option search, all values selected means no
-                        // restriction; avoid sending thousands of IDs to SQL.
-                        if(!columnSearch.trim()){clearColumnFilter(key);return;}
+                        const visible=columnOptions(key);
+                        // Very large dropdowns exceed the server's bounded JSON filter size.
+                        // When no search is active, "Show All" correctly removes the restriction.
+                        const excessive=visible.length>1000||JSON.stringify(visible).length>45000;
+                        if(excessive){
+                          if(!columnSearch.trim())clearColumnFilter(key);
+                          return;
+                        }
+                        // "Select Shown" must actually check every visible value; clearing
+                        // the filter here made it indistinguishable from the Clear action.
                         setColumnFilters(current=>({
                           ...current,
-                          [key]:Array.from(new Set([...(current[key]??[]),...columnOptions(key)]))
+                          [key]:Array.from(new Set([...(current[key]??[]),...visible]))
                         }));
                       }}
                       onClear={()=>clearColumnFilter(key)}
@@ -2697,6 +2704,8 @@ function ColumnFilterMenu({
   onClose:()=>void;
 }){
   const shown=options;
+  const excessiveSelection=shown.length>1000||JSON.stringify(shown).length>45000;
+  const showAllWithoutRestriction=excessiveSelection&&!search.trim();
   // Keep complete server-filtered options available without mounting thousands
   // of checkboxes when a large historical register has unique references.
   const [optionScrollTop,setOptionScrollTop]=useState(0);
@@ -2725,9 +2734,10 @@ function ColumnFilterMenu({
     </div>
 
     <div className="mt-0.5 flex gap-px">
-      <button type="button" onClick={onSelectAll} disabled={loading||!!loadError||!shown.length}
+      <button type="button" onClick={onSelectAll} disabled={loading||!!loadError||!shown.length||(excessiveSelection&&!showAllWithoutRestriction)}
+        title={excessiveSelection?(showAllWithoutRestriction?"Show all values without restricting the Register":"Refine the search before selecting more than 1,000 values"):"Select all matching values"}
         className="h-[18px] flex-1 rounded border border-slate-200 px-1 py-0 text-[8px] font-semibold leading-none hover:bg-slate-50 disabled:opacity-40">
-        Select Shown
+        {showAllWithoutRestriction?"Show All":"Select Shown"}
       </button>
 
       <button type="button" onClick={onClear}
