@@ -534,6 +534,30 @@ describe('Transport compact register and centered controls',()=>{
   expect(result.querySelector('button')?.textContent).toContain('Retry full Register');
   expect(mock.rpc).toHaveBeenCalledWith('transport_register_operational_recovery',expect.objectContaining({p_offset:0,p_search:''}));
  });
+ it('does not display an old monetary header total under a newly sorted Register result',async()=>{
+  let reads=0;
+  const ordinary=mock.rpc.getMockImplementation()!;
+  mock.rpc.mockImplementation(async(name:string,args:any)=>{
+    if(name==='transport_register_query' && !args?.p_option_key){
+      reads++;
+      if(reads>1)return {data:null,error:{message:'canceling statement due to statement timeout',code:'57014'}};
+      return {data:{rows:[{id:'trip-stale',trip_no:'OIC-TEST',trip_date:'2026-10-15',ppr_status:'pending'}],
+        count:1,statuses:[],permissions:{customer:true,supplier:true},
+        summary:{paper:{received:0,not_received:1}},
+        totals:{company_rate:123456,supplier_balance:654321}},error:null};
+    }
+    return ordinary(name,args);
+  });
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText('123,456.00');
+  const rateHeader=screen.getByRole('button',{name:/Sort Customer Rate/i}).closest('th');
+  expect(rateHeader?.textContent).toContain('123,456.00');
+  fireEvent.click(screen.getByRole('button',{name:/Sort Customer Rate/i}));
+  await waitFor(()=>expect(rateHeader?.textContent).toContain('—'));
+  expect(rateHeader?.textContent).not.toContain('123,456.00');
+  await waitFor(()=>expect(reads).toBeGreaterThan(1));
+  expect(rateHeader?.textContent).toContain('—');
+ });
  it('distinguishes failed loading from a successfully empty register',async()=>{
   mock.rpc.mockImplementation(async(name:string)=>name==='transport_register_query'?{data:null,error:{message:'Failed to fetch'}}:{data:true,error:null});
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
