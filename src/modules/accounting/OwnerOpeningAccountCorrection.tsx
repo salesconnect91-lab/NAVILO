@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import SearchableSelect from "@/components/SearchableSelect";
 
 type AccountItem = {
   id: string;
@@ -141,21 +142,34 @@ export default function OwnerOpeningAccountCorrection({
         <div className="mt-3 space-y-3 border-t border-amber-200 pt-3">
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             <label className="text-xs font-semibold text-slate-700">Wrong posted Opening Account
-              <select className="input mt-1 w-full" value={accountId} onChange={(e) => chooseSource(e.target.value)}>
+              <SearchableSelect
+                className="input mt-1 w-full"
+                value={accountId}
+                preserveLabel
+                searchPlaceholder="Search account code or name..."
+                aria-label="Wrong posted Opening Account"
+                onChange={(e) => chooseSource(e.target.value)}
+              >
                 <option value="">Select wrong account</option>
                 {sourceAccounts.map((a) =>
                   <option key={a.id} value={a.id}>{a.code} · {a.name}</option>
                 )}
-              </select>
+              </SearchableSelect>
             </label>
             <label className="text-xs font-semibold text-slate-700">New Parent — Asset / Receivables Group
-              <select className="input mt-1 w-full" value={parentId}
-                onChange={(e) => { setParentId(e.target.value); resetPreview(); }}>
+              <SearchableSelect
+                className="input mt-1 w-full"
+                value={parentId}
+                preserveLabel
+                searchPlaceholder="Search Asset or Receivables group..."
+                aria-label="New Parent — Asset / Receivables Group"
+                onChange={(e) => { setParentId(e.target.value); resetPreview(); }}
+              >
                 <option value="">Select Asset group</option>
                 {assetGroups.filter((a) => a.id !== accountId).map((a) =>
                   <option key={a.id} value={a.id}>{a.code} · {a.name}</option>
                 )}
-              </select>
+              </SearchableSelect>
             </label>
             <label className="text-xs font-semibold text-slate-700">Correct Ledger Name
               <input className="input mt-1 w-full" value={newName} maxLength={160}
