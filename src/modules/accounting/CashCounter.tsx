@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 import jsPDF from "jspdf";
 import {
   documentContactText,
@@ -123,6 +124,9 @@ export default function CashCounter() {
 
   const [invoices, setInvoices] =
     useState<Invoice[]>([]);
+  const [invoiceLoading,setInvoiceLoading]=useState(false);
+  const [invoiceLoadError,setInvoiceLoadError]=useState<string|null>(null);
+  const invoiceRequest=useRef(0);
 
   const [accounts, setAccounts] =
     useState<Account[]>([]);
@@ -188,7 +192,6 @@ export default function CashCounter() {
 
       const [
         customerResult,
-        invoiceResult,
         accountResult,
       ] = await Promise.all([
         supabase
@@ -196,18 +199,6 @@ export default function CashCounter() {
           .select("id,name,phone,account_id")
           .eq("is_active", true)
           .order("name"),
-
-        supabase
-          .from("sales_orders")
-          .select(
-            "id,order_no,order_date,total,paid_amount,outstanding_amount,payment_status,customer_id"
-          )
-          .eq("status", "posted")
-          .gt("outstanding_amount", 0)
-          .neq("payment_status", "paid")
-          .order("order_date", {
-            ascending: true,
-          }),
 
         supabase
           .from("chart_of_accounts")
@@ -228,25 +219,6 @@ export default function CashCounter() {
         );
       }
 
-      if (invoiceResult.error) {
-        setError(invoiceResult.error.message);
-      } else {
-        setInvoices(
-          (invoiceResult.data ?? []).map(
-            (row: any) => ({
-              ...row,
-              total: toNumber(row.total),
-              paid_amount: toNumber(
-                row.paid_amount
-              ),
-              outstanding_amount: toNumber(
-                row.outstanding_amount
-              ),
-            })
-          ) as Invoice[]
-        );
-      }
-
       if (accountResult.error) {
         setError(accountResult.error.message);
       } else {
@@ -260,6 +232,38 @@ export default function CashCounter() {
     },
     []
   );
+
+  const loadInvoicesForCustomer=useCallback(async(customerId:string)=>{
+    const request=++invoiceRequest.current;
+    setInvoiceLoadError(null);
+    if(!customerId){setInvoices([]);setInvoiceLoading(false);return;}
+    setInvoiceLoading(true);
+    setInvoices([]);
+    try{
+      const loaded=await fetchAllPages<Invoice>((from,to)=>supabase
+        .from("sales_orders")
+        .select("id,order_no,order_date,total,paid_amount,outstanding_amount,payment_status,customer_id")
+        .eq("customer_id",customerId)
+        .eq("status","posted")
+        .gt("outstanding_amount",0)
+        .neq("payment_status","paid")
+        .order("order_date",{ascending:true})
+        .order("id",{ascending:true})
+        .range(from,to)
+      );
+      if(request!==invoiceRequest.current)return;
+      setInvoices(loaded.map(row=>({
+        ...row,total:toNumber(row.total),paid_amount:toNumber(row.paid_amount),
+        outstanding_amount:toNumber(row.outstanding_amount)
+      })));
+    }catch(e:any){
+      if(request===invoiceRequest.current){
+        setInvoiceLoadError(e?.message??"Unable to load this customer's outstanding invoices.");
+      }
+    }finally{
+      if(request===invoiceRequest.current)setInvoiceLoading(false);
+    }
+  },[]);
 
   const loadRecentPayments =
     useCallback(async () => {
@@ -287,6 +291,11 @@ export default function CashCounter() {
     loadMasterData,
     loadRecentPayments,
   ]);
+
+  useEffect(()=>{
+    void loadInvoicesForCustomer(selectedCustomerId);
+    return()=>{invoiceRequest.current++};
+  },[selectedCustomerId,loadInvoicesForCustomer]);
 
   useEffect(() => {
     const customerId = searchParams.get("customer_id");
@@ -368,6 +377,7 @@ export default function CashCounter() {
     Boolean(paymentAccountId) &&
     amountNumber > 0 &&
     !saving &&
+    !invoiceLoading &&
     (paymentType === "advance"
       ? true
       : Boolean(selectedInvoiceId) &&
@@ -1530,6 +1540,7 @@ export default function CashCounter() {
       await Promise.all([
         loadMasterData(),
         loadRecentPayments(),
+        loadInvoicesForCustomer(selectedCustomerId),
       ]);
 
       setAmount("");
@@ -1939,7 +1950,7 @@ export default function CashCounter() {
               {activeBusinessUnit?.business_unit_type==="transport"&&<button type="button" disabled={saving} onClick={()=>changePaymentType("transport")} className={`rounded-md px-4 py-2.5 text-sm font-bold ${paymentType==="transport"?"bg-white text-emerald-700 shadow-sm":"text-slate-500"}`}>Transport invoices / Trips</button>}
             </div>
 
-            {paymentType === "transport" && <TransportCashSettlement side="customer" party={selectedCustomerId} onBusyChange={setSaving} onPosted={async()=>{await loadMasterData(true);await loadRecentPayments()}}/>}
+            {paymentType === "transport" && <TransportCashSettlement side="customer" party={selectedCustomerId} onBusyChange={setSaving} onPosted={async()=>{await Promise.all([loadMasterData(true),loadRecentPayments(),loadInvoicesForCustomer(selectedCustomerId)])}}/>}
             {paymentType !== "transport" && <>
             {paymentType ===
               "invoice" && (
@@ -1959,14 +1970,14 @@ export default function CashCounter() {
                     )
                   }
                   disabled={
-                    !selectedCustomerId
+                    !selectedCustomerId || invoiceLoading || !!invoiceLoadError
                   }
                   className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium outline-none focus:border-emerald-500 disabled:bg-slate-100"
                 >
                   <option value="">
                     {!selectedCustomerId
                       ? "Select customer first"
-                      : "— Select open invoice —"}
+                      : invoiceLoading ? "Loading customer invoices…" : invoiceLoadError ? "Invoice loading failed — retry" : "— Select open invoice —"}
                   </option>
 
                   {customerInvoices.map(
@@ -1987,7 +1998,8 @@ export default function CashCounter() {
                   )}
                 </SearchableSelect>
 
-                {selectedCustomerId&&customerInvoices.length===0&&<p className="mt-2 text-sm text-amber-800">No posted outstanding invoices for this customer. For Transport, post the bill first or use Advance Payment.</p>}
+                {selectedCustomerId&&invoiceLoadError&&<div role="alert" className="mt-2 flex gap-2 text-sm text-rose-700"><span>{invoiceLoadError}</span><button type="button" className="underline" onClick={()=>void loadInvoicesForCustomer(selectedCustomerId)}>Retry</button></div>}
+                {selectedCustomerId&&!invoiceLoading&&!invoiceLoadError&&customerInvoices.length===0&&<p className="mt-2 text-sm text-amber-800">No posted outstanding invoices for this customer. For Transport, post the bill first or use Advance Payment.</p>}
                 {selectedInvoice && (
                   <div className="mt-2 grid grid-cols-3 gap-2">
                     <div className="rounded-lg bg-slate-50 p-2.5">
