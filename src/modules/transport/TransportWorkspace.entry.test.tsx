@@ -534,6 +534,44 @@ describe('Transport compact register and centered controls',()=>{
   expect(result.querySelector('button')?.textContent).toContain('Retry full Register');
   expect(mock.rpc).toHaveBeenCalledWith('transport_register_operational_recovery',expect.objectContaining({p_offset:0,p_search:''}));
  });
+ it('checks all shown header-filter values without silently clearing the filter',async()=>{
+  const original=mock.rpc.getMockImplementation()!;
+  mock.rpc.mockImplementation(async(name:string,args:any)=>{
+    if(name==='transport_register_query' && args?.p_option_key==='company'){
+      return {data:{options:['Customer A','Customer B']},error:null};
+    }
+    return original(name,args);
+  });
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText('No trips yet.');
+  fireEvent.click(screen.getByRole('button',{name:'Filter Customer'}));
+  await screen.findByText('Customer A');
+  const dialog=screen.getByRole('dialog',{name:'Customer filter popup'});
+  fireEvent.click(screen.getByRole('button',{name:'Select Shown'}));
+  const boxes=Array.from(dialog.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+  await waitFor(()=>expect(boxes.map(b=>b.checked)).toEqual([true,true]));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_register_query',expect.objectContaining({
+    p_filters:expect.objectContaining({columns:expect.objectContaining({company:['Customer A','Customer B']})})
+  })));
+  fireEvent.click(screen.getByRole('button',{name:'Clear'}));
+  await waitFor(()=>expect(boxes.map(b=>b.checked)).toEqual([false,false]));
+ });
+ it('refuses to send more than 1,000 trip options as one massive SQL filter',async()=>{
+  const original=mock.rpc.getMockImplementation()!;
+  const values=Array.from({length:1010},(_,i)=>'Trip '+String(i+1));
+  mock.rpc.mockImplementation(async(name:string,args:any)=>{
+    if(name==='transport_register_query' && args?.p_option_key==='trip_no'){
+      return {data:{options:values},error:null};
+    }
+    return original(name,args);
+  });
+  render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText('No trips yet.');
+  fireEvent.click(screen.getByRole('button',{name:'Filter Trip No'}));
+  await screen.findByRole('button',{name:'Show All'});
+  fireEvent.change(screen.getByPlaceholderText('Search all values...'),{target:{value:'Trip'}});
+  await waitFor(()=>expect(screen.getByRole('button',{name:'Select Shown'}).hasAttribute('disabled')).toBe(true));
+ });
  it('does not display an old monetary header total under a newly sorted Register result',async()=>{
   let reads=0;
   const ordinary=mock.rpc.getMockImplementation()!;
