@@ -1,0 +1,1 @@
+REVOKE ALL PRIVILEGES ON TABLE public.transport_service_document_balances_fast FROM PUBLIC, anon, authenticated;
