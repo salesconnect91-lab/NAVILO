@@ -178,6 +178,9 @@ export default function Ledgers() {
   const [partyRows, setPartyRows] = useState<PartyLedgerRow[]>([]);
 
   const [selectedAccount, setSelectedAccount] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [defaultSaved, setDefaultSaved] = useState(false);
   const [partyFilterType, setPartyFilterType] =
     useState<PartyFilterType>("all");
   const [selectedPartyKey, setSelectedPartyKey] = useState("");
@@ -272,6 +275,8 @@ export default function Ledgers() {
         if (selectedAccount) {
           query = query.eq("account_id", selectedAccount);
         }
+        if (fromDate) query = query.gte("entry_date", fromDate);
+        if (toDate) query = query.lte("entry_date", toDate);
 
         return query.range(fromRow, toRow);
       }),
@@ -279,7 +284,7 @@ export default function Ledgers() {
     ]);
 
     setLedgerRows(excludeOwnerCancelledLedgerRows(data, excluded));
-  }, [selectedAccount, fetchOwnerCancelledJournalIds]);
+  }, [selectedAccount, fromDate, toDate, fetchOwnerCancelledJournalIds]);
 
   const fetchPartyLedger = useCallback(async () => {
     const [data, excluded] = await Promise.all([
@@ -291,6 +296,8 @@ export default function Ledgers() {
           .order("created_at", { ascending: true })
           .order("id", { ascending: true });
 
+        if (fromDate) query = query.gte("entry_date", fromDate);
+        if (toDate) query = query.lte("entry_date", toDate);
         if (selectedPartyKey) {
           const [partyType, partyId] = selectedPartyKey.split(":") as [
             PartyType,
@@ -310,7 +317,7 @@ export default function Ledgers() {
     ]);
 
     setPartyRows(excludeOwnerCancelledLedgerRows(data, excluded));
-  }, [partyFilterType, selectedPartyKey, fetchOwnerCancelledJournalIds]);
+  }, [partyFilterType, selectedPartyKey, fromDate, toDate, fetchOwnerCancelledJournalIds]);
 
   const transportRequest=useRef(0);
   const fetchTransportContext = useCallback(async () => {
@@ -350,6 +357,34 @@ export default function Ledgers() {
     if(request===transportRequest.current){setTransportDetails(details);setTransportMovements(movements);}
   }, [partyFilterType, selectedPartyKey,activeCompany?.company_id,activeBusinessUnit?.business_unit_id,branch]);
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("navilo-ledger-report-default");
+      if (!saved) return;
+      const data = JSON.parse(saved) as { fromDate?: string; toDate?: string; visiblePartyColumns?: PartyColumnKey[]; partyColumnOrder?: PartyColumnKey[] };
+      if (data.fromDate) setFromDate(data.fromDate);
+      if (data.toDate) setToDate(data.toDate);
+      const allowed = new Set(PARTY_COLUMNS.map(([key]) => key));
+      if (Array.isArray(data.visiblePartyColumns)) {
+        const valid = data.visiblePartyColumns.filter(key => allowed.has(key));
+        if (valid.length) setVisiblePartyColumns(valid);
+      }
+      if (Array.isArray(data.partyColumnOrder)) {
+        const valid = data.partyColumnOrder.filter(key => allowed.has(key));
+        setPartyColumnOrder([...valid, ...PARTY_COLUMNS.map(([key]) => key).filter(key => !valid.includes(key))]);
+      }
+    } catch {}
+  }, []);
+  const setReportAsDefault = () => {
+    try {
+      localStorage.setItem("navilo-ledger-report-default", JSON.stringify({
+        fromDate, toDate, visiblePartyColumns, partyColumnOrder,
+      }));
+      setDefaultSaved(true);
+    } catch {
+      setError("Browser storage unavailable. Could not save report defaults.");
+    }
+  };
   useEffect(() => {
     try {
       localStorage.setItem("navilo-ledger-party-columns", JSON.stringify(visiblePartyColumns));
@@ -829,6 +864,17 @@ export default function Ledgers() {
               </div>
             </>
           )}
+        </div>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="text-xs font-semibold text-slate-700">From Date
+            <input type="date" value={fromDate} max={toDate || undefined} onChange={e => {setFromDate(e.target.value);setDefaultSaved(false);}} className="input mt-1 block text-sm" />
+          </label>
+          <label className="text-xs font-semibold text-slate-700">To Date
+            <input type="date" value={toDate} min={fromDate || undefined} onChange={e => {setToDate(e.target.value);setDefaultSaved(false);}} className="input mt-1 block text-sm" />
+          </label>
+          <button type="button" onClick={() => {setFromDate("");setToDate("");setDefaultSaved(false);}} className="btn btn-secondary text-sm">All Dates</button>
+          <button type="button" onClick={setReportAsDefault} className="btn btn-secondary text-sm">Set as Default</button>
+          {defaultSaved && <span className="text-xs text-emerald-700">Saved on this browser</span>}
         </div>
 
         <div className="mt-3 text-xs text-slate-500">
