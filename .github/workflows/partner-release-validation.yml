@@ -68,3 +68,8 @@ jobs:
           NAVILO_NATIVE_REHEARSAL: '1'
           NAVILO_PG_DRIVER: ${{ runner.temp }}/navilo-rehearsal-driver/node_modules/pg/lib/index.js
         run: npm run test:partner-db
+      - name: Run full isolated Transport accounting reconciliation
+        env:
+          NAVILO_NATIVE_REHEARSAL: '1'
+          NAVILO_PG_DRIVER: ${{ runner.temp }}/navilo-rehearsal-driver/node_modules/pg/lib/index.js
+        run: npm run test:transport-db
