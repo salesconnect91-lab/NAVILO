@@ -63,6 +63,13 @@ type TransportMovementLink = Partial<PartyMovement> & {
   trip_no?: string | null;
 };
 
+// Display the posted transaction date consistently in the GL table and exports.
+const displayLedgerDate = (value: string | null | undefined): string => {
+  if (!value) return "Date unavailable";
+  const formatted = formatDate(value);
+  return formatted && formatted !== "Invalid Date" ? formatted : value.slice(0, 10);
+};
+
 const PARTY_COLUMNS = [
   ["date", "Date"], ["party", "Party"], ["reference", "Reference"], ["documentRefs", "Linked invoices"],
   ["trip", "Trip"], ["from", "From"], ["to", "To"], ["vehicle", "Vehicle"],
@@ -586,12 +593,12 @@ export default function Ledgers() {
   const exportToExcel = () => {
     if (viewMode === "general") {
       const header =
-        "Date,Account Name,Description,Debit,Credit,Balance\n";
+        "Transaction Date,Account Name,Description,Debit,Credit,Balance\n";
 
       const body = generalRowsWithBalance
         .map((row) =>
           [
-            escapeCsv(row.entry_date),
+            escapeCsv(displayLedgerDate(row.entry_date)),
             escapeCsv(row.account?.name || ""),
             escapeCsv(recordDisplayText(row.description)),
             Number(row.debit) || 0,
@@ -901,7 +908,7 @@ export default function Ledgers() {
             <table className="w-full text-sm min-w-[900px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                  <th className="text-left py-2.5 px-3 font-medium">Date</th>
+                  <th className="text-left py-2.5 px-3 font-semibold whitespace-nowrap min-w-[110px]">Transaction Date</th>
                   <th className="text-left py-2.5 px-3 font-medium">Account</th>
                   <th className="text-left py-2.5 px-3 font-medium">Description</th>
                   <th className="text-right py-2.5 px-3 font-medium">Debit</th>
@@ -935,8 +942,8 @@ export default function Ledgers() {
                       key={row.id}
                       className="border-b border-slate-100 hover:bg-slate-50/50"
                     >
-                      <td className="py-2.5 px-3 text-slate-600">
-                        {formatDate(row.entry_date)}
+                      <td className="py-2.5 px-3 text-slate-800 font-medium whitespace-nowrap tabular-nums">
+                        <time dateTime={row.entry_date || undefined}>{displayLedgerDate(row.entry_date)}</time>
                       </td>
 
                       <td className="py-2.5 px-3 font-medium text-slate-900">
