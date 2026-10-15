@@ -184,6 +184,8 @@ export default function JournalEntryDetail() {
 
   const [entry, setEntry] =
     useState<JournalEntry | null>(null);
+  const [draftEntryDate, setDraftEntryDate] = useState("");
+  const [savingEntryDate, setSavingEntryDate] = useState(false);
   const [companyBaseCurrency, setCompanyBaseCurrency] = useState("");
 
   const [lines, setLines] =
@@ -274,6 +276,7 @@ export default function JournalEntryDetail() {
       setEntry(
         data as JournalEntry | null
       );
+      setDraftEntryDate(data?.entry_date ?? "");
       if (data?.company_id) {
         const { data: company } = await supabase.from("companies")
           .select("base_currency_code").eq("id", data.company_id).maybeSingle();
@@ -1431,6 +1434,48 @@ export default function JournalEntryDetail() {
     }
   };
 
+  /* Draft date changes are allowed only before saved lines exist.
+     Existing database FX guards intentionally prevent changing a dated
+     journal with saved lines, so never bypass them from the browser. */
+  const handleSaveDraftDate = async () => {
+    if (!entry || entry.status !== "draft") return;
+    const parsed = new Date(`${draftEntryDate}T00:00:00Z`);
+    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(draftEntryDate) ||
+        Number.isNaN(parsed.getTime()) ||
+        parsed.toISOString().slice(0,10) !== draftEntryDate) {
+      setError("Select a valid journal date before saving.");
+      return;
+    }
+    if (draftEntryDate === entry.entry_date) return;
+    if (lines.length > 0) {
+      setError("The date of this draft cannot be changed after journal lines are saved under the current accounting safeguards. No lines have been changed.");
+      return;
+    }
+    try {
+      setSavingEntryDate(true);
+      setError(null);
+      setSuccess(null);
+      const {data, error: dateError} = await supabase
+        .from("journal_entries")
+        .update({entry_date: draftEntryDate})
+        .eq("id", entry.id)
+        .eq("status", "draft")
+        .select("id,entry_date,exchange_rate")
+        .single();
+      if (dateError) throw new Error(dateError.message);
+      if (!data) throw new Error("The draft journal was not updated.");
+      setEntry(previous => previous && previous.id === data.id
+        ? {...previous, entry_date:data.entry_date, exchange_rate:data.exchange_rate}
+        : previous);
+      setDraftEntryDate(data.entry_date);
+      setSuccess("Draft journal date saved successfully.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unable to save journal date.");
+    } finally {
+      setSavingEntryDate(false);
+    }
+  };
+
   /* =========================================================
      SAVE ALL NEW LINES
   ========================================================= */
@@ -1438,6 +1483,10 @@ export default function JournalEntryDetail() {
   const handleSaveAllLines =
     async () => {
       if (!id || !entry) return;
+      if (draftEntryDate !== entry.entry_date) {
+        setError("Save the changed journal date before adding journal lines.");
+        return;
+      }
 
       if (
         entry.status === "posted"
@@ -1839,6 +1888,10 @@ export default function JournalEntryDetail() {
   const handlePostEntry =
     async () => {
       if (!entry) return;
+      if (draftEntryDate !== entry.entry_date) {
+        setError("Save the changed journal date before posting.");
+        return;
+      }
 
       const unsavedLines =
         getActiveDraftLines();
@@ -2166,6 +2219,12 @@ export default function JournalEntryDetail() {
     fiscal_year_closure_id?: string | null;
     monthly_profit_closure_id?: string | null;
   };
+  const canEditDraftDate = !isPosted && isManualJournal &&
+    !sourceEntry.source_module && !sourceEntry.source_document_type &&
+    !sourceEntry.source_document_id && !sourceEntry.fiscal_year_closure_id &&
+    !sourceEntry.monthly_profit_closure_id;
+  const hasUnsavedDraftDate = canEditDraftDate && draftEntryDate !== entry.entry_date;
+
   const isOwnerCancellableJournal =
     isPosted && ownerCanCancel && !reversalEntry &&
     !entry.reversal_of_entry_id &&
@@ -2219,6 +2278,8 @@ export default function JournalEntryDetail() {
                 posting ||
                 saving ||
                 importing ||
+                savingEntryDate ||
+                hasUnsavedDraftDate ||
                 !balanced
               }
               className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
@@ -2318,11 +2379,28 @@ export default function JournalEntryDetail() {
             Posting Date
           </div>
 
-          <div className="font-semibold text-slate-800 mt-1">
-            {formatDate(
-              entry.entry_date
-            )}
-          </div>
+          {canEditDraftDate ? (
+            <div className="mt-1 flex items-center gap-2">
+              <NaviloDateInput
+                aria-label="Edit journal entry date"
+                className="h-8 w-full min-w-0 rounded border border-blue-300 bg-white px-2 text-xs font-semibold text-slate-800"
+                type="date"
+                value={draftEntryDate}
+                onChange={event => { setDraftEntryDate(event.target.value); setError(null); }}
+                disabled={savingEntryDate || saving || posting || importing}
+              />
+              <button
+                type="button"
+                className="shrink-0 rounded bg-blue-600 px-2.5 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={() => void handleSaveDraftDate()}
+                disabled={savingEntryDate || saving || posting || importing || !hasUnsavedDraftDate || !draftEntryDate}
+              >{savingEntryDate ? "Saving..." : "Save"}</button>
+            </div>
+          ) : (
+            <div className="font-semibold text-slate-800 mt-1">{formatDate(entry.entry_date)}</div>
+          )}
+          {canEditDraftDate && lines.length > 0 && <p className="mt-1 text-[10px] text-amber-700">Saved lines: changing this date requires a controlled correction.</p>}
+          {hasUnsavedDraftDate && <p className="mt-1 text-[10px] font-medium text-blue-700">Save the date before saving lines or posting.</p>}
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
