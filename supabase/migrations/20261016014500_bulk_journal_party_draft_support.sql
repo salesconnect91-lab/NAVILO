@@ -222,8 +222,11 @@ BEGIN
       RAISE EXCEPTION '%: journal is not balanced. Debit %, Credit %.', v_entry_no, v_total_debit, v_total_credit;
     END IF;
 
-    INSERT INTO public.journal_entries (user_id, entry_no, entry_date, description, status)
-    VALUES (v_data_user_id, v_entry_no, v_entry_date, v_description, 'draft')
+    INSERT INTO public.journal_entries
+      (user_id, company_id, business_unit_id, operating_location_id, entry_no, entry_date, description, status)
+    VALUES
+      (v_data_user_id, v_company_id, v_business_unit_id, public.current_operating_location_id(),
+       v_entry_no, v_entry_date, v_description, 'draft')
     RETURNING id INTO v_entry_id;
 
     FOR v_line IN SELECT value FROM pg_catalog.jsonb_array_elements(v_entry -> 'lines')
@@ -267,9 +270,12 @@ BEGIN
           AND s.account_id = v_ap_account_id AND s.is_active
           AND lower(btrim(s.name)) = lower(v_party_name);
       END IF;
-      INSERT INTO public.journal_lines (user_id, entry_id, account_id, account, debit, credit, party_type, party_id, party_name)
+      INSERT INTO public.journal_lines (user_id, company_id, business_unit_id, operating_location_id, entry_id, account_id, account, debit, credit, party_type, party_id, party_name)
       VALUES (
         v_data_user_id,
+        v_company_id,
+        v_business_unit_id,
+        public.current_operating_location_id(),
         v_entry_id,
         v_account.id,
         v_account.code || ' - ' || v_account.name,
