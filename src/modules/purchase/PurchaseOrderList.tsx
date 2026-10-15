@@ -53,6 +53,7 @@ export default function PurchaseOrderList() {
   const [listPageSize,setListPageSize]=useState(25);
   const [listSort,setListSort]=useState<{key:string;dir:"asc"|"desc"}|null>(null);
   const [listSummary,setListSummary]=useState({count:0,total:0,balance:0,parties:0});
+  const [listReadFailed,setListReadFailed]=useState(false);
   const listRequest=useRef(0);
 
   const fetchRows=useCallback(async()=>{
@@ -80,10 +81,11 @@ export default function PurchaseOrderList() {
         if(invoice?.invoice_no)(numbers[(link as any).purchase_order_id]??=[]).push(invoice.invoice_no);
       }
       setRows(pageRows);setConsolidatedLinks(numbers);
+      setListReadFailed(false);
       setListSummary({count:Number(data?.count??0),total:Number(data?.total??0),
         balance:Number(data?.balance??0),parties:Number(data?.parties??0)});
     }catch(e:any){
-      if(request===listRequest.current)setError(e?.message??"Unable to read Purchase invoices. Retry.");
+      if(request===listRequest.current){setListReadFailed(true);setError(e?.message??"Unable to read Purchase invoices. Retry.");}
     }finally{
       if(request===listRequest.current)setLoading(false);
     }
@@ -151,10 +153,10 @@ export default function PurchaseOrderList() {
 
       <TransportOpeningInvoices side="supplier"/>
       <div className="grid gap-3 md:grid-cols-4" data-no-export>
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-blue-50 p-2 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Filtered Invoices</div><div className="font-bold">{error && listSummary.count===0 ? '—' : listSummary.count}</div></div></div>
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-emerald-50 p-2 text-emerald-600"><Landmark className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Purchase Total</div><div className="font-bold">{error && listSummary.count===0 ? '—' : formatCurrency(visiblePurchaseTotal)}</div></div></div>
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-rose-50 p-2 text-rose-600"><Clock3 className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Balance Due</div><div className="font-bold text-rose-600">{error && listSummary.count===0 ? '—' : formatCurrency(visibleBalance)}</div></div></div>
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-violet-50 p-2 text-violet-600"><Truck className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Suppliers</div><div className="font-bold">{error && listSummary.count===0 ? '—' : visibleSuppliers}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-blue-50 p-2 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Filtered Invoices</div><div className="font-bold">{listReadFailed ? '—' : listSummary.count}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-emerald-50 p-2 text-emerald-600"><Landmark className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Purchase Total</div><div className="font-bold">{listReadFailed ? '—' : formatCurrency(visiblePurchaseTotal)}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-rose-50 p-2 text-rose-600"><Clock3 className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Balance Due</div><div className="font-bold text-rose-600">{listReadFailed ? '—' : formatCurrency(visibleBalance)}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-violet-50 p-2 text-violet-600"><Truck className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Suppliers</div><div className="font-bold">{listReadFailed ? '—' : visibleSuppliers}</div></div></div>
       </div>
 
       <div className="grid min-w-0 max-w-full grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(120px,150px)_minmax(145px,175px)_minmax(145px,175px)_minmax(135px,150px)_minmax(135px,150px)_auto]" data-no-export data-no-print>
@@ -169,7 +171,8 @@ export default function PurchaseOrderList() {
 
       {error && <div className="flex items-center gap-2"><ErrorBanner message={error}/><button type="button" className="btn-secondary" onClick={()=>void fetchRows()}>Retry invoices</button></div>}
       <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-bold text-slate-900">Purchase Invoices <span className="text-slate-500">({error && listSummary.count===0 ? '—' : listSummary.count})</span></h2></div>
+        <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-bold text-slate-900">Purchase Invoices <span className="text-slate-500">({listReadFailed ? '—' : listSummary.count})</span></h2></div>
+        {listReadFailed && <p role="status" className="mx-3 mt-2 text-xs font-semibold text-amber-800">Invoice query failed. Rows shown may be from the last successful filter; totals and counts are unavailable until Retry succeeds.</p>}
         <DataTable columns={columns} rows={filteredRows} loading={loading} emptyMessage={error?"Query failed; retry Purchase invoices.":"No Main Purchase Invoices found."} showSerialNumber remote={{total:listSummary.count,page:listPage,pageSize:listPageSize,onPageChange:(page,pageSize)=>{setListPage(page);setListPageSize(pageSize)},sort:listSort,onSortChange:sort=>setListSort(sort)}} />
       </div>
     </div>
