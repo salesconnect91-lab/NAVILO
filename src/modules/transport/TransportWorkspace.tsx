@@ -541,6 +541,9 @@ export default function TransportWorkspace(){
     let resumePageFinance:(()=>void)|null=null;
     const startRecovery=async()=>{
       if(!recoveryEligible||emergencyStarted||generation!==readGeneration.current)return;
+      // Keep a previously verified register visible while the canonical read is pending.
+      // Recovery is for first-load emergencies or actual canonical failures only.
+      if(lastSuccessfulRegisterKey.current!==null&&!fullRegisterFailed)return;
       emergencyStarted=true;
       try {
         const recovered=await supabase.rpc('transport_register_operational_recovery',{
@@ -557,8 +560,12 @@ export default function TransportWorkspace(){
             supplier:recovered.data.permissions.supplier===true
           }
         }));
-        setRegisterLoadError(true);
-        setError('Saved Trips loaded; verifying page financial amounts by exact Trip ID. Full-register totals remain unavailable until verified.');
+        // Do not flash a failure while the canonical request is still pending.
+        // The fallback is explicitly unverified until matching financial data arrives.
+        if(fullRegisterFailed){
+          setRegisterLoadError(true);
+          setError('Saved Trips loaded; verifying page financial amounts by exact Trip ID. Full-register totals remain unavailable until verified.');
+        }
         // The canonical all-trip RPC can time out. Load only the visible 100
         // financial rows by exact ID; never match by row order or Trip number.
         if(recovered.data.rows.length>0){
@@ -601,15 +608,15 @@ export default function TransportWorkspace(){
               };
             })};
           });
-          setError('Visible Trip amounts verified. Full-register filtered totals are still loading separately.');
+          if(fullRegisterFailed)setError('Visible Trip amounts verified. Full-register filtered totals are unavailable.');
         }
       }catch{/* Keep saved Trip identities; never invent unavailable financial amounts. */}
     };
     const recoveryTimer=window.setTimeout(()=>{
-      if(!silent&&!controller.signal.aborted)void startRecovery();
+      if(!silent&&!controller.signal.aborted&&lastSuccessfulRegisterKey.current===null)void startRecovery();
     },6500);
     const deadlineTimer=window.setTimeout(()=>{deadlineHit=true;controller.abort();},45000);
-    if(!silent){setRegisterLoading(true);setError('');setOperationalRecovery(null);}
+    if(!silent){setRegisterLoading(true);setError('');if(lastSuccessfulRegisterKey.current===null)setOperationalRecovery(null);}
     try {
       const result=await supabase.rpc('transport_register_query',{p_limit:REGISTER_PAGE_SIZE,p_offset:page*REGISTER_PAGE_SIZE,p_filters:registerFilters,p_sort:sortColumn,p_direction:sortDirection}).abortSignal(controller.signal);
       if(result.error)throw result.error;
