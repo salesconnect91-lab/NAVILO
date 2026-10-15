@@ -5,12 +5,12 @@ CREATE OR REPLACE FUNCTION public.commercial_invoice_list_query(
  p_sort text DEFAULT 'created_at',p_desc boolean DEFAULT true,p_limit integer DEFAULT 25,p_offset integer DEFAULT 0
 ) RETURNS jsonb LANGUAGE sql STABLE SECURITY INVOKER SET search_path=public,pg_temp AS $fn$
 WITH sources AS (
- SELECT to_jsonb(s) doc,s.id,s.order_no,s.order_date,s.created_at,s.status,s.payment_status,
+ SELECT s.id,s.order_no,s.order_date,s.created_at,s.status,s.payment_status,
  s.invoice_type,s.total,s.outstanding_amount,s.customer_id party_id,c.name party_name,s.sales_person
  FROM public.sales_orders s LEFT JOIN public.customers c ON c.id=s.customer_id AND c.company_id=s.company_id
  WHERE p_side='sales'
  UNION ALL
- SELECT to_jsonb(p),p.id,p.order_no,p.order_date,p.created_at,p.status,p.payment_status,
+ SELECT p.id,p.order_no,p.order_date,p.created_at,p.status,p.payment_status,
  p.invoice_type,p.total,p.outstanding_amount,p.supplier_id,sup.name,NULL::text
  FROM public.purchase_orders p LEFT JOIN public.suppliers sup ON sup.id=p.supplier_id AND sup.company_id=p.company_id
  WHERE p_side='purchase'
@@ -49,12 +49,23 @@ WITH sources AS (
  created_at DESC NULLS LAST,id DESC) seq FROM filtered f
 )
 SELECT jsonb_build_object(
- 'rows',COALESCE((SELECT jsonb_agg(n.doc||jsonb_build_object(
- 'customer',CASE WHEN p_side='sales' THEN jsonb_build_object('name',n.party_name) ELSE NULL END,
- 'supplier',CASE WHEN p_side='purchase' THEN jsonb_build_object('name',n.party_name) ELSE NULL END
- ) ORDER BY n.seq) FROM numbered n
- WHERE n.seq>GREATEST(COALESCE(p_offset,0),0)
- AND n.seq<=GREATEST(COALESCE(p_offset,0),0)+LEAST(GREATEST(COALESCE(p_limit,25),1),250)), '[]'::jsonb),
+ 'rows',COALESCE((SELECT jsonb_agg(page.doc ORDER BY page.seq) FROM (
+   SELECT n.seq,to_jsonb(s)||jsonb_build_object('customer',jsonb_build_object('name',c.name)) doc
+   FROM numbered n
+   JOIN public.sales_orders s ON s.id=n.id
+   LEFT JOIN public.customers c ON c.id=s.customer_id AND c.company_id=s.company_id
+   WHERE p_side='sales'
+     AND n.seq>GREATEST(COALESCE(p_offset,0),0)
+     AND n.seq<=GREATEST(COALESCE(p_offset,0),0)+LEAST(GREATEST(COALESCE(p_limit,25),1),250)
+   UNION ALL
+   SELECT n.seq,to_jsonb(p)||jsonb_build_object('supplier',jsonb_build_object('name',sup.name))
+   FROM numbered n
+   JOIN public.purchase_orders p ON p.id=n.id
+   LEFT JOIN public.suppliers sup ON sup.id=p.supplier_id AND sup.company_id=p.company_id
+   WHERE p_side='purchase'
+     AND n.seq>GREATEST(COALESCE(p_offset,0),0)
+     AND n.seq<=GREATEST(COALESCE(p_offset,0),0)+LEAST(GREATEST(COALESCE(p_limit,25),1),250)
+ ) page), '[]'::jsonb),
  'count',(SELECT count(*) FROM filtered),
  'total',(SELECT COALESCE(sum(total),0) FROM filtered),
  'balance',(SELECT COALESCE(sum(outstanding_amount),0) FROM filtered),
