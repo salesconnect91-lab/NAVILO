@@ -16,12 +16,14 @@ interface ReportPdfOptions {
   columns: string[];
   rows: Array<Array<string | number>>;
   summaryRows?: Array<[string, string | number]>;
+  rowKinds?: Array<'section' | 'detail' | 'subtotal' | 'total' | 'check'>;
+  orientation?: 'portrait' | 'landscape';
 }
 
-export async function downloadAccountingReportPdf({ fileName, title, subtitle, columns, rows, summaryRows = [] }: ReportPdfOptions) {
+export async function downloadAccountingReportPdf({ fileName, title, subtitle, columns, rows, summaryRows = [], rowKinds = [], orientation }: ReportPdfOptions) {
   const settings = await loadDocumentPrintSettings("reports");
   const { company, visibility } = settings;
-  const doc = new jsPDF({ orientation: documentOrientation(company.page_orientation), unit: "mm", format: documentPageFormat(company.page_size) });
+  const doc = new jsPDF({ orientation: orientation || (columns.length >= 6 ? "landscape" : documentOrientation(company.page_orientation)), unit: "mm", format: documentPageFormat(company.page_size) });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 8;
@@ -66,13 +68,43 @@ export async function downloadAccountingReportPdf({ fileName, title, subtitle, c
 
   const numericIndexes = new Set(columns.flatMap((column, index) => /debit|credit|balance|amount|total|opening\s+dr|opening\s+cr|period\s+dr|period\s+cr|closing\s+dr|closing\s+cr|\bdr\b|\bcr\b/i.test(column) ? [index] : []));
   autoTable(doc, {
-    startY: y, head: [columns], body: rows, theme: "plain",
-    styles: { font: "helvetica", fontSize: 7.7, cellPadding: { top: 1.2, right: 1.2, bottom: 1.2, left: 1.2 }, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: { bottom: 0.12 }, overflow: "linebreak", valign: "middle" },
-    headStyles: { fillColor: [238, 242, 247], textColor: [30, 41, 59], fontStyle: "bold", fontSize: 7.3, lineColor: [148, 163, 184], lineWidth: { top: 0.25, bottom: 0.25 } },
-    alternateRowStyles: { fillColor: [251, 253, 255] },
+    startY: y,
+    head: [columns],
+    body: rows.map((row, index) =>
+      rowKinds[index] === "section" ? [{content:String(row[0] ?? ""),colSpan:columns.length}] : row),
+    theme: "plain",
+    showHead: "everyPage",
+    styles: { font: "helvetica", fontSize: 7.7, cellPadding: { top: 1.55, right: 1.8, bottom: 1.55, left: 1.8 }, textColor: [30, 41, 59], lineColor: [216, 226, 236], lineWidth: { bottom: 0.12 }, overflow: "linebreak", valign: "middle" },
+    headStyles: { fillColor: [231, 239, 247], textColor: [25, 54, 83], fontStyle: "bold", fontSize: 7.5, lineColor: [160, 179, 200], lineWidth: { top: 0.35, bottom: 0.35 } },
     columnStyles: Object.fromEntries(columns.map((_, index) => [index, { halign: numericIndexes.has(index) ? "right" : "left" }])),
-    margin: { left: margin, right: margin, bottom: 22 },
-    didDrawPage: () => { doc.setDrawColor(226, 232, 240); doc.line(margin, pageHeight - 17, pageWidth - margin, pageHeight - 17); },
+    margin: { top: 23, left: margin, right: margin, bottom: 22 },
+    didParseCell: (cell) => {
+      if (cell.section !== "body") return;
+      const kind = rowKinds[cell.row.index];
+      if (kind === "section") {
+        cell.cell.styles.fillColor=[239, 244, 249];
+        cell.cell.styles.textColor=[23, 54, 85];
+        cell.cell.styles.fontStyle="bold";
+        cell.cell.styles.fontSize=8.2;
+        cell.cell.styles.cellPadding={top:2.6,right:1.8,bottom:2,left:1.8};
+        cell.cell.styles.halign="left";
+      } else if (kind === "subtotal" || kind === "total" || kind === "check") {
+        cell.cell.styles.fontStyle="bold";
+        cell.cell.styles.fillColor=kind === "total" ? [232, 241, 249] : [246, 249, 252];
+        cell.cell.styles.lineColor=[114, 143, 171];
+        cell.cell.styles.lineWidth={top:kind === "total" ? 0.4 : 0.2,bottom:0.2};
+      }
+    },
+    didDrawPage: (page) => {
+      if(page.pageNumber > 1){
+        doc.setFont("helvetica","bold");doc.setFontSize(8);doc.setTextColor(34,65,95);
+        doc.text(company.company_name || "Company", margin, 10);
+        doc.setFontSize(10);doc.text(title,margin,16);
+        doc.setDrawColor(114,143,171);doc.line(margin,19,pageWidth-margin,19);
+      }
+      doc.setDrawColor(216, 226, 236);
+      doc.line(margin, pageHeight - 17, pageWidth - margin, pageHeight - 17);
+    },
   });
 
   const tableEnd = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y;
