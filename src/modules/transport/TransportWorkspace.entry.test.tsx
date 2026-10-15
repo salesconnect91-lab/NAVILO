@@ -550,9 +550,9 @@ describe('Transport compact register and centered controls',()=>{
   });
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
   await screen.findByText('123,456.00');
-  const rateHeader=screen.getByRole('button',{name:/Sort Customer Rate/i}).closest('th');
+  const rateHeader=screen.getByTitle('Sort Customer Rate (Net) ascending').closest('th');
   expect(rateHeader?.textContent).toContain('123,456.00');
-  fireEvent.click(screen.getByRole('button',{name:/Sort Customer Rate/i}));
+  fireEvent.click(screen.getByTitle('Sort Customer Rate (Net) ascending'));
   await waitFor(()=>expect(rateHeader?.textContent).toContain('—'));
   expect(rateHeader?.textContent).not.toContain('123,456.00');
   await waitFor(()=>expect(reads).toBeGreaterThan(1));
