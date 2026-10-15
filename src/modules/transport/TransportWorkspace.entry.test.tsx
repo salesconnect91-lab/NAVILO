@@ -550,6 +550,7 @@ describe('Transport compact register and centered controls',()=>{
     rows:[{id:'saved-trip-1',trip_no:'19535',display_trip_no:'19535',trip_date:'2026-10-10',
      customer_name:'Restored customer',driver_name:'Driver',vehicle_no:'FLAT-1',
      from_location:'Dammam',to_location:'Riyadh',ppr_status:'pending'}]},error:null};
+   if(name==='transport_edit_trip_read')return {data:{id:'saved-trip-1',customer_rate:1600,customer_rate_state:'finalized'},error:null};
    if(name==='transport_register_financial_recovery_page'){
      expect(args.p_trip_ids).toEqual(['saved-trip-1']);
      return {data:{rows:[{
@@ -570,6 +571,8 @@ describe('Transport compact register and centered controls',()=>{
   expect(table.textContent).toContain('250.00');
   expect(table.textContent).toContain('Restored customer');
   expect(screen.getByRole('button',{name:'Open Customer Charges 19535'})).toBeTruthy();
+  fireEvent.click(screen.getByRole('button',{name:'Open Customer Charges 19535'}));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_edit_trip_read',{p_trip_id:'saved-trip-1'}));
   expect(screen.getAllByText(/Visible Trip amounts verified/).length).toBeGreaterThan(0);
  });
  it('never assigns financial amounts from a different Trip ID',async()=>{

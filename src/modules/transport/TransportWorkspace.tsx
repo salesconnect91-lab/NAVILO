@@ -2135,14 +2135,14 @@ export default function TransportWorkspace(){
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
                   className={`overflow-hidden text-ellipsis whitespace-nowrap border-b border-r px-1.5 !py-0 leading-tight ${(isSupplierGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-rose-50/55":isCustomerGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-blue-50/45":isPprGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-emerald-50/50":"h-[26px] max-h-[26px] border-slate-200")} ${tripSelected?"!border-amber-300 !bg-amber-100":""} ${numeric?"text-right font-medium":""}`}>
                   {key==='charge'
-                    ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>setChargeTrip(r)}>{value||''}</button>
+                    ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'charge');else setChargeTrip(r)}}>{value||''}</button>
                     :key==='supplier_charges'
-                    ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-semibold leading-tight text-rose-700 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500" aria-label={`Open Supplier Charges ${r.trip_no}`} onClick={()=>void openSupplierCharges(r)}>{value||''}</button>
+                    ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-semibold leading-tight text-rose-700 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500" aria-label={`Open Supplier Charges ${r.trip_no}`} onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'supplier_charges');else void openSupplierCharges(r)}}>{value||''}</button>
                     :key==='company_rate'
                     ?<button data-register-editable="true" type="button"
                       className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
                       aria-label={`${r.customer_rate_state==='pending'?'Add':'Open'} Company Rate ${r.trip_no}`}
-                      onClick={()=>setInitialRateTrip(r)}>
+                      onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'company_rate');else setInitialRateTrip(r)}}>
                       {r.customer_rate_state==='pending'&&!r.customer_rate_locked?'':value||'0.00'}
                     </button>
                     :key==='invoice_no'&&!r.invoiced&&r.historical_customer_invoice_ref
@@ -2151,17 +2151,17 @@ export default function TransportWorkspace(){
                       ?<button data-register-editable="true" type="button"
                         className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
                         aria-label={`${r.invoice_no?'Open':'Add'} Invoice Number ${r.trip_no}`}
-                        onClick={()=>setInvoiceTrip(r)}>
+                        onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'invoice_no');else setInvoiceTrip(r)}}>
                         {r.invoice_no||''}
                       </button>
                     :key==='rent_driver'&&r.historical_company_owned
                       ?<span title="Original total Company Trip cost — not a Supplier payable or Driver salary">{value}<span className="ml-1 text-[8px] text-slate-500">Company</span></span>
                     :key==='rent_driver'&&r.customer_rate_state!==undefined
-                      ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-medium leading-tight text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
+                      ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-medium leading-tight text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'rent_driver');else {setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
                     :key==='paper_received_by'
                       ?r.ppr_status==='received'
                         ?<span title={r.historical_paper_status==='received'?'Original paper receipt evidence':undefined} className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[8px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
-                        :<button data-register-editable="true" type="button" onClick={()=>void openQuickPpr(r)} className="h-[22px] rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0 text-[9px] font-semibold leading-tight text-amber-800 hover:bg-amber-100">Receive PPR</button>
+                        :<button data-register-editable="true" type="button" onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'paper_received_by');else void openQuickPpr(r)}} className="h-[22px] rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0 text-[9px] font-semibold leading-tight text-amber-800 hover:bg-amber-100">Receive PPR</button>
                       :key==='supplier_invoice_no'&&r.billed_supplier_net==null&&r.historical_supplier_invoice_ref
                       ?<span title="Original Supplier invoice reference — unposted">{value}</span>
                       :value||""}
