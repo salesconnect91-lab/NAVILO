@@ -36,7 +36,7 @@ const importInvoiceType = (value: unknown) => {
 
 export default function PurchaseOrderList() {
   const navigate = useNavigate();
-  const { activeCompany, isPlatformOwner } = useAuth();
+  const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
   const canCreate = canPerformModule(activeCompany?.membership_role, "purchase", "create", activeCompany?.permissions, isPlatformOwner);
   const canDelete = canPerformModule(activeCompany?.membership_role, "purchase", "delete", activeCompany?.permissions, isPlatformOwner);
     const [rows, setRows] = useState<PurchaseOrder[]>([]);
@@ -145,7 +145,7 @@ export default function PurchaseOrderList() {
         title="Purchase Invoices"
         subtitle="Supplier invoices, payables and posting"
         action={<div className="flex flex-wrap items-center gap-2">
-          {canCreate && <button onClick={() => navigate("/purchase/new")} className="btn-primary">+ New Purchase Invoice</button>}
+          {canCreate && <button onClick={() => navigate("/purchase/new")} className="btn-primary">+ New Purchase Invoice</button>}{canCreate && activeBusinessUnit?.business_unit_type === "transport" && <button type="button" className="btn-secondary" onClick={() => navigate("/purchase/consolidated")}>+ Consolidated Purchase</button>}
           <span data-navilo-standard-tools-host className="contents" />
         </div>}
       />
