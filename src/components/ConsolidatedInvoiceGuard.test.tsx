@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+vi.mock('@/modules/transport/TransportInvoiceCreate', () => ({ default: ({side, consolidated}: {side: string; consolidated?: boolean}) => <div>{consolidated ? 'Grouped' : 'Single'} Trip service invoice: {side}</div> }));
 import ConsolidatedInvoiceGuard from './ConsolidatedInvoiceGuard';
 
 const scope = vi.hoisted(() => ({ type: 'transport' }));
@@ -9,13 +10,13 @@ vi.mock('@/auth/AuthContext', () => ({ useAuth: () => ({ activeBusinessUnit: { b
 afterEach(cleanup);
 
 describe('consolidated invoice business scope', () => {
-  it.each(['sales', 'purchase'] as const)('redirects a direct %s consolidated link to Transport service creation', side => {
+  it.each(['sales', 'purchase'] as const)('opens a dedicated %s grouped Transport service invoice screen', side => {
     scope.type = 'transport';
     render(<MemoryRouter initialEntries={[`/${side}/consolidated`]}><Routes>
       <Route path={`/${side}/consolidated`} element={<ConsolidatedInvoiceGuard side={side}><div>Stock consolidated documents</div></ConsolidatedInvoiceGuard>} />
       <Route path={`/${side}/new`} element={<div>Trip service invoice</div>} />
     </Routes></MemoryRouter>);
-    expect(screen.getByText('Trip service invoice')).toBeTruthy();
+    expect(screen.getByText(`Grouped Trip service invoice: ${side === 'sales' ? 'customer' : 'supplier'}`)).toBeTruthy();
     expect(screen.queryByText('Stock consolidated documents')).toBeNull();
   });
   it.each(['sales', 'purchase'] as const)('preserves the existing %s consolidated screen for Steel', side => {
