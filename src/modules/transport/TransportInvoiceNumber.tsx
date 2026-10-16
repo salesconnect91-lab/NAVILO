@@ -11,6 +11,7 @@ type InvoiceTrip=FinancialTrip & {invoice_no?:string|null;sales_order_id?:string
 export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:InvoiceTrip;onClose:()=>void;onChanged:()=>Promise<void>}){
  const posted=Boolean(trip.invoiced||trip.sales_order_id||Number(trip.billed_customer_net??0)>0);
  const [invoiceNo,setInvoiceNo]=useState(trip.invoice_no??'');
+ const [numberMode,setNumberMode]=useState<'choose'|'auto'|'manual'>('choose');
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
  const withTax=trip.sale_type==='credit';const [vatReady,setVatReady]=useState(true);
  const [allowed,setAllowed]=useState(false);const [accounts,setAccounts]=useState<{id:string;name:string}[]>([]);const [account,setAccount]=useState('');const [busy,setBusy]=useState(false);const [error,setError]=useState('');
@@ -35,12 +36,13 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
 
  const number=invoiceNo.trim();
  const rateReady=trip.customer_rate_state==='finalized'&&Number(trip.customer_rate??0)>0;
- const canPost=!posted&&allowed&&rateReady&&Boolean(date)&&Boolean(account)&&!busy&&(!withTax||vatReady);
+ const numberConfirmed=numberMode==='auto'||(numberMode==='manual'&&Boolean(number));
+ const canPost=!posted&&allowed&&rateReady&&numberConfirmed&&Boolean(date)&&Boolean(account)&&!busy&&(!withTax||vatReady);
 
  async function post(){
   if(!canPost)return;setBusy(true);setError('');
   try{
-   const result=await supabase.rpc('transport_post_customer_bill_accounted',{p_trip_id:trip.id,p_date:date,p_revenue_account_id:account,p_with_tax:withTax,p_invoice_no:number||null,p_description:null});
+   const result=await supabase.rpc('transport_post_customer_bill_accounted',{p_trip_id:trip.id,p_date:date,p_revenue_account_id:account,p_with_tax:withTax,p_invoice_no:numberMode==='manual'?number:null,p_description:null});
    if(result.error)throw result.error;
    await onChanged();onClose();
   }catch(e:any){setError(e?.message||'Unable to post customer invoice. Refresh the Trip before retrying.')}finally{setBusy(false)}
@@ -50,9 +52,15 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
   <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="trip-invoice-title" className="w-full max-w-sm rounded bg-white p-4 text-sm shadow-xl">
    <h2 id="trip-invoice-title" className="font-semibold">Customer Invoice · {trip.trip_no}</h2>
    <p className="my-2 text-xs text-slate-600">{trip.customer_name}<br/>{trip.from_location} → {trip.to_location}<br/>Company Rate excluding VAT: {trip.customer_rate==null?'—':Number(trip.customer_rate).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
-   <label className="block text-xs font-semibold">Invoice Number
-    <input ref={input} className="input mt-1 w-full" value={invoiceNo} readOnly={posted} disabled={busy} onChange={e=>setInvoiceNo(e.target.value)} placeholder="Blank = automatic NAVILO number"/>
-   </label>
+   {posted?<label className="block text-xs font-semibold">Invoice Number<input className="input mt-1 w-full" value={invoiceNo||'Posted · original reference missing'} readOnly /></label>:<>
+    <label className="block text-xs font-semibold">Invoice Number Method
+     <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Invoice number method" className="input mt-1 w-full" value={numberMode} disabled={busy} onChange={e=>setNumberMode(e.target.value as 'choose'|'auto'|'manual')}>
+      <option value="choose">Choose method…</option><option value="auto">Generate NAVILO number</option><option value="manual">Enter own invoice number</option>
+     </NaviloSearchableSelect>
+    </label>
+    {numberMode==='manual'&&<label className="mt-2 block text-xs font-semibold">Your Invoice Number<input ref={input} className="input mt-1 w-full" value={invoiceNo} disabled={busy} onChange={e=>setInvoiceNo(e.target.value)} placeholder="Enter invoice number" /></label>}
+    {numberMode==='auto'&&<p className="mt-2 text-xs text-slate-600">NAVILO will assign its next available invoice number during posting.</p>}
+   </>}
    {posted
     ?<p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">This canonical Sales invoice is already posted. Its invoice number is locked and is not overwritten from the Trips grid.</p>
     :<>
@@ -65,7 +73,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
       <p className="mt-2 text-xs font-semibold">{withTax?'Credit · VAT automatic':'Cash · Without VAT'}</p>
       <TransportVatPreview side="customer" date={date} withTax={withTax} amounts={[Number(trip.customer_rate??0)]} onReady={setVatReady}/>
       {!rateReady&&<p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">Finalize a positive Company Rate first. Invoice posting remains disabled until then.</p>}
-      <p className="mt-2 text-xs text-slate-600">Save here posts the canonical Sales/service invoice to the selected Revenue Account. Blank Invoice Number uses NAVILO automatic numbering.</p>
+      <p className="mt-2 text-xs text-slate-600">Save here posts the canonical Sales/service invoice to the selected Revenue Account. Choose automatic numbering or enter your own invoice number before posting.</p>
     </>}
    {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}
    <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={onClose}>Close</button>{!posted&&<button className="btn-primary" disabled={!canPost} onClick={()=>void post()}>{busy?'Posting…':'Post Invoice'}</button>}</div>
