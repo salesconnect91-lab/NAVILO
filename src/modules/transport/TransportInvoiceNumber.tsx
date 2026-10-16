@@ -6,7 +6,7 @@ import {useEffect,useRef,useState} from 'react';
 import {supabase} from '@/lib/supabase';
 import {type FinancialTrip} from './transportFinancialTypes';
 
-type InvoiceTrip=FinancialTrip & {invoice_no?:string|null};
+type InvoiceTrip=FinancialTrip & {invoice_no?:string|null;sales_order_id?:string|null};
 
 export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:InvoiceTrip;onClose:()=>void;onChanged:()=>Promise<void>}){
  const posted=Boolean(trip.invoiced||trip.sales_order_id||Number(trip.billed_customer_net??0)>0);
