@@ -1695,7 +1695,7 @@ export default function TransportWorkspace(){
       else if(key==='supplier_charges')await openSupplierCharges(trip);
       else if(key==='company_rate')setInitialRateTrip(trip);
       else if(key==='invoice_no')setInvoiceTrip(trip);
-      else if(key==='rent_driver'){setBulkSupplierRentTrip(trip);setShowBulkSupplierRent(true);}
+      else if(key==='rent_driver'||key==='supplier_invoice_no'){setBulkSupplierRentTrip(trip);setShowBulkSupplierRent(true);}
       else if(key==='paper_received_by')await openQuickPpr(trip);
     }catch(e:any){setError(e?.message||'Unable to open saved Trip details.');}
   };
@@ -2213,7 +2213,7 @@ export default function TransportWorkspace(){
                     from:String(r.from_location??''),to:String(r.to_location??''),
                     paper_received_by:r.ppr_status==='received'?String(r.ppr_received_by_name??'Received'):'Pending'
                   };
-                  const actionable=['charge','supplier_charges','company_rate','invoice_no','rent_driver'].includes(key)
+                  const actionable=['charge','supplier_charges','company_rate','invoice_no','supplier_invoice_no','rent_driver'].includes(key)
                     ||(key==='paper_received_by'&&r.ppr_status!=='received');
                   return <td data-financial-group={visualGridGroup(key)} key={key}
                     className="h-[26px] max-h-[26px] overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-slate-200 px-1.5 !py-0 text-[10.5px]">
@@ -2258,8 +2258,14 @@ export default function TransportWorkspace(){
                       ?r.ppr_status==='received'
                         ?<span title={r.historical_paper_status==='received'?'Original paper receipt evidence':undefined} className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[8px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
                         :<button data-register-editable="true" type="button" onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'paper_received_by');else void openQuickPpr(r)}} className="h-[22px] rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0 text-[9px] font-semibold leading-tight text-amber-800 hover:bg-amber-100">Receive PPR</button>
-                      :key==='supplier_invoice_no'&&r.billed_supplier_net==null&&r.historical_supplier_invoice_ref
-                      ?<span title="Original Supplier invoice reference — unposted">{value}</span>
+                      :key==='supplier_invoice_no'
+                      ?<button data-register-editable="true" type="button"
+                        className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-rose-800 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500"
+                        aria-label={`Open Supplier Invoice ${r.trip_no}`}
+                        title={r.historical_supplier_invoice_ref?'Open Supplier Invoice / original reference':'Open Supplier Invoice'}
+                        onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'supplier_invoice_no');else {setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true);}}}>
+                        {value||'0'}
+                      </button>
                       :value||""}
                 </td>;
               })}            </tr>;
