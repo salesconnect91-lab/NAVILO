@@ -588,17 +588,6 @@ export default function SalesInvoiceList() {
       ),
     },
     {
-      key: "consolidated_invoice_numbers",
-      label: "Consolidated Invoice #",
-      render: (r) => r.consolidated_invoice_numbers?.length ? (
-        <div className="flex flex-wrap gap-1">
-          {r.consolidated_invoice_numbers.map((invoiceNo) => (
-            <span key={invoiceNo} className="font-semibold text-violet-700">{invoiceNo}</span>
-          ))}
-        </div>
-      ) : <span className="text-slate-400">—</span>,
-    },
-    {
       key: "customer",
       label: "Customer",
       render: (r) => r.customer?.name ?? "—",
