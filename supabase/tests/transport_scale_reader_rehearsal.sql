@@ -180,6 +180,7 @@ begin
  if (data->'rows'->0->>'customer_rate')::numeric is distinct from 1 or (data->'totals'->>'company_rate')::numeric is distinct from 125751 then raise exception 'Descending second page / full totals failed';end if;
  data:=public.transport_register_query(500,500,jsonb_build_object('search','SORT-ONLY'),'company_rate','asc');
  if (data->'rows'->0->>'customer_rate')::numeric is distinct from 501 then raise exception 'Ascending second page failed';end if;
+ perform pg_temp.assert_register_snapshot_queries(true);
  raise notice 'Trips full-filter ASC/DESC, second page and totals passed for 501 rows';
  raise exception using errcode='PT501',message='Rollback only synthetic sort fixtures';
  exception when sqlstate 'PT501' then null;
@@ -261,6 +262,7 @@ begin
  if not exists(select 1 from jsonb_array_elements(data) x where x->>'ownership'='company' and (x->>'revenue')::numeric=1000) then raise exception 'Company fleet attribution failed: %',data;end if;
  if (select sum((x->>'revenue')::numeric) from jsonb_array_elements(data) x)<>1000 or (select sum((x->>'cost')::numeric) from jsonb_array_elements(data) x)<>25 then raise exception 'Ownership comparison omitted posted sources';end if;
  perform pg_temp.assert_register_invoice_projection();
+ perform pg_temp.assert_register_snapshot_queries();
  -- Server file lock prevents another user from importing the same file again.
  perform public.transport_prepare_trip_import(repeat('b',64),'same-workspace.xlsx','[[2]]');
  execute 'reset role';
