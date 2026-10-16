@@ -2243,8 +2243,6 @@ export default function TransportWorkspace(){
                       onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'company_rate');else setInitialRateTrip(r)}}>
                       {r.customer_rate_state==='pending'&&!r.customer_rate_locked?'':value||'0.00'}
                     </button>
-                    :key==='invoice_no'&&!r.invoiced&&r.historical_customer_invoice_ref
-                      ?<span title="Original invoice reference — unposted">{r.invoice_no}</span>
                     :key==='invoice_no'
                       ?<button data-register-editable="true" type="button"
                         className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
