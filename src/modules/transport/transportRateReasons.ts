@@ -9,6 +9,7 @@ export const CUSTOMER_RATE_REASON_OPTIONS = [
 
 export const SUPPLIER_RATE_REASON_OPTIONS = [
  "Supplier agreed rent revised",
+ "Supplier rent finalized",
  "Supplier confirmation received",
  "Rent entered incorrectly",
  "Vehicle / route details corrected",
