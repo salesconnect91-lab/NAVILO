@@ -108,7 +108,7 @@ const salesInvoiceDisplayNumber = (row: SalesInvoiceRow): string => {
   // Legacy imports sometimes stored settlement notes in the source invoice field.
   // Never present those remarks as an actual customer invoice number.
   if (row.order_no?.startsWith('H-S-')) {
-    if (!original || /^(?:cleared(?:\\s+.*)?|no\\s+invoice|bad\\s+debts?|adjusted\\s+with\\s+.*|ca)$/i.test(original)) return '0';
+    if (!original || /^(?:cleared(?:\s+.*)?|cleraed|no\s+invoice|bad\s+debts?|adjusted\s+with\s+.*|invoice\s+adjusted|ca|crn)$/i.test(original)) return '0';
     return original;
   }
   return original || row.order_no || '0';
