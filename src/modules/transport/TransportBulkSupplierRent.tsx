@@ -30,7 +30,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
  const {activeCompany,activeBusinessUnit}=useAuth();
  const [rows,setRows]=useState<Row[]>([]),[legacyRents,setLegacyRents]=useState<LegacyRent[]>([]),[suppliers,setSuppliers]=useState<Supplier[]>([]),[rents,setRents]=useState<Rent[]>([]),[accounts,setAccounts]=useState<Account[]>([]);
  const [supplier,setSupplier]=useState(''),[tripStatus,setTripStatus]=useState(''),[search,setSearch]=useState(''),[columnFilters,setColumnFilters]=useState<Record<string,string>>({}),[selected,setSelected]=useState<string[]>([]),[amounts,setAmounts]=useState<Record<string,string>>({});
- const [account,setAccount]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[reason,setReason]=useState(compact?'':'Bulk supplier rent');const [vatReady,setVatReady]=useState(true);
+ const [account,setAccount]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[reason,setReason]=useState('Supplier rent finalized');const [vatReady,setVatReady]=useState(true);
  const selectedParties=[...new Set(rows.filter(r=>selected.includes(r.id)&&!r.posted).map(r=>r.party_id).filter(Boolean))];
  const billing=useTransportBillingMode('supplier',supplier||(selectedParties.length===1?selectedParties[0]:''));const withTax=billing.withTax;
  const [compactReasonPreset,setCompactReasonPreset]=useState('');
