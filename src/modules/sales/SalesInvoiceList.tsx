@@ -103,6 +103,17 @@ const paymentStatusBadge = (status?: string | null) => {
   );
 };
 
+const salesInvoiceDisplayNumber = (row: SalesInvoiceRow): string => {
+  const original = row.display_invoice_no?.trim();
+  // Legacy imports sometimes stored settlement notes in the source invoice field.
+  // Never present those remarks as an actual customer invoice number.
+  if (row.order_no?.startsWith('H-S-')) {
+    if (!original || /^(?:cleared(?:\\s+.*)?|no\\s+invoice|bad\\s+debts?|adjusted\\s+with\\s+.*|ca)$/i.test(original)) return '0';
+    return original;
+  }
+  return original || row.order_no || '0';
+};
+
 export default function SalesInvoiceList() {
   const navigate = useNavigate();
   const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
@@ -584,7 +595,7 @@ export default function SalesInvoiceList() {
       key: "order_no",
       label: "Invoice #",
       render: (r) => (
-        <span className="font-semibold text-blue-600" title={r.order_no}>{r.display_invoice_no || (!r.order_no?.startsWith('H-S-') ? r.order_no : null) || '0'}</span>
+        <span className="font-semibold text-blue-600" title={r.order_no}>{salesInvoiceDisplayNumber(r)}</span>
       ),
     },
     {
