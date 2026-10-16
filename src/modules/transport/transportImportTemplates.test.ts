@@ -18,6 +18,7 @@ describe('NAVILO Transport Excel template/parser contracts',()=>{
   expect(parsed).toHaveLength(1);
   expect(parsed[0].customer).toBe('Replace with active Customer');
   expect(parsed[0].sale_type).toBe('');
+  expect(parsed[0].trip_no).toBe('');
   expect(parsed[0].customer_rate).toBe('1200');
   expect(parsed[0].ppr_status).toBe('pending');
  });
@@ -33,6 +34,7 @@ describe('NAVILO Transport Excel template/parser contracts',()=>{
   const parsed=parseHistoricalWorkbook(bytes(wb));
   expect(parsed).toHaveLength(1);
   expect(parsed[0].source_id).toBe('OLD-0001');
+  expect(parsed[0].trip_no).toBe('');
   expect(parsed[0].sale_type).toBe('credit');
   expect(parsed[0].customer_gross).toBe(2000);
   expect(parsed[0].received).toBe(600);

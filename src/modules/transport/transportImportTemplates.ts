@@ -5,13 +5,13 @@ import {createImportTemplateWorkbook} from '@/lib/importExcelTemplate';
 /** Daily operational trips: Cash/Credit comes from Transport Customer Master. */
 export const TRANSPORT_TRIP_HEADERS=[
  'DATE','TRUCK TYPE','PO/DO/JOB NO.','COMPANY NAME','DRIVER NAME','OWNER','PLATE #','FROM','TO',
- 'PAPER RECEIVED BY','DATE','Customer Rate','Supplier Rent','INVOICE NUMBER','Notes'
+ 'PAPER RECEIVED BY','DATE','Customer Rate','Supplier Rent','INVOICE NUMBER','Notes','TRIP NO'
 ] as const;
 
 export function createDailyTripTemplateWorkbook(){
  const example=[
   '2026-10-01','Flatbed','PO-001','Replace with active Customer','Driver A','', 'ABC-123',
-  'Dammam','Riyadh','PPR PENDING','',1200,'','',''
+  'Dammam','Riyadh','PPR PENDING','',1200,'','','',''
  ];
  return createImportTemplateWorkbook({
   filename:'Transport_Daily_Trips_NAVILO.xlsx',
@@ -25,6 +25,7 @@ export function createDailyTripTemplateWorkbook(){
    'PAPER RECEIVED BY: PPR PENDING, N/A, or an actual receiving Employee name. The SECOND DATE column is the PPR receiving date (only for a received PPR).',
    'Customer Rate and Supplier Rent may be blank (pending) or nonnegative amounts up to two decimal places. Do not upload Driver Pay here.',
    'INVOICE NUMBER is a source reference only; it does not create or post an invoice.',
+   'TRIP NO is optional: supplied numeric numbers are preserved; blank values get a company-wide automatic numeric Trip Number. Duplicate numbers are rejected.',
    'Maximum 20,000 rows per file. Duplicate journeys are detected; repeat real trips need different PO/DO/Job No or distinct source identity.'
   ],
   fields:[
@@ -34,7 +35,8 @@ export function createDailyTripTemplateWorkbook(){
    {field:'TRUCK TYPE / PLATE # / DRIVER NAME',rule:'Active Transport master values. Vehicle ownership must cover Trip Date.'},
    {field:'PAPER RECEIVED BY + DATE (second)',rule:'PPR PENDING or N/A, else actual receiving Employee and receiving date.'},
    {field:'Customer Rate / Supplier Rent',rule:'Optional amounts with at most 2 decimal places. Finalization permissions are enforced.'},
-   {field:'INVOICE NUMBER',rule:'Optional reference; no invoice is posted by this upload.'}
+   {field:'INVOICE NUMBER',rule:'Optional reference; no invoice is posted by this upload.'},
+   {field:'TRIP NO',rule:'Optional positive numeric number (up to 12 digits). Blank generates the next available company-wide Trip Number.'}
   ]
  });
 }
@@ -47,12 +49,12 @@ export function createHistoricalTemplateWorkbook(){
  const headers=[
   'DATE','TRUCK TYPE','PO/DO/JOB NO.','INVOICED','COMPANY NAME','DRIVER NAME','OWNER',
   'PLATE #','FROM','TO','PAPER RECEIVED BY','Customer Rate','Supplier Rent',
-  'Sale Type (Cash / Credit)',...HISTORY_COLUMNS
+  'Sale Type (Cash / Credit)',...HISTORY_COLUMNS,'TRIP NO'
  ];
  const sample=[
   '2026-10-01','Flatbed','JOB-1','Yes','Example Customer','Example Driver','Example Supplier',
   'ABC-123','From','To','PPR PENDING',2000,1700,'Credit',
-  'OLD-0001','Yes','2026-10-01','No',2000,600,1400,'Yes','2026-10-01','No',1700,1000,700
+  'OLD-0001','Yes','2026-10-01','No',2000,600,1400,'Yes','2026-10-01','No',1700,1000,700,''
  ];
  const wb=createImportTemplateWorkbook({
   filename:'Transport-One-time-Import-Template.xlsx',sheetName:'Trips',
@@ -61,6 +63,7 @@ export function createHistoricalTemplateWorkbook(){
    'WARNING: One-time Import may POST financial invoices, purchases and dated payments. Use only after opening balance reconciliation and approval.',
    'Unlike DAILY Trip Upload, one-time records require an explicit Sale Type (Cash / Credit) as source evidence. This must agree with the target Customer Master policy; do not reclassify posted history silently.',
    'Source Record ID must be unique for each real Trip. Same-date repeat journeys need different Source Record IDs.',
+   'TRIP NO is optional and separate from Source Record ID. A supplied numeric Trip Number is preserved; blank values generate the next company-wide number.',
    'Customer Posted / Supplier Posted / Customer VAT / Supplier VAT accept ONLY Yes or No. Rates and Supplier Rent are EXCLUDING VAT; gross and remaining amounts include VAT.',
    'Unposted sides require zero gross, payment and remaining, with VAT No. Posted sides require invoice date and positive gross within the cutoff date.',
    'Customer Gross - Customer Received = Customer Remaining; Supplier Gross - Supplier Paid = Supplier Remaining.',

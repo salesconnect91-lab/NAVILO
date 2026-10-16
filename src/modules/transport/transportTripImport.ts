@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 
 export type ImportRow = {
- rowNo:number;trip_date:string;customer:string;truck_type:string;vehicle:string;driver:string;owner_supplier:string;
+ rowNo:number;trip_no?:string;trip_date:string;customer:string;truck_type:string;vehicle:string;driver:string;owner_supplier:string;
  po_do_job_no:string;from_location:string;to_location:string;ppr_status:string;customer_rate:string;supplier_rent:string;
  source_invoice_no:string;notes:string;sale_type:string;driver_pay:string;ppr_employee:string;ppr_date:string;
  payload?:Record<string,unknown>;errors:string[];has_accounting_evidence?:boolean;
@@ -45,7 +45,7 @@ export function parseTripWorkbook(buffer:ArrayBuffer):ImportRow[] {
   if(!['DATE','COMPANY NAME','TRUCK TYPE','PLATE #','DRIVER NAME','FROM','TO','PO/DO/JOB NO.'].some(h=>text(get(h))))continue;
   const paper=text(get('PAPER RECEIVED BY')),ppr=!paper||/pending/i.test(paper)?'pending':/not[_ ]required|n\/a/i.test(paper)?'not_required':'received';
   const invoice=text(first('INVOICE NUMBER','INVOICED'));
-  rows.push({rowNo:i+1,trip_date:importDate(get('DATE')),customer:text(get('COMPANY NAME')),truck_type:text(get('TRUCK TYPE')),
+  rows.push({rowNo:i+1,trip_no:text(first('TRIP NO','TRIP NUMBER')),trip_date:importDate(get('DATE')),customer:text(get('COMPANY NAME')),truck_type:text(get('TRUCK TYPE')),
    vehicle:text(plate?.w??get('PLATE #')),driver:text(get('DRIVER NAME')),owner_supplier:text(get('OWNER')),po_do_job_no:text(get('PO/DO/JOB NO.')),
    from_location:text(get('FROM')),to_location:text(get('TO')),ppr_status:ppr,ppr_employee:ppr==='received'?paper:'',ppr_date:ppr==='received'?importDate(get('DATE',1)):'',
    customer_rate:text(first('Customer Rate','rate with company')),supplier_rent:text(first('Supplier Rent','RENT WITH DRIVER')),

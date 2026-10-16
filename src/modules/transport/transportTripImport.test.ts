@@ -17,6 +17,13 @@ describe('BuKu Trip import',()=>{
   const result=parseTripWorkbook(workbook([row]))[0];expect(result.trip_date).toBe('2026-10-01');expect(result.ppr_date).toBe('2026-10-02');
   expect(result.sale_type).toBe('credit');expect(result.supplier_rent).toBe('0');expect(result.customer_rate).toBe('0');expect(result.driver_pay).toBe('');
  });
+ it('accepts optional Trip No from workbook and preserves supplied numbers',()=>{
+  const withNumber=[...headers,'TRIP NO'];
+  const book=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet([withNumber,[...example,'19538'],[...example,'']]),'Trips');
+  const parsed=parseTripWorkbook(XLSX.write(book,{type:'array',bookType:'xlsx'}));
+  expect(parsed.map(r=>r.trip_no)).toEqual(['19538','']);
+ });
  it('allows daily Trip upload without a Cash/Credit column; mode is resolved by customer master',()=>{
   const dailyHeaders=headers.filter(h=>!h.startsWith('Sale Type'));
   const dailyValues=example.slice(0,dailyHeaders.length);

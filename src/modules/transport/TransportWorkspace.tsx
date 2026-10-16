@@ -104,7 +104,7 @@ const BULK_TRIP_HEADERS=[
   "Customer Rate",
   "Supplier Rent",
   "Invoice Number",
-  "Notes", "Billing Mode (Auto)", "PPR Employee", "PPR Date"
+  "Notes", "Billing Mode (Auto)", "PPR Employee", "PPR Date", "Trip No"
 ] as const;
 
 
@@ -920,6 +920,8 @@ export default function TransportWorkspace(){
   const validateBulkRow=(row:BulkTripRow,preserveHistory=false)=>{
     const errors:string[]=[];
     if(!row.trip_date)errors.push('Trip Date required');
+    if(row.trip_no?.trim()&&!/^[0-9]{1,12}$/.test(row.trip_no.trim()))errors.push('Trip No must be a positive numeric value (up to 12 digits)');
+    if(row.trip_no?.trim()&&Number(row.trip_no.trim())===0)errors.push('Trip No must be greater than zero');
     if(!row.customer)errors.push('Customer required');
     if(!row.from_location||!row.to_location)errors.push('From and To required');
     if(preserveHistory&&!['cash','credit'].includes(row.sale_type))errors.push('Sale Type must be Cash or Credit');
@@ -932,7 +934,7 @@ export default function TransportWorkspace(){
   const validateBulkMasters=async(rowsToValidate:BulkTripRow[],allowRepeatJourneys=false,preserveHistory=false)=>{
     setBulkValidating(true);
     try{
-      const masters=await loadTripMasters();const seen=new Set<string>();
+      const masters=await loadTripMasters();const seen=new Set<string>();const seenTripNos=new Set<string>();
       const indexes=new Map<any[],Map<string,any[]>>();
       for(const [records,column] of [[masters.customers,'name'],[masters.truckTypes,'name'],[masters.vehicles,'vehicle_no'],[masters.drivers,'driver_name'],[masters.locations,'name'],[masters.employees,'name']] as const){
         const index=new Map<string,any[]>();for(const r of records){const k=masterKey(r[column]);index.set(k,[...(index.get(k)??[]),r]);}indexes.set(records,index);
@@ -944,6 +946,11 @@ export default function TransportWorkspace(){
       };
       return rowsToValidate.map(row=>{
         const errors=validateBulkRow(row,preserveHistory);
+        if(row.trip_no?.trim()){
+          const numberKey=row.trip_no.trim().replace(/^0+/,'')||'0';
+          if(seenTripNos.has(numberKey))errors.push('Duplicate Trip No in upload file');
+          seenTripNos.add(numberKey);
+        }
         const customer=resolve(masters.customers,row.customer),truck=resolve(masters.truckTypes,row.truck_type);
         const vehicle=row.vehicle?resolve(masters.vehicles,row.vehicle,'vehicle_no'):null;
         const driver=row.driver?resolve(masters.drivers,row.driver,'driver_name'):null;
@@ -962,7 +969,7 @@ export default function TransportWorkspace(){
         if(row.driver_pay!==''&&Number(row.driver_pay)>0)errors.push('Driver Pay entry is disabled. Remove Driver Pay from this upload.');
         const duplicateKey=tripImportIdentity(row,{customer:customer?.id,vehicle:vehicle?.id,driver:driver?.id,from:from?.id,to:to?.id});
         if(!allowRepeatJourneys&&seen.has(duplicateKey))errors.push('Duplicate row in upload file');seen.add(duplicateKey);
-        return {...row,errors,payload:{trip_date:row.trip_date,customer_id:customer?.id,truck_type_id:truck?.id??vehicle?.truck_type_id??null,
+        return {...row,errors,payload:{trip_no:row.trip_no?.trim()||null,trip_date:row.trip_date,customer_id:customer?.id,truck_type_id:truck?.id??vehicle?.truck_type_id??null,
           vehicle_id:vehicle?.id??null,driver_id:driver?.id??null,from_location_id:from?.id,to_location_id:to?.id,
           po_do_job_no:row.po_do_job_no||null,ppr_status:row.ppr_status,
           ppr_received_by_employee_id:row.ppr_status==='received'?employee?.id:null,ppr_received_date:row.ppr_status==='received'?row.ppr_date:null,
@@ -998,7 +1005,7 @@ export default function TransportWorkspace(){
       const validated=await validateBulkMasters(bulkRows);setBulkRows(validated);
       if(!validated.some(r=>!r.errors.length))throw new Error('No valid rows are available for import.');
       if(importJob&&importJob.completed<importJob.batches.length)throw new Error('Resume the pending import before starting another file.');
-      if(!window.confirm(`Import ${validated.filter(r=>!r.errors.length).length} valid Trips in batches of 100? NAVILO generates Trip Nos. Legacy payment/profit columns do not post accounting.`))return;
+      if(!window.confirm(`Import ${validated.filter(r=>!r.errors.length).length} valid Trips in batches of 100? Blank Trip Nos are auto-generated; supplied Trip Nos are preserved. Legacy payment/profit columns do not post accounting.`))return;
       const job={...makeImportJob(importScope,bulkFileName,validated),sourceHash:bulkSourceHash};setImportJob(job);await executeImport(job);
     }catch(e:any){setError(e.message||'Unable to prepare import.');}
   };
@@ -1021,8 +1028,9 @@ export default function TransportWorkspace(){
     const rejected=bulkRows.filter(r=>r.errors.length);
     const workbook=XLSX.utils.book_new();const sheet=XLSX.utils.aoa_to_sheet([
       [...TRANSPORT_TRIP_HEADERS,'Source Row','Validation Errors'],
-      ...rejected.map(r=>[r.trip_date,r.truck_type,r.po_do_job_no,'',r.customer,r.driver,r.owner_supplier,r.vehicle,r.from_location,r.to_location,
-        r.ppr_status==='received'?r.ppr_employee:r.ppr_status==='not_required'?'N/A':'PPR PENDING',r.ppr_date,'',r.supplier_rent,'','','',r.customer_rate,'','','','',r.source_invoice_no,r.sale_type,r.rowNo,r.errors.join('; ')])
+      ...rejected.map(r=>[r.trip_date,r.truck_type,r.po_do_job_no,r.customer,r.driver,r.owner_supplier,r.vehicle,r.from_location,r.to_location,
+        r.ppr_status==='received'?r.ppr_employee:r.ppr_status==='not_required'?'N/A':'PPR PENDING',r.ppr_date,
+        r.customer_rate,r.supplier_rent,r.source_invoice_no,r.notes,r.trip_no??'',r.rowNo,r.errors.join('; ')])
     ]);
     XLSX.utils.book_append_sheet(workbook,sheet,'Rejected rows');XLSX.writeFile(workbook,'NAVILO-Trip-Import-Rejected.csv',{bookType:'csv'});
   };
@@ -2716,7 +2724,7 @@ export default function TransportWorkspace(){
                 <td className="whitespace-nowrap px-2 py-2">{row.source_invoice_no}</td>
                 <td className="max-w-[220px] truncate px-2 py-2">{row.notes}</td>
                 <td className="px-2 py-2">{row.payload?.sale_type==="cash"?"Cash Only":row.payload?.sale_type==="credit"?"Credit Only":"Not Configured"}</td>
-                <td className="px-2 py-2">{row.ppr_employee}</td><td className="px-2 py-2">{row.ppr_date}</td>
+                <td className="px-2 py-2">{row.ppr_employee}</td><td className="px-2 py-2">{row.ppr_date}</td><td className="px-2 py-2">{row.trip_no??""}</td>
 
               </tr>
               {bulkFixRowNo===row.rowNo&&row.errors.length>0&&
