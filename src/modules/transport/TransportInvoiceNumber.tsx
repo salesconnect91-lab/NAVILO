@@ -9,7 +9,7 @@ import {type FinancialTrip} from './transportFinancialTypes';
 type InvoiceTrip=FinancialTrip & {invoice_no?:string|null};
 
 export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:InvoiceTrip;onClose:()=>void;onChanged:()=>Promise<void>}){
- const posted=Boolean(trip.invoiced||trip.customer_rate_locked||trip.invoice_no||Number(trip.billed_customer_net??0)>0);
+ const posted=Boolean(trip.invoiced||trip.sales_order_id||Number(trip.billed_customer_net??0)>0);
  const [invoiceNo,setInvoiceNo]=useState(trip.invoice_no??'');
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
  const withTax=trip.sale_type==='credit';const [vatReady,setVatReady]=useState(true);
