@@ -123,7 +123,6 @@ export default function PurchaseOrderList() {
 
   const columns: Column<PurchaseOrder>[] = [
     { key: "order_no", label: "Purchase Invoice #", sortable: true, render: (r) => <span className="font-semibold text-blue-600" title={r.order_no}>{(r as PurchaseOrder & {display_invoice_no?: string | null}).display_invoice_no || "0"}</span> },
-    { key: "consolidated", label: "Consolidated Purchase #", render: (r) => consolidatedLinks[r.id]?.length ? <div className="flex flex-wrap gap-1">{consolidatedLinks[r.id].map((no) => <span key={no} className="font-semibold text-violet-700">{no}</span>)}</div> : <span className="text-slate-400">—</span> },
     { key: "supplier", label: "Supplier", render: (r) => r.supplier?.name ?? "—" },
     { key: "order_date", label: "Invoice Date", sortable: true, render: (r) => formatDate(r.order_date) },
     { key: "invoice_type", label: "Type", sortable: true, render: (r) => r.invoice_type === "Tax Invoice" ? <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700">With Tax</span> : <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Without Tax</span> },
