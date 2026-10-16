@@ -122,7 +122,7 @@ export default function PurchaseOrderList() {
   const visibleSuppliers=listSummary.parties;
 
   const columns: Column<PurchaseOrder>[] = [
-    { key: "order_no", label: "Purchase Invoice #", sortable: true, render: (r) => <span className="font-semibold text-blue-600">{r.order_no}</span> },
+    { key: "order_no", label: "Purchase Invoice #", sortable: true, render: (r) => <span className="font-semibold text-blue-600" title={r.order_no}>{(r as PurchaseOrder & {display_invoice_no?: string | null}).display_invoice_no || "0"}</span> },
     { key: "consolidated", label: "Consolidated Purchase #", render: (r) => consolidatedLinks[r.id]?.length ? <div className="flex flex-wrap gap-1">{consolidatedLinks[r.id].map((no) => <span key={no} className="font-semibold text-violet-700">{no}</span>)}</div> : <span className="text-slate-400">—</span> },
     { key: "supplier", label: "Supplier", render: (r) => r.supplier?.name ?? "—" },
     { key: "order_date", label: "Invoice Date", sortable: true, render: (r) => formatDate(r.order_date) },

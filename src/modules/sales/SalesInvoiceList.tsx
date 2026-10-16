@@ -27,6 +27,7 @@ import { canPerformModule } from "@/auth/permissions";
 type PaymentStatus = "unpaid" | "partial" | "paid" | "overpaid";
 
 type SalesInvoiceRow = SalesOrder & {
+  display_invoice_no?: string | null;
   document_kind?: string | null;
   due_date?: string | null;
   paid_amount?: number | string | null;
@@ -583,7 +584,7 @@ export default function SalesInvoiceList() {
       key: "order_no",
       label: "Invoice #",
       render: (r) => (
-        <span className="font-semibold text-blue-600">{r.order_no}</span>
+        <span className="font-semibold text-blue-600" title={r.order_no}>{r.display_invoice_no || "0"}</span>
       ),
     },
     {
