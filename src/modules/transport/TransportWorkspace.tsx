@@ -33,6 +33,7 @@ import TransportPagination from './TransportPagination';
 import TransportQuickAdd from './TransportQuickAdd';
 import {loadTransportMobilePartyOptions} from './transportMobilePartyLookup';
 import {compatibleVehicles,ownershipOnDate,matchingCustomerRate,estimatedMargin,masterKey,validMoney,type QuickAddKind,type OwnershipPeriod} from './transportTripEntry';
+import {registerPageCache,registerFilterCache,boundedCacheSet,invalidateRegisterScope,reconcileRegisterRows} from './transportRegisterCache';
 import {registerOptionFilters} from './transportRegisterOptionFilters';
 import {fitTransportRegisterColumnWidths,normalizeTransportRegisterGridLayout,type TransportRegisterGridLayout} from './transportRegisterGridLayout';
 
@@ -43,13 +44,7 @@ function readRegisterViewState(key:string):Partial<RegisterViewState>{
   try{return JSON.parse(sessionStorage.getItem(key)??"{}") as Partial<RegisterViewState>;}catch{return {};}
 }
 // Test fixtures represent independent sessions; do not reuse module-level cache across them.
-const enableRegisterCache=import.meta.env.MODE!=="test";
-const registerPageCache=new Map<string,{rows:Trip[];meta:any;at:number}>();
-const registerFilterCache=new Map<string,{values:string[];at:number}>();
-function boundedCacheSet<T>(cache:Map<string,T>,key:string,value:T,limit:number){
-  cache.delete(key);cache.set(key,value);
-  if(cache.size>limit)cache.delete(cache.keys().next().value!);
-}
+const registerCacheEnabled=()=>import.meta.env.MODE!=="test";
 type MobileVoiceDraft={id:string;created_at:string;transcript:string;patch:Record<string,string>};
 type Tab="trips"|"new"|"mobile"|"audit";
 type Trip=FinancialTrip & {
@@ -117,7 +112,7 @@ const BULK_TRIP_HEADERS=[
 export default function TransportWorkspace(){
   const navigate=useNavigate();
   const location=useLocation();
-  const {user,activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
+  const {user,activeCompany,activeBusinessUnit,isPlatformOwner,accessContext}=useAuth();
   const scopeKey=`${activeCompany?.company_id}/${activeBusinessUnit?.business_unit_id}`;
   const scopeRef=useRef(scopeKey);scopeRef.current=scopeKey;
   const submissionRef=useRef(false);
@@ -514,12 +509,17 @@ export default function TransportWorkspace(){
   }
 
   const registerFilters={fromDate,toDate,customer:customerFilter,driver:driverFilter,vehicle:vehicleFilter,from:fromFilter,to:toFilter,ppr:pprFilter,statuses:statusFilters,columns:columnFilters,search:registerSearch,searchMode:registerSearchMode};
+  const cacheScopePrefix=JSON.stringify([user?.id??'anonymous',scopeKey,
+    (accessContext as any)?.current_operating_location?.id??(accessContext as any)?.current_operating_location?.operating_location_id??(accessContext as any)?.current_operating_location_id??(accessContext as any)?.operating_location_id??'',
+    role,isPlatformOwner,rolePermissions??{}])+':';
+  const registerTotalsKey=JSON.stringify({cacheScopePrefix,registerFilters});
+  const lastSuccessfulTotalsKey=useRef<string|null>(null);
   const registerKey=JSON.stringify({scopeKey,registerFilters,sortColumn,sortDirection});
   // A page has its own cached identity even when filters and sorting match.
-  const registerPageKey=`${user?.id??'anonymous'}:${registerKey}:page=${page}`;
-  async function load(silent=false){
+  const registerPageKey=`${cacheScopePrefix}${registerKey}:page=${page}`;
+  async function load(silent=false,refresh=false){
     // A timer/focus refresh must never abort an unfinished register request.
-    if(silent&&registerRequest.current)return;
+    if(silent&&!refresh&&registerRequest.current)return;
     // A successful rent save must refresh the register immediately. A previous
     // in-flight register read is stale at this point, so cancel it instead of
     // silently skipping the refresh (which left Supplier Balance unchanged).
@@ -616,22 +616,25 @@ export default function TransportWorkspace(){
     // is still running. Parallel reads competed for the same database resources.
     // Recovery remains available in catch after an actual timeout/failure.
     const deadlineTimer=window.setTimeout(()=>{deadlineHit=true;controller.abort();},58000);
-    if(!silent){setRegisterLoading(true);setError('');if(lastSuccessfulRegisterKey.current===null)setOperationalRecovery(null);}
+    if(!silent||refresh){setRegisterLoading(true);setError('');if(lastSuccessfulRegisterKey.current===null)setOperationalRecovery(null);}
     try {
-      const result=await supabase.rpc('transport_register_query',{p_limit:REGISTER_PAGE_SIZE,p_offset:page*REGISTER_PAGE_SIZE,p_filters:registerFilters,p_sort:sortColumn,p_direction:sortDirection}).abortSignal(controller.signal);
+      const result=await supabase.rpc('transport_register_query',{p_limit:REGISTER_PAGE_SIZE,p_offset:page*REGISTER_PAGE_SIZE,p_filters:{...registerFilters,use_cache:true,...(refresh?{refresh:true,...(lastSuccessfulRegisterKey.current===registerPageKey&&registerMeta.row_versions?{known_rows:registerMeta.row_versions}:{})}:{})},p_sort:sortColumn,p_direction:sortDirection}).abortSignal(controller.signal);
       if(result.error)throw result.error;
       if(scopeRef.current!==scopeKey||generation!==readGeneration.current)return;
       const data=result.data;
+      const nextRows=reconcileRegisterRows(rows,data).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type}));
       fullRegisterSucceeded=true;
       resumePageFinance?.();
       lastSuccessfulRegisterKey.current=registerPageKey;
+      lastSuccessfulTotalsKey.current=registerTotalsKey;
       setRegisterLoadError(false);
       setOperationalRecovery(null);
       setError('');
-      setRows((data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})));
+      setRows(nextRows);
       setRegisterMeta(data);
-      if(enableRegisterCache)boundedCacheSet(registerPageCache,registerPageKey,{rows:(data.rows??[]).map((r:any)=>({...r,status:r.status??r.trip_status,truck_type:r.truck_type_name??r.truck_type})),meta:data,at:Date.now()},12);
+      if(registerCacheEnabled())boundedCacheSet(registerPageCache,registerPageKey,{rows:nextRows,meta:{...data,rows:nextRows,rows_delta:false},at:Date.now(),valid:true},128);
       if(page>Math.max(0,Math.ceil(data.count/REGISTER_PAGE_SIZE)-1))setPage(Math.max(0,Math.ceil(data.count/REGISTER_PAGE_SIZE)-1));
+      return true;
     }catch(e:any){
       fullRegisterFailed=true;
       resumePageFinance?.();
@@ -662,16 +665,10 @@ export default function TransportWorkspace(){
     }
   }
   function refreshRegisterAfterChange():Promise<void>{
-    // A write invalidates every cached page for this user/workspace, including
-    // pages carrying prior balances and cascading filter options.
-    const prefix=`${user?.id??'anonymous'}:${scopeKey}:`;
-    for(const key of registerPageCache.keys())if(key.startsWith(prefix))registerPageCache.delete(key);
-    registerFilterCache.clear();
-    // Cancel/supersede any stale pending financial read; do not use load(true),
-    // which intentionally skips when a query is already in flight.
-    void load();
-    return Promise.resolve();
+    invalidateRegisterScope(cacheScopePrefix);
+    return load(true,true).then(success=>{if(success)setColumnOptionsRetry(current=>current+1);});
   }
+  function refreshRegister(){void refreshRegisterAfterChange();}
   useEffect(()=>{
     const state:RegisterViewState={fromDate,toDate,customerFilter,driverFilter,vehicleFilter,fromFilter,toFilter,pprFilter,statusFilters,columnFilters,sortColumn,sortDirection,registerSearch,registerSearchMode,page};
     if(import.meta.env.MODE!=="test")try{sessionStorage.setItem(registerViewStorageKey,JSON.stringify(state));}catch{/* Private browsing or storage disabled */}
@@ -684,22 +681,23 @@ export default function TransportWorkspace(){
     if(changed&&page!==0){setPage(0);return;}
     if(tab!=="trips"||showPartyReports)return;
     if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
-    const cached=enableRegisterCache?registerPageCache.get(registerPageKey):undefined;
+    const cached=registerCacheEnabled()?registerPageCache.get(registerPageKey):undefined;
     if(cached){
       readGeneration.current++;
       setRows(cached.rows);setRegisterMeta(cached.meta);
       lastSuccessfulRegisterKey.current=registerPageKey;
+      lastSuccessfulTotalsKey.current=registerTotalsKey;
       setRegisterLoadError(false);setRegisterLoading(false);
-      // Render the saved page immediately, then revalidate on every entry.
-      // Invoices/payments may have changed on another screen while this
-      // Register was unmounted; a fresh cache age is not proof of fresh finance.
+      // An explicit Refresh or successful save marks this scope dirty.
+      // Navigation, sort toggles and reopening filters reuse verified results.
+      if(cached.valid)return;
     }else{
       // Keep the last confirmed page while the new query loads; do not blank the grid.
       setRegisterLoading(true);
     }
-    const timer=window.setTimeout(()=>void load(!!cached),350);
+    const timer=window.setTimeout(()=>void load(!!cached),0);
     return()=>{window.clearTimeout(timer);registerRequest.current?.abort();registerRequest.current=null;registerRecoveryRequest.current?.abort();registerRecoveryRequest.current=null;readGeneration.current++;};
-  },[registerKey,page,tab,showPartyReports,user?.id]);
+  },[registerKey,page,tab,showPartyReports,cacheScopePrefix]);
 
   const mobileToday=new Date().toISOString().slice(0,10);
   const mobileFromDate=new Date(Date.now()-29*24*60*60*1000).toISOString().slice(0,10);
@@ -748,19 +746,13 @@ export default function TransportWorkspace(){
     }
   },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,standaloneMobile,featureAccess?.loading,mobileCanCreate]);
 
+  // Refresh is explicit. Successful local saves use refreshRegisterAfterChange.
   useEffect(()=>{
-    if(tab!=="trips"||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
-    const refresh=()=>{if(document.visibilityState==="visible"&&!registerRequest.current)void load(true)};
-    // Keep manual/focus/save refresh immediate; avoid saturating the 8s RPC pool with idle 30s polling.
-    const timer=window.setInterval(refresh,180000);
-    window.addEventListener("focus",refresh);
-    document.addEventListener("visibilitychange",refresh);
-    return ()=>{
-      window.clearInterval(timer);
-      window.removeEventListener("focus",refresh);
-      document.removeEventListener("visibilitychange",refresh);
-    };
-  },[tab,registerKey,page]);
+    if(tab!=="trips")return;
+    const changed=()=>void refreshRegisterAfterChange();
+    window.addEventListener('navilo-master-data-changed',changed);
+    return()=>window.removeEventListener('navilo-master-data-changed',changed);
+  },[tab,cacheScopePrefix,registerKey,page]);
 
   useEffect(()=>{
     if(tab!=="trips")return;
@@ -1630,7 +1622,8 @@ export default function TransportWorkspace(){
   // A column's own selection and header sorting do not change its available
   // options. Refetching on either action made the dropdown disappear/flash.
   const optionFilters=registerOptionFilters(registerFilters,openColumnFilter);
-  const optionContextKey=JSON.stringify({userId:user?.id,scopeKey,filters:optionFilters,option:openColumnFilter});
+  const optionContextKey=cacheScopePrefix+JSON.stringify({filters:optionFilters,option:openColumnFilter});
+  const previousOptionsRetry=useRef(0);
   useEffect(()=>{setColumnSearch('');},[openColumnFilter]);
   useEffect(()=>{
     let live=true;
@@ -1641,10 +1634,11 @@ export default function TransportWorkspace(){
     // Fetch the complete distinct-value set once per cascading filter context.
     // Searching within the dropdown is local, like Excel, never a per-keystroke RPC.
     const filterCacheKey=optionContextKey;
-    const cachedOptions=enableRegisterCache?registerFilterCache.get(filterCacheKey):undefined;
+    const cachedOptions=registerCacheEnabled()?registerFilterCache.get(filterCacheKey):undefined;
+    const retryRequested=previousOptionsRetry.current!==columnOptionsRetry;previousOptionsRetry.current=columnOptionsRetry;
     if(cachedOptions){
       setColumnValues(cachedOptions.values);setColumnValuesLoading(false);
-      if(Date.now()-cachedOptions.at<120000&&columnOptionsRetry===0)return;
+      if(cachedOptions.valid&&!retryRequested)return;
     }else{
       setColumnValues([]);setColumnValuesLoading(true);
     }
@@ -1653,12 +1647,12 @@ export default function TransportWorkspace(){
       columnOptionsRequest.current=controller;
       void (async()=>{
         try{
-          const r=await supabase.rpc('transport_register_query',{p_filters:optionFilters,p_option_key:openColumnFilter,p_option_search:''}).abortSignal(controller.signal);
+          const r=await supabase.rpc('transport_register_query',{p_filters:{...optionFilters,use_cache:true},p_option_key:openColumnFilter,p_option_search:''}).abortSignal(controller.signal);
           if(!live||controller.signal.aborted)return;
           if(r.error)throw r.error;
           const values=r.data.options??[];
           setColumnValues(values);
-          if(enableRegisterCache)boundedCacheSet(registerFilterCache,filterCacheKey,{values,at:Date.now()},40);
+          if(registerCacheEnabled())boundedCacheSet(registerFilterCache,filterCacheKey,{values,at:Date.now(),valid:true},128);
           setColumnValuesError('');
         }catch(e:any){
           if(live&&!controller.signal.aborted)setColumnValuesError(String(e?.message||'Unable to load filter values.'));
@@ -1667,7 +1661,7 @@ export default function TransportWorkspace(){
           if(live&&!controller.signal.aborted)setColumnValuesLoading(false);
         }
       })();
-    },650);
+    },0);
     return()=>{
       live=false;
       window.clearTimeout(timer);
@@ -1706,7 +1700,7 @@ export default function TransportWorkspace(){
   const recoveryPageFinancialReady=operationalRecoveryActive&&gridRows.length>0
     &&gridRows.every(r=>(r as any).recovery_financial_verified===true);
   // Totals and status counts are meaningful only for the currently confirmed filter/page.
-  const registerDataCurrent=!registerLoadError&&lastSuccessfulRegisterKey.current===registerPageKey;
+  const registerDataCurrent=!registerLoadError&&lastSuccessfulTotalsKey.current===registerTotalsKey;
   const [selectedTripIds,setSelectedTripIds]=useState<Set<string>>(()=>new Set());
   const selectedTripCount=selectedTripIds.size;
   const visibleTripIds=gridRows.map(row=>String(row.id));
@@ -1983,7 +1977,7 @@ export default function TransportWorkspace(){
         <div className="navilo-transport-register-actions flex items-center gap-1">
           <button type="button" onClick={()=>{setDateDraft({from:fromDate,to:toDate});setDateFilterOpen(true);}} className={`flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border ${fromDate||toDate?"border-amber-400 bg-amber-700":"border-slate-500 bg-slate-900/70"} hover:bg-slate-800`} aria-label="Filter Trip dates">Dates{fromDate||toDate?" ●":""}</button>
           <button type="button" onClick={resetGrid} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Reset</button>
-          <button type="button" onClick={()=>void load()} disabled={registerLoading} className="flex h-7 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold text-white border border-blue-500 bg-blue-600 hover:bg-blue-700"><RefreshCw className="h-3 w-3"/>Refresh</button>
+          <button type="button" onClick={refreshRegister} disabled={registerLoading} className="flex h-7 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold text-white border border-blue-500 bg-blue-600 hover:bg-blue-700"><RefreshCw className="h-3 w-3"/>Refresh</button>
           <button type="button" onClick={()=>setShowTripColumnSetup(v=>!v)} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Columns</button>
           {canDeleteTrip&&<button type="button" aria-label="Delete selected Trip" title="Select one Draft or Incomplete Trip without financial posting to delete" disabled={selectedTripCount!==1||!gridRows.some(r=>selectedTripIds.has(r.id)&&(r.status==='draft'||r.status==='incomplete'))} onClick={()=>{const selected=gridRows.find(r=>selectedTripIds.has(r.id));if(selected){setDeleteTripTarget(selected);setDeleteTripReason("");setDeleteTripError("");}}} className="flex h-7 items-center gap-1 rounded-md border border-rose-400 bg-rose-700 px-2 text-white disabled:opacity-40"><Trash2 className="h-4 w-4"/>Delete</button>}
           <span data-navilo-standard-tools-host="true" className="contents" />
@@ -2060,18 +2054,18 @@ export default function TransportWorkspace(){
           <span>{registerLoading
             ? lastSuccessfulRegisterKey.current!==null&&lastSuccessfulRegisterKey.current!==registerPageKey
               ? "Loading current results · previous page shown for reference; totals are not current."
-              : "Loading Register…"
+              : lastSuccessfulRegisterKey.current!==null?"Updating saved results…":"Loading Register…"
             : lastSuccessfulRegisterKey.current===registerPageKey
               ? "Refresh failed · last verified page retained."
               : "Current Register data unavailable · previous page is not current."}</span>
-          {registerLoadError&&!registerLoading&&<button type="button" className="shrink-0 font-semibold text-blue-700 underline" onClick={()=>void load()}>Retry</button>}
+          {registerLoadError&&!registerLoading&&<button type="button" className="shrink-0 font-semibold text-blue-700 underline" onClick={refreshRegister}>Retry</button>}
         </div>
       )}
       {operationalRecoveryActive&&operationalRecovery&&(
         <div role="status" className="shrink-0 flex items-center justify-between gap-2 border-t border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
           <span><strong>Original Trip Register · {operationalRecovery.count.toLocaleString()} saved Trips</strong>
           {' '}All original columns and popups are retained. {recoveryPageFinancialReady?'Visible Trip amounts verified; all-page totals are pending.':'Amounts are being verified for this page; unavailable figures show —.'}</span>
-          <button type="button" onClick={()=>void load()} disabled={registerLoading}
+          <button type="button" onClick={refreshRegister} disabled={registerLoading}
             className="shrink-0 rounded border border-amber-500 bg-white px-2 py-1 font-semibold">Retry financial data</button>
         </div>
       )}
@@ -2185,7 +2179,7 @@ export default function TransportWorkspace(){
           </thead>
 
           <tbody>
-            {!gridRows.length&&<tr><td colSpan={Math.max(1,orderedGridColumns.length)}><div className="navilo-transport-empty-state">{registerLoading?"Loading trips…":registerLoadError?<><strong>Register query failed; existing Trips are safe.</strong><button type="button" className="btn h-7" onClick={()=>void load()}>Retry</button></>:<><strong>{registerSearch||Object.values(columnFilters).some(v=>v.length)||statusFilters.length?"No trips match your filters.":"No trips yet."}</strong><button type="button" className="btn h-7" onClick={()=>{setEditingTripId(null);setTab("new")}}>Add Trip</button></>}</div></td></tr>}
+            {!gridRows.length&&<tr><td colSpan={Math.max(1,orderedGridColumns.length)}><div className="navilo-transport-empty-state">{registerLoading?"Loading trips…":registerLoadError?<><strong>Register query failed; existing Trips are safe.</strong><button type="button" className="btn h-7" onClick={refreshRegister}>Retry</button></>:<><strong>{registerSearch||Object.values(columnFilters).some(v=>v.length)||statusFilters.length?"No trips match your filters.":"No trips yet."}</strong><button type="button" className="btn h-7" onClick={()=>{setEditingTripId(null);setTab("new")}}>Add Trip</button></>}</div></td></tr>}
             {gridRows.map(r=>{
               const tripSelected=selectedTripIds.has(String(r.id));
               return <tr key={r.id} data-trip-selected={tripSelected?"true":"false"} className={`align-middle transition-colors ${tripSelected?'outline outline-1 -outline-offset-1 outline-amber-400':''} h-[26px] odd:bg-white even:bg-slate-50/45 hover:bg-blue-50/45`}>

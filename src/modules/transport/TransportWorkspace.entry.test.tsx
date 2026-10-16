@@ -3,6 +3,7 @@ import {StrictMode} from 'react';
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import TransportWorkspace from './TransportWorkspace';
+import {clearRegisterSessionCache} from './transportRegisterCache';
 import UniversalDataTools from '@/components/UniversalDataTools';
 import GlobalLanguageRuntime from '@/components/GlobalLanguageRuntime';
 import LanguageRuntime from '@/components/LanguageRuntime';
@@ -34,6 +35,7 @@ vi.mock('./TransportFinancialPanel',()=>({default:()=>null}));vi.mock('./Transpo
 vi.mock('./TransportCostUpload',()=>({default:()=>null}));vi.mock('./TransportAudit',()=>({default:()=>null}));
 vi.mock('./TransportPartyReports',()=>({default:()=>null}));vi.mock('./TransportAccountStatement',()=>({default:()=>null}));
 beforeEach(()=>{
+ clearRegisterSessionCache();
  Object.defineProperty(globalThis,'crypto',{value:webcrypto,configurable:true});
  mock.allow=true;mock.layoutUserId=null;mock.remoteLayout=null;mock.savedLayout=null;mock.layoutReads=0;mock.layoutWriteError=false;mock.layoutReadError=false;mock.layoutQueries=[];
  mock.abortSignals={};
@@ -45,7 +47,7 @@ beforeEach(()=>{
  transport_vehicles:[{id:'v',vehicle_no:'FLAT-1',truck_type_id:'tt',is_active:true},{id:'v2',vehicle_no:'TANK-1',truck_type_id:'tt2',is_active:true}],
  transport_vehicle_ownership:[{id:'old',vehicle_id:'v',owner_type:'third_party',supplier_id:'s',owner_name_snapshot:'Supplier',effective_from:'2020-01-01',effective_to:'2026-06-30'},
  {id:'current',vehicle_id:'v',owner_type:'company',supplier_id:null,owner_name_snapshot:'Company',effective_from:'2026-07-01',effective_to:null}]};
-});afterEach(cleanup);
+});afterEach(()=>{cleanup();clearRegisterSessionCache();vi.unstubAllEnvs();sessionStorage.clear();});
 async function view(){render(<MemoryRouter initialEntries={["/transport?view=new"]}><TransportWorkspace/></MemoryRouter>);await waitFor(()=>expect(screen.getByRole('button',{name:'Add Truck Type'})).toBeTruthy());await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_finance_allowed',{p_action:'driver'}));}
 function choose(placeholder:string,name:string){fireEvent.focus(screen.getByPlaceholderText(placeholder));fireEvent.mouseDown(screen.getByRole('button',{name}));}
 async function fill(){await view();choose('Search Customer','Customer');choose('Search From','From');choose('Search To','To');await waitFor(()=>expect(screen.getByLabelText('Customer billing mode').textContent).toContain('Credit Only'));}
@@ -720,5 +722,63 @@ describe('Transport compact register and centered controls',()=>{
   mock.rpc.mockImplementation(async(name:string)=>name==='transport_register_query'?{data:null,error:{message:'Failed to fetch'}}:{data:true,error:null});
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
   await screen.findByText('Register query failed; existing Trips are safe.');expect(screen.queryByText('No trips yet.')).toBeNull();expect(screen.getAllByRole('button',{name:'Retry'}).length).toBeGreaterThan(0);
+ });
+});
+
+
+describe('Register manual refresh and saved query results',()=>{
+ function cachedRegister(){
+  vi.stubEnv('MODE','development');
+  const original=mock.rpc.getMockImplementation()!;
+  mock.rpc.mockImplementation(async(name:string,args:any)=>{
+   if(name!=='transport_register_query')return original(name,args);
+   if(args?.p_option_key)return {data:{options:['Driver','Second Driver']},error:null};
+   return {data:{rows:[{id:'cached-trip',trip_no:'CACHE-1',trip_date:'2026-10-15',customer_name:'Cached Customer',
+    driver_name:'Driver',vehicle_no:'FLAT-1',customer_rate:1700,from_location:'From',to_location:'To'}],
+    count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{company_rate:1700},row_versions:{'cached-trip':'v1'}},error:null};
+  });
+  return render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+ }
+ const registerReads=()=>mock.rpc.mock.calls.filter(([name,args])=>name==='transport_register_query'&&!args?.p_option_key);
+ it('keeps the verified Register on navigation and focus until Refresh is requested',async()=>{
+  const mounted=cachedRegister();await screen.findByText('Cached Customer');
+  expect(registerReads()).toHaveLength(1);
+  fireEvent(window,new Event('focus'));fireEvent(document,new Event('visibilitychange'));
+  expect(registerReads()).toHaveLength(1);
+  mounted.unmount();render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+  await screen.findByText('Cached Customer');expect(registerReads()).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button',{name:'Refresh'}));
+  await waitFor(()=>expect(registerReads()).toHaveLength(2));
+  expect(registerReads()[1][1].p_filters).toMatchObject({use_cache:true,refresh:true,known_rows:{'cached-trip':'v1'}});
+  expect(screen.getByText('Cached Customer')).toBeTruthy();
+ });
+ it('reuses a previously loaded sort and retains filter values across reopen',async()=>{
+  cachedRegister();await screen.findByText('Cached Customer');
+  const sort=screen.getByRole('button',{name:'Customer Rate (Net)'});
+  fireEvent.click(sort);await waitFor(()=>expect(registerReads()).toHaveLength(2));
+  await waitFor(()=>expect(screen.queryByText('Updating saved results…')).toBeNull());
+  fireEvent.click(sort);await waitFor(()=>expect(registerReads()).toHaveLength(3));
+  await waitFor(()=>expect(screen.queryByText('Updating saved results…')).toBeNull());
+  fireEvent.click(sort);await waitFor(()=>expect(sort.closest('th')?.getAttribute('aria-sort')).toBe('ascending'));
+  expect(registerReads()).toHaveLength(3);
+  fireEvent.click(screen.getByRole('button',{name:'Filter Driver'}));
+  await screen.findByText('2 matching values');
+  fireEvent.click(screen.getByRole('button',{name:'Close Driver filter'}));
+  fireEvent.click(screen.getByRole('button',{name:'Filter Driver'}));
+  await screen.findByText('2 matching values');
+  expect(mock.rpc.mock.calls.filter(([name,args])=>name==='transport_register_query'&&args?.p_option_key==='driver')).toHaveLength(1);
+ });
+ it('merges changed rows by Trip ID and keeps the grid while Refresh is pending',async()=>{
+  cachedRegister();await screen.findByText('Cached Customer');
+  const original=mock.rpc.getMockImplementation()!;let finish:(result:any)=>void=()=>{};
+  mock.rpc.mockImplementation((name:string,args:any)=>name==='transport_register_query'&&args?.p_filters?.refresh
+   ?new Promise(resolve=>{finish=resolve;}):original(name,args));
+  fireEvent.click(screen.getByRole('button',{name:'Refresh'}));
+  await waitFor(()=>expect(registerReads()).toHaveLength(2));
+  expect(screen.getByText('Cached Customer')).toBeTruthy();expect(screen.queryByText('Loading trips…')).toBeNull();
+  finish({data:{rows_delta:true,rows_order:['cached-trip'],rows:[{id:'cached-trip',trip_no:'CACHE-1',trip_date:'2026-10-15',
+   customer_name:'Updated Customer',driver_name:'Driver',vehicle_no:'FLAT-1',customer_rate:1800,from_location:'From',to_location:'To'}],
+   count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{company_rate:1800},row_versions:{'cached-trip':'v2'}},error:null});
+  await screen.findByText('Updated Customer');expect(screen.queryByText('Cached Customer')).toBeNull();
  });
 });
