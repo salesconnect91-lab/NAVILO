@@ -2,6 +2,7 @@ import {downloadDailyTripTemplate,downloadHistoricalTemplate} from '@/modules/tr
 import {downloadExcelTemplate} from '@/modules/accounting/journalImportTemplates';
 import TransportExternalInvoiceImport from '@/modules/transport/TransportExternalInvoiceImport';
 import TransportNormalInvoiceImport from '@/modules/transport/TransportNormalInvoiceImport';
+import TransportVehicleExpenseImportPreview from '@/modules/transport/TransportVehicleExpenseImportPreview';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { ArrowRight, FileText, Landmark, Truck, Users, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -337,7 +338,8 @@ export default function ImportCenter() {
      <ImportEntry title="Daily Trip Upload" effect="Trip records only" detail="Upload current trips. No invoice, receipt or journal is posted." to="/transport?view=new&import=bulk" label="Open Daily Trip Upload" download={downloadDailyTripTemplate}/>
      {canImport("sales")&&<TransportInvoiceImports/>}
     </ImportGroup>}
-    {activeBusinessUnit?.business_unit_type==='transport'&&(canImport("sales")||canImport("purchase"))&&
+    {activeBusinessUnit?.business_unit_type==='transport'&&canImport("transport")&&<ImportGroup id="import-vehicle-expenses" title="Vehicle Expenses — Review" detail="Check Excel amounts, vehicles and VAT before the future accounting import is enabled."><TransportVehicleExpenseImportPreview/></ImportGroup>}
+   {activeBusinessUnit?.business_unit_type==='transport'&&(canImport("sales")||canImport("purchase"))&&
      <ImportGroup id="import-normal" title="3. Sale & Purchase Invoices — No Trips"
       detail="Standalone description-only invoices linked to the same Customer/Supplier Master, AR/AP, VAT, GL, receipts/payments and reports. No stock or Trip movements.">
        <div className="grid gap-3 xl:grid-cols-2">
