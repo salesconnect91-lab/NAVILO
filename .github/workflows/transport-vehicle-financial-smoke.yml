@@ -1,0 +1,44 @@
+name: Transport vehicle financial smoke
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/transport-vehicle-financial-smoke.yml'
+      - 'supabase/tests/replay_transport_isolated.mjs'
+      - 'supabase/tests/transport_v1_financial_completion_rehearsal.sql'
+permissions:
+  contents: read
+jobs:
+  vehicle-reconciliation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: navilo_transport_rehearsal
+          POSTGRES_PASSWORD: navilo-rehearsal-only
+        ports:
+          - 6543:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install isolated PostgreSQL driver
+        run: npm install --prefix "$RUNNER_TEMP/navilo-rehearsal-driver" --no-save --package-lock=false --no-audit --no-fund pg@8.16.3
+      - name: Reconcile vehicle ledger, invoices and partial payments
+        env:
+          NAVILO_NATIVE_REHEARSAL: '1'
+          NAVILO_VEHICLE_REPORT_SMOKE: '1'
+          NAVILO_PG_DRIVER: ${{ runner.temp }}/navilo-rehearsal-driver/node_modules/pg/lib/index.js
+        run: node supabase/tests/replay_transport_isolated.mjs
