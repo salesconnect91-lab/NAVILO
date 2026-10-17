@@ -11,7 +11,9 @@ type InvoiceTrip=FinancialTrip & {invoice_no?:string|null;sales_order_id?:string
 
 export function isValidTransportOriginalInvoice(value:string):boolean {
  const trimmed=value.trim();
- return Boolean(trimmed) && !/^(?:H-S(?:-|\\b)|YES$|NO$|CLEARED$|NO INVOICE$|BAD DEBTS?$|PENDING$|NOT INVOICED$|N\\/?A$|0$)/i.test(trimmed);
+ const upper=trimmed.toUpperCase();
+ return Boolean(trimmed) && !upper.startsWith('H-S-')
+  && !['YES','NO','CLEARED','NO INVOICE','BAD DEBT','BAD DEBTS','PENDING','NOT INVOICED','N/A','0'].includes(upper);
 }
 
 export function invoicePostingBlockers(input:{
