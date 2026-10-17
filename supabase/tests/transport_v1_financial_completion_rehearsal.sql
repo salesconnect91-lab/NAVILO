@@ -349,7 +349,12 @@ end if;
  or not exists(select 1 from public.journal_entries where source_document_id=normal_doc and status='posted')
  or exists(select 1 from public.transport_customer_document_trips l join public.transport_customer_documents d on d.id=l.document_id where d.sales_order_id=normal_doc)
  or exists(select 1 from public.stock_movements where source_id=normal_doc)
- then raise exception 'Standalone Normal Sales failed canonical posting or has Trip/stock link';end if;
+ then raise exception 'Standalone Normal Sales posting details: result=%, lines=%, journal=%, linked=%, stock=%',
+ result,
+ (select count(*) from public.sales_service_lines where order_id=normal_doc and source_module='transport_normal' and source_id is null),
+ (select count(*) from public.journal_entries where source_document_id=normal_doc and status='posted'),
+ (select count(*) from public.transport_customer_document_trips l join public.transport_customer_documents d on d.id=l.document_id where d.sales_order_id=normal_doc),
+ (select count(*) from public.stock_movements where source_id=normal_doc);end if;
  result:=public.transport_normal_invoice_create('supplier',supplier,current_date,
   '[{"description":"Supplier admin fee","amount":"75.00"}]'::jsonb,
   acct,'NORMAL-P-'||code,'Supplier ref 5',true);
