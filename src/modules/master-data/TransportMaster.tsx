@@ -198,7 +198,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
               <option value="">Not linked — select Revenue account</option>
               {incomeAccounts.filter(a=>a.is_active||a.id===form.revenueAccountId).map(a=><option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
             </NaviloSearchableSelect>
-            <span className="block font-normal text-slate-500">One-time link. Sale invoices posted for this company-owned vehicle will use this Revenue account automatically. Missing? <Link to="/accounting/accounts" className="text-blue-700 underline">Create in Chart of Accounts</Link></span>
+            <span className="block font-normal text-slate-500">One-time link. Multiple vehicles may use the same existing Revenue account; Vehicle Ledger/P&L stays separate. Sale invoices automatically use the linked COA. Missing? <Link to="/accounting/accounts" className="text-blue-700 underline">Create in Chart of Accounts</Link></span>
           </label>}
           {vehicle && editing ? <div className="text-xs sm:col-span-2">Owner: {partyName(editing) || "Legacy / not classified"}. <Link className="text-blue-700 underline" to="/master-data/vehicle-ownership">Change through Vehicle Ownership History</Link></div>
             : <>{(!supplierOwner&&!employeeOwner)&&<label className="text-xs font-semibold">{vehicle ? "Ownership Type" : "Driver Type"}<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 w-full" value={vehicle ? form.ownerType : form.driverType} onChange={e => setForm({ ...form, ...(vehicle ? { ownerType: e.target.value } : { driverType: e.target.value, employeeId: "" }), supplierId: "" })}>
