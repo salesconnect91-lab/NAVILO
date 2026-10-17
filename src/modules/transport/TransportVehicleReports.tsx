@@ -6,7 +6,12 @@ import {formatNaviloDate} from '@/lib/naviloDate';
 import ConfigurableReport from './ConfigurableReport';
 import type {ReportTable} from './transportPartyExport';
 
-type Vehicle = {id: string; vehicle_no: string};
+type Vehicle = {id: string; vehicle_no: string; owner_type?: string | null; ownership_type?: string | null};
+const TWAKKAL_COMPANY_ID = 'c611adca-fd2f-4cc1-b379-3aed22924f65';
+const isTwakkalOwner = (owner: unknown): boolean => {
+  const value = String(owner ?? '').trim().replace(/\\s+/g, ' ').toLowerCase();
+  return value === 'twakkal' || value === 'twakkal al khaleej' || value === 'twakkal al-khaleej';
+};
 type FinancialTrip = Record<string, any>;
 type ReportMode = 'ledger' | 'profit';
 const number = (value: unknown): number => {
@@ -28,8 +33,10 @@ export default function TransportVehicleReports() {
   const {activeCompany, activeBusinessUnit} = useAuth();
   const companyId = activeCompany?.company_id;
   const businessUnitId = activeBusinessUnit?.business_unit_id;
+  const isTwakkalCompany = companyId === TWAKKAL_COMPANY_ID;
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehiclesError, setVehiclesError] = useState('');
+  const [unmappedTwakkalTrips, setUnmappedTwakkalTrips] = useState(0);
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [vehicleId, setVehicleId] = useState('');
   const [from, setFrom] = useState('');
@@ -44,13 +51,14 @@ export default function TransportVehicleReports() {
     setVehicles([]);
     setVehicleId('');
     setVehiclesError('');
-    if (!companyId || !businessUnitId) return;
+    setUnmappedTwakkalTrips(0);
+    if (!isTwakkalCompany || !businessUnitId) return;
     void (async () => {
       try {
         const all: Vehicle[] = [];
         for (let offset = 0; offset < 10000; offset += 500) {
           const result = await supabase.from('transport_vehicles')
-            .select('id,vehicle_no').eq('company_id', companyId)
+            .select('id,vehicle_no,owner_type,ownership_type').eq('company_id', companyId)
             .eq('business_unit_id', businessUnitId)
             .order('vehicle_no', {ascending: true}).range(offset, offset + 499);
           if (result.error) throw result.error;
@@ -58,19 +66,44 @@ export default function TransportVehicleReports() {
           all.push(...batch);
           if (batch.length < 500) break;
         }
-        if (!disposed) setVehicles(all);
+        // A Trip's own saved owner identifies historical Twakkal operations.
+        // A vehicle's current master owner alone must never reclassify
+        // supplier- or partner-era Trips as Twakkal's own.
+        const twakkalVehicleIds = new Set<string>();
+        let unassigned = 0;
+        for (let offset = 0; offset < 50000; offset += 500) {
+          const result = await supabase.from('transport_trips')
+            .select('vehicle_id,owner_name_snapshot')
+            .eq('company_id', companyId).eq('business_unit_id', businessUnitId)
+            .ilike('owner_name_snapshot', '%twakkal%')
+            .order('id', {ascending: true}).range(offset, offset + 499);
+          if (result.error) throw result.error;
+          const batch = result.data ?? [];
+          for (const trip of batch) {
+            if (!isTwakkalOwner(trip.owner_name_snapshot)) continue;
+            if (trip.vehicle_id) twakkalVehicleIds.add(trip.vehicle_id);
+            else unassigned++;
+          }
+          if (batch.length < 500) break;
+        }
+        const owned = all.filter(vehicle => vehicle.owner_type === 'company' ||
+          vehicle.ownership_type === 'company' || twakkalVehicleIds.has(vehicle.id));
+        if (!disposed) {
+          setVehicles(owned);
+          setUnmappedTwakkalTrips(unassigned);
+        }
       } catch (reason) {
         if (!disposed) setVehiclesError(reason instanceof Error ? reason.message : 'Unable to load vehicles.');
       }
     })();
     return () => {disposed = true;};
-  }, [companyId, businessUnitId]);
+  }, [companyId, businessUnitId, isTwakkalCompany]);
 
   useEffect(() => {
     let disposed = false;
     setRows([]);
     setError('');
-    if (!vehicleId || !companyId || !businessUnitId) {
+    if (!vehicleId || !isTwakkalCompany || !businessUnitId) {
       setLoading(false);
       return;
     }
@@ -94,7 +127,9 @@ export default function TransportVehicleReports() {
           all.push(...batch);
           if (batch.length < 500 || all.length >= number(result?.count)) break;
         }
-        if (!disposed) setRows(all);
+        // Exclude any supplier/partner Trips that share this plate. The
+        // snapshot belongs to the Trip, rather than today's vehicle master.
+        if (!disposed) setRows(all.filter(trip => isTwakkalOwner(trip.owner_name)));
       } catch (reason) {
         if (!disposed) setError(reason instanceof Error ? reason.message : 'Unable to read vehicle trips.');
       } finally {
@@ -102,7 +137,7 @@ export default function TransportVehicleReports() {
       }
     })();
     return () => {disposed = true;};
-  }, [vehicleId, companyId, businessUnitId, from, to]);
+  }, [vehicleId, companyId, isTwakkalCompany, businessUnitId, from, to]);
 
   const matching = useMemo(() => {
     const search = vehicleSearch.trim().toLowerCase();
@@ -138,7 +173,7 @@ export default function TransportVehicleReports() {
   const profit = totals.revenue - cost;
   const margin = totals.revenue ? profit / totals.revenue * 100 : 0;
   const reportDescription =
-    `${activeCompany?.company_name ?? ''} / ${activeBusinessUnit?.business_unit_name ?? ''} · ${selectedVehicle?.vehicle_no ?? 'Vehicle'} · Trip dates ${from ? formatNaviloDate(from) : 'Beginning'} to ${to ? formatNaviloDate(to) : 'All'} · ${rows.length} Trips. Operational trip-date basis; not the dated General Ledger P&L. Source-import amounts and unposted agreed rates are excluded from linked revenue/cost; VAT is excluded.`;
+    `${activeCompany?.company_name ?? ''} / ${activeBusinessUnit?.business_unit_name ?? ''} · ${selectedVehicle?.vehicle_no ?? 'Vehicle'} · Owner on Trip: TWAKKAL · Trip dates ${from ? formatNaviloDate(from) : 'Beginning'} to ${to ? formatNaviloDate(to) : 'All'} · ${rows.length} Trips. Operational trip-date basis; not the dated General Ledger P&L. Source-import amounts and unposted agreed rates are excluded from linked revenue/cost; VAT is excluded.`;
 
   const ledger: ReportTable = useMemo(() => {
     let running = 0;
@@ -157,7 +192,7 @@ export default function TransportVehicleReports() {
       ];
     });
     return {
-      title: `Vehicle Trip Ledger · ${selectedVehicle?.vehicle_no ?? ''}`,
+      title: `Twakkal Vehicle Trip Ledger · ${selectedVehicle?.vehicle_no ?? ''}`,
       description: reportDescription + ' Running contribution begins at zero for the selected date range; it is not an AR, AP or cash balance.',
       columns: [
         'Trip Date', 'Trip No', 'Customer', 'Supplier / Owner', 'Ownership at Trip',
@@ -176,7 +211,7 @@ export default function TransportVehicleReports() {
   }, [chronological, selectedVehicle?.vehicle_no, reportDescription, totals, profit]);
 
   const pnl: ReportTable = useMemo(() => ({
-    title: `Vehicle Operating Profit & Loss · ${selectedVehicle?.vehicle_no ?? ''}`,
+    title: `Twakkal Vehicle Operating Profit & Loss · ${selectedVehicle?.vehicle_no ?? ''}`,
     description: reportDescription + ' Income and cost are from linked financial evidence; driver accrued is an operating cost. This is not a statutory accounting statement.',
     columns: ['Particulars', 'Amount (SAR)'],
     rows: [
@@ -194,11 +229,15 @@ export default function TransportVehicleReports() {
     ],
   }), [selectedVehicle?.vehicle_no, reportDescription, totals, cost, profit, margin]);
 
+  if (companyId && !isTwakkalCompany) {
+    return <p role="alert">This vehicle report is limited to Twakkal Al Khaleej.</p>;
+  }
   return <section className="space-y-3">
-    <h2 className="text-lg font-semibold">Vehicle Ledger &amp; P&amp;L</h2>
+    <h2 className="text-lg font-semibold">Twakkal Vehicle Ledger &amp; P&amp;L</h2>
     <p className="text-xs text-slate-600">
-      Select a vehicle to see all its mapped trips. Reports use financial links that exist;
-      imported source amounts are shown separately and never counted as posted sales.
+      Only Trips whose saved owner is TWAKKAL are included. Supplier- and partner-owned
+      Trips are excluded, even if they share a vehicle number. Unposted/imported
+      source amounts remain separate from linked financial amounts.
     </p>
     <div className="flex flex-wrap items-end gap-2">
       <label className="text-xs">Find vehicle / plate
@@ -220,7 +259,7 @@ export default function TransportVehicleReports() {
       </label>
     </div>
     {vehiclesError && <p role="alert" className="text-red-700">{vehiclesError}</p>}
-    <p className="text-xs text-slate-600">{vehicles.length} vehicles in current Company / Business Unit. Clear the date fields for all trip dates.</p>
+    <p className="text-xs text-slate-600">{vehicles.length} candidate Twakkal vehicles (Master company-owned or Trips owned by TWAKKAL). {unmappedTwakkalTrips} TWAKKAL Trips have no mapped vehicle and are excluded from individual vehicle totals. No master classifications have been changed. Clear dates to include all Trip dates.</p>
     {vehicleId && <>
       {loading ? <p role="status">Loading linked vehicle trips for the report…</p> :
         error ? <p role="alert" className="text-red-700">{error}</p> :
