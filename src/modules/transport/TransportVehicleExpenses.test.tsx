@@ -6,9 +6,35 @@ import Expenses from './TransportVehicleExpenses';
 const mock=vi.hoisted(()=>({calls:[] as any[],deny:false}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'c'},activeBusinessUnit:{business_unit_id:'b'}})}));
 vi.mock('@/components/NaviloDateInput',()=>({default:({value,onChange}:any)=><input type="date" value={value} onChange={onChange}/>}));
-vi.mock('@/lib/supabase',()=>({supabase:{from:(table:string)=>{const data=table==='transport_vehicles'?[{id:'v1',vehicle_no:'7979'}]:table==='transport_vehicle_expense_types'?[{id:'t1',name:'Fuel'}]:table==='transport_vehicle_ownership'?[{id:'o1',vehicle_id:'v1',owner_type:'company',effective_from:'2020-01-01',effective_to:null}]:table==='chart_of_accounts'?[{id:'expense',name:'Fuel GL',type:'expense',is_group:false},{id:'bank',name:'Bank',type:'asset',is_group:false,detail_type:'Bank Account'}]:[];const q:any={select:()=>q,eq:()=>q,order:()=>q,range:()=>Promise.resolve({data,error:null})};return q;},rpc:async(name:string,args:any)=>{mock.calls.push({name,args});if(mock.deny)return {data:null,error:{message:'Posting permission required'}};return {data:{document_id:'draft-1',journal_entry_id:'je-1',status:name.endsWith('_post')?'posted':'draft'},error:null};}}}));
+vi.mock('@/lib/supabase',()=>({supabase:{from:(table:string)=>{const data=table==='transport_vehicles'?[{id:'v1',vehicle_no:'7979'}]:table==='transport_vehicle_expense_types'?[{id:'t1',name:'Fuel'}]:table==='transport_vehicle_ownership'?[{id:'o1',vehicle_id:'v1',owner_type:'company',effective_from:'2020-01-01',effective_to:null}]:table==='chart_of_accounts'?[{id:'expense',name:'Fuel GL',type:'expense',is_group:false},{id:'bank',name:'Bank',type:'asset',is_group:false,detail_type:'Bank Account'}]:table==='transport_vehicle_expense_documents'?[{id:'draft-1',expense_group:'FUEL-1',expense_date:'2026-10-17',payment_method:'bank',payment_account_id:'bank',supplier_id:null,status:'draft',journal_entry_id:null}]:table==='transport_vehicle_expense_document_lines'?[{id:'line-1',vehicle_id:'v1',trip_id:null,expense_type:'Fuel',description:'Fuel receipt',expense_account_id:'expense',source_reference:'REF-001',vat_recoverable:true,net_amount:100,vat_rate:15}]:[];const q:any={select:()=>q,eq:()=>q,order:()=>q,range:()=>Promise.resolve({data,error:null}),then:(resolve:any,reject:any)=>Promise.resolve({data,error:null}).then(resolve,reject)};return q;},rpc:async(name:string,args:any)=>{mock.calls.push({name,args});if(mock.deny)return {data:null,error:{message:'Posting permission required'}};return {data:{document_id:'draft-1',journal_entry_id:'je-1',status:name.endsWith('_post')?'posted':'draft'},error:null};}}}));
 beforeEach(()=>{mock.calls=[];mock.deny=false});afterEach(cleanup);
 describe('Vehicle expense workflow',()=>{
- it('retains edited draft lines and posts a saved document once',async()=>{render(<MemoryRouter><Expenses/></MemoryRouter>);await screen.findByRole('option',{name:'7979'});fireEvent.change(screen.getByLabelText('Document Reference *'),{target:{value:'FUEL-1'}});fireEvent.change(screen.getByLabelText('Expense vehicle 1'),{target:{value:'v1'}});fireEvent.change(screen.getByLabelText('Expense description 1'),{target:{value:'Fuel receipt'}});fireEvent.change(screen.getByLabelText('Expense net 1'),{target:{value:'100'}});fireEvent.change(screen.getByLabelText('Expense VAT rate 1'),{target:{value:'15'}});fireEvent.click(screen.getByRole('button',{name:'Save Draft / Changes'}));await screen.findByText('Draft saved. Review all lines before posting.');expect(mock.calls[0].args.p_document.lines[0]).toEqual(expect.objectContaining({vehicle_id:'v1',net_amount:'100',vat_rate:'15',vat_recoverable:true}));fireEvent.change(screen.getByLabelText('Expense net 1'),{target:{value:'200'}});fireEvent.click(screen.getByRole('button',{name:'Finalize / Post'}));await screen.findByText('Expense posted once to GL and vehicle accounts.');expect(mock.calls.filter(x=>x.name==='transport_vehicle_expense_post')).toEqual([{name:'transport_vehicle_expense_post',args:{p_id:'draft-1'}}]);expect(mock.calls[1].args.p_document.lines[0].net_amount).toBe('200');expect(screen.queryByRole('button',{name:'Finalize / Post'})).toBeNull();});
- it('does not claim save or posting success after permission denial',async()=>{render(<MemoryRouter><Expenses/></MemoryRouter>);await screen.findByRole('option',{name:'7979'});mock.deny=true;fireEvent.change(screen.getByLabelText('Document Reference *'),{target:{value:'DENIED'}});fireEvent.click(screen.getByRole('button',{name:'Save Draft / Changes'}));await waitFor(()=>expect(screen.getByRole('alert').textContent).toContain('permission'));expect(screen.queryByText('Draft saved. Review all lines before posting.')).toBeNull();expect((screen.getByRole('button',{name:'Finalize / Post'}) as HTMLButtonElement).disabled).toBe(true);});
+ it('provides one manual journal workflow while retaining imported draft review and post',async()=>{
+  render(<MemoryRouter><Expenses/></MemoryRouter>);
+  expect(await screen.findByText('Imported Vehicle Expense Review')).toBeTruthy();
+  expect(screen.queryByRole('button',{name:'New Expense'})).toBeNull();
+  expect(screen.queryByRole('button',{name:'Save Draft / Changes'})).toBeNull();
+  expect(screen.getByText(/Enter each manual vehicle income or expense once in General Journal/)).toBeTruthy();
+  fireEvent.click(await screen.findByRole('button',{name:'Open / Review'}));
+  await screen.findByLabelText('Expense vehicle 1');
+  fireEvent.change(screen.getByLabelText('Expense net 1'),{target:{value:'200'}});
+  fireEvent.click(screen.getByRole('button',{name:'Save Draft / Changes'}));
+  await screen.findByText('Draft saved. Review all lines before posting.');
+  expect(mock.calls[0]).toEqual(expect.objectContaining({name:'transport_vehicle_expense_save',args:expect.objectContaining({p_id:'draft-1'})}));
+  expect(mock.calls[0].args.p_document.lines[0]).toEqual(expect.objectContaining({vehicle_id:'v1',net_amount:'200',vat_rate:'15',vat_recoverable:true}));
+  fireEvent.click(screen.getByRole('button',{name:'Finalize / Post'}));
+  await screen.findByText('Expense posted once to GL and vehicle accounts.');
+  expect(mock.calls.filter(x=>x.name==='transport_vehicle_expense_post')).toEqual([{name:'transport_vehicle_expense_post',args:{p_id:'draft-1'}}]);
+  expect(screen.queryByRole('button',{name:'Finalize / Post'})).toBeNull();
+ });
+ it('does not claim posting success if imported draft update is denied',async()=>{
+  render(<MemoryRouter><Expenses/></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button',{name:'Open / Review'}));
+  await screen.findByLabelText('Expense vehicle 1');
+  mock.deny=true;
+  fireEvent.click(screen.getByRole('button',{name:'Save Draft / Changes'}));
+  await waitFor(()=>expect(screen.getByRole('alert').textContent).toContain('permission'));
+  expect(screen.queryByText('Draft saved. Review all lines before posting.')).toBeNull();
+ });
+
 });
