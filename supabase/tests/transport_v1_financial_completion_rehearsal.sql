@@ -46,48 +46,7 @@ begin
  perform public.transport_set_party_billing_mode('supplier',supplier,'Cash');
  perform public.transport_set_party_billing_mode('supplier',supplier2,'Cash');
 
- -- Trip-independent Normal Sales/Purchase: same canonical GL, AR/AP, VAT and ledger evidence.
- select account_id into normal_rev from public.account_mappings where company_id=c and mapping_key='service_revenue';
- if normal_rev is null then raise exception 'Normal Sales revenue mapping missing';end if;
- result:=public.transport_normal_invoice_create('customer',customer,current_date,
-  '[{"description":"Standalone consulting","amount":"150.00"},{"description":"Standby work","amount":"200.00"}]'::jsonb,
-  normal_rev,'NORMAL-S-'||code,'Reference 55',true);
- normal_doc:=(result->>'document_id')::uuid;
- if result->>'status'<>'posted' or (result->>'gross')::numeric<>350 or
- (select count(*) from public.sales_service_lines where order_id=normal_doc and source_module='transport_normal' and source_id is null)<>2
- or not exists(select 1 from public.journal_entries where source_document_id=normal_doc and status='posted')
- or exists(select 1 from public.transport_customer_document_trips l join public.transport_customer_documents d on d.id=l.document_id where d.sales_order_id=normal_doc)
- or exists(select 1 from public.stock_movements where source_id=normal_doc)
- then raise exception 'Standalone Normal Sales failed canonical posting or has Trip/stock link';end if;
- result:=public.transport_normal_invoice_create('supplier',supplier,current_date,
-  '[{"description":"Supplier admin fee","amount":"75.00"}]'::jsonb,
-  acct,'NORMAL-P-'||code,'Supplier ref 5',true);
- normal_doc:=(result->>'document_id')::uuid;
- if result->>'status'<>'posted' or (result->>'gross')::numeric<>75 or
- (select count(*) from public.purchase_service_lines where order_id=normal_doc and source_module='transport_normal' and source_id is null)<>1
- or not exists(select 1 from public.journal_entries where source_document_id=normal_doc and status='posted')
- or exists(select 1 from public.stock_movements where source_id=normal_doc)
- then raise exception 'Standalone Normal Purchase failed canonical posting or has stock movement';end if;
- result:=public.transport_normal_invoice_import('customer',
-  jsonb_build_array(
-   jsonb_build_object('batch_ref','BULK-1','party_id',customer,'account_id',normal_rev,'invoice_date',current_date,'invoice_no','BULK-S-'||code,'description','Line one','amount','10.00'),
-   jsonb_build_object('batch_ref','BULK-1','party_id',customer,'account_id',normal_rev,'invoice_date',current_date,'invoice_no','BULK-S-'||code,'description','Line two','amount','15.50')),
-  true);
- if (result->>'invoices')::int<>1 or (result->>'lines')::int<>2
- or not exists(select 1 from public.sales_orders where id=(result->'documents'->0->>'document_id')::uuid and status='posted' and total=25.50)
- then raise exception 'Normal Sales bulk import not atomic or not posted to AR';end if;
- result:=public.transport_normal_invoice_import('supplier',
-  jsonb_build_array(jsonb_build_object('batch_ref','P-BULK-1','party_id',supplier,'account_id',acct,'invoice_date',current_date,
-  'invoice_no','BULK-P-'||code,'description','Independent supplier work','amount','31.25')),true);
- if (result->>'invoices')::int<>1 or
- not exists(select 1 from public.purchase_orders where id=(result->'documents'->0->>'document_id')::uuid and status='posted' and total=31.25)
- then raise exception 'Normal Purchase bulk import not posted to AP';end if;
- rejected:=false;begin
- perform public.transport_normal_invoice_create('customer',customer,current_date,
- '[{"description":"Duplicate number","amount":"20"}]'::jsonb,normal_rev,'NORMAL-S-'||code,null,true);
- exception when others then rejected:=true;end;
- if not rejected then raise exception 'Normal Sales duplicate invoice was accepted';end if;
- raise notice 'PASS standalone normal Sales/Purchase, multi-lines, atomic imports and original Trip independence';
+
 
  insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,b,'FIN-V') returning id into vehicle;
  insert into public.transport_drivers(company_id,business_unit_id,driver_name) values(c,b,'Financial Driver') returning id into driver;
@@ -378,6 +337,48 @@ end if;
  perform public.transport_set_financial_permission(u,'adjustment',false);
  rejected:=false;begin perform public.transport_adjust_rate(trip,'customer',900,'Denied correction');exception when others then rejected:=true;end;
  if not rejected then raise exception 'Granular permission denial ignored';end if;
+ -- Trip-independent Normal Sales/Purchase: same canonical GL, AR/AP, VAT and ledger evidence.
+ select account_id into normal_rev from public.account_mappings where company_id=c and mapping_key='service_revenue';
+ if normal_rev is null then raise exception 'Normal Sales revenue mapping missing';end if;
+ result:=public.transport_normal_invoice_create('customer',customer,current_date,
+  '[{"description":"Standalone consulting","amount":"150.00"},{"description":"Standby work","amount":"200.00"}]'::jsonb,
+  normal_rev,'NORMAL-S-'||code,'Reference 55',true);
+ normal_doc:=(result->>'document_id')::uuid;
+ if result->>'status'<>'posted' or (result->>'gross')::numeric<>350 or
+ (select count(*) from public.sales_service_lines where order_id=normal_doc and source_module='transport_normal' and source_id is null)<>2
+ or not exists(select 1 from public.journal_entries where source_document_id=normal_doc and status='posted')
+ or exists(select 1 from public.transport_customer_document_trips l join public.transport_customer_documents d on d.id=l.document_id where d.sales_order_id=normal_doc)
+ or exists(select 1 from public.stock_movements where source_id=normal_doc)
+ then raise exception 'Standalone Normal Sales failed canonical posting or has Trip/stock link';end if;
+ result:=public.transport_normal_invoice_create('supplier',supplier,current_date,
+  '[{"description":"Supplier admin fee","amount":"75.00"}]'::jsonb,
+  acct,'NORMAL-P-'||code,'Supplier ref 5',true);
+ normal_doc:=(result->>'document_id')::uuid;
+ if result->>'status'<>'posted' or (result->>'gross')::numeric<>75 or
+ (select count(*) from public.purchase_service_lines where order_id=normal_doc and source_module='transport_normal' and source_id is null)<>1
+ or not exists(select 1 from public.journal_entries where source_document_id=normal_doc and status='posted')
+ or exists(select 1 from public.stock_movements where source_id=normal_doc)
+ then raise exception 'Standalone Normal Purchase failed canonical posting or has stock movement';end if;
+ result:=public.transport_normal_invoice_import('customer',
+  jsonb_build_array(
+   jsonb_build_object('batch_ref','BULK-1','party_id',customer,'account_id',normal_rev,'invoice_date',current_date,'invoice_no','BULK-S-'||code,'description','Line one','amount','10.00'),
+   jsonb_build_object('batch_ref','BULK-1','party_id',customer,'account_id',normal_rev,'invoice_date',current_date,'invoice_no','BULK-S-'||code,'description','Line two','amount','15.50')),
+  true);
+ if (result->>'invoices')::int<>1 or (result->>'lines')::int<>2
+ or not exists(select 1 from public.sales_orders where id=(result->'documents'->0->>'document_id')::uuid and status='posted' and total=25.50)
+ then raise exception 'Normal Sales bulk import not atomic or not posted to AR';end if;
+ result:=public.transport_normal_invoice_import('supplier',
+  jsonb_build_array(jsonb_build_object('batch_ref','P-BULK-1','party_id',supplier,'account_id',acct,'invoice_date',current_date,
+  'invoice_no','BULK-P-'||code,'description','Independent supplier work','amount','31.25')),true);
+ if (result->>'invoices')::int<>1 or
+ not exists(select 1 from public.purchase_orders where id=(result->'documents'->0->>'document_id')::uuid and status='posted' and total=31.25)
+ then raise exception 'Normal Purchase bulk import not posted to AP';end if;
+ rejected:=false;begin
+ perform public.transport_normal_invoice_create('customer',customer,current_date,
+ '[{"description":"Duplicate number","amount":"20"}]'::jsonb,normal_rev,'NORMAL-S-'||code,null,true);
+ exception when others then rejected:=true;end;
+ if not rejected then raise exception 'Normal Sales duplicate invoice was accepted';end if;
+ raise notice 'PASS standalone normal Sales/Purchase, multi-lines, atomic imports and original Trip independence';
  raise notice 'PASS: canonical credit/cash service billing; receipt and AP allocation; multiple Trips/suppliers; partial/full settlement; positive/negative corrections; Closed/refund; posted history; commission/profit; reversal; ledger reconciliation; delete/edit and permission guards';
 end $$;
 rollback;
