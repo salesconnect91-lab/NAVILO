@@ -210,7 +210,7 @@ begin
  data:=public.transport_register_query(1,0,'{}','','asc','job_no','TEST-2');
  if data->'options' is distinct from '["TEST-2"]'::jsonb then raise exception 'Remote option search failed';end if;
  select id into rent from public.transport_trip_supplier_rents where trip_id=trip;
- perform public.transport_post_customer_bill(trip,current_date,false);
+ perform public.transport_post_customer_bill_numbered(trip,current_date,false,'READER-S-'||code);
  perform public.transport_post_supplier_bill(rent,current_date,acct,false,'Reader test');
  second_rent:=public.transport_add_supplier_rent(trip,second_supplier,400,'Extra supplier line');
  perform public.transport_finalize_supplier_rent(second_rent,400,'Extra finalized line');

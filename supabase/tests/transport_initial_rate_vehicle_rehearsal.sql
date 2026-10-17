@@ -55,7 +55,7 @@ begin
  rejected:=false;begin perform public.transport_finalize_initial_customer_rate(trip,2000);exception when others then rejected:=true;end;
  if not rejected or (select customer_rate from public.transport_trips where id=trip)<>1000 then raise exception 'One-time rate overwritten';end if;
  if (select count(*) from public.transport_trip_audit where trip_id=trip and action='customer_rate_finalize')<>1 then raise exception 'Initial rate audit count incorrect';end if;
- result:=public.transport_post_customer_bill(trip,current_date,false);
+ result:=public.transport_post_customer_bill_numbered(trip,current_date,false,'RATE-S-'||code);
  perform public.transport_replace_trip_assignment(trip,vehicle2,null,'Vehicle breakdown');
  if (select vehicle_id from public.transport_trips where id=trip)<>vehicle2 then raise exception 'Replacement did not apply';end if;
  if exists(select 1 from public.transport_vehicle_account_movements where trip_ids=array[trip] and account_id<>vehicle) or not exists(select 1 from public.transport_vehicle_account_movements where trip_ids=array[trip] and account_id=vehicle) then raise exception 'Historical bill moved to replacement vehicle';end if;
