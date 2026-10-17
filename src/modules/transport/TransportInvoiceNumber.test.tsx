@@ -151,7 +151,7 @@ describe('Transport invoice posting in all company contexts',()=>{
   expect(screen.queryByRole('option',{name:'Service Revenue Twakkal Al Khaleej'})).toBeNull();
  });
  it('rejects H-S and remark invoice references before RPC',()=>{
-  for(const bad of ['H-S-001','h-s-001','YES','CLEARED','NO INVOICE','BAD DEBTS','PENDING','N/A','0'])
+  for(const bad of ['H-S-001','h-s-001','YES','CLEARED','CLEARED ASAD','CLERAED','NO INVOICE','BAD DEBTS','ADJUSTED WITH RECEIPT','INVOICE ADJUSTED','PENDING','N/A','0'])
    expect(isValidTransportOriginalInvoice(bad)).toBe(false);
   expect(isValidTransportOriginalInvoice('INV-2501')).toBe(true);
   const base={posted:false,loading:false,allowed:true,rateReady:true,
