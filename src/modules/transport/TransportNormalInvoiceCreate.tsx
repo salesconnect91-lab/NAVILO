@@ -75,7 +75,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    <div><h2 className="text-base font-bold">Normal {sideName} Invoice — No Trips</h2>
     <p className="text-slate-600">Description-only service document. Uses {side==='customer'?'Customer':'Supplier'} Master, canonical {side==='customer'?'AR':'AP'}, VAT, ledgers and financial reports. No stock or Trip records.</p>
    </div>
-   <Link className="text-blue-700 underline" to="/settings/import-center">Bulk import in Import Center</Link>
+   <Link className="text-blue-700 underline" to="/settings/imports">Bulk import in Import Center</Link>
   </div>
   {loading&&<p role="status">Loading {sideName} masters…</p>}
   {error&&<p role="alert" className="rounded border border-red-200 bg-red-50 p-2 text-red-700">{error}</p>}
