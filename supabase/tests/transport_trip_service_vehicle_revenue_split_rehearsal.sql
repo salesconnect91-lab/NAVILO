@@ -5,7 +5,7 @@ DO $$
 DECLARE
  u uuid:=gen_random_uuid();
  code text:=substr(replace(gen_random_uuid()::text,'-',''),1,10);
- c uuid;b uuid;loc uuid;customer uuid;ar uuid;service_rev uuid;vehicle_rev uuid;
+ c uuid;b uuid;loc uuid;customer uuid;supplier uuid;ar uuid;ap uuid;service_rev uuid;vehicle_rev uuid;
  own_vehicle uuid;supplier_vehicle uuid;unlinked_vehicle uuid;
  own_trip uuid;supplier_trip uuid;unlinked_trip uuid;cm uuid;posted jsonb;doc uuid;entry uuid;
  rejected boolean:=false;
@@ -31,17 +31,19 @@ BEGIN
  PERFORM set_config('request.jwt.claim.sub',u::text,true);
  PERFORM public.initialize_default_coa();
  SELECT account_id INTO ar FROM public.account_mappings WHERE company_id=c AND mapping_key='accounts_receivable';
+ SELECT account_id INTO ap FROM public.account_mappings WHERE company_id=c AND mapping_key='accounts_payable';
  SELECT account_id INTO service_rev FROM public.account_mappings WHERE company_id=c AND mapping_key='service_revenue';
  IF ar IS NULL OR service_rev IS NULL THEN RAISE EXCEPTION 'Fixture missing canonical AR/Service mapping'; END IF;
  INSERT INTO public.chart_of_accounts(user_id,company_id,code,name,type,detail_type,is_group,allow_manual_entries,is_active,normal_balance)
  VALUES(u,c,'VREV-'||code,'Company vehicle income','revenue','service_income',false,true,true,'credit')
  RETURNING id INTO vehicle_rev;
  INSERT INTO public.customers(user_id,company_id,name,account_id) VALUES(u,c,'Mixed invoice customer',ar) RETURNING id INTO customer;
+ INSERT INTO public.suppliers(user_id,company_id,name,account_id) VALUES(u,c,'External vehicle owner',ap) RETURNING id INTO supplier;
  PERFORM public.transport_set_party_billing_mode('customer',customer,'Cash');
  INSERT INTO public.transport_vehicles(company_id,business_unit_id,vehicle_no,ownership_type,revenue_account_id)
  VALUES(c,b,'OWN-'||code,'company',vehicle_rev) RETURNING id INTO own_vehicle;
- INSERT INTO public.transport_vehicles(company_id,business_unit_id,vehicle_no,ownership_type)
- VALUES(c,b,'SUP-'||code,'supplier') RETURNING id INTO supplier_vehicle;
+ INSERT INTO public.transport_vehicles(company_id,business_unit_id,vehicle_no,ownership_type,supplier_id)
+ VALUES(c,b,'SUP-'||code,'supplier',supplier) RETURNING id INTO supplier_vehicle;
  INSERT INTO public.charge_master(user_id,company_id,charge_key,charge_name,applies_to,tax_applicable,revenue_account_id,is_active)
  VALUES(u,c,'waiting-'||code,'Waiting charge','sales',false,service_rev,true) RETURNING id INTO cm;
  INSERT INTO public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,vehicle_id,from_location,to_location,customer_rate,owner_rent,sale_type)
