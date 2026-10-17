@@ -51,6 +51,32 @@ export default function TransportVehicleExpenseImportPreview(){
    const missingTypes=uniqueTypes.filter(x=>!foundTypes.has(x.toLowerCase()));
    if(missingVehicles.length)throw Error('Vehicles not found/active in selected business unit: '+missingVehicles.slice(0,8).join(', '));
    if(missingTypes.length)throw Error('Expense Types not found/active in selected business unit: '+missingTypes.slice(0,8).join(', '));
+   const uniqueTrips=[...new Set(parsed.flatMap(x=>x.trip_no?[x.trip_no]:[]))];
+   if(uniqueTrips.length){
+    const matched=new Set<string>();
+    for(let i=0;i<uniqueTrips.length;i+=100){
+     const result=await supabase.from('transport_trips').select('trip_no')
+      .eq('company_id',company).eq('business_unit_id',unit)
+      .in('trip_no',uniqueTrips.slice(i,i+100));
+     if(result.error)throw result.error;
+     for(const trip of result.data??[])matched.add(trip.trip_no.trim().toLowerCase());
+    }
+    const missing=uniqueTrips.filter(x=>!matched.has(x.toLowerCase()));
+    if(missing.length)throw Error('Trips not found in selected business unit: '+missing.slice(0,8).join(', '));
+   }
+   const payableNames=[...new Set(parsed.filter(x=>x.payment_method==='payable').map(x=>x.supplier_or_payee))];
+   if(payableNames.length){
+    const matched=new Set<string>();
+    for(let i=0;i<payableNames.length;i+=100){
+     const result=await supabase.from('suppliers').select('name')
+      .eq('company_id',company).eq('is_active',true)
+      .in('name',payableNames.slice(i,i+100));
+     if(result.error)throw result.error;
+     for(const supplier of result.data??[])matched.add(supplier.name.trim().toLowerCase());
+    }
+    const missing=payableNames.filter(x=>!matched.has(x.toLowerCase()));
+    if(missing.length)throw Error('Payable suppliers not found in active company: '+missing.slice(0,8).join(', '));
+   }
    setRows(parsed);setFilename(f.name);
   }catch(e){setError(e instanceof Error?e.message:'Invalid workbook.');}
  }
