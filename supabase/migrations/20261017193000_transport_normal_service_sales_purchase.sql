@@ -48,7 +48,7 @@ BEGIN
  FOR line IN SELECT value FROM jsonb_array_elements(p_lines) LOOP
    description:=nullif(btrim(line->>'description'),'');
    IF description IS NULL OR length(description)>1000 OR
-      coalesce(line->>'amount','') !~ '^([0-9]{1,12})(\\.[0-9]{1,2})?$'
+      coalesce(line->>'amount','') !~ '^([0-9]{1,12})([.][0-9]{1,2})?$'
    THEN RAISE EXCEPTION 'Invoice lines require a description and valid positive SAR amount';END IF;
    amount:=(line->>'amount')::numeric;
    IF amount<=0 THEN RAISE EXCEPTION 'Invoice amount must be positive';END IF;
@@ -110,14 +110,14 @@ BEGIN
    OR length(row_data->>'batch_ref')>80
    OR coalesce(row_data->>'party_id','') !~ '^[a-fA-F0-9-]{36}$'
    OR coalesce(row_data->>'account_id','') !~ '^[a-fA-F0-9-]{36}$'
-   OR coalesce(row_data->>'invoice_date','') !~ '^\\d{4}-\\d{2}-\\d{2}$'
+   OR coalesce(row_data->>'invoice_date','') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
   THEN RAISE EXCEPTION 'Import Batch Reference, Master ID, Account ID and valid invoice date required';END IF;
  END LOOP;
  SELECT count(DISTINCT btrim(value->>'batch_ref')) INTO v_groups FROM jsonb_array_elements(p_rows);
  IF v_groups>50 THEN RAISE EXCEPTION 'Maximum 50 invoices per import batch';END IF;
  FOR grp IN SELECT btrim(value->>'batch_ref') batch_ref FROM jsonb_array_elements(p_rows) GROUP BY 1 ORDER BY 1 LOOP
-  SELECT count(*),min((value->>'party_id')::uuid),min((value->>'account_id')::uuid),
-    min((value->>'invoice_date')::date),min(btrim(coalesce(value->>'invoice_no',''))),
+  SELECT count(*),(array_agg((value->>'party_id')::uuid))[1],(array_agg((value->>'account_id')::uuid))[1],
+    (array_agg((value->>'invoice_date')::date))[1],min(btrim(coalesce(value->>'invoice_no',''))),
     min(btrim(coalesce(value->>'reference','')))
   INTO v_count,v_party,v_account,v_date,v_invoice,v_reference
   FROM jsonb_array_elements(p_rows) WHERE btrim(value->>'batch_ref')=grp.batch_ref;
