@@ -230,7 +230,7 @@ end if;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
  values(c,b,'',current_date,customer,'VAT A','VAT B',100,40,'credit') returning id into vat_trip;
  perform public.transport_finalize_customer_rate(vat_trip,100,'manual');
- result:=public.transport_post_customer_bill(vat_trip,current_date,true);vat_bill:=(result->>'document_id')::uuid;
+ result:=public.transport_post_customer_bill_numbered(vat_trip,current_date,true,'VAT-S-'||code);vat_bill:=(result->>'document_id')::uuid;
  vat_rent:=public.transport_add_supplier_rent(vat_trip,supplier,40,'Taxable rent');perform public.transport_finalize_supplier_rent(vat_rent,40);result:=public.transport_post_supplier_bill(vat_rent,current_date,acct,true);vat_purchase:=(result->>'document_id')::uuid;
  result:=public.transport_settle_documents('customer',customer,current_date,cash_id,'cash',jsonb_build_array(jsonb_build_object('document_id',vat_bill,'amount',59)));
  if (select received_from_company from public.transport_financial_register where id=vat_trip)<>50
@@ -254,7 +254,7 @@ end if;
  values(c,b,'',current_date,customer,driver,'Driver A','Driver B',200,0,'credit') returning id into driver_trip;
  perform public.transport_set_driver_pay(driver_trip,60,'Agreed Trip pay');
  perform public.transport_finalize_customer_rate(driver_trip,200,'manual');
- result:=public.transport_post_customer_bill(driver_trip,current_date,true);j:=(result->>'document_id')::uuid;
+ result:=public.transport_post_customer_bill_numbered(driver_trip,current_date,true,'DRIVER-S-'||code);j:=(result->>'document_id')::uuid;
  result:=public.transport_settle_documents('customer',customer,current_date,cash_id,'cash',jsonb_build_array(jsonb_build_object('document_id',j,'amount',236)));
  update public.transport_trips set po_do_job_no='FIN-JOB-DRIVER' where id=driver_trip;
  perform public.transport_complete_operations(driver_trip,'Driver job complete');
@@ -287,7 +287,7 @@ end if;
  values(c,b,'',current_date,customer,'Auth A','Auth B',20,0,'credit') returning id into auth_trip;
  execute 'set local role authenticated';
  perform public.transport_finalize_customer_rate(auth_trip,20,'manual');
- result:=public.transport_post_customer_bill(auth_trip,current_date,true);
+ result:=public.transport_post_customer_bill_numbered(auth_trip,current_date,true,'AUTH-S-'||code);
  if (select customer_net from public.transport_trip_financial_summary where id=auth_trip)<>20 then raise exception 'Authorized financial evidence hidden';end if;
  rejected:=false;begin update public.transport_customer_document_trips set rate_snapshot=1 where trip_id=auth_trip;exception when insufficient_privilege then rejected:=true;end;
  if not rejected then raise exception 'Direct attribution write was allowed';end if;
