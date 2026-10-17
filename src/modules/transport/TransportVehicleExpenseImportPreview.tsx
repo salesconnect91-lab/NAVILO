@@ -1,10 +1,13 @@
 import {useRef,useState} from 'react';
 import * as XLSX from 'xlsx';
+import {useAuth} from '@/auth/AuthContext';
+import {supabase} from '@/lib/supabase';
 import {downloadImportTemplate} from '@/lib/importExcelTemplate';
 import {previewVehicleExpenseImport,type VehicleExpenseRow} from './vehicleExpenseImport';
 
 /** Read-only import review until atomic VAT-aware posting is enabled. */
 export default function TransportVehicleExpenseImportPreview(){
+ const {activeCompany,activeBusinessUnit}=useAuth();
  const picker=useRef<HTMLInputElement>(null);
  const [rows,setRows]=useState<VehicleExpenseRow[]>([]);
  const [error,setError]=useState('');
@@ -27,6 +30,27 @@ export default function TransportVehicleExpenseImportPreview(){
    if(!wb.SheetNames.length)throw Error('Workbook is empty.');
    const values=XLSX.utils.sheet_to_json<Record<string,unknown>>(wb.Sheets[wb.SheetNames[0]],{defval:''});
    const parsed=previewVehicleExpenseImport(values);
+   const company=activeCompany?.company_id,unit=activeBusinessUnit?.business_unit_id;
+   if(!company||!unit)throw Error('Select an active Transport company and business unit.');
+   const uniqueVehicles=[...new Set(parsed.map(x=>x.vehicle_no))];
+   const uniqueTypes=[...new Set(parsed.map(x=>x.expense_type))];
+   const vehicles: Array<{vehicle_no:string}>=[];
+   for(let i=0;i<uniqueVehicles.length;i+=100){
+    const result=await supabase.from('transport_vehicles').select('vehicle_no')
+     .eq('company_id',company).eq('business_unit_id',unit).eq('is_active',true)
+     .in('vehicle_no',uniqueVehicles.slice(i,i+100));
+    if(result.error)throw result.error;
+    vehicles.push(...(result.data??[]));
+   }
+   const expenseTypes=await supabase.from('transport_vehicle_expense_types').select('name')
+    .eq('company_id',company).eq('business_unit_id',unit).eq('is_active',true);
+   if(expenseTypes.error)throw expenseTypes.error;
+   const foundVehicles=new Set(vehicles.map(x=>x.vehicle_no.trim().toLowerCase()));
+   const foundTypes=new Set((expenseTypes.data??[]).map(x=>x.name.trim().toLowerCase()));
+   const missingVehicles=uniqueVehicles.filter(x=>!foundVehicles.has(x.toLowerCase()));
+   const missingTypes=uniqueTypes.filter(x=>!foundTypes.has(x.toLowerCase()));
+   if(missingVehicles.length)throw Error('Vehicles not found/active in selected business unit: '+missingVehicles.slice(0,8).join(', '));
+   if(missingTypes.length)throw Error('Expense Types not found/active in selected business unit: '+missingTypes.slice(0,8).join(', '));
    setRows(parsed);setFilename(f.name);
   }catch(e){setError(e instanceof Error?e.message:'Invalid workbook.');}
  }
