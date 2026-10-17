@@ -36,7 +36,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
 
  const number=invoiceNo.trim();
  const rateReady=trip.customer_rate_state==='finalized'&&Number(trip.customer_rate??0)>0;
- const numberConfirmed=numberMode==='auto'||(numberMode==='manual'&&Boolean(number));
+ const numberConfirmed=(!withTax&&numberMode==='auto')||(numberMode==='manual'&&Boolean(number)&&!number.startsWith('H-S-'));
  const canPost=!posted&&allowed&&rateReady&&numberConfirmed&&Boolean(date)&&Boolean(account)&&!busy&&(!withTax||vatReady);
 
  async function post(){
@@ -55,7 +55,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
    {posted?<label className="block text-xs font-semibold">Invoice Number<input className="input mt-1 w-full" value={invoiceNo||'Posted · original reference missing'} readOnly /></label>:<>
     <label className="block text-xs font-semibold">Invoice Number Method
      <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Invoice number method" className="input mt-1 w-full" value={numberMode} disabled={busy} onChange={e=>setNumberMode(e.target.value as 'choose'|'auto'|'manual')}>
-      <option value="choose">Choose method…</option><option value="auto">Generate NAVILO number</option><option value="manual">Enter own invoice number</option>
+      <option value="choose">Choose method…</option>{!withTax&&<option value="auto">Generate NAVILO number</option>}<option value="manual">Enter own invoice number</option>
      </NaviloSearchableSelect>
     </label>
     {numberMode==='manual'&&<label className="mt-2 block text-xs font-semibold">Your Invoice Number<input ref={input} className="input mt-1 w-full" value={invoiceNo} disabled={busy} onChange={e=>setInvoiceNo(e.target.value)} placeholder="Enter invoice number" /></label>}
@@ -73,7 +73,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
       <p className="mt-2 text-xs font-semibold">{withTax?'Credit · VAT automatic':'Cash · Without VAT'}</p>
       <TransportVatPreview side="customer" date={date} withTax={withTax} amounts={[Number(trip.customer_rate??0)]} onReady={setVatReady}/>
       {!rateReady&&<p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">Finalize a positive Company Rate first. Invoice posting remains disabled until then.</p>}
-      <p className="mt-2 text-xs text-slate-600">Save here posts the canonical Sales/service invoice to the selected Revenue Account. Choose automatic numbering or enter your own invoice number before posting.</p>
+      <p className="mt-2 text-xs text-slate-600">Save here posts the canonical Sales/service invoice to the selected Revenue Account. {withTax?'Credit invoices require the original invoice number you provide before posting. Without it, leave the Trip finalized.':'Choose automatic numbering or enter your own invoice number before posting.'}</p>
     </>}
    {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}
    <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={onClose}>Close</button>{!posted&&<button className="btn-primary" disabled={!canPost} onClick={()=>void post()}>{busy?'Posting…':'Post Invoice'}</button>}</div>
