@@ -348,6 +348,7 @@ end if;
  (result->>'gross')::numeric<>(select total from public.sales_orders where id=normal_doc) or
  (select count(*) from public.sales_service_lines where order_id=normal_doc and source_module='transport_normal' and source_id is null)<>2
  or not exists(select 1 from public.journal_entries where source_document_id=normal_doc and status='posted')
+ or not exists(select 1 from public.sales_orders where id=normal_doc and outstanding_amount=(result->>'gross')::numeric and payment_status='unpaid')
  or exists(select 1 from public.transport_customer_document_trips l join public.transport_customer_documents d on d.id=l.document_id where d.sales_order_id=normal_doc)
  or exists(select 1 from public.stock_movements where source_id=normal_doc)
  then raise exception 'Standalone Normal Sales posting details: result=%, lines=%, journal=%, linked=%, stock=%',
@@ -364,6 +365,7 @@ end if;
  (result->>'gross')::numeric<>(select total from public.purchase_orders where id=normal_doc) or
  (select count(*) from public.purchase_service_lines where order_id=normal_doc and source_module='transport_normal' and source_id is null)<>1
  or not exists(select 1 from public.journal_entries where source_document_id=normal_doc and status='posted')
+ or not exists(select 1 from public.purchase_orders where id=normal_doc and outstanding_amount=(result->>'gross')::numeric and payment_status='unpaid')
  or exists(select 1 from public.stock_movements where source_id=normal_doc)
  then raise exception 'Standalone Normal Purchase failed canonical posting or has stock movement';end if;
  result:=public.transport_normal_invoice_import('customer',
