@@ -54,7 +54,7 @@ begin
  values(c,b,'',current_date,customer,'A','B',from_loc,to_loc,1000,300,'credit') returning id into trip2;
  -- Direct posting must fail before approval on EVERY exposed numbering/description route.
  select count(*) into count_before from public.journal_entries;
- rejected:=false;begin perform public.transport_post_customer_bill(trip,current_date,false);exception when others then rejected:=sqlerrm like '%finalized%';end;
+ rejected:=false;begin perform public.transport_post_customer_bill(trip,current_date,false);exception when others then rejected:=sqlerrm like '%finalized%' or sqlerrm like '%original invoice number%';end;
  if not rejected then raise exception 'Pending customer direct posting bypass';end if;
  rejected:=false;begin perform public.transport_post_customer_bill_numbered(trip,current_date,false,'PENDING');exception when others then rejected:=sqlerrm like '%finalized%';end;
  if not rejected then raise exception 'Pending numbered customer posting bypass';end if;
@@ -87,7 +87,7 @@ begin
  if not rejected then raise exception 'Unprotected cost signature exposed';end if;
  insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,b,'ACL-'||code);
  execute 'reset role';
- result:=public.transport_post_customer_bill(trip,current_date,false);
+ result:=public.transport_post_customer_bill_numbered(trip,current_date,false,'RELEASE-S-'||code);
  result:=public.transport_post_supplier_bill(rent,current_date,acct,false);
  result:=public.transport_party_report_query('documents','customer',jsonb_build_object('party',customer));
  if jsonb_array_length(result)<>1 or result->0->>'side'<>'customer' then raise exception 'Selected side/party reader failed';end if;
