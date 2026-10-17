@@ -8,6 +8,7 @@ const mock=vi.hoisted(()=>({
   queries:[] as Array<{table:string;company:string;unit:string}>,
   requests:[] as Array<{name:string;account:string;kind:string}>,
   report:null as any,
+  allowSupplier:true,
 }));
 const companies=[
   {company_id:'tw',company_name:'Twakkal Al Khaleej',business_unit_id:'tw-bu',owner:'TWAKKAL'},
@@ -41,6 +42,8 @@ vi.mock('@/lib/supabase',()=>({supabase:{
     return q;
   },
   rpc:async(name:string,args:any)=>{
+    if (name==='transport_financial_read_allowed')
+      return {data:args?.p_side==='customer' || mock.allowSupplier,error:null};
     mock.requests.push({name,account:String(args?.p_filters?.account),kind:String(args?.p_filters?.accountKind)});
     const id=String(args?.p_filters?.account??'').split('-')[0];
     const rows=args?.p_filters?.account===id+'-own'?[
@@ -62,7 +65,7 @@ vi.mock('@/components/NaviloDateInput',()=>({default:({value,onChange,...props}:
 }));
 beforeEach(()=>{
   mock.active={company_id:'tw',company_name:'Twakkal Al Khaleej',business_unit_id:'tw-bu'};
-  mock.queries=[];mock.requests=[];mock.report=null;
+  mock.queries=[];mock.requests=[];mock.report=null;mock.allowSupplier=true;
 });
 afterEach(cleanup);
 async function selectVehicle(id:string){
@@ -96,6 +99,15 @@ describe('Transport vehicle report UI: common behavior in all companies',()=>{
     await waitFor(()=>expect(mock.report.rows.some((row:any[])=>row[1]==='SUPPLIER-tw')).toBe(true));
     expect(mock.report.rows.at(-1)[8]).toBe(6000);
     expect(mock.queries.every(q=>q.company==='tw')).toBe(true);
+  });
+  it('never presents false vehicle profit when Supplier financial access is denied',async()=>{
+    mock.allowSupplier=false;
+    render(<TransportVehicleReports/>);
+    await screen.findByRole('alert');
+    expect(screen.getByRole('alert').textContent).toContain('both Customer and Supplier');
+    expect(screen.queryByRole('combobox',{name:'Vehicle for report'})).toBeNull();
+    expect(mock.requests.filter(r=>r.name==='transport_trip_report')).toHaveLength(0);
+    expect(mock.queries).toHaveLength(0);
   });
   it('switches workspaces without keeping the earlier company vehicle selection',async()=>{
     const view=render(<TransportVehicleReports/>);

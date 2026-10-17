@@ -44,6 +44,36 @@ export default function TransportVehicleReports() {
   const [rows, setRows] = useState<FinancialTrip[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [financialAccess, setFinancialAccess] = useState<'checking'|'allowed'|'denied'>('checking');
+
+  useEffect(() => {
+    let cancelled = false;
+    setFinancialAccess('checking');
+    setError('');
+    if (!companyId || !businessUnitId) {
+      setFinancialAccess('denied');
+      return;
+    }
+    void (async () => {
+      try {
+        // A P&L cannot be calculated with either side silently masked by the
+        // canonical financial RPC. Require both view grants before reporting.
+        const [customer, supplier] = await Promise.all([
+          supabase.rpc('transport_financial_read_allowed', {p_side:'customer'}),
+          supabase.rpc('transport_financial_read_allowed', {p_side:'supplier'}),
+        ]);
+        if (customer.error) throw customer.error;
+        if (supplier.error) throw supplier.error;
+        if (!cancelled) setFinancialAccess(customer.data === true && supplier.data === true ? 'allowed' : 'denied');
+      } catch (reason) {
+        if (!cancelled) {
+          setFinancialAccess('denied');
+          setError(reason instanceof Error ? reason.message : 'Unable to verify financial permissions.');
+        }
+      }
+    })();
+    return () => {cancelled = true;};
+  }, [companyId, businessUnitId]);
 
   useEffect(() => {
     let disposed = false;
@@ -52,7 +82,7 @@ export default function TransportVehicleReports() {
     setVehiclesError('');
     setUnmappedCompanyTrips(0);
     setOwnedVehicleIds(new Set());
-    if (!companyId || !businessUnitId) return;
+    if (!companyId || !businessUnitId || financialAccess !== 'allowed') return;
     void (async () => {
       try {
         const all: Vehicle[] = [];
@@ -101,13 +131,13 @@ export default function TransportVehicleReports() {
       }
     })();
     return () => {disposed = true;};
-  }, [companyId, businessUnitId, companyName]);
+  }, [companyId, businessUnitId, companyName, financialAccess]);
 
   useEffect(() => {
     let disposed = false;
     setRows([]);
     setError('');
-    if (!vehicleId || !companyId || !businessUnitId) {
+    if (!vehicleId || !companyId || !businessUnitId || financialAccess !== 'allowed') {
       setLoading(false);
       return;
     }
@@ -143,7 +173,7 @@ export default function TransportVehicleReports() {
       }
     })();
     return () => {disposed = true;};
-  }, [vehicleId, companyId, businessUnitId, from, to, fleetScope, companyName]);
+  }, [vehicleId, companyId, businessUnitId, from, to, fleetScope, companyName, financialAccess]);
 
   const matching = useMemo(() => {
     const search = vehicleSearch.trim().toLowerCase();
@@ -238,6 +268,9 @@ export default function TransportVehicleReports() {
 
   return <section className="space-y-3">
     <h2 className="text-lg font-semibold">Vehicle Ledger &amp; P&amp;L</h2>
+    {financialAccess === 'checking' && <p role="status">Checking Customer and Supplier financial permissions…</p>}
+    {financialAccess === 'denied' && <p role="alert">Vehicle P&amp;L requires both Customer and Supplier financial view permissions. Incomplete cost or revenue is not shown as profit.</p>}
+    {financialAccess !== 'allowed' ? null : <>
     <p className="text-xs text-slate-600">
       Reports follow the selected Transport Company / Business Unit. Company fleet
       excludes supplier- and partner-owned Trips, including those sharing the same
@@ -293,6 +326,7 @@ export default function TransportVehicleReports() {
             preferenceKey={`${companyId}:${businessUnitId}:vehicle:${mode}`} />
           <p className="text-xs text-slate-600">Print, PDF and Excel contain the selected vehicle's complete filtered statement. This operational report is separate from the canonical General Ledger and statutory accounting Profit &amp; Loss.</p>
         </>}
+    </>}
     </>}
   </section>;
 }
