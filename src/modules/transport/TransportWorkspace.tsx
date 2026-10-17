@@ -23,6 +23,7 @@ import TransportInvoiceNumber from './TransportInvoiceNumber';
 import TransportHistoricalImport from './TransportHistoricalImport';
 import TransportAudit from './TransportAudit';
 import TransportPartyReports from './TransportPartyReports';
+import TransportVehicleReports from './TransportVehicleReports';
 import {collectRegisterExport} from './transportRegisterExport';
 import {exportMatrixToCSV,exportMatrixToExcel,exportMatrixToWord,exportPackageToPDF,type ExportMatrix} from '@/lib/exportUtils';
 import {fetchAllPages} from '@/lib/fetchAllPages';
@@ -201,6 +202,7 @@ export default function TransportWorkspace(){
     "customer-reports":"transport-customer-reports",
     "supplier-reports":"transport-supplier-reports",
     "bulk-allocation":"transport-allocation",
+    "vehicle-reports":"transport-trips-register",
   };
   const reportPanel=requestedPanel&&panelFeature[requestedPanel]&&canViewFeature(panelFeature[requestedPanel])?requestedPanel:null;
   const showPartyReports=Boolean(reportPanel);
@@ -1786,7 +1788,9 @@ export default function TransportWorkspace(){
       {chargeTrip&&<TransportTripCharges tripId={chargeTrip.id} onClose={()=>setChargeTrip(null)} onChanged={refreshRegisterAfterChange}/>}
     {supplierChargeTarget&&<TransportSupplierCharges rentId={supplierChargeTarget.rentId} tripNo={supplierChargeTarget.tripNo} onClose={()=>setSupplierChargeTarget(null)} onChanged={refreshRegisterAfterChange}/>} 
 
-    {showPartyReports&&<TransportPartyReports key={`${scopeKey}:${reportPanel}`} initialSide={reportPanel==='supplier-reports'?'supplier':'customer'} allocationEntry={reportPanel==='bulk-allocation'} onClose={()=>setTab('trips')} onChanged={refreshRegisterAfterChange}/>}
+    {showPartyReports&&(reportPanel==='vehicle-reports'
+       ? <TransportVehicleReports key={scopeKey}/>
+       : <TransportPartyReports key={`${scopeKey}:${reportPanel}`} initialSide={reportPanel==='supplier-reports'?'supplier':'customer'} allocationEntry={reportPanel==='bulk-allocation'} onClose={()=>setTab('trips')} onChanged={refreshRegisterAfterChange}/>)}
 
     {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
