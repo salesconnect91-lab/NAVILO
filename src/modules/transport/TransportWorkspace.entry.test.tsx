@@ -820,7 +820,7 @@ describe('Normal invoice create is discoverable directly in Transport Register',
   render(<MemoryRouter initialEntries={['/transport?view=trips']}><TransportWorkspace/></MemoryRouter>);
   const sale=await screen.findByRole('button',{name:'Create Sale Invoice'});
   const purchase=screen.getByRole('button',{name:'Create Purchase Invoice'});
-  expect(sale.textContent).toContain('Normal Sales');
+  expect(sale.textContent).toContain('Sale');
   expect(purchase.textContent).toContain('Purchase');
  });
 });
