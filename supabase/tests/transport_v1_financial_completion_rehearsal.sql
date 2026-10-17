@@ -112,6 +112,38 @@ begin
  if has_function_privilege('anon','public.transport_post_customer_bill_numbered(uuid,date,boolean,text)','execute') or has_function_privilege('authenticated','public.transport_create_numbered_service_document(text,uuid,date,numeric,boolean,uuid,text,text,text)','execute') then raise exception 'Numbering helper privileges too broad';end if;
  result:=public.transport_settle_documents('supplier',supplier,current_date,cash_id,'cash',jsonb_build_array(jsonb_build_object('document_id',bill,'amount',100)));
  if (select supplier_outstanding_gross from public.transport_trip_financial_summary where id=trip)<>300 then raise exception 'Multi-supplier partial attribution';end if;
+
+ -- The operational vehicle statement must use the exact same canonical
+ -- Trip-linked billing and payment evidence as the financial register.
+ -- A second unassigned Trip must not enter this vehicle's totals.
+ result:=public.transport_trip_report('customer',500,0,
+    jsonb_build_object('posting','all','accountKind','vehicle','account',vehicle::text));
+ if (result->>'count')::integer<>1
+    or jsonb_array_length(result->'rows')<>1
+    or result->'rows'->0->>'id'<>trip::text
+ then raise exception 'Vehicle report account filter includes wrong or missing Trip: %',result;end if;
+ if abs((result->'summary'->>'billed_customer_net')::numeric
+        -(select billed_customer_net from public.transport_trip_financial_summary where id=trip))>0.005
+    or abs((result->'summary'->>'billed_supplier_net')::numeric
+        -(select billed_supplier_net from public.transport_trip_financial_summary where id=trip))>0.005
+    or abs((result->'summary'->>'customer_received_gross')::numeric
+        -(select customer_received_gross from public.transport_trip_financial_summary where id=trip))>0.005
+    or abs((result->'summary'->>'supplier_paid_gross')::numeric
+        -(select supplier_paid_gross from public.transport_trip_financial_summary where id=trip))>0.005
+ then raise exception 'Vehicle revenue/cost/payment totals disagree with canonical Trip ledger: %',result->'summary';end if;
+ if (result->'summary'->>'billed_customer_net')::numeric<>1000
+    or (result->'summary'->>'billed_supplier_net')::numeric<>400
+    or (result->'summary'->>'customer_received_gross')::numeric<>300
+    or (result->'summary'->>'supplier_paid_gross')::numeric<>100
+ then raise exception 'Vehicle report unexpected synthetic revenue/cost/settlement: %',result->'summary';end if;
+ if (select count(*) from public.transport_customer_documents where sales_order_id=sales_id
+       and journal_entry_id in (select id from public.journal_entries where status='posted'))<>1
+    or (select count(*) from public.transport_supplier_documents
+         where purchase_order_id in (bill,bill2)
+         and journal_entry_id in (select id from public.journal_entries where status='posted'))<>2
+ then raise exception 'Vehicle report billing evidence is missing posted GL journals';end if;
+ raise notice 'PASS vehicle Trip report: authenticated vehicle scope, native revenue/cost, partial cash payments and posted GL document links';
+
  rejected:=false;begin update public.transport_trips set customer_rate=1100 where id=trip;exception when others then rejected:=true;end;
  if not rejected then raise exception 'Posted normal rate overwrite accepted';end if;
  rejected:=false;begin delete from public.transport_trips where id=trip;exception when others then rejected:=true;end;
