@@ -17,11 +17,11 @@ import useTransportMasterClient from "./useTransportMasterClient";
 type Kind = "vehicles" | "drivers";
 type Row = { id: string; name: string; detail: string; mobile: string; owner: string; active: boolean;
   truckTypeId: string; ownerType: string; supplierId: string; driverType: string;
-  identityNo: string; licenceNo: string; licenceExpiry: string; employeeId: string };
+  identityNo: string; licenceNo: string; licenceExpiry: string; employeeId: string; revenueAccountId: string };
 export type DriverOwner = {id:string;name:string};
 type Option = { id: string; name: string; is_active: boolean };
 const EMPTY = { name: "", detail: "", mobile: "", truckTypeId: "", ownerType: "company", supplierId: "",
-  driverType: "company", employeeId: "", identityNo: "", licenceNo: "", licenceExpiry: "", effectiveFrom: "" };
+  driverType: "company", employeeId: "", identityNo: "", licenceNo: "", licenceExpiry: "", effectiveFrom: "", revenueAccountId: "" };
 
 export default function TransportMaster({ kind, quickCreate, supplierOwner, employeeOwner }: { kind: Kind; quickCreate?: MasterQuickCreate; supplierOwner?:DriverOwner; employeeOwner?:DriverOwner }) {
   const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
@@ -29,6 +29,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
   const vehicle = kind === "vehicles";
   const [rows, setRows] = useState<Row[]>([]);
   const [truckTypes, setTruckTypes] = useState<Option[]>([]);
+  const [incomeAccounts, setIncomeAccounts] = useState<(Option & {code:string})[]>([]);
   const [suppliers, setSuppliers] = useState<Option[]>([]);
   const [employees, setEmployees] = useState<Option[]>([]);
   const [q, setQ] = useState("");
@@ -53,7 +54,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
   const load = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const [records, types, parties, history, employeeRows] = await Promise.all([
+      const [records, types, parties, history, employeeRows, incomeGL] = await Promise.all([
         fetchAllPages<any>((start, end) => {
           let query=supabase.from(vehicle ? "transport_vehicles" : "transport_drivers").select("*");
           if(!vehicle&&!quickCreate&&(supplierOwner||employeeOwner)){
@@ -71,8 +72,10 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
           .select("*").order("id").range(start, end)) : Promise.resolve([]),
         !vehicle&&!supplierOwner ? fetchAllPages<Option>((start, end) => supabase.from("employees")
           .select("id,name,is_active").order("name").range(start, end)) : Promise.resolve([]),
+        vehicle ? fetchAllPages<Option & {code:string}>((start,end) => supabase.from("chart_of_accounts")
+          .select("id,code,name,is_active").eq("type","revenue").eq("is_group",false).order("code").range(start,end)) : Promise.resolve([]),
       ]);
-      setTruckTypes(types); setSuppliers(parties); setEmployees(employeeRows);
+      setTruckTypes(types); setSuppliers(parties); setEmployees(employeeRows); setIncomeAccounts(incomeGL);
       const visibleRecords=vehicle||quickCreate||(!supplierOwner&&!employeeOwner)?records:records.filter(x=>supplierOwner
         ?x.driver_type==="supplier"&&x.supplier_id===supplierOwner.id&&x.employee_id==null
         :x.driver_type==="company"&&x.supplier_id==null&&(!employeeOwner||x.employee_id===employeeOwner.id));
@@ -84,7 +87,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
         detail: vehicle ? x.truck_type ?? "" : x.driver_code ?? "", mobile: x.mobile ?? "",
         owner: current?.owner_name_snapshot ?? (saved.length ? "No current ownership period" : x.owner_name ?? ""), active: x.is_active, truckTypeId: x.truck_type_id ?? "",
         ownerType: current ? (current.owner_type === "third_party" ? "supplier" : "company") : saved.length ? "" : x.ownership_type ?? "", supplierId: current ? current.supplier_id ?? "" : saved.length ? "" : x.supplier_id ?? "", driverType: x.driver_type ?? "",
-        identityNo: x.identity_no ?? "", licenceNo: x.driving_licence_no ?? "", licenceExpiry: x.licence_expiry ?? "", employeeId: x.employee_id ?? "" }; }));
+        identityNo: x.identity_no ?? "", licenceNo: x.driving_licence_no ?? "", licenceExpiry: x.licence_expiry ?? "", employeeId: x.employee_id ?? "", revenueAccountId:x.revenue_account_id??"" }; }));
     } catch (failure: any) { setRows([]); setTruckTypes([]); setSuppliers([]); setError(failure.message ?? "Unable to load masters."); }
     finally { setLoading(false); }
   }, [supabase, vehicle, ownerId, Boolean(supplierOwner), Boolean(employeeOwner), Boolean(quickCreate)]);
@@ -118,7 +121,8 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
     try {
       const result = createdRecord.current ? {data:createdRecord.current.id,error:null} : vehicle
         ? editing
-          ? await supabase.from("transport_vehicles").update({ vehicle_no: form.name.trim(), truck_type_id: form.truckTypeId || null })
+          ? await supabase.from("transport_vehicles").update({ vehicle_no: form.name.trim(), truck_type_id: form.truckTypeId || null,
+             ...(form.ownerType==="company"?{revenue_account_id:form.revenueAccountId||null}:{}) })
             .eq("id", editing.id).select("id").single()
           : await supabase.rpc("transport_create_vehicle_master", { p_vehicle_no: form.name.trim(),
             p_truck_type_id: form.truckTypeId || null, p_owner_type: form.ownerType,
@@ -134,6 +138,15 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
             : supabase.from("transport_drivers").insert(fields).select("id").single();
         })();
       if (result.error) throw result.error;
+      // Vehicle creation is owned by the existing canonical RPC. Apply an
+      // optional explicit account link only after the master ID is returned.
+      if(vehicle&&!editing&&form.ownerType==="company"&&form.revenueAccountId){
+        const savedId=typeof result.data==="string"?result.data:result.data?.id;
+        if(!savedId)throw new Error("Vehicle was created but ID was not returned; verify Vehicle Master before retrying.");
+        const linked=await supabase.from("transport_vehicles")
+          .update({revenue_account_id:form.revenueAccountId}).eq("id",savedId).select("id").single();
+        if(linked.error)throw new Error("Vehicle was created, but Income COA linking failed: "+linked.error.message);
+      }
       if(quickCreate){
         const id=typeof result.data==="string"?result.data:result.data?.id;
         if(!id)throw new Error("Master creation returned no record ID.");
@@ -156,6 +169,9 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
     { key: "detail", label: vehicle ? "Truck Type" : "Driver Code", render: row => vehicle ? truckTypes.find(t => t.id === row.truckTypeId)?.name ?? (row.detail || "—") : row.detail || "—" },
     ...(!vehicle ? [{ key: "mobile", label: "Mobile", render: (row: Row) => row.mobile || "—" } as Column<Row>] : []),
     { key: "type", label: vehicle ? "Ownership Type" : "Driver Type", render: row => (vehicle ? row.ownerType : row.driverType) === "supplier" ? "Supplier" : (vehicle ? row.ownerType : row.driverType) === "company" ? "Company" : "Legacy / not classified" },
+    ...(vehicle?[{key:"incomeCoa",label:"Income COA",render:(row:Row)=>row.ownerType!=="company"?"—":row.revenueAccountId
+      ? incomeAccounts.find(a=>a.id===row.revenueAccountId)?.name??"Linked account"
+      : <span className="text-amber-700">Not linked — edit vehicle</span>} as Column<Row>]:[]),
     { key: "owner", label: "Supplier / Owner", render: row => partyName(row) || "—" },
     ...(!vehicle ? [{ key: "licence", label: "Licence Expiry", render: (row: Row) => formatNaviloDate(row.licenceExpiry) } as Column<Row>] : []),
     { key: "status", label: "Status", render: row => row.active ? "Active" : "Inactive" },
@@ -175,6 +191,13 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
         <div className="grid gap-3 p-5 sm:grid-cols-2">
           <label className="text-xs font-semibold">{vehicle ? "Vehicle No / Plate No" : "Driver Name"} *<input className="input mt-1 w-full" value={form.name} readOnly={!vehicle&&form.driverType==="company"} onChange={e => setForm({ ...form, name: e.target.value })} required /></label>
           {vehicle ? <label className="text-xs font-semibold">Truck Type<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" value={form.truckTypeId} onChange={e => setForm({ ...form, truckTypeId: e.target.value })}><option value="">Select Truck Type</option>{truckTypes.filter(t => t.is_active || t.id === form.truckTypeId).map(t => <option key={t.id} value={t.id}>{t.name}{!t.is_active ? " (Inactive)" : ""}</option>)}</NaviloSearchableSelect></label>
+          {vehicle&&(editing?.ownerType??form.ownerType)==="company"&&<label className="text-xs font-semibold">Income COA (Company Vehicle)
+            <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Vehicle Income COA" className="input mt-1 w-full" value={form.revenueAccountId} onChange={e=>setForm({...form,revenueAccountId:e.target.value})}>
+              <option value="">Not linked — select Revenue account</option>
+              {incomeAccounts.filter(a=>a.is_active||a.id===form.revenueAccountId).map(a=><option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
+            </NaviloSearchableSelect>
+            <span className="block font-normal text-slate-500">One-time link. Sale invoices posted for this company-owned vehicle will use this Revenue account automatically. Missing? <Link to="/accounting/accounts" className="text-blue-700 underline">Create in Chart of Accounts</Link></span>
+          </label>}
             : <label className="text-xs font-semibold">Driver Code<input className="input mt-1 w-full" value={form.detail} onChange={e => setForm({ ...form, detail: e.target.value })} /></label>}
           {vehicle && editing ? <div className="text-xs sm:col-span-2">Owner: {partyName(editing) || "Legacy / not classified"}. <Link className="text-blue-700 underline" to="/master-data/vehicle-ownership">Change through Vehicle Ownership History</Link></div>
             : <>{(!supplierOwner&&!employeeOwner)&&<label className="text-xs font-semibold">{vehicle ? "Ownership Type" : "Driver Type"}<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 w-full" value={vehicle ? form.ownerType : form.driverType} onChange={e => setForm({ ...form, ...(vehicle ? { ownerType: e.target.value } : { driverType: e.target.value, employeeId: "" }), supplierId: "" })}>
