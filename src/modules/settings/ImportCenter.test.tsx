@@ -7,6 +7,10 @@ import { MemoryRouter } from "react-router-dom";
 import ImportCenter from "./ImportCenter";
 
 vi.mock("@/lib/supabase", () => ({ supabase: { rpc: vi.fn(), from: vi.fn() } }));
+vi.mock("@/modules/transport/TransportNormalInvoiceImport", () => ({
+ default: ({side}:{side:string}) => <section aria-label={side==="customer"?"Normal Sales Import":"Normal Purchase Import"}><h3>Normal {side==="customer"?"Sales":"Purchase"} Invoice Bulk Import — No Trips</h3></section>
+}));
+
 
 vi.mock("@/auth/AuthContext", () => ({ useAuth: () => ({
   activeCompany: { company_id: "gondal-company", membership_role: "company_owner", enabled_modules: ["master", "sales", "purchase", "accounting", "transport"] },
