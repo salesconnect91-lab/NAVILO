@@ -42,9 +42,13 @@ export default function TransportVehicleReports() {
   const [to, setTo] = useState('');
   const [mode, setMode] = useState<ReportMode>('ledger');
   const [rows, setRows] = useState<FinancialTrip[]>([]);
+  // Distinguish a verified empty vehicle report from one not yet loaded.
+  // Never flash zero totals before async rows arrive or after a failed read.
+  const [loadedSelectionKey, setLoadedSelectionKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [financialAccess, setFinancialAccess] = useState<'checking'|'allowed'|'denied'>('checking');
+  const selectionKey = JSON.stringify([companyId, businessUnitId, vehicleId, from, to, fleetScope, financialAccess]);
 
   useEffect(() => {
     let cancelled = false;
@@ -137,6 +141,7 @@ export default function TransportVehicleReports() {
     let disposed = false;
     setRows([]);
     setError('');
+    setLoadedSelectionKey('');
     if (!vehicleId || !companyId || !businessUnitId || financialAccess !== 'allowed') {
       setLoading(false);
       return;
@@ -180,9 +185,12 @@ export default function TransportVehicleReports() {
         }
         // Company fleet excludes supplier/partner Trips sharing the plate.
         // "All vehicles" includes them for operational profitability analysis.
-        if (!disposed) setRows(fleetScope === 'owned'
-          ? all.filter(trip => isCompanyFleetTrip(trip.owner_name, trip.ownership_class, companyName))
-          : all);
+        if (!disposed) {
+          setRows(fleetScope === 'owned'
+            ? all.filter(trip => isCompanyFleetTrip(trip.owner_name, trip.ownership_class, companyName))
+            : all);
+          setLoadedSelectionKey(selectionKey);
+        }
       } catch (reason) {
         if (!disposed) setError(reason instanceof Error ? reason.message : 'Unable to read vehicle trips.');
       } finally {
@@ -190,7 +198,7 @@ export default function TransportVehicleReports() {
       }
     })();
     return () => {disposed = true;};
-  }, [vehicleId, companyId, businessUnitId, from, to, fleetScope, companyName, financialAccess]);
+  }, [vehicleId, companyId, businessUnitId, from, to, fleetScope, companyName, financialAccess, selectionKey]);
 
   const matching = useMemo(() => {
     const search = vehicleSearch.trim().toLowerCase();
@@ -323,7 +331,8 @@ export default function TransportVehicleReports() {
     {vehiclesError && <p role="alert" className="text-red-700">{vehiclesError}</p>}
     <p className="text-xs text-slate-600">{fleetScope === 'owned' ? ownedVehicleIds.size : vehicles.length} vehicles in the selected scope. {unmappedCompanyTrips} matched company-owner Trips have no mapped vehicle and are excluded from individual vehicle totals. No ownership Master values were changed. Clear dates to include all Trip dates.</p>
     {vehicleId && <>
-      {loading ? <p role="status">Loading linked vehicle trips for the report…</p> :
+      {loading || (loadedSelectionKey !== selectionKey && !error)
+        ? <p role="status">Loading linked vehicle trips for the report…</p> :
         error ? <p role="alert" className="text-red-700">{error}</p> :
         <>
           <div className="flex flex-wrap gap-3 text-xs">
