@@ -53,7 +53,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   fireEvent.change(screen.getByRole('textbox',{name:'Amount 2'}),{target:{value:'25'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Normal invoice number'}),{target:{value:'INV-PRIVATE-01'}});
   fireEvent.click(screen.getByRole('button',{name:'Post Sale Invoice'}));
-  await screen.findByText(/Sales invoice posted/);
+  await screen.findByText(/Sale invoice posted/);
   expect(mock.posts).toHaveLength(1);
   expect(mock.posts[0]).toEqual(expect.objectContaining({
    p_side:'customer',p_party:'a-party',p_account:'a-account',p_invoice_no:'INV-PRIVATE-01',
@@ -88,7 +88,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   fireEvent.click(screen.getByRole('button',{name:'Post Sale Invoice'}));
   expect((await screen.findByRole('alert')).textContent).toContain('permission');
   expect(mock.posts).toHaveLength(1);
-  expect(screen.queryByText(/Sales invoice posted/)).toBeNull();
+  expect(screen.queryByText(/Sale invoice posted/)).toBeNull();
  });
  it('rejects missing/invalid description and amount',()=>{
   expect(validateNormalInvoiceLines([{description:'',amount:'3'}])).toMatch(/description/);
