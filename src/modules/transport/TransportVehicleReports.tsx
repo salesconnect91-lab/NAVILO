@@ -9,7 +9,7 @@ import type {ReportTable} from './transportPartyExport';
 type Vehicle = {id: string; vehicle_no: string; owner_type?: string | null; ownership_type?: string | null};
 const TWAKKAL_COMPANY_ID = 'c611adca-fd2f-4cc1-b379-3aed22924f65';
 const isTwakkalOwner = (owner: unknown): boolean => {
-  const value = String(owner ?? '').trim().replace(/\\s+/g, ' ').toLowerCase();
+  const value = String(owner ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
   return value === 'twakkal' || value === 'twakkal al khaleej' || value === 'twakkal al-khaleej';
 };
 type FinancialTrip = Record<string, any>;
