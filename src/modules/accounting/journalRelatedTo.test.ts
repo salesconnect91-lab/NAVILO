@@ -5,12 +5,16 @@ describe('Fast Journal smart Related To selection',()=>{
   expect(journalRelatedToMode('liability',true,true)).toBe('party');
   expect(journalRelatedToMode('asset',true,true)).toBe('party');
  });
- it('uses general postings without driver or vehicle attribution',()=>{
-  expect(journalRelatedToMode('expense',false,true)).toBe('general');
-  expect(journalRelatedToMode('revenue',false,true)).toBe('general');
-  expect(journalRelatedToMode('income',false,true)).toBe('general');
+ it('selects a vehicle dimension only for Transport income and expense accounts',()=>{
+  expect(journalRelatedToMode('expense',false,true)).toBe('vehicle');
+  expect(journalRelatedToMode('revenue',false,true)).toBe('vehicle');
+  expect(journalRelatedToMode('income',false,true)).toBe('vehicle');
+  expect(journalRelatedToMode('REVENUE',false,true)).toBe('vehicle');
   expect(journalRelatedToMode('expense',false,false)).toBe('general');
+  expect(journalRelatedToMode('revenue',false,false)).toBe('general');
   expect(journalRelatedToMode('liability',false,true)).toBe('general');
+  expect(journalRelatedToMode('asset',false,true)).toBe('general');
+  expect(journalRelatedToMode('revenue',true,true)).toBe('party');
  });
  it('limits selectable company vehicles by journal date and ownership history',()=>{
   const periods=[{vehicle_id:'x',owner_type:'company',effective_from:'2026-08-01',effective_to:'2026-09-30'},
