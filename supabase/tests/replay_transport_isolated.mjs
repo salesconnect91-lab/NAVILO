@@ -65,6 +65,8 @@ if(process.env.NAVILO_BULK_INVOICE_SMOKE==='1'){
 }
 if(process.env.NAVILO_VEHICLE_REPORT_SMOKE==='1'){
  try{
+  await db.exec(fs.readFileSync(root+'/supabase/tests/transport_trip_service_vehicle_revenue_split_rehearsal.sql','utf8'));
+  console.log('PASS isolated mixed company/supplier Trip revenue allocation');
   await db.exec(fs.readFileSync(root+'/supabase/tests/transport_v1_financial_completion_rehearsal.sql','utf8'));
   console.log('PASS isolated vehicle report and canonical invoice/payment reconciliation');
  }catch(e){
