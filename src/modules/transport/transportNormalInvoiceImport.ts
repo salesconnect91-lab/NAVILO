@@ -1,0 +1,58 @@
+import {invoiceImportDate} from './transportExternalInvoiceImport';
+export type NormalSide='customer'|'supplier';
+export type NormalImportRow={
+ batch_ref:string;invoice_no:string;invoice_date:string;party_id:string;account_id:string;
+ description:string;amount:string;reference:string;
+};
+const clean=(x:unknown)=>String(x??'').trim();
+const key=(x:string)=>x.toLowerCase().replace(/[^a-z0-9]/g,'');
+const get=(r:Record<string,unknown>,...keys:string[])=>{
+ const normalized=Object.fromEntries(Object.entries(r).map(([k,v])=>[key(k),v]));
+ return keys.map(k=>normalized[key(k)]).find(v=>clean(v)!=='')??'';
+};
+export function parseNormalInvoiceImport(
+ raw:Record<string,unknown>[],side:NormalSide,
+ parties:Array<{id:string;name:string}>,accountId:string
+):NormalImportRow[]{
+ if(raw.length<1||raw.length>200)throw new Error('Import 1–200 invoice description lines.');
+ if(!accountId)throw new Error('Select the company Revenue/Expense Account.');
+ const lookup=new Map<string,string|null>();
+ for(const party of parties){
+  const k=party.name.trim().toLowerCase();
+  lookup.set(k,lookup.has(k)?null:party.id);
+ }
+ const groups=new Map<string,{party:string;date:string;number:string;reference:string}>();
+ const numbers=new Map<string,string>();
+ const rows=raw.map((row,i)=>{
+  const lineNo=i+2;
+  const batch_ref=clean(get(row,'Invoice Group','Batch Reference','Group'));
+  const invoice_no=clean(get(row,'Invoice No','Invoice Number'));
+  const partyName=clean(get(row,side==='customer'?'Customer':'Supplier'));
+  const party_id=lookup.get(partyName.toLowerCase());
+  const invoice_date=invoiceImportDate(get(row,'Date','Invoice Date'));
+  const description=clean(get(row,'Description','Service Description'));
+  const reference=clean(get(row,'Reference','Notes'));
+  const amountInput=clean(get(row,'Amount','Net Amount')).replaceAll(',','');
+  if(!batch_ref||batch_ref.length>80)throw new Error(`Row ${lineNo}: Invoice Group (up to 80 characters) required.`);
+  if(!party_id)throw new Error(`Row ${lineNo}: ${side==='customer'?'Customer':'Supplier'} must uniquely match an active Master in this company.`);
+  if(!/^[0-9]{1,12}(\.[0-9]{1,2})?$/.test(amountInput)||Number(amountInput)<=0)
+   throw new Error(`Row ${lineNo}: positive Amount with up to 2 decimals required.`);
+  if(!description||description.length>1000)throw new Error(`Row ${lineNo}: Description required (max 1,000 characters).`);
+  if(invoice_no.length>80||reference.length>120)throw new Error(`Row ${lineNo}: Invoice No or Reference is too long.`);
+  const existing=groups.get(batch_ref.toLowerCase());
+  const info={party:party_id,date:invoice_date,number:invoice_no.toLowerCase(),reference:reference.toLowerCase()};
+  if(existing&&JSON.stringify(existing)!==JSON.stringify(info))
+   throw new Error(`Row ${lineNo}: Invoice Group has inconsistent Master, date, number or Reference.`);
+  groups.set(batch_ref.toLowerCase(),info);
+  if(invoice_no){
+   const k=invoice_no.toLowerCase();
+   const other=numbers.get(k);
+   if(other&&other!==batch_ref.toLowerCase())
+    throw new Error(`Row ${lineNo}: Invoice No is used by two different invoice groups.`);
+   numbers.set(k,batch_ref.toLowerCase());
+  }
+  return {batch_ref,invoice_no,invoice_date,party_id,account_id:accountId,description,amount:amountInput,reference};
+ });
+ if(groups.size>50)throw new Error('Maximum 50 separate invoices per import batch.');
+ return rows;
+}
