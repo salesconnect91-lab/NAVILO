@@ -1,4 +1,4 @@
-name: Transport vehicle financial smoke
+name: Transport vehicle and credit import smoke
 on:
   workflow_dispatch:
   push:
@@ -7,11 +7,17 @@ on:
       - '.github/workflows/transport-vehicle-financial-smoke.yml'
       - 'supabase/tests/replay_transport_isolated.mjs'
       - 'supabase/tests/transport_v1_financial_completion_rehearsal.sql'
+      - 'supabase/tests/transport_historical_import_rehearsal.sql'
+      - 'supabase/migrations/**'
 permissions:
   contents: read
 jobs:
   vehicle-reconciliation:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [vehicle, credit-import]
     timeout-minutes: 20
     services:
       postgres:
@@ -39,6 +45,7 @@ jobs:
       - name: Reconcile vehicle ledger, invoices and partial payments
         env:
           NAVILO_NATIVE_REHEARSAL: '1'
-          NAVILO_VEHICLE_REPORT_SMOKE: '1'
+          NAVILO_VEHICLE_REPORT_SMOKE: ${{ matrix.mode == 'vehicle' && '1' || '0' }}
+          NAVILO_HISTORY_SMOKE: ${{ matrix.mode == 'credit-import' && '1' || '0' }}
           NAVILO_PG_DRIVER: ${{ runner.temp }}/navilo-rehearsal-driver/node_modules/pg/lib/index.js
         run: node supabase/tests/replay_transport_isolated.mjs

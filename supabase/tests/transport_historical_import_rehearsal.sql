@@ -108,7 +108,7 @@ begin
  -- The old Cash supplier entries retain their posted evidence after the new Credit master setting.
  perform public.transport_set_party_billing_mode('supplier',supplier,'Credit');
  -- Historical VAT rate is already configured before creating invoice snapshots.
- payload:=jsonb_build_object('source_id','OLD-4','trip',jsonb_build_object('trip_date',current_date-2,'customer_id',vat_customer,'vehicle_id',history_vehicle,'from_location_id',f,'to_location_id',dest,'ppr_status','pending','sale_type','credit','customer_rate',100,'supplier_rent',100),
+ payload:=jsonb_build_object('source_id','OLD-4','trip',jsonb_build_object('trip_date',current_date-2,'customer_id',vat_customer,'vehicle_id',history_vehicle,'from_location_id',f,'to_location_id',dest,'ppr_status','pending','sale_type','credit','customer_rate',100,'supplier_rent',100,'source_invoice_no','VAT-ORIG-'||code),
  'customer_posted',true,'supplier_posted',true,'customer_date',current_date-2,'supplier_date',current_date-2,'customer_vat',true,'supplier_vat',true,
  'customer_gross',118,'supplier_gross',118,'received',50,'paid',50,'customer_remaining',68,'supplier_remaining',68,
  'payments',jsonb_build_array(jsonb_build_object('side','customer','date',current_date-1,'amount',50,'account_id',cash_id,'method','cash','reference','VAT-R'),jsonb_build_object('side','supplier','date',current_date-1,'amount',50,'account_id',secondary_bank,'method','bank','reference','VAT-P')));
@@ -122,9 +122,24 @@ begin
  bad:=jsonb_set(payload,'{payments,1,method}','"cash"');
  rejected:=false;begin perform public.transport_import_history_batch(history_id,2,jsonb_build_array(bad));exception when others then rejected:=true;end;
  if not rejected then raise exception 'History accepted mismatched Cash/Bank evidence';end if;
+ bad:=jsonb_set(payload,'{trip}',(payload->'trip')-'source_invoice_no');
+ rejected:=false;
+ begin
+  perform public.transport_import_history_batch(history_id,2,jsonb_build_array(bad));
+ exception when others then
+  rejected:=sqlerrm like '%original Sales invoice number%';
+ end;
+ if not rejected then raise exception 'Credit import accepted missing original Sales invoice number';end if;
  perform public.transport_import_history_batch(history_id,2,jsonb_build_array(payload));
  history_status:=public.transport_history_import_status();
  if (history_status->>'completed')::integer<>3 or (history_status->'totals'->>'trips')::integer<>4 then raise exception 'Historical VAT batch incomplete';end if;
+ if not exists(
+  select 1 from public.transport_trips t
+  join public.transport_customer_document_trips l on l.trip_id=t.id
+  join public.transport_customer_documents d on d.id=l.document_id
+  join public.sales_orders so on so.id=d.sales_order_id
+  where t.company_id=c and t.source_invoice_no='VAT-ORIG-'||code and so.order_no=t.source_invoice_no
+ ) then raise exception 'Credit history lost original invoice number in posted Sales';end if;
  execute 'reset role';
  if not exists(select 1 from public.journal_entries where company_id=c and entry_no='CR-10000' and status='posted') or not exists(select 1 from public.journal_entries where company_id=c and entry_no='SP-10000' and status='posted') then raise exception 'Canonical payment number truncated past 9,999';end if;
  if (select count(*) from public.sales_orders where company_id=c and status='posted')<>3
