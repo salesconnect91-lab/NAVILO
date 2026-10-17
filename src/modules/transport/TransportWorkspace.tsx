@@ -1948,6 +1948,7 @@ function TransportWorkspaceScoped(){
       `}</style>
       <div className="navilo-transport-topbar relative z-[90] flex shrink-0 items-center justify-between px-3 text-white h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]">
         <div className="flex shrink-0 items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span>
+          {canCreateNormalSales&&<button type="button" onClick={()=>navigate('/sales/new?type=service')} className="rounded border border-sky-500/60 bg-sky-950 px-2 py-1 text-[10px] font-semibold text-sky-100 hover:bg-sky-800" aria-label="Create Trip Service Invoice">+ Service</button>}
           {canCreateNormalSales&&<button type="button" onClick={()=>navigate('/sales/new?type=normal')} className="rounded border border-sky-500/60 bg-sky-950 px-2 py-1 text-[10px] font-semibold text-sky-100 hover:bg-sky-800" aria-label="Create Sale Invoice">+ Sale</button>}
           {canCreateNormalPurchase&&<button type="button" onClick={()=>navigate('/purchase/new?type=normal')} className="rounded border border-sky-500/60 bg-sky-950 px-2 py-1 text-[10px] font-semibold text-sky-100 hover:bg-sky-800" aria-label="Create Purchase Invoice">+ Purchase</button>}
         </div>
