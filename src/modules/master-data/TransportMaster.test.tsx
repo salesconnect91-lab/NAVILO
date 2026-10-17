@@ -10,7 +10,7 @@ vi.mock('@/components/MasterSummaryStrip',()=>({default:()=>null}));
 vi.mock('@/modules/transport/TransportAccountStatement',()=>({default:()=>null}));
 vi.mock('@/components/MasterActionButton',()=>({default:()=>null}));
 vi.mock('./useTransportMasterClient',()=>({default:()=>client}));
-const client:any={rpc:mock.rpc,from:(table:string)=>{const q:any={select:()=>q,order:()=>q,eq:()=>q,is:()=>q,range:()=>Promise.resolve({data:table==='suppliers'?[{id:'s',name:'Owner',is_active:true}]:table==='transport_truck_types'?[{id:'tt',name:'Flatbed',is_active:true}]:table==='transport_vehicles'?mock.vehicles:table==='transport_drivers'?mock.drivers:table==='employees'?mock.employees:[],error:null}),single:()=>Promise.resolve({data:{id:'v'},error:null}),insert:(p:any)=>{mock.insert(table,p);return q},update:(p:any)=>{mock.update(table,p);return q}};return q}};
+const client:any={rpc:mock.rpc,from:(table:string)=>{const q:any={select:()=>q,order:()=>q,eq:()=>q,is:()=>q,range:()=>Promise.resolve({data:table==='suppliers'?[{id:'s',name:'Owner',is_active:true}]:table==='chart_of_accounts'?[{id:'revenue-7979',code:'4001',name:'7979 Dyna Truck',is_active:true}]: table==='transport_truck_types'?[{id:'tt',name:'Flatbed',is_active:true}]:table==='transport_vehicles'?mock.vehicles:table==='transport_drivers'?mock.drivers:table==='employees'?mock.employees:[],error:null}),single:()=>Promise.resolve({data:{id:'v'},error:null}),insert:(p:any)=>{mock.insert(table,p);return q},update:(p:any)=>{mock.update(table,p);return q}};return q}};
 beforeEach(()=>{mock.vehicles=[];mock.drivers=[];mock.employees=[{id:"e",name:"Employee Driver",is_active:true}];mock.rpc.mockReset();mock.rpc.mockResolvedValue({data:'v',error:null});mock.insert.mockReset();mock.update.mockReset()});afterEach(cleanup);
 function view(kind:'vehicles'|'drivers'){render(<MemoryRouter><TransportMaster kind={kind}/></MemoryRouter>)}
 describe('Structured Transport master forms',()=>{
@@ -56,6 +56,17 @@ describe('Structured Transport master forms',()=>{
   fireEvent.click(screen.getByRole('button',{name:/Edit/}));await screen.findByRole('option',{name:'Employee Driver'});fireEvent.click(screen.getByRole('button',{name:'Save'}));
   await waitFor(()=>expect(mock.update).toHaveBeenCalledWith('transport_drivers',expect.objectContaining({employee_id:'e',driver_type:'company',supplier_id:null})));
   expect(mock.insert).not.toHaveBeenCalled();
+ });
+ it('links company-owned Vehicle Master to an existing Revenue COA once',async()=>{
+  mock.vehicles=[{id:'v1',vehicle_no:'7979',truck_type_id:'tt',ownership_type:'company',is_active:true,revenue_account_id:null}];
+  view('vehicles');
+  await screen.findByText('Not linked — edit vehicle');
+  fireEvent.click(screen.getByRole('button',{name:/Edit/}));
+  const income=await screen.findByLabelText('Vehicle Income COA');
+  fireEvent.change(income,{target:{value:'revenue-7979'}});
+  fireEvent.click(screen.getByRole('button',{name:'Save'}));
+  await waitFor(()=>expect(mock.update).toHaveBeenCalledWith('transport_vehicles',
+   expect.objectContaining({revenue_account_id:'revenue-7979',vehicle_no:'7979'})));
  });
  it('keeps current owner out of direct Vehicle edits',async()=>{mock.vehicles=[{id:'v',vehicle_no:'ABC',truck_type_id:'tt',ownership_type:'supplier',supplier_id:'s',owner_name:'Owner',is_active:true}];view('vehicles');await screen.findByRole('button',{name:/Edit/});fireEvent.click(screen.getByRole('button',{name:/Edit/}));expect(screen.queryByLabelText('Ownership Type')).toBeNull();expect(screen.getByRole('link',{name:'Change through Vehicle Ownership History'})).toBeTruthy();fireEvent.click(screen.getByRole('button',{name:'Save'}));await waitFor(()=>expect(mock.update).toHaveBeenCalledWith('transport_vehicles',{vehicle_no:'ABC',truck_type_id:'tt'}));});
 });
