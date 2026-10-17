@@ -338,7 +338,7 @@ export default function ImportCenter() {
      <ImportEntry title="Daily Trip Upload" effect="Trip records only" detail="Upload current trips. No invoice, receipt or journal is posted." to="/transport?view=new&import=bulk" label="Open Daily Trip Upload" download={downloadDailyTripTemplate}/>
      {canImport("sales")&&<TransportInvoiceImports/>}
     </ImportGroup>}
-    {activeBusinessUnit?.business_unit_type==='transport'&&canImport("transport")&&<ImportGroup id="import-vehicle-expenses" title="Vehicle Expenses" detail="Validate Excel and Masters, import grouped drafts, then review/edit and post."><TransportVehicleExpenseImportPreview/></ImportGroup>}
+    {activeBusinessUnit?.business_unit_type==='transport'&&canImport("transport")&&<ImportGroup id="import-vehicle-expenses" title="Vehicle Expense Excel Import" detail="Bulk Excel alternative to manual journals: validate once, import drafts, review and post once. Posting creates the journal automatically; do not enter those expenses again in General Journal."><TransportVehicleExpenseImportPreview/></ImportGroup>}
    {activeBusinessUnit?.business_unit_type==='transport'&&(canImport("sales")||canImport("purchase"))&&
      <ImportGroup id="import-normal" title="3. Sale & Purchase Invoices — No Trips"
       detail="Standalone description-only invoices linked to the same Customer/Supplier Master, AR/AP, VAT, GL, receipts/payments and reports. No stock or Trip movements.">
