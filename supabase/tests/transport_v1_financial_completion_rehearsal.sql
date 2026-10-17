@@ -344,7 +344,8 @@ end if;
   '[{"description":"Standalone consulting","amount":"150.00"},{"description":"Standby work","amount":"200.00"}]'::jsonb,
   normal_rev,'NORMAL-S-'||code,'Reference 55',true);
  normal_doc:=(result->>'document_id')::uuid;
- if result->>'status'<>'posted' or (result->>'gross')::numeric<>350 or
+ if result->>'status'<>'posted' or (result->>'net')::numeric<>350 or
+ (result->>'gross')::numeric<>(select total from public.sales_orders where id=normal_doc) or
  (select count(*) from public.sales_service_lines where order_id=normal_doc and source_module='transport_normal' and source_id is null)<>2
  or not exists(select 1 from public.journal_entries where source_document_id=normal_doc and status='posted')
  or exists(select 1 from public.transport_customer_document_trips l join public.transport_customer_documents d on d.id=l.document_id where d.sales_order_id=normal_doc)
@@ -359,7 +360,8 @@ end if;
   '[{"description":"Supplier admin fee","amount":"75.00"}]'::jsonb,
   acct,'NORMAL-P-'||code,'Supplier ref 5',true);
  normal_doc:=(result->>'document_id')::uuid;
- if result->>'status'<>'posted' or (result->>'gross')::numeric<>75 or
+ if result->>'status'<>'posted' or (result->>'net')::numeric<>75 or
+ (result->>'gross')::numeric<>(select total from public.purchase_orders where id=normal_doc) or
  (select count(*) from public.purchase_service_lines where order_id=normal_doc and source_module='transport_normal' and source_id is null)<>1
  or not exists(select 1 from public.journal_entries where source_document_id=normal_doc and status='posted')
  or exists(select 1 from public.stock_movements where source_id=normal_doc)
@@ -370,13 +372,13 @@ end if;
    jsonb_build_object('batch_ref','BULK-1','party_id',customer,'account_id',normal_rev,'invoice_date',current_date,'invoice_no','BULK-S-'||code,'description','Line two','amount','15.50')),
   true);
  if (result->>'invoices')::int<>1 or (result->>'lines')::int<>2
- or not exists(select 1 from public.sales_orders where id=(result->'documents'->0->>'document_id')::uuid and status='posted' and total=25.50)
+ or not exists(select 1 from public.sales_orders where id=(result->'documents'->0->>'document_id')::uuid and status='posted' and total=(result->'documents'->0->>'gross')::numeric)
  then raise exception 'Normal Sales bulk import not atomic or not posted to AR';end if;
  result:=public.transport_normal_invoice_import('supplier',
   jsonb_build_array(jsonb_build_object('batch_ref','P-BULK-1','party_id',supplier,'account_id',acct,'invoice_date',current_date,
   'invoice_no','BULK-P-'||code,'description','Independent supplier work','amount','31.25')),true);
  if (result->>'invoices')::int<>1 or
- not exists(select 1 from public.purchase_orders where id=(result->'documents'->0->>'document_id')::uuid and status='posted' and total=31.25)
+ not exists(select 1 from public.purchase_orders where id=(result->'documents'->0->>'document_id')::uuid and status='posted' and total=(result->'documents'->0->>'gross')::numeric)
  then raise exception 'Normal Purchase bulk import not posted to AP';end if;
  rejected:=false;begin
  perform public.transport_normal_invoice_create('customer',customer,current_date,
