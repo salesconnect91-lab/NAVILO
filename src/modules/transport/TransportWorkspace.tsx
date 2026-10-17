@@ -110,7 +110,19 @@ const BULK_TRIP_HEADERS=[
 
 
 
+/**
+ * Remount stateful Transport controls at every authenticated workspace change.
+ * This prevents previous-company rows, search drafts, filters and dialogs from
+ * lingering in the UI during a new company's async register request.
+ * A workspace's saved view is rehydrated from its own scoped storage key.
+ */
 export default function TransportWorkspace(){
+  const {activeCompany,activeBusinessUnit}=useAuth();
+  const scope=`${activeCompany?.company_id??''}/${activeBusinessUnit?.business_unit_id??''}`;
+  return <TransportWorkspaceScoped key={scope}/>;
+}
+
+function TransportWorkspaceScoped(){
   const navigate=useNavigate();
   const location=useLocation();
   const {user,activeCompany,activeBusinessUnit,isPlatformOwner,accessContext}=useAuth();

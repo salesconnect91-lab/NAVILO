@@ -16,8 +16,8 @@ const mock=vi.hoisted(()=>({rpc:vi.fn(),tables:{} as Record<string,any[]>,allow:
  abortSignals:{} as Record<string,AbortSignal>,
  layoutUserId:null as string|null,remoteLayout:null as any,
  savedLayout:null as any,layoutReads:0,layoutWriteError:false,layoutReadError:false,
- layoutQueries:[] as Array<Record<string,string>>}));
-vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({user:mock.layoutUserId?{id:mock.layoutUserId}:null,activeCompany:{company_id:'c',membership_role:'company_owner',enabled_modules:['transport']},activeBusinessUnit:{business_unit_id:'b',membership_role:'company_owner',business_unit_type:'transport',enabled_modules:['transport']}})}));
+ layoutQueries:[] as Array<Record<string,string>>,companyId:'c',businessUnitId:'b'}));
+vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({user:mock.layoutUserId?{id:mock.layoutUserId}:null,activeCompany:{company_id:mock.companyId,membership_role:'company_owner',enabled_modules:['transport']},activeBusinessUnit:{business_unit_id:mock.businessUnitId,membership_role:'company_owner',business_unit_type:'transport',enabled_modules:['transport']}})}));
 vi.mock('@/lib/supabase',()=>({supabase:{auth:{getUser:async()=>({data:{user:null}}),getSession:async()=>({data:{session:null}})},rpc:(...args:any[])=>{const request=mock.rpc(...args);request.abortSignal=(signal:AbortSignal)=>{mock.abortSignals[args[0]]=signal;return request;};return request;},from:(table:string)=>{
  if(table==='transport_register_layout_preferences'){
   const filters:Record<string,string>={};
@@ -37,7 +37,7 @@ vi.mock('./TransportPartyReports',()=>({default:()=>null}));vi.mock('./Transport
 beforeEach(()=>{
  clearRegisterSessionCache();
  Object.defineProperty(globalThis,'crypto',{value:webcrypto,configurable:true});
- mock.allow=true;mock.layoutUserId=null;mock.remoteLayout=null;mock.savedLayout=null;mock.layoutReads=0;mock.layoutWriteError=false;mock.layoutReadError=false;mock.layoutQueries=[];
+ mock.allow=true;mock.companyId='c';mock.businessUnitId='b';mock.layoutUserId=null;mock.remoteLayout=null;mock.savedLayout=null;mock.layoutReads=0;mock.layoutWriteError=false;mock.layoutReadError=false;mock.layoutQueries=[];
  mock.abortSignals={};
  mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[],count:0,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:name==='transport_prepare_trip_import'?{id:'job',completed:0}:name==='transport_trip_customer_modes'?[{id:'c1',mode:'Credit'}]:name==='transport_import_trip_batch'?args.p_rows.map(()=>({id:'trip',trip_no:'OIC-1'})):name==='transport_create_trips'?[{id:'trip',trip_no:'OIC-1'}]:mock.allow,error:null}));
  mock.tables={customers:[{id:'c1',name:'Customer',is_active:true}],suppliers:[{id:'s',name:'Supplier',is_active:true}],employees:[{id:'e',name:'Employee',is_active:true}],
@@ -780,5 +780,37 @@ describe('Register manual refresh and saved query results',()=>{
    customer_name:'Updated Customer',driver_name:'Driver',vehicle_no:'FLAT-1',customer_rate:1800,from_location:'From',to_location:'To'}],
    count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{company_rate:1800},row_versions:{'cached-trip':'v2'}},error:null});
   await screen.findByText('Updated Customer');expect(screen.queryByText('Cached Customer')).toBeNull();
+ });
+});
+
+describe('Transport Register workspace isolation',()=>{
+ it('immediately removes old-company rows, draft search and dialogs during a company switch',async()=>{
+  let resolveOrbit:((value:any)=>void)|null=null;
+  mock.rpc.mockImplementation((name:string,args:any)=>{
+   if(name==='transport_register_query'&&!args?.p_option_key){
+    if(mock.companyId==='orbit')return new Promise(resolve=>{resolveOrbit=resolve;});
+    return Promise.resolve({data:{rows:[{id:'tw-row',trip_no:'T-COMPANY',trip_date:'2026-10-15',
+     customer_name:'Twakkal customer',status:'draft',ppr_status:'pending'}],count:1,statuses:[],
+     permissions:{customer:true,supplier:true},totals:{}},error:null});
+   }
+   return Promise.resolve({data:true,error:null});
+  });
+  const app=()=> <MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>;
+  const mounted=render(app());
+  await screen.findByText('Twakkal customer');
+  fireEvent.change(screen.getByRole('textbox',{name:'Search all Trip data'}),{target:{value:'OLD-COMPANY-FILTER'}});
+  expect((screen.getByRole('textbox',{name:'Search all Trip data'}) as HTMLInputElement).value).toBe('OLD-COMPANY-FILTER');
+  mock.companyId='orbit';mock.businessUnitId='orbit-bu';
+  mounted.rerender(app());
+  expect(screen.queryByText('Twakkal customer')).toBeNull();
+  expect((screen.getByRole('textbox',{name:'Search all Trip data'}) as HTMLInputElement).value).toBe('');
+  await waitFor(()=>expect(resolveOrbit).not.toBeNull());
+  if(!resolveOrbit)throw new Error('Missing Orbit test response');
+  resolveOrbit({data:{rows:[{id:'or-row',trip_no:'O-COMPANY',trip_date:'2026-10-15',
+   customer_name:'Orbit customer',status:'draft',ppr_status:'pending'}],count:1,statuses:[],
+   permissions:{customer:true,supplier:true},totals:{}},error:null});
+  await screen.findByText('Orbit customer');
+  expect(screen.queryByText('Twakkal customer')).toBeNull();
+  expect(mock.rpc.mock.calls.filter(([name,args])=>name==='transport_register_query'&&!args?.p_option_key)).toHaveLength(2);
  });
 });
