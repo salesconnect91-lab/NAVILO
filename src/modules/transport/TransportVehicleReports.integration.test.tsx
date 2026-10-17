@@ -9,6 +9,7 @@ const mock=vi.hoisted(()=>({
   requests:[] as Array<{name:string;account:string;kind:string}>,
   report:null as any,
   allowSupplier:true,
+  tripCountOverride:null as number | null,
 }));
 const companies=[
   {company_id:'tw',company_name:'Twakkal Al Khaleej',business_unit_id:'tw-bu',owner:'TWAKKAL'},
@@ -53,7 +54,7 @@ vi.mock('@/lib/supabase',()=>({supabase:{
        ownership_class:'supplier',billed_customer_net:5000,billed_supplier_net:4000},
     ]:[{id:id+'-h',trip_date:'2026-10-01',trip_no:'HIRE-'+id,owner_name:'Supplier LLC',
        ownership_class:'supplier',billed_customer_net:300,billed_supplier_net:250}];
-    return {data:{rows,count:rows.length},error:null};
+    return {data:{rows,count:mock.tripCountOverride ?? rows.length},error:null};
   },
 }}));
 vi.mock('./ConfigurableReport',()=>({default:({report}:any)=>{
@@ -65,7 +66,7 @@ vi.mock('@/components/NaviloDateInput',()=>({default:({value,onChange,...props}:
 }));
 beforeEach(()=>{
   mock.active={company_id:'tw',company_name:'Twakkal Al Khaleej',business_unit_id:'tw-bu'};
-  mock.queries=[];mock.requests=[];mock.report=null;mock.allowSupplier=true;
+  mock.queries=[];mock.requests=[];mock.report=null;mock.allowSupplier=true;mock.tripCountOverride=null;
 });
 afterEach(cleanup);
 async function selectVehicle(id:string){
@@ -99,6 +100,16 @@ describe('Transport vehicle report UI: common behavior in all companies',()=>{
     await waitFor(()=>expect(mock.report.rows.some((row:any[])=>row[1]==='SUPPLIER-tw')).toBe(true));
     expect(mock.report.rows.at(-1)[8]).toBe(6000);
     expect(mock.queries.every(q=>q.company==='tw')).toBe(true);
+  });
+  it.each([50001,10])('never renders partial vehicle profit when the server count is %i',async count=>{
+    mock.tripCountOverride=count;
+    render(<TransportVehicleReports/>);
+    await waitFor(()=>expect(screen.getByRole('option',{name:'tw-PLATE'})).toBeTruthy());
+    fireEvent.change(screen.getByRole('combobox',{name:'Vehicle for report'}),{target:{value:'tw-own'}});
+    const alert=await screen.findByRole('alert');
+    expect(alert.textContent).toMatch(count>50000?/Narrow the Trip date range/:/incomplete Trips/);
+    expect(screen.queryByTestId('vehicle-report-preview')).toBeNull();
+    expect(mock.report).toBeNull();
   });
   it('never presents false vehicle profit when Supplier financial access is denied',async()=>{
     mock.allowSupplier=false;

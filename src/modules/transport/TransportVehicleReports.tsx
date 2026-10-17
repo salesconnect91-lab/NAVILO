@@ -150,16 +150,33 @@ export default function TransportVehicleReports() {
     void (async () => {
       try {
         const all: FinancialTrip[] = [];
+        const maxReportRows = 50000;
+        let expectedCount: number | null = null;
         const filters = {from, to, search: '', posting: 'all', account: vehicleId, accountKind: 'vehicle'};
-        for (let offset = 0; offset < 50000; offset += 500) {
+        for (let offset = 0; offset < maxReportRows; offset += 500) {
           const {data, error: requestError} = await supabase.rpc('transport_trip_report', {
             p_side: 'customer', p_limit: 500, p_offset: offset, p_filters: filters,
           });
           if (requestError) throw requestError;
           const result = data as {rows?: FinancialTrip[]; count?: number} | null;
+          const count = Number(result?.count);
+          if (!Number.isSafeInteger(count) || count < 0) {
+            throw new Error('Vehicle report returned an invalid Trip count. Retry the report.');
+          }
+          if (expectedCount === null) {
+            expectedCount = count;
+            if (count > maxReportRows) {
+              throw new Error('Vehicle has more than 50,000 Trips. Narrow the Trip date range to avoid incomplete totals.');
+            }
+          } else if (count !== expectedCount) {
+            throw new Error('Vehicle Trips changed during report loading. Reopen the report for consistent totals.');
+          }
           const batch = result?.rows ?? [];
           all.push(...batch);
-          if (batch.length < 500 || all.length >= number(result?.count)) break;
+          if (batch.length < 500 || all.length >= count) break;
+        }
+        if (all.length !== expectedCount) {
+          throw new Error('Vehicle report returned incomplete Trips. Reopen the report; totals were not displayed.');
         }
         // Company fleet excludes supplier/partner Trips sharing the plate.
         // "All vehicles" includes them for operational profitability analysis.
