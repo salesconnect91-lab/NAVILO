@@ -323,7 +323,7 @@ export default function PurchaseInvoiceDetail() {
 
   if (loading) return <div className="card p-12 text-center text-slate-400">Loading Purchase Invoice…</div>;
   if (!order) return <ErrorBanner message="Purchase Invoice not found." />;
-  if(order.document_kind==='service')return <TransportServiceDocument side="supplier" id={order.id}/>;
+  if(order.document_kind==='service')return <TransportServiceDocument side="supplier" id={order.id} canPost />;
 
   return <div className="navilo-purchase-neus navilo-invoice-detail space-y-5" data-navilo-commercial-standard="true" data-navilo-document-editor="true">
     <OwnerInvoiceCancellationReview side="purchase" documentId={order.id} posted={order.status === "posted"} />
