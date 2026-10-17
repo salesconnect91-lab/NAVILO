@@ -88,6 +88,16 @@ begin
  insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,b,'ACL-'||code);
  execute 'reset role';
  result:=public.transport_post_customer_bill_numbered(trip,current_date,false,'ORIG-S-'||code);
+ -- New Sales Invoice must list unposted Trips without processing billed Trips.
+ execute 'set local role authenticated';
+ result:=public.transport_bulk_rate_page('customer',500,0,'{"unpostedOnly":true}'::jsonb);
+ if (result->>'count')::int<>1
+    or jsonb_array_length(result->'rows')<>1
+    or result->'rows'->0->>'id'<>trip2::text
+ then raise exception 'Bulk customer unposted-only scope included billed Trip or omitted unbilled Trip: %',result;end if;
+ result:=public.transport_bulk_rate_page('customer',500,0,'{}'::jsonb);
+ if (result->>'count')::int<>2 then raise exception 'Posted corrections selection lost billed Trips';end if;
+ execute 'reset role';
  result:=public.transport_post_supplier_bill(rent,current_date,acct,false);
  result:=public.transport_party_report_query('documents','customer',jsonb_build_object('party',customer));
  if jsonb_array_length(result)<>1 or result->0->>'side'<>'customer' then raise exception 'Selected side/party reader failed';end if;

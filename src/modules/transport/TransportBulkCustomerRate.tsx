@@ -20,7 +20,7 @@ const fmt=(v:string)=>{if(!v)return '—';const [y,m,d]=v.slice(0,10).split('-')
 export default function TransportBulkCustomerRate({onClose,onChanged}:{onClose:()=>void;onChanged:()=>Promise<void>}){
  const {activeCompany,activeBusinessUnit}=useAuth();
  const [rows,setRows]=useState<Row[]>([]),[selected,setSelected]=useState<string[]>([]),[amounts,setAmounts]=useState<Record<string,string>>({}),[accounts,setAccounts]=useState<Account[]>([]);
- const [search,setSearch]=useState(''),[status,setStatus]=useState(''),[account,setAccount]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[reason,setReason]=useState('Bulk customer rate');const [vatReady,setVatReady]=useState(true);
+ const [search,setSearch]=useState(''),[status,setStatus]=useState(''),[includePosted,setIncludePosted]=useState(false),[account,setAccount]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[reason,setReason]=useState('Bulk customer rate');const [vatReady,setVatReady]=useState(true);
  const [permissions,setPermissions]=useState<Record<string,boolean>>({}),[loading,setLoading]=useState(true),[customers,setCustomers]=useState<Array<{id:string;name:string;is_active:boolean}>>([]),[customer,setCustomer]=useState(''),[columnFilters,setColumnFilters]=useState<Record<string,string>>({});
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[correction,setCorrection]=useState<Row|null>(null),[correctionAmount,setCorrectionAmount]=useState('');
  const [descriptions,setDescriptions]=useState<Record<string,string>>({});
@@ -33,7 +33,7 @@ export default function TransportBulkCustomerRate({onClose,onChanged}:{onClose:(
   const request=++generation.current;setLoading(true);
   try{
   const company=activeCompany?.company_id;if(!company||!activeBusinessUnit?.business_unit_id)throw new Error('Select an active company and business unit.');
-  const resultPromise=supabase.rpc('transport_bulk_rate_page',{p_side:'customer',p_limit:500,p_offset:page*500,p_filters:{party:customer,status,search,columns:columnFilters}});
+  const resultPromise=supabase.rpc('transport_bulk_rate_page',{p_side:'customer',p_limit:500,p_offset:page*500,p_filters:{party:customer,status,search,columns:columnFilters,unpostedOnly:!includePosted}});
   const metadata=masterCache.current?.scope===scopeKey&&masterCache.current.expires>Date.now()?Promise.resolve(masterCache.current.data):Promise.all([
    fetchAllPages<{id:string;name:string;is_active:boolean}>((from,to)=>supabase.from('customers').select('id,name,is_active').eq('company_id',company).order('id').range(from,to)),
    fetchAllPages<Account>((from,to)=>supabase.from('chart_of_accounts').select('id,name,type').eq('company_id',company).eq('is_active',true).eq('is_group',false).eq('type','revenue').order('id').range(from,to)),
@@ -53,8 +53,8 @@ export default function TransportBulkCustomerRate({onClose,onChanged}:{onClose:(
   setRows(enrichedRows);setSelected(current=>current.filter(id=>enrichedRows.some((r:any)=>r.id===id)));setPageMeta(result.data);if(page>Math.max(0,Math.ceil(result.data.count/500)-1))setPage(Math.max(0,Math.ceil(result.data.count/500)-1));setCustomers(people.sort((a,b)=>a.name.localeCompare(b.name)));setAccounts(aa);const serviceRevenue=mappings.find(m=>m.mapping_key==='service_revenue')?.account_id;if(serviceRevenue&&aa.some(a=>a.id===serviceRevenue))setAccount(current=>current||serviceRevenue);setPermissions(Object.fromEntries(grants));
   }finally{if(request===generation.current)setLoading(false);}
  }
- useEffect(()=>{masterCache.current=null;setRows([]);setPermissions({});setPage(0);setSelected([]);setAmounts({});setInvoiceNumber('');setDescriptions({});setCorrection(null);setCustomer('');setAccount('');},[scopeKey]);
- const filterKey=JSON.stringify({scopeKey,customer,status,search,columnFilters});
+ useEffect(()=>{masterCache.current=null;setRows([]);setPermissions({});setPage(0);setSelected([]);setAmounts({});setInvoiceNumber('');setDescriptions({});setCorrection(null);setCustomer('');setAccount('');setIncludePosted(false);},[scopeKey]);
+ const filterKey=JSON.stringify({scopeKey,customer,status,search,columnFilters,includePosted});
  const lastFilterKey=useRef(filterKey);
  useEffect(()=>{
   generation.current++;setLoading(true);setError('');setRows([]);
@@ -129,6 +129,7 @@ export default function TransportBulkCustomerRate({onClose,onChanged}:{onClose:(
    <label className="col-span-2">Date<NaviloDateInput className="input h-7 px-1 text-[10px]" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
    <TransportReasonSelect className="col-span-3" compact kind="customer_rate" value={reason} onChange={setReason} disabled={busy}/>
    <p className="col-span-2 pb-1 font-semibold">{selectedModes.size>1?'Select one billing mode':withTax?'Credit · VAT automatic':'Cash · Without VAT'}</p>
+   <label className="col-span-2 flex items-center gap-1 pb-1 text-[10px]"><input aria-label="Include posted invoices for corrections" type="checkbox" checked={includePosted} onChange={e=>{setIncludePosted(e.target.checked);setSelected([])}}/>Include posted (corrections)</label>
    <label className="col-span-2">Trip Status<NaviloSearchableSelect nativeCompatibility preserveLabel className="input h-7 px-1 text-[10px]" value={status} onChange={e=>{setStatus(e.target.value);setSelected([])}}><option value="">All Statuses</option>{statuses.map(s=><option key={s} value={s}>{s}</option>)}</NaviloSearchableSelect></label>
    <label className="col-span-4">Search Trip / Company / Route / Vehicle<input className="input h-7 px-1 text-[10px]" value={search} onChange={e=>setSearch(e.target.value)}/></label>
    <label className="col-span-3">Invoice #<input aria-label="Invoice number" className="input h-7 px-1 text-[10px]" maxLength={80} placeholder="Auto — one invoice for selected trips" value={invoiceNumber} onChange={e=>setInvoiceNumber(e.target.value)}/></label>
