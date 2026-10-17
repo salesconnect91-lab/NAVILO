@@ -14,9 +14,27 @@ export default function TransportVehicleAccountingReport(){
   void (async()=>{let count:number|null=null,revenue=0,cost=0;const rows:any[]=[];
    for(let offset=0;;offset+=500){const r=await supabase.rpc('transport_vehicle_ledger',{p_vehicle:vehicle,p_from:from||null,p_to:to||null,p_limit:500,p_offset:offset});if(r.error)throw r.error;const d=r.data;if(!Number.isSafeInteger(d?.count)||d.count<0||!Array.isArray(d.rows))throw Error('Incomplete vehicle report response');if(count!==null&&(count!==d.count||revenue!==Number(d.revenue)||cost!==Number(d.cost)))throw Error('Accounting changed during loading; refresh report.');count=d.count;revenue=Number(d.revenue);cost=Number(d.cost);if(count>50000)throw Error('Narrow date range to 50,000 accounting rows or fewer.');rows.push(...d.rows);if(rows.length>=count||d.rows.length<500)break;}
    if(rows.length!==count)throw Error('Incomplete report; totals withheld.');let running=0;
+   // Manual debits to a revenue account are contra-revenue in the General P&L.
+   // Vehicle statement shows these journal debits separately; net profit is unchanged.
+   const revenueDebits=rows.reduce((sum,x)=>sum+(x.category==='Manual journal'&&Number(x.revenue)<0?-Number(x.revenue):0),0);
    const title=`Vehicle ${vehicles.find(v=>v.id===vehicle)?.vehicle_no??''} — ${mode==='profit'?'Profit & Loss':'Accounting Ledger'}`;
-   const description=`${activeCompany?.company_name??''} / ${activeBusinessUnit?.business_unit_name??''} · Posting dates ${from?formatNaviloDate(from):'Beginning'} to ${to?formatNaviloDate(to):'All'} · Posted canonical accounting only. Recoverable VAT excluded from income/cost; non-recoverable VAT included in expense. Reversals use their posting dates.`;
-   const table:ReportTable=mode==='profit'?{title,description,columns:['Description','Amount'],rows:[['Income',revenue],['Expenses',cost],['Net Profit',revenue-cost]]}:{title,description,columns:['Date','Document','Trip No','Type','Income','Expense','Net','Running Net'],rows:[...rows.map(x=>{const income=Number(x.revenue),expense=Number(x.cost);running+=income-expense;return [formatNaviloDate(x.event_date),x.entry_no,x.trip_no||'',x.category,income,expense,income-expense,running];}),['TOTAL · full filter','','','',revenue,cost,revenue-cost,revenue-cost]]};
+   const description=`${activeCompany?.company_name??''} / ${activeBusinessUnit?.business_unit_name??''} · Posting dates ${from?formatNaviloDate(from):'Beginning'} to ${to?formatNaviloDate(to):'All'} · Posted canonical accounting only. Recoverable VAT excluded from income/cost; non-recoverable VAT included in expense. Reversals use their posting dates. Manual debits to a revenue GL appear separately in the vehicle statement; the General P&L treats them as revenue reductions.`;
+   const table:ReportTable=mode==='profit'
+    ?{title,description,columns:['Description','Amount'],rows:[
+      ['Income',revenue+revenueDebits],
+      ['Expense-account costs',cost],
+      ['Revenue-account debits (manual journals)',revenueDebits],
+      ['Net Profit',revenue-cost],
+     ]}
+    :{title,description,columns:['Date','Document','Trip No','Type','Income','Expense / Account Debit','Net','Running Net'],rows:[
+      ...rows.map(x=>{
+       const income=Number(x.revenue),expense=Number(x.cost);
+       const debit=x.category==='Manual journal'&&income<0?-income:0;
+       running+=income-expense;
+       return [formatNaviloDate(x.event_date),x.entry_no,x.trip_no||'',x.category,income+debit,expense+debit,income-expense,running];
+      }),
+      ['TOTAL · full filter','','','',revenue+revenueDebits,cost+revenueDebits,revenue-cost,revenue-cost],
+     ]};
    if(live){setReport(table);setLoaded(selection);}
   })().catch(e=>{if(live)setError(e.message||'Vehicle accounting report unavailable');}).finally(()=>{if(live)setBusy(false);});return()=>{live=false};
  },[c,b,vehicle,from,to,mode,selection,vehicles,activeCompany?.company_name,activeBusinessUnit?.business_unit_name]);
