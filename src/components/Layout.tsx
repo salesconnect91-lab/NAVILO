@@ -29,7 +29,8 @@ const navigation:NavNode[]=[
     {key:"transport-party-reports",label:"Reports & Allocation",module:"transport",children:[
       {key:"transport-customer-reports",to:"/transport?panel=customer-reports",label:"Customer Reports",module:"transport"},
       {key:"transport-supplier-reports",to:"/transport?panel=supplier-reports",label:"Supplier Reports",module:"transport"},
-      {key:"transport-allocation",to:"/transport?panel=bulk-allocation",label:"Bulk Allocation",module:"transport"}
+      {key:"transport-allocation",to:"/transport?panel=bulk-allocation",label:"Bulk Allocation",module:"transport"},
+      {key:"transport-vehicle-ledger",to:"/transport?panel=vehicle-reports",label:"Vehicle Ledger & P&L",module:"transport"}
     ]}
   ]},
   {key:"accounting",label:"Accounting / اکاؤنٹنگ",icon:Lucide.Calculator,module:"accounting",children:[
