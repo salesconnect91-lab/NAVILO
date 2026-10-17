@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - 'supabase/tests/credit_hs_pair_rehearsal.sql'
+      - 'supabase/tests/credit_hs_eligibility_rehearsal.sql'
       - '.github/workflows/credit-hs-postgres-rehearsal.yml'
   pull_request:
     paths:
       - 'supabase/tests/credit_hs_pair_rehearsal.sql'
+      - 'supabase/tests/credit_hs_eligibility_rehearsal.sql'
       - '.github/workflows/credit-hs-postgres-rehearsal.yml'
 jobs:
   isolated-pg-test:
@@ -30,3 +32,7 @@ jobs:
         env:
           PGPASSWORD: rehearsal_only
         run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d navilo_rehearsal -f supabase/tests/credit_hs_pair_rehearsal.sql
+      - name: Check unpaid correction candidate exclusions
+        env:
+          PGPASSWORD: rehearsal_only
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d navilo_rehearsal -f supabase/tests/credit_hs_eligibility_rehearsal.sql
