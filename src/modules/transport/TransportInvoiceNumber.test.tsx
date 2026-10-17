@@ -121,6 +121,20 @@ describe('Transport invoice posting in all company contexts',()=>{
   expect(mock.posts).toHaveLength(1);
   expect(mock.posts[0]).toEqual(expect.objectContaining({p_revenue_account_id:'tw-rev',p_with_tax:false,p_invoice_no:null}));
  });
+ it('never offers a duplicate post after a successful invoice when register refresh fails',async()=>{
+  const onClose=vi.fn();
+  const onChanged=vi.fn(async()=>{throw new Error('Register timed out')});
+  render(<TransportInvoiceNumber trip={trip('cash')} onClose={onClose} onChanged={onChanged}/>);
+  await readyAccount('tw');
+  fireEvent.change(screen.getByRole('combobox',{name:'Invoice number method'}),{target:{value:'auto'}});
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Post Invoice'}) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button',{name:'Post Invoice'}));
+  await screen.findByText(/Invoice POSTED successfully, but Register refresh failed/);
+  expect(mock.posts).toHaveLength(1);
+  expect(screen.queryByRole('button',{name:'Post Invoice'})).toBeNull();
+  expect(onClose).not.toHaveBeenCalled();
+  expect(onChanged).toHaveBeenCalledTimes(1);
+ });
  it('does not enable posting for a user without billing permission',async()=>{
   mock.permission=false;mount('cash');
   await readyAccount('tw');
