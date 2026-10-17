@@ -1,6 +1,11 @@
 name: Credit Sales correction isolated PostgreSQL rehearsal
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/tests/credit_hs_pair_rehearsal.sql'
+      - '.github/workflows/credit-hs-postgres-rehearsal.yml'
   pull_request:
     paths:
       - 'supabase/tests/credit_hs_pair_rehearsal.sql'
