@@ -13,7 +13,7 @@ export function isValidTransportOriginalInvoice(value:string):boolean {
  const trimmed=value.trim();
  const upper=trimmed.toUpperCase();
  return Boolean(trimmed) && !upper.startsWith('H-S-')
-  && !['YES','NO','CLEARED','NO INVOICE','BAD DEBT','BAD DEBTS','PENDING','NOT INVOICED','N/A','0'].includes(upper);
+  && !/^(?:YES|NO|CLEARED(?:\s+.*)?|CLERAED(?:\s+.*)?|NO\s+INVOICE|BAD\s+DEBTS?|PENDING|NOT\s+INVOICED|ADJUSTED\s+WITH\s+.*|INVOICE\s+ADJUSTED|CA|CRN|N\/A|0)$/i.test(trimmed);
 }
 
 export function invoicePostingBlockers(input:{
