@@ -7,6 +7,7 @@ on:
       - '.github/workflows/transport-vehicle-financial-smoke.yml'
       - 'supabase/tests/replay_transport_isolated.mjs'
       - 'supabase/tests/transport_v1_financial_completion_rehearsal.sql'
+      - 'supabase/tests/transport_trip_service_vehicle_revenue_split_rehearsal.sql'
       - 'supabase/tests/transport_historical_import_rehearsal.sql'
       - 'supabase/tests/transport_bulk_settlement_import_rehearsal.sql'
       - 'supabase/migrations/**'
