@@ -77,3 +77,11 @@ Orbit accounts `4001 — 7979 Dyna Truck` and `4002 — 7494 Flatbed Trialer` we
 - `supabase/tests/replay_transport_isolated.mjs`
 - `supabase/tests/transport_vehicle_accounting_expenses_rehearsal.sql`
 - This release note.
+
+## Authenticated production review follow-up
+
+Password login and Orbit workspace selection succeeded. Live checks confirmed the four company-owned vehicles in expense and normal-sale selectors, multiple normal-sale vehicle lines, common Sales Revenue on manual sales, mixed 0/15% expense calculations (300 net / 15 VAT / 315 gross), working posted ledger/P&L reads, and the actual expense Excel template download. All four original release GitHub workflows completed successfully, including native PostgreSQL transport accounting acceptance.
+
+The review found that the existing normal-sale bulk import still defaulted to Service Revenue; the follow-up changes it to the common Sales Revenue mapping. Orbit has no Vehicle Expense Type records, confirmed by both UI and database. The existing expense-type editor is now reachable from Vehicle Expenses rather than redirecting to Vehicles, so authorized users can configure their real categories. No categories or financial transactions were invented during verification. Live draft posting/reversal and non-empty vehicle export results still require real expense masters and a real document; synthetic financial posting, reversal, isolation and atomicity were verified in isolated PostgreSQL.
+
+Follow-up changed files: `src/modules/transport/TransportNormalInvoiceImport.tsx`, `src/modules/master-data/MasterData.tsx`, `src/modules/transport/TransportVehicleExpenses.tsx`, and this release note. No further database migration is required.

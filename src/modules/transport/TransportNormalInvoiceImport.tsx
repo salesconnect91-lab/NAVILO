@@ -23,7 +23,7 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
   void Promise.all([
    supabase.from(side==='customer'?'customers':'suppliers').select('id,name').eq('company_id',company).eq('is_active',true).order('name'),
    supabase.from('chart_of_accounts').select('id,name').eq('company_id',company).eq('is_active',true).eq('is_group',false).eq('type',side==='customer'?'revenue':'expense').order('name'),
-   supabase.from('account_mappings').select('account_id').eq('company_id',company).eq('mapping_key',side==='customer'?'service_revenue':'cogs').limit(1).maybeSingle()
+   supabase.from('account_mappings').select('account_id').eq('company_id',company).eq('mapping_key',side==='customer'?'sales_revenue':'cogs').limit(1).maybeSingle()
   ]).then(([partyList,accountList,mapping])=>{
    if(id!==request.current)return;
    if(partyList.error)throw partyList.error;if(accountList.error)throw accountList.error;if(mapping.error)throw mapping.error;
