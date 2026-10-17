@@ -60,10 +60,9 @@ BEGIN
  IF p_side='customer' THEN
    INSERT INTO public.sales_orders(user_id,company_id,business_unit_id,operating_location_id,
      order_no,customer_id,order_date,status,invoice_type,tax_percent,currency_code,
-     exchange_rate,document_kind,payment_mode,reference_no)
+     exchange_rate,document_kind,payment_mode)
    VALUES(u,c,b,loc,number,p_party,p_date,'draft',
-     CASE WHEN mode='Credit' THEN 'Tax Invoice' ELSE 'Sale Invoice' END,tax,base,1,'service',mode,
-     nullif(btrim(p_reference),''))
+     CASE WHEN mode='Credit' THEN 'Tax Invoice' ELSE 'Sale Invoice' END,tax,base,1,'service',mode)
    RETURNING id INTO doc;
    FOR line IN SELECT value FROM jsonb_array_elements(p_lines) LOOP
     INSERT INTO public.sales_service_lines(company_id,business_unit_id,order_id,description,amount,tax_percent,revenue_account_id,source_module,created_by)
@@ -73,11 +72,10 @@ BEGIN
  ELSE
    INSERT INTO public.purchase_orders(user_id,company_id,business_unit_id,operating_location_id,
       order_no,supplier_id,order_date,status,invoice_type,tax_percent,currency_code,
-      exchange_rate,document_kind,supplier_invoice_no,supplier_invoice_date,reference_no)
+      exchange_rate,document_kind,supplier_invoice_no,supplier_invoice_date)
    VALUES(u,c,b,loc,number,p_party,p_date,'draft',
       CASE WHEN mode='Credit' THEN 'Tax Invoice' ELSE 'Purchase Invoice' END,
-      tax,base,1,'service',coalesce(nullif(btrim(p_reference),''),number),p_date,
-      nullif(btrim(p_reference),''))
+      tax,base,1,'service',coalesce(nullif(btrim(p_reference),''),number),p_date)
    RETURNING id INTO doc;
    FOR line IN SELECT value FROM jsonb_array_elements(p_lines) LOOP
     INSERT INTO public.purchase_service_lines(company_id,business_unit_id,order_id,description,amount,tax_percent,cost_account_id,source_module,created_by)
