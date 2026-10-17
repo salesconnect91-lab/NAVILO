@@ -30,6 +30,7 @@ const navigation:NavNode[]=[
       {key:"transport-customer-reports",to:"/transport?panel=customer-reports",label:"Customer Reports",module:"transport"},
       {key:"transport-supplier-reports",to:"/transport?panel=supplier-reports",label:"Supplier Reports",module:"transport"},
       {key:"transport-allocation",to:"/transport?panel=bulk-allocation",label:"Bulk Allocation",module:"transport"},
+      {key:"transport-vehicle-expenses",to:"/transport/vehicle-expenses",label:"Vehicle Expenses",module:"transport"},
       {key:"transport-vehicle-ledger",to:"/transport?panel=vehicle-reports",label:"Vehicle Ledger & P&L",module:"transport"}
     ]}
   ]},

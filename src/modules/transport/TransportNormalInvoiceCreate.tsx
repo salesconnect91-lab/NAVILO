@@ -8,7 +8,7 @@ import NaviloSearchableSelect from '@/components/SearchableSelect';
 type Side='customer'|'supplier';
 type Party={id:string;name:string};
 type Account={id:string;name:string};
-type Line={description:string;amount:string};
+type Line={description:string;amount:string;vehicle_id?:string};
 const empty=():Line=>({description:'',amount:''});
 const today=()=>new Date().toISOString().slice(0,10);
 
@@ -30,12 +30,26 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  const [number,setNumber]=useState(''),[reference,setReference]=useState(''),[lines,setLines]=useState<Line[]>([empty()]);
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[done,setDone]=useState<{document_id:string;invoice_no:string;status:string;gross:number}|null>(null);
  const [loadedScope,setLoadedScope]=useState('');
+ const [vehicles,setVehicles]=useState<{id:string;vehicle_no:string}[]>([]);
+ const [ownership,setOwnership]=useState<{vehicle_id:string;owner_type:string;effective_from:string;effective_to:string|null}[]>([]);
+ useEffect(()=>{
+  let live=true;setVehicles([]);setOwnership([]);setLines([empty()]);
+  if(!company||!bu)return;
+  void (async()=>{
+   const v:typeof vehicles=[];const o:typeof ownership=[];
+   for(let offset=0;;offset+=500){const r=await supabase.from('transport_vehicles').select('id,vehicle_no').eq('company_id',company).eq('business_unit_id',bu).eq('is_active',true).order('id').range(offset,offset+499);if(r.error)throw r.error;v.push(...r.data??[]);if((r.data??[]).length<500)break;}
+   for(let offset=0;;offset+=500){const r=await supabase.from('transport_vehicle_ownership').select('vehicle_id,owner_type,effective_from,effective_to').eq('company_id',company).eq('business_unit_id',bu).order('id').range(offset,offset+499);if(r.error)throw r.error;o.push(...r.data??[]);if((r.data??[]).length<500)break;}
+   if(live){setVehicles(v);setOwnership(o);}
+  })().catch(e=>{if(live)setError(e.message||'Vehicle Master unavailable');});return()=>{live=false};
+ },[company,bu]);
+ const eligibleVehicles=vehicles.filter(v=>ownership.some(o=>o.vehicle_id===v.id&&o.owner_type==='company'&&o.effective_from<=date&&(!o.effective_to||o.effective_to>=date)));
+
  useEffect(()=>{
   let cancelled=false;setParty('');setAccount('');setParties([]);setAccounts([]);setError('');setDone(null);setLoadedScope('');setLoading(true);
   if(!company||!bu){setError('Select an active Transport workspace.');setLoading(false);return;}
   const table=side==='customer'?'customers':'suppliers';
   const accountType=side==='customer'?'revenue':'expense';
-  const mapping=side==='customer'?'service_revenue':'cogs';
+  const mapping=side==='customer'?'sales_revenue':'cogs';
   void Promise.all([
    supabase.from(table).select('id,name').eq('company_id',company).eq('is_active',true).order('name'),
    supabase.from('chart_of_accounts').select('id,name').eq('company_id',company).eq('type',accountType).eq('is_active',true).eq('is_group',false).order('name'),
@@ -53,7 +67,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   return()=>{cancelled=true};
  },[company,bu,scope,side]);
  const amount=useMemo(()=>lines.reduce((total,l)=>total+(Number(l.amount)||0),0),[lines]);
- const lineError=validateNormalInvoiceLines(lines);
+ const lineError=validateNormalInvoiceLines(lines)||(lines.some(l=>l.vehicle_id&&!eligibleVehicles.some(v=>v.id===l.vehicle_id))?'Select a company-owned vehicle valid on invoice date.':null);
  const available=loadedScope===scope&&!loading&&!saving&&!done&&Boolean(party&&account&&date)&&!lineError;
  const update=(index:number,k:keyof Line,value:string)=>setLines(old=>old.map((line,i)=>i===index?{...line,[k]:value}:line));
  async function save(post:boolean){
@@ -61,7 +75,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   try{
    const result=await supabase.rpc('transport_normal_invoice_create',{
     p_side:side,p_party:party,p_date:date,
-    p_lines:lines.map(l=>({description:l.description.trim(),amount:l.amount.trim()})),
+    p_lines:lines.map(l=>({description:l.description.trim(),amount:l.amount.trim(),...(l.vehicle_id?{vehicle_id:l.vehicle_id}:{})})),
     p_account:account,p_invoice_no:number.trim()||null,p_reference:reference.trim()||null,p_post:post,
    });
    if(result.error)throw result.error;
@@ -106,8 +120,9 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   </fieldset>
   <div className="space-y-1">
    <div className="flex items-center justify-between"><h3 className="font-bold">Description lines (excluding VAT)</h3><button type="button" disabled={saving||!!done||lines.length>=50} className="btn" onClick={()=>setLines(v=>[...v,empty()])}>+ Description Line</button></div>
-   {lines.map((line,i)=><div key={i} className="grid grid-cols-[minmax(0,1fr)_130px_45px] gap-2">
+   {lines.map((line,i)=><div key={i} className="grid grid-cols-[minmax(0,1fr)_190px_130px_45px] gap-2">
     <input aria-label={`Description ${i+1}`} className="input" placeholder="Description (no Trip)" value={line.description} maxLength={1000} disabled={saving||!!done} onChange={e=>update(i,'description',e.target.value)}/>
+    <select aria-label={`Vehicle ${i+1}`} className="input" value={line.vehicle_id??''} disabled={saving||!!done} onChange={e=>update(i,'vehicle_id',e.target.value)}><option value="">General / Shared</option>{eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</select>
     <input aria-label={`Amount ${i+1}`} className="input text-right" inputMode="decimal" placeholder="Amount SAR" value={line.amount} disabled={saving||!!done} onChange={e=>update(i,'amount',e.target.value)}/>
     <button type="button" aria-label={`Remove line ${i+1}`} className="btn" disabled={saving||!!done||lines.length<=1} onClick={()=>setLines(v=>v.filter((_,index)=>index!==i))}>×</button>
    </div>)}

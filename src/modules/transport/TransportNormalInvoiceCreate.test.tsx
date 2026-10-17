@@ -22,10 +22,12 @@ vi.mock('@/lib/supabase',()=>({supabase:{
   const filters:Record<string,any>={};
   const q:any={
    select:()=>q,eq:(key:string,val:any)=>{filters[key]=val;return q;},
-   order:()=>q,limit:()=>q,
+   order:()=>q,limit:()=>q,range:()=>q,
    maybeSingle:async()=>{mock.calls.push({table,filters:{...filters}});return {data:{account_id:mock.company+'-account'},error:null};},
    then:(cb:any)=>{
     mock.calls.push({table,filters:{...filters}});
+    if(table==='transport_vehicles')return Promise.resolve({data:[{id:mock.company+'-vehicle-1',vehicle_no:'7979'},{id:mock.company+'-vehicle-2',vehicle_no:'7494'}],error:null}).then(cb);
+    if(table==='transport_vehicle_ownership')return Promise.resolve({data:[{vehicle_id:mock.company+'-vehicle-1',owner_type:'company',effective_from:'2020-01-01',effective_to:null},{vehicle_id:mock.company+'-vehicle-2',owner_type:'company',effective_from:'2020-01-01',effective_to:null}],error:null}).then(cb);
     if(table==='customers'||table==='suppliers')
      return Promise.resolve({data:[{id:mock.company+'-party',name:'Master '+mock.company}],error:null}).then(cb);
     if(table==='chart_of_accounts')
@@ -60,6 +62,15 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
    p_post:true,p_lines:[{description:'Additional service',amount:'300.00'},{description:'Service fee',amount:'25'}],
   }));
   expect(Object.keys(mock.posts[0]).some(x=>x.includes('trip'))).toBe(false);
+ });
+ it('keeps multiple vehicle allocations on separate description lines in one invoice',async()=>{
+  await load('customer');await screen.findByRole('option',{name:'7979'});
+  fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
+  fireEvent.change(screen.getByLabelText('Description 1'),{target:{value:'Vehicle one'}});fireEvent.change(screen.getByLabelText('Amount 1'),{target:{value:'100'}});fireEvent.change(screen.getByLabelText('Vehicle 1'),{target:{value:'a-vehicle-1'}});
+  fireEvent.click(screen.getByRole('button',{name:'+ Description Line'}));fireEvent.change(screen.getByLabelText('Description 2'),{target:{value:'Vehicle two'}});fireEvent.change(screen.getByLabelText('Amount 2'),{target:{value:'200'}});fireEvent.change(screen.getByLabelText('Vehicle 2'),{target:{value:'a-vehicle-2'}});
+  fireEvent.click(screen.getByRole('button',{name:'Save Draft'}));await screen.findByText(/Sale invoice draft/);
+  expect(mock.posts[0].p_lines).toEqual([{description:'Vehicle one',amount:'100',vehicle_id:'a-vehicle-1'},{description:'Vehicle two',amount:'200',vehicle_id:'a-vehicle-2'}]);
+  expect(mock.posts).toHaveLength(1);
  });
  it('saves supplier Purchase draft through same canonical service model',async()=>{
   await load('supplier');

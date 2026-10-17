@@ -31,9 +31,10 @@ describe('Transport vehicle expense upload preview',()=>{
   expect(()=>previewVehicleExpenseImport([row(),row({'Expense Date':'2026-10-18','Source Reference':'REF-002'})])).toThrow(/document header differs/);
  });
  it('rejects invalid VAT rate and zero amount',()=>{
-  expect(()=>previewVehicleExpenseImport([row({'VAT Rate %':'5'})])).toThrow(/VAT rate/);
+  expect(()=>previewVehicleExpenseImport([row({'VAT Rate %':'101'})])).toThrow(/VAT rate/);
   expect(()=>previewVehicleExpenseImport([row({'Net Amount SAR':'0'})])).toThrow(/positive/);
  });
+ it('accepts future rates for effective-dated server validation',()=>{expect(previewVehicleExpenseImport([row({'VAT Rate %':'18'})])[0].vat_amount).toBe('144.00');});
  it('rejects invalid dates',()=>{
   expect(()=>previewVehicleExpenseImport([row({'Expense Date':'2026-02-30'})])).toThrow(/date/);
  });

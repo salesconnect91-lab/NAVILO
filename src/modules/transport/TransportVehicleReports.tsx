@@ -1,3 +1,4 @@
+import TransportVehicleAccountingReport from './TransportVehicleAccountingReport';
 import {useEffect, useMemo, useState} from 'react';
 import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
@@ -26,7 +27,11 @@ const contribution = (trip: FinancialTrip) =>
  * added to posted sales or purchases. The backend scopes each request by the
  * authenticated company, business unit, branch and finance permissions.
  */
-export default function TransportVehicleReports() {
+export default function TransportVehicleReports(){
+ const [basis,setBasis]=useState<'accounting'|'trips'>('accounting');
+ return <div className="space-y-2"><div className="flex gap-2"><button className={basis==='accounting'?'btn-primary':'btn'} onClick={()=>setBasis('accounting')}>Posted Vehicle Ledger &amp; P&amp;L</button><button className={basis==='trips'?'btn-primary':'btn'} onClick={()=>setBasis('trips')}>Trip Operations</button></div>{basis==='accounting'?<TransportVehicleAccountingReport/>:<TransportVehicleOperationalReport/>}</div>;
+}
+export function TransportVehicleOperationalReport() {
   const {activeCompany, activeBusinessUnit} = useAuth();
   const companyId = activeCompany?.company_id;
   const businessUnitId = activeBusinessUnit?.business_unit_id;

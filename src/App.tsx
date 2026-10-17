@@ -39,6 +39,7 @@ const OrderBook = lazy(() => import("@/modules/orders/OrderBook"));
 const OwnerPanel = lazy(() => import("@/modules/platform/OwnerPanel"));
 const OpeningBalanceMigration = lazy(() => import("@/modules/platform/OpeningBalanceMigration"));
 const TransportWorkspace = lazy(() => import("@/modules/transport/TransportWorkspace"));
+const TransportVehicleExpenses = lazy(() => import("@/modules/transport/TransportVehicleExpenses"));
 const TransportReports = lazy(() => import("@/modules/transport/TransportReports"));
 const PreInvoiceWorkspace = lazy(() => import("@/modules/commercial/PreInvoiceWorkspace"));
 
@@ -132,6 +133,7 @@ export default function App() {
       <Route path="/godown/*" element={<ModuleOnly module="inventory"><Godown /></ModuleOnly>} />
       <Route path="/production/*" element={<BusinessTypeOnly type="steel"><ModuleOnly module="production"><Production /></ModuleOnly></BusinessTypeOnly>} />
       <Route path="/cutting/*" element={<BusinessTypeOnly type="steel"><ModuleOnly module="production"><Cutting /></ModuleOnly></BusinessTypeOnly>} />
+      <Route path="/transport/vehicle-expenses" element={<BusinessTypeOnly type="transport"><ModuleOnly module="transport"><ModuleOnly module="accounting"><TransportVehicleExpenses /></ModuleOnly></ModuleOnly></BusinessTypeOnly>} />
       <Route path="/transport/*" element={<BusinessTypeOnly type="transport"><ModuleOnly module="transport"><TransportWorkspace /></ModuleOnly></BusinessTypeOnly>} />
       <Route path="/accounting/customer-invoice-statement" element={<ModuleOnly module="accounting"><ReportSurface><CustomerInvoiceStatement /></ReportSurface></ModuleOnly>} />
       <Route path="/accounting/*" element={<ModuleOnly module="accounting"><Accounting /></ModuleOnly>} />

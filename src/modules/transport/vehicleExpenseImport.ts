@@ -1,13 +1,10 @@
-/** Preview and validate Transport multi-vehicle expense upload lines.
- * This module never writes to the database; server-side validation and
- * canonical accounting posting must be implemented before enabling import.
- */
+/** Validate workbook data before atomic server-side draft import. */
 export type VehicleExpenseRow = {
   expense_group: string; expense_date: string; supplier_or_payee: string;
   expense_type: string; description: string; vehicle_no: string;
-  trip_no: string | null; net_amount: string; vat_rate: 0 | 15;
+  trip_no: string | null; net_amount: string; vat_rate: number;
   vat_amount: string; gross_amount: string; payment_method: 'cash'|'bank'|'payable';
-  source_reference: string;
+  source_reference: string; expense_account?:string;vat_recoverable?:boolean;
 };
 const norm=(s:unknown)=>String(s??'').trim();
 const key=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -51,7 +48,7 @@ export function previewVehicleExpenseImport(raw:Record<string,unknown>[]):Vehicl
     const net=cents(pick(row,'Net Amount SAR'),'net amount',line);
     if(net<=0)throw Error(`Row ${line}: net amount must be positive.`);
     const rateText=get('VAT Rate %');
-    if(!/^(0|15)(\.0+)?$/.test(rateText))throw Error(`Row ${line}: VAT rate must be 0 or 15; effective tax rules validated by server.`);
+    if(!/^\d{1,3}(\.\d{1,2})?$/.test(rateText)||Number(rateText)>100)throw Error(`Row ${line}: VAT rate must be between 0 and 100; effective tax rules validated by server.`);
     const rate=Number(rateText);
     const vat=Math.round(net*rate/100);
     const claimedVat=norm(pick(row,'VAT Amount SAR'));
@@ -59,7 +56,7 @@ export function previewVehicleExpenseImport(raw:Record<string,unknown>[]):Vehicl
     if(claimedVat&&cents(claimedVat,'VAT amount',line)!==vat)throw Error(`Row ${line}: VAT amount mismatch.`);
     if(claimedGross&&cents(claimedGross,'Gross amount',line)!==net+vat)throw Error(`Row ${line}: gross amount mismatch.`);
     return {expense_group,expense_date,supplier_or_payee,expense_type,description,vehicle_no,trip_no,
-      net_amount:money(net),vat_rate:rate as 0|15,vat_amount:money(vat),gross_amount:money(net+vat),
-      payment_method:method as VehicleExpenseRow['payment_method'],source_reference};
+      net_amount:money(net),vat_rate:rate,vat_amount:money(vat),gross_amount:money(net+vat),
+      payment_method:method as VehicleExpenseRow['payment_method'],source_reference,expense_account:get('Expense Account (Optional)'),vat_recoverable:!['no','false','0'].includes(get('Recoverable VAT (Yes/No)').toLowerCase())};
   });
 }

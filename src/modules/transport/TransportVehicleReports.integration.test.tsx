@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
-import TransportVehicleReports from './TransportVehicleReports';
+import {TransportVehicleOperationalReport as TransportVehicleReports} from './TransportVehicleReports';
 
 const mock=vi.hoisted(()=>({
   active:{company_id:'tw',company_name:'Twakkal Al Khaleej',business_unit_id:'tw-bu'},
