@@ -34,6 +34,8 @@ describe('NAVILO Transport Excel template/parser contracts',()=>{
   const parsed=parseHistoricalWorkbook(bytes(wb));
   expect(parsed).toHaveLength(1);
   expect(parsed[0].source_id).toBe('OLD-0001');
+  expect(header).toContain('INVOICE NUMBER');
+  expect(parsed[0].source_invoice_no).toBe('ORIG-2026-001');
   expect(parsed[0].trip_no).toBe('');
   expect(parsed[0].sale_type).toBe('credit');
   expect(parsed[0].customer_gross).toBe(2000);

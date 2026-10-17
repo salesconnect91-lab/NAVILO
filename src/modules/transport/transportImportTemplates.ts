@@ -47,12 +47,12 @@ export function downloadDailyTripTemplate(){
 /** One-time historical accounting import retains the explicit evidence fields. */
 export function createHistoricalTemplateWorkbook(){
  const headers=[
-  'DATE','TRUCK TYPE','PO/DO/JOB NO.','INVOICED','COMPANY NAME','DRIVER NAME','OWNER',
+  'DATE','TRUCK TYPE','PO/DO/JOB NO.','INVOICE NUMBER','COMPANY NAME','DRIVER NAME','OWNER',
   'PLATE #','FROM','TO','PAPER RECEIVED BY','Customer Rate','Supplier Rent',
   'Sale Type (Cash / Credit)',...HISTORY_COLUMNS,'TRIP NO'
  ];
  const sample=[
-  '2026-10-01','Flatbed','JOB-1','Yes','Example Customer','Example Driver','Example Supplier',
+  '2026-10-01','Flatbed','JOB-1','ORIG-2026-001','Example Customer','Example Driver','Example Supplier',
   'ABC-123','From','To','PPR PENDING',2000,1700,'Credit',
   'OLD-0001','Yes','2026-10-01','No',2000,600,1400,'Yes','2026-10-01','No',1700,1000,700,''
  ];
@@ -66,6 +66,7 @@ export function createHistoricalTemplateWorkbook(){
    'TRIP NO is optional and separate from Source Record ID. A supplied numeric Trip Number is preserved; blank values generate the next company-wide number.',
    'Customer Posted / Supplier Posted / Customer VAT / Supplier VAT accept ONLY Yes or No. Rates and Supplier Rent are EXCLUDING VAT; gross and remaining amounts include VAT.',
    'Unposted sides require zero gross, payment and remaining, with VAT No. Posted sides require invoice date and positive gross within the cutoff date.',
+   'For posted CREDIT customer Sales, INVOICE NUMBER must contain the actual original invoice number. YES, CLEARED, NO INVOICE, BAD DEBTS and H-S references are not invoice numbers. Missing numbers cannot be posted.',
    'Customer Gross - Customer Received = Customer Remaining; Supplier Gross - Supplier Paid = Supplier Remaining.',
    'For any nonzero amount received/paid, add matching actual dated allocations to the Payments sheet using existing Chart of Accounts cash/bank CODES.',
    'Each Payments row requires Source Record ID, customer/supplier Side, Date, positive Amount, Cash / Bank Account Code and Reference.',

@@ -35,6 +35,14 @@ export function parseHistoricalWorkbook(buffer:ArrayBuffer):HistoricalRow[]{
   let details:Omit<HistoricalRow,keyof ImportRow|'source_id'|'payments'>={customer_posted:false,supplier_posted:false,customer_date:'',supplier_date:'',customer_vat:false,supplier_vat:false,customer_gross:0,supplier_gross:0,received:0,paid:0,customer_remaining:0,supplier_remaining:0};
   try{
    details={customer_posted:yes(get('Customer Posted'),'Customer Posted'),supplier_posted:yes(get('Supplier Posted'),'Supplier Posted'),customer_date:importDate(get('Customer Invoice Date')),supplier_date:importDate(get('Supplier Invoice Date')),customer_vat:yes(get('Customer VAT'),'Customer VAT'),supplier_vat:yes(get('Supplier VAT'),'Supplier VAT'),customer_gross:money(get('Customer Gross'),'Customer Gross'),supplier_gross:money(get('Supplier Gross'),'Supplier Gross'),received:money(get('Customer Received'),'Customer Received'),paid:money(get('Supplier Paid'),'Supplier Paid'),customer_remaining:money(get('Customer Remaining'),'Customer Remaining'),supplier_remaining:money(get('Supplier Remaining'),'Supplier Remaining')};
+   if(details.customer_posted&&key(row.sale_type)==='credit'){
+    // The invoice reference must be evidence supplied by the customer, never
+    // a boolean source flag, an H-S-generated value or a settlement remark.
+    const original=str(row.source_invoice_no);
+    const normalized=original.replace(/\s+/g,' ').toUpperCase();
+    if(!original||/^(?:H-S-|CLEARED$|NO INVOICE$|BAD DEBTS?$|PENDING$|NOT INVOICED$|N\/?A$|0$)/.test(normalized))
+     errors.push('Posted Credit Sales requires an original invoice number, not an H-S reference or remarks');
+   }
    for(const side of ['customer','supplier'] as const){
     const posted=details[`${side}_posted`],gross=details[`${side}_gross`],settled=side==='customer'?details.received:details.paid;
     if(posted&&(!details[`${side}_date`]||gross<=0))errors.push(`${side}: posted invoice date and positive gross required`);
