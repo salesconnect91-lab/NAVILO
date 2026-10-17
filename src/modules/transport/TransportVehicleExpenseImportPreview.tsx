@@ -12,6 +12,8 @@ export default function TransportVehicleExpenseImportPreview(){
  const [rows,setRows]=useState<VehicleExpenseRow[]>([]);
  const [error,setError]=useState('');
  const [filename,setFilename]=useState('');
+ const [saving,setSaving]=useState(false);
+ const [savedMessage,setSavedMessage]=useState('');
  const download=()=>downloadImportTemplate({
   filename:'NAVILO-Transport-Vehicle-Expense-Template.xlsx',
   sheetName:'Vehicle Expenses',
@@ -23,7 +25,7 @@ export default function TransportVehicleExpenseImportPreview(){
  async function choose(e:React.ChangeEvent<HTMLInputElement>){
   const f=e.target.files?.[0];e.target.value='';
   if(!f)return;
-  setError('');setRows([]);setFilename('');
+  setError('');setRows([]);setFilename('');setSavedMessage('');
   try {
    if(f.size>5*1024*1024)throw Error('Maximum file size is 5 MB.');
    const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:false});
@@ -80,18 +82,71 @@ export default function TransportVehicleExpenseImportPreview(){
    setRows(parsed);setFilename(f.name);
   }catch(e){setError(e instanceof Error?e.message:'Invalid workbook.');}
  }
+ async function saveSingleDraft(){
+  if(saving||!rows.length)return;
+  const groups=new Set(rows.map(r=>r.expense_group.toLowerCase()));
+  if(groups.size!==1){setError('Draft saving supports one Expense Group per upload at present. Split the Excel into one file per document.');return;}
+  const c=activeCompany?.company_id,b=activeBusinessUnit?.business_unit_id;
+  if(!c||!b){setError('Select an active Transport company and business unit.');return;}
+  const first=rows[0];
+  setSaving(true);setError('');setSavedMessage('');
+  try{
+   const uniqueVehicles=[...new Set(rows.map(r=>r.vehicle_no))];
+   const vehicles=await supabase.from('transport_vehicles').select('id,vehicle_no')
+    .eq('company_id',c).eq('business_unit_id',b).eq('is_active',true).in('vehicle_no',uniqueVehicles);
+   if(vehicles.error)throw vehicles.error;
+   const vehicleMap=new Map((vehicles.data??[]).map(v=>[v.vehicle_no.trim().toLowerCase(),v.id]));
+   if(vehicleMap.size!==uniqueVehicles.length)throw Error('Vehicle master changed since preview. Reload the file.');
+   const uniqueTrips=[...new Set(rows.flatMap(r=>r.trip_no?[r.trip_no]:[]))];
+   const tripMap=new Map<string,{id:string;vehicle_id:string|null}>();
+   if(uniqueTrips.length){
+    const trips=await supabase.from('transport_trips').select('id,trip_no,vehicle_id')
+     .eq('company_id',c).eq('business_unit_id',b).in('trip_no',uniqueTrips);
+    if(trips.error)throw trips.error;
+    for(const t of trips.data??[])tripMap.set(t.trip_no.trim().toLowerCase(),{id:t.id,vehicle_id:t.vehicle_id});
+   }
+   const supplierNames=[...new Set(rows.filter(r=>r.payment_method==='payable').map(r=>r.supplier_or_payee.toLowerCase()))];
+   let supplierId:string|null=null;
+   if(supplierNames.length){
+    if(supplierNames.length!==1)throw Error('One Payable document requires one Supplier.');
+    const supplier=await supabase.from('suppliers').select('id,name').eq('company_id',c).eq('is_active',true);
+    if(supplier.error)throw supplier.error;
+    const matched=(supplier.data??[]).filter(x=>x.name.trim().toLowerCase()===supplierNames[0]);
+    if(matched.length!==1)throw Error('Supplier must uniquely match one active Master.');
+    supplierId=matched[0].id;
+   }
+   const lines=rows.map(r=>{
+    const vehicle_id=vehicleMap.get(r.vehicle_no.toLowerCase());
+    if(!vehicle_id)throw Error('Vehicle not found: '+r.vehicle_no);
+    const trip=r.trip_no?tripMap.get(r.trip_no.toLowerCase()):null;
+    if(r.trip_no&&(!trip||trip.vehicle_id!==vehicle_id))throw Error('Trip/vehicle mismatch: '+r.trip_no);
+    return {vehicle_id,trip_id:trip?.id??null,expense_type:r.expense_type,description:r.description,
+      net_amount:r.net_amount,vat_rate:r.vat_rate,source_reference:r.source_reference};
+   });
+   const result=await supabase.rpc('transport_save_vehicle_expense_draft',{
+    p_group:first.expense_group,p_date:first.expense_date,p_supplier_id:supplierId,
+    p_method:first.payment_method,p_lines:lines
+   });
+   if(result.error)throw result.error;
+   setSavedMessage('Draft saved without accounting posting. Document ID: '+String(result.data?.document_id??''));
+   setRows([]);setFilename('');
+  }catch(e){setError(e instanceof Error?e.message:'Draft save failed. No confirmed save.');}
+  finally{setSaving(false);}
+ }
  const net=rows.reduce((n,r)=>n+Number(r.net_amount),0);
  const vat=rows.reduce((n,r)=>n+Number(r.vat_amount),0);
  return <section aria-label="Vehicle Expense Import Review" className="space-y-2 rounded border border-slate-200 p-3">
   <h3 className="text-sm font-bold">Multi-Vehicle Expenses — Excel Review</h3>
-  <p className="text-xs text-amber-800">Preview only. Uploading here does not save or post an expense. Accounting posting and VAT verification are not yet enabled.</p>
+  <p className="text-xs text-amber-800">Preview and draft saving only. Save Draft requires the database migration; no VAT, GL or payable posting occurs.</p>
   <div className="flex gap-2">
    <button type="button" className="btn" onClick={download}>Download Template</button>
    <button type="button" className="btn" onClick={()=>picker.current?.click()}>Choose Excel/CSV</button>
    <input ref={picker} type="file" accept=".xlsx,.xls,.csv" className="hidden" aria-label="Vehicle expense review file" onChange={e=>void choose(e)}/>
   </div>
+  {savedMessage&&<p role="status" className="text-xs text-emerald-700">{savedMessage}</p>}
   {error&&<p role="alert" className="text-xs text-red-700">{error}</p>}
   {filename&&<p className="text-xs">{filename} · {rows.length} lines · Net {net.toFixed(2)} SAR · VAT {vat.toFixed(2)} SAR · Gross {(net+vat).toFixed(2)} SAR</p>}
+  {!!rows.length&&<button type="button" className="btn" disabled={saving} onClick={()=>void saveSingleDraft()}>{saving?'Saving…':'Save Single Expense Group as Draft (No Posting)'}</button>}
   {!!rows.length&&<div className="max-h-56 overflow-auto"><table className="w-full text-xs"><thead><tr>{['Group','Date','Vehicle','Trip','Expense','Net','VAT','Gross'].map(s=><th className="p-1 text-left" key={s}>{s}</th>)}</tr></thead>
    <tbody>{rows.map((r,i)=><tr className="border-t" key={i}><td>{r.expense_group}</td><td>{r.expense_date}</td><td>{r.vehicle_no}</td><td>{r.trip_no||'—'}</td><td>{r.expense_type}</td><td>{r.net_amount}</td><td>{r.vat_amount}</td><td>{r.gross_amount}</td></tr>)}</tbody>
    </table></div>}
