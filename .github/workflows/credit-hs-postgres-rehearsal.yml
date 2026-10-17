@@ -1,0 +1,27 @@
+name: Credit Sales correction isolated PostgreSQL rehearsal
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'supabase/tests/credit_hs_pair_rehearsal.sql'
+      - '.github/workflows/credit-hs-postgres-rehearsal.yml'
+jobs:
+  isolated-pg-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: rehearsal_only
+          POSTGRES_DB: navilo_rehearsal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d navilo_rehearsal"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute isolated synthetic accounting rehearsal
+        env:
+          PGPASSWORD: rehearsal_only
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d navilo_rehearsal -f supabase/tests/credit_hs_pair_rehearsal.sql
