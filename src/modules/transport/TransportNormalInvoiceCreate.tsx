@@ -7,7 +7,7 @@ import NaviloSearchableSelect from '@/components/SearchableSelect';
 
 type Side='customer'|'supplier';
 type Party={id:string;name:string};
-type Account={id:string;name:string};
+type Account={id:string;name:string;code?:string};
 type Line={description:string;amount:string;vehicle_id?:string};
 const empty=():Line=>({description:'',amount:''});
 const today=()=>new Date().toISOString().slice(0,10);
@@ -30,14 +30,14 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  const [number,setNumber]=useState(''),[reference,setReference]=useState(''),[lines,setLines]=useState<Line[]>([empty()]);
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[done,setDone]=useState<{document_id:string;invoice_no:string;status:string;gross:number}|null>(null);
  const [loadedScope,setLoadedScope]=useState('');
- const [vehicles,setVehicles]=useState<{id:string;vehicle_no:string}[]>([]);
+ const [vehicles,setVehicles]=useState<{id:string;vehicle_no:string;revenue_account_id:string|null}[]>([]);
  const [ownership,setOwnership]=useState<{vehicle_id:string;owner_type:string;effective_from:string;effective_to:string|null}[]>([]);
  useEffect(()=>{
   let live=true;setVehicles([]);setOwnership([]);setLines([empty()]);
   if(!company||!bu)return;
   void (async()=>{
    const v:typeof vehicles=[];const o:typeof ownership=[];
-   for(let offset=0;;offset+=500){const r=await supabase.from('transport_vehicles').select('id,vehicle_no').eq('company_id',company).eq('business_unit_id',bu).eq('is_active',true).order('id').range(offset,offset+499);if(r.error)throw r.error;v.push(...r.data??[]);if((r.data??[]).length<500)break;}
+   for(let offset=0;;offset+=500){const r=await supabase.from('transport_vehicles').select('id,vehicle_no,revenue_account_id').eq('company_id',company).eq('business_unit_id',bu).eq('is_active',true).order('id').range(offset,offset+499);if(r.error)throw r.error;v.push(...r.data??[]);if((r.data??[]).length<500)break;}
    for(let offset=0;;offset+=500){const r=await supabase.from('transport_vehicle_ownership').select('vehicle_id,owner_type,effective_from,effective_to').eq('company_id',company).eq('business_unit_id',bu).order('id').range(offset,offset+499);if(r.error)throw r.error;o.push(...r.data??[]);if((r.data??[]).length<500)break;}
    if(live){setVehicles(v);setOwnership(o);}
   })().catch(e=>{if(live)setError(e.message||'Vehicle Master unavailable');});return()=>{live=false};
@@ -52,7 +52,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   const mapping=side==='customer'?'sales_revenue':'cogs';
   void Promise.all([
    supabase.from(table).select('id,name').eq('company_id',company).eq('is_active',true).order('name'),
-   supabase.from('chart_of_accounts').select('id,name').eq('company_id',company).eq('type',accountType).eq('is_active',true).eq('is_group',false).order('name'),
+   supabase.from('chart_of_accounts').select('id,code,name').eq('company_id',company).eq('type',accountType).eq('is_active',true).eq('is_group',false).order('name'),
    supabase.from('account_mappings').select('account_id').eq('company_id',company).eq('mapping_key',mapping).limit(1).maybeSingle(),
   ]).then(([people,coa,m])=>{
    if(cancelled)return;
@@ -67,7 +67,10 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   return()=>{cancelled=true};
  },[company,bu,scope,side]);
  const amount=useMemo(()=>lines.reduce((total,l)=>total+(Number(l.amount)||0),0),[lines]);
- const lineError=validateNormalInvoiceLines(lines)||(lines.some(l=>l.vehicle_id&&!eligibleVehicles.some(v=>v.id===l.vehicle_id))?'Select a company-owned vehicle valid on invoice date.':null);
+ const unlinked=side==='customer'?lines.map(l=>vehicles.find(v=>v.id===l.vehicle_id)).find(v=>v&&!v.revenue_account_id):undefined;
+ const lineError=validateNormalInvoiceLines(lines)
+  ||(lines.some(l=>l.vehicle_id&&!eligibleVehicles.some(v=>v.id===l.vehicle_id))?'Select a company-owned vehicle valid on invoice date.':null)
+  ||(unlinked?`Vehicle ${unlinked.vehicle_no} has no linked Income COA. Open Vehicle Master, edit the vehicle and select its Revenue account before posting.`:null);
  const available=loadedScope===scope&&!loading&&!saving&&!done&&Boolean(party&&account&&date)&&!lineError;
  const update=(index:number,k:keyof Line,value:string)=>setLines(old=>old.map((line,i)=>i===index?{...line,[k]:value}:line));
  async function save(post:boolean){
@@ -87,7 +90,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  return <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-3 text-xs" aria-label={`${sideName} Invoice`}>
   <div className="flex flex-wrap items-start justify-between gap-2">
    <div><h2 className="text-base font-bold">{sideName} Invoice — No Trips</h2>
-    <p className="text-slate-600">Description-only service document. Uses {side==='customer'?'Customer':'Supplier'} Master, canonical {side==='customer'?'AR':'AP'}, VAT, ledgers and financial reports. No stock or Trip records.</p>
+    <p className="text-slate-600">Description-only service document. Uses {side==='customer'?'Customer':'Supplier'} Master, canonical {side==='customer'?'AR':'AP'}, VAT, ledgers and financial reports. No stock or Trip records. {side==='customer'&&'Company-owned vehicle income automatically posts to its linked Revenue COA; no manual journal duplication.'}</p>
    </div>
    <Link className="text-blue-700 underline" to="/settings/imports">Bulk import in Import Center</Link>
   </div>
@@ -112,9 +115,9 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    <label className="block font-semibold">Reference (optional)
     <input className="input mt-1 w-full" value={reference} maxLength={120} onChange={e=>setReference(e.target.value)}/>
    </label>
-   <label className="block font-semibold md:col-span-3">{side==='customer'?'Revenue Account':'Expense Account'} *
+   <label className="block font-semibold md:col-span-3">{side==='customer'?'General / Shared Revenue COA':'Expense Account'} *
     <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Normal invoice ledger account" className="input mt-1 w-full" value={account} onChange={e=>setAccount(e.target.value)}>
-     <option value="">Select active company account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+     <option value="">Select active company account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.code?`${a.code} — `:''}{a.name}</option>)}
     </NaviloSearchableSelect>
    </label>
   </fieldset>
@@ -122,7 +125,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    <div className="flex items-center justify-between"><h3 className="font-bold">Description lines (excluding VAT)</h3><button type="button" disabled={saving||!!done||lines.length>=50} className="btn" onClick={()=>setLines(v=>[...v,empty()])}>+ Description Line</button></div>
    {lines.map((line,i)=><div key={i} className="grid grid-cols-[minmax(0,1fr)_190px_130px_45px] gap-2">
     <input aria-label={`Description ${i+1}`} className="input" placeholder="Description (no Trip)" value={line.description} maxLength={1000} disabled={saving||!!done} onChange={e=>update(i,'description',e.target.value)}/>
-    <select aria-label={`Vehicle ${i+1}`} className="input" value={line.vehicle_id??''} disabled={saving||!!done} onChange={e=>update(i,'vehicle_id',e.target.value)}><option value="">General / Shared</option>{eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</select>
+    <select aria-label={`Vehicle ${i+1}`} className="input" value={line.vehicle_id??''} disabled={saving||!!done} onChange={e=>update(i,'vehicle_id',e.target.value)}><option value="">General / Shared</option>{eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}{side==='customer'? v.revenue_account_id ? ' · '+(accounts.find(a=>a.id===v.revenue_account_id)?.name??'Linked COA') : ' · Income COA not linked':''}</option>)}</select>
     <input aria-label={`Amount ${i+1}`} className="input text-right" inputMode="decimal" placeholder="Amount SAR" value={line.amount} disabled={saving||!!done} onChange={e=>update(i,'amount',e.target.value)}/>
     <button type="button" aria-label={`Remove line ${i+1}`} className="btn" disabled={saving||!!done||lines.length<=1} onClick={()=>setLines(v=>v.filter((_,index)=>index!==i))}>×</button>
    </div>)}
@@ -132,6 +135,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    <div className="flex gap-2"><button type="button" className="btn" disabled={!available} onClick={()=>void save(false)}>{saving?'Saving…':'Save Draft'}</button>
     <button type="button" className="btn-primary" disabled={!available} onClick={()=>void save(true)}>{saving?'Posting…':`Post ${sideName} Invoice`}</button></div>
   </div>
+  {side==='customer'&&<p className="text-slate-500">Each vehicle line posts to its linked Income COA in <Link to="/master-data/vehicles" className="text-blue-700 underline">Vehicle Master</Link>; the General / Shared account applies only to lines without a vehicle.</p>}
   {lineError&&<p role="status" className="text-amber-800">{lineError}</p>}
  </section>;
 }
