@@ -123,9 +123,9 @@ begin
     or result->'rows'->0->>'id'<>trip::text
  then raise exception 'Vehicle report account filter includes wrong or missing Trip: %',result;end if;
  if abs((result->'summary'->>'billed_customer_net')::numeric
-        -(select billed_customer_net from public.transport_trip_financial_summary where id=trip))>0.005
+        -(select customer_net from public.transport_trip_financial_summary where id=trip))>0.005
     or abs((result->'summary'->>'billed_supplier_net')::numeric
-        -(select billed_supplier_net from public.transport_trip_financial_summary where id=trip))>0.005
+        -(select supplier_net from public.transport_trip_financial_summary where id=trip))>0.005
     or abs((result->'summary'->>'customer_received_gross')::numeric
         -(select customer_received_gross from public.transport_trip_financial_summary where id=trip))>0.005
     or abs((result->'summary'->>'supplier_paid_gross')::numeric
