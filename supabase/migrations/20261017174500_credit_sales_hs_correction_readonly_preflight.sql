@@ -30,6 +30,6 @@ when ac>0 or paid_amount>0 then 'PAYMENT_LINKED_REVIEW'
 when jl=0 or abs(jnet)>0.01 or abs(total-paid_amount-outstanding_amount)>0.01 then 'ACCOUNTING_MISMATCH_REVIEW'
 else 'UNPAID_CORRECTION_CANDIDATE' end
 from audit
-$function$
+$function$;
 
 REVOKE ALL ON FUNCTION public.transport_credit_hs_correction_preflight(uuid) FROM PUBLIC, anon, authenticated;

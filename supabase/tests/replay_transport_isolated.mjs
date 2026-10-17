@@ -52,6 +52,16 @@ if(process.env.NAVILO_OPENING_BRIDGE_SMOKE==='1'){
  try{for(const file of ['transport_opening_invoice_bridge_rehearsal.sql','transport_imported_primary_assignment_rehearsal.sql']){await db.exec(fs.readFileSync(root+'/supabase/tests/'+file,'utf8'));console.log('PASS',file)}}catch(e){console.log('FAIL OPENING',e.message,e.where||'');await db.close();process.exit(1)}
  await db.close();process.exit(0);
 }
+if(process.env.NAVILO_BULK_INVOICE_SMOKE==='1'){
+ try{
+  await db.exec(fs.readFileSync(root+'/supabase/tests/transport_bulk_settlement_import_rehearsal.sql','utf8'));
+  console.log('PASS isolated New Sales Invoice unposted-only and posted corrections pagination');
+ }catch(e){
+  console.log('FAIL isolated bulk customer invoice paging',e.message,e.where||'');
+  await db.close();process.exit(1);
+ }
+ await db.close();process.exit(0);
+}
 if(process.env.NAVILO_VEHICLE_REPORT_SMOKE==='1'){
  try{
   await db.exec(fs.readFileSync(root+'/supabase/tests/transport_v1_financial_completion_rehearsal.sql','utf8'));

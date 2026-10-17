@@ -1,4 +1,4 @@
-name: Transport vehicle and credit import smoke
+name: Transport billing and vehicle smoke
 on:
   workflow_dispatch:
   push:
@@ -8,6 +8,7 @@ on:
       - 'supabase/tests/replay_transport_isolated.mjs'
       - 'supabase/tests/transport_v1_financial_completion_rehearsal.sql'
       - 'supabase/tests/transport_historical_import_rehearsal.sql'
+      - 'supabase/tests/transport_bulk_settlement_import_rehearsal.sql'
       - 'supabase/migrations/**'
 permissions:
   contents: read
@@ -17,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [vehicle, credit-import]
+        mode: [vehicle, credit-import, bulk-invoice]
     timeout-minutes: 20
     services:
       postgres:
@@ -47,5 +48,6 @@ jobs:
           NAVILO_NATIVE_REHEARSAL: '1'
           NAVILO_VEHICLE_REPORT_SMOKE: ${{ matrix.mode == 'vehicle' && '1' || '0' }}
           NAVILO_HISTORY_SMOKE: ${{ matrix.mode == 'credit-import' && '1' || '0' }}
+          NAVILO_BULK_INVOICE_SMOKE: ${{ matrix.mode == 'bulk-invoice' && '1' || '0' }}
           NAVILO_PG_DRIVER: ${{ runner.temp }}/navilo-rehearsal-driver/node_modules/pg/lib/index.js
         run: node supabase/tests/replay_transport_isolated.mjs
