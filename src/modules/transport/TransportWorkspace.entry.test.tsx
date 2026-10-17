@@ -816,11 +816,11 @@ describe('Transport Register workspace isolation',()=>{
 });
 
 describe('Normal invoice create is discoverable directly in Transport Register',()=>{
- it('renders separate Normal Sales and Purchase entry points for Transport companies',async()=>{
+ it('renders separate Sale and Purchase entry points for Transport companies',async()=>{
   render(<MemoryRouter initialEntries={['/transport?view=trips']}><TransportWorkspace/></MemoryRouter>);
-  const sale=await screen.findByRole('button',{name:'Create Normal Sales Invoice'});
-  const purchase=screen.getByRole('button',{name:'Create Normal Purchase Invoice'});
+  const sale=await screen.findByRole('button',{name:'Create Sale Invoice'});
+  const purchase=screen.getByRole('button',{name:'Create Purchase Invoice'});
   expect(sale.textContent).toContain('Normal Sales');
-  expect(purchase.textContent).toContain('Normal Purchase');
+  expect(purchase.textContent).toContain('Purchase');
  });
 });

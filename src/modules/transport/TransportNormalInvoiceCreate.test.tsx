@@ -52,7 +52,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   fireEvent.change(screen.getByRole('textbox',{name:'Description 2'}),{target:{value:'Service fee'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Amount 2'}),{target:{value:'25'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Normal invoice number'}),{target:{value:'INV-PRIVATE-01'}});
-  fireEvent.click(screen.getByRole('button',{name:'Post Normal Sales Invoice'}));
+  fireEvent.click(screen.getByRole('button',{name:'Post Sale Invoice'}));
   await screen.findByText(/Sales invoice posted/);
   expect(mock.posts).toHaveLength(1);
   expect(mock.posts[0]).toEqual(expect.objectContaining({
@@ -85,7 +85,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Description 1'}),{target:{value:'Service'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Amount 1'}),{target:{value:'30'}});
-  fireEvent.click(screen.getByRole('button',{name:'Post Normal Sales Invoice'}));
+  fireEvent.click(screen.getByRole('button',{name:'Post Sale Invoice'}));
   expect((await screen.findByRole('alert')).textContent).toContain('permission');
   expect(mock.posts).toHaveLength(1);
   expect(screen.queryByText(/Sales invoice posted/)).toBeNull();

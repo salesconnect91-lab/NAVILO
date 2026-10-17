@@ -69,10 +69,10 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   }catch(e:any){setError(e?.message||'Unable to create invoice. No Trip was modified.')}
   finally{setSaving(false)}
  }
- const sideName=side==='customer'?'Sales':'Purchase';
- return <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-3 text-xs" aria-label={`Normal ${sideName} Invoice`}>
+ const sideName=side==='customer'?'Sale':'Purchase';
+ return <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-3 text-xs" aria-label={`${sideName} Invoice`}>
   <div className="flex flex-wrap items-start justify-between gap-2">
-   <div><h2 className="text-base font-bold">Normal {sideName} Invoice — No Trips</h2>
+   <div><h2 className="text-base font-bold">{sideName} Invoice — No Trips</h2>
     <p className="text-slate-600">Description-only service document. Uses {side==='customer'?'Customer':'Supplier'} Master, canonical {side==='customer'?'AR':'AP'}, VAT, ledgers and financial reports. No stock or Trip records.</p>
    </div>
    <Link className="text-blue-700 underline" to="/settings/imports">Bulk import in Import Center</Link>
@@ -107,7 +107,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   <div className="space-y-1">
    <div className="flex items-center justify-between"><h3 className="font-bold">Description lines (excluding VAT)</h3><button type="button" disabled={saving||!!done||lines.length>=50} className="btn" onClick={()=>setLines(v=>[...v,empty()])}>+ Description Line</button></div>
    {lines.map((line,i)=><div key={i} className="grid grid-cols-[minmax(0,1fr)_130px_45px] gap-2">
-    <input aria-label={`Description ${i+1}`} className="input" placeholder="Service / description (no Trip)" value={line.description} maxLength={1000} disabled={saving||!!done} onChange={e=>update(i,'description',e.target.value)}/>
+    <input aria-label={`Description ${i+1}`} className="input" placeholder="Description (no Trip)" value={line.description} maxLength={1000} disabled={saving||!!done} onChange={e=>update(i,'description',e.target.value)}/>
     <input aria-label={`Amount ${i+1}`} className="input text-right" inputMode="decimal" placeholder="Amount SAR" value={line.amount} disabled={saving||!!done} onChange={e=>update(i,'amount',e.target.value)}/>
     <button type="button" aria-label={`Remove line ${i+1}`} className="btn" disabled={saving||!!done||lines.length<=1} onClick={()=>setLines(v=>v.filter((_,index)=>index!==i))}>×</button>
    </div>)}
@@ -115,7 +115,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   <div className="flex flex-wrap items-center justify-between border-t pt-2 gap-2">
    <span><strong>Net: SAR {amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong> · Cash/Credit and effective VAT follow Master Billing Rules.</span>
    <div className="flex gap-2"><button type="button" className="btn" disabled={!available} onClick={()=>void save(false)}>{saving?'Saving…':'Save Draft'}</button>
-    <button type="button" className="btn-primary" disabled={!available} onClick={()=>void save(true)}>{saving?'Posting…':`Post Normal ${sideName} Invoice`}</button></div>
+    <button type="button" className="btn-primary" disabled={!available} onClick={()=>void save(true)}>{saving?'Posting…':`Post ${sideName} Invoice`}</button></div>
   </div>
   {lineError&&<p role="status" className="text-amber-800">{lineError}</p>}
  </section>;

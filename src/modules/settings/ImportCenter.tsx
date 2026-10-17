@@ -338,7 +338,7 @@ export default function ImportCenter() {
      {canImport("sales")&&<TransportInvoiceImports/>}
     </ImportGroup>}
     {activeBusinessUnit?.business_unit_type==='transport'&&(canImport("sales")||canImport("purchase"))&&
-     <ImportGroup id="import-normal" title="3. Normal Sales & Purchase Invoices — No Trips"
+     <ImportGroup id="import-normal" title="3. Sale & Purchase Invoices — No Trips"
       detail="Standalone description-only invoices linked to the same Customer/Supplier Master, AR/AP, VAT, GL, receipts/payments and reports. No stock or Trip movements.">
        <div className="grid gap-3 xl:grid-cols-2">
         {canImport("sales")&&<TransportNormalInvoiceImport side="customer"/>}

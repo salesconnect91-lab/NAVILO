@@ -73,15 +73,15 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
   try{
    const result=await supabase.rpc('transport_normal_invoice_import',{p_side:side,p_rows:rows,p_post:post});
    if(result.error)throw result.error;
-   if(id===request.current){setMessage(`${result.data.invoices} Normal ${side==='customer'?'Sales':'Purchase'} invoice(s), ${result.data.lines} description lines ${post?'POSTED to accounting':'saved as draft'}. No Trips created. Record receipts/payments separately.`);setRows([]);setFilename('');}
+   if(id===request.current){setMessage(`${result.data.invoices} ${side==='customer'?'Sale':'Purchase'} invoice(s), ${result.data.lines} description lines ${post?'POSTED to accounting':'saved as draft'}. No Trips created. Record receipts/payments separately.`);setRows([]);setFilename('');}
   }catch(e:any){if(id===request.current)setError(e?.message||'Import failed. Entire file rolled back if the server rejected it.');}
   finally{working.current=false;if(id===request.current)setBusy(false)}
  }
  const groups=new Set(rows.map(r=>r.batch_ref.toLowerCase())).size;
  const net=rows.reduce((a,r)=>a+Number(r.amount),0);
- const label=side==='customer'?'Sales':'Purchase';
+ const label=side==='customer'?'Sale':'Purchase';
  return <section aria-label={`Normal ${label} Import`} className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
-  <h3 className="font-bold text-sm">Normal {label} Invoice Bulk Import — No Trips</h3>
+  <h3 className="font-bold text-sm">{label} Invoice Bulk Import — No Trips</h3>
   <p className="text-[11px] text-slate-600">Existing {side==='customer'?'Customer':'Supplier'} Master → descriptions and amounts → canonical {side==='customer'?'AR':'AP'} / GL / VAT. No Trip or stock movement.</p>
   <label className="block text-xs font-semibold">{side==='customer'?'Sales Revenue':'Purchase Expense'} Account
    <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label={`Normal ${label} import account`} className="input mt-1 w-full" disabled={loading||busy} value={account}
