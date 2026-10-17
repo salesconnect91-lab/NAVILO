@@ -2,7 +2,7 @@
 begin;
 do $$
 declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;customer uuid;supplier uuid;supplier2 uuid;
- cash_id uuid;acct uuid;cost uuid;ar uuid;ap uuid;normal_rev uuid;normal_doc uuid;code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
+ cash_id uuid;acct uuid;cost uuid;ar uuid;ap uuid;normal_rev uuid;vehicle_rev uuid;normal_doc uuid;code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
  trip uuid;trip2 uuid;cash_trip uuid;driver uuid;vehicle uuid;rent uuid;rent2 uuid;bill uuid;bill2 uuid;sales_id uuid;sales2 uuid;cashbill uuid;
  original_journal jsonb;original_lines jsonb;original_bill jsonb;result jsonb;rejected boolean;j uuid;original jsonb;newer jsonb;paid_j uuid;initial_alloc jsonb;
  auth_trip uuid;employee uuid;accrual uuid;salary uuid;salary2 uuid;salary_ac uuid;payable uuid;driver_trip uuid;vat_trip uuid;vat_bill uuid;vat_rent uuid;vat_purchase uuid;other_bu uuid;other_c uuid;old_bu uuid;member uuid;reversal uuid;request_id uuid:=gen_random_uuid();st text;v numeric;payload jsonb;
@@ -48,7 +48,12 @@ begin
 
 
 
- insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,b,'FIN-V') returning id into vehicle;
+ -- New company vehicle must carry an explicit Revenue COA before its Trip is billed.
+ insert into public.chart_of_accounts(user_id,company_id,code,name,type,detail_type,is_group,allow_manual_entries,is_active,normal_balance)
+ values(u,c,'VREV-'||code,'FIN-V vehicle income','revenue','service_income',false,true,true,'credit')
+ returning id into vehicle_rev;
+ insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no,revenue_account_id)
+ values(c,b,'FIN-V',vehicle_rev) returning id into vehicle;
  insert into public.transport_drivers(company_id,business_unit_id,driver_name) values(c,b,'Financial Driver') returning id into driver;
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,vehicle_id,driver_id,from_location,to_location,customer_rate,owner_rent,sale_type)
  values(c,b,'',current_date,customer,vehicle,driver,'A','B',1000,400,'cash') returning id into trip;
@@ -68,6 +73,10 @@ begin
  if (result->>'count')::integer<>1 then raise exception 'Trimmed search, route or Driver header filter failed';end if;
  result:=public.transport_post_customer_bill_described(trip,current_date,false,'  CUSTOM-S-'||code||'  ','  Customer delivery instructions  ');sales_id:=(result->>'document_id')::uuid;
  if not exists(select 1 from public.sales_service_lines where order_id=sales_id and description like 'Customer delivery instructions%' and description like '%Vehicle: FIN-V%') then raise exception 'Customer description or automatic Trip detail missing';end if;
+ if not exists(select 1 from public.sales_service_lines where order_id=sales_id and revenue_account_id=vehicle_rev and amount=1000)
+   or not exists(select 1 from public.journal_lines l join public.journal_entries j on j.id=l.entry_id
+     where j.source_document_id=sales_id and l.account_id=vehicle_rev and l.credit=1000)
+ then raise exception 'Company vehicle Trip income did not post once to its linked Revenue COA';end if;
  rejected:=false;begin perform public.transport_post_customer_bill_described(trip2,current_date,false,null,repeat('X',2001));exception when others then rejected:=true;end;
  if not rejected or exists(select 1 from public.transport_customer_document_trips where trip_id=trip2) then raise exception 'Overlong description accepted or partial invoice created';end if;
  if (select account_id from public.customers where id=customer) is distinct from ar then raise exception 'Blank Customer AR was not resolved to the valid company mapping';end if;
