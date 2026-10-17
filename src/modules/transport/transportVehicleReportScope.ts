@@ -30,7 +30,7 @@ export function isCompanyFleetTrip(owner: unknown, ownershipClass: unknown, comp
     const name = normalizeOwner(companyName);
     if (!name) return false;
     if (snapshot === name) return true;
-    if (snapshot.length >= 5 && name.startsWith(snapshot + ' ')) return true;
+    if (snapshot.length >= 5 && !GENERIC_FIRST_WORDS.has(snapshot) && name.startsWith(snapshot + ' ')) return true;
     // Legacy source often uses the distinctive first trading-name word.
     const first = name.split(' ')[0];
     return first.length >= 5 && !GENERIC_FIRST_WORDS.has(first) && snapshot === first;
