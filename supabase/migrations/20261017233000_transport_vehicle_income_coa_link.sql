@@ -28,17 +28,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS transport_vehicle_income_coa_one_to_one
  ON public.transport_vehicles(company_id,revenue_account_id)
  WHERE revenue_account_id IS NOT NULL;
 
--- Existing Orbit COA accounts are explicit, pre-existing links. Don't create accounts
--- or invent accounts for 5731/2512; these can be linked in Vehicle Master after setup.
-UPDATE public.transport_vehicles v
- SET revenue_account_id=a.id
- FROM public.chart_of_accounts a
- WHERE v.company_id='48bfc042-e65e-4398-98a6-3d4fd56e3efb'::uuid
- AND a.company_id=v.company_id
- AND ((v.vehicle_no='7979' AND a.code='4001' AND a.name='7979 Dyna Truck')
-   OR (v.vehicle_no='7494' AND a.code='4002' AND a.name='7494 Flatbed Trialer'))
- AND a.type='revenue' AND a.is_active AND NOT a.is_group
- AND v.revenue_account_id IS NULL;
+-- Existing COA and Vehicle Master records are deliberately left unchanged.
+-- The operational master has a tenant-scoped stamp trigger; owner-authorized
+-- Vehicle Master edits establish Income COA links, never an admin backfill.
 
 -- Every company-owned vehicle line uses its saved Revenue COA; unlinked vehicles fail closed.
 -- Shared lines retain the user's selected general Revenue COA.
