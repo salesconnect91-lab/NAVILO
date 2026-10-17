@@ -50,7 +50,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
  const [allowed,setAllowed]=useState(false);const [accounts,setAccounts]=useState<{id:string;name:string}[]>([]);
  const [account,setAccount]=useState('');const [loadedScope,setLoadedScope]=useState('');
  const [setupLoading,setSetupLoading]=useState(true);
- const [busy,setBusy]=useState(false);const [error,setError]=useState('');
+ const [busy,setBusy]=useState(false);const [completed,setCompleted]=useState(false);const [error,setError]=useState('');
  const dialog=useRef<HTMLElement>(null);const input=useRef<HTMLInputElement>(null);
 
  useEffect(()=>{
@@ -95,14 +95,18 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
  const rateReady=trip.customer_rate_state==='finalized'&&Number(trip.customer_rate??0)>0;
  const blockers=invoicePostingBlockers({posted,loading,allowed:currentAllowed,rateReady,mode:numberMode,
   number,date,account:currentAccount,vatReady,withTax,validSaleType:saleType==='cash'||saleType==='credit'});
- const canPost=!busy&&blockers.length===0&&!error;
+ const canPost=!busy&&!completed&&blockers.length===0&&!error;
 
  async function post(){
   if(!canPost)return;setBusy(true);setError('');
   try{
    const result=await supabase.rpc('transport_post_customer_bill_accounted',{p_trip_id:trip.id,p_date:date,p_revenue_account_id:currentAccount,p_with_tax:withTax,p_invoice_no:numberMode==='manual'?number:null,p_description:null});
    if(result.error)throw result.error;
-   await onChanged();onClose();
+   // Posting is already committed. A slow/failed Register refresh must not
+   // turn a successful financial write into a misleading "posting failed".
+   setCompleted(true);
+   try{await onChanged();onClose()}
+   catch{setError('Invoice POSTED successfully, but Register refresh failed. Close this popup and reload the Register. Do not post again.')}
   }catch(e:any){setError(e?.message||'Unable to post customer invoice. Refresh the Trip before retrying.')}finally{setBusy(false)}
  }
 
@@ -110,7 +114,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
   <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="trip-invoice-title" className="w-full max-w-sm rounded bg-white p-4 text-sm shadow-xl">
    <h2 id="trip-invoice-title" className="font-semibold">Customer Invoice · {trip.trip_no}</h2>
    <p className="my-2 text-xs text-slate-600">{trip.customer_name}<br/>{trip.from_location} → {trip.to_location}<br/>Company Rate excluding VAT: {trip.customer_rate==null?'—':Number(trip.customer_rate).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
-   {posted?<label className="block text-xs font-semibold">Invoice Number<input className="input mt-1 w-full" value={invoiceNo||'Posted · original reference missing'} readOnly /></label>:<>
+   {posted||completed?<label className="block text-xs font-semibold">Invoice Number<input className="input mt-1 w-full" value={invoiceNo||(completed?'Posted · reload to view invoice number':'Posted · original reference missing')} readOnly /></label>:<>
     <label className="block text-xs font-semibold">Invoice Number Method
      <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Invoice number method" className="input mt-1 w-full" value={numberMode} disabled={busy} onChange={e=>setNumberMode(e.target.value as 'choose'|'auto'|'manual')}>
       <option value="choose">Choose method…</option>{!withTax&&<option value="auto">Generate NAVILO number</option>}<option value="manual">Enter own invoice number</option>
@@ -119,8 +123,8 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
     {numberMode==='manual'&&<label className="mt-2 block text-xs font-semibold">Your Invoice Number<input ref={input} className="input mt-1 w-full" value={invoiceNo} disabled={busy} onChange={e=>setInvoiceNo(e.target.value)} placeholder="Enter invoice number" /></label>}
     {numberMode==='auto'&&<p className="mt-2 text-xs text-slate-600">NAVILO will assign its next available invoice number during posting.</p>}
    </>}
-   {posted
-    ?<p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">This canonical Sales invoice is already posted. Its invoice number is locked and is not overwritten from the Trips grid.</p>
+   {posted||completed
+    ?<p role="status" className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{completed?'Invoice posted. Refresh the Register if the new invoice is not visible yet.':'This canonical Sales invoice is already posted. Its invoice number is locked and is not overwritten from the Trips grid.'}</p>
     :<>
       <label className="mt-2 block text-xs font-semibold">Revenue Account
        <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Revenue account" className="input mt-1 w-full" value={currentAccount} disabled={busy||loading} onChange={e=>setAccount(e.target.value)}><option value="">Select account</option>{currentAccounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</NaviloSearchableSelect>
@@ -137,7 +141,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
       <p className="mt-2 text-xs text-slate-600">Save here posts the canonical Sales/service invoice to the selected Revenue Account. {withTax?'Credit invoices require the original invoice number you provide before posting. Without it, leave the Trip finalized.':'Choose automatic numbering or enter your own invoice number before posting.'}</p>
     </>}
    {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}
-   <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={onClose}>Close</button>{!posted&&<button className="btn-primary" disabled={!canPost} onClick={()=>void post()}>{busy?'Posting…':'Post Invoice'}</button>}</div>
+   <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={onClose}>Close</button>{!posted&&!completed&&<button className="btn-primary" disabled={!canPost} onClick={()=>void post()}>{busy?'Posting…':'Post Invoice'}</button>}</div>
   </section>
  </TransportDialog>;
 }
