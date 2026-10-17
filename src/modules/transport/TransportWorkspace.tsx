@@ -138,6 +138,14 @@ function TransportWorkspaceScoped(){
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role;
   const rolePermissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
   const canViewFeature=(key:string)=>!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled(key,"view"));
+  const canCreateNormalSales=Boolean(activeBusinessUnit?.enabled_modules?.includes("sales"))
+    &&Boolean(activeCompany?.enabled_modules?.includes("sales"))
+    &&canPerformModule(role,"sales","create",rolePermissions,isPlatformOwner)
+    &&(!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled("sales-invoices","create")));
+  const canCreateNormalPurchase=Boolean(activeBusinessUnit?.enabled_modules?.includes("purchase"))
+    &&Boolean(activeCompany?.enabled_modules?.includes("purchase"))
+    &&canPerformModule(role,"purchase","create",rolePermissions,isPlatformOwner)
+    &&(!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled("purchase-invoices","create")));
   const mobileCanCreate=(!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled("transport-mobile-quick-entry","create")))
     &&canPerformModule(role,"transport","create",rolePermissions,isPlatformOwner);
   const mobileCanEdit=(!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled("transport-mobile-quick-entry","edit")))
@@ -1939,7 +1947,10 @@ function TransportWorkspaceScoped(){
         }
       `}</style>
       <div className="navilo-transport-topbar relative z-[90] flex shrink-0 items-center justify-between px-3 text-white h-10 bg-gradient-to-r from-slate-950 via-[#071b3a] to-[#0a2855]">
-        <div className="flex items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span></div>
+        <div className="flex shrink-0 items-center gap-2"><span className="text-[13px] font-extrabold tracking-tight">Transport</span><span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Trips Register</span>
+          {canCreateNormalSales&&<button type="button" onClick={()=>navigate('/sales/new?type=normal')} className="rounded border border-sky-500/60 bg-sky-950 px-2 py-1 text-[10px] font-semibold text-sky-100 hover:bg-sky-800" aria-label="Create Normal Sales Invoice">+ Normal Sales</button>}
+          {canCreateNormalPurchase&&<button type="button" onClick={()=>navigate('/purchase/new?type=normal')} className="rounded border border-sky-500/60 bg-sky-950 px-2 py-1 text-[10px] font-semibold text-sky-100 hover:bg-sky-800" aria-label="Create Normal Purchase Invoice">+ Normal Purchase</button>}
+        </div>
         <div className="navilo-transport-register-toolbar flex flex-wrap items-center gap-2">
 
           <div className="flex items-center justify-between border border-blue-200 bg-blue-50 h-9 min-w-[104px] rounded-lg px-3 shadow-sm">

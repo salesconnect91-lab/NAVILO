@@ -17,7 +17,7 @@ const mock=vi.hoisted(()=>({rpc:vi.fn(),tables:{} as Record<string,any[]>,allow:
  layoutUserId:null as string|null,remoteLayout:null as any,
  savedLayout:null as any,layoutReads:0,layoutWriteError:false,layoutReadError:false,
  layoutQueries:[] as Array<Record<string,string>>,companyId:'c',businessUnitId:'b'}));
-vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({user:mock.layoutUserId?{id:mock.layoutUserId}:null,activeCompany:{company_id:mock.companyId,membership_role:'company_owner',enabled_modules:['transport']},activeBusinessUnit:{business_unit_id:mock.businessUnitId,membership_role:'company_owner',business_unit_type:'transport',enabled_modules:['transport']}})}));
+vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({user:mock.layoutUserId?{id:mock.layoutUserId}:null,activeCompany:{company_id:mock.companyId,membership_role:'company_owner',enabled_modules:['transport','sales','purchase']},activeBusinessUnit:{business_unit_id:mock.businessUnitId,membership_role:'company_owner',business_unit_type:'transport',enabled_modules:['transport','sales','purchase']}})}));
 vi.mock('@/lib/supabase',()=>({supabase:{auth:{getUser:async()=>({data:{user:null}}),getSession:async()=>({data:{session:null}})},rpc:(...args:any[])=>{const request=mock.rpc(...args);request.abortSignal=(signal:AbortSignal)=>{mock.abortSignals[args[0]]=signal;return request;};return request;},from:(table:string)=>{
  if(table==='transport_register_layout_preferences'){
   const filters:Record<string,string>={};
@@ -812,5 +812,15 @@ describe('Transport Register workspace isolation',()=>{
   await screen.findByText('Orbit customer');
   expect(screen.queryByText('Twakkal customer')).toBeNull();
   expect(mock.rpc.mock.calls.filter(([name,args])=>name==='transport_register_query'&&!args?.p_option_key)).toHaveLength(2);
+ });
+});
+
+describe('Normal invoice create is discoverable directly in Transport Register',()=>{
+ it('renders separate Normal Sales and Purchase entry points for Transport companies',async()=>{
+  render(<MemoryRouter initialEntries={['/transport?view=trips']}><TransportWorkspace/></MemoryRouter>);
+  const sale=await screen.findByRole('button',{name:'Create Normal Sales Invoice'});
+  const purchase=screen.getByRole('button',{name:'Create Normal Purchase Invoice'});
+  expect(sale.textContent).toContain('Normal Sales');
+  expect(purchase.textContent).toContain('Normal Purchase');
  });
 });
