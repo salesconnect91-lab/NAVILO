@@ -4,7 +4,7 @@ import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {MemoryRouter} from 'react-router-dom';
 import TransportNormalInvoiceCreate,{validateNormalInvoiceLines} from './TransportNormalInvoiceCreate';
 const mock=vi.hoisted(()=>({company:'a',bu:'a-bu',calls:[] as Array<{table:string;filters:Record<string,any>}>,
- posts:[] as any[],reject:false}));
+ posts:[] as any[],reject:false,unlinked:false}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({
  activeCompany:{company_id:mock.company},
  activeBusinessUnit:{business_unit_id:mock.bu,business_unit_type:'transport'}
@@ -26,7 +26,7 @@ vi.mock('@/lib/supabase',()=>({supabase:{
    maybeSingle:async()=>{mock.calls.push({table,filters:{...filters}});return {data:{account_id:mock.company+'-account'},error:null};},
    then:(cb:any)=>{
     mock.calls.push({table,filters:{...filters}});
-    if(table==='transport_vehicles')return Promise.resolve({data:[{id:mock.company+'-vehicle-1',vehicle_no:'7979'},{id:mock.company+'-vehicle-2',vehicle_no:'7494'}],error:null}).then(cb);
+    if(table==='transport_vehicles')return Promise.resolve({data:[{id:mock.company+'-vehicle-1',vehicle_no:'7979',revenue_account_id:mock.unlinked?null:mock.company+'-account'},{id:mock.company+'-vehicle-2',vehicle_no:'7494',revenue_account_id:mock.company+'-account'}],error:null}).then(cb);
     if(table==='transport_vehicle_ownership')return Promise.resolve({data:[{vehicle_id:mock.company+'-vehicle-1',owner_type:'company',effective_from:'2020-01-01',effective_to:null},{vehicle_id:mock.company+'-vehicle-2',owner_type:'company',effective_from:'2020-01-01',effective_to:null}],error:null}).then(cb);
     if(table==='customers'||table==='suppliers')
      return Promise.resolve({data:[{id:mock.company+'-party',name:'Master '+mock.company}],error:null}).then(cb);
@@ -37,7 +37,7 @@ vi.mock('@/lib/supabase',()=>({supabase:{
   };return q;
  }
 }}));
-beforeEach(()=>{mock.company='a';mock.bu='a-bu';mock.calls=[];mock.posts=[];mock.reject=false});
+beforeEach(()=>{mock.company='a';mock.bu='a-bu';mock.calls=[];mock.posts=[];mock.reject=false;mock.unlinked=false});
 afterEach(cleanup);
 const load=async(side:'customer'|'supplier')=>{
  const ui=render(<MemoryRouter><TransportNormalInvoiceCreate side={side}/></MemoryRouter>);
@@ -64,13 +64,24 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   expect(Object.keys(mock.posts[0]).some(x=>x.includes('trip'))).toBe(false);
  });
  it('keeps multiple vehicle allocations on separate description lines in one invoice',async()=>{
-  await load('customer');await screen.findByRole('option',{name:'7979'});
+  await load('customer');await screen.findByRole('option',{name:/7979/});
   fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
   fireEvent.change(screen.getByLabelText('Description 1'),{target:{value:'Vehicle one'}});fireEvent.change(screen.getByLabelText('Amount 1'),{target:{value:'100'}});fireEvent.change(screen.getByLabelText('Vehicle 1'),{target:{value:'a-vehicle-1'}});
   fireEvent.click(screen.getByRole('button',{name:'+ Description Line'}));fireEvent.change(screen.getByLabelText('Description 2'),{target:{value:'Vehicle two'}});fireEvent.change(screen.getByLabelText('Amount 2'),{target:{value:'200'}});fireEvent.change(screen.getByLabelText('Vehicle 2'),{target:{value:'a-vehicle-2'}});
   fireEvent.click(screen.getByRole('button',{name:'Save Draft'}));await screen.findByText(/Sale invoice draft/);
   expect(mock.posts[0].p_lines).toEqual([{description:'Vehicle one',amount:'100',vehicle_id:'a-vehicle-1'},{description:'Vehicle two',amount:'200',vehicle_id:'a-vehicle-2'}]);
   expect(mock.posts).toHaveLength(1);
+ });
+ it('refuses to save an invoice with a company vehicle whose Income COA is missing',async()=>{
+  mock.unlinked=true;
+  await load('customer');await screen.findByRole('option',{name:/7979/});
+  fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
+  fireEvent.change(screen.getByLabelText('Description 1'),{target:{value:'Vehicle income'}});
+  fireEvent.change(screen.getByLabelText('Amount 1'),{target:{value:'100'}});
+  fireEvent.change(screen.getByLabelText('Vehicle 1'),{target:{value:'a-vehicle-1'}});
+  expect(screen.getByText(/Vehicle 7979 has no linked Income COA/)).toBeTruthy();
+  expect((screen.getByRole('button',{name:'Post Sale Invoice'}) as HTMLButtonElement).disabled).toBe(true);
+  expect(mock.posts).toHaveLength(0);
  });
  it('saves supplier Purchase draft through same canonical service model',async()=>{
   await load('supplier');
