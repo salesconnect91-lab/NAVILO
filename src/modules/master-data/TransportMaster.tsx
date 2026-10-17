@@ -191,6 +191,8 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
         <div className="grid gap-3 p-5 sm:grid-cols-2">
           <label className="text-xs font-semibold">{vehicle ? "Vehicle No / Plate No" : "Driver Name"} *<input className="input mt-1 w-full" value={form.name} readOnly={!vehicle&&form.driverType==="company"} onChange={e => setForm({ ...form, name: e.target.value })} required /></label>
           {vehicle ? <label className="text-xs font-semibold">Truck Type<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" value={form.truckTypeId} onChange={e => setForm({ ...form, truckTypeId: e.target.value })}><option value="">Select Truck Type</option>{truckTypes.filter(t => t.is_active || t.id === form.truckTypeId).map(t => <option key={t.id} value={t.id}>{t.name}{!t.is_active ? " (Inactive)" : ""}</option>)}</NaviloSearchableSelect></label>
+
+            : <label className="text-xs font-semibold">Driver Code<input className="input mt-1 w-full" value={form.detail} onChange={e => setForm({ ...form, detail: e.target.value })} /></label>}
           {vehicle&&(editing?.ownerType??form.ownerType)==="company"&&<label className="text-xs font-semibold">Income COA (Company Vehicle)
             <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Vehicle Income COA" className="input mt-1 w-full" value={form.revenueAccountId} onChange={e=>setForm({...form,revenueAccountId:e.target.value})}>
               <option value="">Not linked — select Revenue account</option>
@@ -198,7 +200,6 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
             </NaviloSearchableSelect>
             <span className="block font-normal text-slate-500">One-time link. Sale invoices posted for this company-owned vehicle will use this Revenue account automatically. Missing? <Link to="/accounting/accounts" className="text-blue-700 underline">Create in Chart of Accounts</Link></span>
           </label>}
-            : <label className="text-xs font-semibold">Driver Code<input className="input mt-1 w-full" value={form.detail} onChange={e => setForm({ ...form, detail: e.target.value })} /></label>}
           {vehicle && editing ? <div className="text-xs sm:col-span-2">Owner: {partyName(editing) || "Legacy / not classified"}. <Link className="text-blue-700 underline" to="/master-data/vehicle-ownership">Change through Vehicle Ownership History</Link></div>
             : <>{(!supplierOwner&&!employeeOwner)&&<label className="text-xs font-semibold">{vehicle ? "Ownership Type" : "Driver Type"}<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 w-full" value={vehicle ? form.ownerType : form.driverType} onChange={e => setForm({ ...form, ...(vehicle ? { ownerType: e.target.value } : { driverType: e.target.value, employeeId: "" }), supplierId: "" })}>
               <option value="">Select type</option><option value="company">{vehicle ? "Company Owned" : "Company Driver"}</option>{(vehicle||!employeeOwner)&&<option value="supplier">{vehicle ? "Supplier Owned" : "Supplier Driver"}</option>}</NaviloSearchableSelect></label>}
