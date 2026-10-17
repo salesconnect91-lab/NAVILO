@@ -5,27 +5,9 @@ import NaviloDateInput from '@/components/NaviloDateInput';
 import {formatNaviloDate} from '@/lib/naviloDate';
 import ConfigurableReport from './ConfigurableReport';
 import type {ReportTable} from './transportPartyExport';
+import {isCompanyFleetTrip, normalizeOwner} from './transportVehicleReportScope';
 
 type Vehicle = {id: string; vehicle_no: string; owner_type?: string | null; ownership_type?: string | null};
-const normalizeOwner = (value: unknown) =>
-  String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
-/**
- * Match the owner recorded on the Trip, rather than reattributing historical
- * supplier Trips using the vehicle's current ownership. Works for every
- * Transport company; no tenant-specific identifiers or owner aliases.
- */
-export function isCompanyFleetTrip(owner: unknown, ownershipClass: unknown, companyName: string): boolean {
-  const classification = normalizeOwner(ownershipClass);
-  if (['company', 'company owned', 'owned', 'self'].includes(classification)) return true;
-  const snapshot = normalizeOwner(owner);
-  if (['self', 'own', 'own vehicle', 'company', 'company owned'].includes(snapshot)) return true;
-  const name = normalizeOwner(companyName);
-  if (!name || !snapshot) return false;
-  if (snapshot === name || name.startsWith(snapshot + ' ') && snapshot.length >= 5) return true;
-  // Legacy imports often store only the distinctive leading trading name.
-  const first = name.split(' ')[0];
-  return first.length >= 5 && !['transport', 'company', 'saudi', 'rental', 'al'].includes(first) && snapshot === first;
-}
 type FinancialTrip = Record<string, any>;
 type ReportMode = 'ledger' | 'profit';
 type FleetScope = 'owned' | 'all';
