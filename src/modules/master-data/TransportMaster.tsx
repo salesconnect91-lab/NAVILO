@@ -196,7 +196,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
           {vehicle&&(editing?.ownerType??form.ownerType)==="company"&&<label className="text-xs font-semibold">Income COA (Company Vehicle)
             <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Vehicle Income COA" className="input mt-1 w-full" value={form.revenueAccountId} onChange={e=>setForm({...form,revenueAccountId:e.target.value})}>
               <option value="">Not linked — select Revenue account</option>
-              {incomeAccounts.filter(a=>a.is_active||a.id===form.revenueAccountId).map(a=><option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
+              {incomeAccounts.filter(a=>a.is_active||a.id===form.revenueAccountId).map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
             </NaviloSearchableSelect>
             <span className="block font-normal text-slate-500">One-time link. Multiple vehicles may use the same existing Revenue account; Vehicle Ledger/P&L stays separate. Sale invoices automatically use the linked COA. Missing? <Link to="/accounting/accounts" className="text-blue-700 underline">Create in Chart of Accounts</Link></span>
           </label>}
