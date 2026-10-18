@@ -70,7 +70,34 @@ describe('document report data contract',()=>{
   expect(doc.querySelectorAll('tbody tr').length).toBe(61);expect(doc.querySelector('tbody tr')?.textContent).toContain('Party 60');
   expect(report.html).toContain('<th class="">Party</th>');expect(report.html).not.toContain('Edit');expect(report.html).not.toContain('Actions');
  });
- it('keeps totals and removes action controls without deleting sortable column names',()=>{
+ it('prints wide generic reports in complete financial-first sections without dropping columns',async()=>{
+  const root=document.createElement('main');
+  const cols=['Invoice','Date','Customer','Category','Item','Qty','Purchase Rate','Sales Rate','Gross Profit','Margin','Godown','Status','Opening','Closing','Notes'];
+  const values=['INV-1','18-Oct-26','ACCESS','Steel','Beam',10,150,200,500,25,'Main','Posted',1000,1500,'Paid'];
+  root.innerHTML='<h1>Trading Margin</h1><div class="navilo-report-source"><table><thead><tr>'+
+    cols.map(c=>'<th>'+c+'</th>').join('')+'</tr></thead><tbody><tr>'+
+    values.map(v=>'<td>'+v+'</td>').join('')+'</tr></tbody></table></div>';
+  const result=await buildReport(root.querySelector('.navilo-report-source') as HTMLElement,
+    {companyName:'Orbit',businessUnitName:'Transport'});
+  const printed=new DOMParser().parseFromString(result.html,'text/html');
+  const tables=Array.from(printed.querySelectorAll('table'));
+  expect(tables.length).toBeGreaterThan(1);
+  expect(tables.every(t=>t.tHead!.rows[0].cells.length<=9)).toBe(true);
+  expect(new Set(tables.flatMap(t=>Array.from(t.tHead!.rows[0].cells).map(c=>c.textContent))).size).toBe(cols.length);
+  expect(tables[0].textContent).toContain('500');
+  expect(tables.some(t=>t.textContent?.includes('Paid'))).toBe(true);
+  expect(result.orientation).toBe('landscape');
+});
+it('preserves complex merged accounting table headers instead of silently remapping amounts',async()=>{
+  const root=document.createElement('main');
+  root.innerHTML='<h1>Complex Trial</h1><table><thead><tr><th colspan="2">Opening</th><th colspan="2">Period</th>'+
+    Array.from({length:10},(_,i)=>'<th>Line '+i+'</th>').join('')+'</tr></thead><tbody><tr><td colspan="14">Accounting total 700</td></tr></tbody></table>';
+  const result=await buildReport(root,{companyName:'Orbit',businessUnitName:''});
+  const printed=new DOMParser().parseFromString(result.html,'text/html');
+  expect(printed.querySelectorAll('table')).toHaveLength(1);
+  expect(printed.querySelector('td')?.textContent).toBe('Accounting total 700');
+});
+it('keeps totals and removes action controls without deleting sortable column names',()=>{
   const root=document.createElement('div');root.innerHTML='<table><thead><tr><th><button>Date</button></th><th>Amount</th><th>Actions</th></tr></thead><tbody><tr><td>01-Oct-26</td><td class="text-right">1700</td><td><button>Edit</button></td></tr></tbody><tfoot><tr><td colspan="2">Total 1700</td><td data-no-print></td></tr></tfoot></table>';
   const clean=cleanReportTable(root.querySelector('table')!);
   expect(clean.tHead?.textContent).toBe('DateAmount');expect(clean.tFoot?.textContent).toBe('Total 1700');expect(clean.querySelector('button')).toBeNull();expect(clean.tBodies[0].rows[0].cells.length).toBe(2);
