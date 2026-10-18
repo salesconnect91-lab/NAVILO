@@ -300,7 +300,17 @@ end if;
  execute 'set local role authenticated';
  perform public.transport_finalize_customer_rate(auth_trip,20,'manual');
  result:=public.transport_post_customer_bill_numbered(auth_trip,current_date,true,'AUTH-S-'||code);
- if (select customer_net from public.transport_trip_financial_summary where id=auth_trip)<>20 then raise exception 'Authorized financial evidence hidden';end if;
+ -- Raw financial summary is intentionally restricted from browser roles.
+ rejected:=false;
+ begin
+   perform customer_net from public.transport_trip_financial_summary where id=auth_trip;
+ exception when insufficient_privilege then rejected:=true;
+ end;
+ if not rejected then raise exception 'Restricted raw financial summary exposed to browser';end if;
+ if not exists(
+   select 1 from jsonb_array_elements(public.transport_trip_report('customer',500,0,'{}'::jsonb)->'rows') row
+   where row->>'id'=auth_trip::text
+ ) then raise exception 'Scoped authenticated financial report omitted its posted Trip';end if;
  rejected:=false;begin update public.transport_customer_document_trips set rate_snapshot=1 where trip_id=auth_trip;exception when insufficient_privilege then rejected:=true;end;
  if not rejected then raise exception 'Direct attribution write was allowed';end if;
  execute 'reset role';
