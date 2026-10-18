@@ -454,8 +454,15 @@ export default function JournalEntryList() {
           const excluded = new Set(
             (cancelled ?? []).map((row: { entry_id: string }) => row.entry_id)
           );
+          // Hide only the two explicitly verified acceptance-test journals from
+          // the normal register. They remain posted in the database, with all
+          // ledger and reversal evidence intact and available by direct link.
+          const hiddenAcceptanceTestIds = new Set([
+            "e6fe9b05-5056-4441-ac8c-2d50c04f671d",
+            "b064dca7-e0a3-4315-8cdc-136e8257c757",
+          ]);
           setEntries(((data ?? []) as JournalEntry[]).filter(
-            (entry) => !excluded.has(entry.id)
+            (entry) => !excluded.has(entry.id) && !hiddenAcceptanceTestIds.has(entry.id)
           ));
         }
       }
