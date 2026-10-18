@@ -44,6 +44,9 @@ type LedgerRow = {
   credit: number | string | null;
 };
 
+type CompanyVehicle = {id:string;vehicle_no:string;revenue_account_id:string|null};
+type CompanyVehicleIncome = {id:string;vehicle_no:string;accountCode:string|null;amount:number|null;status:'dedicated'|'shared'|'missing'};
+
 type JournalMeta = {
   id: string;
   trans_type: string | null;
@@ -145,7 +148,7 @@ function ResultRow({ label, amount, prominent = false }: { label: string; amount
 }
 
 export default function ProfitLoss() {
-  const {activeBusinessUnit}=useAuth();
+  const {activeBusinessUnit,activeCompany}=useAuth();
   const [data, setData] = useState<PLData>(emptyPLData);
   const [fromDate, setFromDate] = useState(getYearStart);
   const [toDate, setToDate] = useState(getLocalToday);
@@ -155,6 +158,10 @@ export default function ProfitLoss() {
   const [error, setError] = useState<string | null>(null);
   const [reportPrintSettings, setReportPrintSettings] = useState<any>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [vehicleIncome,setVehicleIncome]=useState<CompanyVehicleIncome[]>([]);
+  const [vehicleWarning,setVehicleWarning]=useState<string|null>(null);
+  const [settingUpVehicles,setSettingUpVehicles]=useState(false);
+  const isTransport=activeBusinessUnit?.business_unit_type==='transport';
 
   const fetchPL = useCallback(async () => {
     if (!fromDate || !toDate) return;
@@ -169,9 +176,12 @@ export default function ProfitLoss() {
 
     let accounts: AccountRow[] = [];
     let rawLedger: LedgerRow[] = [];
+    let vehicles: CompanyVehicle[] = [];
+    setVehicleWarning(null);
+    setVehicleIncome([]);
 
     try {
-      [accounts, rawLedger] = await Promise.all([
+      [accounts, rawLedger, vehicles] = await Promise.all([
         fetchAllPages<AccountRow>((fromRow,toRow) =>
           supabase
             .from("chart_of_accounts")
@@ -180,6 +190,17 @@ export default function ProfitLoss() {
             .range(fromRow,toRow)
         ),
         (async()=>{const r=await supabase.rpc('accounting_report_balances_scoped',{p_from:fromDate,p_to:toDate,p_exclude_closing:true,p_scope:scope});if(r.error)throw r.error;return r.data||[]})(),
+        isTransport && activeCompany?.company_id && activeBusinessUnit?.business_unit_id
+          ? fetchAllPages<CompanyVehicle>((fromRow,toRow)=>{
+            let query=supabase.from('transport_vehicles')
+              .select('id,vehicle_no,revenue_account_id')
+              .eq('company_id',activeCompany.company_id)
+              .eq('ownership_type','company')
+              .eq('is_active',true)
+              .order('vehicle_no').range(fromRow,toRow);
+            if(scope!=='company')query=query.eq('business_unit_id',activeBusinessUnit.business_unit_id);
+            return query;
+          }) : Promise.resolve([] as CompanyVehicle[]),
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load Profit & Loss statement.");
@@ -276,6 +297,34 @@ export default function ProfitLoss() {
       });
     });
 
+    // The General P&L keeps its canonical GL totals. This breakdown reads the
+    // SAME journal-backed movements but only attributes a vehicle if it has its
+    // own Revenue posting account. Shared Service Revenue is never duplicated.
+    const vehicleAccountCounts=new Map<string,number>();
+    vehicles.forEach(v=>{if(v.revenue_account_id)vehicleAccountCounts.set(v.revenue_account_id,(vehicleAccountCounts.get(v.revenue_account_id)||0)+1)});
+    const movements=new Map<string,number>();
+    ledgerLines.forEach(line=>{
+      const id=line.account_id;
+      const a=id?accountMap.get(id):undefined;
+      if(!id||!a||a.type!=='revenue'&&a.type!=='income')return;
+      movements.set(id,(movements.get(id)||0)+Number(line.credit??0)-Number(line.debit??0));
+    });
+    const vehicleDetails=vehicles.map(v=>{
+      const a=v.revenue_account_id?accountMap.get(v.revenue_account_id):undefined;
+      const linked=accounts.find(x=>x.id===v.revenue_account_id);
+      const shared=!!v.revenue_account_id&&(
+        (vehicleAccountCounts.get(v.revenue_account_id)||0)>1 ||
+        linked?.code==='4200'||linked?.code==='4100'
+      );
+      const dedicated=!!a&&!shared&&(a.type==='revenue'||a.type==='income')&&!a.isGroup&&a.isActive;
+      return {id:v.id,vehicle_no:v.vehicle_no,accountCode:linked?.code??null,
+        amount:dedicated?movements.get(v.revenue_account_id!)??0:null,
+        status:(dedicated?'dedicated':shared?'shared':'missing') as CompanyVehicleIncome['status']};
+    });
+    setVehicleIncome(vehicleDetails);
+    if(vehicleDetails.some(v=>v.status!=='dedicated'))
+      setVehicleWarning('Some company vehicles still use shared Service Revenue or have no dedicated Income COA. Their individual amounts cannot be separated from the GL until a dedicated account is linked.');
+
     const next = emptyPLData();
     (Object.keys(bucketMaps) as PLBucket[]).forEach((bucket) => {
       const items = Array.from(bucketMaps[bucket].values())
@@ -287,7 +336,19 @@ export default function ProfitLoss() {
     setData(next);
     setLastUpdated(new Date());
     setLoading(false);
-  }, [fromDate, toDate, hideZeroBalances, scope]);
+  }, [fromDate, toDate, hideZeroBalances, scope,isTransport,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
+
+  const setupVehicleAccounts=useCallback(async()=>{
+    if(!isTransport||settingUpVehicles)return;
+    setSettingUpVehicles(true);setVehicleWarning(null);
+    try{
+      const r=await supabase.rpc('accounting_setup_company_vehicle_income_accounts');
+      if(r.error)throw r.error;
+      await fetchPL();
+    }catch(e){
+      setVehicleWarning(e instanceof Error?e.message:'Company vehicle COA setup failed; no posting was made.');
+    }finally{setSettingUpVehicles(false)}
+  },[isTransport,settingUpVehicles,fetchPL]);
 
   useEffect(() => {
     void loadDocumentPrintSettings("reports").then(setReportPrintSettings).catch(() => setReportPrintSettings(null));
@@ -364,7 +425,7 @@ export default function ProfitLoss() {
           <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-slate-400 shadow-sm">Loading Profit & Loss statement...</div>
         ) : (
           <>
-            <details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; monthly and year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...printSectionRows('Operating Revenue',data.operatingRevenue),...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...printSectionRows('Other Income',data.otherIncome),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; monthly and year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...printSectionRows('Operating Revenue',data.operatingRevenue),...vehicleIncome.map(v=>['Company Vehicle Income (breakdown only)',v.amount===null?'Vehicle '+v.vehicle_no+' — COA setup required':'Vehicle '+v.vehicle_no,v.amount===null?'—':v.amount]),...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...printSectionRows('Other Income',data.otherIncome),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {([
                 ["Revenue", data.operatingRevenue.total, "text-emerald-700"],
                 ["Cost of Sales", data.costOfSales.total, "text-rose-700"],
@@ -378,6 +439,22 @@ export default function ProfitLoss() {
 
             <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" />
+              {isTransport && <section aria-label="Company Vehicle Income" className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-slate-50 px-3 py-2">
+                  <div><h3 className="text-xs font-bold uppercase tracking-wide">Company Vehicle Income</h3>
+                    <p className="text-[11px] text-slate-500">Per-vehicle breakdown of Operating Revenue — already included in totals, never added twice. Zero-income vehicles remain visible.</p></div>
+                  {vehicleIncome.some(v=>v.status!=='dedicated')&&<button type="button" disabled={settingUpVehicles||loading} onClick={()=>void setupVehicleAccounts()} className="no-print btn text-xs" aria-label="Set up separate vehicle income accounts">
+                    {settingUpVehicles?'Linking accounts…':'Set up separate vehicle income COA'}
+                  </button>}
+                </div>
+                {vehicleWarning&&<p role="status" className="px-3 py-2 text-xs text-amber-800">{vehicleWarning}</p>}
+                {vehicleIncome.length===0?<p className="px-3 py-3 text-xs text-slate-500">No active company-owned vehicles in this report scope.</p>:
+                <div className="divide-y divide-slate-100">{vehicleIncome.map(v=><div key={v.id} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
+                  <div><span className="font-semibold">Vehicle {v.vehicle_no}</span>
+                    <span className="ml-2 text-slate-500">{v.status==='dedicated'?('COA '+v.accountCode):v.status==='shared'?'Shared Revenue COA — needs separate link':'Income COA not linked'}</span></div>
+                  <span className="font-mono font-semibold">{v.amount===null?'—':formatCurrency(v.amount)}</span>
+                </div>)}</div>}
+              </section>}
               <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" />
               <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} />
               <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" />
