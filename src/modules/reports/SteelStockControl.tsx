@@ -33,17 +33,17 @@ export default function SteelStockControl() {
   const load = useCallback(async () => {
     setLoading(true);setError(null);
     try {
-      const [stockRows,periodResponse,historyResponse]=await Promise.all([
+      const [stockRows,periodRows,historyRows]=await Promise.all([
         fetchAllPages<Row>((fromRow,toRow)=>supabase.from('steel_stock_reconciliation')
           .select('*').order('item_name').order('godown').order('item_id').range(fromRow,toRow)),
-        supabase.rpc('steel_period_commercial_summary',{p_from:fromDate,p_to:toDate}),
-        supabase.rpc('steel_stock_as_of',{p_as_of:asOfDate}),
+        fetchAllPages<Row>((fromRow,toRow)=>supabase.rpc('steel_period_commercial_summary',
+          {p_from:fromDate,p_to:toDate}).order('item_id').range(fromRow,toRow)),
+        fetchAllPages<Row>((fromRow,toRow)=>supabase.rpc('steel_stock_as_of',
+          {p_as_of:asOfDate}).order('item_id').order('godown').range(fromRow,toRow)),
       ]);
-      if(periodResponse.error||historyResponse.error)
-        throw periodResponse.error||historyResponse.error;
       setStock(stockRows);
-      setPeriod((periodResponse.data??[]) as Row[]);
-      setHistory((historyResponse.data??[]) as Row[]);
+      setPeriod(periodRows);
+      setHistory(historyRows);
     }catch(err){
       setStock([]);setPeriod([]);setHistory([]);
       setError(err instanceof Error?err.message:'Unable to load complete Stock Control report.');
