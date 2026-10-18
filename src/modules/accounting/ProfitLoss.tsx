@@ -159,7 +159,31 @@ export default function ProfitLoss() {
   const [vehicleIncome,setVehicleIncome]=useState<VehicleIncomeRow[]>([]);
   const [vehicleWarning,setVehicleWarning]=useState<string|null>(null);
   const [settingUpVehicles,setSettingUpVehicles]=useState(false);
-  const isTransport=activeBusinessUnit?.business_unit_type==='transport';
+  const [verifiedTransportUnit,setVerifiedTransportUnit]=useState<{companyId:string;businessUnitId:string;isTransport:boolean}|null>(null);
+  const companyId=activeCompany?.company_id??'';
+  const businessUnitId=activeBusinessUnit?.business_unit_id??'';
+  // Access-context unit type can be missing on a cached or stale auth context.
+  // Check the currently selected Business Unit in the database; never rely
+  // on a company name or show another company's vehicles.
+  const isTransport=String(activeBusinessUnit?.business_unit_type??'').toLowerCase()==='transport'
+    ||(verifiedTransportUnit?.companyId===companyId
+      &&verifiedTransportUnit.businessUnitId===businessUnitId
+      &&verifiedTransportUnit.isTransport);
+
+  useEffect(()=>{
+    let active=true;
+    setVerifiedTransportUnit(null);
+    if(!companyId||!businessUnitId)return;
+    void (async()=>{
+      const result=await supabase.from('business_units')
+        .select('unit_type').eq('id',businessUnitId).eq('company_id',companyId).maybeSingle();
+      if(active&&!result.error&&result.data){
+        setVerifiedTransportUnit({companyId,businessUnitId,
+          isTransport:String(result.data.unit_type??'').toLowerCase()==='transport'});
+      }
+    })();
+    return ()=>{active=false};
+  },[companyId,businessUnitId]);
 
   const fetchPL = useCallback(async () => {
     if (!fromDate || !toDate) return;
