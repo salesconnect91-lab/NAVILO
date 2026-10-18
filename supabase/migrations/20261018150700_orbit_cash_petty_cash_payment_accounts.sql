@@ -5,6 +5,7 @@ BEGIN;
 DO $$
 DECLARE
  v_company uuid;
+ v_authorized_owner uuid;
  v_cash uuid;
  v_petty uuid;
  v_count integer;
@@ -12,6 +13,20 @@ BEGIN
  SELECT id INTO STRICT v_company
  FROM public.companies
  WHERE name='Orbit - Usman Sajjad';
+
+ -- Run as an actual active owner of this company, scoped to this transaction.
+ -- Do not disable the tenant trigger or grant unrelated cross-company access.
+ SELECT cm.user_id INTO STRICT v_authorized_owner
+ FROM public.company_memberships cm
+ JOIN public.user_profiles u ON u.id=cm.user_id AND u.is_active
+ JOIN auth.users au ON au.id=cm.user_id
+ WHERE cm.company_id=v_company AND cm.is_active
+   AND cm.role='company_owner' AND u.last_company_id=v_company;
+ PERFORM set_config('request.jwt.claim.sub',v_authorized_owner::text,true);
+ IF public.current_company_id() IS DISTINCT FROM v_company
+    OR NOT public.has_company_access(v_company) THEN
+   RAISE EXCEPTION 'Verified Orbit owner context required before account correction';
+ END IF;
 
  SELECT a.id INTO STRICT v_cash
  FROM public.chart_of_accounts a
