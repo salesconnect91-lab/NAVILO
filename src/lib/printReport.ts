@@ -143,6 +143,11 @@ caption{text-align:left;font-size:8pt;font-weight:bold;color:#183e61;margin:2mm 
 .accounting-statement-table .acct-subtotal td{font-weight:bold;background:#f7f9fc;border-top:1px solid #adbed0}
 .accounting-statement-table .acct-total td{font-weight:bold;background:#e9f1f8;border-top:1.5px solid #234e76;border-bottom:1.5px solid #234e76}
 .accounting-statement-table .acct-check td{font-weight:bold;background:#f7f9fc;border-top:1px solid #b7c7d6}
+.navilo-ledger-statement .acct-date{white-space:nowrap!important;overflow-wrap:normal!important;min-width:18mm}
+.navilo-ledger-statement .acct-number,.financial-matrix-document .trp-num{text-align:right!important;white-space:nowrap!important;overflow-wrap:normal!important;font-variant-numeric:tabular-nums}
+.navilo-ledger-statement .navilo-ledger-financial-table th{white-space:nowrap!important;overflow-wrap:normal!important}
+.navilo-ledger-statement .acct-support-title,.financial-matrix-document h3{font-size:9pt;font-weight:bold;margin:4mm 0 1mm;color:#183e61}
+.navilo-ledger-statement .acct-support-note{font-size:7.2pt;color:#52657b;margin:0 0 2mm}
 .document-heading{break-after:avoid}thead tr{break-inside:avoid}table{page-break-inside:auto}
 `;
 
