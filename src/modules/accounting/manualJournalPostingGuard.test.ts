@@ -17,7 +17,7 @@ describe('Isolated PostgreSQL manual Journal non-billing posting guard',()=>{
     try{
       await db.exec(`
         create table public.journal_entries(
-          id uuid primary key,company_id uuid not null,status text not null,
+          id uuid primary key,company_id uuid not null,status text not null,trans_type text,
           source_module text,source_document_type text,source_document_id uuid,
           reversal_of_entry_id uuid
         );
