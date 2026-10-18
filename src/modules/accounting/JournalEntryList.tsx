@@ -37,6 +37,8 @@ type ImportRow = {
 
   accountHead: string;
   accountName: string;
+  lineDescription: string;
+  vehicleNo: string;
   partyType: string;
   partyName: string;
 
@@ -650,7 +652,6 @@ export default function JournalEntryList() {
         "entryno",
         "entrydate",
         "description",
-        "accounthead",
         "accountname",
         "debit",
         "credit",
@@ -730,14 +731,8 @@ export default function JournalEntryList() {
               )
             : "";
 
-        const accountHead =
-          normalize(
-            row[
-              columnIndex(
-                "accounthead"
-              )
-            ]
-          );
+        const accountHeadIndex=columnIndex('accounthead');
+        const accountHead=accountHeadIndex>=0?normalize(row[accountHeadIndex]):'';
 
         const accountName =
           normalize(
@@ -748,7 +743,11 @@ export default function JournalEntryList() {
             ]
           );
 
-        const partyTypeIndex = columnIndex("partytype");
+        const lineDescriptionIndex=columnIndex('linedescription');
+        const lineDescription=lineDescriptionIndex>=0?normalize(row[lineDescriptionIndex]):'';
+        const vehicleNoIndex=columnIndex('vehicleno');
+        const vehicleNo=vehicleNoIndex>=0?normalize(row[vehicleNoIndex]):'';
+        const partyTypeIndex = columnIndex('partytype');
         const partyNameIndex = columnIndex("partyname");
         const partyType = partyTypeIndex >= 0 ? normalize(row[partyTypeIndex]).toLowerCase() : "";
         const partyName = partyNameIndex >= 0 ? normalize(row[partyNameIndex]) : "";
@@ -778,6 +777,8 @@ export default function JournalEntryList() {
           !accountCode &&
           !accountHead &&
           !accountName &&
+          !lineDescription &&
+          !vehicleNo &&
           !partyType &&
           !partyName &&
           debit === 0 &&
@@ -795,6 +796,8 @@ export default function JournalEntryList() {
           accountCode,
           accountHead,
           accountName,
+          lineDescription,
+          vehicleNo,
           partyType,
           partyName,
           debit,
@@ -1798,6 +1801,8 @@ export default function JournalEntryList() {
               account_name:
                 row.accountName ||
                 null,
+              line_description: row.lineDescription||null,
+              vehicle_no: row.vehicleNo||null,
 
               party_type: row.partyType || null,
               party_name: row.partyName || null,
@@ -3130,7 +3135,7 @@ export default function JournalEntryList() {
                     </h3>
 
                     <p className="text-xs text-slate-500 mt-1">
-                      Use the same Description on each row of one Entry No. Account Head and Account Name select the posting account.
+                      Use one Description per Entry No. Account Name maps the GL; Account Head is optional. Line Description and Vehicle No follow Fast Journal rules.
                     </p>
 
                     <p className="text-xs text-slate-500 mt-1">
