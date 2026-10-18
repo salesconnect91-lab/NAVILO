@@ -6,7 +6,10 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthContext";
 import { ErrorBanner, formatCurrency } from "@/components/ui";
-import { exportMatrixToCSV, exportMatrixToWord, triggerPrint } from "@/lib/exportUtils";
+import { exportMatrixToCSV, exportMatrixToWord } from "@/lib/exportUtils";
+import {showPrintDocument} from '@/lib/printDocument';
+import {financialMatrixPrint} from '@/lib/financialMatrixPrint';
+import {fetchAllPages} from '@/lib/fetchAllPages';
 
 type ViewMode = "matrix" | "commercial" | "history" | "exceptions";
 type Row = Record<string, any>;
@@ -28,11 +31,24 @@ export default function SteelStockControl() {
   const [fromDate, setFromDate] = useState(monthStart()); const [toDate, setToDate] = useState(today()); const [asOfDate, setAsOfDate] = useState(today());
 
   const load = useCallback(async () => {
-    setLoading(true); setError(null);
-    const [s, p, h] = await Promise.all([supabase.from("steel_stock_reconciliation").select("*").order("item_name").order("godown").limit(20000), supabase.rpc("steel_period_commercial_summary", { p_from: fromDate, p_to: toDate }), supabase.rpc("steel_stock_as_of", { p_as_of: asOfDate })]);
-    const firstError = s.error ?? p.error ?? h.error; if (firstError) setError(firstError.message);
-    setStock((s.data ?? []) as Row[]); setPeriod((p.data ?? []) as Row[]); setHistory((h.data ?? []) as Row[]); setLoading(false);
-  }, [fromDate, toDate, asOfDate]);
+    setLoading(true);setError(null);
+    try {
+      const [stockRows,periodResponse,historyResponse]=await Promise.all([
+        fetchAllPages<Row>((fromRow,toRow)=>supabase.from('steel_stock_reconciliation')
+          .select('*').order('item_name').order('godown').order('item_id').range(fromRow,toRow)),
+        supabase.rpc('steel_period_commercial_summary',{p_from:fromDate,p_to:toDate}),
+        supabase.rpc('steel_stock_as_of',{p_as_of:asOfDate}),
+      ]);
+      if(periodResponse.error||historyResponse.error)
+        throw periodResponse.error||historyResponse.error;
+      setStock(stockRows);
+      setPeriod((periodResponse.data??[]) as Row[]);
+      setHistory((historyResponse.data??[]) as Row[]);
+    }catch(err){
+      setStock([]);setPeriod([]);setHistory([]);
+      setError(err instanceof Error?err.message:'Unable to load complete Stock Control report.');
+    }finally{setLoading(false)}
+  }, [fromDate,toDate,asOfDate]);
   useEffect(() => { void load(); }, [load]);
 
   const sourceRows = useMemo(() => [...stock, ...period, ...history], [stock, period, history]);
@@ -76,6 +92,21 @@ export default function SteelStockControl() {
     const relevantDate = mode === "commercial" ? `Period=${fromDate} to ${toDate}` : mode === "history" ? `As of=${asOfDate}` : "";
     return [["NAVILO Stock Control"], [`Company: ${activeCompany?.company_name || ""}`], [`Report: ${activeExportTitle}; View=${viewBy}; Category=${category}; ${mode !== "commercial" ? `Godown=${godown}; ` : ""}Search=${search || "All"}; ${relevantDate}`], [], [activeExportTitle], keys, ...activeExportRows.map(row => keys.map(key => row[key] ?? ""))];
   }, [activeCompany?.company_name, activeExportRows, activeExportTitle, viewBy, category, godown, search, fromDate, toDate, asOfDate, mode]);
+  const printStockControl=()=>{
+    if(loading||error)return;
+    const keys=Array.from(new Set(activeExportRows.flatMap(row=>Object.keys(row))));
+    const columns=keys.length?keys:['Record'];
+    const rows=activeExportRows.map(row=>columns.map(key=>{
+      const value=row[key];return typeof value==='number'?value:String(value??'');
+    }));
+    showPrintDocument({html:financialMatrixPrint('Stock Control · '+activeExportTitle,
+      (activeCompany?.company_name||'')+' · '+(viewBy==='categories'?'Categories':'Items')+
+      ' · Category '+category+' · Godown '+godown+
+      ' · '+(mode==='commercial'?fromDate+' to '+toDate:mode==='history'?'As of '+asOfDate:'Current')+
+      ' · '+(search||'All records'),
+      [{title:activeExportTitle,matrix:[columns,...rows]}]),
+      title:'Stock Control · '+activeExportTitle,orientation:'landscape'});
+  };
   const fileBase = `Stock_Control_${mode}_${viewBy}_${today()}`;
   const visibleCount = mode === "matrix" ? (viewBy === "categories" ? categoryMatrixRows.length : matrixRows.length) : mode === "commercial" ? (viewBy === "categories" ? categoryCommercialRows.length : filteredPeriod.length) : mode === "history" ? (viewBy === "categories" ? categoryHistoryRows.length : filteredHistory.length) : (viewBy === "categories" ? categoryExceptionRows.length : exceptions.length);
   const resetFilters = () => { setSearch(""); setCategory("all"); setGodown("all"); setFromDate(monthStart()); setToDate(today()); setAsOfDate(today()); };
@@ -83,7 +114,7 @@ export default function SteelStockControl() {
   const searchPlaceholder = viewBy === "categories" ? "Search category..." : "Search item, category, grade, size...";
 
   return <div className="print-report space-y-4 pb-12" data-print-root data-native-export>
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{activeCompany?.company_name || "NAVILO"}</div><h1 className="mt-1 flex items-center gap-2 text-xl font-black"><Scale className="h-5 w-5 text-blue-600"/>Stock Control</h1><p className="mt-1 text-xs font-semibold text-slate-500">Inventory position, godown distribution, rates, exceptions and historical stock in one control workspace.</p><div className="mt-3 flex flex-wrap items-center gap-2"><span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-blue-700">{modeTitle}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">{viewBy === "categories" ? "Category Summary" : "Item Detail"}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">{visibleCount.toLocaleString()} rows</span></div></div><div className="flex flex-wrap gap-2 print:hidden"><button onClick={exportExcel} className="btn-secondary"><Download className="h-3.5 w-3.5"/> Excel (All Data)</button><button onClick={() => exportMatrixToCSV(fileBase, activeExport)} className="btn-secondary"><Download className="h-3.5 w-3.5"/> CSV</button><button onClick={() => exportMatrixToWord(fileBase, activeExport, `Stock Control - ${activeExportTitle}`)} className="btn-secondary"><FileText className="h-3.5 w-3.5"/> Word</button><button onClick={() => triggerPrint("[data-print-root]")} className="btn-secondary"><Printer className="h-3.5 w-3.5"/> Print / PDF</button><button onClick={() => void load()} className="btn-secondary"><RefreshCw className="h-3.5 w-3.5"/> Refresh</button></div></div></section>
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{activeCompany?.company_name || "NAVILO"}</div><h1 className="mt-1 flex items-center gap-2 text-xl font-black"><Scale className="h-5 w-5 text-blue-600"/>Stock Control</h1><p className="mt-1 text-xs font-semibold text-slate-500">Inventory position, godown distribution, rates, exceptions and historical stock in one control workspace.</p><div className="mt-3 flex flex-wrap items-center gap-2"><span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-blue-700">{modeTitle}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">{viewBy === "categories" ? "Category Summary" : "Item Detail"}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">{visibleCount.toLocaleString()} rows</span></div></div><div className="flex flex-wrap gap-2 print:hidden"><button onClick={exportExcel} className="btn-secondary"><Download className="h-3.5 w-3.5"/> Excel (All Data)</button><button onClick={() => exportMatrixToCSV(fileBase, activeExport)} className="btn-secondary"><Download className="h-3.5 w-3.5"/> CSV</button><button onClick={() => exportMatrixToWord(fileBase, activeExport, `Stock Control - ${activeExportTitle}`)} className="btn-secondary"><FileText className="h-3.5 w-3.5"/> Word</button><button onClick={printStockControl} disabled={loading||!!error} className="btn-secondary"><Printer className="h-3.5 w-3.5"/> Print / PDF</button><button onClick={() => void load()} className="btn-secondary"><RefreshCw className="h-3.5 w-3.5"/> Refresh</button></div></div></section>
     {error && <ErrorBanner message={error}/>} 
     <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">{[["Current Stock", qty(summary.qty)], ["Stock Value", money(summary.value)], ["Variance", qty(summary.variance)], ["Exceptions", String(exceptions.length)], ["Weighted Purchase", money(avgPurchase)], ["Weighted Sale", money(avgSale)], ["Rate Spread", money(spread)], ["Margin %", pct(margin)]].map(([label, value]) => <div key={label} className="summary-card"><div className="summary-label">{label}</div><div className="summary-value">{value}</div></div>)}</div>
     <section className="rounded-xl border border-slate-200 bg-white p-3 print:hidden" data-report-filters><div className="flex flex-wrap gap-2"><button onClick={() => setMode("matrix")} className={mode === "matrix" ? "btn-primary" : "btn-secondary"}><Table2 className="h-3.5 w-3.5"/> Godown Matrix</button><button onClick={() => setMode("commercial")} className={mode === "commercial" ? "btn-primary" : "btn-secondary"}><TrendingUp className="h-3.5 w-3.5"/> Rates & Margin</button><button onClick={() => setMode("history")} className={mode === "history" ? "btn-primary" : "btn-secondary"}><CalendarDays className="h-3.5 w-3.5"/> Historical</button><button onClick={() => setMode("exceptions")} className={mode === "exceptions" ? "btn-primary" : "btn-secondary"}><AlertTriangle className="h-3.5 w-3.5"/> Exceptions</button></div><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-8"><SearchableSelect className="input" value={viewBy} onChange={(e) => { const next=e.target.value === "categories" ? "categories" : "items"; setViewBy(next); }}><option value="items">View by Items</option><option value="categories">View by Categories</option></SearchableSelect><input className="input lg:col-span-2" placeholder={searchPlaceholder} value={search} onChange={(e) => setSearch(e.target.value)}/><SearchableSelect className="input" value={category} onChange={(e) => setCategory(e.target.value)}><option value="all">All Categories</option>{categories.map((x) => <option key={x}>{x}</option>)}</SearchableSelect>{mode !== "commercial" && <SearchableSelect className="input" value={godown} onChange={(e) => setGodown(e.target.value)}><option value="all">All Godowns</option>{godowns.map((x) => <option key={x}>{x}</option>)}</SearchableSelect>}{mode === "commercial" && <><NaviloDateInput className="input" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}/><NaviloDateInput className="input" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)}/></>}{mode === "history" && <NaviloDateInput className="input" type="date" value={asOfDate} onChange={(e) => setAsOfDate(e.target.value)}/>}<button type="button" onClick={resetFilters} className="btn-secondary"><RotateCcw className="h-3.5 w-3.5"/> Reset</button></div><div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3"><div className="text-[11px] font-bold text-slate-500">Showing <span className="text-slate-900">{visibleCount.toLocaleString()}</span> {viewBy === "categories" ? "categories" : "records"} · {modeTitle}</div><div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{category === "all" ? "All categories" : category}{godown !== "all" && mode !== "commercial" ? ` · ${godown}` : ""}</div></div></section>
