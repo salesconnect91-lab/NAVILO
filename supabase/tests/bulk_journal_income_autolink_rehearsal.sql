@@ -81,6 +81,22 @@ BEGIN
  OR (SELECT count(*) FROM public.journal_lines WHERE entry_id=id2)<>2 THEN
   RAISE EXCEPTION 'Shared expense vehicle not tagged exactly once';END IF;
 
+ -- A shared Revenue GL remains selected even for a vehicle without a legacy Income link.
+ result:=public.bulk_load_journal_entries(jsonb_build_array(jsonb_build_object(
+  'entry_no','BULK-SHARED-'||code,'entry_date',current_date::text,'description','Shared Revenue vehicle',
+  'lines',jsonb_build_array(
+   jsonb_build_object('account_name',(SELECT name FROM public.chart_of_accounts WHERE id=
+      (SELECT account_id FROM public.account_mappings WHERE company_id=c AND mapping_key='service_revenue')),
+      'vehicle_no','BV-B-'||code,'debit',0,'credit',75),
+   jsonb_build_object('account_name',(SELECT name FROM public.chart_of_accounts WHERE id=cash),'debit',75,'credit',0)
+  )
+ )));
+ IF (SELECT count(*) FROM public.journal_lines
+     WHERE entry_id=(result->'entries'->0->>'id')::uuid
+       AND account_id=(SELECT account_id FROM public.account_mappings WHERE company_id=c AND mapping_key='service_revenue')
+       AND transport_vehicle_id=v2)<>1
+ THEN RAISE EXCEPTION 'Shared Revenue account changed or Vehicle No attribution was lost';END IF;
+
  -- Explicit wrong vehicle for dedicated income must fail and create no draft.
  bad:=false;
  BEGIN
