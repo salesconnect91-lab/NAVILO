@@ -37,3 +37,16 @@ export function vehicleForIncomeAccount(
  const match=links.find(v=>v.revenue_account_id===accountId&&validVehicleIds.includes(v.id));
  return match?.id??'';
 }
+
+/** Dedicated vehicle revenue already encodes vehicle identity in the GL.
+ * Hide its duplicate editable selector, but keep the saved dimension for reports.
+ * Shared revenue and expense GLs must still offer a vehicle selector.
+ */
+export function incomeVehicleAlreadyLinked(
+ accountId:string, accountType:string|undefined, vehicleId:string,
+ links:readonly VehicleIncomeLink[],eligibleVehicleIds:readonly string[],
+):boolean{
+ if(!isRevenueType(accountType)||!accountId||!vehicleId)return false;
+ const matching=links.filter(link=>link.revenue_account_id===accountId);
+ return matching.length===1&&matching[0].id===vehicleId&&eligibleVehicleIds.includes(vehicleId);
+}
