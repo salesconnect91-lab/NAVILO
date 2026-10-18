@@ -63,10 +63,10 @@ export default function PaymentReversals(){
   const reverse=async()=>{
     if(!target)return;
     if(!ownerAllowed){setError('Only the active company owner or platform owner may reverse posted vouchers.');return;}
-    if(!reason.trim()){setError("Reversal reason is required.");return;}
+    if(reason.trim().length<10){setError("A cancellation reason of at least 10 characters is required.");return;}
     setBusy(target.id);setError("");
     try{
-      const {data,error:e}=await supabase.rpc("reverse_payment_voucher",{p_journal_entry_id:target.id,p_reversal_date:date,p_reason:reason.trim()});
+      const {data,error:e}=await supabase.rpc("owner_cancel_unallocated_payment",{p_entry_id:target.id,p_reversal_date:date,p_reason:reason.trim()});
       if(e)throw e;
       setTarget(null);setReason("");await load();window.alert(`${(data as any)?.reversal_entry_no||"Reversal"} posted successfully.`);
     }catch(e:any){setError(e?.message||"Could not reverse payment voucher.");}
@@ -74,7 +74,7 @@ export default function PaymentReversals(){
   };
 
   return <div className="space-y-4">
-    <PageHeader title="Payment Voucher Reversals" subtitle="Reverse a posted customer receipt or supplier payment through a separate audited journal. Original vouchers are never edited or deleted." action={<div className="flex items-center gap-2"><span data-navilo-standard-tools-host className="contents" /></div>}/>
+    <PageHeader title="Payment Voucher Reversals" subtitle="Owner-only cancellation of eligible unallocated customer receipts or supplier payments. Allocated, FX and Transport-linked vouchers require separate controlled correction. Originals remain posted and locked." action={<div className="flex items-center gap-2"><span data-navilo-standard-tools-host className="contents" /></div>}/>
     {!ownerAllowed&&<p className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">Posted payment reversal is restricted to the active Company Owner or Platform Owner. This list remains read-only for other users.</p>}
     {error&&<ErrorBanner message={error}/>}<div className="card flex flex-wrap items-center gap-2 p-4" data-no-print data-no-export><input className="input min-w-64 flex-1" value={search} onChange={e=>{setSearch(e.target.value);setPage(0)}} placeholder="Search voucher, party, method..."/><SearchableSelect className="input w-auto" value={kind} onChange={e=>{setKind(e.target.value as any);setPage(0)}}><option value="all">All payments</option><option value="Customer Receipt">Customer Receipts</option><option value="Supplier Payment">Supplier Payments</option></SearchableSelect><button className="btn btn-secondary" disabled={loading||busy!==null} onClick={()=>void load()}><RefreshCw size={15}/>Refresh</button></div>
 
@@ -85,6 +85,6 @@ export default function PaymentReversals(){
     </section>
     <TransportPagination page={page} pageSize={250} count={count} busy={loading||busy!==null} onPage={setPage}/>
 
-    {target&&<div className="fixed inset-0 z-[180] flex items-center justify-center bg-slate-950/50 p-4" data-no-print data-no-export><div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-2xl"><h2 className="text-lg font-bold">Reverse {target.entry_no}</h2><p className="mt-1 text-sm text-slate-500">This creates a new opposite journal and restores invoice allocation/outstanding. The original posted voucher remains in audit history.</p><div className="mt-4 grid gap-3"><label className="text-sm font-semibold">Reversal Date<NaviloDateInput className="input mt-1" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label className="text-sm font-semibold">Mandatory Reason<textarea className="input mt-1" value={reason} onChange={e=>setReason(e.target.value)} placeholder="Wrong amount / wrong party / bank entry correction..."/></label></div><div className="mt-5 flex justify-end gap-2"><button className="btn btn-secondary" onClick={()=>setTarget(null)}>Cancel</button><button className="btn btn-danger" disabled={busy===target.id||!reason.trim()} onClick={()=>void reverse()}><RotateCcw size={14}/>{busy===target.id?"Reversing...":"Post Reversal"}</button></div></div></div>}
+    {target&&<div className="fixed inset-0 z-[180] flex items-center justify-center bg-slate-950/50 p-4" data-no-print data-no-export><div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-2xl"><h2 className="text-lg font-bold">Reverse {target.entry_no}</h2><p className="mt-1 text-sm text-slate-500">This creates a new opposite journal and restores invoice allocation/outstanding. The original posted voucher remains in audit history.</p><div className="mt-4 grid gap-3"><label className="text-sm font-semibold">Reversal Date<NaviloDateInput className="input mt-1" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label className="text-sm font-semibold">Mandatory Reason<textarea className="input mt-1" value={reason} onChange={e=>setReason(e.target.value)} placeholder="Wrong amount / wrong party / bank entry correction..."/></label></div><div className="mt-5 flex justify-end gap-2"><button className="btn btn-secondary" onClick={()=>setTarget(null)}>Cancel</button><button className="btn btn-danger" disabled={busy===target.id||reason.trim().length<10} onClick={()=>void reverse()}><RotateCcw size={14}/>{busy===target.id?"Reversing...":"Post Reversal"}</button></div></div></div>}
   </div>
 }
