@@ -1,4 +1,5 @@
 import {useEffect,useMemo,useState} from 'react';
+import SearchableSelect from '@/components/SearchableSelect';
 import {useAuth} from '@/auth/AuthContext';
 import {hasPermission} from '@/auth/permissions';
 import {supabase} from '@/lib/supabase';
@@ -77,9 +78,9 @@ export default function TransportCustomerBillingModes({side='customer'}:{side?:'
   {success&&<p role="status" className="rounded-md bg-emerald-50 px-2 py-1.5 text-xs text-emerald-700">{success}</p>}
   <div className="flex flex-wrap items-center gap-2">
    <input aria-label="Find billing customer" className="input h-9 min-w-[180px] flex-1 text-xs" placeholder="Search parties..." value={search} onChange={e=>setSearch(e.target.value)}/>
-   <select aria-label="Filter customer billing modes" className="input h-9 min-w-[150px] text-xs" value={modeFilter} onChange={e=>setModeFilter(e.target.value as ModeFilter)}>
+   <SearchableSelect nativeCompatibility aria-label="Filter customer billing modes" className="input h-9 min-w-[150px] text-xs" value={modeFilter} onChange={e=>setModeFilter(e.target.value as ModeFilter)}>
     <option value="all">All {side==='customer'?'customers':'suppliers'}</option><option value="unset">Not configured</option><option value="Cash">Cash · Without VAT</option><option value="Credit">Credit · With VAT</option>
-   </select>
+   </SearchableSelect>
   </div>
   <div className="max-h-[350px] overflow-auto rounded-md border border-slate-200">
    <table className="w-full text-left text-[11px]">
@@ -91,9 +92,9 @@ export default function TransportCustomerBillingModes({side='customer'}:{side?:'
     <tbody>{filtered.map(r=><tr key={r.id} className="border-t border-slate-100">
      <td className="px-2 py-1.5 font-semibold text-slate-800">{r.name}</td>
      <td className="px-2 py-1.5 tabular-nums text-slate-600">{r.cash_invoices} / {r.credit_invoices}{r.cash_invoices>0&&r.credit_invoices>0?<span className="ml-1 text-amber-700">Mixed billing</span>:null}</td>
-     <td className="px-2 py-1"><select aria-label={`Billing mode for ${r.name}`} className="input h-8 w-full min-w-[145px] py-0 text-[11px]" value={r.mode??''} disabled={!canEdit||busy!==null} onChange={e=>{if(e.target.value==='Cash'||e.target.value==='Credit')void save(r.id,e.target.value as Mode)}}>
+     <td className="px-2 py-1"><SearchableSelect nativeCompatibility aria-label={`Billing mode for ${r.name}`} className="input h-8 w-full min-w-[145px] py-0 text-[11px]" value={r.mode??''} disabled={!canEdit||busy!==null} onChange={e=>{if(e.target.value==='Cash'||e.target.value==='Credit')void save(r.id,e.target.value as Mode)}}>
       <option value="">Not configured</option><option value="Cash">Cash · Without VAT</option><option value="Credit">Credit · With VAT</option>
-     </select></td>
+     </SearchableSelect></td>
     </tr>)}</tbody>
    </table>
    {filtered.length===0&&<p className="p-4 text-center text-xs text-slate-500">No customers match your search or filter.</p>}

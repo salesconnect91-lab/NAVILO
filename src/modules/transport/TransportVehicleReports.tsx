@@ -1,4 +1,5 @@
 import TransportVehicleAccountingReport from './TransportVehicleAccountingReport';
+import SearchableSelect from '@/components/SearchableSelect';
 import {useEffect, useMemo, useState} from 'react';
 import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
@@ -309,22 +310,22 @@ export function TransportVehicleOperationalReport() {
     </p>
     <div className="flex flex-wrap items-end gap-2">
       <label className="text-xs">Vehicle scope
-        <select aria-label="Vehicle scope" className="input block" value={fleetScope}
+        <SearchableSelect nativeCompatibility aria-label="Vehicle scope" className="input block" value={fleetScope}
           onChange={event => {setFleetScope(event.target.value as FleetScope); setVehicleId('');}}>
           <option value="owned">Company fleet</option>
           <option value="all">All vehicles (incl. hired)</option>
-        </select>
+        </SearchableSelect>
       </label>
       <label className="text-xs">Find vehicle / plate
         <input aria-label="Find vehicle" className="input block min-w-44" value={vehicleSearch}
           onChange={event => setVehicleSearch(event.target.value)} placeholder="Search plate number" />
       </label>
       <label className="text-xs">Vehicle
-        <select aria-label="Vehicle for report" className="input block min-w-52" value={vehicleId}
+        <SearchableSelect nativeCompatibility aria-label="Vehicle for report" className="input block min-w-52" value={vehicleId}
           onChange={event => setVehicleId(event.target.value)}>
           <option value="">Select vehicle</option>
           {matching.map(vehicle => <option key={vehicle.id} value={vehicle.id}>{vehicle.vehicle_no}</option>)}
-        </select>
+        </SearchableSelect>
       </label>
       <label className="text-xs">From Trip Date
         <NaviloDateInput className="input block" value={from} onChange={event => setFrom(event.target.value)} />
