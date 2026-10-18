@@ -74,6 +74,10 @@ describe('Isolated PostgreSQL manual Journal non-billing posting guard',()=>{
           'insert into public.journal_entries(id,company_id,status,source_module,source_document_type,source_document_id) values ($1,$2,$3,$4,$5,$6)',
           [forgedId,cid,'draft','sales','sales_invoice',uuid()]
         )).rejects.toThrow(/Source-document references cannot be supplied/);
+        await expect(db.query(
+          'insert into public.journal_entries(id,company_id,status,trans_type) values($1,$2,$3,$4)',
+          [uuid(),cid,'draft','Sales Invoice']
+        )).rejects.toThrow(/Source-document references cannot be supplied/);
       } finally { await db.exec('reset role'); }
     }finally{await db.close();}
   });
