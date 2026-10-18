@@ -76,6 +76,51 @@ export function cleanReportTable(table: HTMLTableElement) {
   return clone;
 }
 
+/** Column-safe global report print. Only split rectangular tables; complex merged headers
+ * remain untouched rather than risking a different financial meaning.
+ * All source cells are cloned verbatim, with no amount recalculation.
+ */
+export function splitWidePrintTable(table:HTMLTableElement,maxColumns=9):HTMLTableElement[]{
+ const head=table.tHead;
+ if(!head||head.rows.length!==1||table.tBodies.length!==1)return [table];
+ const width=head.rows[0].cells.length;
+ if(width<=maxColumns||width<1)return [table];
+ const tableRows=[...Array.from(table.tBodies[0].rows),...Array.from(table.tFoot?.rows||[])];
+ if([...Array.from(head.rows[0].cells),...tableRows.flatMap(r=>Array.from(r.cells))]
+   .some(cell=>cell.colSpan!==1||cell.rowSpan!==1)||tableRows.some(row=>row.cells.length!==width))return [table];
+ const headers=Array.from(head.rows[0].cells).map(cell=>(cell.textContent||'').trim());
+ const identifiers=headers.flatMap((label,i)=>
+  /^(?:date|trip(?: no)?|invoice(?: no)?|customer|supplier|party|item|sku|account|category|document(?: no)?|reference)$/i.test(label)?[i]:[]).slice(0,2);
+ if(!identifiers.length)identifiers.push(0);
+ const anchor=new Set(identifiers);
+ const others=headers.map((_,i)=>i).filter(i=>!anchor.has(i));
+ const financial=others.filter(i=>/amount|debit|credit|balance|gross|net|received|paid|outstanding|cost|value|qty|quantity|closing|opening|margin|rate|VAT|tax/i.test(headers[i]));
+ const remaining=others.filter(i=>!financial.includes(i));
+ const first=[...identifiers,...financial.slice(0,maxColumns-identifiers.length)];
+ if(first.length===identifiers.length)first.push(...remaining.splice(0,maxColumns-identifiers.length));
+ const firstSet=new Set(first);
+ const leftovers=others.filter(i=>!firstSet.has(i));
+ const groups=[first];
+ const batch=maxColumns-identifiers.length;
+ for(let i=0;i<leftovers.length;i+=batch)groups.push([...identifiers,...leftovers.slice(i,i+batch)]);
+ return groups.map(indexes=>{
+   const next=table.cloneNode(false) as HTMLTableElement;
+   const thead=next.createTHead();const h=thead.insertRow();
+   indexes.forEach(i=>h.appendChild(head.rows[0].cells[i].cloneNode(true)));
+   const tbody=next.createTBody();
+   for(const row of Array.from(table.tBodies[0].rows)){
+     const tr=tbody.insertRow();
+     tr.className=row.className;
+     indexes.forEach(i=>tr.appendChild(row.cells[i].cloneNode(true)));
+   }
+   if(table.tFoot){const tfoot=next.createTFoot();for(const row of Array.from(table.tFoot.rows)){
+     const tr=tfoot.insertRow();tr.className=row.className;
+     indexes.forEach(i=>tr.appendChild(row.cells[i].cloneNode(true)));
+   }}
+   return next;
+ });
+}
+
 export async function buildReport(target: HTMLElement, identity: PrintIdentity, title?: string) {
   const statusRoot = target.closest('[data-report-root],main') || target;
   const error = statusRoot.matches('[data-print-error]') ? statusRoot : statusRoot.querySelector('[data-print-error]');
@@ -97,10 +142,11 @@ export async function buildReport(target: HTMLElement, identity: PrintIdentity, 
   if (summaries.length) report.insertAdjacentHTML('beforeend',`<section class="document-summary">${summaries.map(r=>`<div><span>${escapePrintHtml(r.label)}</span><strong>${escapePrintHtml(r.value)}</strong></div>`).join('')}</section>`);
   const descriptions = Array.from((primary || clone).querySelectorAll<HTMLElement>('[data-print-description]')).map(node=>printReportDescription(text(node))).filter(Boolean);
   if(descriptions.length)report.insertAdjacentHTML('beforeend',`<p class="document-scope">${[...new Set(descriptions)].map(escapePrintHtml).join(' · ')}</p>`);
-  tables.forEach((table,index) => {
+  const printableTables=tables.flatMap(table=>splitWidePrintTable(table));
+  printableTables.forEach((table,index) => {
     const caption=table.caption;
     if(caption && text(caption)===reportTitle)caption.remove();
-    if (tables.length > 1) {const h = document.createElement('h2');h.textContent=`${reportTitle} · Section ${index+1}`;report.appendChild(h);}
+    if (printableTables.length > 1) {const h = document.createElement('h2');h.textContent=`${reportTitle} · Section ${index+1}`;report.appendChild(h);}
     report.appendChild(table);
   });
   if (!tables.length && !summaries.length) {
@@ -109,7 +155,7 @@ export async function buildReport(target: HTMLElement, identity: PrintIdentity, 
     else throw new Error('This screen has no document or report data to print. Open the relevant report first.');
   }
   const preferred = clone.querySelector<HTMLElement>('[data-print-report-title][data-report-orientation]')?.dataset.reportOrientation || primary?.dataset.reportOrientation || primary?.querySelector<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation || (!primary ? target.querySelector<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation || target.closest<HTMLElement>('[data-report-orientation]')?.dataset.reportOrientation : undefined);
-  const width = tables.reduce((max,t)=>Math.max(max,Array.from(t.tHead?.rows[0]?.cells || []).reduce((sum,c)=>sum+c.colSpan,0)),0);
+  const width = printableTables.reduce((max,t)=>Math.max(max,Array.from(t.tHead?.rows[0]?.cells || []).reduce((sum,c)=>sum+c.colSpan,0)),0);
   const orientation: PrintOrientation = preferred === 'portrait' || preferred === 'landscape' ? preferred : width >= 7 ? 'landscape' : 'portrait';
   return {html:report.outerHTML,title:reportTitle,orientation};
 }
