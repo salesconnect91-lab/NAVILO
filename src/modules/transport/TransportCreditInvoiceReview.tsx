@@ -13,6 +13,7 @@ type ReviewRow={
  journal_lines:number;journal_net:number;review_lane:string;
  source_reference_candidate:string|null;distinct_source_references:number;
  already_posted_reference_matches:number;different_customer_reference_matches:number;matched_posted_total:number;
+ source_import_cell:string;source_import_distinct_values:number;source_import_row_first:number|null;source_import_row_last:number|null;
 };
 type Review={rows:ReviewRow[];count:number;gross:number;paid:number;outstanding:number};
 const empty:Review={rows:[],count:0,gross:0,paid:0,outstanding:0};
@@ -31,19 +32,32 @@ function validResponse(x:unknown):x is Review{
  return Array.isArray(r.rows)&&Number.isSafeInteger(Number(r.count))&&Number(r.count)>=0
   &&[r.gross,r.paid,r.outstanding].every(n=>n!==null&&n!==undefined&&Number.isFinite(Number(n)));
 }
+function evidenceNextStep(row:ReviewRow):string{
+ const cell=(row.source_import_cell??'').trim().toUpperCase();
+ if(Number(row.already_posted_reference_matches)>0)return 'Number already posted: verify customer, Trip, amount and original document; no renaming';
+ if(Number(row.source_import_distinct_values)>1)return 'Conflicting import cells: compare original spreadsheet rows';
+ if(cell==='CLEARED')return 'Settlement marker: reconcile original payment and allocation evidence';
+ if(cell==='NO INVOICE')return 'No invoice marker: verify if invoice was ever issued before any correction';
+ if(cell==='CRN'||cell.includes('ADJUST'))return 'Adjustment marker: verify credit note or adjustment evidence';
+ if(!cell)return 'Blank original number: obtain original invoice evidence, then review posting';
+ if(!row.source_reference_candidate)return 'Non-invoice source note: review original evidence';
+ return 'Unverified reference: compare original document before correction';
+}
 function reportFor(rows:ReviewRow[],totals:Review,lane:Lane,search:string,page:number):ReportTable{
  const numbers=(v:unknown)=>Number(v??0);
  return {
   title:'Transport Credit Invoice Number — Evidence Review',
   description:'Read-only correction queue for posted generated-number Credit Trip invoices. Source references are unverified evidence, NOT approved replacement numbers. Date is the recorded invoice date. Totals cover the complete active filter, not just the displayed page. No invoice renumbering, VAT correction, payment allocation or journal posting is performed. '+(lane==='all'?'All lanes':lanes.find(x=>x.value===lane)?.label)+' · '+totals.count+' invoices · '+(search?'Search: '+search:'No search')+' · Page '+(page+1),
-  columns:['Invoice Date','Generated Invoice No','Source reference (unverified)','Distinct source refs','Linked Trips','Review lane','Gross','Paid','Outstanding','Allocations','Allocated','Journal lines','Journal net','Reference status','Posted invoice matches','Different-customer matches','Matched posted gross'],
+  columns:['Invoice Date','Generated Invoice No','Source reference (unverified)','Distinct source refs','Linked Trips','Review lane','Gross','Paid','Outstanding','Allocations','Allocated','Journal lines','Journal net','Reference status','Posted invoice matches','Different-customer matches','Matched posted gross','Original import cell','Source row(s)','Original import values','Required verification'],
   rows:[
    ...rows.map(x=>[formatNaviloDate(x.order_date),x.invoice_no,x.source_reference_candidate??'',numbers(x.distinct_source_references),numbers(x.trip_count),x.review_lane,numbers(x.total),numbers(x.paid),numbers(x.outstanding),numbers(x.allocations),numbers(x.allocated),numbers(x.journal_lines),numbers(x.journal_net),
      numbers(x.distinct_source_references)>1?'Multiple source references — manual review':
      !x.source_reference_candidate?'Original reference missing':
      numbers(x.already_posted_reference_matches)>0?'NUMBER ALREADY POSTED — DO NOT RENAME':'Unverified reference — manual review',
-     numbers(x.already_posted_reference_matches),numbers(x.different_customer_reference_matches),numbers(x.matched_posted_total)]),
-   ['TOTAL · complete filter','','','','','',numbers(totals.gross),numbers(totals.paid),numbers(totals.outstanding),'','','','','','',''],
+     numbers(x.already_posted_reference_matches),numbers(x.different_customer_reference_matches),numbers(x.matched_posted_total),
+     x.source_import_cell??'',x.source_import_row_first==null?'':String(x.source_import_row_first)+(x.source_import_row_last==null||x.source_import_row_last===x.source_import_row_first?'':'–'+x.source_import_row_last),
+     numbers(x.source_import_distinct_values),evidenceNextStep(x)]),
+   ['TOTAL · complete filter','','','','','',numbers(totals.gross),numbers(totals.paid),numbers(totals.outstanding),'','','','','','','','','','',''],
   ]
  };
 }
