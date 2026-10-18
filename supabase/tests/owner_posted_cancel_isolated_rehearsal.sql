@@ -74,6 +74,9 @@ begin
   if not public.owner_posted_control_access() then
     raise exception 'FAIL: active software owner cannot access cancellation';
   end if;
+  if has_function_privilege('authenticated','public.reverse_payment_voucher(uuid,date,text)','EXECUTE') then
+    raise exception 'FAIL: authenticated users can bypass audited Owner Cancel payment workflow';
+  end if;
   begin
     perform public.owner_cancel_manual_journal(v_journal,current_date-1,'Old date must be rejected');
     raise exception 'FAIL: cancellation accepted date before original journal';
