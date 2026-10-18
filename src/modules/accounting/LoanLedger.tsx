@@ -1,11 +1,13 @@
 import ImportedAccountBalances from "@/components/ImportedAccountBalances";
 import {currentCurrency} from "@/components/ui";
-import { createPrintDocument } from "@/lib/printDocument";
+import { createPrintDocument,showPrintDocument } from "@/lib/printDocument";
+import {financialMatrixPrint} from "@/lib/financialMatrixPrint";
+import {fetchAllPages} from "@/lib/fetchAllPages";
+import {loanRunningBalances,filterLoanRunningBalances} from "./loanLedgerBalance";
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileDown, Plus, Printer, RefreshCw } from "lucide-react";
-import jsPDF from "jspdf";
 import { supabase } from "@/lib/supabase";
 import { exportMatrixToCSV, exportMatrixToExcel, exportMatrixToWord } from "@/lib/exportUtils";
 
@@ -22,24 +24,50 @@ export default function LoanLedger(){
  const [newName,setNewName]=useState(""),[newPhone,setNewPhone]=useState(""),[showNew,setShowNew]=useState(false),[showBalances,setShowBalances]=useState(true),[search,setSearch]=useState("");
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState<string|null>(null),[message,setMessage]=useState<string|null>(null);
 
- const load=useCallback(async()=>{setLoading(true);setError(null);const [lr,tr,ar]=await Promise.all([
-  supabase.from("loan_parties").select("id,name,phone,notes,is_active").eq("is_active",true).order("name"),
-  supabase.from("loan_party_transactions").select("id,lender_id,journal_entry_id,transaction_date,transaction_type,amount,reference,notes,created_at").order("transaction_date",{ascending:true}).order("created_at",{ascending:true}),
-  supabase.from("chart_of_accounts").select("id,name,detail_type").eq("is_active",true).eq("is_group",false).eq("allow_manual_entries",true).in("detail_type",["Cash on Hand","Bank Account"]).order("code")
- ]);if(lr.error||tr.error||ar.error)setError(lr.error?.message||tr.error?.message||ar.error?.message||"Failed to load loan ledger.");setLenders((lr.data||[]) as Lender[]);setRows(((tr.data||[]) as any[]).map(r=>({...r,amount:Number(r.amount||0)})));setAccounts((ar.data||[]) as Account[]);if(!accountId&&(ar.data||[])[0]?.id)setAccountId((ar.data||[])[0].id);setLoading(false)},[accountId]);
+ const load=useCallback(async()=>{
+  setLoading(true);setError(null);
+  try{
+    const [lr,tr,ar]=await Promise.all([
+      fetchAllPages<Lender>((a,b)=>supabase.from('loan_parties')
+        .select('id,name,phone,notes,is_active').eq('is_active',true).order('name').order('id').range(a,b)),
+      fetchAllPages<Tx>((a,b)=>supabase.from('loan_party_transactions')
+        .select('id,lender_id,journal_entry_id,transaction_date,transaction_type,amount,reference,notes,created_at')
+        .order('transaction_date',{ascending:true}).order('created_at',{ascending:true}).order('id').range(a,b)),
+      fetchAllPages<Account>((a,b)=>supabase.from('chart_of_accounts')
+        .select('id,name,detail_type').eq('is_active',true).eq('is_group',false)
+        .eq('allow_manual_entries',true).in('detail_type',['Cash on Hand','Bank Account']).order('name').order('id').range(a,b)),
+    ]);
+    setLenders(lr);setRows(tr.map(row=>({...row,amount:Number(row.amount||0)})));setAccounts(ar);
+    setAccountId(current=>current||(ar[0]?.id??''));
+  }catch(err){
+    setError(err instanceof Error?err.message:'Unable to load complete Loan Ledger.');
+    setRows([]);setLenders([]);setAccounts([]);
+  }finally{setLoading(false)}
+ },[]);
  useEffect(()=>{void load()},[load]);
 
  const selectedLender=lenders.find(x=>x.id===lenderId);
- const lenderRows=useMemo(()=>{let bal=0;return rows.filter(r=>(!lenderId||r.lender_id===lenderId)).filter(r=>!search.trim()||`${r.reference||""} ${r.notes||""} ${lenders.find(l=>l.id===r.lender_id)?.name||""}`.toLowerCase().includes(search.toLowerCase())).map(r=>{bal+=r.transaction_type==="loan_received"?r.amount:-r.amount;return {...r,balance:bal}})},[rows,lenderId,search,lenders]);
+ const balancedRows=useMemo(()=>loanRunningBalances(rows),[rows]);
+ const lenderRows=useMemo(()=>filterLoanRunningBalances(balancedRows,lenderId,search,new Map(lenders.map(l=>[l.id,l.name]))),[balancedRows,lenderId,search,lenders]);
  const totals=useMemo(()=>lenderRows.reduce((a,r)=>({received:a.received+(r.transaction_type==="loan_received"?r.amount:0),repaid:a.repaid+(r.transaction_type==="loan_repayment"?r.amount:0)}),{received:0,repaid:0}),[lenderRows]);
- const outstanding=Math.max(totals.received-totals.repaid,0);
+ const outstanding=useMemo(()=>{
+  const last=new Map<string,number>();
+  for(const row of balancedRows)if(!lenderId||row.lender_id===lenderId)last.set(row.lender_id,row.balance);
+  return [...last.values()].reduce((sum,value)=>sum+value,0);
+ },[balancedRows,lenderId]);
  const matrix=()=>[["Lender","Date","Voucher / JE","Type","Received","Repaid",...(showBalances?["Balance"]:[]),"Reference","Notes"],...lenderRows.map(r=>[lenders.find(l=>l.id===r.lender_id)?.name||"",r.transaction_date,r.journal_entry_id||"",r.transaction_type==="loan_received"?"Loan Received":"Loan Repayment",r.transaction_type==="loan_received"?r.amount:0,r.transaction_type==="loan_repayment"?r.amount:0,...(showBalances?[r.balance||0]:[]),r.reference||"",r.notes||""])];
 
  const addLender=async()=>{setError(null);setMessage(null);if(!newName.trim()){setError("Enter lender name.");return}setSaving(true);const {data,error:e}=await supabase.rpc("create_loan_party",{p_name:newName.trim(),p_phone:newPhone.trim()||null,p_notes:null} as any);setSaving(false);if(e){setError(e.message);return}setMessage("Lender saved.");setShowNew(false);setNewName("");setNewPhone("");await load();if(data)setLenderId(String(data))};
  const post=async()=>{setError(null);setMessage(null);const v=Number(amount);if(!lenderId||!date||!accountId||!Number.isFinite(v)||v<=0){setError("Select lender, Cash/Bank and enter amount.");return}setSaving(true);const {data,error:e}=await supabase.rpc("post_loan_party_transaction",{p_lender_id:lenderId,p_transaction_type:type,p_transaction_date:date,p_cash_bank_account_id:accountId,p_amount:v,p_reference:reference.trim()||null,p_notes:notes.trim()||null} as any);setSaving(false);if(e){setError(e.message);return}setMessage(`Posted: ${(data as any)?.entry_no||"Loan transaction"}`);setAmount("");setReference("");setNotes("");await load()};
 
  const printTx=(r:Tx)=>{const lender=lenders.find(l=>l.id===r.lender_id)?.name||"";const title=r.transaction_type==="loan_received"?"LOAN RECEIPT VOUCHER":"LOAN REPAYMENT VOUCHER";const w=createPrintDocument();if(!w)return;w.document.write(`<html><head><title>${title}</title><style>body{font-family:Arial;padding:36px;color:#111}h1{text-align:center}.row{display:flex;justify-content:space-between;border-bottom:1px solid #ddd;padding:10px 0}.sig{display:flex;justify-content:space-between;margin-top:70px;font-size:12px}</style></head><body><h1>${title}</h1><div class="row"><b>Lender</b><span>${escapeHtml(lender)}</span></div><div class="row"><b>Date</b><span>${r.transaction_date}</span></div><div class="row"><b>Amount</b><span>${currentCurrency()} ${money(r.amount)}</span></div>${showBalances?`<div class="row"><b>Balance After</b><span>${currentCurrency()} ${money(r.balance||0)}</span></div>`:""}<div class="row"><b>Reference</b><span>${escapeHtml(r.reference||"-")}</span></div><div class="row"><b>Notes</b><span>${escapeHtml(r.notes||"-")}</span></div><div class="sig"><span>Prepared By ______</span><span>Authorized By ______</span><span>Lender / Receiver ______</span></div><script>window.onload=()=>window.print()</script></body></html>`);w.document.close()};
- const downloadPdf=()=>{const doc=new jsPDF({orientation:"landscape"});doc.setFontSize(16);doc.text("Loan & Lender Ledger",14,16);doc.setFontSize(10);doc.text(`Lender: ${selectedLender?.name||"All Lenders"}`,14,24);doc.text(`Received: ${currentCurrency()} ${money(totals.received)}   Repaid: ${currentCurrency()} ${money(totals.repaid)}   Outstanding: ${currentCurrency()} ${money(outstanding)}`,14,31);let y=40;lenderRows.forEach(r=>{if(y>190){doc.addPage();y=16}const lender=lenders.find(l=>l.id===r.lender_id)?.name||"";doc.text(`${r.transaction_date} | ${lender} | ${r.transaction_type==="loan_received"?"Received":"Repaid"} | ${currentCurrency()} ${money(r.amount)}${showBalances?` | Bal ${currentCurrency()} ${money(r.balance||0)}`:""}`,14,y);y+=7});doc.save("Loan_Lender_Ledger.pdf")};
+ const printLedger=()=>{
+  if(loading||error)return;
+  showPrintDocument({html:financialMatrixPrint('Loan & Lender Ledger',
+    'Lender: '+(selectedLender?.name||'All Lenders')+' · Net outstanding '+currentCurrency()+' '+money(outstanding),
+    [{title:'Loan Receipt and Repayment Detail',matrix:matrix()}]),
+    title:'Loan & Lender Ledger',orientation:'landscape'});
+ };
 
  return <div className="space-y-4" data-print-root>
   <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-xl font-bold">Loan & Lender Ledger</h1><p className="text-sm text-slate-500">Create lenders, receive/repay loans and track lender-wise outstanding balances.</p></div><button className="btn-secondary no-print" onClick={()=>void load()}><RefreshCw className="h-4 w-4"/>Refresh</button></div>
@@ -49,9 +77,9 @@ export default function LoanLedger(){
    <div className="grid gap-3 md:grid-cols-4"><label className="text-sm font-semibold">Lender<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" value={lenderId} onChange={e=>setLenderId(e.target.value)}><option value="">Select lender...</option>{lenders.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</NaviloSearchableSelect></label><label className="text-sm font-semibold">Transaction Type<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" value={type} onChange={e=>setType(e.target.value as any)}><option value="loan_received">Loan Received</option><option value="loan_repayment">Loan Repayment</option></NaviloSearchableSelect></label><label className="text-sm font-semibold">Date<NaviloDateInput className="input mt-1 w-full" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label className="text-sm font-semibold">Cash / Bank<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" value={accountId} onChange={e=>setAccountId(e.target.value)}>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</NaviloSearchableSelect></label><label className="text-sm font-semibold">Amount<input className="input mt-1 w-full" type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)}/></label><label className="text-sm font-semibold">Reference<input className="input mt-1 w-full" value={reference} onChange={e=>setReference(e.target.value)}/></label><label className="text-sm font-semibold md:col-span-2">Notes<input className="input mt-1 w-full" value={notes} onChange={e=>setNotes(e.target.value)}/></label></div>
    <div className="mt-4 flex justify-end"><button className="btn-primary" disabled={saving} onClick={()=>void post()}>{saving?"Posting...":"Post Loan Transaction"}</button></div>
   </div>
-  <div className="grid gap-3 md:grid-cols-3"><div className="summary-card"><div className="summary-label">Loan Received</div><div className="summary-value">{currentCurrency()} {money(totals.received)}</div></div><div className="summary-card"><div className="summary-label">Repaid</div><div className="summary-value">{currentCurrency()} {money(totals.repaid)}</div></div><div className="summary-card"><div className="summary-label">Outstanding</div><div className="summary-value">{currentCurrency()} {money(outstanding)}</div></div></div>
+  <div className="grid gap-3 md:grid-cols-3"><div className="summary-card"><div className="summary-label">Loan Received</div><div className="summary-value">{currentCurrency()} {money(totals.received)}</div></div><div className="summary-card"><div className="summary-label">Repaid</div><div className="summary-value">{currentCurrency()} {money(totals.repaid)}</div></div><div className="summary-card"><div className="summary-label">Net Outstanding (selected lenders)</div><div className="summary-value">{currentCurrency()} {money(outstanding)}</div></div></div>
   <div className="flex flex-wrap gap-2 no-print"><NaviloSearchableSelect nativeCompatibility preserveLabel className="input" value={lenderId} onChange={e=>setLenderId(e.target.value)}><option value="">All Lenders</option>{lenders.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</NaviloSearchableSelect><input className="input min-w-[240px]" placeholder="Search reference or notes..." value={search} onChange={e=>setSearch(e.target.value)}/><label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={showBalances} onChange={e=>setShowBalances(e.target.checked)}/>Show balance</label></div>
-  <div className="flex flex-wrap gap-2 no-print"><button className="btn-secondary" onClick={()=>exportMatrixToExcel("Loan_Lender_Ledger.xlsx",matrix(),"Loans")}>Excel</button><button className="btn-secondary" onClick={()=>exportMatrixToCSV("Loan_Lender_Ledger.csv",matrix())}>CSV</button><button className="btn-secondary" onClick={()=>exportMatrixToWord("Loan_Lender_Ledger.doc",matrix(),"Loan & Lender Ledger")}>Word</button><button className="btn-secondary" onClick={downloadPdf}>PDF</button><button className="btn-primary" onClick={()=>window.print()}><Printer className="h-4 w-4"/>Print</button></div>
+  <div className="flex flex-wrap gap-2 no-print"><button className="btn-secondary" onClick={()=>exportMatrixToExcel("Loan_Lender_Ledger.xlsx",matrix(),"Loans")}>Excel</button><button className="btn-secondary" onClick={()=>exportMatrixToCSV("Loan_Lender_Ledger.csv",matrix())}>CSV</button><button className="btn-secondary" onClick={()=>exportMatrixToWord("Loan_Lender_Ledger.doc",matrix(),"Loan & Lender Ledger")}>Word</button><button className="btn-secondary" disabled={loading||!!error} onClick={printLedger}>PDF</button><button className="btn-primary" disabled={loading||!!error} onClick={printLedger}><Printer className="h-4 w-4"/>Print</button></div>
   <ImportedAccountBalances kind="loan" search={search}/>
   <div className="overflow-x-auto rounded-xl border bg-white"><table className="w-full whitespace-nowrap text-sm"><thead><tr><th>Lender</th><th>Date</th><th>Type</th><th className="text-right">Received</th><th className="text-right">Repaid</th>{showBalances&&<th className="text-right">Balance</th>}<th>Reference</th><th className="no-print">Action</th></tr></thead><tbody>{lenderRows.map(r=><tr key={r.id}><td>{lenders.find(l=>l.id===r.lender_id)?.name||"-"}</td><td>{r.transaction_date}</td><td>{r.transaction_type==="loan_received"?"Loan Received":"Loan Repayment"}</td><td className="text-right">{r.transaction_type==="loan_received"?money(r.amount):"-"}</td><td className="text-right">{r.transaction_type==="loan_repayment"?money(r.amount):"-"}</td>{showBalances&&<td className="text-right">{money(r.balance||0)}</td>}<td>{r.reference||"-"}</td><td className="no-print"><button type="button" data-direct-print="true" className="btn-secondary" onClick={()=>printTx(r)}><FileDown className="h-4 w-4"/>Voucher</button></td></tr>)}{!loading&&!lenderRows.length&&<tr><td colSpan={8} className="p-6 text-center text-slate-400">No loan transactions for selected filters.</td></tr>}</tbody></table></div>
  </div>
