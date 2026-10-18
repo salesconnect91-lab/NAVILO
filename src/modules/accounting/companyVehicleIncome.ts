@@ -20,7 +20,7 @@ export function companyVehicleIncomeRows(
  }
  return vehicles.map(v=>{
   const a=v.revenue_account_id?accountById.get(v.revenue_account_id):undefined;
-  const shared=!!v.revenue_account_id&&(linkCounts.get(v.revenue_account_id)!>1||a?.code==='4100'||a?.code==='4200');
+  const shared=!!v.revenue_account_id&&((linkCounts.get(v.revenue_account_id)||0)>1||a?.code==='4100'||a?.code==='4200');
   const dedicated=!!a&&!shared&&(a.type==='revenue'||a.type==='income')&&a.is_group===false&&a.is_active!==false;
   return {id:v.id,vehicle_no:v.vehicle_no,accountCode:a?.code??null,amount:dedicated?movements.get(v.revenue_account_id!)??0:null,
    status:dedicated?'dedicated':shared?'shared':'missing'};
