@@ -54,6 +54,12 @@ begin
  insert into public.transport_truck_types(company_id,business_unit_id,name) values(c,b,'Trailer') returning id into tt;
  v1:=public.transport_create_vehicle_master('EXP-1',tt,'company',null,'2026-01-01');
  v2:=public.transport_create_vehicle_master('EXP-2',tt,'company',null,'2026-01-01');
+ -- Revenue from company vehicles uses a dedicated linked Income GL; no manual
+ -- duplicate journal and no changes to the expense account classification.
+ perform public.accounting_setup_company_vehicle_income_accounts();
+ if (select count(distinct revenue_account_id) from public.transport_vehicles where id in(v1,v2))<>2
+    or exists(select 1 from public.transport_vehicles where id in(v1,v2) and revenue_account_id is null)
+ then raise exception 'Dedicated vehicle Income COA mapping missing in rehearsal';end if;
  insert into public.transport_vehicle_expense_types(company_id,business_unit_id,name) values(c,b,'Fuel');
  insert into public.chart_of_accounts(user_id,company_id,code,name,type,normal_balance,detail_type,is_active,is_group,allow_manual_entries) values(u,c,'BANK-EXP','Expense Bank','asset','debit','Bank Account',true,false,true) returning id into bank;
  payload:=jsonb_build_object('expense_group','MULTI-1','expense_date','2026-10-17','payment_method','cash','payment_account_id',cash_id,'lines',jsonb_build_array(
@@ -124,7 +130,10 @@ begin
  if (select sum(debit-credit) from public.party_ledgers where journal_entry_id=je and party_type='customer')<>632.5 then raise exception 'Customer AR not updated';end if;
  if (select count(*) from public.transport_trips where company_id=c)<>before_trips then raise exception 'Normal Sale created Trip';end if;
  if (select sum(debit-credit) from public.ledgers where journal_entry_id=je)<>0 then raise exception 'Normal Sale GL imbalance';end if;
- if (select sum(credit) from public.journal_lines where entry_id=je and account_id=revenue)<>550 then raise exception 'Common Sales revenue not posted';end if;
+ if coalesce((select sum(credit) from public.journal_lines where entry_id=je and account_id=revenue),0)<>50
+    or coalesce((select sum(l.credit) from public.journal_lines l join public.transport_vehicles v on v.revenue_account_id=l.account_id where l.entry_id=je and v.id=v1),0)<>300
+    or coalesce((select sum(l.credit) from public.journal_lines l join public.transport_vehicles v on v.revenue_account_id=l.account_id where l.entry_id=je and v.id=v2),0)<>200
+ then raise exception 'Normal Sale vehicle/shared revenue must post to separate GL accounts exactly once';end if;
  raise notice 'PASS vehicle expense mixed VAT, Cash/Bank/AP, atomic imports, ownership, idempotency, reversal, normal Sales AR/VAT/GL and multi-vehicle reports';
 end $$;
 rollback;
