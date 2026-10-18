@@ -329,7 +329,7 @@ export default function ProfitLoss() {
     const vehicleDetails=companyVehicleIncomeRows(vehicles,accounts,ledgerLines);
     setVehicleIncome(vehicleDetails);
     if(vehicleDetails.some(v=>v.status!=='dedicated'))
-      setVehicleWarning('Some company vehicles still use shared Service Revenue or have no dedicated Income COA. Their individual amounts cannot be separated from the GL until a dedicated account is linked.');
+      setVehicleWarning('Legacy dedicated-account breakdown only. For complete vehicle revenue and costs, use Posted Vehicle Ledger & P&L. Separate income GLs are not required.');
 
     const next = emptyPLData();
     (Object.keys(bucketMaps) as PLBucket[]).forEach((bucket) => {
@@ -346,15 +346,8 @@ export default function ProfitLoss() {
 
   const setupVehicleAccounts=useCallback(async()=>{
     if(!isTransport||settingUpVehicles)return;
-    setSettingUpVehicles(true);setVehicleWarning(null);
-    try{
-      const r=await supabase.rpc('accounting_setup_company_vehicle_income_accounts');
-      if(r.error)throw r.error;
-      await fetchPL();
-    }catch(e){
-      setVehicleWarning(e instanceof Error?e.message:'Company vehicle COA setup failed; no posting was made.');
-    }finally{setSettingUpVehicles(false)}
-  },[isTransport,settingUpVehicles,fetchPL]);
+    window.location.assign('/transport?panel=vehicle-reports');
+  },[isTransport,settingUpVehicles]);
 
   useEffect(() => {
     void loadDocumentPrintSettings("reports").then(setReportPrintSettings).catch(() => setReportPrintSettings(null));
@@ -431,7 +424,7 @@ export default function ProfitLoss() {
           <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-slate-400 shadow-sm">Loading Profit & Loss statement...</div>
         ) : (
           <>
-            <details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; monthly and year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...printSectionRows('Operating Revenue',data.operatingRevenue),...vehicleIncome.map(v=>['Company Vehicle Income (breakdown only)',v.amount===null?'Vehicle '+v.vehicle_no+' — COA setup required':'Vehicle '+v.vehicle_no,v.amount===null?'—':v.amount]),...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...printSectionRows('Other Income',data.otherIncome),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; monthly and year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...printSectionRows('Operating Revenue',data.operatingRevenue),...vehicleIncome.map(v=>['Legacy Vehicle Income GL (reference only)',v.amount===null?'Vehicle '+v.vehicle_no+' — See Vehicle Ledger':'Vehicle '+v.vehicle_no,v.amount===null?'—':v.amount]),...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...printSectionRows('Other Income',data.otherIncome),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {([
                 ["Revenue", data.operatingRevenue.total, "text-emerald-700"],
                 ["Cost of Sales", data.costOfSales.total, "text-rose-700"],
@@ -447,17 +440,17 @@ export default function ProfitLoss() {
               <StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" />
               {isTransport && <section aria-label="Company Vehicle Income" className="rounded-xl border border-slate-200 bg-white overflow-hidden">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-slate-50 px-3 py-2">
-                  <div><h3 className="text-xs font-bold uppercase tracking-wide">Company Vehicle Income</h3>
-                    <p className="text-[11px] text-slate-500">Per-vehicle breakdown of Operating Revenue — already included in totals, never added twice. Zero-income vehicles remain visible.</p></div>
-                  {vehicleIncome.some(v=>v.status!=='dedicated')&&<button type="button" disabled={settingUpVehicles||loading} onClick={()=>void setupVehicleAccounts()} className="no-print btn text-xs" aria-label="Set up separate vehicle income accounts">
-                    {settingUpVehicles?'Linking accounts…':'Set up separate vehicle income COA'}
+                  <div><h3 className="text-xs font-bold uppercase tracking-wide">Legacy Vehicle Income Account Activity</h3>
+                    <p className="text-[11px] text-slate-500">Only activity in legacy dedicated vehicle Income GL accounts, NOT the full vehicle P&L. Already in Company totals; use Posted Vehicle Ledger for complete amounts.</p></div>
+                  {vehicleIncome.some(v=>v.status!=='dedicated')&&<button type="button" disabled={settingUpVehicles||loading} onClick={()=>void setupVehicleAccounts()} className="no-print btn text-xs" aria-label="Open Posted Vehicle Ledger and P&L">
+                    {settingUpVehicles?'Opening…':'Open Vehicle Ledger & P&L'}
                   </button>}
                 </div>
                 {vehicleWarning&&<p role="status" className="px-3 py-2 text-xs text-amber-800">{vehicleWarning}</p>}
                 {vehicleIncome.length===0?<p className="px-3 py-3 text-xs text-slate-500">No active company-owned vehicles in this report scope.</p>:
                 <div className="divide-y divide-slate-100">{vehicleIncome.map(v=><div key={v.id} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
                   <div><span className="font-semibold">Vehicle {v.vehicle_no}</span>
-                    <span className="ml-2 text-slate-500">{v.status==='dedicated'?'Income account linked':v.status==='shared'?'Shared Revenue account — needs separate link':'Income account not linked'}</span></div>
+                    <span className="ml-2 text-slate-500">{v.status==='dedicated'?'Income account linked':v.status==='shared'?'Shared Revenue — vehicle attribution supported':'No legacy income GL (not required)'}</span></div>
                   <span className="font-mono font-semibold">{v.amount===null?'—':formatCurrency(v.amount)}</span>
                 </div>)}</div>}
               </section>}

@@ -169,9 +169,9 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
     { key: "detail", label: vehicle ? "Truck Type" : "Driver Code", render: row => vehicle ? truckTypes.find(t => t.id === row.truckTypeId)?.name ?? (row.detail || "—") : row.detail || "—" },
     ...(!vehicle ? [{ key: "mobile", label: "Mobile", render: (row: Row) => row.mobile || "—" } as Column<Row>] : []),
     { key: "type", label: vehicle ? "Ownership Type" : "Driver Type", render: row => (vehicle ? row.ownerType : row.driverType) === "supplier" ? "Supplier" : (vehicle ? row.ownerType : row.driverType) === "company" ? "Company" : "Legacy / not classified" },
-    ...(vehicle?[{key:"incomeCoa",label:"Income COA",render:(row:Row)=>row.ownerType!=="company"?"—":row.revenueAccountId
+    ...(vehicle?[{key:"incomeCoa",label:"Legacy Income COA",render:(row:Row)=>row.ownerType!=="company"?"—":row.revenueAccountId
       ? incomeAccounts.find(a=>a.id===row.revenueAccountId)?.name??"Linked account"
-      : <span className="text-amber-700">Not linked — edit vehicle</span>} as Column<Row>]:[]),
+      : <span className="text-amber-700">Optional — not linked</span>} as Column<Row>]:[]),
     { key: "owner", label: "Supplier / Owner", render: row => partyName(row) || "—" },
     ...(!vehicle ? [{ key: "licence", label: "Licence Expiry", render: (row: Row) => formatNaviloDate(row.licenceExpiry) } as Column<Row>] : []),
     { key: "status", label: "Status", render: row => row.active ? "Active" : "Inactive" },
@@ -193,12 +193,12 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
           {vehicle ? <label className="text-xs font-semibold">Truck Type<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" value={form.truckTypeId} onChange={e => setForm({ ...form, truckTypeId: e.target.value })}><option value="">Select Truck Type</option>{truckTypes.filter(t => t.is_active || t.id === form.truckTypeId).map(t => <option key={t.id} value={t.id}>{t.name}{!t.is_active ? " (Inactive)" : ""}</option>)}</NaviloSearchableSelect></label>
 
             : <label className="text-xs font-semibold">Driver Code<input className="input mt-1 w-full" value={form.detail} onChange={e => setForm({ ...form, detail: e.target.value })} /></label>}
-          {vehicle&&(editing?.ownerType??form.ownerType)==="company"&&<label className="text-xs font-semibold">Income COA (Company Vehicle)
+          {vehicle&&(editing?.ownerType??form.ownerType)==="company"&&<label className="text-xs font-semibold">Legacy Income COA (Optional)
             <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Vehicle Income COA" className="input mt-1 w-full" value={form.revenueAccountId} onChange={e=>setForm({...form,revenueAccountId:e.target.value})}>
-              <option value="">Not linked — select Revenue account</option>
+              <option value="">No legacy account mapping</option>
               {incomeAccounts.filter(a=>a.is_active||a.id===form.revenueAccountId).map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
             </NaviloSearchableSelect>
-            <span className="block font-normal text-slate-500">One-time link. Multiple vehicles may use the same existing Revenue account; Vehicle Ledger/P&L stays separate. Sale invoices automatically use the linked COA. Missing? <Link to="/accounting/accounts" className="text-blue-700 underline">Create in Chart of Accounts</Link></span>
+            <span className="block font-normal text-slate-500">Legacy reference only. Sale/Service invoices retain the chosen Revenue GL, while Vehicle is a reporting dimension. Separate vehicle Income COA is optional. <Link to="/accounting/accounts" className="text-blue-700 underline">View Chart of Accounts</Link></span>
           </label>}
           {vehicle && editing ? <div className="text-xs sm:col-span-2">Owner: {partyName(editing) || "Legacy / not classified"}. <Link className="text-blue-700 underline" to="/master-data/vehicle-ownership">Change through Vehicle Ownership History</Link></div>
             : <>{(!supplierOwner&&!employeeOwner)&&<label className="text-xs font-semibold">{vehicle ? "Ownership Type" : "Driver Type"}<NaviloSearchableSelect nativeCompatibility preserveLabel required className="input mt-1 w-full" value={vehicle ? form.ownerType : form.driverType} onChange={e => setForm({ ...form, ...(vehicle ? { ownerType: e.target.value } : { driverType: e.target.value, employeeId: "" }), supplierId: "" })}>

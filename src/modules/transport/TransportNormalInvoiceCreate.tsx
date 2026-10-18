@@ -67,10 +67,8 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   return()=>{cancelled=true};
  },[company,bu,scope,side]);
  const amount=useMemo(()=>lines.reduce((total,l)=>total+(Number(l.amount)||0),0),[lines]);
- const unlinked=side==='customer'?lines.map(l=>vehicles.find(v=>v.id===l.vehicle_id)).find(v=>v&&!v.revenue_account_id):undefined;
  const lineError=validateNormalInvoiceLines(lines)
-  ||(lines.some(l=>l.vehicle_id&&!eligibleVehicles.some(v=>v.id===l.vehicle_id))?'Select a company-owned vehicle valid on invoice date.':null)
-  ||(unlinked?`Vehicle ${unlinked.vehicle_no} has no linked Income COA. Open Vehicle Master, edit the vehicle and select its Revenue account before posting.`:null);
+  ||(lines.some(l=>l.vehicle_id&&!eligibleVehicles.some(v=>v.id===l.vehicle_id))?'Select a company-owned vehicle valid on invoice date.':null);
  const available=loadedScope===scope&&!loading&&!saving&&!done&&Boolean(party&&account&&date)&&!lineError;
  const update=(index:number,k:keyof Line,value:string)=>setLines(old=>old.map((line,i)=>i===index?{...line,[k]:value}:line));
  async function save(post:boolean){
@@ -90,7 +88,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  return <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-3 text-xs" aria-label={`${sideName} Invoice`}>
   <div className="flex flex-wrap items-start justify-between gap-2">
    <div><h2 className="text-base font-bold">{sideName} Invoice — No Trips</h2>
-    <p className="text-slate-600">Description-only service document. Uses {side==='customer'?'Customer':'Supplier'} Master, canonical {side==='customer'?'AR':'AP'}, VAT, ledgers and financial reports. No stock or Trip records. {side==='customer'&&'Company-owned vehicle income automatically posts to its linked Revenue COA; no manual journal duplication.'}</p>
+    <p className="text-slate-600">Description-only service document. Uses {side==='customer'?'Customer':'Supplier'} Master, canonical {side==='customer'?'AR':'AP'}, VAT, ledgers and financial reports. No stock or Trip records. {side==='customer'&&'Vehicle is a reporting dimension; selected Sales Revenue stays unchanged with no duplicate journal.'}</p>
    </div>
    <Link className="text-blue-700 underline" to="/settings/imports">Bulk import in Import Center</Link>
   </div>
@@ -125,7 +123,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    <div className="flex items-center justify-between"><h3 className="font-bold">Description lines (excluding VAT)</h3><button type="button" disabled={saving||!!done||lines.length>=50} className="btn" onClick={()=>setLines(v=>[...v,empty()])}>+ Description Line</button></div>
    {lines.map((line,i)=><div key={i} className="grid grid-cols-[minmax(0,1fr)_190px_130px_45px] gap-2">
     <input aria-label={`Description ${i+1}`} className="input" placeholder="Description (no Trip)" value={line.description} maxLength={1000} disabled={saving||!!done} onChange={e=>update(i,'description',e.target.value)}/>
-    <NaviloSearchableSelect nativeCompatibility aria-label={`Vehicle ${i+1}`} className="input" value={line.vehicle_id??''} disabled={saving||!!done} onChange={e=>update(i,'vehicle_id',e.target.value)}><option value="">General / Shared</option>{eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}{side==='customer'? v.revenue_account_id ? ' · '+(accounts.find(a=>a.id===v.revenue_account_id)?.name??'Linked COA') : ' · Income COA not linked':''}</option>)}</NaviloSearchableSelect>
+    <NaviloSearchableSelect nativeCompatibility aria-label={`Vehicle ${i+1}`} className="input" value={line.vehicle_id??''} disabled={saving||!!done} onChange={e=>update(i,'vehicle_id',e.target.value)}><option value="">General / Shared</option>{eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</NaviloSearchableSelect>
     <input aria-label={`Amount ${i+1}`} className="input text-right" inputMode="decimal" placeholder="Amount SAR" value={line.amount} disabled={saving||!!done} onChange={e=>update(i,'amount',e.target.value)}/>
     <button type="button" aria-label={`Remove line ${i+1}`} className="btn" disabled={saving||!!done||lines.length<=1} onClick={()=>setLines(v=>v.filter((_,index)=>index!==i))}>×</button>
    </div>)}

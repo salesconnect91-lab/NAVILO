@@ -3153,7 +3153,7 @@ export default function JournalEntryList() {
                     </h3>
 
                     <p className="text-xs text-slate-500 mt-1">
-                      Use one Account Name per line. Dedicated company vehicle Income accounts auto-link the vehicle: do not repeat Vehicle No. Enter Vehicle No only when allocating a shared Transport expense.
+                      Use the original Account Name per line. Vehicle No attributes income adjustments or expenses without changing the selected GL.
                     </p>
 
                     <p className="text-xs text-slate-500 mt-1">
