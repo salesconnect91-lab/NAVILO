@@ -440,13 +440,15 @@ export default function JournalEntryDetail() {
      ACCOUNT / PARTY HELPERS
   ========================================================= */
 
-  const postingAccounts =
-    accounts.filter(
-      (account) =>
-        account.is_active &&
-        !account.is_group &&
-        account.allow_manual_entries
-    );
+  // Manual journals are accounting adjustments, not sale/purchase or VAT billing.
+  // Historical posted lines remain readable; source-document posting is untouched.
+  const manualAccountEligible = (account: (typeof accounts)[number]) =>
+    account.is_active && !account.is_group && account.allow_manual_entries &&
+    !['revenue', 'income', 'expense'].includes(String(account.type).toLowerCase()) &&
+    !['1150', '2120'].includes(String(account.code ?? '').trim()) &&
+    !/\b(input|output)\s+vat\b/i.test(account.name ?? '');
+
+  const postingAccounts = accounts.filter(manualAccountEligible);
   const journalExcludedAccounts = accounts.length - postingAccounts.length;
   const eligibleVehicles=companyVehicles.filter(v=>vehicleOwnedOnDate(v.id,entry?.status==='draft' ? draftEntryDate : entry?.entry_date,vehicleOwnership));
 
@@ -1170,7 +1172,7 @@ export default function JournalEntryDetail() {
           }
 
           if (
-            !account.allow_manual_entries
+            !manualAccountEligible(account)
           ) {
             importErrors.push(
               `Row ${rowNumber}: "${account.name}" does not allow manual journal entries.`
@@ -1520,9 +1522,7 @@ export default function JournalEntryDetail() {
           return;
         }
 
-        if (
-          !account.allow_manual_entries
-        ) {
+        if (!manualAccountEligible(account)) {
           setError(
             `Row ${rowNumber}: "${account.name}" does not allow manual journal entries.`
           );
@@ -1909,7 +1909,7 @@ export default function JournalEntryDetail() {
             !account ||
             account.is_group ||
             !account.is_active ||
-            !account.allow_manual_entries
+            !manualAccountEligible(account)
           );
         });
 
