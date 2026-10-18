@@ -2242,7 +2242,7 @@ export default function JournalEntryDetail() {
             </span>
           )}
 
-          {canReversePostedManualJournal(sourceEntry) && !reversalEntry && (
+          {ownerCanCancel && canReversePostedManualJournal(sourceEntry) && !isOwnerCancellableJournal && !reversalEntry && (
             <button
               onClick={() => setReversalOpen(true)}
               disabled={reversing}
