@@ -60,7 +60,7 @@ describe('Structured Transport master forms',()=>{
  it('links company-owned Vehicle Master to an existing Revenue COA once',async()=>{
   mock.vehicles=[{id:'v1',vehicle_no:'7979',truck_type_id:'tt',ownership_type:'company',is_active:true,revenue_account_id:null}];
   view('vehicles');
-  await screen.findByText('Not linked — edit vehicle');
+  await screen.findByText('Optional — not linked');
   fireEvent.click(screen.getByRole('button',{name:/Edit/}));
   const income=await screen.findByLabelText('Vehicle Income COA');
   fireEvent.change(income,{target:{value:'revenue-7979'}});

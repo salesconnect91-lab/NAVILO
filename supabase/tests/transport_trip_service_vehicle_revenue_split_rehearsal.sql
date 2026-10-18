@@ -63,9 +63,9 @@ BEGIN
    RAISE EXCEPTION 'Mixed Trip invoice must post one journal';
  END IF;
  SELECT id INTO entry FROM public.journal_entries WHERE source_document_id=doc AND status='posted';
- IF (SELECT sum(credit) FROM public.journal_lines WHERE entry_id=entry AND account_id=vehicle_rev) IS DISTINCT FROM 340
-   OR (SELECT sum(credit) FROM public.journal_lines WHERE entry_id=entry AND account_id=service_rev) IS DISTINCT FROM 230
- THEN RAISE EXCEPTION 'Company+supplier revenue split incorrect: expected 340 own / 230 service'; END IF;
+ IF COALESCE((SELECT sum(credit) FROM public.journal_lines WHERE entry_id=entry AND account_id=vehicle_rev),0) IS DISTINCT FROM 0
+   OR (SELECT sum(credit) FROM public.journal_lines WHERE entry_id=entry AND account_id=service_rev) IS DISTINCT FROM 570
+ THEN RAISE EXCEPTION 'Trip revenue must use common Service Revenue 570; dedicated vehicle GL unchanged'; END IF;
  IF (SELECT count(*) FROM public.sales_service_lines WHERE order_id=doc AND source_module='transport')<>2
    OR (SELECT sum(amount) FROM public.sales_order_charges WHERE order_id=doc) IS DISTINCT FROM 70
    OR (SELECT total FROM public.sales_orders WHERE id=doc) IS DISTINCT FROM 570
@@ -79,14 +79,13 @@ BEGIN
  INSERT INTO public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,vehicle_id,from_location,to_location,customer_rate,owner_rent,sale_type)
  VALUES(c,b,'',current_date,customer,unlinked_vehicle,'A','C',150,0,'cash') RETURNING id INTO unlinked_trip;
  PERFORM public.transport_finalize_customer_rate(unlinked_trip,150,'manual');
- BEGIN
-   PERFORM public.transport_post_customer_bill_grouped(ARRAY[unlinked_trip],current_date,service_rev,false,'BLOCK-'||code,'{}'::jsonb);
- EXCEPTION WHEN OTHERS THEN
-   rejected:=position('Income COA not linked' in sqlerrm)>0;
- END;
- IF NOT rejected OR EXISTS(SELECT 1 FROM public.sales_orders WHERE company_id=c AND order_no='BLOCK-'||code) THEN
-   RAISE EXCEPTION 'Unlinked company vehicle posted or left partial invoice';
- END IF;
- RAISE NOTICE 'PASS: mixed company/supplier Trip invoice, charges 340/230, one journal, balanced AR and unlinked own vehicle guard';
+ posted:=public.transport_post_customer_bill_grouped(ARRAY[unlinked_trip],current_date,service_rev,false,'UNLINKED-'||code,'{}'::jsonb);
+ doc:=(posted->>'order_id')::uuid;
+ IF (posted->>'status')<>'posted' OR doc IS NULL THEN
+   RAISE EXCEPTION 'Company-owned vehicle without dedicated Income COA should use common Service Revenue'; END IF;
+ SELECT id INTO entry FROM public.journal_entries WHERE source_document_id=doc AND status='posted';
+ IF (SELECT sum(credit) FROM public.journal_lines WHERE entry_id=entry AND account_id=service_rev) IS DISTINCT FROM 150
+ THEN RAISE EXCEPTION 'Unlinked vehicle service revenue did not post to selected GL'; END IF;
+ RAISE NOTICE 'PASS: mixed company/supplier Trip invoice, Service Revenue GL, balanced AR and unlinked vehicle attribution';
 END $$;
 ROLLBACK;

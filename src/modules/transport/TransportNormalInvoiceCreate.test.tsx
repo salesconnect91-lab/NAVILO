@@ -72,16 +72,20 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   expect(mock.posts[0].p_lines).toEqual([{description:'Vehicle one',amount:'100',vehicle_id:'a-vehicle-1'},{description:'Vehicle two',amount:'200',vehicle_id:'a-vehicle-2'}]);
   expect(mock.posts).toHaveLength(1);
  });
- it('refuses to save an invoice with a company vehicle whose Income COA is missing',async()=>{
+ it('posts with common Revenue even when dedicated Income account is absent',async()=>{
   mock.unlinked=true;
   await load('customer');await screen.findByRole('option',{name:/7979/});
   fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
   fireEvent.change(screen.getByLabelText('Description 1'),{target:{value:'Vehicle income'}});
   fireEvent.change(screen.getByLabelText('Amount 1'),{target:{value:'100'}});
   fireEvent.change(screen.getByLabelText('Vehicle 1'),{target:{value:'a-vehicle-1'}});
-  expect(screen.getByText(/Vehicle 7979 has no linked Income COA/)).toBeTruthy();
-  expect((screen.getByRole('button',{name:'Post Sale Invoice'}) as HTMLButtonElement).disabled).toBe(true);
-  expect(mock.posts).toHaveLength(0);
+  expect(screen.queryByText(/Vehicle 7979 has no linked Income COA/)).toBeNull();
+  expect((screen.getByRole('button',{name:'Post Sale Invoice'}) as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.click(screen.getByRole('button',{name:'Post Sale Invoice'}));
+  await screen.findByText(/Sale invoice posted/);
+  expect(mock.posts).toHaveLength(1);
+  expect(mock.posts[0].p_account).toBe('a-account');
+  expect(mock.posts[0].p_lines[0].vehicle_id).toBe('a-vehicle-1');
  });
  it('saves supplier Purchase draft through same canonical service model',async()=>{
   await load('supplier');

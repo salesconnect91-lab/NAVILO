@@ -130,10 +130,9 @@ begin
  if (select sum(debit-credit) from public.party_ledgers where journal_entry_id=je and party_type='customer')<>632.5 then raise exception 'Customer AR not updated';end if;
  if (select count(*) from public.transport_trips where company_id=c)<>before_trips then raise exception 'Normal Sale created Trip';end if;
  if (select sum(debit-credit) from public.ledgers where journal_entry_id=je)<>0 then raise exception 'Normal Sale GL imbalance';end if;
- if coalesce((select sum(credit) from public.journal_lines where entry_id=je and account_id=revenue),0)<>50
-    or coalesce((select sum(l.credit) from public.journal_lines l join public.transport_vehicles v on v.revenue_account_id=l.account_id where l.entry_id=je and v.id=v1),0)<>300
-    or coalesce((select sum(l.credit) from public.journal_lines l join public.transport_vehicles v on v.revenue_account_id=l.account_id where l.entry_id=je and v.id=v2),0)<>200
- then raise exception 'Normal Sale vehicle/shared revenue must post to separate GL accounts exactly once';end if;
+ if coalesce((select sum(credit) from public.journal_lines where entry_id=je and account_id=revenue),0)<>550
+    or exists (select 1 from public.journal_lines l join public.transport_vehicles v on v.revenue_account_id=l.account_id where l.entry_id=je and v.id in (v1,v2))
+ then raise exception 'Normal Sale must credit chosen common Revenue once; vehicle attribution stays in snapshots';end if;
  raise notice 'PASS vehicle expense mixed VAT, Cash/Bank/AP, atomic imports, ownership, idempotency, reversal, normal Sales AR/VAT/GL and multi-vehicle reports';
 end $$;
 rollback;
