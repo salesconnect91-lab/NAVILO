@@ -19,6 +19,15 @@ export default function PaymentReversals(){
   const [page,setPage]=useState(0),[count,setCount]=useState(0);
   const generation=useRef(0);
   const [target,setTarget]=useState<Voucher|null>(null),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[reason,setReason]=useState("");
+  const [ownerAllowed,setOwnerAllowed]=useState(false);
+  useEffect(()=>{
+    let live=true;setOwnerAllowed(false);
+    void supabase.rpc('owner_posted_control_access').then(({data,error})=>{
+      if(live&&!error)setOwnerAllowed(data===true);
+    });
+    return()=>{live=false};
+  },[]);
+
 
   const load=useCallback(async()=>{
     const request=++generation.current;
@@ -52,7 +61,9 @@ export default function PaymentReversals(){
   const filtered=rows;
 
   const reverse=async()=>{
-    if(!target)return;if(!reason.trim()){setError("Reversal reason is required.");return;}
+    if(!target)return;
+    if(!ownerAllowed){setError('Only the active company owner or platform owner may reverse posted vouchers.');return;}
+    if(!reason.trim()){setError("Reversal reason is required.");return;}
     setBusy(target.id);setError("");
     try{
       const {data,error:e}=await supabase.rpc("reverse_payment_voucher",{p_journal_entry_id:target.id,p_reversal_date:date,p_reason:reason.trim()});
@@ -64,12 +75,13 @@ export default function PaymentReversals(){
 
   return <div className="space-y-4">
     <PageHeader title="Payment Voucher Reversals" subtitle="Reverse a posted customer receipt or supplier payment through a separate audited journal. Original vouchers are never edited or deleted." action={<div className="flex items-center gap-2"><span data-navilo-standard-tools-host className="contents" /></div>}/>
+    {!ownerAllowed&&<p className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">Posted payment reversal is restricted to the active Company Owner or Platform Owner. This list remains read-only for other users.</p>}
     {error&&<ErrorBanner message={error}/>}<div className="card flex flex-wrap items-center gap-2 p-4" data-no-print data-no-export><input className="input min-w-64 flex-1" value={search} onChange={e=>{setSearch(e.target.value);setPage(0)}} placeholder="Search voucher, party, method..."/><SearchableSelect className="input w-auto" value={kind} onChange={e=>{setKind(e.target.value as any);setPage(0)}}><option value="all">All payments</option><option value="Customer Receipt">Customer Receipts</option><option value="Supplier Payment">Supplier Payments</option></SearchableSelect><button className="btn btn-secondary" disabled={loading||busy!==null} onClick={()=>void load()}><RefreshCw size={15}/>Refresh</button></div>
 
     {loading&&<p role="status" className="text-xs text-slate-500">Loading payment vouchers…</p>}
     <section className="card overflow-hidden" data-report-content data-navilo-customizable="true">
       <div className="border-b px-5 py-3"><div className="navilo-report-title font-semibold">Payment Voucher Reversals</div><div className="mt-1 text-xs text-slate-500">{count.toLocaleString()} voucher{count===1?"":"s"} • {kind === "all" ? "All payment types" : kind}</div></div>
-      <div className="overflow-x-auto"><table className="table w-full"><thead><tr><th>Voucher</th><th>Date</th><th>Type</th><th>Party</th><th>Method</th><th className="text-right">Amount</th><th>Status</th><th data-no-print data-no-export>Action</th></tr></thead><tbody>{filtered.length?filtered.map(v=>{const rv=reversed.get(v.id);return <tr key={v.id}><td className="font-semibold">{v.entry_no}</td><td>{formatDate(v.entry_date)}</td><td>{v.trans_type}</td><td>{v.party_name||"—"}</td><td>{v.payment_mode||"—"}</td><td className="text-right font-semibold">Rs {money(amount(v.id))}</td><td>{rv?<span className="badge bg-slate-100 text-slate-700">Reversed: {rv.entry_no}</span>:<span className="badge bg-emerald-50 text-emerald-700">Posted</span>}</td><td data-no-print data-no-export>{!rv&&<button className="btn btn-danger" disabled={loading||busy!==null} onClick={()=>{setTarget(v);setDate(new Date().toISOString().slice(0,10));setReason("")}}><RotateCcw size={14}/>Reverse</button>}</td></tr>}):<tr><td colSpan={8} className="py-10 text-center text-slate-500">{loading?"Loading payment vouchers…":"No payment vouchers found."}</td></tr>}</tbody></table></div>
+      <div className="overflow-x-auto"><table className="table w-full"><thead><tr><th>Voucher</th><th>Date</th><th>Type</th><th>Party</th><th>Method</th><th className="text-right">Amount</th><th>Status</th><th data-no-print data-no-export>Action</th></tr></thead><tbody>{filtered.length?filtered.map(v=>{const rv=reversed.get(v.id);return <tr key={v.id}><td className="font-semibold">{v.entry_no}</td><td>{formatDate(v.entry_date)}</td><td>{v.trans_type}</td><td>{v.party_name||"—"}</td><td>{v.payment_mode||"—"}</td><td className="text-right font-semibold">Rs {money(amount(v.id))}</td><td>{rv?<span className="badge bg-slate-100 text-slate-700">Reversed: {rv.entry_no}</span>:<span className="badge bg-emerald-50 text-emerald-700">Posted</span>}</td><td data-no-print data-no-export>{!rv&&ownerAllowed&&<button className="btn btn-danger" disabled={loading||busy!==null} onClick={()=>{setTarget(v);setDate(new Date().toISOString().slice(0,10));setReason("")}}><RotateCcw size={14}/>Reverse</button>}</td></tr>}):<tr><td colSpan={8} className="py-10 text-center text-slate-500">{loading?"Loading payment vouchers…":"No payment vouchers found."}</td></tr>}</tbody></table></div>
     </section>
     <TransportPagination page={page} pageSize={250} count={count} busy={loading||busy!==null} onPage={setPage}/>
 
