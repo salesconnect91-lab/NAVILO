@@ -74,7 +74,7 @@ begin
  if (res->>'cost')::numeric<>315 then raise exception 'Vehicle 2 nonrecoverable VAT report %',res;end if;
  bad:=false;begin perform public.transport_vehicle_expense_save(payload,doc);exception when others then bad:=true;end;
  if not bad then raise exception 'Posted expense editable';end if;
- bad:=false;begin perform public.reverse_manual_journal_entry(je,'2026-10-18','Wrong screen');exception when others then if position('Vehicle Expenses reversal' in sqlerrm)>0 then bad:=true;else raise;end if;end;if not bad then raise exception 'Source reversal bypass accepted';end if;
+ bad:=false;begin perform public.reverse_manual_journal_entry(je,'2026-10-18','Wrong screen');exception when others then if position('Vehicle Expenses reversal' in sqlerrm)>0 or position('Only standalone manual journals are eligible' in sqlerrm)>0 then bad:=true;else raise;end if;end;if not bad then raise exception 'Source reversal bypass accepted';end if;
  res:=public.transport_vehicle_expense_reverse(doc,'2026-10-18','Isolated expense correction');rev:=(res->>'reversal_entry_id')::uuid;
  res:=public.transport_vehicle_ledger(v1,'2026-10-01','2026-10-31');if (res->>'cost')::numeric<>0 then raise exception 'Vehicle reversal omitted %',res;end if;
  bad:=false;begin perform public.transport_vehicle_expense_reverse(doc,'2026-10-19','Repeated');exception when others then bad:=true;end;if not bad then raise exception 'Duplicate reversal accepted';end if;
