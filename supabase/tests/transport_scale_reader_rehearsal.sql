@@ -131,6 +131,9 @@ begin
  perform pg_temp.entry_rejected(format('insert into public.transport_locations(company_id,business_unit_id,name) values(%L,%L,''entry   to'')',c,b),'Duplicate');
  v:=public.transport_create_vehicle_master('ENTRY-S',tt,'supplier',supplier,current_date-30);
  company_v:=public.transport_create_vehicle_master('ENTRY-C',tt,'company',null,current_date-30);
+ perform public.accounting_setup_company_vehicle_income_accounts();
+ if not exists(select 1 from public.transport_vehicles where id=company_v and revenue_account_id is not null)
+ then raise exception 'Company Vehicle income GL mapping fixture missing';end if;
  select id into ownership from public.transport_vehicle_ownership where vehicle_id=v;
  if (select count(*) from public.transport_vehicle_ownership where vehicle_id in (v,company_v))<>2 then raise exception 'Atomic initial history missing';end if;
  perform pg_temp.entry_rejected(format('select public.transport_create_vehicle_master(''entry-s'',%L,''supplier'',%L,%L)',tt,supplier,current_date),'Duplicate');
