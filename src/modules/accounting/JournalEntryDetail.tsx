@@ -2070,6 +2070,17 @@ export default function JournalEntryDetail() {
           );
         }
 
+        // RLS can silently delete zero rows. Confirm the record is gone before navigating.
+        const { data: remainingEntry, error: verificationError } = await supabase
+          .from("journal_entries")
+          .select("id")
+          .eq("id", entry.id)
+          .maybeSingle();
+        if (verificationError) throw new Error(verificationError.message);
+        if (remainingEntry) {
+          throw new Error("Journal was not deleted. Check Accounting delete permission, feature entitlement, and active company/branch access.");
+        }
+
         navigate(
           "/accounting"
         );
