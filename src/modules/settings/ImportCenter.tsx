@@ -5,8 +5,9 @@ import TransportNormalInvoiceImport from '@/modules/transport/TransportNormalInv
 import TransportVehicleExpenseImportPreview from '@/modules/transport/TransportVehicleExpenseImportPreview';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { ArrowRight, FileText, Landmark, Truck, Users, Upload } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useEffect,useRef,useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { lazy, Suspense, useEffect,useRef,useState } from "react";
+const TransportTripImportWorkspace = lazy(() => import('@/modules/transport/TransportWorkspace'));
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission, type ModuleKey } from "@/auth/permissions";
 import { supabase } from "@/lib/supabase";
@@ -322,10 +323,21 @@ function TripLinkedInvoiceImports(){
 
 export default function ImportCenter() {
   const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
+  const [searchParams] = useSearchParams();
   const role = activeBusinessUnit?.membership_role ?? activeCompany?.membership_role;
   const permissions = activeBusinessUnit?.permissions ?? activeCompany?.permissions;
   const canImport = (module: ModuleKey) => (activeCompany?.enabled_modules?.includes(module) ?? true) && (activeBusinessUnit?.enabled_modules.includes(module) ?? true) && (isPlatformOwner || hasPermission(role, module, "create", permissions, false));
   const scope=`${activeCompany?.company_id??""}:${activeBusinessUnit?.business_unit_id??""}`;
+  const requestedTransportUpload=searchParams.get('transportUpload');
+  if(requestedTransportUpload==='bulk'||requestedTransportUpload==='historical'){
+    if(activeBusinessUnit?.business_unit_type!=='transport'||!canImport('transport'))return <p role="alert">Transport import permission is required for this workspace.</p>;
+    return <div className="w-full space-y-3 py-2">
+      <Link className="inline-flex rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-blue-700" to="/settings/imports">← Back to Import Center</Link>
+      <Suspense fallback={<p role="status">Loading Transport import…</p>}>
+        <TransportTripImportWorkspace importOnlyMode={requestedTransportUpload}/>
+      </Suspense>
+    </div>;
+  }
   return <div className="w-full space-y-2 py-2">
    <div><h1 className="text-base font-bold text-slate-900">Import Center</h1><p className="text-xs text-slate-600">1. Download template → 2. Choose file → 3. Review rows → 4. Import. Invoices and journals are saved as drafts; receipts/payments are posted.</p></div>
    <nav aria-label="Import sections" className="flex flex-wrap gap-2 text-xs"><a className="btn" href="#import-masters">Masters &amp; rates</a><a className="btn" href="#import-daily">Trips &amp; invoices</a><a className="btn" href="#import-normal">Normal Sales / Purchase</a><a className="btn" href="#import-accounting">Receipts &amp; journals</a><a className="btn" href="#import-history">One-time &amp; transfer</a></nav>
@@ -335,7 +347,7 @@ export default function ImportCenter() {
      {canImport("transport")&&<><TransportMasterImports/><TransportRateImports/></>}
     </ImportGroup>
     {canImport("transport")&&<ImportGroup id="import-daily" title="2. Daily trips & sales invoices" detail="Have invoices from an external source? Use Ready invoices below. Upload trips only when you need trip records.">
-     <ImportEntry title="Daily Trip Upload" effect="Trip records only" detail="Upload current trips. No invoice, receipt or journal is posted." to="/transport?view=new&import=bulk" label="Open Daily Trip Upload" download={downloadDailyTripTemplate}/>
+     <ImportEntry title="Daily Trip Upload" effect="Trip records only" detail="Upload current trips. No invoice, receipt or journal is posted." to="/settings/imports?transportUpload=bulk" label="Open Daily Trip Upload" download={downloadDailyTripTemplate}/>
      {canImport("sales")&&<TransportInvoiceImports/>}
     </ImportGroup>}
     {activeBusinessUnit?.business_unit_type==='transport'&&canImport("transport")&&<ImportGroup id="import-vehicle-expenses" title="Vehicle Expense Excel Import" detail="Bulk Excel alternative to manual journals: validate once, import drafts, review and post once. Posting creates the journal automatically; do not enter those expenses again in General Journal."><TransportVehicleExpenseImportPreview/></ImportGroup>}
@@ -352,7 +364,7 @@ export default function ImportCenter() {
      <ImportEntry title="Bulk Journal Entries" effect="Drafts first; post after review" detail="One Entry No and Description per journal; add balanced debit and credit rows. Account code is optional. Post after review in Accounting." to="/accounting?import=journal" label="Open Journal Import" download={downloadExcelTemplate}/>
     </ImportGroup>}
     {canImport("transport")&&<ImportGroup id="import-history" title="4. One-time records & company transfer" detail="Use only when bringing in old records or moving trip records between NAVILO companies.">
-     <ImportEntry title="One-time Import" effect="One-time accounting import" detail="Old trips, invoices, expenses and settlements. Review cutoff, opening balances and accounts before posting." to="/transport?view=new&import=historical" label="Open One-time Import" download={downloadHistoricalTemplate}/>
+     <ImportEntry title="One-time Import" effect="One-time accounting import" detail="Old trips, invoices, expenses and settlements. Review cutoff, opening balances and accounts before posting." to="/settings/imports?transportUpload=historical" label="Open One-time Import" download={downloadHistoricalTemplate}/>
      <details className="rounded border bg-slate-50 p-2"><summary className="cursor-pointer text-xs font-semibold">Company-to-company trip transfer · optional</summary><div className="mt-2"><TransportTransferTripImports/></div></details>
     </ImportGroup>}
    </div>

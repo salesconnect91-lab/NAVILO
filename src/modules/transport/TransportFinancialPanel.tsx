@@ -42,7 +42,7 @@ function NativeTransportFinancialPanel({trip,onClose,onChanged}:{trip:FinancialT
  const load=useCallback(async()=>{
   if(!company||!unit)return;const request=++generation.current;
   const [summary,rentRows,customerLinks,supplierLinks,costLinks,accountRows,supplierRows,history,permissions]=await Promise.all([
-   supabase.from('transport_financial_register').select('*').eq('id',trip.id).single(),
+   supabase.rpc('transport_financial_register_trip',{p_trip_id:trip.id}),
    supabase.from('transport_trip_supplier_rents').select('id,supplier_id,amount,reason').eq('trip_id',trip.id),
    supabase.from('transport_customer_document_trips').select('document_id').eq('trip_id',trip.id),
    supabase.from('transport_supplier_document_rents').select('document_id,rent_id').eq('trip_id',trip.id),
@@ -62,7 +62,9 @@ function NativeTransportFinancialPanel({trip,onClose,onChanged}:{trip:FinancialT
   const ids=[...(customerDocs.data??[]).map(r=>r.sales_order_id),...(supplierDocs.data??[]).map(r=>r.purchase_order_id),...(costLinks.data??[]).map(r=>r.purchase_order_id)];
   const docs=ids.length?await supabase.from('transport_service_document_balances').select('*').in('order_id',ids):{data:[],error:null};if(docs.error)throw docs.error;
   if(request!==generation.current)return;
-  setCurrent(summary.data);setBalances(docs.data??[]);setRents(rentRows.data??[]);setAccounts(accountRows.data??[]);setSuppliers(supplierRows.data??[]);
+  const scopedSummary=Array.isArray(summary.data)?summary.data[0]:summary.data;
+  if(!scopedSummary)throw new Error('Trip financial details unavailable for this company, branch, or permission.');
+  setCurrent(scopedSummary);setBalances(docs.data??[]);setRents(rentRows.data??[]);setAccounts(accountRows.data??[]);setSuppliers(supplierRows.data??[]);
   setPostedRents(new Set((supplierLinks.data??[]).map(r=>r.rent_id)));setAdjustments(history.data??[]);setAllowed(Object.fromEntries(permissions));
   const orderIds=(docs.data??[]).map((d:any)=>d.order_id);
   if(orderIds.length){const [ca,pa]=await Promise.all([supabase.from('invoice_payment_allocations').select('journal_entry_id').in('sales_order_id',orderIds),supabase.from('purchase_payment_allocations').select('journal_entry_id').in('purchase_order_id',orderIds)]);const journalIds=[...new Set([...(ca.data??[]),...(pa.data??[])].map((x:any)=>x.journal_entry_id))];if(journalIds.length){const j=await supabase.from('journal_entries').select('id,entry_no,entry_date,trans_type,payment_amount,payment_mode,journal_lines(account_id,debit,credit)').in('id',journalIds).eq('status','posted').in('trans_type',['Customer Receipt','Supplier Payment']).order('entry_date',{ascending:false});if(j.error)throw j.error;setSettlements((j.data??[]).map((x:any)=>({...x,cash_account_id:(x.journal_lines??[]).find((l:any)=>x.trans_type==='Supplier Payment'?Number(l.credit)>0:Number(l.debit)>0)?.account_id??null})));}else setSettlements([])}else setSettlements([]);

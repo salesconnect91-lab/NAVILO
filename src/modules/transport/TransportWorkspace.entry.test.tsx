@@ -122,7 +122,8 @@ describe('New Trip master integration',()=>{
   await waitFor(()=>expect(document.querySelector('form')).toBeNull());expect((screen.getByPlaceholderText('Search Plate') as HTMLInputElement).value).toBe('NEW-V · Flatbed - Company');
  });
  async function upload(sale='Credit',owner='Supplier',pay=''){
-  await view();fireEvent.click(screen.getByRole('button',{name:'Bulk Upload'}));
+  render(<MemoryRouter initialEntries={["/settings/imports?transportUpload=bulk"]}><TransportWorkspace importOnlyMode="bulk"/></MemoryRouter>);
+  await waitFor(()=>expect(screen.getByLabelText(/Select Transport Excel/)).toBeTruthy());
   const headers=['DATE','TRUCK TYPE','COMPANY NAME','DRIVER NAME','OWNER','PLATE #','FROM','TO','PAPER RECEIVED BY','DATE','Customer Rate','Supplier Rent','Driver Pay','Sale Type (Cash / Credit)'];
   const row=['2026-06-01','Flatbed','Customer','Driver',owner,'FLAT-1','From','To','PPR PENDING','','1000','300',pay,sale];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([headers,row]),'Trips');

@@ -30,7 +30,9 @@ const navigation:NavNode[]=[
       {key:"transport-customer-reports",to:"/transport?panel=customer-reports",label:"Customer Reports",module:"transport"},
       {key:"transport-supplier-reports",to:"/transport?panel=supplier-reports",label:"Supplier Reports",module:"transport"},
       {key:"transport-allocation",to:"/transport?panel=bulk-allocation",label:"Bulk Allocation",module:"transport"},
-      {key:"transport-vehicle-ledger",to:"/transport?panel=vehicle-reports",label:"Vehicle Ledger & P&L",module:"transport"}
+      {key:"transport-vehicle-ledger",to:"/transport?panel=vehicle-reports",label:"Vehicle Ledger & P&L",module:"transport"},
+      {key:"transport-trip-reports",to:"/reports/transport?mode=trips",label:"Trip-wise Reports",module:"reports",requiresModule:"transport"},
+      {key:"transport-profitability-reporting",to:"/reports/transport?mode=profit",label:"Posted Trip Profitability",module:"reports",requiresModule:"transport"}
     ]}
   ]},
   {key:"accounting",label:"Accounting / اکاؤنٹنگ",icon:Lucide.Calculator,module:"accounting",children:[
@@ -49,12 +51,6 @@ const navigation:NavNode[]=[
     ]},
     {key:"inventory-reports",label:"Inventory / اسٹاک رپورٹس",module:"reports",requiresModule:"inventory",children:[
       {key:"stock-valuation-report",to:"/reports/stock-valuation",label:"Stock Valuation / اسٹاک ویلیو",module:"reports"},{key:"daily-stock-trading-report",to:"/reports/daily-stock-trading",label:"Daily Stock & Trading Summary / روزانہ اسٹاک",module:"reports"},{key:"trading-margin-report",to:"/reports/trading-margin",label:"Purchase vs Sales Rate & Margin / خرید و فروخت مارجن",module:"reports"},{key:"inventory-aging-report",to:"/reports/inventory-aging",label:"Inventory Aging / Slow Moving",module:"reports"},{key:"inventory-turnover-report",to:"/reports/inventory-turnover",label:"Inventory Turnover / اسٹاک ٹرن اوور",module:"reports"},{key:"stock-exceptions-report",to:"/reports/stock-exceptions",label:"Stock Exceptions / اسٹاک ایکسیپشنز",module:"reports"},{key:"steel-stock",to:"/reports/steel-stock",label:"Stock Control / اسٹاک کنٹرول",module:"reports"},
-    ]},
-    {key:"transport-reports",label:"Transport",module:"reports",requiresModule:"transport",businessType:"transport",children:[
-      {key:"transport-trip-reports",to:"/reports/transport?mode=trips",label:"Trip-wise Reports",module:"reports"},
-      {key:"transport-customer-reporting",to:"/reports/transport?mode=party&side=customer",label:"Customer Reports & Statements",module:"reports"},
-      {key:"transport-supplier-reporting",to:"/reports/transport?mode=party&side=supplier",label:"Supplier Reports & Statements",module:"reports"},
-      {key:"transport-profitability-reporting",to:"/reports/transport?mode=profit",label:"Posted Trip Profitability",module:"reports"}
     ]},
     {key:"management-reports",label:"Management & MIS / مینجمنٹ",module:"reports",children:[{key:"business-unit-performance-report",to:"/reports/business-unit-performance",label:"Business Unit Performance / بزنس یونٹ",module:"reports"},{key:"monthly-mis-report",to:"/reports/monthly-mis",label:"Monthly Business MIS / ماہانہ ایم آئی ایس",module:"reports"}]},
     {key:"control-reports",label:"Control & Reconciliation / کنٹرول رپورٹس",module:"reports",requiresModule:"accounting",children:[{key:"returns-register-report",to:"/reports/returns-register",label:"Returns Register / ریٹرنز رجسٹر",module:"reports"},{key:"reconciliation-report",to:"/reports/ar-ap-reconciliation",label:"AR / AP Reconciliation / ریکنسیلی ایشن",module:"reports"},{key:"exceptions-report",to:"/reports/exceptions",label:"Exceptions / ایکسیپشنز",module:"reports"},{key:"service-charges-report",to:"/reports/service-charges",label:"Service Charges / سروس چارجز",module:"reports"}]},
@@ -96,7 +92,6 @@ function matches(n:NavNode,path:string):boolean {
 function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],unitType:string|undefined,permissions:PermissionMatrix|undefined,isFeatureEnabled:(key:string)=>boolean):NavNode|null{
   if(unitType === "transport" && (n.key === "sales-consolidated" || n.key === "purchase-consolidated"))return null;
   if(n.key === "transporters" && unitType === "transport" && mods.includes("transport"))return null;
-  if(unitType === "transport" && ['transport-customer-reporting','transport-supplier-reporting','transport-driver-reporting','transport-vehicle-reporting'].includes(n.key))return null;
   if(n.ownerOnly&&!owner)return null;
   if(n.accessAdminOnly&&!owner&&role!=="company_owner"&&role!=="admin")return null;
   if(n.steelOnly&&unitType&&unitType!=="steel")return null;

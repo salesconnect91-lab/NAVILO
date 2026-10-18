@@ -1,6 +1,6 @@
 import {TRANSPORT_TRIP_HEADERS,downloadDailyTripTemplate} from './transportImportTemplates';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
-import {useLocation,useNavigate,useSearchParams} from 'react-router-dom';
+import {Link,useLocation,useNavigate,useSearchParams} from 'react-router-dom';
 import TransportHorizontalScroll from './TransportHorizontalScroll';
 import TransportDialog from './TransportDialog';
 import TransportReasonSelect from './TransportReasonSelect';
@@ -116,13 +116,13 @@ const BULK_TRIP_HEADERS=[
  * lingering in the UI during a new company's async register request.
  * A workspace's saved view is rehydrated from its own scoped storage key.
  */
-export default function TransportWorkspace(){
+export default function TransportWorkspace({importOnlyMode}:{importOnlyMode?:'bulk'|'historical'}={}){
   const {activeCompany,activeBusinessUnit}=useAuth();
   const scope=`${activeCompany?.company_id??''}/${activeBusinessUnit?.business_unit_id??''}`;
-  return <TransportWorkspaceScoped key={scope}/>;
+  return <TransportWorkspaceScoped key={`${scope}:${importOnlyMode??'register'}`} importOnlyMode={importOnlyMode}/>;
 }
 
-function TransportWorkspaceScoped(){
+function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'historical'}){
   const navigate=useNavigate();
   const location=useLocation();
   const {user,activeCompany,activeBusinessUnit,isPlatformOwner,accessContext}=useAuth();
@@ -151,7 +151,7 @@ function TransportWorkspaceScoped(){
   const mobileCanEdit=(!featureAccess||(!featureAccess.loading&&featureAccess.isFeatureEnabled("transport-mobile-quick-entry","edit")))
     &&canPerformModule(role,"transport","edit",rolePermissions,isPlatformOwner);
   useEffect(()=>{if(["driver-account","vehicle-account","driver-expenses"].includes(params.get("view")??""))navigate("/transport",{replace:true});},[params,navigate]);
-  const requestedView=params.get('view')??(standaloneMobile?'mobile':null);
+  const requestedView=importOnlyMode?'new':params.get('view')??(standaloneMobile?'mobile':null);
   const requestedTab:Tab=tabs.some(t=>t.key===requestedView)?requestedView as Tab:'trips';
   const tabFeature:Record<Tab,string>={
     trips:"transport-trips-register",
@@ -161,9 +161,12 @@ function TransportWorkspaceScoped(){
   };
   const firstAllowedTab=():Tab=>(["trips","mobile","audit"] as Tab[])
     .find(candidate=>canViewFeature(tabFeature[candidate]))??"trips";
-  const tab:Tab=canViewFeature(tabFeature[requestedTab])?requestedTab:firstAllowedTab();
+  // Import Center already verifies Transport create access; the embedded upload
+  // must never fall back to the full Trip Register.
+  const tab:Tab=importOnlyMode?'new':canViewFeature(tabFeature[requestedTab])?requestedTab:firstAllowedTab();
   const setTab=(next:Tab)=>{
     if(!canViewFeature(tabFeature[next]))return;
+    if(importOnlyMode){navigate(`/transport?view=${next}`);return;}
     const p=new URLSearchParams(params);
     if(standaloneMobile&&next==="mobile")p.delete('view');else p.set('view',next);
     p.delete('panel');setParams(p);
@@ -224,7 +227,7 @@ function TransportWorkspaceScoped(){
     "bulk-allocation":"transport-allocation",
     "vehicle-reports":"transport-trips-register",
   };
-  const reportPanel=requestedPanel&&panelFeature[requestedPanel]&&canViewFeature(panelFeature[requestedPanel])?requestedPanel:null;
+  const reportPanel=!importOnlyMode&&requestedPanel&&panelFeature[requestedPanel]&&canViewFeature(panelFeature[requestedPanel])?requestedPanel:null;
   const showPartyReports=Boolean(reportPanel);
 
   const registerViewStorageKey=`navilo:transport:view:${user?.id??"anonymous"}:${scopeKey}`;
@@ -248,7 +251,7 @@ function TransportWorkspaceScoped(){
   const [sortDirection,setSortDirection]=useState<"asc"|"desc">(()=>savedRegisterView.sortDirection??"asc");
   const [openColumnFilter,setOpenColumnFilter]=useState<string|null>(null);
 
-  const requestedImport=params.get("import");
+  const requestedImport=importOnlyMode??params.get("import");
   const [newTripMode,setNewTripMode]=useState<"single"|"bulk"|"historical">(()=>requestedImport==="bulk"||requestedImport==="historical"?requestedImport:"single");
   useEffect(()=>{
     if(requestedImport==="bulk"||requestedImport==="historical")setNewTripMode(requestedImport);
@@ -2314,7 +2317,7 @@ function TransportWorkspaceScoped(){
     <div className="px-4 pb-2 pt-3">
       {standaloneMobile&&<button type="button" onClick={()=>{setError("");setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setTab("mobile")}} className="mb-2 inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700">← Recent Trips</button>}
       <h2 className="font-bold text-slate-950">
-        {editingTripId?<span className="inline-flex items-center gap-1.5">Edit Trip - {editingTripNo}{editingTripLocked&&<span title="Locked: customer and supplier financial sides are posted. Normal Trip editing is disabled; use controlled correction." className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"><LockKeyhole className="h-3 w-3"/>Locked</span>}</span>:"New Trip"}
+        {importOnlyMode?(importOnlyMode==='bulk'?'Daily Trip Upload':'One-time Transport Import'):editingTripId?<span className="inline-flex items-center gap-1.5">Edit Trip - {editingTripNo}{editingTripLocked&&<span title="Locked: customer and supplier financial sides are posted. Normal Trip editing is disabled; use controlled correction." className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"><LockKeyhole className="h-3 w-3"/>Locked</span>}</span>:"New Trip"}
       </h2>
 
       {standaloneMobile&&currentVoiceDraftId&&<div className="mb-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900"><strong>Voice draft ready.</strong> Check the matched Customer, Vehicle, Driver, route and amounts, then tap Create Trip. If anything was not recognized, select it manually.</div>}
@@ -2323,24 +2326,10 @@ function TransportWorkspaceScoped(){
       </p>
     </div>
 
-    {!editingTripId&&!standaloneMobile&&<div className="flex items-center gap-1 px-4 pb-3">
-      <button
-        type="button"
-        onClick={()=>setNewTripMode("single")}
-        className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition ${newTripMode==="single"?"border-slate-300 bg-slate-900 text-white shadow-sm":"border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-950"}`}
-      >
-        Single Trip
-      </button>
-
-      <button
-        type="button"
-        data-navilo-keep-local-action="true"
-        onClick={()=>setNewTripMode("bulk")}
-        className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition ${newTripMode==="bulk"?"border-slate-300 bg-slate-900 text-white shadow-sm":"border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-950"}`}
-      >
-        Bulk Upload
-      </button>
-      <button type="button" className={`btn ${newTripMode==='historical'?'bg-slate-900 text-white':''}`} onClick={()=>setNewTripMode('historical')}>One-time Import</button>
+    {!editingTripId&&!standaloneMobile&&!importOnlyMode&&<div className="flex items-center gap-2 px-4 pb-3">
+      <span className="rounded-md border border-slate-300 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white">Single Trip</span>
+      <Link className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50" to="/settings/imports?transportUpload=bulk">Bulk Upload · Import Center</Link>
+      <Link className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50" to="/settings/imports?transportUpload=historical">One-time Import · Import Center</Link>
     </div>}
   </div>
 

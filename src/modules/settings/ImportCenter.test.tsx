@@ -40,8 +40,8 @@ describe("import center", () => {
     expect(screen.getByRole("option", { name: "Customer Additional Charges" })).toBeTruthy();
     expect(screen.queryByRole("heading",{name:"Receipts / Payments"})).toBeNull();
     expect(screen.queryByRole("heading",{name:"Invoices"})).toBeNull();
-    expect(screen.getByRole("link",{name:"Open Daily Trip Upload"}).getAttribute("href")).toBe("/transport?view=new&import=bulk");
-    expect(screen.getByRole("link",{name:"Open One-time Import"}).getAttribute("href")).toBe("/transport?view=new&import=historical");
+    expect(screen.getByRole("link",{name:"Open Daily Trip Upload"}).getAttribute("href")).toBe("/settings/imports?transportUpload=bulk");
+    expect(screen.getByRole("link",{name:"Open One-time Import"}).getAttribute("href")).toBe("/settings/imports?transportUpload=historical");
     expect(screen.getByRole("link",{name:"Open Journal Import"}).getAttribute("href")).toBe("/accounting?import=journal");
     expect(screen.queryByText("No import permission")).toBeNull();
     expect(screen.getByRole("link", { name: /View Customers/ }).getAttribute("href")).toBe("/master-data/customers");
