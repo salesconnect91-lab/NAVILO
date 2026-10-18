@@ -45,6 +45,12 @@ begin
 
  insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,b,'Original') returning id into vehicle;
  insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,b,'Replacement') returning id into vehicle2;
+ -- Company vehicle revenue must be mapped to its own GL before any service bill.
+ perform public.accounting_setup_company_vehicle_income_accounts();
+ if (select count(*) from public.transport_vehicles where id in(vehicle,vehicle2)
+      and revenue_account_id is not null)<>2 then
+   raise exception 'Vehicle income account fixture setup failed';
+ end if;
  insert into public.transport_vehicle_ownership(company_id,business_unit_id,vehicle_id,owner_type,owner_name_snapshot,effective_from,change_reason,created_by)
  values(c,b,vehicle2,'company','Service rehearsal',current_date,'Replacement fixture',u);
  insert into public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,vehicle_id,from_location,to_location,sale_type)
