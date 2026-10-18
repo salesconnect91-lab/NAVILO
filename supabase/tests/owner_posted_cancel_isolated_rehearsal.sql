@@ -84,16 +84,15 @@ begin
   reset role;
   perform set_config('request.jwt.claim.sub',v_company_owner::text,true);
   set local role authenticated;
-  if public.owner_posted_control_access() then
-    raise exception 'FAIL: company owner granted software-owner cancellation';
+  if not public.owner_posted_control_access() then
+    raise exception 'FAIL: active company owner lacks posted-control permission';
   end if;
   begin
-    perform public.owner_cancel_manual_journal(v_journal,current_date,'Company owner must be denied');
-    raise exception 'FAIL: company owner cancelled posted journal';
+    perform public.owner_cancel_manual_journal(v_journal,current_date-1,'Company owner must not backdate');
+    raise exception 'FAIL: company owner backdated a posted journal';
   exception when others then
     if sqlerrm like 'FAIL:%' then raise; end if;
-    if position('Only the active company owner or platform owner' in sqlerrm)=0
-       and position('Only the NAVILO software owner' in sqlerrm)=0 then raise; end if;
+    if position('cannot precede' in sqlerrm)=0 then raise; end if;
   end;
   select count(*) into v_n from public.owner_posted_control_events
   where company_id=v_company;
@@ -168,8 +167,8 @@ begin
   perform set_config('request.jwt.claim.sub',v_company_owner::text,true);
   set local role authenticated;
   begin
-    perform public.owner_cancel_unallocated_payment(v_payment,current_date,'Reject non-platform owner cancellation');
-    raise exception 'FAIL: non-platform owner cancelled payment';
+    perform public.owner_cancel_unallocated_payment(v_payment,current_date-1,'Company owner cannot backdate payment cancellation');
+    raise exception 'FAIL: company owner backdated payment cancellation';
   exception when others then
     if sqlerrm like 'FAIL:%' then raise; end if;
   end;
@@ -200,7 +199,7 @@ begin
   exception when others then
     if sqlerrm like 'FAIL:%' then raise; end if;
   end;
-  raise notice 'PASS owner unallocated receipt: platform-only, no backdating, zero net GL, linked audit, normal-list exclusions, duplicate blocked';
+  raise notice 'PASS owner unallocated receipt: active owner access, no backdating, zero net GL, linked audit, duplicate blocked';
   -- Sales/Purchase/Transport cancellation review must not reveal other tenants
   -- or expose a mutation endpoint to a non-platform owner.
   reset role;
@@ -208,10 +207,10 @@ begin
   set local role authenticated;
   begin
     perform public.owner_posted_invoice_cancellation_review('sales',gen_random_uuid());
-    raise exception 'FAIL: non-platform owner accessed invoice cancellation review';
+    raise exception 'FAIL: company-owner cross-tenant invoice review returned a document';
   exception when others then
     if sqlerrm like 'FAIL:%' then raise; end if;
-    if position('NAVILO software owner access required' in sqlerrm)=0 then raise; end if;
+    if position('not found in active business unit' in sqlerrm)=0 then raise; end if;
   end;
   reset role;
   perform set_config('request.jwt.claim.sub',v_platform::text,true);
@@ -223,8 +222,8 @@ begin
     if sqlerrm like 'FAIL:%' then raise; end if;
     if position('not found in active business unit' in sqlerrm)=0 then raise; end if;
   end;
-  raise notice 'PASS invoice review: platform owner only, cross-tenant document inaccessible, no mutation';
-  raise notice 'PASS owner cancellation: software-owner only; company-owner denied; backdate denied; posted originals preserved; per-account GL net zero; audit linked; list exclusions; duplicate denied';
+  raise notice 'PASS invoice review: active owner only, cross-tenant document inaccessible, no mutation';
+  raise notice 'PASS owner cancellation: company/platform owner access, backdate denied, posted originals preserved, GL net zero, audit and duplicate guards';
 exception when others then
   get stacked diagnostics v_ctx=PG_EXCEPTION_CONTEXT;
   raise exception 'OWNER TEST FAILURE: % | CONTEXT: %',SQLERRM,v_ctx;
