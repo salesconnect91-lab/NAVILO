@@ -43,3 +43,19 @@ Date: 18-Oct-2026 · Branch: main · Scope: non-destructive reports only
 
 ## Safety
 No posted financial transaction or invoice was deleted, reposted or modified. The original Trip Service Invoice form remains unchanged.
+
+
+## Second-pass specialized reports review (18-Oct-2026)
+- Loan & Lender Ledger: confirmed bug corrected. Running liability used to mix independent lenders and search previously reset history. The balance is computed per lender before search/party filters. Full transactions, lender masters and eligible cash/bank accounts load with paging; Ledger Print/PDF uses compact multi-page output. Individual loan vouchers remain unchanged. Negative net position is preserved.
+- Payroll & Salary Ledger: existing posted accrual, payables/advances and monthly carry-forward math preserved. Only Ledger Print/PDF now uses complete table-based output; individual salary slips remain unchanged.
+- Steel Stock Control: three read-only inputs (current stock reconciliation, period commercial summary, as-of history) now all fetch complete pages in stable order. Any source failure clears data, rather than showing incomplete totals. Print/PDF uses complete data rows and financial-first sections.
+- Generic report hub: all nine named profitability, margin, trading, inventory turnover and supplier-performance RPCs confirmed to return SQL SETOF/TABLE rows. They now page all rows before filters, totals and exports; late-page failures discard partial results.
+- Global Print/PDF: rectangular wide tables split into at most 9-column financial-first sections, retaining all source cells. Repeated identifiers are purely for context; amounts are not recalculated. Complex merged-heading/total tables remain intact pending individual acceptance rather than being automatically reshuffled.
+- Regression tests added: independent lender running balance, search and signed overpayment; no-loss wide-print splitting, 1000+ RPC paging, and fail-closed secondary-page errors.
+
+### Outstanding acceptance gates and limitations
+- Verify latest GitHub main build/CI SHA after rollout, not just prior passing workflows.
+- Vercel READY does not guarantee physical multi-page PDF correctness: logged-in browser print acceptance remains required.
+- Separate existing Transport billing/vehicle smoke workflow has failed and requires independent resolution; report code fixes do not constitute Transport end-to-end acceptance.
+- Loan/P&L GL reconciliation, individual vouchers, payroll salary GL, signed credit, warehouse posting reconciliation, complex print headers, closing entries, partner allocations and niche report families still need sample-based acceptance before complete PASS.
+- No production historical Journal, Invoice, Trip, or imported financial transaction was edited or reposted by this second-pass work.
