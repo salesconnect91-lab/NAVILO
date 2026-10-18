@@ -83,8 +83,28 @@ export default function Reports(){
   if(!canViewReport){setData([]);setError(`This report requires the ${requiredModule} module to be enabled for this workspace.`);setLoading(false);return;}
   try {
    let r:any;
-   if(def.rpc) r=await supabase.rpc(def.rpc,{p_from:from||null,p_to:to||null});
-   else {
+   if(def.rpc){
+    // These report RPCs return SETOF rows. Supabase can cap one result at
+    // the server's max_rows; fetch every page before computing totals/exports.
+    const stableOrder:Record<string,string[]>={
+      report_item_trading_margin:['item_id'],
+      report_stock_trading_control:['item_id','godown'],
+      report_customer_profitability:['customer_name','company_id','business_unit_id','operating_location_id'],
+      report_item_profitability:['item_id','company_id','business_unit_id','operating_location_id'],
+      report_salesperson_profitability:['sales_person','company_id','business_unit_id','operating_location_id'],
+      report_customer_collection_performance:['customer_id'],
+      report_supplier_performance:['supplier_id'],
+      report_purchase_price_variance:['supplier_id','item_id'],
+      report_inventory_turnover:['item_id'],
+    };
+    const rpcName=def.rpc;
+    const rpcRows=await fetchAllPages<any>((start,end)=>{
+      let page=supabase.rpc(rpcName,{p_from:from||null,p_to:to||null});
+      for(const field of stableOrder[rpcName]??[])page=page.order(field,{ascending:true,nullsFirst:false});
+      return page.range(start,end);
+    });
+    r={data:rpcRows,error:null};
+   } else {
     const rows=await fetchAllPages<any>((start,end)=>{
      if(activeBusinessUnit?.business_unit_type==='transport'&&['/reports/customer-aging','/reports/supplier-aging'].includes(loc.pathname))return supabase.rpc('transport_party_aging_query',{p_side:loc.pathname==='/reports/customer-aging'?'customer':'supplier',p_limit:end-start+1,p_offset:start});
      let query=supabase.from(def.view!).select("*");
