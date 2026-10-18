@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { MemoryRouter } from "react-router-dom";
 import Reports from "./Reports";
 import ReportSurface from "@/components/reports/ReportSurface";
-const paging=vi.hoisted(()=>({enabled:false,fail:false,partyPaging:false,calls:[] as number[]}));
+const paging=vi.hoisted(()=>({enabled:false,fail:false,partyPaging:false,calls:[] as number[],rpcFail:false,rpcCalls:[] as number[]}));
 
 vi.mock("@/auth/AuthContext", () => ({ useAuth: () => ({
   user: { id: "synthetic-user" }, isPlatformOwner: true,
@@ -26,10 +26,22 @@ vi.mock("@/lib/supabase", () => ({ supabase: { from: (table:string) => {
     return {data:[{id:"last",invoice_no:"BEYOND-FIRST-PAGE",invoice_date:"2026-09-24",customer_name:"Synthetic Customer",net_sales_amount:7}],error:null};
   }, then: (resolve:any) => Promise.resolve(result).then(resolve) };
   return query;
+},rpc:(name:string)=>{
+  const response=(start:number)=>{
+    if(name!=='report_customer_profitability')return {data:[],error:null};
+    paging.rpcCalls.push(start);
+    if(start===0)return {data:Array.from({length:1000},(_,i)=>({
+      customer_name:'RPC Customer '+i,invoices:1,net_sales:100,actual_cogs:50,gross_profit:50,margin_percent:50
+    })),error:null};
+    if(paging.rpcFail)return {data:null,error:{message:'Later RPC page failed'}};
+    return {data:[{customer_name:'BEYOND_RPC_FIRST_PAGE',invoices:1,net_sales:110,actual_cogs:40,gross_profit:70,margin_percent:63.64}],error:null};
+  };
+  const query={order:()=>query,range:async(start:number)=>response(start)};
+  return query;
 } } }));
 
 const showReport = () => render(<MemoryRouter initialEntries={["/reports/sales-margin"]}><ReportSurface><Reports /></ReportSurface></MemoryRouter>);
-beforeEach(() => {localStorage.clear();paging.enabled=false;paging.fail=false;paging.partyPaging=false;paging.calls=[]});
+beforeEach(() => {localStorage.clear();paging.enabled=false;paging.fail=false;paging.partyPaging=false;paging.calls=[];paging.rpcFail=false;paging.rpcCalls=[]});
 afterEach(cleanup);
 
 describe("generic report workspace", () => {
@@ -59,6 +71,18 @@ describe("generic report workspace", () => {
     await screen.findByText("Second page failed");
     expect(screen.queryByText("PAGE-0")).toBeNull();
     expect(paging.calls).toEqual([0,1000]);
+  });
+  it('includes all set-returning profitability RPC pages beyond 1000 rows',async()=>{
+    render(<MemoryRouter initialEntries={['/reports/customer-profitability']}><ReportSurface><Reports /></ReportSurface></MemoryRouter>);
+    await screen.findByText('BEYOND_RPC_FIRST_PAGE');
+    expect(paging.rpcCalls).toEqual([0,1000]);
+  });
+  it('refuses to show partial RPC profitability totals when later page fails',async()=>{
+    paging.rpcFail=true;
+    render(<MemoryRouter initialEntries={['/reports/customer-profitability']}><ReportSurface><Reports /></ReportSurface></MemoryRouter>);
+    await screen.findByText('Later RPC page failed');
+    expect(screen.queryByText('RPC Customer 0')).toBeNull();
+    expect(paging.rpcCalls).toEqual([0,1000]);
   });
   it("keeps filters and primary actions compact and exposes only real output actions", async () => {
     showReport();
