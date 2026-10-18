@@ -73,10 +73,14 @@ begin
  if (result->>'count')::integer<>1 then raise exception 'Trimmed search, route or Driver header filter failed';end if;
  result:=public.transport_post_customer_bill_described(trip,current_date,false,'  CUSTOM-S-'||code||'  ','  Customer delivery instructions  ');sales_id:=(result->>'document_id')::uuid;
  if not exists(select 1 from public.sales_service_lines where order_id=sales_id and description like 'Customer delivery instructions%' and description like '%Vehicle: FIN-V%') then raise exception 'Customer description or automatic Trip detail missing';end if;
- if not exists(select 1 from public.sales_service_lines where order_id=sales_id and revenue_account_id=vehicle_rev and amount=1000)
+ if not exists(select 1 from public.sales_service_lines where order_id=sales_id
+     and revenue_account_id=(select account_id from public.account_mappings where company_id=c and mapping_key='service_revenue') and amount=1000)
    or not exists(select 1 from public.journal_lines l join public.journal_entries j on j.id=l.entry_id
-     where j.source_document_id=sales_id and l.account_id=vehicle_rev and l.credit=1000)
- then raise exception 'Company vehicle Trip income did not post once to its linked Revenue COA';end if;
+     where j.source_document_id=sales_id
+       and l.account_id=(select account_id from public.account_mappings where company_id=c and mapping_key='service_revenue') and l.credit=1000)
+   or exists(select 1 from public.journal_lines l join public.journal_entries j on j.id=l.entry_id
+     where j.source_document_id=sales_id and l.account_id=vehicle_rev)
+ then raise exception 'Company vehicle Trip must credit common Service Revenue only once';end if;
  rejected:=false;begin perform public.transport_post_customer_bill_described(trip2,current_date,false,null,repeat('X',2001));exception when others then rejected:=true;end;
  if not rejected or exists(select 1 from public.transport_customer_document_trips where trip_id=trip2) then raise exception 'Overlong description accepted or partial invoice created';end if;
  if (select account_id from public.customers where id=customer) is distinct from ar then raise exception 'Blank Customer AR was not resolved to the valid company mapping';end if;
