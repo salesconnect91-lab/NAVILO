@@ -1,4 +1,4 @@
--- Synthetic local-only foreign manual journal, base ledger and base reversal.
+-- Synthetic local-only foreign manual Journal, base-ledger valuation and owner-only reversal safety.
 begin;
 do $$
 declare
@@ -107,20 +107,30 @@ begin
      (select exchange_rate from public.journal_entries where id=v_entry)<>0.91 then
     raise exception 'Original 100 USD and 0.91 conversion snapshot were not preserved';
   end if;
-  v_result:=public.reverse_manual_journal_entry(v_entry,current_date,'FX rehearsal');
-  v_reversal:=(v_result->>'reversal_entry_id')::uuid;
-  select coalesce(sum(debit),0),coalesce(sum(credit),0)
-    into v_debit,v_credit from public.ledgers where journal_entry_id=v_reversal;
-  if v_debit<>91 or v_credit<>91 or
-     (select currency_code from public.journal_entries where id=v_reversal)<>'EUR' then
-    raise exception 'Reversal must negate 91 EUR in base currency';
+  -- Owner Control intentionally requires an FX-specific correction workflow.
+  -- A generic manual reversal must NOT mutate the posted foreign-currency GL,
+  -- because the source/base-rate snapshot and party valuation must be preserved.
+  v_failed:=false;v_error:=null;
+  begin
+    perform public.reverse_manual_journal_entry(v_entry,current_date,'FX reversal must be rejected pending specific correction');
+  exception when others then
+    v_failed:=true;
+    get stacked diagnostics v_error=message_text;
+  end;
+  if not v_failed or v_error not like 'Foreign-currency journals require the FX-specific correction workflow%' then
+    raise exception 'Generic reversal bypassed owner FX protection or returned an unexpected error: %',coalesce(v_error,'NO ERROR');
+  end if;
+  if (select status from public.journal_entries where id=v_entry)<>'posted'
+     or (select count(*) from public.journal_entries where reversal_of_entry_id=v_entry)<>0
+     or exists(select 1 from public.owner_posted_control_events where document_id=v_entry and action_type='cancel')
+  then
+    raise exception 'Rejected foreign reversal changed the original or left a reversal/audit';
   end if;
   select coalesce(sum(debit),0),coalesce(sum(credit),0)
-    into v_debit,v_credit from public.party_ledgers
-    where journal_entry_id=v_reversal and party_id=v_customer;
-  if v_debit<>0 or v_credit<>91 then
-    raise exception 'Customer subledger reversal must negate 91 EUR';
+    into v_debit,v_credit from public.ledgers where journal_entry_id=v_entry;
+  if v_debit<>91 or v_credit<>91 then
+    raise exception 'Rejected reversal changed foreign posted ledger balances';
   end if;
-  raise notice 'PASS: bypass blocked; 100 USD posts as 91 EUR in GL and customer ledger; reversal negates 91 EUR';
+  raise notice 'PASS: direct FX bypass and generic reversal blocked; 100 USD posts as 91 EUR with unchanged GL/customer ledger';
 end $$;
 rollback;
