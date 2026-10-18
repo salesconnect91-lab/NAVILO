@@ -1,4 +1,11 @@
 # NAVILO — Accounting / Financial / Transport Reports Review
+
+## Release status — 18-Oct-2026
+
+**Report correction implementation: COMPLETE (code and deployment).** The reviewed General/Party Ledgers, Day Book, invoice statements, Supplier Aging, Transport print formatting, Loan, Payroll, Stock Control, shared print/PDF rendering, and paginated set-returning financial reports have been delivered. Completed implementation is not the same as certifying every company and every historical business scenario; logged-in print acceptance, specialized ledger reconciliations, and the separate Transport billing smoke remain individually listed below as outstanding release-acceptance checks.
+
+**Cash/Petty Cash payment account correction: APPLIED AND DATABASE-VERIFIED.** Orbit - Usman Sajjad's existing Cash In Hand (mapped Cash) and Petty Cash accounts were both recategorized from incorrect fixed/current-asset detail types to the canonical Cash on Hand detail type. Al-Rajhi Bank remains Bank Account. The existing account IDs, cash/bank mapping, balances and posted journal entries were preserved; neither Cash/Petty Cash account had posted ledger rows when corrected. All reviewed receipt/payment selectors and posting RPCs require active, posting-enabled Cash on Hand or Bank Account classification, so the same three existing Orbit accounts are now eligible. Change performed using verified tenant-owner context, without disabling tenant protections. Migration: 20261018150700_orbit_cash_petty_cash_payment_accounts.sql.
+
 Date: 18-Oct-2026 · Branch: main · Scope: non-destructive reports only
 
 ## Confirmed production accounting evidence (read-only)
