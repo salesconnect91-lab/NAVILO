@@ -457,7 +457,7 @@ export default function ProfitLoss() {
                 {vehicleIncome.length===0?<p className="px-3 py-3 text-xs text-slate-500">No active company-owned vehicles in this report scope.</p>:
                 <div className="divide-y divide-slate-100">{vehicleIncome.map(v=><div key={v.id} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
                   <div><span className="font-semibold">Vehicle {v.vehicle_no}</span>
-                    <span className="ml-2 text-slate-500">{v.status==='dedicated'?('COA '+v.accountCode):v.status==='shared'?'Shared Revenue COA — needs separate link':'Income COA not linked'}</span></div>
+                    <span className="ml-2 text-slate-500">{v.status==='dedicated'?'Income account linked':v.status==='shared'?'Shared Revenue account — needs separate link':'Income account not linked'}</span></div>
                   <span className="font-mono font-semibold">{v.amount===null?'—':formatCurrency(v.amount)}</span>
                 </div>)}</div>}
               </section>}
