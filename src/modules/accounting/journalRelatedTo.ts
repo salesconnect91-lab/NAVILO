@@ -1,8 +1,10 @@
 /** Journal "Related To" is a presentation choice. Party and vehicle IDs stay separate. */
 export type JournalRelatedToMode = 'party' | 'vehicle' | 'general';
 export function journalRelatedToMode(accountType:string|undefined,requiresParty:boolean,isTransport:boolean):JournalRelatedToMode{
+  // Expense/income lines never open customer/supplier identity simply because a GL is linked to a party.
+  // The party selector belongs only to genuine AR/AP control accounts.
+  if(['revenue','income','expense'].includes(String(accountType??'').toLowerCase()))return isTransport?'vehicle':'general';
   if(requiresParty)return 'party';
-  if(isTransport&&['revenue','income','expense'].includes(String(accountType??'').toLowerCase()))return 'vehicle';
   return 'general';
 }
 export type OwnedPeriod={vehicle_id:string;owner_type:string;effective_from:string;effective_to:string|null};
