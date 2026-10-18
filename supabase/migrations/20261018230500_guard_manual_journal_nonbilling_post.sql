@@ -16,7 +16,8 @@ BEGIN
         NULLIF(btrim(coalesce(NEW.source_document_type,'')),'') IS NOT NULL OR
         NEW.source_document_id IS NOT NULL OR
         NEW.monthly_profit_closure_id IS NOT NULL OR
-        NEW.fiscal_year_closure_id IS NOT NULL
+        NEW.fiscal_year_closure_id IS NOT NULL OR
+        coalesce(NEW.trans_type,'') NOT IN ('','General','Journal Entry','Manual Journal')
     ) THEN
       RAISE EXCEPTION USING ERRCODE='23514',
         MESSAGE='Source-document references cannot be supplied through manual journal creation.';
@@ -28,6 +29,12 @@ BEGIN
      OR OLD.status IS DISTINCT FROM 'draft' THEN
     RETURN NEW;
   END IF;
+
+  -- The manual Journal feature uses exactly these legacy/current voucher types.
+  -- Sales/Purchase invoice, discount, payroll, returns and fiscal postings have
+  -- their own document routines; their P&L/VAT lines must remain postable.
+  IF coalesce(NEW.trans_type,'') NOT IN ('','General','Journal Entry','Manual Journal')
+  THEN RETURN NEW; END IF;
 
   -- Authorized period-close postings reverse Income/Expense into retained
   -- earnings and are system accounting, not new sales or expense billing.
