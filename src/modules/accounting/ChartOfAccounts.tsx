@@ -1780,7 +1780,7 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
                     <div className="mt-3">
                       <FormField
                         label="Detail type"
-                        hint="This classification determines how the account is presented in reporting."
+                        hint="Choose Cash on Hand for Cash/Petty Cash, or Bank Account for banks. This controls payment eligibility, Balance Sheet classification and Cash Flow."
                       >
                         <SearchableSelect
                           value={
