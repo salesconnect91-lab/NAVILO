@@ -824,7 +824,7 @@ export default function JournalEntryList() {
         throw new Error(
           "This file appears to contain customer-wise receivables in AccountName. " +
           "Bulk Journal Import currently accepts Chart of Accounts names, not Customer Master names. " +
-          "Use individual Journal Entry > Import Excel with Account Code 1130 and Party Type/Party Name; " +
+          "Use individual Journal Entry > Import Excel with the mapped Accounts Receivable name and Party Type/Party Name; " +
           "do not post until customer balances have been reconciled. " +
           "Affected Excel rows: " +
           customerLikeRows.map((item) => item.rowNumber).join(", ")
@@ -1567,14 +1567,14 @@ export default function JournalEntryList() {
                     continue;
                   } else {
                     errors.push(
-                      `Row ${row.rowNumber}: Multiple "${row.accountName}" accounts exist under "${row.accountHead}". Please provide AccountCode.`
+                      `Row ${row.rowNumber}: Multiple "${row.accountName}" accounts exist under "${row.accountHead}". Use a unique posting account name.`
                     );
 
                     continue;
                   }
                 } else {
                   errors.push(
-                    `Row ${row.rowNumber}: Multiple accounts named "${row.accountName}" exist. AccountHead or AccountCode is required.`
+                    `Row ${row.rowNumber}: Multiple accounts named "${row.accountName}" exist. Specify Account Head.`
                   );
 
                   continue;
@@ -3130,7 +3130,7 @@ export default function JournalEntryList() {
                     </h3>
 
                     <p className="text-xs text-slate-500 mt-1">
-                      Use the same Description on each row of one Entry No. Account Code is optional; Account Head and Account Name select the posting account.
+                      Use the same Description on each row of one Entry No. Account Head and Account Name select the posting account.
                     </p>
 
                     <p className="text-xs text-slate-500 mt-1">
@@ -3738,7 +3738,7 @@ export default function JournalEntryList() {
                   Important:
                 </span>{" "}
 
-                AccountCode is optional.AccountHead and AccountName are separate.
+                Use Account Head and Account Name to select the posting account.
 
                 Posting is made to the
                 actual child/posting account.
