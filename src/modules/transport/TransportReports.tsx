@@ -4,10 +4,11 @@ import NaviloDateInput from '@/components/NaviloDateInput';
 import TransportPartyReports from './TransportPartyReports';
 import TransportTripReports from './TransportTripReports';
 import TransportVehicleReports from './TransportVehicleReports';
+import TransportBillingModeVatReview from './TransportBillingModeVatReview';
 import TransportCreditInvoiceReview from './TransportCreditInvoiceReview';
 
-type Mode='party'|'driver'|'vehicle'|'trips'|'profit'|'credit-review';
-const validModes=new Set<Mode>(['party','driver','vehicle','trips','profit','credit-review']);
+type Mode='party'|'driver'|'vehicle'|'trips'|'profit'|'credit-review'|'vat-review';
+const validModes=new Set<Mode>(['party','driver','vehicle','trips','profit','credit-review','vat-review']);
 
 export default function TransportReports(){
  const [params,setParams]=useSearchParams();
@@ -30,10 +31,12 @@ export default function TransportReports(){
   <button className={mode==='profit'?'btn-primary':'btn'} onClick={()=>choose('profit')}>Posted profitability</button>
    <button className={mode==='vehicle'?'btn-primary':'btn'} onClick={()=>choose('vehicle')}>Vehicle Ledger &amp; P&amp;L</button>
    <button className={mode==='credit-review'?'btn-primary':'btn'} onClick={()=>choose('credit-review')}>Credit invoice review</button>
+   <button className={mode==='vat-review'?'btn-primary':'btn'} onClick={()=>choose('vat-review')}>Billing Mode &amp; VAT Review</button>
  </div>
  {mode==='party'&&<TransportPartyReports key={requestedSide} initialSide={requestedSide} onClose={()=>choose('trips')} onChanged={async()=>{}}/>}
  {mode==='trips'&&<TransportTripReports/>}
  {mode==='credit-review'&&<TransportCreditInvoiceReview/>}
+ {mode==='vat-review'&&<TransportBillingModeVatReview/>}
   {mode==='vehicle'&&<TransportVehicleReports/>}
  {mode==='profit'&&<><div className="flex gap-2"><label>Trip date From<NaviloDateInput className="input" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Trip date To<NaviloDateInput className="input" value={to} onChange={e=>setTo(e.target.value)}/></label></div>{from&&to&&from>to?<p role="alert">From must be on or before To.</p>:<TransportTripReports externalFilters={{from,to,search:""}}/>}</>}
  </div>;
