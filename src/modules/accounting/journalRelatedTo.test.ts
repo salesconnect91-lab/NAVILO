@@ -14,7 +14,9 @@ describe('Fast Journal smart Related To selection',()=>{
   expect(journalRelatedToMode('revenue',false,false)).toBe('general');
   expect(journalRelatedToMode('liability',false,true)).toBe('general');
   expect(journalRelatedToMode('asset',false,true)).toBe('general');
-  expect(journalRelatedToMode('revenue',true,true)).toBe('party');
+  expect(journalRelatedToMode('revenue',true,true)).toBe('vehicle');
+  expect(journalRelatedToMode('expense',true,true)).toBe('vehicle');
+  expect(journalRelatedToMode('expense',true,false)).toBe('general');
  });
  it('limits selectable company vehicles by journal date and ownership history',()=>{
   const periods=[{vehicle_id:'x',owner_type:'company',effective_from:'2026-08-01',effective_to:'2026-09-30'},
