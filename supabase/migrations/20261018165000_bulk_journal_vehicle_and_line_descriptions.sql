@@ -215,6 +215,23 @@ BEGIN
         RAISE EXCEPTION '%: Party Type is required when Party Name is present.', v_entry_no;
       END IF;
 
+      v_vehicle_no:=btrim(coalesce(v_line->>'vehicle_no',''));
+      IF v_vehicle_no<>'' THEN
+        IF v_party_type<>'' OR v_account.type NOT IN ('revenue','income','expense')
+          OR NOT EXISTS(SELECT 1 FROM public.business_units bu WHERE bu.id=v_business_unit_id
+            AND bu.company_id=v_company_id AND bu.unit_type='transport' AND bu.is_active)
+        THEN RAISE EXCEPTION '%: Vehicle No only allowed for Transport income/expense without Party.',v_entry_no; END IF;
+        IF (SELECT count(DISTINCT v.id)
+          FROM public.transport_vehicles v
+          WHERE v.company_id=v_company_id AND v.business_unit_id=v_business_unit_id AND v.is_active
+            AND upper(btrim(v.vehicle_no))=upper(btrim(split_part(v_vehicle_no,'·',1)))
+            AND EXISTS(SELECT 1 FROM public.transport_vehicle_ownership o
+              WHERE o.company_id=v_company_id AND o.business_unit_id=v_business_unit_id
+                AND o.vehicle_id=v.id AND o.owner_type='company'
+                AND o.effective_from<=v_entry_date
+                AND (o.effective_to IS NULL OR o.effective_to>=v_entry_date))
+        )<>1 THEN RAISE EXCEPTION '%: Vehicle % must be uniquely company-owned on this journal date.',v_entry_no,v_vehicle_no; END IF;
+      END IF;
       v_total_debit := v_total_debit + v_debit;
       v_total_credit := v_total_credit + v_credit;
     END LOOP;
