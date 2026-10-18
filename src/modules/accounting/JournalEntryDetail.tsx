@@ -882,40 +882,14 @@ export default function JournalEntryDetail() {
   const handleDownloadTemplate =
     () => {
       try {
-        const templateData = [
-          {
-            "Account Name": "Cash",
-            Description: "Cash received for service",
-            "Party Type": "",
-            "Party Name": "",
-            "Vehicle No": "",
-            Debit: 1000,
-            Credit: "",
-          },
-          {
-            "Account Name": "Sales Revenue",
-            Description: "Service revenue earned",
-            "Party Type": "",
-            "Party Name": "",
-            "Vehicle No": "",
-            Debit: "",
-            Credit: 1000,
-          },
-        ];
-
-        const worksheet =
-          XLSX.utils.json_to_sheet(
-            templateData
-          );
-
+        // Same columns and mapping rules as the visible Fast Journal grid.
+        // No invented account names, customers, or vehicle numbers in examples.
+        const worksheet = XLSX.utils.aoa_to_sheet([
+          ["Account Name","Description","Party Type","Party Name","Vehicle No","Debit","Credit"],
+        ]);
         worksheet["!cols"] = [
-          { wch: 35 },
-          { wch: 42 },
-          { wch: 18 },
-          { wch: 35 },
-          { wch: 16 },
-          { wch: 18 },
-          { wch: 18 },
+          { wch: 35 },{ wch: 42 },{ wch: 18 },{ wch: 35 },
+          { wch: 16 },{ wch: 18 },{ wch: 18 },
         ];
 
         const workbook =
@@ -2590,6 +2564,11 @@ export default function JournalEntryDetail() {
                         : "↑ Load Excel / CSV"}
                     </button>
 
+                    <button type="button" onClick={handleDownloadTemplate}
+                      disabled={importing || saving || posting}
+                      className="px-4 py-2 bg-white border border-emerald-300 text-emerald-900 text-sm font-semibold rounded-lg">
+                      ↓ Excel Template
+                    </button>
                     <input
                       ref={
                         fileInputRef
