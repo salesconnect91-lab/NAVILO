@@ -122,11 +122,11 @@ export default function OpeningBalances() {
 
   const downloadTemplate = () => {
     const sheet = XLSX.utils.aoa_to_sheet([
-      ["Account Code", "Account Name", "Party Type", "Party Name", "Debit", "Credit"],
-      ["1110", "Cash", "", "", "100000", ""],
-      ["3100", "Share Capital", "", "", "", "100000"],
+      ["Account Name", "Party Type", "Party Name", "Debit", "Credit"],
+      ["Cash", "", "", "100000", ""],
+      ["Share Capital", "", "", "", "100000"],
     ]);
-    sheet["!cols"] = [{ wch: 16 }, { wch: 32 }, { wch: 16 }, { wch: 32 }, { wch: 18 }, { wch: 18 }];
+    sheet["!cols"] = [{ wch: 32 }, { wch: 16 }, { wch: 32 }, { wch: 18 }, { wch: 18 }];
     const instructions = XLSX.utils.aoa_to_sheet([
       ["NAVILO Opening Balance Import"],
       ["Opening Date", "Select January 1 on screen before posting."],
@@ -146,14 +146,17 @@ export default function OpeningBalances() {
       const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
       if (!raw.length) throw new Error("Import file has no opening balance rows.");
       const byCode = new Map(postingAccounts.map((x) => [normalize(x.code), x]));
-      const byName = new Map(postingAccounts.map((x) => [normalize(x.name), x]));
+      const byName = new Map<string, typeof postingAccounts>();
+      postingAccounts.forEach(x => { const name=normalize(x.name);byName.set(name,[...(byName.get(name)??[]),x]); });
       const customerByName = new Map(customers.map((x) => [normalize(x.name), x]));
       const supplierByName = new Map(suppliers.map((x) => [normalize(x.name), x]));
       const imported: Row[] = raw.map((record, index) => {
         const code = normalize(record["Account Code"] ?? record["account_code"]);
         const name = normalize(record["Account Name"] ?? record["account_name"]);
-        const account = (code && byCode.get(code)) || (name && byName.get(name));
-        if (!account) throw new Error(`Excel row ${index + 2}: valid posting Account Code/Name not found.`);
+        const exact = code ? byCode.get(code) : null;
+        const sameName = name ? byName.get(name)??[] : [];
+        if (!exact && sameName.length!==1) throw new Error(`Excel row ${index+2}: Select an existing unique Account Name in the Chart of Accounts.`);
+        const account = exact || sameName[0];
         const pTypeRaw = normalize(record["Party Type"] ?? record["party_type"]);
         const partyName = normalize(record["Party Name"] ?? record["party_name"]);
         let partyType: Row["partyType"] = "", partyId = "";
