@@ -13,13 +13,13 @@ export function transportPrintPaper(columnCount:number):TransportPaper {
 export function transportPrintSections(report:ReportTable):TransportPrintSection[] {
  if(!report.columns.length)return [];
  const width=report.columns.length;
- if(width<=12)return [{title:'Statement details',indexes:report.columns.map((_,i)=>i),columns:report.columns,rows:report.rows}];
+ if(width<=9)return [{title:'Statement details',indexes:report.columns.map((_,i)=>i),columns:report.columns,rows:report.rows}];
  // Put financial evidence first; keep the original fields in supporting sections.
  // Repeating identifying columns makes multi-page printouts reconcilable without hiding data.
  const identifiers=report.columns.flatMap((c,i)=>/^(trip|date|party|document|bill|invoice|customer|supplier(?:\s*\/\s*owner)?|voucher)$/i.test(c.trim())?[i]:[]).slice(0,4);
  if(!identifiers.length)identifiers.push(0);
  const anchor=new Set(identifiers);
- const limit=12-identifiers.length;
+ const limit=9-identifiers.length;
  const financial=report.columns.flatMap((_,i)=>!anchor.has(i)&&report.rows.slice(0,30).some(row=>typeof row[i]==='number')?[i]:[]);
  const first=financial.slice(0,limit);
  if(!first.length)first.push(...report.columns.flatMap((_,i)=>!anchor.has(i)?[i]:[]).slice(0,limit));
