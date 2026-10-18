@@ -1,4 +1,5 @@
 -- Synthetic local fixtures, rollback; canonical posting and authenticated RPCs.
+-- Profit-close rehearsal uses synthetic SOURCE journals, not prohibited manual billing.
 begin;
 do $$
 declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;cash uuid;rev uuid;exp uuid;equity uuid;je uuid;closing uuid;
@@ -28,14 +29,14 @@ begin
  insert into public.account_mappings(user_id,company_id,mapping_key,account_id) values(u,c,'retained_earnings',equity);
  end if;
  if cash is null or rev is null or exp is null then raise exception 'Fixture COA missing: cash %, revenue %, expense %',cash,rev,exp;end if;
- insert into public.journal_entries(user_id,company_id,business_unit_id,operating_location_id,entry_no,entry_date,description,status,trans_type)
- values(u,c,b,loc,'MC-INCOME',m+10,'Income test','draft','Journal Entry') returning id into je;
+ insert into public.journal_entries(user_id,company_id,business_unit_id,operating_location_id,entry_no,entry_date,description,status,trans_type,source_module,source_document_type,source_document_id)
+ values(u,c,b,loc,'MC-INCOME',m+10,'Income test','draft','Synthetic Source Posting','accounting','test_fixture',gen_random_uuid()) returning id into je;
  insert into public.journal_lines(user_id,company_id,business_unit_id,operating_location_id,entry_id,account_id,account,debit,credit)
  select u,c,b,loc,je,id,code||' - '||name,case when id=cash then 1000 else 0 end,case when id=rev then 1000 else 0 end from public.chart_of_accounts where id in(cash,rev);
  update public.company_accounting_policies set backdate_days=3650 where company_id=c;
  perform public.post_journal_entry(je);
- insert into public.journal_entries(user_id,company_id,business_unit_id,operating_location_id,entry_no,entry_date,description,status,trans_type)
- values(u,c,b,loc,'MC-COST',m+11,'Cost test','draft','Journal Entry') returning id into je;
+ insert into public.journal_entries(user_id,company_id,business_unit_id,operating_location_id,entry_no,entry_date,description,status,trans_type,source_module,source_document_type,source_document_id)
+ values(u,c,b,loc,'MC-COST',m+11,'Cost test','draft','Synthetic Source Posting','accounting','test_fixture',gen_random_uuid()) returning id into je;
  insert into public.journal_lines(user_id,company_id,business_unit_id,operating_location_id,entry_id,account_id,account,debit,credit)
  select u,c,b,loc,je,id,code||' - '||name,case when id=exp then 300 else 0 end,case when id=cash then 300 else 0 end from public.chart_of_accounts where id in(cash,exp);
  perform public.post_journal_entry(je);
@@ -62,8 +63,8 @@ begin
  if (select sum(debit-credit) from public.ledgers where company_id=c and account_id in(rev,exp))<>0 then raise exception 'Income expense GL not closed';end if;
  if (select sum(debit-credit) from public.ledgers where company_id=c)<>0 then raise exception 'TB imbalance';end if;
  -- A post dated inside closed month must roll back completely.
- insert into public.journal_entries(user_id,company_id,business_unit_id,operating_location_id,entry_no,entry_date,description,status,trans_type)
- values(u,c,b,loc,'MC-LATE',m+15,'Late cost','draft','Journal Entry') returning id into je;
+ insert into public.journal_entries(user_id,company_id,business_unit_id,operating_location_id,entry_no,entry_date,description,status,trans_type,source_module,source_document_type,source_document_id)
+ values(u,c,b,loc,'MC-LATE',m+15,'Late cost','draft','Synthetic Source Posting','accounting','test_fixture',gen_random_uuid()) returning id into je;
  insert into public.journal_lines(user_id,company_id,business_unit_id,operating_location_id,entry_id,account_id,account,debit,credit)
  select u,c,b,loc,je,id,code||' - '||name,case when id=exp then 10 else 0 end,case when id=cash then 10 else 0 end from public.chart_of_accounts where id in(cash,exp);
  select count(*) into before_count from public.ledgers where company_id=c;
@@ -71,8 +72,8 @@ begin
  if not bad or (select count(*) from public.ledgers where company_id=c)<>before_count then raise exception 'Late posting changed closed books';end if;
  delete from public.journal_lines where entry_id=je;delete from public.journal_entries where id=je;
  -- Next month: draft blocks closing, then a loss debits equity and remains visible in P&L.
- insert into public.journal_entries(user_id,company_id,business_unit_id,operating_location_id,entry_no,entry_date,description,status,trans_type)
- values(u,c,b,loc,'MC-LOSS',(m+interval '1 month')::date+10,'Loss test','draft','Journal Entry') returning id into je;
+ insert into public.journal_entries(user_id,company_id,business_unit_id,operating_location_id,entry_no,entry_date,description,status,trans_type,source_module,source_document_type,source_document_id)
+ values(u,c,b,loc,'MC-LOSS',(m+interval '1 month')::date+10,'Loss test','draft','Synthetic Source Posting','accounting','test_fixture',gen_random_uuid()) returning id into je;
  insert into public.journal_lines(user_id,company_id,business_unit_id,operating_location_id,entry_id,account_id,account,debit,credit)
  select u,c,b,loc,je,id,code||' - '||name,case when id=exp then 100 else 0 end,case when id=cash then 100 else 0 end from public.chart_of_accounts where id in(cash,exp);
  p:=public.transport_monthly_profit_preview((m+interval '1 month')::date);
