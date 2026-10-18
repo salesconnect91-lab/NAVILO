@@ -256,6 +256,9 @@ BEGIN
           IF (SELECT count(*) FROM public.transport_vehicles v
               WHERE v.company_id=v_company_id AND v.business_unit_id=v_business_unit_id
                 AND v.revenue_account_id=v_account.id AND v.is_active
+          )<>1 OR (SELECT count(*) FROM public.transport_vehicles v
+              WHERE v.company_id=v_company_id AND v.business_unit_id=v_business_unit_id
+                AND v.revenue_account_id=v_account.id AND v.is_active
                 AND EXISTS(SELECT 1 FROM public.transport_vehicle_ownership o
                   WHERE o.company_id=v_company_id AND o.business_unit_id=v_business_unit_id
                     AND o.vehicle_id=v.id AND o.owner_type='company'
