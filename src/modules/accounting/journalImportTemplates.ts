@@ -4,7 +4,6 @@ export const TEMPLATE_HEADERS = [
   "entry_no",
   "entry_date",
   "description",
-  "account_head",
   "account_name",
   "line_description",
   "party_type",
@@ -78,9 +77,9 @@ export const downloadExcelTemplate = () => {
   notes:[
    'Upload creates DRAFT journals only. Review and post each journal in Accounting; no entries are posted automatically.',
    'All rows with the same entry_no must have the same entry_date and description. Debit and credit totals for each entry MUST balance.',
-   'Use exact existing Account Name. Account Head is optional unless multiple accounts share that name. Internal codes are managed by NAVILO.',
-   'Related To: AR requires Customer, AP requires Supplier, and vehicle_no is optional only for Transport revenue/expense lines. The vehicle must be company-owned on the journal date. Leave unrelated fields blank.',
-   'Do not invent missing accounts or use group/header accounts; account matching follows the selected Company and Business Unit.',
+   'Account Name is the only required GL selection. For a uniquely linked company-owned vehicle Income account, leave Vehicle No blank: NAVILO links it automatically.',
+   'Related To: AR requires Customer, AP requires Supplier. Vehicle No is OPTIONAL for shared Transport expense lines. Never re-enter a vehicle number when its Income account already identifies the vehicle.',
+   'Do not invent missing accounts or use group accounts. If an account name is ambiguous, use the optional legacy account_head column to disambiguate.',
    'Supplier payment examples: DEBIT Accounts Payable with the correct Supplier Party and CREDIT Cash/Bank. Review direction and any existing allocations before posting.',
    'line_description is optional per line; description is the overall journal narration. Debit/Credit must balance per Entry No, with only one nonzero side per line.',
    'There is no sales/purchase invoice or receipt created by general Journal import. Do not re-import posted vouchers.'
@@ -88,9 +87,9 @@ export const downloadExcelTemplate = () => {
  });
  const sheet=XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS,...TEMPLATE_ROWS]);
  sheet['!cols']=[
-  {wch:18},{wch:15},{wch:35},{wch:30},{wch:34},{wch:38},{wch:16},{wch:36},{wch:16},{wch:17},{wch:17}
+  {wch:18},{wch:15},{wch:35},{wch:34},{wch:38},{wch:16},{wch:36},{wch:16},{wch:17},{wch:17}
  ];
- sheet['!autofilter']={ref:`A1:K${TEMPLATE_ROWS.length+1}`};
+ sheet['!autofilter']={ref:`A1:J${TEMPLATE_ROWS.length+1}`};
  workbook.Sheets['Journal Import']=sheet;
  XLSX.writeFile(workbook,'journal-import-template.xlsx');
 };
