@@ -19,6 +19,6 @@ describe('independent loan party balances',()=>{
  });
  it('preserves lender credit balances and negative overpayments',()=>{
   const v=loanRunningBalances([{...rows[0],amount:100},{...rows[2],amount:200}]);
-  expect(v.at(-1)?.balance).toBe(-100);
+  expect(v[v.length-1]?.balance).toBe(-100);
  });
 });
