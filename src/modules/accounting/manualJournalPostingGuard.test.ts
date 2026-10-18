@@ -57,6 +57,16 @@ describe('Isolated PostgreSQL manual Journal non-billing posting guard',()=>{
       await expect(post(acc.expense,true)).resolves.toBeTruthy();
       await expect(post(acc.vat,true)).resolves.toBeTruthy();
       await expect(post(acc.expense,false,true)).resolves.toBeTruthy();
+
+      // The Data API authenticated role cannot impersonate a source document.
+      await db.exec('create role authenticated; grant insert on public.journal_entries to authenticated; set role authenticated;');
+      const forgedId=uuid();
+      try {
+        await expect(db.query(
+          'insert into public.journal_entries(id,company_id,status,source_module,source_document_type,source_document_id) values ($1,$2,$3,$4,$5,$6)',
+          [forgedId,cid,'draft','sales','sales_invoice',uuid()]
+        )).rejects.toThrow(/Source-document references cannot be supplied/);
+      } finally { await db.exec('reset role'); }
     }finally{await db.close();}
   });
 });
