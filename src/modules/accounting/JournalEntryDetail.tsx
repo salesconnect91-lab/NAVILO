@@ -21,6 +21,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchAllPages } from "@/lib/fetchAllPages";
 import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
 import {journalRelatedToMode,vehicleOwnedOnDate,normalizedJournalVehicleNo,type OwnedPeriod} from "./journalRelatedTo";
+import {accountForSelectedVehicle,journalVehicleAccountError,vehicleForIncomeAccount} from './journalVehicleIncomePolicy';
 import {canReversePostedManualJournal} from "./journalPostedActionPolicy";
 
 import {
@@ -149,7 +150,7 @@ export default function JournalEntryDetail() {
   const navigate = useNavigate();
   const {activeCompany,activeBusinessUnit}=useAuth();
   const isTransport=activeBusinessUnit?.business_unit_type==='transport';
-  const [companyVehicles,setCompanyVehicles]=useState<{id:string;vehicle_no:string;label:string}[]>([]);
+  const [companyVehicles,setCompanyVehicles]=useState<{id:string;vehicle_no:string;label:string;revenue_account_id:string|null}[]>([]);
   const [vehicleOwnership,setVehicleOwnership]=useState<OwnedPeriod[]>([]);
   const [vehicleLoadError,setVehicleLoadError]=useState('');
   useEffect(()=>{
@@ -159,8 +160,8 @@ export default function JournalEntryDetail() {
     async function loadVehicles(){
       try{
         const [vehicles,ownership,types]=await Promise.all([
-          fetchAllPages<{id:string;vehicle_no:string;truck_type_id:string|null;truck_type:string|null}>((start,end)=>
-            supabase.from('transport_vehicles').select('id,vehicle_no,truck_type_id,truck_type')
+          fetchAllPages<{id:string;vehicle_no:string;revenue_account_id:string|null;truck_type_id:string|null;truck_type:string|null}>((start,end)=>
+            supabase.from('transport_vehicles').select('id,vehicle_no,revenue_account_id,truck_type_id,truck_type')
               .eq('company_id',cid).eq('business_unit_id',bid).eq('is_active',true).order('id').range(start,end)),
           fetchAllPages<OwnedPeriod>((start,end)=>
             supabase.from('transport_vehicle_ownership').select('vehicle_id,owner_type,effective_from,effective_to')
@@ -171,7 +172,7 @@ export default function JournalEntryDetail() {
         ]);
         const names=new Map(types.map(t=>[t.id,t.name]));
         if(live){setVehicleOwnership(ownership);setCompanyVehicles(vehicles.map(v=>({
-          id:v.id,vehicle_no:v.vehicle_no,label:vehicleDisplayLabel(v.vehicle_no,names.get(v.truck_type_id??'')??v.truck_type),
+          id:v.id,vehicle_no:v.vehicle_no,revenue_account_id:v.revenue_account_id,label:vehicleDisplayLabel(v.vehicle_no,names.get(v.truck_type_id??'')??v.truck_type),
         })));}
       }catch(e:unknown){if(live)setVehicleLoadError(e instanceof Error?e.message:'Unable to load vehicle ownership history');}
     }
@@ -696,7 +697,7 @@ export default function JournalEntryDetail() {
           return {
             ...line,
             accountId,
-            vehicleId: "",
+            vehicleId: vehicleForIncomeAccount(accountId,companyVehicles,eligibleVehicles.map(v=>v.id)),
             partyType:
               partyStillMatches
                 ? line.partyType
@@ -708,6 +709,14 @@ export default function JournalEntryDetail() {
           };
         }
 
+        if(field==='vehicleId'){
+          const account=accounts.find(a=>a.id===line.accountId);
+          return {
+            ...line,
+            vehicleId:value,
+            accountId:accountForSelectedVehicle(line.accountId,account?.type,value,companyVehicles,postingAccounts),
+          };
+        }
         return {
           ...line,
           [field]: value,
@@ -1274,6 +1283,9 @@ export default function JournalEntryDetail() {
             const matches=eligibleVehicles.filter(v=>normalizedJournalVehicleNo(v.vehicle_no)===normalizedJournalVehicleNo(vehicleNo));
             if(matches.length!==1){importErrors.push(`Row ${rowNumber}: Vehicle ${vehicleNo} is not uniquely company-owned on this journal date.`);return;}
           }
+          const importVehicle=vehicleNo?eligibleVehicles.find(v=>normalizedJournalVehicleNo(v.vehicle_no)===normalizedJournalVehicleNo(vehicleNo))?.id??'':'';
+          const mismatch=journalVehicleAccountError(account.id,account.type,importVehicle,companyVehicles);
+          if(mismatch){importErrors.push(`Row ${rowNumber}: ${mismatch}`);return;}
           importedRows.push({
             description: lineDescription,
             vehicleNo,
@@ -1650,6 +1662,8 @@ export default function JournalEntryDetail() {
         if(line.vehicleId && (journalRelatedToMode(account.type,accountRequiresParty(account.id),isTransport)!=='vehicle' || !eligibleVehicles.some(v=>v.id===line.vehicleId))){
           setError(`Row ${rowNumber}: Select a company-owned vehicle valid on this journal date.`);return;
         }
+        const vehicleAccountError=journalVehicleAccountError(account.id,account.type,line.vehicleId??'',companyVehicles);
+        if(vehicleAccountError){setError(`Row ${rowNumber}: ${vehicleAccountError}`);return;}
         rowsToInsert.push({
           transport_vehicle_id: line.vehicleId || null,
           entry_id: id,
