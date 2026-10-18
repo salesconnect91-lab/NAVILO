@@ -1700,6 +1700,17 @@ export default function JournalEntryList() {
               );
             }
 
+            /* TRANSPORT VEHICLE */
+            if(row.vehicleNo){
+              if(partyType||partyName){
+                errors.push(`Row ${row.rowNumber}: Vehicle No and Customer/Supplier cannot be selected together.`);
+              }
+              if(!['revenue','income','expense'].includes(String(account.type??'').toLowerCase())){
+                errors.push(`Row ${row.rowNumber}: Vehicle No is only allowed on Transport income or expense accounts.`);
+              }
+              // Ownership/date/branch are rechecked atomically by the import RPC.
+            }
+
             /* DEBIT / CREDIT */
 
             if (
@@ -3440,6 +3451,8 @@ export default function JournalEntryList() {
                             AccountName
                           </th>
 
+                          <th className="px-3 py-3 text-left">Line Description</th>
+                          <th className="px-3 py-3 text-left">Related To</th>
                           <th className="px-3 py-3 text-right">Debit</th>
 
                           <th className="px-3 py-3 text-right">Credit</th>
@@ -3497,6 +3510,9 @@ export default function JournalEntryList() {
 
                               </td>
 
+                              <td className="px-3 py-2 text-slate-600">{row.lineDescription || "—"}</td>
+                              <td className="px-3 py-2">{row.vehicleNo ? `Vehicle ${row.vehicleNo}` :
+                                row.partyType && row.partyName ? `${row.partyType}: ${row.partyName}` : "Direct to account"}</td>
                               <td className="px-3 py-2 text-right font-mono">
 
                                 {row.debit > 0
