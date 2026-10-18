@@ -671,7 +671,7 @@ export default function JournalEntryList() {
         throw new Error(
           `Missing required columns: ${missingHeaders.join(
             ", "
-          )}. AccountCode is optional.`
+          )}. Use one Account Name; Vehicle No can be left blank when a dedicated Income account already identifies the vehicle.`
         );
       }
 
@@ -3146,18 +3146,11 @@ export default function JournalEntryList() {
                     </h3>
 
                     <p className="text-xs text-slate-500 mt-1">
-                      Use one Description per Entry No. Account Name maps the GL; Account Head is optional. Line Description and Vehicle No follow Fast Journal rules.
+                      Use one Account Name per line. Dedicated company vehicle Income accounts auto-link the vehicle: do not repeat Vehicle No. Enter Vehicle No only when allocating a shared Transport expense.
                     </p>
 
                     <p className="text-xs text-slate-500 mt-1">
-                      Example:
-                      <strong>
-                        {" "}
-                        Accounts Payable</strong>
-                      {" → "}
-                      <strong>
-                        Amjad Khan
-                      </strong>
+                      Customer/Supplier fields are required only for AR/AP. Income GLs with a unique vehicle mapping need no extra Vehicle No.
                     </p>
 
                   </div>
@@ -3444,11 +3437,7 @@ export default function JournalEntryList() {
                           <th className="px-3 py-3 text-left">Date</th>
 
                           <th className="px-3 py-3 text-left">
-                            AccountHead
-                          </th>
-
-                          <th className="px-3 py-3 text-left">
-                            AccountName
+                            Account
                           </th>
 
                           <th className="px-3 py-3 text-left">Line Description</th>
@@ -3489,30 +3478,13 @@ export default function JournalEntryList() {
                               </td>
 
                               <td className="px-3 py-2">
-
-                                <div className="font-medium text-slate-700">
-                                  {
-                                    row.accountHead ||
-                                    "—"
-                                  }
-                                </div>
-
-                              </td>
-
-                              <td className="px-3 py-2">
-
-                                <div className="font-semibold text-slate-900">
-                                  {
-                                    row.accountName ||
-                                    "—"
-                                  }
-                                </div>
-
+                                <div className="font-semibold text-slate-900">{row.accountName || "—"}</div>
+                                {row.accountHead && <div className="text-xs text-slate-500">Under: {row.accountHead}</div>}
                               </td>
 
                               <td className="px-3 py-2 text-slate-600">{row.lineDescription || "—"}</td>
                               <td className="px-3 py-2">{row.vehicleNo ? `Vehicle ${row.vehicleNo}` :
-                                row.partyType && row.partyName ? `${row.partyType}: ${row.partyName}` : "Direct to account"}</td>
+                                row.partyType && row.partyName ? `${row.partyType}: ${row.partyName}` : "From account (auto if dedicated)"}</td>
                               <td className="px-3 py-2 text-right font-mono">
 
                                 {row.debit > 0
