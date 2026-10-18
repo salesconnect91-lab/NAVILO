@@ -224,7 +224,12 @@ export default function SearchableSelect({
           <div className="border-b border-slate-100 p-2">
             <div className="flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-2 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500">
               <Search className="h-4 w-4 shrink-0 text-slate-400" />
-              <input ref={inputRef} value={query} onChange={event => setQuery(event.target.value)} placeholder={searchPlaceholder} className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-slate-400" autoComplete="off" />
+              <input ref={inputRef} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                const first = filtered.find(option => !option.disabled);
+                if (first) commit(first.value);
+              }} placeholder={searchPlaceholder} className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-slate-400" autoComplete="off" />
             </div>
           </div>
           <div role="listbox" className="max-h-60 overscroll-contain overflow-y-auto p-1" onWheel={event => event.stopPropagation()}>

@@ -55,3 +55,39 @@ it('centers Transport options while preserving anchored selection elsewhere',()=
   fireEvent.click(screen.getByRole('button',{name:'Close options'}));expect(screen.queryByRole('listbox')).toBeNull();unmount();
  }finally{window.history.replaceState({},'',previous);}
 });
+
+describe("search keyboard selection",()=>{
+ it("Enter selects the first enabled filtered value and retains native form submission semantics",()=>{
+  const change=vi.fn();
+  const {container}=render(<form data-testid="keyboard-form"><SearchableSelect nativeCompatibility name="vehicle" defaultValue="" onChange={change}>
+   <option value="">Select a vehicle</option>
+   <option value="a" disabled>Truck 2442 disabled</option>
+   <option value="b">Truck 2442 available</option>
+   <option value="c">Truck 8836</option>
+  </SearchableSelect></form>);
+  const trigger=container.querySelector('[aria-haspopup="listbox"]') as HTMLElement;
+  vi.spyOn(trigger.parentElement!,"getBoundingClientRect").mockReturnValue({left:20,top:20,right:300,bottom:52,width:280,height:32,x:20,y:20,toJSON:()=>({})});
+  fireEvent.click(trigger);
+  const input=screen.getByPlaceholderText("Type to search...");
+  fireEvent.change(input,{target:{value:"2442"}});
+  fireEvent.keyDown(input,{key:"Enter",code:"Enter"});
+  expect(change).toHaveBeenCalledTimes(1);
+  expect(change.mock.calls[0][0].target.value).toBe("b");
+  expect(new FormData(screen.getByTestId("keyboard-form") as HTMLFormElement).get("vehicle")).toBe("b");
+  expect(screen.queryByRole("listbox")).toBeNull();
+ });
+ it("Enter does not select when no matching options are enabled",()=>{
+  const change=vi.fn();
+  const {container}=render(<SearchableSelect defaultValue="" onChange={change}>
+    <option value="">Select</option><option disabled value="x">Disabled-only hit</option><option value="y">Different</option>
+  </SearchableSelect>);
+  const trigger=container.querySelector('[aria-haspopup="listbox"]') as HTMLElement;
+  vi.spyOn(trigger.parentElement!,"getBoundingClientRect").mockReturnValue({left:20,top:20,right:300,bottom:52,width:280,height:32,x:20,y:20,toJSON:()=>({})});
+  fireEvent.click(trigger);
+  const input=screen.getByPlaceholderText("Type to search...");
+  fireEvent.change(input,{target:{value:"Disabled-only"}});
+  fireEvent.keyDown(input,{key:"Enter",code:"Enter"});
+  expect(change).not.toHaveBeenCalled();
+  expect(screen.getByRole("listbox")).toBeTruthy();
+ });
+});
