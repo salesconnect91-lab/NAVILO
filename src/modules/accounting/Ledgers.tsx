@@ -1,7 +1,8 @@
 import {recordDisplayText} from '@/lib/recordDisplayText';
 import {withOpeningBalances,statementClosing} from './ledgerStatementMath';
 import {detailedTransportLedger,partySearchKey,type DetailedPartyLedger} from './transportLedgerRows';
-import {registerPrintSource,printTableMarkup} from '@/lib/printDocument';
+import {registerPrintSource,showPrintDocument} from '@/lib/printDocument';
+import {ledgerStatementPrintMarkup,type LedgerPrintRow} from '@/lib/ledgerStatementPrint';
 import {useAuth} from '@/auth/AuthContext';
 import type {PartyMovement} from '@/modules/transport/transportPartyReporting';
 import {linkedPartyRows} from '@/modules/transport/transportOpeningInvoices';
@@ -671,18 +672,56 @@ export default function Ledgers() {
     URL.revokeObjectURL(url);
   };
 
-  useEffect(()=>{
-    const table=partyTableRef.current;if(!table||viewMode!=="party")return;
-    return registerPrintSource(table,()=>{
-      if(loading)throw new Error("Ledger details are loading. Wait before printing.");
-      const data=partyRowsWithBalance.map(row=>{const t=transportInfoByJournal(row);const values:Record<PartyColumnKey,unknown>={date:formatDate(row.entry_date),party:row.party_name,reference:row.reference,documentRefs:t.documentRefs,trip:t.trip,from:t.from,to:t.to,vehicle:t.vehicle,driver:t.driver,owner:t.owner,job:t.job,description:recordDisplayText(row.description),sourceNet:row.source_net??'',sourceTax:row.source_gross==null?'':Number(row.source_gross)-Number(row.source_net||0),sourceGross:row.source_gross??'',sourceSettled:row.source_settled??'',sourceRemaining:row.source_remaining??'',base:t.base||'',charges:t.charges||'',tax:t.tax||'',postedTotal:t.postedTotal||'',debit:Number(row.debit)||'',credit:Number(row.credit)||'',balance:signedBalanceLabel(row.displayBalance)};return displayedPartyColumns.map(([key])=>values[key]);});
-      data.push(displayedPartyColumns.map(([key],index)=>key==='debit'?totalDebit:key==='credit'?totalCredit:key==='balance'?(selectedPartyKey?signedBalanceLabel(statementBalance):'Per Party'):index===0?'Total:':''));
-      return printTableMarkup('Party Statement',displayedPartyColumns.map(([,label])=>label),data);
+  const compactBalance=(value:number)=>Math.abs(value).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+
+    (value < -0.005?' Cr':value>0.005?' Dr':'');
+  const buildLedgerPrint=useCallback(()=>{
+    if(loading)throw new Error('Ledger details are loading. Wait before printing.');
+    const single=viewMode==='general'?Boolean(selectedAccount):Boolean(selectedPartyKey);
+    let rows:LedgerPrintRow[]=[];
+    if(viewMode==='general'){
+      rows=generalRowsWithBalance.map(row=>({
+        date:displayLedgerDate(row.entry_date),party:row.account?.name||'',
+        reference:'',description:recordDisplayText(row.description),
+        debit:Number(row.debit)||0,credit:Number(row.credit)||0,
+        balance:compactBalance(row.displayBalance)
+      }));
+    }else{
+      rows=partyRowsWithBalance.map(row=>{
+        const t=transportInfoByJournal(row);
+        return {date:displayLedgerDate(row.entry_date),party:row.party_name||getPartyName(row.party_type,row.party_id),
+          reference:row.reference||'',description:recordDisplayText(row.description),
+          debit:Number(row.debit)||0,credit:Number(row.credit)||0,
+          balance:compactBalance(row.displayBalance),
+          trip:t.trip,from:t.from,to:t.to,vehicle:t.vehicle,invoice:t.documentRefs};
+      });
+    }
+    return ledgerStatementPrintMarkup(rows,{
+      title:viewMode==='general'?'General Ledger':'Party Statement',
+      companyName:activeCompany?.company_name,
+      period:(fromDate||'All dates')+' to '+(toDate||'latest'),
+      partySelected:single,
+      groupLabel:viewMode==='general'?'Account':'Party',
+      openingBalance:single&&fromDate?compactBalance(openingBalance):undefined,
+      closingBalance:single?compactBalance(statementBalance):undefined,
+      totalDebit,totalCredit,
     });
-  },[viewMode,loading,partyRowsWithBalance,transportInfoByJournal,displayedPartyColumns,totalDebit,totalCredit,statementBalance,selectedPartyKey]);
+  },[loading,viewMode,selectedAccount,selectedPartyKey,generalRowsWithBalance,partyRowsWithBalance,
+    transportInfoByJournal,getPartyName,activeCompany?.company_name,fromDate,toDate,openingBalance,
+    statementBalance,totalDebit,totalCredit]);
+  useEffect(()=>{
+    const table=partyTableRef.current;if(!table||viewMode!=='party')return;
+    return registerPrintSource(table,()=>{
+      const wrapper=document.createElement('div');
+      wrapper.innerHTML=buildLedgerPrint();
+      const statement=wrapper.querySelector('.navilo-ledger-financial-table');
+      if(!statement)throw new Error('Financial statement table unavailable.');
+      return statement.outerHTML;
+    });
+  },[viewMode,buildLedgerPrint]);
 
-  const exportToPDF = () => {
-    window.print();
+  const exportToPDF=()=>{
+    try{showPrintDocument({html:buildLedgerPrint(),title:viewMode==='general'?'General Ledger':'Party Statement',orientation:'landscape'});}
+    catch(e){setError(e instanceof Error?e.message:'Unable to prepare print report');}
   };
 
   const handlePartyTypeChange = (value: PartyFilterType) => {
@@ -746,7 +785,13 @@ export default function Ledgers() {
             </SearchableSelect>
           </div>
 
-          {viewMode === "general" ? (
+          {!loading && fromDate && (viewMode==='general'?Boolean(selectedAccount):Boolean(selectedPartyKey)) && (
+          <p className="rounded border bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-800" role="status">
+            Opening Balance: {signedBalanceLabel(openingBalance)} · Period Debit: {formatCurrency(totalDebit)} · Period Credit: {formatCurrency(totalCredit)} · Closing Balance: {signedBalanceLabel(statementBalance)}
+          </p>
+        )}
+
+        {viewMode === "general" ? (
             <div className="min-w-[340px] max-w-xl flex-1">
               <label className="label text-xs font-semibold text-slate-700 mb-1">
                 Filter by Account
