@@ -657,7 +657,18 @@ export default function Ledgers() {
       return exportColumns.map(([key]) => escapeCsv(values[key])).join(",");
     }).join("\n");
 
-    const blob = new Blob([header + body], {
+    const openingCsv=selectedPartyKey&&fromDate
+      ? exportColumns.map(([key])=>escapeCsv(key==='date'?fromDate:key==='party'?(selectedParty?.name||''):key==='description'?'Opening Balance':key==='balance'?signedBalanceLabel(openingBalance):'')).join(',')
+      : '';
+    const totalsCsv=exportColumns.map(([key])=>escapeCsv(
+      key==='description'?'Period Total':
+      key==='debit'?totalDebit:
+      key==='credit'?totalCredit:
+      key==='balance'?(selectedPartyKey?signedBalanceLabel(statementBalance):'Per Party'):''
+    )).join(',');
+    const finalCsv=[openingCsv,body,totalsCsv].filter(Boolean).join('\n');
+
+    const blob = new Blob([header + finalCsv], {
       type: "text/csv;charset=utf-8;",
     });
     const url = URL.createObjectURL(blob);
