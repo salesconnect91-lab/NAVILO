@@ -28,7 +28,16 @@ export default function OwnerInvoiceCancellationReview({
   documentId: string;
   posted: boolean;
 }) {
-  const { isPlatformOwner } = useAuth();
+  const {activeCompany,activeBusinessUnit} = useAuth();
+  const [ownerAllowed,setOwnerAllowed]=useState(false);
+  useEffect(()=>{
+    let active=true;setOwnerAllowed(false);
+    if(!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
+    void supabase.rpc('owner_posted_control_access').then(({data,error})=>{
+      if(active&&!error)setOwnerAllowed(data===true);
+    });
+    return()=>{active=false};
+  },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [review, setReview] = useState<Review | null>(null);
@@ -40,7 +49,7 @@ export default function OwnerInvoiceCancellationReview({
     setError("");
   }, [side, documentId]);
 
-  if (!isPlatformOwner || !posted) return null;
+  if (!ownerAllowed || !posted) return null;
 
   const inspect = async () => {
     if (open) { setOpen(false); return; }
