@@ -617,6 +617,7 @@ export default function JournalEntryDetail() {
     ).length;
 
   // A zero/zero draft is not a balanced, postable journal.
+  const hasAmounts = totalDebit > 0 || totalCredit > 0;
   const balanced =
     lines.length + activeDraftCount > 0 &&
     totalDebit > 0 && totalCredit > 0 &&
@@ -2369,17 +2370,21 @@ export default function JournalEntryDetail() {
 
           <div
             className={`font-semibold mt-1 ${
-              balanced
+              !hasAmounts
+                ? "text-amber-700"
+                : balanced
                 ? "text-emerald-600"
                 : "text-rose-600"
             }`}
           >
-            {balanced
+            {!hasAmounts
+              ? "Awaiting amounts"
+              : balanced
               ? "✓ Balanced"
               : "✕ Not Balanced"}
           </div>
 
-          {!balanced && (
+          {!balanced && hasAmounts && Math.abs(difference) >= 0.01 && (
             <div className="text-xs text-rose-500 mt-1">
               Difference:{" "}
               {formatJournalAmount(
@@ -2538,11 +2543,11 @@ export default function JournalEntryDetail() {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   <div>
                     <h4 className="font-bold text-slate-900">
-                      📥 Bulk Journal Import
+                      📥 Import Lines Into This Journal
                     </h4>
 
                     <p className="text-xs text-slate-600 mt-1">
-                      Excel/CSV file se bohat sari journal lines ek saath load karein.
+                      Load Excel/CSV lines into this draft only. No extra journal, invoice or payment is created.
                     </p>
                   </div>
 
@@ -2587,7 +2592,7 @@ export default function JournalEntryDetail() {
                   <strong>
                     File columns:
                   </strong>{" "}
-                  Account Name, Description, Party Type, Party Name, Vehicle No (optional for Transport income/expense), Debit, Credit
+                  Account Name, Line Description, Party Type, Party Name, Vehicle No (optional for company-owned Transport income/expense), Debit, Credit
                   <span className="ml-2">
                     • Party Type + Party Name required for customer/supplier control accounts
                   </span>
@@ -2644,10 +2649,10 @@ export default function JournalEntryDetail() {
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="text-left px-2 py-2 font-semibold text-slate-600">Account</th>
-                       <th className="text-left px-2 py-2 font-semibold text-slate-600">Description</th>
+                       <th className="text-left px-2 py-2 font-semibold text-slate-600">Line Description</th>
 
                       <th className="text-left px-2 py-2 font-semibold text-slate-600">
-                        Related To
+                        Related To (Party / Vehicle)
                       </th>
 
                       <th className="text-right px-2 py-2 font-semibold text-slate-600">Debit</th>
@@ -2957,7 +2962,9 @@ export default function JournalEntryDetail() {
                   : "bg-amber-50 border-amber-200 text-amber-700"
               }`}
             >
-              {balanced ? (
+              {!hasAmounts ? (
+                <>No amounts entered yet. Add matching Debit and Credit lines before posting.</>
+              ) : balanced ? (
                 <>
                   <strong>
                     ✓ Journal is balanced.
