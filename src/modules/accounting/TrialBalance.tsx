@@ -1,7 +1,8 @@
 import ConfigurableReport from '../transport/ConfigurableReport';
+import {useAuth} from '@/auth/AuthContext';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   loadDocumentPrintSettings,
@@ -78,6 +79,10 @@ function emptyTotals(): Totals {
 }
 
 export default function TrialBalance() {
+  const {activeCompany,activeBusinessUnit}=useAuth();
+  const companyId=activeCompany?.company_id??'';
+  const businessUnitId=activeBusinessUnit?.business_unit_id??'';
+  const requestVersion=useRef(0);
   const [rows, setRows] = useState<TrialBalanceRow[]>([]);
   const [fromDate, setFromDate] = useState(getYearStart);
   const [toDate, setToDate] = useState(getLocalToday);
@@ -89,9 +94,15 @@ export default function TrialBalance() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchTrialBalance = useCallback(async () => {
-    if (!fromDate || !toDate) return;
-
-    if (fromDate > toDate) {
+    const version=++requestVersion.current;
+    setRows([]);
+    setLastUpdated(null);
+    if (!companyId || !businessUnitId) {
+      setError('Active company and business unit required.');
+      setLoading(false);
+      return;
+    }
+    if (!fromDate || !toDate || fromDate > toDate) {
       setError("From date cannot be after To date.");
       setLoading(false);
       return;
@@ -109,14 +120,23 @@ export default function TrialBalance() {
           supabase
             .from("chart_of_accounts")
             .select("id, code, name, type, is_group, allow_manual_entries, is_active")
+            .eq("company_id",companyId)
             .order("code", { ascending: true })
             .order("id", { ascending: true })
             .range(from, to)
         ),
-        (async()=>{const r=await supabase.rpc('accounting_report_balances_scoped',{p_from:fromDate,p_to:toDate,p_exclude_closing:false,p_scope:scope});if(r.error)throw r.error;return r.data||[]})(),
+        (async()=>{const r=await supabase.rpc('accounting_report_balances_scoped',{p_from:fromDate,p_to:toDate,p_exclude_closing:false,p_scope:scope});if(r.error)throw r.error;return r.data})(),
       ]);
+      if(version!==requestVersion.current)return;
+      if(!Array.isArray(accounts)||!Array.isArray(ledgerLines)
+        ||ledgerLines.some((line:any)=>!line||typeof line.account_id!=='string'
+          ||typeof line.entry_date!=='string'||!Number.isFinite(Number(line.debit))
+          ||!Number.isFinite(Number(line.credit))))throw new Error('Incomplete Trial Balance evidence; totals withheld.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load Trial Balance.");
+      if(version!==requestVersion.current)return;
+      setRows([]);
+      setError(err instanceof Error ? err.message :
+        (err&&typeof err==='object'&&'message' in err&&typeof err.message==='string'?err.message:'Unable to load Trial Balance.'));
       setLoading(false);
       return;
     }
@@ -208,10 +228,11 @@ export default function TrialBalance() {
       .map(({ isGroup: _isGroup, allowManualEntries: _allow, isActive: _active, ...row }) => row)
       .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
 
+    if(version!==requestVersion.current)return;
     setRows(nextRows);
     setLastUpdated(new Date());
     setLoading(false);
-  }, [fromDate, toDate, hideZeroBalances, scope]);
+  }, [companyId,businessUnitId,fromDate, toDate, hideZeroBalances, scope]);
 
   useEffect(() => {
     void loadDocumentPrintSettings("reports")
@@ -220,7 +241,8 @@ export default function TrialBalance() {
   }, []);
 
   useEffect(() => {
-    fetchTrialBalance();
+    void fetchTrialBalance();
+    return()=>{requestVersion.current++};
   }, [fetchTrialBalance]);
 
   const totals = useMemo(
