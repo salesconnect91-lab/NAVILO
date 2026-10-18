@@ -12,6 +12,7 @@ type ReviewRow={
  total:number;paid:number;outstanding:number;allocations:number;allocated:number;
  journal_lines:number;journal_net:number;review_lane:string;
  source_reference_candidate:string|null;distinct_source_references:number;
+ already_posted_reference_matches:number;different_customer_reference_matches:number;matched_posted_total:number;
 };
 type Review={rows:ReviewRow[];count:number;gross:number;paid:number;outstanding:number};
 const empty:Review={rows:[],count:0,gross:0,paid:0,outstanding:0};
@@ -35,10 +36,14 @@ function reportFor(rows:ReviewRow[],totals:Review,lane:Lane,search:string,page:n
  return {
   title:'Transport Credit Invoice Number — Evidence Review',
   description:'Read-only correction queue for posted generated-number Credit Trip invoices. Source references are unverified evidence, NOT approved replacement numbers. Date is the recorded invoice date. Totals cover the complete active filter, not just the displayed page. No invoice renumbering, VAT correction, payment allocation or journal posting is performed. '+(lane==='all'?'All lanes':lanes.find(x=>x.value===lane)?.label)+' · '+totals.count+' invoices · '+(search?'Search: '+search:'No search')+' · Page '+(page+1),
-  columns:['Invoice Date','Generated Invoice No','Source reference (unverified)','Distinct source refs','Linked Trips','Review lane','Gross','Paid','Outstanding','Allocations','Allocated','Journal lines','Journal net'],
+  columns:['Invoice Date','Generated Invoice No','Source reference (unverified)','Distinct source refs','Linked Trips','Review lane','Gross','Paid','Outstanding','Allocations','Allocated','Journal lines','Journal net','Reference status','Posted invoice matches','Different-customer matches','Matched posted gross'],
   rows:[
-   ...rows.map(x=>[formatNaviloDate(x.order_date),x.invoice_no,x.source_reference_candidate??'',numbers(x.distinct_source_references),numbers(x.trip_count),x.review_lane,numbers(x.total),numbers(x.paid),numbers(x.outstanding),numbers(x.allocations),numbers(x.allocated),numbers(x.journal_lines),numbers(x.journal_net)]),
-   ['TOTAL · complete filter','','','','','',numbers(totals.gross),numbers(totals.paid),numbers(totals.outstanding),'','','',''],
+   ...rows.map(x=>[formatNaviloDate(x.order_date),x.invoice_no,x.source_reference_candidate??'',numbers(x.distinct_source_references),numbers(x.trip_count),x.review_lane,numbers(x.total),numbers(x.paid),numbers(x.outstanding),numbers(x.allocations),numbers(x.allocated),numbers(x.journal_lines),numbers(x.journal_net),
+     numbers(x.distinct_source_references)>1?'Multiple source references — manual review':
+     !x.source_reference_candidate?'Original reference missing':
+     numbers(x.already_posted_reference_matches)>0?'NUMBER ALREADY POSTED — DO NOT RENAME':'Unverified reference — manual review',
+     numbers(x.already_posted_reference_matches),numbers(x.different_customer_reference_matches),numbers(x.matched_posted_total)]),
+   ['TOTAL · complete filter','','','','','',numbers(totals.gross),numbers(totals.paid),numbers(totals.outstanding),'','','','','','',''],
   ]
  };
 }

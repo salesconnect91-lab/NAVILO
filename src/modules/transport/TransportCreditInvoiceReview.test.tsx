@@ -14,8 +14,8 @@ vi.mock('./ConfigurableReport',()=>({default:({report,loadExport}:any)=>{mock.la
 beforeEach(()=>{
  mock.company='company-a';mock.unit='bu-a';mock.branch='loc-a';mock.fail=false;mock.calls=[];mock.lastLoadExport=null;
  mock.rows=[
- {sales_order_id:'1',invoice_no:'H-S-1',order_date:'2026-10-13',source_reference_candidate:null,distinct_source_references:0,trip_count:1,review_lane:'UNPAID_CORRECTION_CANDIDATE',total:400,paid:0,outstanding:400,allocations:0,allocated:0,journal_lines:4,journal_net:0},
- {sales_order_id:'2',invoice_no:'H-S-2',order_date:'2026-10-14',source_reference_candidate:'ORIG-224',distinct_source_references:1,trip_count:3,review_lane:'HAS_ORIGINAL_NUMBER',total:300,paid:80,outstanding:220,allocations:1,allocated:80,journal_lines:4,journal_net:0},
+ {sales_order_id:'1',invoice_no:'H-S-1',order_date:'2026-10-13',source_reference_candidate:null,distinct_source_references:0,already_posted_reference_matches:0,different_customer_reference_matches:0,matched_posted_total:0,trip_count:1,review_lane:'UNPAID_CORRECTION_CANDIDATE',total:400,paid:0,outstanding:400,allocations:0,allocated:0,journal_lines:4,journal_net:0},
+ {sales_order_id:'2',invoice_no:'H-S-2',order_date:'2026-10-14',source_reference_candidate:'ORIG-224',distinct_source_references:1,already_posted_reference_matches:1,different_customer_reference_matches:1,matched_posted_total:450,trip_count:3,review_lane:'HAS_ORIGINAL_NUMBER',total:300,paid:80,outstanding:220,allocations:1,allocated:80,journal_lines:4,journal_net:0},
  ];
 });afterEach(()=>cleanup());
 describe('Transport Credit invoice correction evidence report',()=>{
@@ -37,6 +37,20 @@ describe('Transport Credit invoice correction evidence report',()=>{
   const report=JSON.parse(screen.getByTestId('review-table').textContent||'{}');
   expect(report.rows.at(-1).slice(6,9)).toEqual([300,80,220]);
   expect((await mock.lastLoadExport?.())?.rows[0][1]).toBe('H-S-2');
+ });
+ it('flags already-posted original references with another customer while preserving invoice totals',async()=>{
+  render(<TransportCreditInvoiceReview/>);
+  await waitFor(()=>expect(screen.getByTestId('review-table').textContent).toContain('H-S-2'));
+  const report=JSON.parse(screen.getByTestId('review-table').textContent||'{}');
+  const idx=report.columns.indexOf('Reference status');
+  expect(idx).toBeGreaterThan(0);
+  const risky=report.rows.find((row:any[])=>row[1]==='H-S-2');
+  expect(risky[idx]).toBe('NUMBER ALREADY POSTED — DO NOT RENAME');
+  expect(risky.slice(idx+1,idx+4)).toEqual([1,1,450]);
+  const noSource=report.rows.find((row:any[])=>row[1]==='H-S-1');
+  expect(noSource[idx]).toBe('Original reference missing');
+  expect(report.rows.at(-1).slice(6,9)).toEqual([700,80,620]);
+  expect((await mock.lastLoadExport?.())?.rows.some((row:any[])=>row.includes('NUMBER ALREADY POSTED — DO NOT RENAME'))).toBe(true);
  });
  it('denied permission withholds results and does not show misleading zero totals',async()=>{
   mock.fail=true;
