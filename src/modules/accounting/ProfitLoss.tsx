@@ -189,16 +189,23 @@ export default function ProfitLoss() {
         ),
         (async()=>{const r=await supabase.rpc('accounting_report_balances_scoped',{p_from:fromDate,p_to:toDate,p_exclude_closing:true,p_scope:scope});if(r.error)throw r.error;return r.data||[]})(),
         isTransport && activeCompany?.company_id && activeBusinessUnit?.business_unit_id
-          ? fetchAllPages<CompanyVehicle>((fromRow,toRow)=>{
-            let query=supabase.from('transport_vehicles')
-              .select('id,vehicle_no,revenue_account_id')
-              .eq('company_id',activeCompany.company_id)
-              .eq('ownership_type','company')
-              .eq('is_active',true)
-              .order('vehicle_no').range(fromRow,toRow);
-            if(scope!=='company')query=query.eq('business_unit_id',activeBusinessUnit.business_unit_id);
-            return query;
-          }) : Promise.resolve([] as CompanyVehicle[]),
+          ? (async()=>{
+              try{
+                return await fetchAllPages<CompanyVehicle>((fromRow,toRow)=>{
+                  let query=supabase.from('transport_vehicles')
+                    .select('id,vehicle_no,revenue_account_id')
+                    .eq('company_id',activeCompany.company_id)
+                    .eq('ownership_type','company')
+                    .eq('is_active',true)
+                    .order('vehicle_no').range(fromRow,toRow);
+                  if(scope!=='company')query=query.eq('business_unit_id',activeBusinessUnit.business_unit_id);
+                  return query;
+                });
+              }catch(err){
+                setVehicleWarning(err instanceof Error?('Vehicle income breakdown unavailable: '+err.message):'Vehicle income breakdown unavailable.');
+                return [] as CompanyVehicle[];
+              }
+            })() : Promise.resolve([] as CompanyVehicle[]),
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load Profit & Loss statement.");
