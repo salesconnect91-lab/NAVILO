@@ -2,6 +2,7 @@ import {useAuth} from '@/auth/AuthContext';
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
+import {companyVehicleIncomeRows,type CompanyVehicle,type VehicleIncomeRow} from './companyVehicleIncome';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -43,9 +44,6 @@ type LedgerRow = {
   debit: number | string | null;
   credit: number | string | null;
 };
-
-type CompanyVehicle = {id:string;vehicle_no:string;revenue_account_id:string|null};
-type CompanyVehicleIncome = {id:string;vehicle_no:string;accountCode:string|null;amount:number|null;status:'dedicated'|'shared'|'missing'};
 
 type JournalMeta = {
   id: string;
@@ -158,7 +156,7 @@ export default function ProfitLoss() {
   const [error, setError] = useState<string | null>(null);
   const [reportPrintSettings, setReportPrintSettings] = useState<any>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [vehicleIncome,setVehicleIncome]=useState<CompanyVehicleIncome[]>([]);
+  const [vehicleIncome,setVehicleIncome]=useState<VehicleIncomeRow[]>([]);
   const [vehicleWarning,setVehicleWarning]=useState<string|null>(null);
   const [settingUpVehicles,setSettingUpVehicles]=useState(false);
   const isTransport=activeBusinessUnit?.business_unit_type==='transport';
@@ -297,30 +295,7 @@ export default function ProfitLoss() {
       });
     });
 
-    // The General P&L keeps its canonical GL totals. This breakdown reads the
-    // SAME journal-backed movements but only attributes a vehicle if it has its
-    // own Revenue posting account. Shared Service Revenue is never duplicated.
-    const vehicleAccountCounts=new Map<string,number>();
-    vehicles.forEach(v=>{if(v.revenue_account_id)vehicleAccountCounts.set(v.revenue_account_id,(vehicleAccountCounts.get(v.revenue_account_id)||0)+1)});
-    const movements=new Map<string,number>();
-    ledgerLines.forEach(line=>{
-      const id=line.account_id;
-      const a=id?accountMap.get(id):undefined;
-      if(!id||!a||a.type!=='revenue'&&a.type!=='income')return;
-      movements.set(id,(movements.get(id)||0)+Number(line.credit??0)-Number(line.debit??0));
-    });
-    const vehicleDetails=vehicles.map(v=>{
-      const a=v.revenue_account_id?accountMap.get(v.revenue_account_id):undefined;
-      const linked=accounts.find(x=>x.id===v.revenue_account_id);
-      const shared=!!v.revenue_account_id&&(
-        (vehicleAccountCounts.get(v.revenue_account_id)||0)>1 ||
-        linked?.code==='4200'||linked?.code==='4100'
-      );
-      const dedicated=!!a&&!shared&&(a.type==='revenue'||a.type==='income')&&!a.isGroup&&a.isActive;
-      return {id:v.id,vehicle_no:v.vehicle_no,accountCode:linked?.code??null,
-        amount:dedicated?movements.get(v.revenue_account_id!)??0:null,
-        status:(dedicated?'dedicated':shared?'shared':'missing') as CompanyVehicleIncome['status']};
-    });
+    const vehicleDetails=companyVehicleIncomeRows(vehicles,accounts,ledgerLines);
     setVehicleIncome(vehicleDetails);
     if(vehicleDetails.some(v=>v.status!=='dedicated'))
       setVehicleWarning('Some company vehicles still use shared Service Revenue or have no dedicated Income COA. Their individual amounts cannot be separated from the GL until a dedicated account is linked.');
