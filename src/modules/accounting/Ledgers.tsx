@@ -1,4 +1,5 @@
 import {recordDisplayText} from '@/lib/recordDisplayText';
+import {withOpeningBalances,statementClosing} from './ledgerStatementMath';
 import {detailedTransportLedger,partySearchKey,type DetailedPartyLedger} from './transportLedgerRows';
 import {registerPrintSource,printTableMarkup} from '@/lib/printDocument';
 import {useAuth} from '@/auth/AuthContext';
@@ -176,6 +177,7 @@ export default function Ledgers() {
 
   const [ledgerRows, setLedgerRows] = useState<LedgerRow[]>([]);
   const [partyRows, setPartyRows] = useState<PartyLedgerRow[]>([]);
+  const [openingBalances,setOpeningBalances]=useState<Record<string,number>>({});
 
   const [selectedAccount, setSelectedAccount] = useState("");
   const [fromDate, setFromDate] = useState("");
@@ -285,6 +287,22 @@ export default function Ledgers() {
 
     setLedgerRows(excludeOwnerCancelledLedgerRows(data, excluded));
   }, [selectedAccount, fromDate, toDate, fetchOwnerCancelledJournalIds]);
+
+  const fetchOpeningBalances=useCallback(async()=>{
+    if(!fromDate){setOpeningBalances({});return;}
+    const {data,error}=await supabase.rpc('accounting_ledger_opening_balances_scoped',{
+      p_before:fromDate,p_kind:viewMode,
+    });
+    if(error)throw error;
+    const balances:Record<string,number>={};
+    for(const record of data??[]){
+      const key=viewMode==='general'
+        ? 'account:'+record.account_id
+        : 'party:'+record.party_type+':'+record.party_id;
+      balances[key]=Number(record.opening_balance)||0;
+    }
+    setOpeningBalances(balances);
+  },[fromDate,viewMode]);
 
   const fetchPartyLedger = useCallback(async () => {
     const [data, excluded] = await Promise.all([
@@ -422,12 +440,13 @@ export default function Ledgers() {
         // filtering must never leave stale cancelled rows on screen.
         setLedgerRows([]);
         setPartyRows([]);
+        setOpeningBalances({});
 
         if (viewMode === "general") {
           setTransportDetails([]);setTransportMovements([]);setTransportWarning(null);
-          await fetchGeneralLedger();
+          await Promise.all([fetchGeneralLedger(),fetchOpeningBalances()]);
         } else {
-          await Promise.all([fetchPartyLedger(), fetchTransportContext()]);
+          await Promise.all([fetchPartyLedger(), fetchTransportContext(),fetchOpeningBalances()]);
         }
       } catch (err: any) {
         if (mounted) {
@@ -444,7 +463,7 @@ export default function Ledgers() {
       mounted = false;
       transportRequest.current++;
     };
-  }, [viewMode, fetchGeneralLedger, fetchPartyLedger, fetchTransportContext]);
+  }, [viewMode, fetchGeneralLedger, fetchPartyLedger, fetchTransportContext, fetchOpeningBalances]);
 
   const selectedAccountObj = useMemo(
     () => accounts.find((account) => account.id === selectedAccount) ?? null,
@@ -533,63 +552,17 @@ export default function Ledgers() {
     [customers, suppliers]
   );
 
-  const generalRowsWithBalance = useMemo(() => {
-    if (selectedAccount) {
-      let runningBalance = 0;
-
-      return ledgerRows.map((row) => {
-        const debit = Number(row.debit) || 0;
-        const credit = Number(row.credit) || 0;
-        runningBalance += debit - credit;
-
-        return {
-          ...row,
-          displayBalance: runningBalance,
-        };
-      });
-    }
-
-    const balances = new Map<string, number>();
-
-    return ledgerRows.map((row) => {
-      const accountId = row.account_id || "unassigned";
-      const debit = Number(row.debit) || 0;
-      const credit = Number(row.credit) || 0;
-      const nextBalance =
-        (balances.get(accountId) || 0) + debit - credit;
-
-      balances.set(accountId, nextBalance);
-
-      return {
-        ...row,
-        displayBalance: nextBalance,
-      };
-    });
-  }, [ledgerRows, selectedAccount]);
+  const generalRowsWithBalance = useMemo(() =>
+    withOpeningBalances(ledgerRows,openingBalances,row=>'account:'+(row.account_id||'unassigned')),
+    [ledgerRows,openingBalances]);
 
   const detailedRows=useMemo(()=>detailedTransportLedger(partyRows,transportMovements,transportDetails),[partyRows,transportMovements,transportDetails]);
   const filteredLedgerRows=useMemo(()=>detailedRows.rows.filter(row=>selectedPartyKey||!partySearchKey(partySearch)||partySearchKey(`${row.party_name||getPartyName(row.party_type,row.party_id)} ${row.party_type}`).includes(partySearchKey(partySearch))),[detailedRows,selectedPartyKey,partySearch,getPartyName]);
   useEffect(()=>setPartyPage(0),[partySearch,selectedPartyKey,partyFilterType,partyRows,transportMovements]);
-  const partyRowsWithBalance = useMemo(() => {
-    const balances = new Map<string, number>();
-
-    return filteredLedgerRows.map((row) => {
-      const key = `${row.party_type}:${row.party_id}`;
-      const debit = Number(row.debit) || 0;
-      const credit = Number(row.credit) || 0;
-      const nextBalance =
-        (balances.get(key) || 0) + debit - credit;
-
-      balances.set(key, nextBalance);
-
-      return {
-        ...row,
-        party_name:
-          row.party_name || getPartyName(row.party_type, row.party_id),
-        displayBalance: nextBalance,
-      };
-    });
-  }, [filteredLedgerRows, getPartyName]);
+  const partyRowsWithBalance=useMemo(()=>
+    withOpeningBalances(filteredLedgerRows,openingBalances,row=>'party:'+row.party_type+':'+row.party_id)
+      .map(row=>({...row,party_name:row.party_name||getPartyName(row.party_type,row.party_id)})),
+    [filteredLedgerRows,openingBalances,getPartyName]);
 
   const transportInfoByJournal = useMemo(() => buildTransportLedgerContext(transportDetails, transportMovements), [transportDetails, transportMovements]);
 
@@ -623,7 +596,10 @@ export default function Ledgers() {
     return source.reduce((sum, row) => sum + (Number(row.credit) || 0), 0);
   }, [viewMode, ledgerRows, filteredLedgerRows]);
 
-  const statementBalance = totalDebit - totalCredit;
+  const openingBalance = viewMode==='general'
+    ? (selectedAccount ? openingBalances['account:'+selectedAccount]??0 : 0)
+    : (selectedPartyKey ? openingBalances['party:'+selectedPartyKey]??0 : 0);
+  const statementBalance = openingBalance+totalDebit-totalCredit;
 
   const exportToExcel = () => {
     if (viewMode === "general") {
@@ -642,8 +618,14 @@ export default function Ledgers() {
           ].join(",")
         )
         .join("\n");
+      const openingLine=selectedAccount&&fromDate
+        ? [escapeCsv(fromDate),escapeCsv(selectedAccountObj?.name||''),escapeCsv('Opening Balance'),'', '',escapeCsv(signedBalanceLabel(openingBalance))].join(',')+'\n'
+        : '';
+      const closingLine=selectedAccount
+        ? '\n'+[escapeCsv(toDate||''),escapeCsv(selectedAccountObj?.name||''),escapeCsv('Closing Balance'),totalDebit,totalCredit,escapeCsv(signedBalanceLabel(statementBalance))].join(',')
+        : '';
 
-      const blob = new Blob([header + body], {
+      const blob = new Blob([header + openingLine + body + closingLine], {
         type: "text/csv;charset=utf-8;",
       });
       const url = URL.createObjectURL(blob);
