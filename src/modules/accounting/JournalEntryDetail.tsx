@@ -2624,7 +2624,7 @@ export default function JournalEntryDetail() {
                   </h4>
 
                   <p className="text-xs text-slate-600 mt-0.5">
-                    Select an account, then enter Debit or Credit. Related To selects the customer/supplier on AR/AP lines or the company vehicle on income/expense lines. Other lines post directly to the selected account.
+                    One Journal, one posting: select Account for the GL and Related To for the customer, supplier or vehicle. Company vehicle income uses its linked Income account automatically; fuel/repair stay in Expense accounts. Never re-enter a posted invoice or expense.
                   </p>
                 </div>
 
