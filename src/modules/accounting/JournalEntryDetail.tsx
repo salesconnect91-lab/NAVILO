@@ -884,7 +884,6 @@ export default function JournalEntryDetail() {
       try {
         const templateData = [
           {
-            "Account Code": "1110",
             "Account Name": "Cash",
             Description: "Cash received for service",
             "Party Type": "",
@@ -894,7 +893,6 @@ export default function JournalEntryDetail() {
             Credit: "",
           },
           {
-            "Account Code": "4100",
             "Account Name": "Sales Revenue",
             Description: "Service revenue earned",
             "Party Type": "",
@@ -911,7 +909,6 @@ export default function JournalEntryDetail() {
           );
 
         worksheet["!cols"] = [
-          { wch: 18 },
           { wch: 35 },
           { wch: 42 },
           { wch: 18 },
@@ -1131,9 +1128,9 @@ export default function JournalEntryDetail() {
             return;
           }
 
-          if (!accountCode) {
+          if (!accountCode && !accountName) {
             importErrors.push(
-              `Row ${rowNumber}: Account Code is required.`
+              `Row ${rowNumber}: Account Name is required.`
             );
 
             return;
@@ -1161,22 +1158,16 @@ export default function JournalEntryDetail() {
             return;
           }
 
-          const account =
-            accounts.find(
-              (item) =>
-                String(
-                  item.code
-                ).trim() ===
-                accountCode
-            );
-
-          if (!account) {
+          const matches = accountCode
+            ? accounts.filter(item => String(item.code).trim() === accountCode)
+            : accounts.filter(item => item.name.trim().toLowerCase() === accountName.trim().toLowerCase());
+          if (matches.length !== 1) {
             importErrors.push(
-              `Row ${rowNumber}: Account Code "${accountCode}" was not found in Chart of Accounts.`
+              `Row ${rowNumber}: Select an existing unique Account Name in Chart of Accounts.`
             );
-
             return;
           }
+          const account = matches[0];
 
           if (account.is_group) {
             importErrors.push(
@@ -1311,7 +1302,7 @@ export default function JournalEntryDetail() {
           importedRows.push({
             description: lineDescription,
             vehicleNo,
-            accountCode,
+            accountCode: account.code,
             accountName:
               account.name,
             partyType,
@@ -2617,7 +2608,7 @@ export default function JournalEntryDetail() {
                   <strong>
                     File columns:
                   </strong>{" "}
-                  Account Code, Account Name, Description, Party Type, Party Name, Vehicle No (optional for Transport income/expense), Debit, Credit
+                  Account Name, Description, Party Type, Party Name, Vehicle No (optional for Transport income/expense), Debit, Credit
                   <span className="ml-2">
                     • Party Type + Party Name required for customer/supplier control accounts
                   </span>
@@ -2656,7 +2647,7 @@ export default function JournalEntryDetail() {
               </div>
 
               <div className="min-w-0 px-2 py-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
-                <span>{postingAccounts.length} posting accounts available{journalExcludedAccounts > 0 ? ` · ${journalExcludedAccounts} group/inactive/non-posting accounts excluded` : ""}. Search by GL code, name or type.</span>
+                <span>{postingAccounts.length} posting accounts available{journalExcludedAccounts > 0 ? ` · ${journalExcludedAccounts} group/inactive/non-posting accounts excluded` : ""}. Search by account name or type.</span>
                 <button type="button" className="rounded border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50" data-navilo-keep-local-action="true" onClick={() => { void fetchAccounts().catch((e:unknown) => setError(e instanceof Error ? e.message : "Unable to refresh Chart of Accounts.")); }}>
                   Refresh Accounts
                 </button>
@@ -2717,7 +2708,7 @@ export default function JournalEntryDetail() {
                               <SearchableSelect
                                 preserveLabel
                                 className="input min-w-0 max-w-full bg-white w-full text-xs"
-                                searchPlaceholder="Search account by name or code..."
+                                searchPlaceholder="Search account by name..."
                                 emptyText="No posting account found"
                                 value={
                                   line.accountId
