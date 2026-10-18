@@ -6,7 +6,7 @@ const mock=vi.hoisted(()=>({company:'c1',unit:'b1',count:2,calls:[] as any[],fai
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:mock.company,company_name:'Business'},activeBusinessUnit:{business_unit_id:mock.unit,business_unit_name:'Transport'}})}));
 vi.mock('@/components/NaviloDateInput',()=>({default:({value,onChange}:any)=><input type="date" value={value} onChange={onChange}/>}));
 vi.mock('./ConfigurableReport',()=>({default:({report}:any)=><div data-testid="report">{JSON.stringify(report)}</div>}));
-vi.mock('@/lib/supabase',()=>({supabase:{from:()=>{const q:any={select:()=>q,eq:()=>q,order:()=>q,range:()=>Promise.resolve({data:[{id:'v1',vehicle_no:'7979'}],error:null})};return q;},rpc:async(n:string,args:any)=>{mock.calls.push({n,args});return mock.failed?{data:null,error:{message:'Accounting permission denied'}}:{data:{count:mock.count,revenue:300-mock.revenueDebit,cost:115,rows:[{event_date:'2026-10-17',entry_no:'SALE',category:'Sale Invoice',revenue:300,cost:0},{event_date:'2026-10-17',entry_no:'VEXP',category:'Vehicle expense',revenue:0,cost:115},...(mock.revenueDebit?[{event_date:'2026-10-17',entry_no:'MANUAL',category:'Manual journal',revenue:-mock.revenueDebit,cost:0}]:[])]},error:null};}}}));
+vi.mock('@/lib/supabase',()=>({supabase:{from:()=>{const q:any={select:()=>q,eq:()=>q,order:()=>q,range:()=>Promise.resolve({data:[{id:'v1',vehicle_no:'7979'}],error:null})};return q;},rpc:async(n:string,args:any)=>{mock.calls.push({n,args});if(n==='transport_vehicle_source_billing')return {data:{count:2,net:120,vat:18,gross:138,rows:[{event_date:'2026-10-15',original_invoice_no:'CLIENT-001',trip_no:'T-1',net:100,vat:15,gross:115},{event_date:'2026-10-16',original_invoice_no:'CLIENT-002',trip_no:'T-2',net:20,vat:3,gross:23}]},error:null};return mock.failed?{data:null,error:{message:'Accounting permission denied'}}:{data:{count:mock.count,revenue:300-mock.revenueDebit,cost:115,rows:[{event_date:'2026-10-17',entry_no:'SALE',category:'Sale Invoice',revenue:300,cost:0},{event_date:'2026-10-17',entry_no:'VEXP',category:'Vehicle expense',revenue:0,cost:115},...(mock.revenueDebit?[{event_date:'2026-10-17',entry_no:'MANUAL',category:'Manual journal',revenue:-mock.revenueDebit,cost:0}]:[])]},error:null};}}}));
 beforeEach(()=>{mock.company='c1';mock.unit='b1';mock.count=2;mock.calls=[];mock.failed=false;mock.revenueDebit=0;});afterEach(cleanup);
 describe('Vehicle accounting reports',()=>{
  it('includes sale income and expense cost and exports complete totals',async()=>{render(<VehicleAccounting/>);await screen.findByRole('option',{name:'7979'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});const report=await screen.findByTestId('report');expect(report.textContent).toContain('SALE');expect(report.textContent).toContain('VEXP');expect(report.textContent).toContain('185');fireEvent.change(screen.getByLabelText('Statement'),{target:{value:'profit'}});await waitFor(()=>expect(screen.getByTestId('report').textContent).toContain('Net Profit'));expect(mock.calls.every(c=>c.n==='transport_vehicle_ledger'&&c.args.p_vehicle==='v1')).toBe(true);});
@@ -28,6 +28,18 @@ describe('Vehicle accounting reports',()=>{
    ['Revenue-account debits (manual journals)',75],
    ['Net Profit',110],
   ]);
+ });
+ it('displays verified source billing separately without adding it to vehicle GL profit',async()=>{
+  render(<VehicleAccounting/>);
+  await screen.findByRole('option',{name:'7979'});
+  fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});
+  fireEvent.change(screen.getByLabelText('Statement'),{target:{value:'source'}});
+  await waitFor(()=>expect(screen.getByTestId('report').textContent).toContain('CLIENT-001'));
+  const table=JSON.parse(screen.getByTestId('report').textContent??'{}');
+  expect(table.columns).toEqual(['Invoice Date','Source Invoice No','Trip No','Net Income','VAT','Gross']);
+  expect(table.rows.at(-1)).toEqual(['TOTAL · full filter','','',120,18,138]);
+  expect(table.description).toContain('must NOT be added again');
+  expect(mock.calls.some(c=>c.n==='transport_vehicle_source_billing'&&c.args.p_vehicle==='v1')).toBe(true);
  });
  it('withholds totals on incomplete accounting response',async()=>{mock.count=3;render(<VehicleAccounting/>);await screen.findByRole('option',{name:'7979'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});expect((await screen.findByRole('alert')).textContent).toContain('Incomplete');expect(screen.queryByTestId('report')).toBeNull();});
  it('clears previous-company rows and selection on workspace change',async()=>{const view=render(<VehicleAccounting/>);await screen.findByRole('option',{name:'7979'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});await screen.findByTestId('report');mock.company='c2';mock.unit='b2';view.rerender(<VehicleAccounting/>);await waitFor(()=>expect((screen.getByLabelText('Vehicle') as HTMLSelectElement).value).toBe(''));expect(screen.queryByTestId('report')).toBeNull();});
