@@ -19,7 +19,7 @@ describe('Isolated PostgreSQL manual Journal non-billing posting guard',()=>{
         create table public.journal_entries(
           id uuid primary key,company_id uuid not null,status text not null,trans_type text,
           source_module text,source_document_type text,source_document_id uuid,
-          reversal_of_entry_id uuid
+          reversal_of_entry_id uuid, monthly_profit_closure_id uuid, fiscal_year_closure_id uuid
         );
         create table public.chart_of_accounts(
           id uuid primary key,company_id uuid not null,type text not null,code text,name text
@@ -57,6 +57,14 @@ describe('Isolated PostgreSQL manual Journal non-billing posting guard',()=>{
       await expect(post(acc.expense,true)).resolves.toBeTruthy();
       await expect(post(acc.vat,true)).resolves.toBeTruthy();
       await expect(post(acc.expense,false,true)).resolves.toBeTruthy();
+      // System monthly closing is a controlled ledger reclassification, not billing.
+      const closingId=uuid();
+      await db.query(
+        'insert into public.journal_entries(id,company_id,status,trans_type,monthly_profit_closure_id) values ($1,$2,$3,$4,$5)',
+        [closingId,cid,'draft','Monthly Profit Closing',uuid()]
+      );
+      await db.query('insert into public.journal_lines(entry_id,company_id,account_id) values($1,$2,$3)',[closingId,cid,acc.income]);
+      await expect(db.query("update public.journal_entries set status='posted' where id=$1",[closingId])).resolves.toBeTruthy();
 
       // The Data API authenticated role cannot impersonate a source document.
       await db.exec('create role authenticated; grant insert on public.journal_entries to authenticated; set role authenticated;');
