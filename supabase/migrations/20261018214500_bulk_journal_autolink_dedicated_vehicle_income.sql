@@ -278,10 +278,10 @@ BEGIN
     END IF;
 
     INSERT INTO public.journal_entries
-      (user_id, company_id, business_unit_id, operating_location_id, entry_no, entry_date, description, status)
+      (user_id, company_id, business_unit_id, operating_location_id, entry_no, entry_date, description, status, trans_type, source_module)
     VALUES
       (v_data_user_id, v_company_id, v_business_unit_id, public.current_operating_location_id(),
-       v_entry_no, v_entry_date, v_description, 'draft')
+       v_entry_no, v_entry_date, v_description, 'draft', 'Journal Entry', 'accounting')
     RETURNING id INTO v_entry_id;
 
     FOR v_line IN SELECT value FROM pg_catalog.jsonb_array_elements(v_entry -> 'lines')
