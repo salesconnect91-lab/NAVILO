@@ -6,6 +6,9 @@ import { supabase } from "@/lib/supabase";
 import DataTable, { Column } from "@/components/DataTable";
 import { ErrorBanner, PageHeader, formatCurrency, formatDate } from "@/components/ui";
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
+import {showPrintDocument} from '@/lib/printDocument';
+import {accountingStatementMarkup} from '@/lib/accountingStatementPrint';
+import {useAuth} from '@/auth/AuthContext';
 import { fetchAllPages, fetchByIdChunks } from "@/lib/fetchAllPages";
 
 interface PostedEntry {
@@ -47,6 +50,7 @@ const exportColumns = [
 
 export default function DayBook() {
   const navigate = useNavigate();
+  const {activeCompany}=useAuth();
   const [entries, setEntries] = useState<PostedEntry[]>([]);
   const [lines, setLines] = useState<DayBookLine[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,6 +148,17 @@ export default function DayBook() {
   ];
 
   const exportRows = rows as unknown as Record<string, unknown>[];
+  const printDayBook=()=>{
+    if(loading||error||!rows.length)return;
+    const html=accountingStatementMarkup({
+      title:'Posted Day Book',
+      description:(activeCompany?.company_name||'')+' · '+(filterDate||'All posting dates')+' · SAR · Debit/Credit are posted journal movements',
+      columns:['Date','Entry','Account','Description','Debit','Credit'],
+      rows:[...rows.map(r=>[formatDate(r.entry_date),r.entry_no,r.account,r.description,r.debit,r.credit]),
+        ['TOTAL','','','',totals.debit,totals.credit]]
+    });
+    showPrintDocument({html,title:'Posted Day Book',orientation:'landscape'});
+  };
 
   return (
     <div>
@@ -159,6 +174,7 @@ export default function DayBook() {
             <button className="btn-secondary" disabled={!filterDate} onClick={() => setFilterDate("")}>Clear</button>
             <button className="btn-secondary" disabled={rows.length === 0} onClick={() => exportToCSV("posted-day-book.csv", exportColumns, exportRows)}>CSV</button>
             <button className="btn-secondary" disabled={rows.length === 0} onClick={() => exportToExcel("posted-day-book.xls", exportColumns, exportRows)}>Excel</button>
+            <button className="btn-secondary" disabled={loading||!!error||rows.length===0} onClick={printDayBook}>Print / PDF</button>
           </div>
         }
       />
