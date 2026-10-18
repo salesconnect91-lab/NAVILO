@@ -21,6 +21,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchAllPages } from "@/lib/fetchAllPages";
 import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
 import {journalRelatedToMode,vehicleOwnedOnDate,normalizedJournalVehicleNo,type OwnedPeriod} from "./journalRelatedTo";
+import {isManualJournalAccountEligible} from "./manualJournalAccountPolicy";
 import {accountForSelectedVehicle,journalVehicleAccountError,vehicleForIncomeAccount,incomeVehicleAlreadyLinked} from './journalVehicleIncomePolicy';
 import {canReversePostedManualJournal} from "./journalPostedActionPolicy";
 
@@ -440,13 +441,7 @@ export default function JournalEntryDetail() {
      ACCOUNT / PARTY HELPERS
   ========================================================= */
 
-  // Manual journals are accounting adjustments, not sale/purchase or VAT billing.
-  // Historical posted lines remain readable; source-document posting is untouched.
-  const manualAccountEligible = (account: (typeof accounts)[number]) =>
-    account.is_active && !account.is_group && account.allow_manual_entries &&
-    !['revenue', 'income', 'expense'].includes(String(account.type).toLowerCase()) &&
-    !['1150', '2120'].includes(String(account.code ?? '').trim()) &&
-    !/\b(input|output)\s+vat\b/i.test(account.name ?? '');
+  const manualAccountEligible = isManualJournalAccountEligible;
 
   const postingAccounts = accounts.filter(manualAccountEligible);
   const journalExcludedAccounts = accounts.length - postingAccounts.length;
