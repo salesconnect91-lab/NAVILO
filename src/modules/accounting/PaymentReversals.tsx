@@ -5,6 +5,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RotateCcw, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import {useAuth} from '@/auth/AuthContext';
 import { ErrorBanner, PageHeader, formatDate } from "@/components/ui";
 
 type Voucher = { id:string; entry_no:string; entry_date:string; party_name:string|null; payment_mode:string|null; trans_type:string|null; description:string|null };
@@ -13,6 +14,7 @@ type Line = { entry_id:string; debit:number|string; credit:number|string };
 const money=(v:number)=>new Intl.NumberFormat("en-PK",{minimumFractionDigits:2,maximumFractionDigits:2}).format(v||0);
 
 export default function PaymentReversals(){
+  const {activeCompany,activeBusinessUnit}=useAuth();
   const [rows,setRows]=useState<Voucher[]>([]),[reversals,setReversals]=useState<Reversal[]>([]),[lines,setLines]=useState<Line[]>([]);
   const [loading,setLoading]=useState(true),[error,setError]=useState(""),[busy,setBusy]=useState<string|null>(null);
   const [kind,setKind]=useState<"all"|"Customer Receipt"|"Supplier Payment">("all"),[search,setSearch]=useState("");
@@ -26,7 +28,7 @@ export default function PaymentReversals(){
       if(live&&!error)setOwnerAllowed(data===true);
     });
     return()=>{live=false};
-  },[]);
+  },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
 
 
   const load=useCallback(async()=>{
