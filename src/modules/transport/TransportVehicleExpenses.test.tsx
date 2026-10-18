@@ -30,6 +30,7 @@ describe('Vehicle expense workflow',()=>{
  it('creates a new manual expense bill as DRAFT only, without directly posting accounting',async()=>{
   render(<MemoryRouter><Expenses/></MemoryRouter>);
   await screen.findByText('Vehicle Expense Bills & Import Review');
+  await waitFor(()=>expect(screen.getByRole('button',{name:/New Expense Bill/}).hasAttribute('disabled')).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:/New Expense Bill/}));
   await screen.findByLabelText('Expense vehicle 1');
   expect(screen.getByRole('button',{name:'Finalize / Post'}).hasAttribute('disabled')).toBe(true);
