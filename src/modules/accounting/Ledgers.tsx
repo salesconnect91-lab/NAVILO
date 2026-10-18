@@ -650,7 +650,7 @@ export default function Ledgers() {
       const link = document.createElement("a");
       link.href = url;
       link.download = `General_Ledger_${
-        selectedAccountObj?.code || "All_Accounts"
+        (selectedAccountObj?.name || "All_Accounts").replace(/[^a-zA-Z0-9 _-]/g,"").replace(/\s+/g,"_")
       }.csv`;
       document.body.appendChild(link);
       link.click();
