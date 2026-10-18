@@ -19,6 +19,15 @@ describe('Transport financial print output',()=>{
   expect(parts.every(part=>part.rows.length===2)).toBe(true);
   parts.forEach(part=>part.indexes.forEach((idx,pos)=>expect(part.rows[0][pos]).toBe(wide.rows[0][idx])));
  });
+ it('splits ten-column statements into readable print sections without dropping data',()=>{
+  const source:ReportTable={title:'Compact statement',description:'Test',
+   columns:['Date','Party','Reference','Description','Debit','Credit','Balance','Trip','From','To'],
+   rows:[['19-Jul-24','ACCESS','INV-27','Sale',7590,0,7590,'T-1','Dammam','Riyadh']]};
+  const sections=transportPrintSections(source);
+  expect(sections.length).toBeGreaterThan(1);
+  expect(sections.every(section=>section.columns.length<=9)).toBe(true);
+  expect(new Set(sections.flatMap(section=>section.indexes)).size).toBe(10);
+ });
  it('uses A4 portrait for narrow tables, and A3 landscape for very wide source tables',()=>{
   expect(transportPrintPaper(3)).toEqual({paper:'a4',orientation:'portrait'});
   expect(transportPrintPaper(9)).toEqual({paper:'a4',orientation:'landscape'});
