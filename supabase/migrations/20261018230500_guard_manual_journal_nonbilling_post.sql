@@ -8,6 +8,20 @@ CREATE OR REPLACE FUNCTION public.guard_manual_journal_nonbilling_post()
 RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER
 SET search_path = public, pg_temp AS $guard$
 BEGIN
+  -- A direct authenticated client must not forge source-document labels to
+  -- bypass the manual Journal check. Trusted source generators run in server RPCs.
+  IF TG_OP='INSERT' THEN
+    IF current_user='authenticated' AND (
+        NULLIF(btrim(coalesce(NEW.source_module,'')),'') IS NOT NULL OR
+        NULLIF(btrim(coalesce(NEW.source_document_type,'')),'') IS NOT NULL OR
+        NEW.source_document_id IS NOT NULL
+    ) THEN
+      RAISE EXCEPTION USING ERRCODE='23514',
+        MESSAGE='Source-document references cannot be supplied through manual journal creation.';
+    END IF;
+    RETURN NEW;
+  END IF;
+
   IF NEW.status IS DISTINCT FROM 'posted'
      OR OLD.status IS DISTINCT FROM 'draft' THEN
     RETURN NEW;
@@ -51,6 +65,12 @@ BEGIN
   RETURN NEW;
 END;
 $guard$;
+
+DROP TRIGGER IF EXISTS a_guard_manual_journal_source_tags ON public.journal_entries;
+CREATE TRIGGER a_guard_manual_journal_source_tags
+BEFORE INSERT ON public.journal_entries
+FOR EACH ROW
+EXECUTE FUNCTION public.guard_manual_journal_nonbilling_post();
 
 DROP TRIGGER IF EXISTS zzz_manual_journal_nonbilling_post ON public.journal_entries;
 CREATE TRIGGER zzz_manual_journal_nonbilling_post
