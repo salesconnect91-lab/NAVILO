@@ -47,25 +47,22 @@ begin
  if not bad then raise exception 'Invalid vehicle accepted';end if;
  bad:=false;begin update public.journal_entries set entry_date=current_date-2 where id=je;exception when others then if position('company-owned' in sqlerrm)>0 or position('Remove draft journal lines' in sqlerrm)>0 then bad:=true;else raise;end if;end;
  if not bad then raise exception 'Header date bypassed vehicle ownership';end if;
+ -- New policy: vehicle expense/income is posted only from its source invoice,
+ -- not through an ordinary manual journal. Preserve draft/link validation coverage.
  set local role authenticated;
- perform public.post_journal_entry(je);
- p:=public.transport_vehicle_manual_report_page();
- select sum((x->>'cost')::numeric) into v from jsonb_array_elements(p)x;
- if v<>200 or jsonb_array_length(p)<>2 then raise exception 'Manual vehicle costs duplicated / omitted: %',p;end if;
- select sum(posted_cost) into v from public.transport_vehicle_monthly_profit_report(date_trunc('month',current_date)::date,date_trunc('month',current_date)::date);
- if v<>200 then raise exception 'Monthly vehicle report missed journal cost: %',v;end if;
+ bad:=false;
+ begin
+   perform public.post_journal_entry(je);
+ exception when others then
+   if position('Manual journals cannot post Income' in sqlerrm)>0 then bad:=true;
+   else raise;end if;
+ end;
  reset role;
- if (select sum(debit) from public.ledgers where journal_entry_id=je)<>200 or (select sum(credit) from public.ledgers where journal_entry_id=je)<>200 then raise exception 'GL accounting duplicated';end if;
- bad:=false;begin update public.journal_lines set transport_vehicle_id=null where entry_id=je and account_id=exp;exception when others then bad:=true;end;
- if not bad then raise exception 'Posted vehicle link editable';end if;
- set local role authenticated;
- r:=public.reverse_manual_journal_entry(je,current_date,'Vehicle repair correction');reverse_id:=(r->>'reversal_entry_id')::uuid;
- p:=public.transport_vehicle_manual_report_page();
- select sum((x->>'cost')::numeric) into v from jsonb_array_elements(p)x;
- if v<>0 or jsonb_array_length(p)<>4 then raise exception 'Reversal did not offset both vehicle costs: %',p;end if;
- reset role;
- if (select count(*) from public.journal_lines where entry_id=reverse_id and transport_vehicle_id is not null)<>2 then raise exception 'Reversal lost vehicle links';end if;
- if (select sum(debit-credit) from public.ledgers where account_id=exp and company_id=c)<>0 then raise exception 'GL reversal wrong';end if;
- raise notice 'PASS vehicle manual journal: two vehicles/same expense amounts, balanced GL once, monthly/report inclusion, asset/invalid vehicle rejected, posted immutable, reversal retains both links';
+ if not bad then raise exception 'Manual vehicle expense incorrectly posted as billing';end if;
+ if exists(select 1 from public.journal_entries where id=je and status='posted')
+    or exists(select 1 from public.ledgers where journal_entry_id=je)
+ then raise exception 'Rejected manual expense still created GL rows';end if;
+ raise notice 'PASS manual vehicle journal: invalid vehicle attribution denied; income/expense billing rejected with no GL writes';
+
 end $$;
 rollback;
