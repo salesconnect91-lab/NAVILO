@@ -3,6 +3,10 @@ import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import PaymentReversals from './PaymentReversals';
 const mock=vi.hoisted(()=>({queries:[] as any[],rpc:vi.fn(),extraLines:false,ownerAllowed:true}));
+vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({
+ activeCompany:{company_id:'test-company'},
+ activeBusinessUnit:{business_unit_id:'test-bu'}
+})}));
 vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{
  const filters:any={table,ids:[],reversal:false};mock.queries.push(filters);
  const q:any={select:()=>q,order:()=>q,eq:()=>q,or:(s:string)=>{filters.search=s;return q;},in:(field:string,values:string[])=>{if(field==='trans_type')filters.reversal=values[0].includes('Reversal');else filters.ids=values;return q;}};
