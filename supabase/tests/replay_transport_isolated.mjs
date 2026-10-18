@@ -32,6 +32,11 @@ create table storage.objects(id uuid primary key default gen_random_uuid(),bucke
 create function storage.foldername(text) returns text[] language sql immutable as $$select (string_to_array($1,'/'))[1:array_length(string_to_array($1,'/'),1)-1]$$;`);
 let count=0;
 for(const file of fs.readdirSync(root+'/supabase/migrations').filter(f=>f.endsWith('.sql')).sort()){
+ // A one-off verified Orbit COA data correction needs existing production masters
+ // and must never be recreated in a clean isolated DB. All schema/guard migrations still run.
+ if(file==='20261018150700_orbit_cash_petty_cash_payment_accounts.sql'){
+   console.log('SKIP isolated-only Orbit production data correction',file);continue;
+ }
  try{await db.exec(fs.readFileSync(root+'/supabase/migrations/'+file,'utf8').replace(/^\uFEFF/,''));count++;}
  catch(e){console.log('FAIL',file,e.message,e.position||'',e.where||'',e.internalQuery||'');await db.close();throw new Error(file+': '+e.message)}
 }
