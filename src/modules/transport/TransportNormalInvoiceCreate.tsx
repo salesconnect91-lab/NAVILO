@@ -117,7 +117,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    </label>
    <label className="block font-semibold md:col-span-3">{side==='customer'?'General / Shared Revenue COA':'Expense Account'} *
     <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Normal invoice ledger account" className="input mt-1 w-full" value={account} onChange={e=>setAccount(e.target.value)}>
-     <option value="">Select active company account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.code?`${a.code} — `:''}{a.name}</option>)}
+     <option value="">Select active company account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
     </NaviloSearchableSelect>
    </label>
   </fieldset>
