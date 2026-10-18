@@ -164,7 +164,7 @@ BEGIN
       IF v_account_count = 0 THEN
         RAISE EXCEPTION '%: account was not found.', v_entry_no;
       ELSIF v_account_count > 1 THEN
-        RAISE EXCEPTION '%: account is ambiguous; provide its account code.', v_entry_no;
+        RAISE EXCEPTION '%: Account Name is ambiguous; provide the Account Head.', v_entry_no;
       END IF;
 
       SELECT * INTO v_account
@@ -288,7 +288,19 @@ BEGIN
           AND s.account_id = v_ap_account_id AND s.is_active
           AND lower(btrim(s.name)) = lower(v_party_name);
       END IF;
-      INSERT INTO public.journal_lines (user_id, company_id, business_unit_id, operating_location_id, entry_id, account_id, account, debit, credit, party_type, party_id, party_name)
+      v_vehicle_no:=btrim(coalesce(v_line->>'vehicle_no',''));
+      v_vehicle_id:=NULL;
+      IF v_vehicle_no<>'' THEN
+        SELECT v.id INTO STRICT v_vehicle_id FROM public.transport_vehicles v
+        WHERE v.company_id=v_company_id AND v.business_unit_id=v_business_unit_id AND v.is_active
+          AND upper(btrim(v.vehicle_no))=upper(btrim(split_part(v_vehicle_no,'·',1)))
+          AND EXISTS(SELECT 1 FROM public.transport_vehicle_ownership o
+            WHERE o.company_id=v_company_id AND o.business_unit_id=v_business_unit_id
+              AND o.vehicle_id=v.id AND o.owner_type='company'
+              AND o.effective_from<=v_entry_date AND (o.effective_to IS NULL OR o.effective_to>=v_entry_date));
+      END IF;
+      v_line_description:=nullif(btrim(coalesce(v_line->>'line_description','')),'');
+      INSERT INTO public.journal_lines (user_id, company_id, business_unit_id, operating_location_id, entry_id, account_id, account, debit, credit, party_type, party_id, party_name, description, transport_vehicle_id)
       VALUES (
         v_data_user_id,
         v_company_id,
@@ -296,12 +308,14 @@ BEGIN
         public.current_operating_location_id(),
         v_entry_id,
         v_account.id,
-        v_account.code || ' - ' || v_account.name,
+        v_account.name,
         v_debit,
         v_credit,
         nullif(v_party_type, ''),
         v_party_id,
-        nullif(v_party_name, '')
+        nullif(v_party_name, ''),
+        v_line_description,
+        v_vehicle_id
       );
     END LOOP;
 
