@@ -182,7 +182,7 @@ export default function PrintLayout({
   const [livePaymentSummary, setLivePaymentSummary] = useState<PaymentSummary | null>(null);
 
   useEffect(() => {
-    if (paymentSummary || (!isSales && !isPurchase) || !voucherNo) return;
+    if (isDraft || paymentSummary || (!isSales && !isPurchase) || !voucherNo) return;
     let cancelled = false;
     const loadFinancials = async () => {
       try {
@@ -247,10 +247,9 @@ export default function PrintLayout({
     return () => { cancelled = true; };
   }, [grandTotal, isDraft, isPurchase, isSales, paymentSummary, voucherDate, voucherNo]);
 
-  const draftFallback: PaymentSummary | null = isDraft && (isSales || isPurchase)
-    ? { previousBalance: 0, totalReceived: 0, todayReceived: 0, lastPaymentAmount: 0, lastPaymentDate: null, lastPaymentMode: null, currentOutstanding: n(grandTotal) }
-    : null;
-  const effectivePayment = paymentSummary ?? livePaymentSummary ?? draftFallback;
+  // An unposted draft has no settled receivable/payable: do not print a
+  // fabricated all-zero "Receipt & Balance" section before posting.
+  const effectivePayment = isDraft ? (paymentSummary ?? null) : (paymentSummary ?? livePaymentSummary);
   const itemVat = useMemo(() => items.reduce((sum, item) => sum + n(item.taxAmount), 0), [items]);
   const chargeVat = Math.max(n(taxAmount) - itemVat, 0);
   const consolidatedTotal = hawalaDocuments.reduce((sum, row) => sum + n(row.amount), 0);
@@ -279,11 +278,11 @@ export default function PrintLayout({
           {showCompanyName && company.name && <h1 className="print-company-name">{company.name}</h1>}
           {showAddress && company.address && <p className="print-company-addr">{company.address}</p>}
           {showPhoneEmail && (company.phone || company.email) && <p className="print-company-addr">{[company.phone ? `${docLabel("Phone", "فون")}: ${company.phone}` : "", company.email || ""].filter(Boolean).join(" · ")}</p>}
-          {showTaxDetails && cleanTaxId && <p className="print-company-tax">${docLabel("NTN / STRN", "ٹیکس نمبر")}: {cleanTaxId}</p>}
+          {showTaxDetails && cleanTaxId && <p className="print-company-tax">{docLabel("Tax Registration No.", "ٹیکس رجسٹریشن نمبر")}: {cleanTaxId}</p>}
         </div>
       </div>
       <div className="print-voucher-title-box" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
-        <div><h2 className="print-voucher-title">{voucherTitle}{effectiveBilingual ? ` / ${urduTitle(voucherTitle)}` : ""}</h2>{showQrCode && <div style={{ marginTop: 3, textAlign: "right", fontSize: 9, color: "#64748b" }}>{docLabel("Internal Document QR", "دستاویزی QR")}</div>}</div>
+        <div><h2 className="print-voucher-title">{isDraft ? "DRAFT · " : ""}{voucherTitle}{effectiveBilingual ? ` / ${urduTitle(voucherTitle)}` : ""}</h2>{showQrCode && <div style={{ marginTop: 3, textAlign: "right", fontSize: 8, color: "#d6e5e8", lineHeight: 1.35 }}>{docLabel("Internal Reference QR", "اندرونی حوالہ کیو آر")}</div>}</div>
         {showQrCode && <div style={{ background: "#fff", padding: 2, lineHeight: 0, breakInside: "avoid" }}><QRCodeSVG value={qrPayload} size={62} level="M" includeMargin={false} /></div>}
       </div>
     </div>
@@ -309,7 +308,7 @@ export default function PrintLayout({
 
     <div className="invoice-items-wrap">
       <div className={`${itemGridClass} invoice-items-head`} style={itemGridStyle}>
-        <div>#</div><div>{docLabel("Item", "آئٹم")}</div><div>{docLabel("Description", "تفصیل")}</div><div className="invoice-num">{docLabel("Qty", "مقدار")}</div><div className="invoice-num">{docLabel("Rate", "ریٹ")}</div>{showTaxSummary && <div className="invoice-num">{docLabel("VAT", "ٹیکس")}</div>}<div className="invoice-num invoice-amount-col">{docLabel("Amount", "رقم")}</div>
+        <div>#</div><div>{docLabel("Item", "آئٹم")}</div><div>{docLabel("Description", "تفصیل")}</div><div className="invoice-num">{docLabel("Qty", "مقدار")}</div><div className="invoice-num">{docLabel("Rate", "ریٹ")}</div>{showTaxSummary && <div className="invoice-num">{docLabel("VAT", "ٹیکس")}</div>}<div className="invoice-num invoice-amount-col">{showTaxSummary ? docLabel("Net Amount", "رقم بغیر ٹیکس") : docLabel("Amount", "رقم")}</div>
       </div>
       {items.map((item, index) => {
         const baseAmount = n(item.qty) * n(item.unitPrice);
