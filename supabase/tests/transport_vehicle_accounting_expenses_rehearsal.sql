@@ -151,7 +151,7 @@ begin
  end;
  if not bad then raise exception 'Credit invoice without genuine original reference incorrectly created';end if;
  res:=public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
-  '[{"description":"Standalone customer acceptance","amount":"100"}]'::jsonb,
+  jsonb_build_array(jsonb_build_object('description','Standalone customer acceptance','amount','100','vehicle_id',v1)),
   revenue,'ACCEPTANCE-CREDIT-100',null,false,'master');
  acceptance_sale:=(res->>'document_id')::uuid;
  if (res->>'status')<>'draft' or (res->>'vat')::numeric<>15
@@ -171,23 +171,23 @@ begin
  then raise exception 'Posted Sale did not reconcile AR 115, Revenue 100, Output VAT 15, customer ledger and balanced GL';end if;
  raise notice 'PASS standalone Sale Credit: required original; draft no GL; posted AR 115, Revenue 100, Output VAT 15';
  res:=public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
-  '[{"description":"VAT choice invoice","amount":"100"}]'::jsonb,revenue,'VAT-CHOICE-GOOD',null,true,'with_vat');
+  jsonb_build_array(jsonb_build_object('description','VAT choice invoice','amount','100','vehicle_id',v1)),revenue,'VAT-CHOICE-GOOD',null,true,'with_vat');
  if (res->>'vat')::numeric<>15 then raise exception 'Normal VAT choice wrong total';end if;
  bad:=false;
  begin
   perform public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
-   '[{"description":"Wrong VAT choice","amount":"100"}]'::jsonb,revenue,'VAT-CHOICE-INVALID',null,true,'without_vat');
+   jsonb_build_array(jsonb_build_object('description','Wrong VAT choice','amount','100','vehicle_id',v1)),revenue,'VAT-CHOICE-INVALID',null,true,'without_vat');
  exception when others then bad:=true;end;
  if not bad then raise exception 'Normal VAT selection rule not enforced';end if;
  reset role;
  before_trips:=(select count(*) from public.transport_trips where company_id=c);
  set local role authenticated;
  res:=public.transport_normal_invoice_create('customer',customer,'2026-10-17',jsonb_build_array(
- jsonb_build_object('description','Vehicle one sale','amount','300','vehicle_id',v1),jsonb_build_object('description','Vehicle two sale','amount','200','vehicle_id',v2),jsonb_build_object('description','Shared sale','amount','50')),revenue,'VEH-SALE-1',null,true);
+ jsonb_build_object('description','Vehicle one sale','amount','300','vehicle_id',v1),jsonb_build_object('description','Vehicle two sale','amount','200','vehicle_id',v2),jsonb_build_object('description','Third vehicle-one sale','amount','50','vehicle_id',v1)),revenue,'VEH-SALE-1',null,true);
  sale:=(res->>'document_id')::uuid;je:=(res->>'journal_entry_id')::uuid;
  if (select count(*) from public.transport_normal_vehicle_allocations where journal_entry_id=je)<>3 then raise exception 'Posted allocation snapshots incomplete';end if;
  if (res->>'net')::numeric<>550 or (res->>'vat')::numeric<>82.5 then raise exception 'Sale VAT %',res;end if;
- res:=public.transport_vehicle_ledger(v1,'2026-10-01','2026-10-31');if (res->>'revenue')::numeric<>300 then raise exception 'Normal Sale vehicle allocation wrong %',res;end if;
+ res:=public.transport_vehicle_ledger(v1,'2026-10-01','2026-10-31');if (res->>'revenue')::numeric<>350 then raise exception 'Normal Sale vehicle allocation wrong %',res;end if;
  res:=public.transport_vehicle_ledger(v2,'2026-10-01','2026-10-31');if (res->>'revenue')::numeric<>200 then raise exception 'Normal Sale vehicle 2 wrong %',res;end if;
  reset role;
  if (select sum(debit-credit) from public.party_ledgers where journal_entry_id=je and party_type='customer')<>632.5 then raise exception 'Customer AR not updated';end if;
