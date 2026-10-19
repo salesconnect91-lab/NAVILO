@@ -87,7 +87,6 @@
 .navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-lines-table tbody tr:nth-child(even) {background:#fbfcfe}
 .navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-lines-table .input {min-width:0}
 .navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-review {display:block}
-.navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-review > div {display:block}
 @media(max-width:900px){
  .navilo-invoice-detail-grid {grid-template-columns:repeat(2,minmax(0,1fr))}
  .navilo-invoice-field-primary,.navilo-invoice-field-wide {grid-column:auto}
