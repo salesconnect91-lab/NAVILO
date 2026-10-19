@@ -435,12 +435,15 @@ export default function PurchaseInvoiceDetail() {
     let cancelled=false;
     setResolved(null);
     if(!id){setResolved({id:'',kind:null,error:'Missing Purchase Invoice ID'});return;}
-    void supabase.from('purchase_orders').select('id,document_kind').eq('id',id).maybeSingle().then(({data,error})=>{
-      if(cancelled)return;
-      setResolved({id,kind:data?.document_kind??null,error:error?.message??(!data?'Purchase Invoice not found.':null)});
-    }).catch((error:unknown)=>{
-      if(!cancelled)setResolved({id,kind:null,error:error instanceof Error?error.message:'Unable to open Purchase Invoice'});
-    });
+    void (async()=>{
+      try{
+        const {data,error}=await supabase.from('purchase_orders').select('id,document_kind').eq('id',id).maybeSingle();
+        if(cancelled)return;
+        setResolved({id,kind:data?.document_kind??null,error:error?.message??(!data?'Purchase Invoice not found.':null)});
+      }catch(error:unknown){
+        if(!cancelled)setResolved({id,kind:null,error:error instanceof Error?error.message:'Unable to open Purchase Invoice'});
+      }
+    })();
     return()=>{cancelled=true;};
   },[id]);
   if(!resolved||resolved.id!==id)return <p role="status" className="card p-8">Loading Purchase Invoice…</p>;
