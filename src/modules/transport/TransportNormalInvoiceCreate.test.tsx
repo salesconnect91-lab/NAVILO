@@ -25,7 +25,7 @@ vi.mock('@/lib/supabase',()=>({supabase:{
   const q:any={
    select:()=>q,eq:(key:string,val:any)=>{filters[key]=val;return q;},
    order:()=>q,limit:()=>q,range:()=>q,
-   maybeSingle:async()=>{mock.calls.push({table,filters:{...filters}});return {data:{account_id:mock.company+'-account'},error:null};},
+   maybeSingle:async()=>{mock.calls.push({table,filters:{...filters}});return {data:{account_id:mock.company+(filters.mapping_key==='service_revenue'?'-service':'-account')},error:null};},
    then:(cb:any)=>{
     mock.calls.push({table,filters:{...filters}});
     if(table==='transport_vehicles')return Promise.resolve({data:[{id:mock.company+'-vehicle-1',vehicle_no:'7979',revenue_account_id:mock.unlinked?null:mock.company+'-account'},{id:mock.company+'-vehicle-2',vehicle_no:'7494',revenue_account_id:mock.company+'-account'}],error:null}).then(cb);
@@ -33,7 +33,7 @@ vi.mock('@/lib/supabase',()=>({supabase:{
     if(table==='customers'||table==='suppliers')
      return Promise.resolve({data:[{id:mock.company+'-party',name:'Master '+mock.company}],error:null}).then(cb);
     if(table==='chart_of_accounts')
-     return Promise.resolve({data:[{id:mock.company+'-account',name:'Account '+mock.company}],error:null}).then(cb);
+     return Promise.resolve({data:filters.type==='revenue'?[{id:mock.company+'-account',name:'Sales Revenue'},{id:mock.company+'-service',name:'Service Revenue'}]:[{id:mock.company+'-account',name:'Expense Account'}],error:null}).then(cb);
     throw new Error('Unknown table '+table);
    }
   };return q;
@@ -119,6 +119,14 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   await screen.findByText(/Sale invoice draft/);
   expect(mock.posts).toHaveLength(1);
   expect(mock.posts[0].p_vat_choice).toBe('master');
+ });
+ it('defaults normal Sales to Sales Revenue and excludes trip-only Service Revenue',async()=>{
+  await load('customer');
+  const ledger=screen.getByRole('combobox',{name:'Normal invoice ledger account'}) as HTMLSelectElement;
+  expect(ledger.value).toBe('a-account');
+  expect(screen.getByRole('option',{name:'Sales Revenue'})).toBeTruthy();
+  expect(screen.queryByRole('option',{name:'Service Revenue'})).toBeNull();
+  expect(screen.getByText(/Trip-linked Service Revenue is selected only in Service Invoices/)).toBeTruthy();
  });
  it('separates one GL account from optional vehicle reporting and keeps line labels aligned',async()=>{
   await load('customer');
