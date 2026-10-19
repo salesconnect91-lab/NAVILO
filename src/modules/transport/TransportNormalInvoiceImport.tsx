@@ -29,8 +29,12 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
    if(id!==request.current)return;
    if(partyList.error)throw partyList.error;if(accountList.error)throw accountList.error;if(mapping.error)throw mapping.error;if(vehicleList?.error)throw vehicleList.error;
    if(side==='customer')setVehicles(vehicleList?.data??[]);
-   setParties(partyList.data??[]);const acc=accountList.data??[];setAccounts(acc);
-   if(acc.some(a=>a.id===mapping.data?.account_id))setAccount(mapping.data!.account_id);
+   const mapped=mapping.data?.account_id??'';
+   const acc=(accountList.data??[]).filter(a=>side!=='customer'||a.id===mapped);
+   if(side==='customer'&&(!mapped||acc.length!==1))
+     throw new Error('Active Sales Revenue mapping required for Normal Sale import.');
+   setParties(partyList.data??[]);setAccounts(acc);
+   if(acc.some(a=>a.id===mapped))setAccount(mapped);
   }).catch(e=>{if(id===request.current)setError(e.message||'Master data unavailable.')})
     .finally(()=>{if(id===request.current)setLoading(false)});
   return()=>{request.current++};
