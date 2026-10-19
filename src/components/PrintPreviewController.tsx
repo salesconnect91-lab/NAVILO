@@ -60,7 +60,10 @@ export default function PrintPreviewController() {
   const [preview,setPreview]=useState<Preview|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[pageCount,setPageCount]=useState(0),[page,setPage]=useState(1);
   const [readyHtml,setReadyHtml]=useState('');
   const [customizing,setCustomizing]=useState(false);
+  const [zoomMode,setZoomMode]=useState<"fit"|"actual">("fit");
+  const [previewWidth,setPreviewWidth]=useState(0);
   const frameRef=useRef<HTMLIFrameElement>(null),requestRef=useRef(0),printFrames=useRef(new Set<HTMLIFrameElement>());
+  const previewViewportRef=useRef<HTMLDivElement>(null);
   const companyName=activeCompany?.company_name||'ERP',businessUnitName=activeBusinessUnit?.business_unit_name||'';
   const platformName=branding.show_branding&&branding.show_on_prints?branding.erp_name||'NAVILO':'';
 
@@ -95,7 +98,7 @@ export default function PrintPreviewController() {
             result={id:request,...report,styles:`<style>${REPORT_DOCUMENT_CSS}</style>`,paper:detail.paper||(settings.company.page_size==='Letter'?'Letter':settings.company.page_size==='A3'?'A3':'A4'),orientation:detail.orientation||report.orientation,footer:[companyName,businessUnitName,platformName?`Powered by ${platformName}`:''].filter(Boolean).join(' · ')};
           }
         }
-        if(request===requestRef.current){const tables=printTableSelections(result.html);setPreview({...result,originalHtml:result.html,tables,html:customizePrintHtml(result.html,tables)});setCustomizing(true);}
+        if(request===requestRef.current){const tables=printTableSelections(result.html);setPreview({...result,originalHtml:result.html,tables,html:customizePrintHtml(result.html,tables)});setCustomizing(false);setZoomMode("fit");}
       }catch(e){if(request===requestRef.current){setPreview(null);setBusy(false);setError(e instanceof Error?e.message:'Unable to prepare print document.');}}
     };
     const openNative=()=>{void open();};
@@ -106,6 +109,17 @@ export default function PrintPreviewController() {
   const close=()=>{requestRef.current++;setPreview(null);setBusy(false);setError('');setReadyHtml('');};
   useEffect(()=>{if(!preview&&!busy&&!error)return;const key=(e:KeyboardEvent)=>{if(e.key==='Escape')close();};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[preview,busy,error]);
   useEffect(()=>()=>{printFrames.current.forEach(frame=>frame.remove());printFrames.current.clear();},[]);
+  useEffect(()=>{
+    if(!preview)return;
+    const el=previewViewportRef.current;
+    if(!el)return;
+    const measure=()=>setPreviewWidth(Math.max(0,el.clientWidth-24));
+    measure();
+    const observer=typeof ResizeObserver==="undefined"?null:new ResizeObserver(measure);
+    observer?.observe(el);
+    window.addEventListener("resize",measure);
+    return ()=>{observer?.disconnect();window.removeEventListener("resize",measure);};
+  },[preview?.id]);
 
   const layout=async()=>{
     const frame=frameRef.current,doc=frame?.contentDocument,request=requestRef.current;
@@ -138,14 +152,25 @@ export default function PrintPreviewController() {
     frame.srcdoc=readyHtml;document.body.appendChild(frame);
   };
   if(!preview&&!busy&&!error)return null;
-  const [width]=paperDimensions(preview?.paper||'A4',preview?.orientation||'portrait');
-  return <div className="fixed inset-0 z-[100000] flex flex-col bg-slate-950/80 p-3 md:p-5" data-no-bilingual data-navilo-print-preview role="dialog" aria-modal="true" aria-label="Print Preview">
-    <div className="mx-auto mb-2 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 rounded-lg border bg-white px-4 py-2">
+  const [width,height]=paperDimensions(preview?.paper||'A4',preview?.orientation||'portrait');
+  // Render the document at real paper size in the iframe; only its on-screen shell
+  // is scaled. The readyHtml handed to the native printer is never scaled.
+  const pageWidthPx=width*96/25.4;
+  const pageHeightPx=height*96/25.4;
+  const previewScale=zoomMode==="fit"&&previewWidth>0?Math.min(1,previewWidth/pageWidthPx):1;
+  const scaledPages=Math.max(1,pageCount);
+  const moveToPage=(next:number)=>{
+    setPage(next);
+    previewViewportRef.current?.scrollTo({top:(next-1)*pageHeightPx*previewScale+38,behavior:"smooth"});
+  };
+  return <div className="fixed inset-0 z-[100000] flex flex-col bg-slate-950/80 p-2 sm:p-3 md:p-5" data-no-bilingual data-navilo-print-preview role="dialog" aria-modal="true" aria-label="Print Preview">
+    <div className="mx-auto mb-2 flex w-full max-w-7xl shrink-0 flex-wrap items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 sm:px-4">
       <div><div className="text-sm font-bold">Print Preview · {preview?.title||(error?'Document unavailable':'Preparing document')}</div><div className="text-[11px] text-slate-500">{error?'Preview could not be prepared':pageCount?`${pageCount} page(s) · Preview and print use the same document`: 'Preparing page layout…'}</div></div>
       <div className="flex flex-wrap items-center gap-2">
         <label className="text-xs">Paper <SearchableSelect preserveLabel wrapperClassName="inline-block w-20" aria-label="Print paper size" className="rounded border p-1" disabled={!preview||busy} value={preview?.paper||'A4'} onChange={e=>changeLayout(e.target.value as PrintPaper,preview!.orientation)}><option>A4</option><option>A3</option><option>Letter</option></SearchableSelect></label>
         <label className="text-xs">Layout <SearchableSelect preserveLabel wrapperClassName="inline-block w-28" aria-label="Print orientation" className="rounded border p-1" disabled={!preview||busy} value={preview?.orientation||'portrait'} onChange={e=>changeLayout(preview!.paper,e.target.value as PrintOrientation)}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></SearchableSelect></label>
         <button className="btn-secondary" disabled={!preview} aria-expanded={customizing} onClick={()=>setCustomizing(value=>!value)}>Customize Print</button>
+        <button className="btn-secondary" disabled={!preview} aria-pressed={zoomMode==="fit"} onClick={()=>setZoomMode(value=>value==="fit"?"actual":"fit")} title="Change how the paper fits the preview; printing remains at full resolution">{zoomMode==="fit"?"100% Zoom":"Fit to Screen"}</button>
         <button className="btn-primary" disabled={!readyHtml||busy||!!error} onClick={printNow}>Print / Save PDF</button><button className="btn-secondary" onClick={close} aria-label="Close print preview">✕</button>
       </div>
     </div>
@@ -157,9 +182,11 @@ export default function PrintPreviewController() {
     </section>}
     {error&&<div role="alert" className="mx-auto mb-2 w-full max-w-7xl rounded border border-red-300 bg-white p-3 text-sm text-red-700">{error}</div>}
     {busy&&<div role="status" className="mx-auto mb-2 rounded bg-white px-4 py-2 text-sm">Preparing complete document and page breaks…</div>}
-    {preview&&<div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col overflow-auto rounded-lg bg-slate-300 p-3">
-      {pageCount>1&&<div className="mb-2 flex items-center justify-center gap-3 text-xs"><button className="btn-secondary" disabled={page<=1} onClick={()=>{const next=page-1;setPage(next);frameRef.current?.contentDocument?.querySelectorAll('.navilo-paper')[next-1]?.scrollIntoView();}}>Previous page</button><span>Page {page} / {pageCount}</span><button className="btn-secondary" disabled={page>=pageCount} onClick={()=>{const next=page+1;setPage(next);frameRef.current?.contentDocument?.querySelectorAll('.navilo-paper')[next-1]?.scrollIntoView();}}>Next page</button></div>}
-      <iframe key={preview.id} ref={frameRef} title="Document pages" sandbox="allow-same-origin" srcDoc={documentMarkup(preview)} onLoad={()=>void layout()} className="mx-auto min-h-0 flex-1 border-0 bg-white shadow-lg" style={{width:`${width}mm`,minWidth:`${width}mm`}}/>
+    {preview&&<div ref={previewViewportRef} className="mx-auto min-h-0 w-full max-w-7xl flex-1 overflow-auto overscroll-contain rounded-lg bg-slate-300 p-2 sm:p-3">
+      {pageCount>1&&<div className="sticky left-0 top-0 z-10 mb-2 flex w-max items-center gap-3 rounded-md bg-white/95 p-1.5 text-xs shadow-sm"><button className="btn-secondary" disabled={page<=1} onClick={()=>moveToPage(page-1)}>Previous page</button><span>Page {page} / {pageCount}</span><button className="btn-secondary" disabled={page>=pageCount} onClick={()=>moveToPage(page+1)}>Next page</button></div>}
+      <div className="relative mx-auto bg-white shadow-lg" style={{width:pageWidthPx*previewScale,height:pageHeightPx*scaledPages*previewScale,minWidth:pageWidthPx*previewScale,minHeight:pageHeightPx*scaledPages*previewScale}}>
+        <iframe key={preview.id} ref={frameRef} title="Document pages" sandbox="allow-same-origin" srcDoc={documentMarkup(preview)} onLoad={()=>void layout()} scrolling="no" className="absolute left-0 top-0 block border-0 bg-white" style={{width:`${width}mm`,height:`${height*scaledPages}mm`,transform:`scale(${previewScale})`,transformOrigin:"top left"}}/>
+      </div>
     </div>}
   </div>;
 }
