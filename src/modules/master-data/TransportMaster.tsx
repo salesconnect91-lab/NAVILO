@@ -247,7 +247,7 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
       {vehicle && <Link className="btn-secondary" to="/master-data/vehicle-ownership">Vehicle Ownership History</Link>}
       {allowed && (!vehicle || canAddOwner) && (!employeeOwner||!rows.length) && <button className="btn-primary" onClick={openAdd}><Plus className="h-4 w-4" />Add {vehicle ? "Vehicle" : "Driver"}</button>}</div>
     {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</div>}
-    {legacyRetired && <p role="status" className="text-xs text-emerald-700">Six unused legacy Income GL accounts safely retired. Vehicle and journal history retained.</p>
+    {legacyRetired && <p role="status" className="text-xs text-emerald-700">Six unused legacy Income GL accounts safely retired. Vehicle and journal history retained.</p>}
     <div className="navilo-master-filterbar flex flex-wrap items-center gap-2 px-3 py-2" data-no-print data-no-export>
       <div className="relative min-w-52 flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input className="input w-full pl-9"
         aria-label={`Search ${kind}`} placeholder={vehicle ? "Search vehicle, type or supplier..." : "Search driver, code, mobile or supplier..."} value={q} onChange={e => setQ(e.target.value)} /></div>
