@@ -2,7 +2,7 @@ import {useAuth} from '@/auth/AuthContext';
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
-import {companyVehicleIncomeRows,type CompanyVehicle,type VehicleIncomeRow} from './companyVehicleIncome';
+import {reconcileNormalVehicleIncome,splitTransportRevenue,type VehicleIncome} from './transportIncomeBreakdown';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -156,9 +156,7 @@ export default function ProfitLoss() {
   const [error, setError] = useState<string | null>(null);
   const [reportPrintSettings, setReportPrintSettings] = useState<any>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [vehicleIncome,setVehicleIncome]=useState<VehicleIncomeRow[]>([]);
-  const [vehicleWarning,setVehicleWarning]=useState<string|null>(null);
-  const [settingUpVehicles,setSettingUpVehicles]=useState(false);
+  const [transportIncome,setTransportIncome]=useState<{sales:number;service:number;other:number;vehicles:VehicleIncome[];residual:number;vehicleError:string}|null>(null);
   const [verifiedTransportUnit,setVerifiedTransportUnit]=useState<{companyId:string;businessUnitId:string;isTransport:boolean}|null>(null);
   const companyId=activeCompany?.company_id??'';
   const businessUnitId=activeBusinessUnit?.business_unit_id??'';
@@ -198,12 +196,12 @@ export default function ProfitLoss() {
 
     let accounts: AccountRow[] = [];
     let rawLedger: LedgerRow[] = [];
-    let vehicles: CompanyVehicle[] = [];
-    setVehicleWarning(null);
-    setVehicleIncome([]);
+    let mappings: Array<{mapping_key:string;account_id:string}> = [];
+    let vehicleResult: {rows:Array<{vehicle_id:string;vehicle_no:string;amount:number|string}>;error:string} = {rows:[],error:''};
+    setTransportIncome(null);
 
     try {
-      [accounts, rawLedger, vehicles] = await Promise.all([
+      [accounts, rawLedger, mappings, vehicleResult] = await Promise.all([
         fetchAllPages<AccountRow>((fromRow,toRow) =>
           supabase
             .from("chart_of_accounts")
@@ -212,24 +210,26 @@ export default function ProfitLoss() {
             .range(fromRow,toRow)
         ),
         (async()=>{const r=await supabase.rpc('accounting_report_balances_scoped',{p_from:fromDate,p_to:toDate,p_exclude_closing:true,p_scope:scope});if(r.error)throw r.error;return r.data||[]})(),
-        isTransport && activeCompany?.company_id && activeBusinessUnit?.business_unit_id
+        isTransport&&companyId
+          ? (async()=>{
+              const result=await supabase.from('account_mappings').select('mapping_key,account_id')
+                .eq('company_id',companyId).in('mapping_key',['sales_revenue','service_revenue']);
+              if(result.error)throw result.error;
+              return result.data??[];
+            })():Promise.resolve([] as Array<{mapping_key:string;account_id:string}>),
+        isTransport
           ? (async()=>{
               try{
-                return await fetchAllPages<CompanyVehicle>((fromRow,toRow)=>{
-                  let query=supabase.from('transport_vehicles')
-                    .select('id,vehicle_no,revenue_account_id')
-                    .eq('company_id',activeCompany.company_id)
-                    .eq('ownership_type','company')
-                    .eq('is_active',true)
-                    .order('vehicle_no').range(fromRow,toRow);
-                  if(scope!=='company')query=query.eq('business_unit_id',activeBusinessUnit.business_unit_id);
-                  return query;
+                const result=await supabase.rpc('transport_pl_normal_sales_vehicle_income_scoped',{
+                  p_from:fromDate,p_to:toDate,p_scope:scope
                 });
+                if(result.error)throw result.error;
+                if(!Array.isArray(result.data?.rows))throw new Error('Incomplete Normal Sale vehicle breakdown');
+                return {rows:result.data.rows,error:''};
               }catch(err){
-                setVehicleWarning(err instanceof Error?('Vehicle income breakdown unavailable: '+err.message):'Vehicle income breakdown unavailable.');
-                return [] as CompanyVehicle[];
+                return {rows:[],error:err instanceof Error?err.message:'Vehicle income breakdown unavailable'};
               }
-            })() : Promise.resolve([] as CompanyVehicle[]),
+            })():Promise.resolve({rows:[],error:''}),
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load Profit & Loss statement.");
@@ -326,11 +326,6 @@ export default function ProfitLoss() {
       });
     });
 
-    const vehicleDetails=companyVehicleIncomeRows(vehicles,accounts,ledgerLines);
-    setVehicleIncome(vehicleDetails);
-    if(vehicleDetails.some(v=>v.status!=='dedicated'))
-      setVehicleWarning('Legacy dedicated-account breakdown only. For complete vehicle revenue and costs, use Posted Vehicle Ledger & P&L. Separate income GLs are not required.');
-
     const next = emptyPLData();
     (Object.keys(bucketMaps) as PLBucket[]).forEach((bucket) => {
       const items = Array.from(bucketMaps[bucket].values())
@@ -339,15 +334,34 @@ export default function ProfitLoss() {
       next[bucket] = { items, total: items.reduce((sum, item) => sum + item.amount, 0) };
     });
 
+    if(isTransport){
+      try{
+        const salesAccountId=mappings.find(m=>m.mapping_key==='sales_revenue')?.account_id??'';
+        const serviceAccountId=mappings.find(m=>m.mapping_key==='service_revenue')?.account_id??'';
+        const {sales,service}=splitTransportRevenue(ledgerLines,salesAccountId,serviceAccountId);
+        const vehicleData=vehicleResult.rows.map(x=>({
+          vehicle_id:String(x.vehicle_id??''),vehicle_no:String(x.vehicle_no??''),amount:Number(x.amount)
+        }));
+        const breakdown=vehicleResult.error
+          ? {vehicles:[] as VehicleIncome[],allocated:0,residual:0}
+          : reconcileNormalVehicleIncome(sales,vehicleData,hideZeroBalances);
+        setTransportIncome({
+          sales,service,
+          other:Number((next.operatingRevenue.total-sales-service).toFixed(2)),
+          vehicles:breakdown.vehicles,
+          residual:breakdown.residual,
+          vehicleError:vehicleResult.error,
+        });
+      }catch(err){
+        setError(err instanceof Error?err.message:'Transport Revenue classification unavailable');
+        setTransportIncome(null);
+      }
+    }
     setData(next);
     setLastUpdated(new Date());
     setLoading(false);
   }, [fromDate, toDate, hideZeroBalances, scope,isTransport,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
 
-  const setupVehicleAccounts=useCallback(async()=>{
-    if(!isTransport||settingUpVehicles)return;
-    window.location.assign('/transport?panel=vehicle-reports');
-  },[isTransport,settingUpVehicles]);
 
   useEffect(() => {
     void loadDocumentPrintSettings("reports").then(setReportPrintSettings).catch(() => setReportPrintSettings(null));
