@@ -68,10 +68,12 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    if(people.error)throw people.error;if(coa.error)throw coa.error;if(m.error)throw m.error;
    if(service?.error)throw service.error;
    const serviceAccount=side==='customer'?service?.data?.account_id??'':'';
-   const options=(coa.data??[]).filter(a=>side!=='customer'||(a.id!==serviceAccount&&a.name.trim().toLowerCase()!=='service revenue'));
+   const mapped=m.data?.account_id??'';
+   if(side==='customer'&&(!mapped||mapped===serviceAccount||!(coa.data??[]).some(a=>a.id===mapped)))
+    throw new Error('Normal Sales require a distinct active Sales Revenue account mapping.');
+   const options=(coa.data??[]).filter(a=>side!=='customer'||a.id===mapped);
    setServiceRevenueId(serviceAccount);
    setParties(people.data??[]);setAccounts(options);
-   const mapped=m.data?.account_id;
    setAccount(mapped&&options.some(a=>a.id===mapped)?mapped:'');
    setLoadedScope(scope);
   }).catch(e=>{if(!cancelled)setError(e.message||'Unable to load active master data.')})
