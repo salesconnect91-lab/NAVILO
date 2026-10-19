@@ -27,6 +27,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  const {activeCompany,activeBusinessUnit}=useAuth();
  const company=activeCompany?.company_id,bu=activeBusinessUnit?.business_unit_id,scope=`${company}/${bu}`;
  const [parties,setParties]=useState<Party[]>([]),[accounts,setAccounts]=useState<Account[]>([]);
+ const [serviceRevenueId,setServiceRevenueId]=useState('');
  const [party,setParty]=useState(''),[account,setAccount]=useState(''),[date,setDate]=useState(today());
  const [number,setNumber]=useState(''),[reference,setReference]=useState(''),[vatChoice,setVatChoice]=useState<'master'|'with_vat'|'without_vat'>('master'),[lines,setLines]=useState<Line[]>([empty()]);
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[done,setDone]=useState<{document_id:string;invoice_no:string;status:string;gross:number;net?:number;vat?:number}|null>(null);
@@ -46,7 +47,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  const eligibleVehicles=vehicles.filter(v=>ownership.some(o=>o.vehicle_id===v.id&&o.owner_type==='company'&&o.effective_from<=date&&(!o.effective_to||o.effective_to>=date)));
 
  useEffect(()=>{
-  let cancelled=false;setParty('');setAccount('');setParties([]);setAccounts([]);setError('');setDone(null);setLoadedScope('');setLoading(true);
+  let cancelled=false;setParty('');setAccount('');setParties([]);setAccounts([]);setServiceRevenueId('');setError('');setDone(null);setLoadedScope('');setLoading(true);
   if(!company||!bu){setError('Select an active Transport workspace.');setLoading(false);return;}
   const table=side==='customer'?'customers':'suppliers';
   const accountType=side==='customer'?'revenue':'expense';
@@ -55,10 +56,14 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    supabase.from(table).select('id,name').eq('company_id',company).eq('is_active',true).order('name'),
    supabase.from('chart_of_accounts').select('id,code,name').eq('company_id',company).eq('type',accountType).eq('is_active',true).eq('is_group',false).order('name'),
    supabase.from('account_mappings').select('account_id').eq('company_id',company).eq('mapping_key',mapping).limit(1).maybeSingle(),
-  ]).then(([people,coa,m])=>{
+   ...(side==='customer'?[supabase.from('account_mappings').select('account_id').eq('company_id',company).eq('mapping_key','service_revenue').limit(1).maybeSingle()]:[]),
+  ]).then(([people,coa,m,service])=>{
    if(cancelled)return;
    if(people.error)throw people.error;if(coa.error)throw coa.error;if(m.error)throw m.error;
-   const options=coa.data??[];
+   if(service?.error)throw service.error;
+   const serviceAccount=side==='customer'?service?.data?.account_id??'':'';
+   const options=(coa.data??[]).filter(a=>side!=='customer'||(a.id!==serviceAccount&&a.name.trim().toLowerCase()!=='service revenue'));
+   setServiceRevenueId(serviceAccount);
    setParties(people.data??[]);setAccounts(options);
    const mapped=m.data?.account_id;
    setAccount(mapped&&options.some(a=>a.id===mapped)?mapped:'');
@@ -72,7 +77,8 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  const vatQuote=useNormalInvoiceVatQuote({company,bu,side,party,date,choice:vatChoice,amounts});
  const lineError=validateNormalInvoiceLines(lines)
   ||(lines.some(l=>l.vehicle_id&&!eligibleVehicles.some(v=>v.id===l.vehicle_id))?'Select a company-owned vehicle valid on invoice date.':null);
- const available=loadedScope===scope&&!loading&&!saving&&!done&&Boolean(party&&account&&date)&&!lineError&&vatQuote.ready;
+ const available=loadedScope===scope&&!loading&&!saving&&!done&&Boolean(party&&account&&date)&&!lineError&&vatQuote.ready
+  &&(side!=='customer'||account!==serviceRevenueId);
  const update=(index:number,k:keyof Line,value:string)=>setLines(old=>old.map((line,i)=>i===index?{...line,[k]:value}:line));
  async function save(post:boolean){
   if(!available)return;setSaving(true);setError('');
@@ -143,7 +149,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
      <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Normal invoice ledger account" className="input" value={account} onChange={e=>setAccount(e.target.value)}>
       <option value="">Select active company account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
      </NaviloSearchableSelect>
-     <span className="navilo-invoice-ledger-note">{side==='customer'?'Income is posted to this account. Vehicle selection below is only a reporting allocation, not another GL entry.':'Costs post to this expense account. Optional vehicle selection tags the expense for vehicle-wise reports.'}</span>
+     <span className="navilo-invoice-ledger-note">{side==='customer'?'Normal Sale defaults to Sales Revenue. Trip-linked Service Revenue is selected only in Service Invoices; vehicle selection below is an optional P&L reporting tag.':'Costs post to this expense account. Optional vehicle selection tags the expense for vehicle-wise reports.'}</span>
     </label>
    </fieldset>
   </section>
