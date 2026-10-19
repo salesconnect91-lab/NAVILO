@@ -50,7 +50,7 @@ export default function GeneralExpenseBillCreate(){
   finally{setBusy(false)}
  }
  return <section className="mx-auto max-w-6xl space-y-3 p-3 text-sm" aria-label="Non-inventory Expense Invoice">
-  <div className="flex items-center justify-between"><div><h1 className="text-lg font-bold">Expense Invoice</h1><p className="text-slate-600 text-xs">Non-inventory supplier expense • one Purchase Bill → Expense, Input VAT and Payables • no stock movement</p></div><Link className="text-blue-700 underline text-xs" to="/purchase">Purchase List</Link></div>
+  <div className="flex items-center justify-between"><div><h1 className="text-lg font-bold">Expense Invoice</h1><p className="text-slate-600 text-xs">Non-inventory supplier expense • one Purchase Bill → Expense, Input VAT and Payables • no stock movement</p></div><div className="flex gap-3"><Link className="text-blue-700 underline text-xs" to="/purchase/expense/import">Excel Import</Link><Link className="text-blue-700 underline text-xs" to="/purchase">Purchase List</Link></div></div>
   {error&&<p role="alert" className="rounded bg-red-50 p-2 text-red-700">{error}</p>}
   {loading&&<p role="status">Loading company suppliers and Expense accounts…</p>}
   {done&&<div role="status" className="rounded border p-3"><strong>Expense Invoice {done.status}: {done.invoice_no}</strong> · SAR {Number(done.gross).toFixed(2)} <Link className="text-blue-700 underline ml-3" to={`/purchase/${done.document_id}`}>Open Invoice</Link><button className="btn ml-3" onClick={()=>{setDone(null);setOriginal('');setLines([blank()])}}>New Expense Invoice</button></div>}
