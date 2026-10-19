@@ -40,8 +40,8 @@ begin
 
  insert into public.suppliers(user_id,company_id,name,account_id) values(u,c,'Second Supplier',ap) returning id into supplier2;
 
- select id into revenue from public.chart_of_accounts where company_id=c and type='revenue' and is_active and not is_group order by id limit 1;
- update public.account_mappings set account_id=revenue where company_id=c and mapping_key='service_revenue';
+ select account_id into revenue from public.account_mappings where company_id=c and mapping_key='sales_revenue' limit 1;
+ -- Keep Trip Service and Normal Sale revenue mappings distinct.
  update public.customers set strn='CUSTOMER-VAT' where id=customer;
  update public.suppliers set strn='SUPPLIER-VAT' where id=supplier;
  insert into public.tax_rates(user_id,company_id,name,rate,is_active,is_fixed,applies_to,effective_from,effective_to)
