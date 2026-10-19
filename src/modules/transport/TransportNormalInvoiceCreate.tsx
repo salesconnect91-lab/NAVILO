@@ -75,10 +75,14 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  const amount=useMemo(()=>lines.reduce((total,l)=>total+(Number(l.amount)||0),0),[lines]);
  const amounts=useMemo(()=>lines.map(l=>Number(l.amount)||0),[lines]);
  const vatQuote=useNormalInvoiceVatQuote({company,bu,side,party,date,choice:vatChoice,amounts});
+ const needsOriginalInvoice=side==='customer'&&vatQuote.mode==='Credit';
+ const originalNumberError=needsOriginalInvoice&&(
+    !number.trim()||/^H-S-/i.test(number.trim())||/^(YES|CLEARED|NO INVOICE|BAD DEBTS|PENDING)$/i.test(number.trim())
+  )?'Credit Sales requires a genuine original invoice number (also for drafts).':null;
  const lineError=validateNormalInvoiceLines(lines)
   ||(lines.some(l=>l.vehicle_id&&!eligibleVehicles.some(v=>v.id===l.vehicle_id))?'Select a company-owned vehicle valid on invoice date.':null);
  const available=loadedScope===scope&&!loading&&!saving&&!done&&Boolean(party&&account&&date)&&!lineError&&vatQuote.ready
-  &&(side!=='customer'||account!==serviceRevenueId);
+  &&(side!=='customer'||account!==serviceRevenueId)&&!originalNumberError;
  const update=(index:number,k:keyof Line,value:string)=>setLines(old=>old.map((line,i)=>i===index?{...line,[k]:value}:line));
  async function save(post:boolean){
   if(!available)return;setSaving(true);setError('');
@@ -133,8 +137,8 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
      </NaviloSearchableSelect>
     </label>
     <label className="navilo-invoice-field">Invoice Date *<NaviloDateInput type="date" className="input" value={date} onChange={e=>setDate(e.target.value)}/></label>
-    <label className="navilo-invoice-field">Original Invoice Number
-     <input className="input" maxLength={80} aria-label="Normal invoice number" value={number} onChange={e=>setNumber(e.target.value)} placeholder={side==='customer'?'Customer invoice number':'Supplier invoice number'}/>
+    <label className="navilo-invoice-field">Original Invoice Number{needsOriginalInvoice?" *":""}
+     <input className="input" maxLength={80} aria-label="Normal invoice number" required={needsOriginalInvoice} aria-invalid={Boolean(originalNumberError)} value={number} onChange={e=>setNumber(e.target.value)} placeholder={side==='customer'?'Customer invoice number':'Supplier invoice number'}/>
     </label>
     <label className="navilo-invoice-field">Reference / PO Number
      <input className="input" value={reference} maxLength={120} onChange={e=>setReference(e.target.value)} placeholder="Optional reference"/>
@@ -181,7 +185,8 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
     <span className="navilo-invoice-step">03</span><h2 id="normal-invoice-review">Review & Save</h2>
     <p>Verify the {partyName.toLowerCase()}, original invoice number, description lines and VAT treatment before posting.</p>
     <p className="navilo-invoice-small-note">VAT follows the party's Master Cash/Credit rule and the invoice-date effective tax rate. A draft does not post accounting entries.</p>
-    {vatQuote.error&&<p role="alert" className="navilo-invoice-inline-warning">{vatQuote.error} <Link to={side==='customer'?'/master-data/customers?tab=billing':'/master-data/suppliers'}>Open Master</Link></p>}
+    {vatQuote.error&&<p role="alert" className="navilo-invoice-inline-warning">{vatQuote.error} <button type="button" className="underline font-semibold" onClick={()=>setVatChoice("master")}>Use Master VAT</button> <Link to={side==='customer'?'/master-data/customers?tab=billing':'/master-data/suppliers'}>Open Master</Link></p>}
+    {originalNumberError&&<p role="status" className="navilo-invoice-inline-warning">{originalNumberError}</p>}
     {vatQuote.loading&&<p role="status" className="navilo-invoice-small-note">Loading VAT rate and Master billing mode…</p>}
     <p className="navilo-invoice-small-note">{side==='customer'?'Revenue':'Expense'} uses the selected GL account. A vehicle is optional and only assigns this line to a vehicle-wise report. “No vehicle” leaves it as general company income or expense.</p>
     {lineError&&<p role="status" className="navilo-invoice-inline-warning">{lineError}</p>}
