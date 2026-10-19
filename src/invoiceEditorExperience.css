@@ -442,3 +442,70 @@
   min-width:0!important;
   align-self:flex-start!important;
 }
+
+
+/* NAVILO RIGHT-EDGE LOGO BRAND SLOT
+   Three fixed zones keep the saved company data on the extreme left,
+   the document type clear, and the uploaded logo at the outer right.
+   The logo remains complete (contain), without crop or stretching. */
+.print-document .print-header:has(> .print-logo-side) {
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,47mm) minmax(0,50mm)!important;
+  align-items:center!important;
+  gap:3mm!important;
+}
+.print-document .print-header > .print-company {
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  flex:none!important;
+  align-self:start!important;
+  text-align:left!important;
+}
+.print-document .print-header > .print-company > div {
+  width:100%!important;
+  text-align:left!important;
+  min-width:0!important;
+}
+.print-document .print-header > .print-logo-side {
+  order:3!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  box-sizing:border-box!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:19mm!important;
+  padding:1.4mm!important;
+  border:1px solid #d8e4e5!important;
+  border-radius:2mm!important;
+  background:#fff!important;
+  align-self:center!important;
+  overflow:hidden!important;
+}
+.print-document .print-header > .print-logo-side > .print-logo {
+  display:block!important;
+  flex:none!important;
+  width:100%!important;
+  height:auto!important;
+  max-width:100%!important;
+  max-height:22mm!important;
+  min-width:0!important;
+  margin:0!important;
+  object-fit:contain!important;
+  object-position:center!important;
+}
+.print-document .print-header:has(> .print-logo-side) > .print-voucher-title-box {
+  order:2!important;
+  align-self:center!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  flex:none!important;
+  box-sizing:border-box!important;
+  margin:0!important;
+}
+/* No company logo? Preserve a compact left identity / right title layout. */
+.print-document .print-header:not(:has(> .print-logo-side)) > .print-company {
+  flex:1 1 auto!important;
+}
