@@ -72,10 +72,13 @@ export default function PurchaseOrderList() {
       const linked=ids.length?await supabase.from("purchase_order_consolidated_invoices")
         .select("purchase_order_id,consolidated_invoice:consolidated_purchase_invoices(invoice_no)")
         .in("purchase_order_id",ids):null;
-      if(linked?.error)throw linked.error;
+      // Consolidated links are optional supplementary metadata, not a prerequisite
+      // to show canonical Purchase invoices. They can be disabled for Transport.
+      // Keep invoice rows visible if this read is denied or unavailable.
+      if(linked?.error)console.warn('Purchase consolidated reference lookup unavailable:',linked.error.message);
       if(request!==listRequest.current)return;
       const numbers:Record<string,string[]>={};
-      for(const link of linked?.data??[]){
+      for(const link of linked?.error?[]:linked?.data??[]){
         const invoice=Array.isArray((link as any).consolidated_invoice)
           ?(link as any).consolidated_invoice[0]:(link as any).consolidated_invoice;
         if(invoice?.invoice_no)(numbers[(link as any).purchase_order_id]??=[]).push(invoice.invoice_no);
