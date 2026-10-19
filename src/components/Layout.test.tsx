@@ -79,11 +79,11 @@ describe("collapsed navigation", () => {
     const content=document.querySelector('#navilo-main-content')?.parentElement as HTMLElement;
     expect(content.style.width).toBe("auto");
     fireEvent.click(screen.getByRole("button", { name: "Expand navigation" }));
-    expect(content.classList.contains("lg:ml-[252px]")).toBe(true);
+    expect(content.classList.contains("lg:ml-[216px]")).toBe(true);
     expect(content.style.width).toBe("auto");
     expect(screen.getByRole("button", { name: "Transport action" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
-    expect(content.classList.contains("lg:ml-[68px]")).toBe(true);
+    expect(content.classList.contains("lg:ml-[56px]")).toBe(true);
     expect(content.style.width).toBe("auto");
   });
 

@@ -6,7 +6,7 @@ import GeneralExpenseBillImport from '@/modules/purchase/GeneralExpenseBillImpor
 import TransportVehicleExpenseImportPreview from '@/modules/transport/TransportVehicleExpenseImportPreview';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { ArrowRight, FileText, Landmark, Truck, Users, Upload } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { lazy, Suspense, useEffect,useRef,useState } from "react";
 const TransportTripImportWorkspace = lazy(() => import('@/modules/transport/TransportWorkspace'));
 import { useAuth } from "@/auth/AuthContext";
@@ -325,6 +325,8 @@ function TripLinkedInvoiceImports(){
 export default function ImportCenter() {
   const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
   const [searchParams] = useSearchParams();
+  const {hash}=useLocation();
+  useEffect(()=>{if(!hash)return;const id=requestAnimationFrame(()=>document.getElementById(hash.slice(1))?.scrollIntoView({block:"start"}));return()=>cancelAnimationFrame(id)},[hash]);
   const role = activeBusinessUnit?.membership_role ?? activeCompany?.membership_role;
   const permissions = activeBusinessUnit?.permissions ?? activeCompany?.permissions;
   const canImport = (module: ModuleKey) => (activeCompany?.enabled_modules?.includes(module) ?? true) && (activeBusinessUnit?.enabled_modules.includes(module) ?? true) && (isPlatformOwner || hasPermission(role, module, "create", permissions, false));

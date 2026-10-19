@@ -4,15 +4,15 @@ import { Building2, ChevronDown, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 
-export default function CompanySwitcher() {
+export default function CompanySwitcher({inline=false}:{inline?:boolean}={}) {
   const { activeCompany, availableCompanies, switchCompany, switchingCompany } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState("");
 
-  if (availableCompanies.length <= 1) return null;
+  if ((availableCompanies??[]).length <= 1) return null;
 
   return (
-    <div className="fixed right-[116px] top-[7px] z-40 hidden min-w-[250px] md:block" data-no-bilingual data-no-print data-no-print-overlay>
+    <div className={inline?"workspace-company-switcher":"fixed right-[116px] top-[7px] z-40 hidden min-w-[250px] md:block"} data-no-bilingual data-no-print data-no-print-overlay>
       <div className="relative rounded-xl border border-slate-200/90 bg-white/95 px-2.5 py-1.5 shadow-sm backdrop-blur-xl">
         <div className="mb-0.5 flex items-center gap-1.5 px-1 text-[12px] font-bold uppercase tracking-[0.13em] text-slate-400">
           <Building2 size={10} />

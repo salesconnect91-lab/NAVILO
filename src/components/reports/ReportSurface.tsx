@@ -1,3 +1,4 @@
+import { useAuth } from "@/auth/AuthContext";
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Columns3, X } from "lucide-react";
@@ -17,7 +18,13 @@ const isDuplicateAction = (label:string) => {
 };
 
 export default function ReportSurface({ children }: ReportSurfaceProps) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const { user, activeCompany, activeBusinessUnit } = useAuth();
+  const storageKey = `navilo:report-prefs:v2:${user?.id??"anonymous"}:${activeCompany?.company_id??"none"}:${activeBusinessUnit?.business_unit_id??"none"}:${pathname}:${search}`;
+  return <ScopedReportSurface key={storageKey} storageKey={storageKey} pathname={pathname}>{children}</ScopedReportSurface>;
+}
+
+function ScopedReportSurface({children,storageKey,pathname}:ReportSurfaceProps & {storageKey:string;pathname:string}) {
   const rootRef = useRef<HTMLDivElement>(null);
   const previousPath = useRef<string | null>(null);
   const [columns, setColumns] = useState<ColumnChoice[]>([]);
@@ -26,7 +33,8 @@ export default function ReportSurface({ children }: ReportSurfaceProps) {
   const [showTotals, setShowTotals] = useState(true);
   const [showFilters, setShowFilters] = useState(true);
   const [customizeOpen,setCustomizeOpen]=useState(false);
-  const storageKey = useMemo(() => `navilo:report-prefs:${pathname}`, [pathname]);
+  const [defaultMessage,setDefaultMessage]=useState("");
+
 
   useEffect(() => { void loadDocumentPrintSettings("reports").catch(() => undefined); try { const saved=JSON.parse(localStorage.getItem(storageKey)||"{}") as SavedPrefs;setDensity(saved.density??"compact");setOrientation(saved.orientation??"landscape");setShowTotals(saved.showTotals??true);setShowFilters(saved.showFilters??true);} catch{setDensity("compact");setOrientation("landscape");setShowTotals(true);setShowFilters(true)} }, [storageKey]);
   const reportContent=useCallback(()=>rootRef.current?.querySelector<HTMLElement>(".navilo-report-source")??rootRef.current,[]);
@@ -63,6 +71,8 @@ export default function ReportSurface({ children }: ReportSurfaceProps) {
         <label className="block font-semibold">Print orientation<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" value={orientation} onChange={e=>setOrientation(e.target.value as Orientation)}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></NaviloSearchableSelect></label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={showTotals} onChange={e=>setShowTotals(e.target.checked)}/>Show totals</label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={showFilters} onChange={e=>setShowFilters(e.target.checked)}/>Show filters</label>
+        <button type="button" className="btn-primary w-full" onClick={()=>{try{localStorage.setItem(storageKey,JSON.stringify({hiddenColumns:columns.filter(c=>!c.visible).map(c=>`${c.index}:${c.label}`),density,orientation,showTotals,showFilters} satisfies SavedPrefs));setDefaultMessage("Default saved for this report and workspace in this browser.")}catch{setDefaultMessage("Browser storage is unavailable; this view is temporary.")}}}>Set as default</button>
+        {defaultMessage&&<p role="status">{defaultMessage}</p>}
         <button type="button" className="btn-secondary w-full" onClick={reset}>Reset report view</button>
       </div>
     </div>}

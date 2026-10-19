@@ -10,112 +10,15 @@ import { supabase } from "@/lib/supabase";
 import UniversalDataTools from "@/components/UniversalDataTools";
 import NeusRouteSurface from "@/components/NeusRouteSurface";
 
-type NavNode={key:string;label:string;to?:string;end?:boolean;module?:ModuleKey;requiresModule?:ModuleKey;businessType?:string;ownerOnly?:boolean;accessAdminOnly?:boolean;steelOnly?:boolean;icon?:Lucide.LucideIcon;children?:NavNode[]};
+import { shellLabel, matches, title, type NavNode } from "@/config/navigation";
+import { WorkspaceCatalogProvider, useWorkspaceCatalog } from "./workspace/WorkspaceCatalog";
+import CompanySwitcher from "./CompanySwitcher";
+import BusinessUnitSwitcher from "./BusinessUnitSwitcher";
+import WorkspaceTools from "./workspace/WorkspaceTools";
 
-const navigation:NavNode[]=[
-  {key:"dashboard",to:"/",label:"Dashboard / ڈیش بورڈ",icon:Lucide.LayoutDashboard,end:true,module:"dashboard"},
-  {key:"master",label:"Master Data / ماسٹر ڈیٹا",icon:Lucide.Database,module:"master",children:[
-    {key:"items",to:"/master-data",label:"Items / آئٹمز",end:true,module:"master",requiresModule:"inventory"},{key:"categories",to:"/master-data/categories",label:"Categories / کیٹیگریز",module:"master",requiresModule:"inventory"},{key:"customers",to:"/master-data/customers",label:"Customers / گاہک",module:"master"},{key:"suppliers",to:"/master-data/suppliers",label:"Suppliers / سپلائرز",module:"master"},{key:"employees",to:"/master-data/employees",label:"Employees / ملازمین",module:"master"},{key:"warehouses",to:"/master-data/warehouses",label:"Warehouses / ویئرہاؤسز",module:"master",requiresModule:"inventory"},{key:"godowns-master",to:"/godown/master",label:"Godowns / گودام",module:"inventory"},{key:"uom",to:"/master-data/uom",label:"Units of Measure / پیمائشی اکائیاں",module:"master",requiresModule:"inventory"},{key:"transporters",to:"/master-data/transporters",label:"Transporters / ٹرانسپورٹرز",module:"master",requiresModule:"transport",businessType:"transport"},{key:"transport-vehicles",to:"/master-data/vehicles",label:"Vehicles / گاڑیاں",module:"master",requiresModule:"transport",businessType:"transport"},{key:"transport-drivers",to:"/master-data/drivers",label:"Drivers / ڈرائیورز",module:"master",requiresModule:"transport",businessType:"transport"},{key:"transport-truck-types",to:"/master-data/truck-types",label:"Truck Types",module:"master",requiresModule:"transport",businessType:"transport"},{key:"transport-locations",to:"/master-data/transport-locations",label:"Transport Locations",module:"master",requiresModule:"transport",businessType:"transport"},{key:"transport-ownership",to:"/master-data/vehicle-ownership",label:"Vehicle Ownership",module:"master",requiresModule:"transport",businessType:"transport"},{key:"charges",to:"/sales/charges",label:"Charge Master / چارج ماسٹر",module:"master",requiresModule:"sales"},
-  ]},
-  {key:"sales",label:"Sales / سیلز",icon:Lucide.ShoppingCart,module:"sales",children:[{key:"sales-invoice-group",label:"Invoices / انوائسز",module:"sales",children:[{key:"sales-invoices",to:"/sales",label:"Sales Invoices / سیلز انوائسز",end:true,module:"sales"},{key:"transport-normal-sales-create",to:"/sales/new?type=normal",label:"Create Sale Invoice",end:true,module:"sales",businessType:"transport"},{key:"sales-consolidated",to:"/sales/consolidated",label:"Consolidated Invoices / مشترکہ انوائسز",module:"sales",steelOnly:true}]},{key:"sales-workflow",to:"/sales/workflow",label:"Quotation to Dispatch / کوٹیشن تا ڈسپیچ",module:"sales"},{key:"sales-order-book",to:"/sales/order-book",label:"Sales Order Book / سیلز آرڈر بک",module:"sales"}]},
-  {key:"purchase",label:"Purchase / خریداری",icon:Lucide.Truck,module:"purchase",children:[{key:"purchase-invoice-group",label:"Invoices / انوائسز",module:"purchase",children:[{key:"purchase-invoices",to:"/purchase",label:"Purchase Invoices / خریداری انوائسز",end:true,module:"purchase"},{key:"transport-normal-purchase-create",to:"/purchase/new?type=normal",label:"Create Purchase Invoice",end:true,module:"purchase",businessType:"transport"},{key:"purchase-consolidated",to:"/purchase/consolidated",label:"Consolidated Purchase / مشترکہ خریداری",module:"purchase"}]},{key:"purchase-workflow",to:"/purchase/workflow",label:"Requisition to GRN / ریکوزیشن تا وصولی",module:"purchase"},{key:"purchase-order-book",to:"/purchase/order-book",label:"Purchase Order Book / پرچیز آرڈر بک",module:"purchase"}]},
-  {key:"inventory",label:"Inventory / Stock / اسٹاک",icon:Lucide.Boxes,module:"inventory",children:[{key:"current-stock",to:"/godown",label:"Current Stock / موجودہ اسٹاک",end:true,module:"inventory"},{key:"stock-movements",to:"/godown/movements",label:"Stock Movements / اسٹاک موومنٹس",module:"inventory"},{key:"inventory-advanced",to:"/godown/advanced",label:"Advanced Controls / ایڈوانس کنٹرول",module:"inventory"}]},
-  {key:"production",label:"Production / Furnace & Mill",icon:Lucide.Factory,module:"production",steelOnly:true,children:[{key:"work-orders",to:"/production",label:"Work Orders / ورک آرڈرز",end:true,module:"production",steelOnly:true},{key:"manufacturing-core",to:"/production/core",label:"Manufacturing Core / مینوفیکچرنگ",module:"production",steelOnly:true},{key:"furnace-yield",to:"/production/yields",label:"Furnace Yield / فرنس پیداوار",module:"production",steelOnly:true}]},
-  {key:"cutting",label:"Cutting & Loading / کٹنگ و لوڈنگ",icon:Lucide.Scissors,module:"production",steelOnly:true,children:[{key:"cutting-orders",to:"/cutting",label:"Cutting Orders / کٹنگ آرڈرز",end:true,module:"production",steelOnly:true},{key:"gate-pass",to:"/cutting/gate-pass",label:"Gate Pass & Weighbridge / گیٹ پاس و وزن کانٹا",module:"production",steelOnly:true}]},
-  {key:"transport",label:"Transport",icon:Lucide.Truck,module:"transport",businessType:"transport",children:[
-    {key:"transport-trips-register",to:"/transport?view=trips",label:"Trips",module:"transport"},
-    {key:"transport-mobile-quick-entry",to:"/transport/mobile",label:"Mobile Quick Entry",module:"transport"},
-    {key:"transport-audit",to:"/transport?view=audit",label:"Trip Audit",module:"transport"},
-    {key:"transport-party-reports",label:"Reports & Allocation",module:"transport",children:[
-      {key:"transport-customer-reports",to:"/transport?panel=customer-reports",label:"Customer Reports",module:"transport"},
-      {key:"transport-supplier-reports",to:"/transport?panel=supplier-reports",label:"Supplier Reports",module:"transport"},
-      {key:"transport-allocation",to:"/transport?panel=bulk-allocation",label:"Bulk Allocation",module:"transport"},
-      {key:"transport-vehicle-ledger",to:"/transport?panel=vehicle-reports",label:"Vehicle Ledger & P&L",module:"transport"},
-      {key:"transport-trip-reports",to:"/reports/transport?mode=trips",label:"Trip-wise Reports",module:"reports",requiresModule:"transport"},
-      {key:"transport-profitability-reporting",to:"/reports/transport?mode=profit",label:"Posted Trip Profitability",module:"reports",requiresModule:"transport"}
-    ]}
-  ]},
-  {key:"accounting",label:"Accounting / اکاؤنٹنگ",icon:Lucide.Calculator,module:"accounting",children:[
-    {key:"accounting-transactions",label:"Transactions / لین دین",module:"accounting",children:[{key:"journal",to:"/accounting",label:"Journal Entries / جرنل اندراجات",end:true,module:"accounting"},{key:"cash-counter",to:"/accounting/cash-counter",label:"Cash Counter / کیش کاؤنٹر",module:"accounting"},{key:"payment-reversals",to:"/accounting/payment-reversals",label:"Payment Reversals / ادائیگی واپسی",module:"accounting"},{key:"returns",to:"/accounting/returns",label:"Credit / Debit Notes / ریٹرن نوٹس",module:"accounting"}]},
-    {key:"accounting-books",label:"Books & Registers / بکس و رجسٹر",module:"accounting",children:[{key:"vat-register",to:"/accounting/vat-register",label:"VAT Register / وی اے ٹی رجسٹر",module:"accounting"},{key:"day-book",to:"/accounting/day-book",label:"Day Book / روزنامچہ",module:"accounting"},{key:"ledgers",to:"/accounting/ledgers",label:"General Ledgers / جنرل لیجر",module:"accounting"},{key:"payroll-ledger",to:"/accounting/payroll",label:"Payroll & Salary Ledger / تنخواہ لیجر",module:"accounting"},{key:"loan-ledger",to:"/accounting/loans",label:"Loan & Lender Ledger / قرض خواہ لیجر",module:"accounting"},{key:"bank-recon",to:"/accounting/bank-reconciliation",label:"Bank Reconciliation / بینک ریکنسیلی ایشن",module:"accounting"}]},
-    {key:"financial-statements",label:"Financial Statements / مالی بیانات",module:"accounting",children:[{key:"trial-balance",to:"/accounting/trial-balance",label:"Trial Balance / ٹرائل بیلنس",module:"accounting"},{key:"profit-loss",to:"/accounting/profit-loss",label:"Profit & Loss / نفع و نقصان",module:"accounting"},{key:"balance-sheet",to:"/accounting/balance-sheet",label:"Balance Sheet / بیلنس شیٹ",module:"accounting"},{key:"cash-flow",to:"/accounting/cash-flow",label:"Cash Flow / کیش فلو",module:"accounting"}]},
-    {key:"accounting-controls",label:"Controls & Closing / کنٹرول و کلوزنگ",module:"accounting",children:[{key:"period-closing",to:"/accounting/periods",label:"Period Closing / پیریڈ کلوزنگ",module:"accounting"},{key:"year-closing",to:"/accounting/year-closing",label:"Year Closing / سالانہ اختتام",module:"accounting"},{key:"financial-controls",to:"/accounting/controls",label:"Financial Controls / مالی کنٹرولز",module:"accounting"},{key:"audit-trail",to:"/accounting/audit-trail",label:"Audit Trail / آڈٹ ٹریل",module:"accounting"}]},
-    {key:"accounting-setup",label:"Accounting Setup / اکاؤنٹنگ سیٹ اپ",module:"accounting",children:[{key:"coa",to:"/accounting/accounts",label:"Chart of Accounts / چارٹ آف اکاؤنٹس",module:"accounting"},{key:"mapping",to:"/accounting/mappings",label:"Account Mapping / اکاؤنٹ میپنگ",module:"accounting"},{key:"opening-balances",to:"/accounting/opening-balances",label:"Opening Balances / اوپننگ بیلنس",module:"accounting"}]},
-  ]},
-  {key:"reports",label:"Reports / رپورٹس",icon:Lucide.ChartNoAxesCombined,module:"reports",children:[
-    {key:"sales-customer-reports",label:"Sales & Customer / سیلز و گاہک",module:"reports",requiresModule:"sales",children:[
-      {key:"sales-margin-report",to:"/reports/sales-margin",label:"Sales & Margin / سیلز و مارجن",module:"reports"},{key:"sales-register-report",to:"/reports/sales-register",label:"Sales Register / سیلز رجسٹر",module:"reports"},{key:"customer-aging-report",to:"/reports/customer-aging",label:"Customer Aging / گاہک ایجنگ",module:"reports"},{key:"customer-items-report",to:"/reports/customer-item-history",label:"Customer Item History / گاہک آئٹم ہسٹری",module:"reports"},{key:"customer-profitability-report",to:"/reports/customer-profitability",label:"Customer Profitability / گاہک منافع",module:"reports"},{key:"item-profitability-report",to:"/reports/item-profitability",label:"Item Profitability / آئٹم منافع",module:"reports"},{key:"salesperson-profitability-report",to:"/reports/salesperson-profitability",label:"Salesperson Profitability / سیلز پرسن منافع",module:"reports"},{key:"customer-collections-report",to:"/reports/customer-collections",label:"Customer Collections / وصولیاں",module:"reports"},{key:"salesperson-report",to:"/sales/report",label:"Salesperson Performance / سیلز پرسن",module:"reports"},{key:"customer-statement",to:"/accounting/customer-invoice-statement",label:"Customer Statement / گاہک اسٹیٹمنٹ",module:"accounting"},
-    ]},
-    {key:"purchase-supplier-reports",label:"Purchase & Supplier / خریداری و سپلائر",module:"reports",requiresModule:"purchase",children:[
-      {key:"purchase-register-report",to:"/reports/purchase-register",label:"Purchase Register / پرچیز رجسٹر",module:"reports"},{key:"supplier-aging-report",to:"/reports/supplier-aging",label:"Supplier Aging / سپلائر ایجنگ",module:"reports"},{key:"supplier-items-report",to:"/reports/supplier-item-history",label:"Supplier Item History / سپلائر آئٹم ہسٹری",module:"reports"},{key:"supplier-performance-report",to:"/reports/supplier-performance",label:"Supplier Performance / سپلائر کارکردگی",module:"reports"},{key:"purchase-price-variance-report",to:"/reports/purchase-price-variance",label:"Purchase Price Variance / خریداری ریٹ فرق",module:"reports"},
-    ]},
-    {key:"inventory-reports",label:"Inventory / اسٹاک رپورٹس",module:"reports",requiresModule:"inventory",children:[
-      {key:"stock-valuation-report",to:"/reports/stock-valuation",label:"Stock Valuation / اسٹاک ویلیو",module:"reports"},{key:"daily-stock-trading-report",to:"/reports/daily-stock-trading",label:"Daily Stock & Trading Summary / روزانہ اسٹاک",module:"reports"},{key:"trading-margin-report",to:"/reports/trading-margin",label:"Purchase vs Sales Rate & Margin / خرید و فروخت مارجن",module:"reports"},{key:"inventory-aging-report",to:"/reports/inventory-aging",label:"Inventory Aging / Slow Moving",module:"reports"},{key:"inventory-turnover-report",to:"/reports/inventory-turnover",label:"Inventory Turnover / اسٹاک ٹرن اوور",module:"reports"},{key:"stock-exceptions-report",to:"/reports/stock-exceptions",label:"Stock Exceptions / اسٹاک ایکسیپشنز",module:"reports"},{key:"steel-stock",to:"/reports/steel-stock",label:"Stock Control / اسٹاک کنٹرول",module:"reports"},
-    ]},
-    {key:"management-reports",label:"Management & MIS / مینجمنٹ",module:"reports",children:[{key:"business-unit-performance-report",to:"/reports/business-unit-performance",label:"Business Unit Performance / بزنس یونٹ",module:"reports"},{key:"monthly-mis-report",to:"/reports/monthly-mis",label:"Monthly Business MIS / ماہانہ ایم آئی ایس",module:"reports"}]},
-    {key:"control-reports",label:"Control & Reconciliation / کنٹرول رپورٹس",module:"reports",requiresModule:"accounting",children:[{key:"returns-register-report",to:"/reports/returns-register",label:"Returns Register / ریٹرنز رجسٹر",module:"reports"},{key:"reconciliation-report",to:"/reports/ar-ap-reconciliation",label:"AR / AP Reconciliation / ریکنسیلی ایشن",module:"reports"},{key:"exceptions-report",to:"/reports/exceptions",label:"Exceptions / ایکسیپشنز",module:"reports"},{key:"service-charges-report",to:"/reports/service-charges",label:"Service Charges / سروس چارجز",module:"reports"}]},
-    {key:"operations-reports",label:"Operations / آپریشن رپورٹس",module:"reports",requiresModule:"production",children:[{key:"gate-pass-report",to:"/reports/gate-pass",label:"Gate Pass Report / گیٹ پاس رپورٹ",module:"reports"}]},
-  ]},
-  {key:"owner",to:"/owner",label:"Owner Control / مالک کنٹرول",icon:Lucide.ShieldCheck,ownerOnly:true},
-  {key:"settings",label:"Settings / سیٹنگز",icon:Lucide.Settings,module:"settings",children:[
-    {key:"company-settings",to:"/settings",label:"Company / کمپنی",end:true,module:"settings"},
-    {key:"import-center",to:"/settings/imports",label:"Import Center / امپورٹ سینٹر",module:"settings"},
-    {key:"transport-profit-distribution",to:"/settings/profit-distribution",label:"Profit Closing Guide",module:"settings",requiresModule:"transport",businessType:"transport",accessAdminOnly:true},
-    {key:"access-settings",to:"/settings/access",label:"Users & Branches / یوزرز اور برانچز",module:"settings",accessAdminOnly:true},
-    {key:"licence-settings",to:"/settings/licence",label:"Licence & Billing / لائسنس",module:"settings",accessAdminOnly:true},
-    {key:"approval-settings",to:"/settings/approvals",label:"Approval Workflows / منظوری کے مراحل",module:"settings",accessAdminOnly:true},
-    {key:"tax-settings",to:"/settings/tax",label:"Tax Settings / ٹیکس سیٹنگز",module:"settings"},
-    {key:"document-settings",to:"/settings/documents",label:"Document & Print / ڈاکومنٹ و پرنٹ",module:"settings"},
-    {key:"order-book-settings",to:"/settings/order-book",label:"Order Book Settings / آرڈر بک سیٹنگز",module:"settings"},
-    {key:"gate-pass-settings",to:"/settings/gate-pass",label:"Gate Pass & Weighbridge / گیٹ پاس و کانٹا",module:"settings"},
-  ]},
-];
+export default function Layout({children}:{children:ReactNode}){return <WorkspaceCatalogProvider><WorkspaceLayout>{children}</WorkspaceLayout></WorkspaceCatalogProvider>}
 
-function shellLabel(label:string):string{
-  // Keep English as the canonical shell source. GlobalLanguageRuntime translates
-  // this source into the exact selected single/bilingual language set.
-  return label.replace(/\s\/\s(?=[\u0600-\u06FF]).*$/u,"").trim();
-}
-function matches(n:NavNode,path:string):boolean {
-  const question=path.indexOf('?'),pathname=question>=0?path.slice(0,question):path,search=question>=0?path.slice(question+1):'';
-  let active=false;
-  if(n.to){
-    const targetQuestion=n.to.indexOf('?'),targetPath=targetQuestion>=0?n.to.slice(0,targetQuestion):n.to,targetSearch=targetQuestion>=0?n.to.slice(targetQuestion+1):'';
-    const pathMatch=pathname===targetPath||(!n.end&&targetPath!=='/'&&pathname.startsWith(targetPath+'/'));
-    if(pathMatch&&targetSearch){
-      const target=new URLSearchParams(targetSearch),current=new URLSearchParams(search);
-      active=[...target.entries()].every(([key,value])=>current.get(key)===value);
-    }else active=pathMatch;
-  }
-  return active||Boolean(n.children?.some(child=>matches(child,path)));
-}
-function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],unitType:string|undefined,permissions:PermissionMatrix|undefined,isFeatureEnabled:(key:string)=>boolean):NavNode|null{
-  if(unitType === "transport" && (n.key === "sales-consolidated" || n.key === "purchase-consolidated"))return null;
-  if(n.key === "transporters" && unitType === "transport" && mods.includes("transport"))return null;
-  if(n.ownerOnly&&!owner)return null;
-  if(n.accessAdminOnly&&!owner&&role!=="company_owner"&&role!=="admin")return null;
-  if(n.steelOnly&&unitType&&unitType!=="steel")return null;
-  if(n.businessType&&unitType&&unitType!==n.businessType)return null;
-  if(n.requiresModule&&!mods.includes(n.requiresModule))return null;
-  if(n.module&&(!mods.includes(n.module)||!hasPermission(role as never,n.module,"view",permissions,owner)))return null;
-  if(n.to&&FEATURE_BY_KEY.has(n.key)&&!isFeatureEnabled(n.key))return null;
-  const children=n.children?.map(c=>filterNode(c,role,owner,mods,unitType,permissions,isFeatureEnabled)).filter(Boolean) as NavNode[]|undefined;
-  if(n.children&&!children?.length&&!n.to)return null;
-  return{...n,children};
-}
-function flatten(nodes:NavNode[]):NavNode[]{return nodes.flatMap(n=>[n,...(n.children?flatten(n.children):[])])}
-function title(pathname:string){
-  if(pathname==="/transport/mobile")return"Transport Mobile";
-  if(pathname==="/transport")return"Transport";
-  if(pathname==="/sales/new")return"New Sales Invoice";
-  if(/^\/sales\/[^/]+\/edit$/.test(pathname))return"Edit Sales Invoice";
-  if(/^\/sales\/[^/]+$/.test(pathname)&&!["/sales/report","/sales/charges","/sales/consolidated","/sales/order-book","/sales/workflow"].includes(pathname))return"Sales Invoice";
-  if(pathname==="/purchase/new")return"New Purchase Invoice";
-  if(/^\/purchase\/[^/]+\/edit$/.test(pathname))return"Edit Purchase Invoice";
-  const candidates=flatten(navigation).filter(n=>n.to&&(pathname===n.to||(!n.end&&n.to!=="/"&&pathname.startsWith(`${n.to}/`))));return shellLabel(candidates.sort((a,b)=>(b.to?.length??0)-(a.to?.length??0))[0]?.label??"ERP");
-}
-
-export default function Layout({children}:{children:ReactNode}){
+function WorkspaceLayout({children}:{children:ReactNode}){
   const{user,signOut,isPlatformOwner,activeCompany,activeBusinessUnit}=useAuth();
   const{isFeatureEnabled}=useFeatureAccess();
   const{branding}=usePlatformBranding();
@@ -130,13 +33,22 @@ export default function Layout({children}:{children:ReactNode}){
   useEffect(()=>{localStorage.setItem("navilo-sidebar-collapsed",String(collapsed));},[collapsed]);
   useEffect(()=>{
     if(!mobileOpen)return;
-    const closeOnEscape=(event:KeyboardEvent)=>{if(event.key==="Escape"){setMobileOpen(false);mobileMenuButton.current?.focus();}};
+    const panel=document.getElementById("navilo-sidebar");
+    const surface=document.getElementById("navilo-main-content")?.parentElement;
+    const wasInert=surface?.inert??false;
+    if(surface)surface.inert=true;
+    const focusable=()=>Array.from(panel?.querySelectorAll<HTMLElement>('a[href],button:not([disabled])')??[]);
+    focusable()[0]?.focus();
+    const closeOnEscape=(event:KeyboardEvent)=>{
+      if(event.key==="Escape"){setMobileOpen(false);mobileMenuButton.current?.focus();}
+      if(event.key==="Tab"){const items=focusable(),first=items[0],last=items[items.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}}
+    };
     window.addEventListener("keydown",closeOnEscape);
-    return ()=>window.removeEventListener("keydown",closeOnEscape);
+    return ()=>{window.removeEventListener("keydown",closeOnEscape);if(surface)surface.inert=wasInert};
   },[mobileOpen]);
   useEffect(()=>{localStorage.setItem("navilo-theme","light");document.documentElement.dataset.theme="light";document.documentElement.classList.remove("dark");},[]);
-  const visible=useMemo(()=>navigation.map(n=>filterNode(n,role,isPlatformOwner,mods,activeBusinessUnit?.business_unit_type,permissions,(key)=>isFeatureEnabled(key,"view"))).filter(Boolean) as NavNode[],[role,isPlatformOwner,enabledModulesKey,activeBusinessUnit?.business_unit_type,permissions,isFeatureEnabled]);
-  const pageTitle=title(location.pathname);
+  const { navigation: visible } = useWorkspaceCatalog();
+  const pageTitle=location.pathname.startsWith("/workspace/") ? ({reports:"Reports Center",imports:"Import Center",favorites:"Favorites",recent:"Recent Pages",functions:"All Functions"}[location.pathname.split("/")[2]]??"Workspace") : title(location.pathname);
   const ownerWorkspace=location.pathname.startsWith("/owner");
   const standaloneTransportMobile=location.pathname==="/transport/mobile";
   const showSidebarBrand=branding.show_branding&&branding.show_in_sidebar;
@@ -156,11 +68,11 @@ export default function Layout({children}:{children:ReactNode}){
     if(!n.to)return null;
     return <NavLink key={n.key} to={n.to} end={n.end} aria-current={n.to.includes("?")?(active?"page":false):undefined} title={collapsed?shellLabel(n.label):undefined} aria-label={shellLabel(n.label)} onClick={()=>{if(mobileOpen)setMobileOpen(false); startTransition(()=>navigate(n.to!));}} className={({isActive})=>`navilo-nav-link flex min-h-8 items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold transition-colors duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${(n.to?.includes("?")?active:isActive)?"is-active bg-blue-600 text-white shadow-sm shadow-blue-950/20":"text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"}`}>{Icon&&<Icon className="h-4 w-4 shrink-0"/>}<span className={`truncate ${collapsed?"lg:hidden":""}`}>{shellLabel(n.label)}</span></NavLink>;
   };
-  const side=collapsed?"lg:w-[68px]":"lg:w-[252px]",offset=collapsed?"lg:ml-[68px]":"lg:ml-[252px]";
+  const side=collapsed?"lg:w-[56px]":"lg:w-[216px]",offset=collapsed?"lg:ml-[56px]":"lg:ml-[216px]";
   if(standaloneTransportMobile)return <div className="min-h-dvh bg-slate-100 text-slate-900">
     <main id="navilo-main-content" data-neus-route={location.pathname} data-i18n-skip="true" className="min-h-dvh w-full p-0">{children}</main>
   </div>;
-  return <div className="erp-shell min-h-screen bg-[#f6f7f9] text-slate-900">
+  return <div className="erp-shell navilo-modern min-h-screen bg-[#f6f7f9] text-slate-900">
     {mobileOpen&&<button type="button" aria-label="Close navigation" onClick={()=>setMobileOpen(false)} className="fixed inset-0 z-40 bg-slate-950/40 lg:hidden"/>}
     <aside id="navilo-sidebar" aria-label="Primary navigation" className={`navilo-sidebar fixed inset-y-0 left-0 z-50 flex w-[252px] flex-col border-r border-slate-800/80 bg-slate-950 text-slate-300 shadow-2xl shadow-slate-950/10 transition-all duration-200 ${side} ${mobileOpen?"translate-x-0":"invisible -translate-x-full lg:visible lg:translate-x-0"}`}>
       <div className="flex h-16 items-center border-b border-white/10 px-3">{showSidebarBrand&&branding.logo_url?<img src={branding.logo_url} alt={branding.erp_name||"ERP"} className="h-11 w-11 rounded-xl object-contain"/>:!ownerWorkspace&&companySidebarBrand.logoUrl?<img src={companySidebarBrand.logoUrl} alt={companySidebarBrand.name||activeCompany?.company_name||"Company"} className="h-11 w-11 rounded-xl bg-white object-contain p-0.5"/>:<div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.05]"><Lucide.LayoutGrid className="h-5 w-5 text-slate-500"/></div>}<div className={`ml-2 min-w-0 ${collapsed?"lg:hidden":""}`}>{showSidebarBrand&&branding.erp_name?<><div className="truncate text-[14px] font-black text-white">{branding.erp_name}</div>{branding.show_tagline&&branding.tagline&&<div className="truncate text-[11px] text-slate-500">{branding.tagline}</div>}</>:!ownerWorkspace?<><div className="truncate text-[14px] font-black text-white">{companySidebarBrand.name||activeCompany?.company_name||"Company Workspace"}</div><div className="truncate text-[11px] text-slate-500">Company Workspace</div></>:<div className="text-[13px] font-bold text-slate-400">ERP Workspace</div>}</div><button type="button" aria-label="Close navigation" onClick={()=>setMobileOpen(false)} className="ml-auto rounded-md p-2 text-slate-300 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 lg:hidden"><Lucide.X className="h-5 w-5"/></button></div>
@@ -168,7 +80,7 @@ export default function Layout({children}:{children:ReactNode}){
       <div className="border-t border-white/10 p-2"><div className={`mb-2 rounded-md bg-white/[0.03] px-2 py-2 ${collapsed?"lg:hidden":""}`}><div className="text-[11px] uppercase text-slate-600">Active Company</div><div className="truncate text-[12px] font-bold text-slate-300">{location.pathname.startsWith("/owner")?"Owner Workspace":activeCompany?.company_name??"No company"}</div><div className="text-[11px] text-slate-500">{user?.email??"Signed in"} · {isPlatformOwner?"Platform Owner":roleLabel(role)}</div></div><button type="button" aria-label="Sign out" onClick={async()=>{await signOut();navigate("/login")}} className="flex h-9 w-full items-center justify-center gap-2 rounded-md text-[12px] text-slate-300 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"><Lucide.LogOut className="h-4 w-4"/><span className={collapsed?"lg:hidden":""}>Sign out</span></button></div>
     </aside>
     <div className={`min-h-screen min-w-0 transition-all ${offset} ${location.pathname.startsWith("/transport")?"relative z-0":""}`} style={location.pathname.startsWith("/transport")?{width:"auto",maxWidth:"100%"}:undefined}>
-      <header className="navilo-topbar sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="flex min-h-16 items-center gap-3 px-4 py-2 lg:px-5"><button ref={mobileMenuButton} type="button" aria-label="Open navigation" aria-controls="navilo-sidebar" aria-expanded={mobileOpen} onClick={()=>setMobileOpen(true)} className="rounded-md p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 lg:hidden"><Lucide.Menu/></button><button type="button" aria-label={collapsed?"Expand navigation":"Collapse navigation"} aria-controls="navilo-sidebar" aria-expanded={!collapsed} onClick={()=>setCollapsed(v=>!v)} className="hidden h-9 w-9 items-center justify-center rounded-md border focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 lg:flex"><Lucide.PanelLeftClose className={`h-4 w-4 ${collapsed?"rotate-180":""}`}/></button>{location.pathname!=="/"&&<button onClick={()=>startTransition(()=>{if(location.pathname.startsWith("/transport"))navigate("/");else navigate(-1)})} className="hidden h-9 items-center gap-1 rounded-md border border-blue-300 bg-blue-50 px-3 text-[13px] font-black text-blue-800 sm:inline-flex"><Lucide.ArrowLeft className="h-4 w-4"/>Back</button>}<div className="min-w-0 flex-1"><div className="truncate text-[16px] font-black text-slate-950">{pageTitle}</div></div><UniversalDataTools/><div className="hidden text-right lg:block"><div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{location.pathname.startsWith("/owner")?"Platform Workspace":"Active Company"}</div><div className="max-w-[220px] truncate text-[12px] font-black text-slate-800">{location.pathname.startsWith("/owner")?(branding.show_branding&&branding.erp_name?`${branding.erp_name} Platform`:"Owner Platform"):activeCompany?.company_name??"No company selected"}</div></div></div></header>
+      <header className="navilo-topbar sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="flex min-h-16 items-center gap-3 px-4 py-2 lg:px-5"><button ref={mobileMenuButton} type="button" aria-label="Open navigation" aria-controls="navilo-sidebar" aria-expanded={mobileOpen} onClick={()=>setMobileOpen(true)} className="rounded-md p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 lg:hidden"><Lucide.Menu/></button><button type="button" aria-label={collapsed?"Expand navigation":"Collapse navigation"} aria-controls="navilo-sidebar" aria-expanded={!collapsed} onClick={()=>setCollapsed(v=>!v)} className="hidden h-9 w-9 items-center justify-center rounded-md border focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 lg:flex"><Lucide.PanelLeftClose className={`h-4 w-4 ${collapsed?"rotate-180":""}`}/></button>{location.pathname!=="/"&&<button onClick={()=>startTransition(()=>{if(location.pathname.startsWith("/transport"))navigate("/");else navigate(-1)})} className="hidden h-9 items-center gap-1 rounded-md border border-blue-300 bg-blue-50 px-3 text-[13px] font-black text-blue-800 sm:inline-flex"><Lucide.ArrowLeft className="h-4 w-4"/>Back</button>}<div className="min-w-0 flex-1"><div className="truncate text-[16px] font-black text-slate-950">{pageTitle}</div></div>{!ownerWorkspace&&<div className="workspace-context"><CompanySwitcher inline/><BusinessUnitSwitcher inline/></div>}<WorkspaceTools/>{!location.pathname.startsWith("/workspace/")&&<UniversalDataTools/>}<div className="workspace-company-label hidden text-right lg:block"><div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{location.pathname.startsWith("/owner")?"Platform Workspace":"Active Company"}</div><div className="max-w-[220px] truncate text-[12px] font-black text-slate-800">{location.pathname.startsWith("/owner")?(branding.show_branding&&branding.erp_name?`${branding.erp_name} Platform`:"Owner Platform"):activeCompany?.company_name??"No company selected"}</div></div></div></header>
       <main id="navilo-main-content" data-neus-route={location.pathname} data-i18n-skip={location.pathname.startsWith("/transport")?"true":undefined} style={location.pathname.startsWith("/transport")?{width:"100%",maxWidth:"none",marginInline:0,paddingInline:0}:undefined} className={location.pathname.startsWith("/transport")?"py-2":"px-3 py-4 sm:px-4 lg:px-5"}><NeusRouteSurface/>{children}</main>
     </div>
   </div>;

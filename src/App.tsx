@@ -15,6 +15,7 @@ import PrintPreviewController from "@/components/PrintPreviewController";
 import GatePassSummaryPrintBridge from "@/components/GatePassSummaryPrintBridge";
 import GlobalModalManager from "@/components/GlobalModalManager";
 import SupportCenter from "@/components/SupportCenter";
+import WorkspaceCenter, { WorkspaceShortcuts } from "@/components/workspace/WorkspaceCenter";
 import ReportSurface from "@/components/reports/ReportSurface";
 const Dashboard = lazy(() => import("@/modules/Dashboard"));
 const MasterData = lazy(() => import("@/modules/master-data/MasterData"));
@@ -101,7 +102,7 @@ function GlobalExperience() {
 }
 
 function DashboardHome() {
-  return <><Dashboard /><SupportCenter /></>;
+  return <><WorkspaceShortcuts /><Dashboard /><SupportCenter /></>;
 }
 
 export default function App() {
@@ -114,8 +115,9 @@ export default function App() {
   return <><GlobalExperience /><Routes>
     <Route path="/login" element={<Login />} />
     <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/*" element={<ProtectedRoute><FeatureAccessProvider><MobileOnlyAccessGate><><WorkspaceSwitchers /><FeaturePathGuard><Layout key={workspaceKey}><Suspense fallback={<div role="status" className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">Loading workspace…</div>}><Routes>
+      <Route path="/*" element={<ProtectedRoute><FeatureAccessProvider><MobileOnlyAccessGate><><FeaturePathGuard><Layout key={workspaceKey}><Suspense fallback={<div role="status" className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">Loading workspace…</div>}><Routes>
       <Route path="/" element={<ModuleOnly module="dashboard"><DashboardHome /></ModuleOnly>} />
+      <Route path="/workspace/:section" element={<WorkspaceCenter />} />
       <Route path="/owner" element={<OwnerOnly />} />
       <Route path="/owner/opening-balances" element={<OwnerOnly><OpeningBalanceMigration /></OwnerOnly>} />
       <Route path="/master-data/*" element={<ModuleOnly module="master"><MasterData /></ModuleOnly>} />

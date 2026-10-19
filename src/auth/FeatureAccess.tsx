@@ -91,6 +91,8 @@ export function FeaturePathGuard({children}:{children:ReactNode}){
   const {loading,isFeatureEnabled}=useFeatureAccess();
   if(pathname.startsWith("/owner"))return <>{children}</>;
   if(loading)return <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-500">Checking feature access…</div>;
+  // These pages contain only permission-filtered function links, never business records.
+  if(["/workspace/functions","/workspace/reports","/workspace/imports","/workspace/favorites","/workspace/recent"].includes(pathname))return <>{children}</>;
   const feature=matchFeatureForPath(pathname);
   if(!feature)return <Navigate to="/" replace/>;
   if(isFeatureEnabled(feature.key,"view"))return <>{children}</>;
