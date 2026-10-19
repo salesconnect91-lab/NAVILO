@@ -7,7 +7,18 @@ vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'comp
 vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc}}));
 afterEach(()=>{cleanup();mock.rpc.mockReset()});
 it('rounds each invoice VAT before adding batch totals',()=>{expect(vatPreviewAmounts([0.03,0.03],18)).toEqual({net:0.06,vat:0.02,total:0.08})});
-it('keeps without-VAT preview free of tax queries',()=>{render(<TransportVatPreview side="customer" date="2026-10-04" withTax={false} amounts={[100]}/>);expect(screen.getByText('100.00')).toBeTruthy();expect(screen.queryByText(/VAT/)).toBeNull();expect(mock.rpc).not.toHaveBeenCalled()});
+it('shows explicit VAT 0% and gross for cash sale and purchase without querying tax',()=>{
+ for(const side of ['customer','supplier'] as const){
+   const view=render(<TransportVatPreview side={side} date="2026-10-04" withTax={false} amounts={[100]}/>);
+   const preview=screen.getByLabelText('VAT posting preview');
+   expect(preview.textContent).toContain('VAT 0%:');
+   expect(preview.textContent).toContain('Net:');
+   expect(preview.textContent).toContain('Total including VAT:');
+   expect(preview.textContent).toContain('100.00');
+   view.unmount();
+ }
+ expect(mock.rpc).not.toHaveBeenCalled();
+});
 it('uses the supplier invoice date and purchase context then invalidates a stale preview',async()=>{
  mock.rpc.mockResolvedValueOnce({data:18,error:null}).mockResolvedValueOnce({data:null,error:null});const ready=vi.fn();
  const r=render(<TransportVatPreview side="supplier" date="2026-10-04" withTax amounts={[100,50]} onReady={ready}/>);
