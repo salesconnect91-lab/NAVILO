@@ -61,14 +61,17 @@ describe("import center workflow routing", () => {
   expect(screen.getByRole("link",{name:"Open One-time Import"}).getAttribute("href")).toBe("/settings/imports?transportUpload=historical");
   expect(screen.queryByRole("heading",{name:"Customers"})).toBeNull();
  });
- it("has distinct browser destinations for every permitted workflow",()=>{
-  render(<MemoryRouter initialEntries={["/settings/imports?section=expense"]}><ImportCenter/></MemoryRouter>);
-  expect(screen.getByText("Expense Invoice Bulk Import")).toBeTruthy();
-  const nav=screen.getByRole("navigation",{name:"Import workflows"});
-  const links=within(nav).getAllByRole("link");
-  expect(new Set(links.map(link=>link.getAttribute("href"))).size).toBe(links.length);
-  expect(within(nav).getByRole("link",{name:"Expense Invoices"}).getAttribute("aria-current")).toBe("page");
+ it("shows only the selected workflow and one return link, without extra section tabs",()=>{
+  for(const section of ["masters","rates","service","normal","vehicle-expenses","expense","accounting","history"]){
+   const {unmount}=render(<MemoryRouter initialEntries={[`/settings/imports?section=${section}`]}><ImportCenter/></MemoryRouter>);
+   expect(screen.queryByRole("navigation",{name:"Import workflows"})).toBeNull();
+   const back=screen.getByRole("link",{name:/All import workflows/});
+   expect(back.getAttribute("href")).toBe("/workspace/imports");
+   expect(document.querySelector('[data-import-section]')?.getAttribute("data-import-section")).toBe(section);
+   unmount();
+  }
  });
+
 });
 function customerFile(rows:(string|number)[][]) {
  const wb = XLSX.utils.book_new();
