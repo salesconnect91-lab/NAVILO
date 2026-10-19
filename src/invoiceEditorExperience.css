@@ -386,126 +386,194 @@
 }
 
 
-/* NAVILO DOCUMENT HEADER — LEFT-ALIGNED COMPANY IDENTITY
-   Keep company name / address / VAT anchored to the left edge, with the
-   company-uploaded logo in its own space before the document title.
-   Layout-only: no company or financial identity is substituted. */
+
+/* NAVILO APPROVED COMMERCIAL DOCUMENT — SHARED PRINT DESIGN
+   Sale, Purchase, Service, Credit and Debit Note via PrintLayout.
+   Dynamic company logo/identity and actual amounts; print/PDF parity.
+   Replaces competing right-side/three-column logo experiments. */
 .print-document .print-header {
-  align-items:flex-start!important;
-  gap:3.5mm!important;
-}
-.print-document .print-company {
-  flex-direction:row-reverse!important;
-  align-items:flex-start!important;
-  justify-content:flex-end!important;
-  gap:3mm!important;
-  text-align:left!important;
-}
-.print-document .print-company > div {
-  flex:1 1 0!important;
-  min-width:0!important;
-  align-self:flex-start!important;
-  text-align:left!important;
-}
-.print-document .print-company :is(.print-company-name,.print-company-addr,.print-company-tax) {
-  text-align:left!important;
-  margin-left:0!important;
-  margin-right:0!important;
-}
-.print-document .print-company .print-company-name {
-  font-size:13pt!important;
-  line-height:1.16!important;
-}
-.print-document .print-company .print-company-addr {
-  white-space:pre-line!important;
-  overflow-wrap:anywhere!important;
-  line-height:1.3!important;
-}
-.print-document .print-company .print-company-tax {
-  overflow-wrap:anywhere!important;
-  line-height:1.3!important;
-}
-.print-document .print-company .print-logo {
-  display:block!important;
-  flex:0 0 auto!important;
-  width:auto!important;
-  height:auto!important;
-  max-width:43mm!important;
-  max-height:22mm!important;
-  object-fit:contain!important;
-  object-position:center top!important;
-  margin:0!important;
-}
-.print-document .print-voucher-title-box {
-  flex:0 0 48mm!important;
-  max-width:48mm!important;
-  min-width:0!important;
-  align-self:flex-start!important;
-}
-
-
-/* NAVILO RIGHT-EDGE LOGO BRAND SLOT
-   Three fixed zones keep the saved company data on the extreme left,
-   the document type clear, and the uploaded logo at the outer right.
-   The logo remains complete (contain), without crop or stretching. */
-.print-document .print-header:has(> .print-logo-side) {
   display:grid!important;
-  grid-template-columns:minmax(0,1fr) minmax(0,47mm) minmax(0,50mm)!important;
-  align-items:center!important;
-  gap:3mm!important;
-}
-.print-document .print-header > .print-company {
-  display:block!important;
+  grid-template-columns:minmax(0,1fr) 67mm!important;
+  align-items:stretch!important;
+  justify-content:stretch!important;
+  gap:0!important;
+  min-height:44mm!important;
   width:100%!important;
-  min-width:0!important;
-  flex:none!important;
-  align-self:start!important;
-  text-align:left!important;
-}
-.print-document .print-header > .print-company > div {
-  width:100%!important;
-  text-align:left!important;
-  min-width:0!important;
-}
-.print-document .print-header > .print-logo-side {
-  order:3!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  box-sizing:border-box!important;
-  width:100%!important;
-  min-width:0!important;
-  min-height:19mm!important;
-  padding:1.4mm!important;
-  border:1px solid #d8e4e5!important;
-  border-radius:2mm!important;
-  background:#fff!important;
-  align-self:center!important;
+  margin:0 0 4mm!important;
+  padding:0!important;
+  border:0!important;
+  border-top:2.5px solid #087f68!important;
+  border-bottom:1px solid #b9cecf!important;
+  border-radius:2.5mm 2.5mm 0 0!important;
+  background:linear-gradient(108deg,#f0f8f5 0%,#fff 68%)!important;
+  break-inside:avoid!important;
   overflow:hidden!important;
 }
-.print-document .print-header > .print-logo-side > .print-logo {
+.print-document .print-header > .print-company {
+  display:flex!important;
+  flex-direction:column!important;
+  flex-wrap:nowrap!important;
+  flex:none!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  width:100%!important;
+  min-width:0!important;
+  height:100%!important;
+  padding:3mm 4mm 3mm 4.5mm!important;
+  gap:1.4mm!important;
+  text-align:left!important;
+  box-sizing:border-box!important;
+}
+.print-document .print-header .print-logo-top {
+  display:block!important;
+  flex:none!important;
+  width:fit-content!important;
+  max-width:70mm!important;
+  min-width:0!important;
+  margin:0 0 1mm!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+}
+.print-document .print-header .print-logo-top > .print-logo {
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  max-width:70mm!important;
+  max-height:20mm!important;
+  object-fit:contain!important;
+  object-position:left center!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+}
+.print-document .print-header .print-company-details {
   display:block!important;
   flex:none!important;
   width:100%!important;
-  height:auto!important;
-  max-width:100%!important;
-  max-height:22mm!important;
   min-width:0!important;
   margin:0!important;
-  object-fit:contain!important;
-  object-position:center!important;
+  padding:0!important;
+  text-align:left!important;
+  overflow-wrap:anywhere!important;
 }
-.print-document .print-header:has(> .print-logo-side) > .print-voucher-title-box {
-  order:2!important;
-  align-self:center!important;
-  width:100%!important;
-  min-width:0!important;
-  max-width:none!important;
+.print-document .print-header :is(.print-company-name,.print-company-addr,.print-company-tax) {
+  display:block!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  text-align:left!important;
+}
+.print-document .print-header .print-company-name {
+  color:#102d39!important;
+  font-size:14.5pt!important;
+  font-weight:850!important;
+  line-height:1.12!important;
+  letter-spacing:-.018em!important;
+}
+.print-document .print-header :is(.print-company-addr,.print-company-tax) {
+  color:#395865!important;
+  font-size:8pt!important;
+  font-weight:500!important;
+  line-height:1.35!important;
+  overflow-wrap:anywhere!important;
+}
+.print-document .print-header .print-company-addr {
+  margin-top:.8mm!important;
+  white-space:pre-line!important;
+}
+.print-document .print-header .print-company-tax {margin-top:.5mm!important;}
+.print-document .print-header > .print-voucher-title-box {
+  position:relative!important;
+  display:flex!important;
+  flex-direction:row!important;
   flex:none!important;
-  box-sizing:border-box!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:2mm!important;
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  min-height:44mm!important;
+  height:100%!important;
   margin:0!important;
+  padding:4mm 3mm 4mm 12mm!important;
+  border:0!important;
+  border-radius:0!important;
+  box-sizing:border-box!important;
+  clip-path:polygon(10mm 0,100% 0,100% 100%,0 100%)!important;
+  background:linear-gradient(145deg,#104f57,#093948 75%,#082d3e)!important;
+  text-align:center!important;
+  color:#fff!important;
+  overflow:hidden!important;
 }
-/* No company logo? Preserve a compact left identity / right title layout. */
-.print-document .print-header:not(:has(> .print-logo-side)) > .print-company {
+.print-document .print-voucher-title-box > div:first-child {
   flex:1 1 auto!important;
+  min-width:0!important;
+  text-align:center!important;
+}
+.print-document .print-voucher-title-box .print-voucher-title {
+  margin:0!important;
+  padding:0!important;
+  font-size:17pt!important;
+  font-weight:850!important;
+  line-height:1.17!important;
+  letter-spacing:.04em!important;
+  text-transform:uppercase!important;
+  text-align:center!important;
+  color:#fff!important;
+  white-space:normal!important;
+  overflow-wrap:break-word!important;
+}
+.print-document .print-voucher-title-box:has(.print-reference-qr) .print-voucher-title {font-size:12pt!important;letter-spacing:.01em!important;}
+.print-document .print-reference-qr-label {margin-top:2mm!important;font-size:7pt!important;line-height:1.2!important;color:#d4e9e9!important;text-align:center!important;}
+.print-document .print-reference-qr {flex:none!important;padding:1mm!important;border-radius:1mm!important;background:#fff!important;line-height:0!important;break-inside:avoid!important;}
+.print-document .print-meta {
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:4mm!important;
+  margin-bottom:4mm!important;
+}
+.print-document .print-meta > .print-meta-col {
+  min-width:0!important;
+  padding:3mm!important;
+  border:1px solid #ccdddd!important;
+  border-radius:2mm!important;
+  background:#fff!important;
+}
+.print-document .print-meta > .print-meta-col:first-child {background:linear-gradient(105deg,#edf8f5,#f9fdfb)!important;border-left:2.2px solid #087f68!important;}
+.print-document .print-meta .print-meta-label {font-size:7.6pt!important;color:#425e69!important;}
+.print-document .print-meta .print-meta-value,.print-document .print-party-name {font-size:9pt!important;font-weight:750!important;color:#133849!important;}
+.print-document .invoice-items-wrap {
+  border:1px solid #cddcde!important;
+  border-radius:2mm 2mm 0 0!important;
+  overflow:hidden!important;
+}
+.print-document .invoice-items-head {background:#093b49!important;color:#fff!important;}
+.print-document .invoice-items-head > div {background:transparent!important;color:#fff!important;font-weight:800!important;font-size:7.4pt!important;}
+.print-document .invoice-items-row:nth-child(odd) {background:#f7fbfa!important;}
+.print-document .invoice-items-grid > div {border-color:#d4e1e1!important;}
+.print-document :is(.print-consolidated-box,.print-charges-box,.print-totals-side,.print-payment-summary) {border-color:#cddddd!important;border-radius:2mm!important;}
+.print-document .print-grand-total {
+  display:flex!important;
+  justify-content:space-between!important;
+  gap:3mm!important;
+  margin:1mm 0 0!important;
+  padding:3mm!important;
+  border:0!important;
+  border-top:2px solid #087f68!important;
+  border-radius:0 0 1mm 1mm!important;
+  background:#093b49!important;
+  color:#fff!important;
+  font-weight:850!important;
+  font-size:11pt!important;
+}
+.print-document .print-grand-total > span {color:#fff!important;}
+.print-document .print-footer {border-top:1px solid #b7cdd1!important;margin-top:4mm!important;text-align:left!important;}
+.print-document .print-footer p {color:#526c78!important;}
+@media print {
+  .print-document .print-header,.print-document .print-voucher-title-box,
+  .print-document .invoice-items-head,.print-document .print-grand-total {
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
 }
