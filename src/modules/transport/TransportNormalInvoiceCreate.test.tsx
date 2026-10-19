@@ -130,8 +130,8 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
  });
  it('separates one GL account from optional vehicle reporting and keeps line labels aligned',async()=>{
   await load('customer');
-  expect(screen.getByText('Revenue GL Account')).toBeTruthy();
-  expect(screen.getByText(/Vehicle selection below is only a reporting allocation/)).toBeTruthy();
+  expect(screen.getByText(/Revenue GL Account/)).toBeTruthy();
+  expect(screen.getByText(/vehicle selection below is an optional P&L reporting tag/)).toBeTruthy();
   expect(screen.getByText('Vehicle (optional)')).toBeTruthy();
   expect(screen.getByRole('option',{name:'No vehicle'})).toBeTruthy();
   expect(screen.getByRole('textbox',{name:'Description 1'})).toBeTruthy();
@@ -145,7 +145,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
  });
  it('preserves Purchase GL mapping and does not require a vehicle',async()=>{
   await load('supplier');
-  expect(screen.getByText('Purchase / Expense GL Account')).toBeTruthy();
+  expect(screen.getByText(/Purchase \/ Expense GL Account/)).toBeTruthy();
   expect(screen.getByRole('option',{name:'No vehicle'})).toBeTruthy();
   expect(screen.getByRole('combobox',{name:'Normal invoice ledger account'})).toBeTruthy();
  });
