@@ -3,7 +3,7 @@ begin;
 do $$
 declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;customer uuid;supplier uuid;supplier2 uuid;
  cash_id uuid;acct uuid;cost uuid;ar uuid;ap uuid;revenue uuid;code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
- tt uuid;v1 uuid;v2 uuid;doc uuid;je uuid;rev uuid;bank uuid;res jsonb;payload jsonb;bad boolean;v numeric;n bigint;before_trips bigint;sale uuid;
+ tt uuid;v1 uuid;v2 uuid;doc uuid;je uuid;rev uuid;bank uuid;res jsonb;payload jsonb;bad boolean;v numeric;n bigint;before_trips bigint;sale uuid;acceptance_sale uuid;acceptance_je uuid;output_vat_account uuid;
 begin
  insert into auth.users(id,role,email,created_at,updated_at)
  values(u,'authenticated','service-'||code||'@navilo.test',now(),now());
@@ -137,6 +137,39 @@ begin
  then raise exception 'Expense Excel import summary incorrect';end if;
  if not exists(select 1 from public.purchase_orders p where p.id=(res->'documents'->0->>'document_id')::uuid and p.status='posted')
  then raise exception 'Expense Excel import did not post invoice';end if;
+
+ -- Credit Sale invoice acceptance, synthetic company and rollback at end.
+ select account_id into strict output_vat_account from public.account_mappings
+ where company_id=c and mapping_key='output_vat';
+ bad:=false;
+ begin
+   perform public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
+    '[{"description":"Missing original credit invoice","amount":"100"}]'::jsonb,
+    revenue,null,null,false,'master');
+ exception when others then
+   if position('requires genuine original invoice number' in sqlerrm)>0 then bad:=true;else raise;end if;
+ end;
+ if not bad then raise exception 'Credit invoice without genuine original reference incorrectly created';end if;
+ res:=public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
+  '[{"description":"Standalone customer acceptance","amount":"100"}]'::jsonb,
+  revenue,'ACCEPTANCE-CREDIT-100',null,false,'master');
+ acceptance_sale:=(res->>'document_id')::uuid;
+ if (res->>'status')<>'draft' or (res->>'vat')::numeric<>15
+   or (select status from public.sales_orders where id=acceptance_sale)<>'draft'
+   or exists(select 1 from public.journal_entries where source_document_id=acceptance_sale)
+ then raise exception 'Draft Sales invoice incorrectly created journal entries';end if;
+ res:=public.post_sales_invoice(acceptance_sale);
+ acceptance_je:=(res->>'journal_entry_id')::uuid;
+ if acceptance_je is null
+   or (select status from public.sales_orders where id=acceptance_sale)<>'posted'
+   or coalesce((select outstanding_amount from public.sales_orders where id=acceptance_sale),0)<>115
+   or coalesce((select sum(debit-credit) from public.journal_lines where entry_id=acceptance_je and account_id=ar),0)<>115
+   or coalesce((select sum(credit-debit) from public.journal_lines where entry_id=acceptance_je and account_id=revenue),0)<>100
+   or coalesce((select sum(credit-debit) from public.journal_lines where entry_id=acceptance_je and account_id=output_vat_account),0)<>15
+   or coalesce((select sum(debit-credit) from public.party_ledgers where journal_entry_id=acceptance_je and party_type='customer' and party_id=customer),0)<>115
+   or coalesce((select sum(debit-credit) from public.ledgers where journal_entry_id=acceptance_je),0)<>0
+ then raise exception 'Posted Sale did not reconcile AR 115, Revenue 100, Output VAT 15, customer ledger and balanced GL';end if;
+ raise notice 'PASS standalone Sale Credit: required original; draft no GL; posted AR 115, Revenue 100, Output VAT 15';
  res:=public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
   '[{"description":"VAT choice invoice","amount":"100"}]'::jsonb,revenue,'VAT-CHOICE-GOOD',null,true,'with_vat');
  if (res->>'vat')::numeric<>15 then raise exception 'Normal VAT choice wrong total';end if;
