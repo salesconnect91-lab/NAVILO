@@ -20,34 +20,55 @@ vi.mock("@/auth/AuthContext", () => ({ useAuth: () => ({
 }) }));
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.clearAllMocks(); });
 
-describe("import center", () => {
-  it("uses generic invoice source labels without naming a specific external company", () => {
-    render(<MemoryRouter><ImportCenter /></MemoryRouter>);
-    expect(screen.queryByText(/Twakkal/i)).toBeNull();
-    expect(screen.getByText(/Have invoices from an external source/)).toBeTruthy();
-    expect(screen.getByRole("option", { name: "Ready invoices from external source" })).toBeTruthy();
-    expect(screen.getByRole("link",{name:/Customer Cash\/Credit settings/}).getAttribute("href")).toBe("/master-data/customers?tab=billing");
-    expect(screen.queryByText(/Customer Cash\/Credit Lock · Transport/)).toBeNull();
-    expect(screen.getByLabelText("Invoice import workflow")).toBeTruthy();
-  });
-  it("shows centralized Transport rate imports and implemented destinations", () => {
-    render(<MemoryRouter><ImportCenter /></MemoryRouter>);
-    expect(screen.getByRole("heading", { name: "Transport Master Imports" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Transport Rate Imports" })).toBeTruthy();
-    for (const name of ["Vehicles","Drivers","Truck Types","Locations","Vehicle Ownership History"]) expect(screen.getByRole("option", { name })).toBeTruthy();
-    expect(screen.getAllByRole("heading", { level: 2 }).map(node => node.textContent)).toEqual(["Customers","Suppliers","Transport Master Imports","Transport Rate Imports","Daily Trip Upload","Transport Sales Invoice Import","Transport Receipts / Payments Import","Bulk Journal Entries","One-time Import","NAVILO → NAVILO Transport Transfer"]);
-    expect(screen.getByRole("option", { name: "Customer Route Rates" })).toBeTruthy();
-    expect(screen.getByRole("option", { name: "Supplier Route Rates" })).toBeTruthy();
-    expect(screen.getByRole("option", { name: "Customer Additional Charges" })).toBeTruthy();
-    expect(screen.queryByRole("heading",{name:"Receipts / Payments"})).toBeNull();
-    expect(screen.queryByRole("heading",{name:"Invoices"})).toBeNull();
-    expect(screen.getByRole("link",{name:"Open Daily Trip Upload"}).getAttribute("href")).toBe("/settings/imports?transportUpload=bulk");
-    expect(screen.getByRole("link",{name:"Open One-time Import"}).getAttribute("href")).toBe("/settings/imports?transportUpload=historical");
-    expect(screen.getByRole("link",{name:"Open Journal Import"}).getAttribute("href")).toBe("/accounting?import=journal");
-    expect(screen.queryByText("No import permission")).toBeNull();
-    expect(screen.getByRole("link", { name: /View Customers/ }).getAttribute("href")).toBe("/master-data/customers");
-    expect(screen.getByRole("link", { name: /View Suppliers/ }).getAttribute("href")).toBe("/master-data/suppliers");
-  });
+describe("import center workflow routing", () => {
+ it("renders only the selected service invoice workflow",()=>{
+  render(<MemoryRouter initialEntries={["/settings/imports?section=service"]}><ImportCenter/></MemoryRouter>);
+  expect(screen.getByText(/Have invoices from an external source/)).toBeTruthy();
+  expect(screen.getByRole("option",{name:"Ready invoices from external source"})).toBeTruthy();
+  expect(screen.getByRole("link",{name:/Customer Cash\/Credit settings/}).getAttribute("href")).toBe("/master-data/customers?tab=billing");
+  expect(screen.getByLabelText("Invoice import workflow")).toBeTruthy();
+  expect(screen.queryByRole("heading",{name:"Transport Master Imports"})).toBeNull();
+  expect(screen.queryByRole("heading",{name:"Customers"})).toBeNull();
+  expect(screen.queryByRole("heading",{name:"Bulk Journal Entries"})).toBeNull();
+ });
+ it("shows only customer and supplier master imports on the masters screen",()=>{
+  render(<MemoryRouter initialEntries={["/settings/imports?section=masters"]}><ImportCenter/></MemoryRouter>);
+  expect(screen.getByRole("heading",{name:"Customers"})).toBeTruthy();
+  expect(screen.getByRole("heading",{name:"Suppliers"})).toBeTruthy();
+  expect(screen.getByRole("link",{name:/View Customers/}).getAttribute("href")).toBe("/master-data/customers");
+  expect(screen.getByRole("link",{name:/View Suppliers/}).getAttribute("href")).toBe("/master-data/suppliers");
+  expect(screen.queryByRole("heading",{name:"Transport Master Imports"})).toBeNull();
+ });
+ it("shows transport master and rate imports on their own screen",()=>{
+  render(<MemoryRouter initialEntries={["/settings/imports?section=rates"]}><ImportCenter/></MemoryRouter>);
+  expect(screen.getByRole("heading",{name:"Transport Master Imports"})).toBeTruthy();
+  expect(screen.getByRole("heading",{name:"Transport Rate Imports"})).toBeTruthy();
+  for(const name of ["Vehicles","Drivers","Truck Types","Locations","Vehicle Ownership History","Customer Route Rates","Supplier Route Rates","Customer Additional Charges"]){
+   expect(screen.getByRole("option",{name})).toBeTruthy();
+  }
+  expect(screen.queryByRole("heading",{name:"Customers"})).toBeNull();
+  expect(screen.queryByRole("heading",{name:"Transport Sales Invoice Import"})).toBeNull();
+ });
+ it("keeps receipts and journals separate from invoices",()=>{
+  render(<MemoryRouter initialEntries={["/settings/imports?section=accounting"]}><ImportCenter/></MemoryRouter>);
+  expect(screen.getByRole("heading",{name:"Transport Receipts / Payments Import"})).toBeTruthy();
+  expect(screen.getByRole("heading",{name:"Bulk Journal Entries"})).toBeTruthy();
+  expect(screen.getByRole("link",{name:"Open Journal Import"}).getAttribute("href")).toBe("/accounting?import=journal");
+  expect(screen.queryByRole("heading",{name:"Transport Sales Invoice Import"})).toBeNull();
+ });
+ it("shows only the one-time import/transfer options on the history screen",()=>{
+  render(<MemoryRouter initialEntries={["/settings/imports?section=history"]}><ImportCenter/></MemoryRouter>);
+  expect(screen.getByRole("link",{name:"Open One-time Import"}).getAttribute("href")).toBe("/settings/imports?transportUpload=historical");
+  expect(screen.queryByRole("heading",{name:"Customers"})).toBeNull();
+ });
+ it("has distinct browser destinations for every permitted workflow",()=>{
+  render(<MemoryRouter initialEntries={["/settings/imports?section=expense"]}><ImportCenter/></MemoryRouter>);
+  expect(screen.getByText("Expense Invoice Bulk Import")).toBeTruthy();
+  const nav=screen.getByRole("navigation",{name:"Import workflows"});
+  const links=within(nav).getAllByRole("link");
+  expect(new Set(links.map(link=>link.getAttribute("href"))).size).toBe(links.length);
+  expect(within(nav).getByRole("link",{name:"Expense Invoices"}).getAttribute("aria-current")).toBe("page");
+ });
 });
 function customerFile(rows:(string|number)[][]) {
  const wb = XLSX.utils.book_new();
@@ -67,7 +88,7 @@ describe("Import Center Customer Master upload",()=>{
   vi.mocked(supabase.rpc).mockResolvedValue({data:{id:"created-id"},error:null} as never);
   vi.spyOn(window,"confirm").mockReturnValue(true);
 
-  render(<MemoryRouter><ImportCenter /></MemoryRouter>);
+  render(<MemoryRouter initialEntries={["/settings/imports?section=masters"]}><ImportCenter /></MemoryRouter>);
   expect(screen.getAllByRole("button",{name:"Download Template"}).length).toBeGreaterThan(0);
   expect(within(screen.getByRole("heading",{name:"Customers"}).closest("section")!).getByRole("button",{name:"Choose File"})).toBeTruthy();
   expect(within(screen.getByRole("heading",{name:"Suppliers"}).closest("section")!).getByRole("button",{name:"Choose File"})).toBeTruthy();
@@ -89,7 +110,7 @@ describe("Import Center Customer Master upload",()=>{
 
  it("blocks duplicate customer rows before any RPC writes",async()=>{
   mockExisting([]);
-  render(<MemoryRouter><ImportCenter /></MemoryRouter>);
+  render(<MemoryRouter initialEntries={["/settings/imports?section=masters"]}><ImportCenter /></MemoryRouter>);
   const file=customerFile([["Name"],["Customer A"],["customer   a"]]);
   fireEvent.change(screen.getByLabelText("Select customer import file"),{target:{files:[file]}});
   await waitFor(()=>expect(screen.getByRole("alert").textContent).toContain("Duplicate customer"));
@@ -109,7 +130,7 @@ describe("Import Center supplier upload",()=>{
   const query=mockExisting([{name:"Existing Supplier"}]);
   vi.mocked(supabase.rpc).mockResolvedValue({data:{id:"new-supplier"},error:null} as never);
   vi.spyOn(window,"confirm").mockReturnValue(true);
-  render(<MemoryRouter><ImportCenter/></MemoryRouter>);
+  render(<MemoryRouter initialEntries={["/settings/imports?section=masters"]}><ImportCenter/></MemoryRouter>);
   fireEvent.change(screen.getByLabelText("Select supplier import file"),{target:{files:[customerFile([["Supplier Name","Phone"],["Existing Supplier",""],["New Supplier","050123"]])]}});
   await waitFor(()=>expect(screen.getByText("New Supplier")).toBeTruthy());
   expect(supabase.rpc).not.toHaveBeenCalled();
@@ -121,7 +142,7 @@ describe("Import Center supplier upload",()=>{
  });
  it("blocks duplicate supplier names before writing",async()=>{
   mockExisting([]);
-  render(<MemoryRouter><ImportCenter/></MemoryRouter>);
+  render(<MemoryRouter initialEntries={["/settings/imports?section=masters"]}><ImportCenter/></MemoryRouter>);
   fireEvent.change(screen.getByLabelText("Select supplier import file"),{target:{files:[customerFile([["Name"],["Supplier A"],["supplier   a"]])]}});
   await waitFor(()=>expect(screen.getByRole("alert").textContent).toContain("Duplicate supplier"));
   expect(supabase.rpc).not.toHaveBeenCalled();
@@ -129,7 +150,7 @@ describe("Import Center supplier upload",()=>{
  it("checks every existing page so a supplier after the first 1000 is skipped",async()=>{
   const query=mockExisting([]);
   query.range.mockResolvedValueOnce({data:Array.from({length:1000},(_,i)=>({name:`Supplier ${i}`})),error:null}).mockResolvedValueOnce({data:[{name:"Last Supplier"}],error:null});
-  render(<MemoryRouter><ImportCenter/></MemoryRouter>);
+  render(<MemoryRouter initialEntries={["/settings/imports?section=masters"]}><ImportCenter/></MemoryRouter>);
   fireEvent.change(screen.getByLabelText("Select supplier import file"),{target:{files:[customerFile([["Name"],["Last Supplier"]])]}});
   await waitFor(()=>expect(screen.getByText("Already exists · skip")).toBeTruthy());
   expect(query.range).toHaveBeenNthCalledWith(2,1000,1999);
@@ -139,10 +160,10 @@ describe("Import Center supplier upload",()=>{
 });
 
 describe("Import Center financial review",()=>{
- it("does not expose driver earnings or vehicle expense uploads",()=>{render(<MemoryRouter><ImportCenter/></MemoryRouter>);expect(screen.queryByRole("heading",{name:"Driver Trip Earnings Import"})).toBeNull();expect(screen.queryByRole("heading",{name:"Transport Trip Expense Import"})).toBeNull();expect(screen.queryByRole("option",{name:"Vehicle Expense Types"})).toBeNull()});
+ it("does not expose driver earnings or vehicle expense uploads",()=>{render(<MemoryRouter initialEntries={["/settings/imports?section=rates"]}><ImportCenter/></MemoryRouter>);expect(screen.queryByRole("heading",{name:"Driver Trip Earnings Import"})).toBeNull();expect(screen.queryByRole("heading",{name:"Transport Trip Expense Import"})).toBeNull();expect(screen.queryByRole("option",{name:"Vehicle Expense Types"})).toBeNull()});
  it("disables invoice import when the server preview rejects a row",async()=>{
   vi.mocked(supabase.rpc).mockResolvedValue({data:{rows:[{amount:100,import_status:"Error",import_reason:"Vehicle mismatch"}]},error:null} as never);
-  render(<MemoryRouter><ImportCenter/></MemoryRouter>);
+  render(<MemoryRouter initialEntries={["/settings/imports?section=service"]}><ImportCenter/></MemoryRouter>);
   const card=screen.getByRole("heading",{name:"Transport Sales Invoice Import"}).closest("section")!;
   fireEvent.change(card.querySelector('input[type="file"]')!,{target:{files:[customerFile([["Source Company","Source Invoice ID","Invoice No","Invoice Date","Customer","Trip No","Vehicle No","Amount"],["Source","SRC1","INV1","2026-10-09","Customer A","TRIP1","ABC",100]])]}});
   await waitFor(()=>expect(within(card).getByText("Vehicle mismatch")).toBeTruthy());
@@ -151,7 +172,7 @@ describe("Import Center financial review",()=>{
   expect(supabase.rpc).toHaveBeenCalledWith("transport_preview_customer_invoice_batch",expect.anything());
  });
  it("blocks unlinked company-driver master imports before any write",async()=>{
-  render(<MemoryRouter><ImportCenter/></MemoryRouter>);
+  render(<MemoryRouter initialEntries={["/settings/imports?section=rates"]}><ImportCenter/></MemoryRouter>);
   const card=screen.getByRole("heading",{name:"Transport Master Imports"}).closest("section")!;
   fireEvent.change(card.querySelector("select")!,{target:{value:"drivers"}});
   fireEvent.change(card.querySelector('input[type="file"]')!,{target:{files:[customerFile([["Driver Name","Driver Type","Supplier"],["Company Driver","Company",""]])]}});
@@ -159,7 +180,7 @@ describe("Import Center financial review",()=>{
   expect(supabase.rpc).not.toHaveBeenCalled();
  });
  it("allows supplier-driver previews without creating an Employee",async()=>{
-  render(<MemoryRouter><ImportCenter/></MemoryRouter>);
+  render(<MemoryRouter initialEntries={["/settings/imports?section=rates"]}><ImportCenter/></MemoryRouter>);
   const card=screen.getByRole("heading",{name:"Transport Master Imports"}).closest("section")!;
   fireEvent.change(card.querySelector("select")!,{target:{value:"drivers"}});
   fireEvent.change(card.querySelector('input[type="file"]')!,{target:{files:[customerFile([["Driver Name","Driver Type","Supplier"],["External Driver","Supplier","Supplier A"]])]}});
