@@ -38,14 +38,14 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
   downloadImportTemplate({
    filename:`NAVILO-Transport-Normal-${side==='customer'?'Sales':'Purchase'}-Import.xlsx`,sheetName:'Normal Invoices',
    title:`Trip-independent Normal ${side==='customer'?'Sales':'Purchase'} invoice import`,
-   headers:['Invoice Group','Invoice No','Date',party,'Description','Amount','Reference'],
-   example:['INV-1','ORIGINAL-1001','2026-10-17',`Replace with active ${party}`,'Description of service',500,'Optional reference'],
+   headers:['Invoice Group','Invoice No','Date',party,'Description','Amount','Reference','VAT Treatment'],
+   example:['INV-1','ORIGINAL-1001','2026-10-17',`Replace with active ${party}`,'Description of service',500,'Optional reference','Master'],
    notes:[
     'No Trip, Vehicle, Driver or inventory item is required or created.',
     'Invoice Group identifies one invoice. Repeat group/name/date/number/reference for multiple description lines.',
     'Customer/Supplier name must match the active company Master exactly (case-insensitive).',
     'Select one active Revenue/Expense Account for this file. Lines post through canonical GL and AR/AP.',
-    'Cash/Credit and effective VAT are verified against Transport Master Billing Rules at posting.',
+    'VAT Treatment: Master, With VAT, or Without VAT; selection must match Customer/Supplier Master Cash/Credit rule.',
     'Credit Sales require the genuine original invoice number. Do not use H-S, YES, CLEARED or NO INVOICE.',
     'Maximum 200 lines or 50 invoices per batch. All invoices are atomic: any error rolls back the entire file.',
     'Choose Import & Post to update receivables, payables and ledgers. Payments remain separate.'
@@ -71,7 +71,7 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
   working.current=true;setBusy(true);setError('');setMessage('');
   const id=request.current;
   try{
-   const result=await supabase.rpc('transport_normal_invoice_import',{p_side:side,p_rows:rows,p_post:post});
+   const result=await supabase.rpc('transport_normal_invoice_import_vat',{p_side:side,p_rows:rows,p_post:post});
    if(result.error)throw result.error;
    if(id===request.current){setMessage(`${result.data.invoices} ${side==='customer'?'Sale':'Purchase'} invoice(s), ${result.data.lines} description lines ${post?'POSTED to accounting':'saved as draft'}. No Trips created. Record receipts/payments separately.`);setRows([]);setFilename('');}
   }catch(e:any){if(id===request.current)setError(e?.message||'Import failed. Entire file rolled back if the server rejected it.');}
@@ -98,10 +98,10 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
   {error&&<p role="alert" className="rounded bg-red-50 p-2 text-xs text-red-700">{error}</p>}
   {message&&<p role="status" className="rounded bg-emerald-50 p-2 text-xs text-emerald-700">{message}</p>}
   {rows.length>0&&<div className="space-y-2">
-   <p className="text-xs font-semibold">{groups} invoices · {rows.length} lines · Net SAR {net.toFixed(2)} (before VAT)</p>
+   <p className="text-xs font-semibold">{groups} invoices · {rows.length} lines · Net SAR {net.toFixed(2)} (before VAT) · VAT follows each invoice group's selected Master-compatible treatment</p>
    <div className="max-h-48 overflow-auto border"><table className="w-full text-left text-xs">
-    <thead className="sticky top-0 bg-slate-100"><tr>{['Invoice Group','Invoice No','Date',side==='customer'?'Customer':'Supplier','Description','Amount'].map(h=><th key={h} className="p-1">{h}</th>)}</tr></thead>
-    <tbody>{rows.map((r,i)=><tr key={i} className="border-t"><td className="p-1">{r.batch_ref}</td><td className="p-1">{r.invoice_no||'Automatic Cash number'}</td><td className="p-1">{r.invoice_date}</td><td className="p-1">{parties.find(p=>p.id===r.party_id)?.name}</td><td className="p-1">{r.description}</td><td className="p-1 tabular-nums">{r.amount}</td></tr>)}</tbody>
+    <thead className="sticky top-0 bg-slate-100"><tr>{['Invoice Group','Invoice No','Date',side==='customer'?'Customer':'Supplier','Description','Amount','VAT Treatment'].map(h=><th key={h} className="p-1">{h}</th>)}</tr></thead>
+    <tbody>{rows.map((r,i)=><tr key={i} className="border-t"><td className="p-1">{r.batch_ref}</td><td className="p-1">{r.invoice_no||'Automatic Cash number'}</td><td className="p-1">{r.invoice_date}</td><td className="p-1">{parties.find(p=>p.id===r.party_id)?.name}</td><td className="p-1">{r.description}</td><td className="p-1 tabular-nums">{r.amount}</td><td className="p-1">{r.vat_choice==='master'?'Master':r.vat_choice==='with_vat'?'With VAT':'Without VAT'}</td></tr>)}</tbody>
    </table></div>
    <p className="text-xs text-amber-900">Import & Post creates real accounting entries for all invoices. If any invoice fails, the complete file rolls back.</p>
    <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} className="btn" onClick={()=>void run(false)}>Import as Drafts</button>
