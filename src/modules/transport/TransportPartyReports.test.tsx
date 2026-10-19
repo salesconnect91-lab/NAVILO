@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
-import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
+import {cleanup,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
 import TransportPartyReports from './TransportPartyReports';
 const mock=vi.hoisted(()=>({export:vi.fn(),ledger:true,fail:false}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'c',company_name:'Company'},activeBusinessUnit:{business_unit_id:'b',business_unit_name:'Transport'}})}));
@@ -22,6 +22,13 @@ describe('Separate Transport party reporting',()=>{
  expect(table.rows[0][table.columns.indexOf('Document gross')]).toBe(118);
  expect(table.rows[0][table.columns.indexOf('Charge description')]).toBe('Waiting 10.00');
  for(const row of table.rows)expect(row).toHaveLength(table.columns.length);
+ });
+ it('previews an outstanding row with open invoice and journal links',async()=>{
+  setup();await screen.findByText('TOTAL');fireEvent.click(screen.getByRole('button',{name:'View report row 1'}));
+  const details=screen.getByRole('dialog',{name:'Report row details'});
+  expect(within(details).getByRole('link',{name:/Open sales invoice/}).getAttribute('href')).toBe('/sales/A');
+  expect(within(details).getByRole('link',{name:/Open journal voucher/}).getAttribute('href')).toBe('/accounting/j');
+  fireEvent.click(within(details).getByRole('button',{name:'Close'}));expect(screen.queryByRole('dialog',{name:'Report row details'})).toBeNull();
  });
  it('includes customer masters that have no posted invoices yet',async()=>{
  setup();await screen.findByRole('option',{name:'Unposted Customer'});expect(screen.getByRole('option',{name:'Unposted Customer'})).toBeTruthy();

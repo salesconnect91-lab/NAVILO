@@ -43,6 +43,18 @@ describe('Cash Counter Transport allocations',()=>{
   expect(payload).toMatchObject({p_side:side,p_party_id:'party',p_account_id:'cash',p_allocations:[{document_id:'B',amount:75}]});
   expect(payload.p_request_id).toBeTruthy();
  });
+ it('views a supplier bill and its source without posting or changing the draft',async()=>{
+  const docs=[doc('A','supplier',100,'2026-10-01')];
+  rpc.mockImplementation(async(name:string)=>name==='transport_party_report_query'?{data:docs,error:null}:name==='transport_opening_invoice_query'?{data:[],error:null}:name==='transport_finance_allowed'?{data:true,error:null}:{data:{success:true},error:null});
+  render(<TransportPartySettlement side="supplier" party="party" documents={docs} accounts={[]} onPosted={async()=>{}} onBusyChange={()=>{}}/>);
+  await screen.findByLabelText('View INV-A');fireEvent.click(screen.getByLabelText('View INV-A'));
+  expect(screen.getByRole('dialog',{name:'Allocation invoice details'})).toBeTruthy();
+  expect((screen.getByRole('link',{name:/Open supplier invoice/}) as HTMLAnchorElement).getAttribute('href')).toBe('/purchase/A');
+  expect((screen.getByRole('link',{name:/Open journal voucher/}) as HTMLAnchorElement).getAttribute('href')).toBe('/accounting/A');
+  expect(rpc.mock.calls.some(([name])=>name.startsWith('transport_settle_'))).toBe(false);
+  fireEvent.click(screen.getByRole('button',{name:'Close'}));
+  expect(screen.queryByRole('dialog',{name:'Allocation invoice details'})).toBeNull();
+ });
  it('blocks excess selected allocation and retains the same request on a retry',async()=>{
   let tries=0;rpc.mockImplementation(async(name:string)=>name==='transport_party_report_query'?{data:[doc('A','supplier',100,'2026-10-01')],error:null}:name==='transport_opening_invoice_query'?{data:[],error:null}:name==='transport_finance_allowed'?{data:true,error:null}:++tries===1?{data:null,error:{message:'Connection lost'}}:{data:{success:true},error:null});
   const posted=vi.fn(async()=>{});
