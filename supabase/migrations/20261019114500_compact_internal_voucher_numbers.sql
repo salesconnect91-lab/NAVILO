@@ -26,6 +26,16 @@ begin
   end if;
   if position(r.search_text in original_definition)=0 then
      if position(r.replacement_text in original_definition)>0 then continue;end if;
+     -- The isolated replay starts from an older no-whitespace cash/bank
+     -- function; production already has whitespace around its assignments.
+     if r.signature like 'public.post_general_cash_bank_transaction(%'
+        and position('v_entry_no:=''GCB-''||upper(substr(replace(gen_random_uuid()::text,''-'',''''),1,10));' in original_definition)>0 then
+        changed_definition:=replace(original_definition,
+          'v_entry_no:=''GCB-''||upper(substr(replace(gen_random_uuid()::text,''-'',''''),1,10));',
+          r.replacement_text);
+        execute changed_definition;
+        continue;
+     end if;
      raise exception 'Compact reference upgrade: audited expression changed in %',r.signature;
   end if;
   changed_definition:=replace(original_definition,r.search_text,r.replacement_text);
