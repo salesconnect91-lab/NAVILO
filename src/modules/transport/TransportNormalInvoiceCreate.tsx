@@ -85,56 +85,106 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   finally{setSaving(false)}
  }
  const sideName=side==='customer'?'Sale':'Purchase';
- return <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-3 text-xs" aria-label={`${sideName} Invoice`}>
-  <div className="flex flex-wrap items-start justify-between gap-2">
-   <div><h2 className="text-base font-bold">{sideName} Invoice — No Trips</h2>
-    <p className="text-slate-600">Description-only service document. Uses {side==='customer'?'Customer':'Supplier'} Master, canonical {side==='customer'?'AR':'AP'}, VAT, ledgers and financial reports. No stock or Trip records. {side==='customer'&&'Vehicle is a reporting dimension; selected Sales Revenue stays unchanged with no duplicate journal.'}</p>
+ const partyName=side==='customer'?'Customer':'Supplier';
+ const money=(value:number)=>value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+ const invoiceImportLink='/workspace/imports';
+ return <main className="navilo-invoice-editor navilo-invoice-pro navilo-transport-invoice" data-navilo-invoice-side={side} data-navilo-document-editor="true" aria-label={`${sideName} Invoice`}>
+  <header className="navilo-invoice-hero">
+   <div className="navilo-invoice-hero-main">
+    <Link to={side==='customer'?'/sales':'/purchase'} className="navilo-invoice-breadcrumb">← {sideName} Invoices</Link>
+    <div className="navilo-invoice-eyebrow">NEW DOCUMENT <span aria-hidden="true">/</span> NON-TRIP INVOICE</div>
+    <h1>New {sideName} Invoice</h1>
+    <p>Record a standalone {sideName.toLowerCase()} invoice from the {partyName} Master. No Trip or inventory movement.</p>
    </div>
-   <Link className="text-blue-700 underline" to="/settings/imports">Bulk import in Import Center</Link>
-  </div>
-  {loading&&<p role="status">Loading {sideName} masters…</p>}
-  {error&&<p role="alert" className="rounded border border-red-200 bg-red-50 p-2 text-red-700">{error}</p>}
-  {done&&<div role="status" className="rounded border border-emerald-200 bg-emerald-50 p-2">
-    <strong>{sideName} invoice {done.status}: {done.invoice_no}</strong> · Amount {Number(done.gross).toLocaleString('en-US',{minimumFractionDigits:2})}.
-    <p>Posted invoices update canonical {side==='customer'?'receivables':'payables'} and accounting. Record actual payments separately.</p>
-    <div className="mt-2 flex gap-2"><Link to={`/${side==='customer'?'sales':'purchase'}/${done.document_id}`} className="btn">View Invoice</Link>
-     <button className="btn-primary" onClick={()=>{setDone(null);setParty('');setNumber('');setReference('');setVatChoice('master');setLines([empty()]);}}>Create Another</button></div>
-   </div>}
-  <fieldset disabled={loading||saving||!!done||loadedScope!==scope} className="grid gap-2 md:grid-cols-4">
-   <label className="block font-semibold">{side==='customer'?'Customer Master':'Supplier Master'} *
-    <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label={side==='customer'?'Normal invoice customer':'Normal invoice supplier'} className="input mt-1 w-full" value={party} onChange={e=>setParty(e.target.value)}>
-     <option value="">Select {side==='customer'?'Customer':'Supplier'}</option>{parties.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-    </NaviloSearchableSelect>
-   </label>
-   <label className="block font-semibold">Invoice Date *<NaviloDateInput type="date" className="input mt-1 w-full" value={date} onChange={e=>setDate(e.target.value)}/></label>
-   <label className="block font-semibold">Invoice Number
-    <input className="input mt-1 w-full" maxLength={80} aria-label="Normal invoice number" value={number} onChange={e=>setNumber(e.target.value)} placeholder="Original number required for Credit Sales"/>
-   </label>
-   <label className="block font-semibold">Reference (optional)
-    <input className="input mt-1 w-full" value={reference} maxLength={120} onChange={e=>setReference(e.target.value)}/>
-   </label>
-   <label className="block font-semibold">VAT Treatment<NaviloSearchableSelect nativeCompatibility aria-label="Normal invoice VAT treatment" className="input mt-1 w-full" value={vatChoice} onChange={e=>setVatChoice(e.target.value as 'master'|'with_vat'|'without_vat')}><option value="master">Auto (Master Cash/Credit)</option><option value="with_vat">With VAT</option><option value="without_vat">Without VAT</option></NaviloSearchableSelect></label>
-   <label className="block font-semibold md:col-span-3">{side==='customer'?'General / Shared Revenue COA':'Expense Account'} *
-    <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Normal invoice ledger account" className="input mt-1 w-full" value={account} onChange={e=>setAccount(e.target.value)}>
-     <option value="">Select active company account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
-    </NaviloSearchableSelect>
-   </label>
-  </fieldset>
-  <div className="space-y-1">
-   <div className="flex items-center justify-between"><h3 className="font-bold">Description lines (excluding VAT)</h3><button type="button" disabled={saving||!!done||lines.length>=50} className="btn" onClick={()=>setLines(v=>[...v,empty()])}>+ Description Line</button></div>
-   {lines.map((line,i)=><div key={i} className="grid grid-cols-[minmax(0,1fr)_190px_130px_45px] gap-2">
-    <input aria-label={`Description ${i+1}`} className="input" placeholder="Description (no Trip)" value={line.description} maxLength={1000} disabled={saving||!!done} onChange={e=>update(i,'description',e.target.value)}/>
-    <NaviloSearchableSelect nativeCompatibility aria-label={`Vehicle ${i+1}`} className="input" value={line.vehicle_id??''} disabled={saving||!!done} onChange={e=>update(i,'vehicle_id',e.target.value)}><option value="">General / Shared</option>{eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</NaviloSearchableSelect>
-    <input aria-label={`Amount ${i+1}`} className="input text-right" inputMode="decimal" placeholder="Amount SAR" value={line.amount} disabled={saving||!!done} onChange={e=>update(i,'amount',e.target.value)}/>
-    <button type="button" aria-label={`Remove line ${i+1}`} className="btn" disabled={saving||!!done||lines.length<=1} onClick={()=>setLines(v=>v.filter((_,index)=>index!==i))}>×</button>
-   </div>)}
-  </div>
-  <div className="flex flex-wrap items-center justify-between border-t pt-2 gap-2">
-   <span><strong>Net: SAR {amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong> · Selected VAT must match the effective Customer/Supplier Master billing rule.</span>
-   <div className="flex gap-2"><button type="button" className="btn" disabled={!available} onClick={()=>void save(false)}>{saving?'Saving…':'Save Draft'}</button>
-    <button type="button" className="btn-primary" disabled={!available} onClick={()=>void save(true)}>{saving?'Posting…':`Post ${sideName} Invoice`}</button></div>
-  </div>
-  {side==='customer'&&<p className="text-slate-500">Each vehicle line posts to its linked Income COA in <Link to="/master-data/vehicles" className="text-blue-700 underline">Vehicle Master</Link>; the General / Shared account applies only to lines without a vehicle.</p>}
-  {lineError&&<p role="status" className="text-amber-800">{lineError}</p>}
- </section>;
+   <div className="navilo-invoice-hero-actions">
+    <span className="navilo-invoice-status">Draft</span>
+    <Link className="btn-secondary" to={invoiceImportLink}>Import Center</Link>
+   </div>
+  </header>
+
+  {loading&&<p role="status" className="navilo-invoice-notice">Loading {sideName} masters…</p>}
+  {error&&<p role="alert" className="navilo-invoice-notice navilo-invoice-error">{error}</p>}
+  {done&&<section role="status" className="navilo-invoice-card navilo-invoice-success">
+    <h2>{sideName} invoice {done.status}: {done.invoice_no}</h2>
+    <p>Total: SAR {money(Number(done.gross))}. Posted invoices update {side==='customer'?'receivables':'payables'}, VAT and ledgers. Payments are recorded separately.</p>
+    <div className="navilo-invoice-button-row">
+     <Link to={`/${side==='customer'?'sales':'purchase'}/${done.document_id}`} className="btn-secondary">View Invoice</Link>
+     <button type="button" className="btn-primary" onClick={()=>{setDone(null);setParty('');setNumber('');setReference('');setVatChoice('master');setLines([empty()]);}}>Create Another</button>
+    </div>
+   </section>}
+
+  <section className="navilo-invoice-card" aria-labelledby="normal-invoice-details">
+   <div className="navilo-invoice-card-heading">
+    <div><span className="navilo-invoice-step">01</span><h2 id="normal-invoice-details">{partyName} & Invoice Details</h2><p>Party, original document reference and VAT treatment.</p></div>
+   </div>
+   <fieldset disabled={loading||saving||!!done||loadedScope!==scope} className="navilo-invoice-detail-grid">
+    <label className="navilo-invoice-field navilo-invoice-field-primary">{partyName} *
+     <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label={side==='customer'?'Normal invoice customer':'Normal invoice supplier'} className="input" value={party} onChange={e=>setParty(e.target.value)}>
+      <option value="">Select {partyName}</option>{parties.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+     </NaviloSearchableSelect>
+    </label>
+    <label className="navilo-invoice-field">Invoice Date *<NaviloDateInput type="date" className="input" value={date} onChange={e=>setDate(e.target.value)}/></label>
+    <label className="navilo-invoice-field">Original Invoice Number
+     <input className="input" maxLength={80} aria-label="Normal invoice number" value={number} onChange={e=>setNumber(e.target.value)} placeholder={side==='customer'?'Customer invoice number':'Supplier invoice number'}/>
+    </label>
+    <label className="navilo-invoice-field">Reference / PO Number
+     <input className="input" value={reference} maxLength={120} onChange={e=>setReference(e.target.value)} placeholder="Optional reference"/>
+    </label>
+    <label className="navilo-invoice-field">VAT Treatment
+     <NaviloSearchableSelect nativeCompatibility aria-label="Normal invoice VAT treatment" className="input" value={vatChoice} onChange={e=>setVatChoice(e.target.value as 'master'|'with_vat'|'without_vat')}>
+      <option value="master">Auto (Master Cash/Credit)</option><option value="with_vat">With VAT</option><option value="without_vat">Without VAT</option>
+     </NaviloSearchableSelect>
+    </label>
+    <label className="navilo-invoice-field navilo-invoice-field-wide">{side==='customer'?'Sales Revenue Account':'Purchase / Expense Account'} *
+     <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Normal invoice ledger account" className="input" value={account} onChange={e=>setAccount(e.target.value)}>
+      <option value="">Select active company account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+     </NaviloSearchableSelect>
+    </label>
+   </fieldset>
+  </section>
+
+  <section className="navilo-invoice-card" aria-labelledby="normal-invoice-lines">
+   <div className="navilo-invoice-card-heading navilo-invoice-line-heading">
+    <div><span className="navilo-invoice-step">02</span><h2 id="normal-invoice-lines">Invoice Lines</h2><p>Description, optional company vehicle and net amount (SAR).</p></div>
+    <button type="button" disabled={saving||!!done||lines.length>=50} className="btn-secondary" onClick={()=>setLines(v=>[...v,empty()])}>+ Description Line</button>
+   </div>
+   <div className="navilo-invoice-lines-wrap">
+    <div className="navilo-invoice-line-grid navilo-invoice-line-columns" aria-hidden="true"><span>Description</span><span>Vehicle / Allocation</span><span className="navilo-align-right">Net Amount (SAR)</span><span/></div>
+    {lines.map((line,i)=><div key={i} className="navilo-invoice-line-grid navilo-invoice-line-row">
+     <label className="navilo-invoice-line-field"><span className="navilo-mobile-label">Description {i+1}</span>
+      <input aria-label={`Description ${i+1}`} className="input" placeholder="Enter goods or service description" value={line.description} maxLength={1000} disabled={saving||!!done} onChange={e=>update(i,'description',e.target.value)}/>
+     </label>
+     <label className="navilo-invoice-line-field"><span className="navilo-mobile-label">Vehicle</span>
+      <NaviloSearchableSelect nativeCompatibility aria-label={`Vehicle ${i+1}`} className="input" value={line.vehicle_id??''} disabled={saving||!!done} onChange={e=>update(i,'vehicle_id',e.target.value)}><option value="">General / Shared</option>{eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</NaviloSearchableSelect>
+     </label>
+     <label className="navilo-invoice-line-field"><span className="navilo-mobile-label">Net Amount (SAR)</span>
+      <input aria-label={`Amount ${i+1}`} className="input navilo-align-right" inputMode="decimal" placeholder="0.00" value={line.amount} disabled={saving||!!done} onChange={e=>update(i,'amount',e.target.value)}/>
+     </label>
+     <button type="button" aria-label={`Remove line ${i+1}`} title="Remove line" className="navilo-invoice-line-remove" disabled={saving||!!done||lines.length<=1} onClick={()=>setLines(v=>v.filter((_,index)=>index!==i))}>×</button>
+    </div>)}
+   </div>
+   <div className="navilo-invoice-lines-footer">{lines.length} {lines.length===1?'line':'lines'} · Up to 50 description lines per invoice.</div>
+  </section>
+
+  <section className="navilo-invoice-card navilo-invoice-review" aria-labelledby="normal-invoice-review">
+   <div className="navilo-invoice-review-help">
+    <span className="navilo-invoice-step">03</span><h2 id="normal-invoice-review">Review & Save</h2>
+    <p>Verify the {partyName.toLowerCase()}, original invoice number, description lines and VAT treatment before posting.</p>
+    <p className="navilo-invoice-small-note">VAT is calculated using the effective applicable rate and master billing rules by the posting engine. A draft does not post accounting entries.</p>
+    {side==='customer'&&<p className="navilo-invoice-small-note">Vehicle allocation is selected on each line and reported through <Link to="/master-data/vehicles">Vehicle Master</Link>; no duplicate journal is created.</p>}
+    {lineError&&<p role="status" className="navilo-invoice-inline-warning">{lineError}</p>}
+   </div>
+   <div className="navilo-invoice-summary">
+    <div className="navilo-invoice-summary-row"><span>Net amount</span><strong>SAR {money(amount)}</strong></div>
+    <div className="navilo-invoice-summary-row"><span>VAT treatment</span><strong>{vatChoice==='with_vat'?'With VAT':vatChoice==='without_vat'?'Without VAT':'Master rule'}</strong></div>
+    <div className="navilo-invoice-summary-hint">Final VAT and gross total are confirmed on the saved invoice.</div>
+    <div className="navilo-invoice-summary-total"><span>Net before VAT</span><strong>SAR {money(amount)}</strong></div>
+   </div>
+   <div className="navilo-invoice-review-actions">
+    <Link className="btn-secondary" to={side==='customer'?'/sales':'/purchase'}>Cancel</Link>
+    <button type="button" className="btn-secondary" disabled={!available} onClick={()=>void save(false)}>{saving?'Saving…':'Save Draft'}</button>
+    <button type="button" className="btn-primary" disabled={!available} onClick={()=>void save(true)}>{saving?'Posting…':`Post ${sideName} Invoice`}</button>
+   </div>
+  </section>
+ </main>;
 }
