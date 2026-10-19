@@ -179,6 +179,7 @@ export default function PrintLayout({
 
   const statusValue = String(extraFields?.find((field) => field.label.toLowerCase().includes("status"))?.value || "").toLowerCase();
   const isDraft = statusValue === "draft";
+  const showDocumentQr = showQrCode && !isDraft;
   const [livePaymentSummary, setLivePaymentSummary] = useState<PaymentSummary | null>(null);
 
   useEffect(() => {
@@ -282,8 +283,8 @@ export default function PrintLayout({
         </div>
       </div>
       <div className="print-voucher-title-box" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
-        <div><h2 className="print-voucher-title">{isDraft ? "DRAFT · " : ""}{voucherTitle}{effectiveBilingual ? ` / ${urduTitle(voucherTitle)}` : ""}</h2>{showQrCode && <div style={{ marginTop: 3, textAlign: "right", fontSize: 8, color: "#d6e5e8", lineHeight: 1.35 }}>{docLabel("Internal Reference QR", "اندرونی حوالہ کیو آر")}</div>}</div>
-        {showQrCode && <div style={{ background: "#fff", padding: 2, lineHeight: 0, breakInside: "avoid" }}><QRCodeSVG value={qrPayload} size={62} level="M" includeMargin={false} /></div>}
+        <div><h2 className="print-voucher-title">{isDraft ? "DRAFT · " : ""}{voucherTitle}{effectiveBilingual ? ` / ${urduTitle(voucherTitle)}` : ""}</h2>{showDocumentQr && <div style={{ marginTop: 3, textAlign: "right", fontSize: 8, color: "#d6e5e8", lineHeight: 1.35 }}>{docLabel("Internal Reference QR", "اندرونی حوالہ کیو آر")}</div>}</div>
+        {showDocumentQr && <div style={{ background: "#fff", padding: 2, lineHeight: 0, breakInside: "avoid" }}><QRCodeSVG value={qrPayload} size={62} level="M" includeMargin={false} /></div>}
       </div>
     </div>
 
@@ -294,7 +295,7 @@ export default function PrintLayout({
       <div className="print-meta-col">
         <div className="print-meta-row"><span className="print-meta-label">{docLabel(`${voucherTitle} No`, "بل نمبر")}:</span><span className="print-meta-value">{voucherNo}</span></div>
         <div className="print-meta-row"><span className="print-meta-label">{docLabel("Date", "تاریخ")}:</span><span className="print-meta-value">{formatDate(voucherDate)}</span></div>
-        {extraFields?.map((field) => <div key={field.label} className="print-meta-row"><span className="print-meta-label">{field.label}:</span><span className="print-meta-value">{field.value}</span></div>)}
+        {extraFields?.filter(field => !(isDraft && field.label.trim().toLowerCase() === "status")).map((field) => <div key={field.label} className="print-meta-row"><span className="print-meta-label">{field.label}:</span><span className="print-meta-value">{field.value}</span></div>)}
       </div>
       <div className="print-meta-col"><div className="print-party-box">
         <div className="print-party-label">{partyLabel}</div><div className="print-party-name">{party.name}</div>
@@ -333,8 +334,10 @@ export default function PrintLayout({
     <div className="print-totals-section">
       <div className="print-charges-side">{chargeBreakdown.length > 0 && <div className="print-charges-box"><div className="print-charges-title">{docLabel("Charges Breakdown", "چارجز کی تفصیل")}</div>{chargeBreakdown.map((charge) => <div key={charge.label} className="print-charge-row"><span>{charge.label}</span><span>{formatCurrency(charge.amount)}</span></div>)}<div className="print-charge-row print-charge-total"><span>{docLabel("Charges Total", "کل چارجز")}</span><span>{formatCurrency(chargesTotal)}</span></div>{showTaxSummary && chargeVat > 0 && <div className="print-charge-row"><span>{docLabel("Charges VAT", "چارجز ٹیکس")}</span><span>{formatCurrency(chargeVat)}</span></div>}</div>}</div>
       <div className="print-totals-side">
-        <div className="print-total-row"><span>{docLabel("Items Total", "آئٹمز کل")}</span><span>{formatCurrency(itemsTotal)}</span></div><div className="print-total-row"><span>{docLabel("Charges Total", "کل چارجز")}</span><span>{formatCurrency(chargesTotal)}</span></div>
-        {showTaxSummary && <><div className="print-total-row"><span>{docLabel("Items VAT", "آئٹمز ٹیکس")}</span><span>{formatCurrency(itemVat)}</span></div>{chargeVat > 0 && <div className="print-total-row"><span>{docLabel("Charges VAT", "چارجز ٹیکس")}</span><span>{formatCurrency(chargeVat)}</span></div>}<div className="print-total-row"><span>{docLabel("Total VAT", "کل ٹیکس")}</span><span>{formatCurrency(taxAmount)}</span></div></>}
+        <div className="print-total-row"><span>{docLabel("Items Total", "آئٹمز کل")}</span><span>{formatCurrency(itemsTotal)}</span></div>{(chargeBreakdown.length > 0 || n(chargesTotal) !== 0) && <div className="print-total-row"><span>{docLabel("Charges Total", "کل چارجز")}</span><span>{formatCurrency(chargesTotal)}</span></div>}
+        {showTaxSummary && (chargeVat > 0.005
+          ? <><div className="print-total-row"><span>{docLabel("Items VAT", "آئٹمز ٹیکس")}</span><span>{formatCurrency(itemVat)}</span></div><div className="print-total-row"><span>{docLabel("Charges VAT", "چارجز ٹیکس")}</span><span>{formatCurrency(chargeVat)}</span></div><div className="print-total-row"><span>{docLabel("Total VAT", "کل ٹیکس")}</span><span>{formatCurrency(taxAmount)}</span></div></>
+          : <div className="print-total-row"><span>{docLabel("VAT", "ٹیکس")}</span><span>{formatCurrency(taxAmount)}</span></div>)}
         {inferredDiscount > 0.005 && <><div className="print-total-row print-before-discount"><span>Total Before Discount</span><span>{formatCurrency(beforeDiscount - consolidatedTotal)}</span></div><div className="print-total-row print-discount-row"><span>Discount</span><span>- {formatCurrency(inferredDiscount)}</span></div></>}
         {hawalaDocuments.length > 0 && <><div className="print-total-row"><span>Main Invoice Total</span><span>{formatCurrency(normalInvoiceTotal ?? Math.max(grandTotal - consolidatedTotal, 0))}</span></div><div className="print-total-row"><span>Consolidated Invoice Total</span><span>{formatCurrency(consolidatedTotal)}</span></div></>}
         <div className="print-total-row print-grand-total"><span>{docLabel("Grand Total", "کل رقم")}</span><span>{formatCurrency(grandTotal)}</span></div>
