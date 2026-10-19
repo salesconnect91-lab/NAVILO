@@ -11,7 +11,7 @@ export default function TransportInvoiceCreate({side}:{side:'customer'|'supplier
  const title=isSale
    ? (side==='customer'?'Sale Invoice':'Purchase Invoice')
    : (side==='customer'?'Service Invoice':'Service Purchase Invoice');
- return <div className="navilo-invoice-pro space-y-3" data-navilo-transport-invoice-type={isSale?'normal':'service'}>
+ return <div className={isSale?'space-y-3':'navilo-invoice-pro space-y-3'} data-navilo-transport-invoice-type={isSale?'normal':'service'}>
   {!isSale&&<header className="navilo-invoice-hero">
    <div className="navilo-invoice-hero-main">
     <button type="button" className="navilo-invoice-breadcrumb" onClick={close}>← {side==='customer'?'Sales':'Purchase'} Invoices</button>
