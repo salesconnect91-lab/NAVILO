@@ -35,7 +35,7 @@ it("renders posted September expenses and loads another month on selection",asyn
    return {abortSignal:()=>resolved} as never;
  }) as never);
  render(<DashboardExpensesCard companyId="twakkal" businessUnitId="transport" enabled/>);
- await waitFor(()=>expect(screen.getByText("SAR 399,103.05")).toBeTruthy());
+ await waitFor(()=>expect(screen.getAllByText("SAR 399,103.05").length).toBeGreaterThanOrEqual(2));
  expect(screen.getByText("Transport & Freight")).toBeTruthy();
  expect(screen.getByText(/posted expense GL · VAT control excluded/i)).toBeTruthy();
  expect(supabase.rpc).toHaveBeenCalledWith("dashboard_expense_breakdown",{p_month:expenseMonth("last")});
