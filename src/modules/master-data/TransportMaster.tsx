@@ -24,7 +24,7 @@ const EMPTY = { name: "", detail: "", mobile: "", truckTypeId: "", ownerType: "c
   driverType: "company", employeeId: "", identityNo: "", licenceNo: "", licenceExpiry: "", effectiveFrom: "", revenueAccountId: "" };
 
 export default function TransportMaster({ kind, quickCreate, supplierOwner, employeeOwner }: { kind: Kind; quickCreate?: MasterQuickCreate; supplierOwner?:DriverOwner; employeeOwner?:DriverOwner }) {
-  const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
+  const { activeCompany, activeBusinessUnit, isPlatformOwner, refreshAccess } = useAuth();
   const supabase = useTransportMasterClient();
   const vehicle = kind === "vehicles";
   const [rows, setRows] = useState<Row[]>([]);
@@ -114,10 +114,35 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
     if(!allowed || !vehicle || legacyCandidates.length!==6 || retiringLegacy)return;
     setRetiringLegacy(true);setLegacyRetired(false);setError("");
     try{
+      // Other tabs can change the server's active company while this screen still
+      // displays Twakkal. Recheck and restore only the workspace the owner is
+      // currently viewing. Both switch RPCs enforce server-side authorization.
+      const companyId="c611adca-fd2f-4cc1-b379-3aed22924f65";
+      const businessUnitId="bbd67d8b-930e-4ef4-8f61-0061f07b686a";
+      const serverContext=async()=>{
+        const response=await supabase.rpc("get_my_access_context");
+        if(response.error)throw response.error;
+        if(!response.data)throw new Error("Workspace session unavailable. Sign in again.");
+        return response.data as {current_company_id:string|null;current_business_unit_id:string|null};
+      };
+      let current=await serverContext();
+      if(current.current_company_id!==companyId){
+        const switched=await supabase.rpc("set_current_company",{p_company_id:companyId});
+        if(switched.error)throw switched.error;
+        current=await serverContext();
+      }
+      if(current.current_business_unit_id!==businessUnitId){
+        const switched=await supabase.rpc("set_current_business_unit",{p_business_unit_id:businessUnitId});
+        if(switched.error)throw switched.error;
+        current=await serverContext();
+      }
+      if(current.current_company_id!==companyId || current.current_business_unit_id!==businessUnitId)
+        throw new Error("Twakkal Transport server workspace did not match. Reload the page and try again.");
       const result=await supabase.rpc("transport_retire_unused_vehicle_income_coas");
       if(result.error)throw result.error;
       if(Number(result.data)!==6)throw new Error("Unexpected account retirement result; please verify the workspace.");
       setLegacyRetired(true);
+      await refreshAccess();
       await changed();
     }catch(e:any){setError(e?.message??"Unable to safely retire legacy vehicle Income accounts.");}
     finally{setRetiringLegacy(false);}
