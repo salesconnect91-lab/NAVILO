@@ -127,6 +127,15 @@ begin
  res:=public.general_expense_bill_create(supplier2,'2026-10-17','EXP-CREDIT-TEST',acct,
   '[{"description":"General with VAT","amount":"200"}]'::jsonb,true,true,null);
  if (res->>'vat')::numeric<>30 then raise exception 'Expense VAT mismatch';end if;
+ res:=public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
+  '[{"description":"VAT choice invoice","amount":"100"}]'::jsonb,revenue,'VAT-CHOICE-GOOD',null,true,'with_vat');
+ if (res->>'vat')::numeric<>15 then raise exception 'Normal VAT choice wrong total';end if;
+ bad:=false;
+ begin
+  perform public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
+   '[{"description":"Wrong VAT choice","amount":"100"}]'::jsonb,revenue,'VAT-CHOICE-INVALID',null,true,'without_vat');
+ exception when others then bad:=true;end;
+ if not bad then raise exception 'Normal VAT selection rule not enforced';end if;
  reset role;
  before_trips:=(select count(*) from public.transport_trips where company_id=c);
  set local role authenticated;
