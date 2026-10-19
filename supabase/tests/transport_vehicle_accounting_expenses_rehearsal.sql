@@ -138,6 +138,17 @@ begin
  if not exists(select 1 from public.purchase_orders p where p.id=(res->'documents'->0->>'document_id')::uuid and p.status='posted')
  then raise exception 'Expense Excel import did not post invoice';end if;
 
+ -- A customer Normal Sale must never become draft or posted without a Vehicle,
+ -- even when callers bypass the browser or submit direct RPC/import JSON.
+ bad:=false;
+ begin
+   perform public.transport_normal_invoice_create('customer',customer,'2026-10-17',
+     '[{"description":"Unassigned vehicle must fail","amount":"10"}]'::jsonb,
+     revenue,'NO-VEHICLE-MUST-FAIL',null,false);
+ exception when others then
+   if position('requires a company-owned Vehicle Master' in sqlerrm)>0 then bad:=true;else raise;end if;
+ end;
+ if not bad then raise exception 'Normal Sale without Vehicle was incorrectly accepted';end if;
  -- Credit Sale invoice acceptance, synthetic company and rollback at end.
  select account_id into strict output_vat_account from public.account_mappings
  where company_id=c and mapping_key='output_vat';
