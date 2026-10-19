@@ -22,7 +22,7 @@ it('shows explicit VAT 0% and gross for cash sale and purchase without querying 
 it('uses the supplier invoice date and purchase context then invalidates a stale preview',async()=>{
  mock.rpc.mockResolvedValueOnce({data:18,error:null}).mockResolvedValueOnce({data:null,error:null});const ready=vi.fn();
  const r=render(<TransportVatPreview side="supplier" date="2026-10-04" withTax amounts={[100,50]} onReady={ready}/>);
- await screen.findByText(/VAT 18%: 27.00/);expect(mock.rpc).toHaveBeenCalledWith('fixed_tax_rate_on',{p_company:'company-a',p_context:'purchase',p_date:'2026-10-04'});await waitFor(()=>expect(ready).toHaveBeenLastCalledWith(true));
+ await waitFor(()=>expect(screen.getByLabelText('VAT posting preview').textContent).toContain('VAT 18%: 27.00'));expect(mock.rpc).toHaveBeenCalledWith('fixed_tax_rate_on',{p_company:'company-a',p_context:'purchase',p_date:'2026-10-04'});await waitFor(()=>expect(ready).toHaveBeenLastCalledWith(true));
  r.rerender(<TransportVatPreview side="supplier" date="2026-10-05" withTax amounts={[100,50]} onReady={ready}/>);
  await screen.findByText(/Configure an effective fixed VAT rate/);expect(ready).toHaveBeenLastCalledWith(false);
 });
