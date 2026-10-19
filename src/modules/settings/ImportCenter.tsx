@@ -382,14 +382,6 @@ export default function ImportCenter() {
     <p className="mt-1 text-xs text-slate-600">Download template → Choose file → Validate & review → Import. Only this workflow is open.</p>
    </div>
   </header>
-  <nav aria-label="Import workflows" className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-   {importWorkflowSections.filter(item=>permitted(item.id)).map(item=>
-    <Link key={item.id} aria-current={item.id===section?"page":undefined} to={`/settings/imports?section=${item.id}`}
-     className={`rounded-md border px-3 py-2 text-xs font-semibold ${item.id===section?"border-blue-500 bg-blue-50 text-blue-800":"border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>
-     {item.title}
-    </Link>
-   )}
-  </nav>
   <div key={`${scope}:${section}`} className="space-y-3">
    {section==="masters"&&<ImportGroup id="import-masters" title="Customers & Suppliers" detail="Import master names and tax/contact details. No opening balances, invoices or journal entries.">
     <div className="grid gap-3 lg:grid-cols-2"><PartyMasterImportCard kind="customer" canImport={canImport("master")}/><PartyMasterImportCard kind="supplier" canImport={canImport("master")}/></div>
