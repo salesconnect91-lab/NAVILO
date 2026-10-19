@@ -23,7 +23,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.clearAllMocks(); });
 describe("import center workflow routing", () => {
  it("renders only the selected service invoice workflow",()=>{
   render(<MemoryRouter initialEntries={["/settings/imports?section=service"]}><ImportCenter/></MemoryRouter>);
-  expect(screen.getByText(/Have invoices from an external source/)).toBeTruthy();
+  expect(screen.getByText(/Import service invoices against existing trips/)).toBeTruthy();
   expect(screen.getByRole("option",{name:"Ready invoices from external source"})).toBeTruthy();
   expect(screen.getByRole("link",{name:/Customer Cash\/Credit settings/}).getAttribute("href")).toBe("/master-data/customers?tab=billing");
   expect(screen.getByLabelText("Invoice import workflow")).toBeTruthy();
