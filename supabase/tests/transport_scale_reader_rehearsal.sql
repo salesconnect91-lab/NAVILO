@@ -61,7 +61,7 @@ declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;ar uuid;ap uuid;cost uu
  customer uuid;cash_customer uuid;supplier uuid;second_supplier uuid;tt uuid;tt2 uuid;from_id uuid;to_id uuid;v uuid;company_v uuid;d uuid;company_d uuid;employee uuid;
  ownership uuid;rate uuid;result jsonb;payload jsonb;supplier_payload jsonb;trip uuid;trip2 uuid;request_id uuid:=gen_random_uuid();number text;deleted_number text;
  other_bu uuid;foreign_v uuid;other_c uuid;other_customer uuid;before_count bigint;canonical public.customers;canonical_supplier public.suppliers;
-data jsonb;bank_account uuid;fixed_account uuid;rent uuid;second_rent uuid;bill uuid;customer_trip uuid;
+data jsonb;bank_account uuid;fixed_account uuid;noncash_asset uuid;rent uuid;second_rent uuid;bill uuid;customer_trip uuid;
 begin
  insert into auth.users(id,role,email,created_at,updated_at)
  values(u,'authenticated','service-'||code||'@navilo.test',now(),now());
@@ -252,9 +252,18 @@ begin
  if (data->>'movement')::numeric<>1000 or (data->>'closing')::numeric<>1000 or (data->>'difference')::numeric<>0 then raise exception 'Direct cash flow failed canonical cash reconciliation: %',data;end if;
  select id into strict bank_account from public.chart_of_accounts where company_id=c and detail_type='Bank Account' and not is_group limit 1;
  select id into strict fixed_account from public.chart_of_accounts where company_id=c and detail_type='Machinery & Equipment' and not is_group limit 1;
+ select id into strict noncash_asset from public.chart_of_accounts where company_id=c and code='1140' and type='asset' and not is_group limit 1;
  perform pg_temp.cash_flow_voucher(bank_account,cash_id,100);
  perform pg_temp.cash_flow_voucher(fixed_account,cash_id,200);
- perform pg_temp.cash_flow_voucher(acct,fixed_account,50);
+ -- An expense bill is required for ordinary costs; a manual expense JE must be rejected.
+ begin
+   perform pg_temp.cash_flow_voucher(acct,fixed_account,50);
+   raise exception 'Expense journal unexpectedly posted';
+ exception when others then
+   if sqlerrm not ilike '%Manual journals cannot post Income, Expense or VAT control accounts%' then raise;end if;
+ end;
+ -- Noncash Balance Sheet transfer remains a valid manual adjustment.
+ perform pg_temp.cash_flow_voucher(noncash_asset,fixed_account,50);
  data:=public.accounting_cash_flow_report(current_date-1,current_date);
  if (data->>'movement')::numeric<>800 or (data->>'difference')::numeric<>0
  or not exists(select 1 from jsonb_array_elements(data->'rows') x where x->>'category'='investing' and (x->>'amount')::numeric=-200)
