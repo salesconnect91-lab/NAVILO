@@ -146,6 +146,7 @@ export default function PurchaseOrderList() {
         subtitle="Supplier invoices, payables and posting"
         action={<div className="flex flex-wrap items-center gap-2">
           {canCreate && activeBusinessUnit?.business_unit_type==='transport'&&<button type="button" onClick={() => navigate("/purchase/new?type=normal")} className="btn border border-blue-300 bg-blue-50 text-blue-800" aria-label="Create Purchase Invoice">+ Purchase Invoice</button>}{canCreate && activeBusinessUnit?.business_unit_type!=='transport' && <button onClick={() => navigate("/purchase/new")} className="btn-primary">+ New Purchase Invoice</button>}
+          {canCreate && <button type="button" onClick={()=>navigate("/purchase/expense/new")} className="btn border border-emerald-300 bg-emerald-50 text-emerald-900">+ Expense Invoice</button>}
           <span data-navilo-standard-tools-host className="contents" />
         </div>}
       />
