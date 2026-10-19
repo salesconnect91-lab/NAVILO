@@ -164,6 +164,33 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   expect(screen.getByText('Description 2')).toBeTruthy();
   expect(screen.getAllByText('Vehicle *')).toHaveLength(2);
  });
+ it('blocks Normal Sale drafts and posting without a company-owned vehicle on every line',async()=>{
+  await load('customer',false);
+  fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Normal invoice number'}),{target:{value:'TEST-COMPANY-CAR-REQUIRED'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Description 1'}),{target:{value:'Vehicle rental'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Amount 1'}),{target:{value:'150'}});
+  await waitFor(()=>expect(screen.getByText('Select a company-owned vehicle for every Normal Sale invoice line.')).toBeTruthy());
+  expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button',{name:'Post Sale Invoice'}) as HTMLButtonElement).disabled).toBe(true);
+  expect(mock.posts).toHaveLength(0);
+  fireEvent.change(screen.getByRole('combobox',{name:'Vehicle 1'}),{target:{value:'a-vehicle-1'}});
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button',{name:'+ Description Line'}));
+  fireEvent.change(screen.getByRole('textbox',{name:'Description 2'}),{target:{value:'Second vehicle rental'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Amount 2'}),{target:{value:'50'}});
+  expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.change(screen.getByRole('combobox',{name:'Vehicle 2'}),{target:{value:'a-vehicle-2'}});
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(false));
+ });
+ it('shows Master company vehicles without dated ownership history but never supplier-owned vehicles',async()=>{
+  mock.noOwnership=true;
+  await load('customer',false);
+  expect(await screen.findByRole('option',{name:'7979'})).toBeTruthy();
+  expect(screen.getByRole('option',{name:'7494'})).toBeTruthy();
+  fireEvent.change(screen.getByRole('combobox',{name:'Vehicle 1'}),{target:{value:'a-vehicle-2'}});
+  expect((screen.getByRole('combobox',{name:'Vehicle 1'}) as HTMLSelectElement).value).toBe('a-vehicle-2');
+ });
  it('preserves Purchase GL mapping and does not require a vehicle',async()=>{
   await load('supplier');
   expect(screen.getByText(/Purchase \/ Expense GL Account/)).toBeTruthy();
@@ -178,6 +205,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   fireEvent.click(screen.getByRole('button',{name:'+ Description Line'}));
   fireEvent.change(screen.getByRole('textbox',{name:'Description 2'}),{target:{value:'Service fee'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Amount 2'}),{target:{value:'25'}});
+  fireEvent.change(screen.getByRole('combobox',{name:'Vehicle 2'}),{target:{value:'a-vehicle-2'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Normal invoice number'}),{target:{value:'INV-PRIVATE-01'}});
   await waitFor(()=>expect((screen.getByRole('button',{name:'Post Sale Invoice'}) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'Post Sale Invoice'}));
@@ -185,7 +213,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   expect(mock.posts).toHaveLength(1);
   expect(mock.posts[0]).toEqual(expect.objectContaining({
    p_side:'customer',p_party:'a-party',p_account:'a-account',p_invoice_no:'INV-PRIVATE-01',
-   p_post:true,p_lines:[{description:'Additional service',amount:'300.00'},{description:'Service fee',amount:'25'}],
+   p_post:true,p_lines:[{description:'Additional service',amount:'300.00',vehicle_id:'a-vehicle-1'},{description:'Service fee',amount:'25',vehicle_id:'a-vehicle-2'}],
   }));
   expect(Object.keys(mock.posts[0]).some(x=>x.includes('trip'))).toBe(false);
   expect(mock.posts[0].p_vat_choice).toBe('master');
