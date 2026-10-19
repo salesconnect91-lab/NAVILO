@@ -252,7 +252,7 @@ begin
  if (data->>'movement')::numeric<>1000 or (data->>'closing')::numeric<>1000 or (data->>'difference')::numeric<>0 then raise exception 'Direct cash flow failed canonical cash reconciliation: %',data;end if;
  select id into strict bank_account from public.chart_of_accounts where company_id=c and detail_type='Bank Account' and not is_group limit 1;
  select id into strict fixed_account from public.chart_of_accounts where company_id=c and detail_type='Machinery & Equipment' and not is_group limit 1;
- select id into strict noncash_asset from public.chart_of_accounts where company_id=c and code='1140' and type='asset' and not is_group limit 1;
+ select a.id into strict noncash_asset from public.chart_of_accounts a where a.company_id=c and a.code='1140' and a.type='asset' and not a.is_group limit 1;
  perform pg_temp.cash_flow_voucher(bank_account,cash_id,100);
  perform pg_temp.cash_flow_voucher(fixed_account,cash_id,200);
  -- An expense bill is required for ordinary costs; a manual expense JE must be rejected.
