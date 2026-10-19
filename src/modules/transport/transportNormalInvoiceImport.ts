@@ -2,7 +2,7 @@ import {invoiceImportDate} from './transportExternalInvoiceImport';
 export type NormalSide='customer'|'supplier';
 export type NormalImportRow={
  batch_ref:string;invoice_no:string;invoice_date:string;party_id:string;account_id:string;
- description:string;amount:string;reference:string;vat_choice:'master'|'with_vat'|'without_vat';
+ description:string;amount:string;reference:string;vat_choice:'master'|'with_vat'|'without_vat';vehicle_id?:string;
 };
 const clean=(x:unknown)=>String(x??'').trim();
 const key=(x:string)=>x.toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -12,7 +12,7 @@ const get=(r:Record<string,unknown>,...keys:string[])=>{
 };
 export function parseNormalInvoiceImport(
  raw:Record<string,unknown>[],side:NormalSide,
- parties:Array<{id:string;name:string}>,accountId:string
+ parties:Array<{id:string;name:string}>,accountId:string,vehicles:Array<{id:string;vehicle_no:string}>=[]
 ):NormalImportRow[]{
  if(raw.length<1||raw.length>200)throw new Error('Import 1–200 invoice description lines.');
  if(!accountId)throw new Error('Select the company Revenue/Expense Account.');
@@ -20,6 +20,11 @@ export function parseNormalInvoiceImport(
  for(const party of parties){
   const k=party.name.trim().toLowerCase();
   lookup.set(k,lookup.has(k)?null:party.id);
+ }
+ const vehicleLookup=new Map<string,string|null>();
+ for(const v of vehicles){
+  const vehicleKey=v.vehicle_no.trim().toLowerCase();
+  vehicleLookup.set(vehicleKey,vehicleLookup.has(vehicleKey)?null:v.id);
  }
  const groups=new Map<string,{party:string;date:string;number:string;reference:string;vat_choice:string}>();
  const numbers=new Map<string,string>();
@@ -31,6 +36,9 @@ export function parseNormalInvoiceImport(
   const party_id=lookup.get(partyName.toLowerCase());
   const invoice_date=invoiceImportDate(get(row,'Date','Invoice Date'));
   const description=clean(get(row,'Description','Service Description'));
+  const vehicleNo=clean(get(row,'Vehicle No','Vehicle Number','Vehicle'));
+  const vehicle_id=side==='customer'?vehicleLookup.get(vehicleNo.toLowerCase()):undefined;
+  if(side==='customer'&&!vehicle_id)throw new Error(`Row ${lineNo}: valid company-owned Vehicle Number from Vehicle Master is required for each Normal Sale line.`);
   const reference=clean(get(row,'Reference','Notes'));
   const choice=clean(get(row,'VAT Treatment','VAT Choice','VAT')).toLowerCase();
   const vat_choice:NormalImportRow['vat_choice']=!choice||choice==='master'||choice==='auto'?'master':['with vat','with_vat','yes','15','15%'].includes(choice)?'with_vat':['without vat','without_vat','no','0','0%'].includes(choice)?'without_vat':'master';
@@ -54,7 +62,7 @@ export function parseNormalInvoiceImport(
     throw new Error(`Row ${lineNo}: Invoice No is used by two different invoice groups.`);
    numbers.set(k,batch_ref.toLowerCase());
   }
-  return {batch_ref,invoice_no,invoice_date,party_id,account_id:accountId,description,amount:amountInput,reference,vat_choice};
+  return {batch_ref,invoice_no,invoice_date,party_id,account_id:accountId,description,amount:amountInput,reference,vat_choice,...(vehicle_id?{vehicle_id}:{})};
  });
  if(groups.size>50)throw new Error('Maximum 50 separate invoices per import batch.');
  return rows;
