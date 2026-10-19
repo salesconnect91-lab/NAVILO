@@ -2,6 +2,7 @@ import {downloadDailyTripTemplate,downloadHistoricalTemplate} from '@/modules/tr
 import {downloadExcelTemplate} from '@/modules/accounting/journalImportTemplates';
 import TransportExternalInvoiceImport from '@/modules/transport/TransportExternalInvoiceImport';
 import TransportNormalInvoiceImport from '@/modules/transport/TransportNormalInvoiceImport';
+import GeneralExpenseBillImport from '@/modules/purchase/GeneralExpenseBillImport';
 import TransportVehicleExpenseImportPreview from '@/modules/transport/TransportVehicleExpenseImportPreview';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { ArrowRight, FileText, Landmark, Truck, Users, Upload } from "lucide-react";
@@ -340,7 +341,7 @@ export default function ImportCenter() {
   }
   return <div className="w-full space-y-2 py-2">
    <div><h1 className="text-base font-bold text-slate-900">Import Center</h1><p className="text-xs text-slate-600">1. Download template → 2. Choose file → 3. Review rows → 4. Import. Invoices and journals are saved as drafts; receipts/payments are posted.</p></div>
-   <nav aria-label="Import sections" className="flex flex-wrap gap-2 text-xs"><a className="btn" href="#import-masters">Masters &amp; rates</a><a className="btn" href="#import-daily">Trips &amp; invoices</a><a className="btn" href="#import-normal">Normal Sales / Purchase</a><a className="btn" href="#import-accounting">Receipts &amp; journals</a><a className="btn" href="#import-history">One-time &amp; transfer</a></nav>
+   <nav aria-label="Import sections" className="flex flex-wrap gap-2 text-xs"><a className="btn" href="#import-masters">Masters &amp; rates</a><a className="btn" href="#import-daily">Trips &amp; invoices</a><a className="btn" href="#import-normal">Normal Sales / Purchase</a><a className="btn" href="#import-expense">Expense Invoices</a><a className="btn" href="#import-accounting">Receipts &amp; journals</a><a className="btn" href="#import-history">One-time &amp; transfer</a></nav>
    <div key={scope} className="space-y-3">
     <ImportGroup id="import-masters" title="1. Masters & rates" detail="Set up names, vehicles and agreed rates. No accounting entries.">
      <div className="grid gap-2 lg:grid-cols-2"><PartyMasterImportCard kind="customer" canImport={canImport("master")}/><PartyMasterImportCard kind="supplier" canImport={canImport("master")}/></div>
@@ -359,6 +360,7 @@ export default function ImportCenter() {
         {canImport("purchase")&&<TransportNormalInvoiceImport side="supplier"/>}
        </div>
      </ImportGroup>}
+    {canImport("purchase")&&<ImportGroup id="import-expense" title="Expense Invoices — Non-inventory, all companies" detail="Supplier bills with or without VAT, atomic import to Expense GL, Input VAT and AP. No stock or Trip movements."><GeneralExpenseBillImport/></ImportGroup>}
     {(canImport("accounting")||canImport("transport"))&&<ImportGroup id="import-accounting" title="3. Receipts, payments & journal entries" detail="Record actual money received or paid. Use journals for other accounting entries.">
      {canImport("transport")&&canImport("accounting")&&<TransportSettlementImports/>}
      <ImportEntry title="Bulk Journal Entries" effect="Drafts first; post after review" detail="One Entry No and Description per journal; add balanced debit and credit rows. Account code is optional. Post after review in Accounting." to="/accounting?import=journal" label="Open Journal Import" download={downloadExcelTemplate}/>
