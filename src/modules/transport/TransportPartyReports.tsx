@@ -28,27 +28,52 @@ export default function TransportPartyReports({onClose,onChanged,initialSide='cu
  const [canonical,setCanonical]=useState<PartyMovement[]>([]);const [accounts,setAccounts]=useState<Array<{id:string;name:string;detail_type:string}>>([]);
  const [readSides,setReadSides]=useState({customer:false,supplier:false});const [canLedger,setCanLedger]=useState(false);const [from,setFrom]=useState('');const [to,setTo]=useState(new Date().toISOString().slice(0,10));
  const [tripSearch,setTripSearch]=useState('');const [status,setStatus]=useState('all');const [settlement,setSettlement]=useState(allocationEntry&&!!initialPartyId);const [showAdvances,setShowAdvances]=useState(false);
- const [busy,setBusy]=useState(false);const [loading,setLoading]=useState(true);const [error,setError]=useState('');const generation=useRef(0);
+ const [busy,setBusy]=useState(false);const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [loadAllParties,setLoadAllParties]=useState(false);const generation=useRef(0);
+ // A party is required for automatic financial data retrieval. The explicit
+ // all-party option remains available for users who really need that scope.
+ const partyRequired=['statement','trip-statement','trip-ledger','canonical'].includes(mode);
+ const readFinancial=mode!=='trips'&&Boolean(party||loadAllParties)&&(!partyRequired||Boolean(party));
  const load=useCallback(async()=>{
  if(!company||!unit)return false;const request=++generation.current;setLoading(true);setError('');
  try{
  const permission=await supabase.rpc('has_module_permission',{p_company_id:company,p_module:'accounting',p_action:'view'});
  if(permission.error)throw permission.error;const ledgerAllowed=permission.data===true;const sideReads=await Promise.all(['customer','supplier'].map(p_side=>supabase.rpc('transport_financial_read_allowed',{p_side})));for(const r of sideReads)if(r.error)throw r.error;const permitted={customer:sideReads[0].data===true,supplier:sideReads[1].data===true};const selectedSide=permitted[side]?side:permitted.customer?'customer':'supplier';setReadSides(permitted);if(!permitted[side]){if(permitted.customer)setSide('customer');else if(permitted.supplier)setSide('supplier');else throw new Error('Transport financial view permission required');}
- const [d,m,c,a,ct,st,customers,suppliers]=await Promise.all([
- linkedPartyRows<PartyDocument>('documents',selectedSide,{party,to:mode==='reconciliation'?'':to,search:mode==='canonical'?'':tripSearch}),
- linkedPartyRows<PartyMovement>('movements',selectedSide,{party,to:mode==='reconciliation'?'':to,search:mode==='canonical'?'':tripSearch}),
- ledgerAllowed?fetchAllPages<PartyMovement>((start,end)=>supabase.rpc('transport_party_report_query',{p_kind:'canonical',p_side:selectedSide,p_filters:{party,to:mode==='reconciliation'?'':to,search:mode==='canonical'?'':tripSearch},p_limit:end-start+1,p_offset:start})):Promise.resolve([]),
+ // Masters load on opening the panel, but invoice/ledger history only loads
+ // after choosing a party or explicitly requesting the all-party report.
+ const [a,customers,suppliers]=await Promise.all([
  fetchAllPages<{id:string;name:string;detail_type:string}>((start,end)=>supabase.from('chart_of_accounts').select('id,name,detail_type').eq('company_id',company).eq('is_active',true).eq('is_group',false).in('detail_type',['Cash on Hand','Bank Account']).order('id').range(start,end)),
- fetchAllPages<any>((start,end)=>supabase.rpc('transport_document_trip_detail_query',{p_side:selectedSide,p_filters:{party,to:mode==='reconciliation'?'':to,search:mode==='canonical'?'':tripSearch},p_limit:end-start+1,p_offset:start})),
- fetchAllPages<any>((start,end)=>supabase.rpc('transport_opening_invoice_query',{p_kind:'details',p_side:selectedSide,p_filters:{party,to:mode==='reconciliation'?'':to,search:mode==='canonical'?'':tripSearch},p_limit:end-start+1,p_offset:start})),
  permitted.customer?fetchAllPages<{id:string;name:string}>((start,end)=>supabase.from('customers').select('id,name').eq('company_id',company).order('id').range(start,end)):Promise.resolve([]),
  permitted.supplier?fetchAllPages<{id:string;name:string}>((start,end)=>supabase.from('suppliers').select('id,name').eq('company_id',company).order('id').range(start,end)):Promise.resolve([])
  ]);
+ if(request!==generation.current)return false;
+ let d:PartyDocument[]=[],m:PartyMovement[]=[],c:PartyMovement[]=[],ct:any[]=[],st:any[]=[];
+ if(readFinancial){
+  const filters={party,to:mode==='reconciliation'?'':to,search:mode==='canonical'?'':tripSearch};
+  // Serializing the expensive report families avoids multiple broad scans
+  // competing for memory/I/O on the same Supabase instance.
+  if(mode!=='canonical'){
+   d=await linkedPartyRows<PartyDocument>('documents',selectedSide,filters);
+   if(request!==generation.current)return false;
+   m=await linkedPartyRows<PartyMovement>('movements',selectedSide,filters);
+   if(request!==generation.current)return false;
+  }
+  if(ledgerAllowed&&(mode==='canonical'||mode==='reconciliation')){
+   c=await fetchAllPages<PartyMovement>((start,end)=>supabase.rpc('transport_party_report_query',{p_kind:'canonical',p_side:selectedSide,p_filters:filters,p_limit:end-start+1,p_offset:start}));
+   if(request!==generation.current)return false;
+  }
+  // Trip detail queries contain expensive per-document joins. Only expand
+  // them for a selected party, not an unbounded all-party report.
+  if(party&&mode!=='canonical'){
+   ct=await fetchAllPages<any>((start,end)=>supabase.rpc('transport_document_trip_detail_query',{p_side:selectedSide,p_filters:filters,p_limit:end-start+1,p_offset:start}));
+   if(request!==generation.current)return false;
+   st=await fetchAllPages<any>((start,end)=>supabase.rpc('transport_opening_invoice_query',{p_kind:'details',p_side:selectedSide,p_filters:filters,p_limit:end-start+1,p_offset:start}));
+  }
+ }
  if(request===generation.current){setPartyMasters([...customers.map(r=>({side:'customer' as const,party_id:r.id,party_name:r.name})),...suppliers.map(r=>({side:'supplier' as const,party_id:r.id,party_name:r.name}))]);setDocuments(d);setTripDetails([...ct.map(r=>({...r,side:selectedSide})),...st.map(r=>({...r,side:selectedSide}))]);setMovements(m);setCanonical(c);setAccounts(a);setCanLedger(ledgerAllowed);return true;}
  return false;
  }catch(e){if(request===generation.current){setError(e&&typeof e==='object'&&'message' in e?String(e.message):'Unable to load reports');setDocuments([]);setMovements([]);setCanonical([]);}return false;}
  finally{if(request===generation.current)setLoading(false)}
- },[company,unit,branch,side,party,to,tripSearch,mode]);
+ },[company,unit,branch,side,party,to,tripSearch,mode,readFinancial]);
  useEffect(()=>{setLoading(true);const timer=window.setTimeout(()=>void load(),200);return()=>{window.clearTimeout(timer);generation.current++}},[load]);
  const parties=useMemo(()=>Array.from(new Map([...partyMasters,...documents,...canonical].filter(r=>r.side===side).map(r=>[r.party_id,r.party_name])).entries()).sort((a,b)=>a[1].localeCompare(b[1])),[partyMasters,documents,canonical,side]);
  const filter=(r:{side:PartySide;party_id:string;trip_no?:string;order_no?:string})=>r.side===side&&(!party||r.party_id===party)&&(!tripSearch||`${r.trip_no??''} ${r.order_no??''}`.toLowerCase().includes(tripSearch.toLowerCase()));
@@ -101,19 +126,21 @@ export default function TransportPartyReports({onClose,onChanged,initialSide='cu
   if(journalId)links.push({label:'Open journal voucher',href:`/accounting/${encodeURIComponent(journalId)}`});
   return links;
  };
- const canExport=!loading&&!error&&!dateError&&!needsParty&&!(mode==='canonical'&&!canLedger);
+ const canExport=!loading&&!error&&!dateError&&!needsParty&&(mode==='trips'||readFinancial)&&!(mode==='canonical'&&!canLedger);
  async function exportAs(format:'xlsx'|'pdf'|'print'){if(!(format==='print'?outputAllowed.print:outputAllowed.export))return;try{await exportPartyReport(detailedReport,format)}catch(e){setError(e instanceof Error?e.message:'Export failed')}}
  return <section className="rounded-lg border bg-white p-3 text-xs" aria-label="Transport party reports">
  <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">{allocationEntry?"Bulk Allocation":`${side==='supplier'?'Supplier':'Customer'} Reports`}</h2><div className="flex gap-2"><button className="btn" disabled={busy||loading} onClick={()=>void load()}>Refresh reports</button><button className="btn" disabled={busy} onClick={onClose}>Close reports</button></div></div>
  <p className="my-2">Scope: current Company / Business Unit / active branch. Amounts are in company base currency. Outstanding uses the As of date; From applies to statements and allocation movements. allocations deleted by reversals before this update cannot be reconstructed automatically.</p>
  <TransportVatGuide/>
- <fieldset disabled={busy} className="flex flex-wrap items-end gap-2"><label>Party side<NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Party side" className="input" value={side} onChange={e=>{setSide(e.target.value as PartySide);setParty('');setSettlement(false)}}><option value="customer" disabled={!readSides.customer}>Customer</option><option value="supplier" disabled={!readSides.supplier}>Supplier / Owner</option></NaviloSearchableSelect></label>
- <label>Party<NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Party" className="input" value={party} onChange={e=>{setParty(e.target.value);setSettlement(false)}}><option value="">All parties</option>{parties.map(([id,name])=><option key={id} value={id}>{name}</option>)}</NaviloSearchableSelect></label>
+ <fieldset disabled={busy} className="flex flex-wrap items-end gap-2"><label>Party side<NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Party side" className="input" value={side} onChange={e=>{setSide(e.target.value as PartySide);setParty('');setLoadAllParties(false);setSettlement(false)}}><option value="customer" disabled={!readSides.customer}>Customer</option><option value="supplier" disabled={!readSides.supplier}>Supplier / Owner</option></NaviloSearchableSelect></label>
+ <label>Party<NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Party" className="input" value={party} onChange={e=>{setParty(e.target.value);setLoadAllParties(false);setSettlement(false)}}><option value="">Select party / all parties</option>{parties.map(([id,name])=><option key={id} value={id}>{name}</option>)}</NaviloSearchableSelect></label>
  <label>Report<NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Report" className="input" value={mode} onChange={e=>setMode(e.target.value as Mode)}><option value="trips">Trip-wise statement / all trips</option><option value="outstanding">Invoice-wise outstanding</option><option value="trip-statement">Trip-wise posted statement</option><option value="trip-ledger">Trip-wise posted ledger</option><option value="statement">Invoice-wise posted statement / ledger</option><option value="allocations">Receipt / payment allocations</option><option value="canonical" disabled={!canLedger}>Complete canonical party ledger</option><option value="reconciliation">Document reconciliation</option></NaviloSearchableSelect></label>
  <label>From<NaviloDateInput className="input" type="date" value={from} disabled={mode==='outstanding'||mode==='reconciliation'} onChange={e=>setFrom(e.target.value)}/></label><label>As of / To<NaviloDateInput className="input" type="date" value={to} onChange={e=>setTo(e.target.value)}/></label>
  <label>Trip / document search<input className="input" disabled={mode==='canonical'} value={tripSearch} onChange={e=>setTripSearch(e.target.value)}/></label>
  {mode==='outstanding'&&<label>Balance<NaviloSearchableSelect nativeCompatibility preserveLabel className="input" value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All documents</option><option value="outstanding">Outstanding only</option><option value="settled">Settled only</option><option value="credit">Credits / refunds only</option></NaviloSearchableSelect></label>}
  <button className="btn" data-navilo-keep-local-action="true" onClick={()=>setShowAdvances(v=>!v)}>Advances / Unallocated Money</button><button className="btn-primary" disabled={!party||loading||!!error} onClick={()=>setSettlement(v=>!v)}>{side==='customer'?'Receive across Trips':'Pay supplier across Trips'}</button></fieldset>
+ {!party&&!partyRequired&&mode!=='trips'&&!loadAllParties&&<div className="my-3 flex flex-wrap items-center gap-3 rounded border border-slate-200 bg-slate-50 p-3"><p className="text-slate-700">Select a customer or supplier for a fast report. Automatic loading of every party is disabled to avoid database statement timeouts.</p><button type="button" className="btn" disabled={loading||busy} onClick={()=>setLoadAllParties(true)}>Load all parties (large report)</button></div>}
+ {loadAllParties&&!party&&mode!=='trips'&&<p className="my-2 text-amber-700">All-party reports may take longer. Select one party if the database times out.</p>}
  {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}{dateError&&<p role="alert" className="text-red-700">From must be on or before To.</p>}{needsParty&&<p className="my-2">Select one party for opening and running balances.</p>}
  {loading?<p role="status">Loading all report pages…</p>:canExport&&<>{mode==='trips'?<TransportTripReports side={side} party={party} externalFilters={{from,to,search:tripSearch}}/>:<ConfigurableReport report={detailedReport} preferenceKey={`${company}:${unit}:${side}:${mode}`} getRowLinks={getRowLinks}/>}
  <details className="mt-2"><summary>Open source documents and vouchers</summary><div className="max-h-48 overflow-auto">{matchingDocs.map(d=><p key={d.order_id}>{d.trip_no} · {d.kind==='opening_balance'?<span>{d.order_no} · imported opening balance</span>:<a className="underline text-blue-700" href={`/${side==='customer'?'sales':'purchase'}/${d.order_id}`}>{d.order_no}</a>} · <a className="underline text-blue-700" href={`/accounting/${d.journal_entry_id}`}>{d.kind==='opening_balance'?'Opening balance journal':'Original journal'}</a></p>)}{ledger.rows.map(r=><p key={r.event_id}><a className="underline text-blue-700" href={`/accounting/${r.journal_entry_id}`}>{r.entry_no}</a> · {r.trip_no} · {r.event_type}</p>)}</div></details>
