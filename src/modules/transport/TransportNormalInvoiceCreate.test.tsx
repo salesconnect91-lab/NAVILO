@@ -4,7 +4,7 @@ import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {MemoryRouter} from 'react-router-dom';
 import TransportNormalInvoiceCreate,{validateNormalInvoiceLines} from './TransportNormalInvoiceCreate';
 const mock=vi.hoisted(()=>({company:'a',bu:'a-bu',calls:[] as Array<{table:string;filters:Record<string,any>}>,
- posts:[] as any[],reject:false,unlinked:false,billingMode:'Credit' as 'Credit'|'Cash',taxRate:15,taxError:false,modeMissing:false}));
+ posts:[] as any[],reject:false,unlinked:false,noOwnership:false,billingMode:'Credit' as 'Credit'|'Cash',taxRate:15,taxError:false,modeMissing:false}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({
  activeCompany:{company_id:mock.company},
  activeBusinessUnit:{business_unit_id:mock.bu,business_unit_type:'transport'}
@@ -28,8 +28,8 @@ vi.mock('@/lib/supabase',()=>({supabase:{
    maybeSingle:async()=>{mock.calls.push({table,filters:{...filters}});return {data:{account_id:mock.company+(filters.mapping_key==='service_revenue'?'-service':'-account')},error:null};},
    then:(cb:any)=>{
     mock.calls.push({table,filters:{...filters}});
-    if(table==='transport_vehicles')return Promise.resolve({data:[{id:mock.company+'-vehicle-1',vehicle_no:'7979',revenue_account_id:mock.unlinked?null:mock.company+'-account'},{id:mock.company+'-vehicle-2',vehicle_no:'7494',revenue_account_id:mock.company+'-account'}],error:null}).then(cb);
-    if(table==='transport_vehicle_ownership')return Promise.resolve({data:[{vehicle_id:mock.company+'-vehicle-1',owner_type:'company',effective_from:'2020-01-01',effective_to:null},{vehicle_id:mock.company+'-vehicle-2',owner_type:'company',effective_from:'2020-01-01',effective_to:null}],error:null}).then(cb);
+    if(table==='transport_vehicles')return Promise.resolve({data:[{id:mock.company+'-vehicle-1',vehicle_no:'7979',ownership_type:'company',revenue_account_id:mock.unlinked?null:mock.company+'-account'},{id:mock.company+'-vehicle-2',vehicle_no:'7494',ownership_type:'company',revenue_account_id:mock.company+'-account'}],error:null}).then(cb);
+    if(table==='transport_vehicle_ownership')return Promise.resolve({data:mock.noOwnership?[]:[{vehicle_id:mock.company+'-vehicle-1',owner_type:'company',effective_from:'2020-01-01',effective_to:null},{vehicle_id:mock.company+'-vehicle-2',owner_type:'company',effective_from:'2020-01-01',effective_to:null}],error:null}).then(cb);
     if(table==='customers'||table==='suppliers')
      return Promise.resolve({data:[{id:mock.company+'-party',name:'Master '+mock.company}],error:null}).then(cb);
     if(table==='chart_of_accounts')
@@ -39,11 +39,15 @@ vi.mock('@/lib/supabase',()=>({supabase:{
   };return q;
  }
 }}));
-beforeEach(()=>{mock.company='a';mock.bu='a-bu';mock.calls=[];mock.posts=[];mock.reject=false;mock.unlinked=false;mock.billingMode='Credit';mock.taxRate=15;mock.taxError=false;mock.modeMissing=false});
+beforeEach(()=>{mock.company='a';mock.bu='a-bu';mock.calls=[];mock.posts=[];mock.reject=false;mock.unlinked=false;mock.noOwnership=false;mock.billingMode='Credit';mock.taxRate=15;mock.taxError=false;mock.modeMissing=false});
 afterEach(cleanup);
-const load=async(side:'customer'|'supplier')=>{
+const load=async(side:'customer'|'supplier',assignVehicle=true)=>{
  const ui=render(<MemoryRouter><TransportNormalInvoiceCreate side={side}/></MemoryRouter>);
  await waitFor(()=>expect((screen.getByRole('combobox',{name:'Normal invoice ledger account'}) as HTMLSelectElement).value).toBe('a-account'));
+ if(side==='customer'&&assignVehicle){
+  await screen.findByRole('option',{name:'7979'});
+  fireEvent.change(screen.getByRole('combobox',{name:'Vehicle 1'}),{target:{value:mock.company+'-vehicle-1'}});
+ }
  return ui;
 };
 describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
@@ -148,9 +152,9 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
  it('separates one GL account from optional vehicle reporting and keeps line labels aligned',async()=>{
   await load('customer');
   expect(screen.getByText(/Revenue GL Account/)).toBeTruthy();
-  expect(screen.getByText(/vehicle selection below is an optional P&L reporting tag/)).toBeTruthy();
-  expect(screen.getByText('Vehicle (optional)')).toBeTruthy();
-  expect(screen.getByRole('option',{name:'No vehicle'})).toBeTruthy();
+  expect(screen.getByText(/each Normal Sale line requires a company-owned Vehicle Master selection/)).toBeTruthy();
+  expect(screen.getByText('Vehicle *')).toBeTruthy();
+  expect(screen.getByRole('option',{name:'Select company vehicle'})).toBeTruthy();
   expect(screen.getByRole('textbox',{name:'Description 1'})).toBeTruthy();
   expect(screen.queryByText('Vehicle / Allocation')).toBeNull();
   const row=document.querySelector('.navilo-transport-invoice .navilo-invoice-line-row');
@@ -158,7 +162,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   expect(document.querySelector('.navilo-invoice-line-columns')).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'+ Description Line'}));
   expect(screen.getByText('Description 2')).toBeTruthy();
-  expect(screen.getAllByText('Vehicle (optional)')).toHaveLength(2);
+  expect(screen.getAllByText('Vehicle *')).toHaveLength(2);
  });
  it('preserves Purchase GL mapping and does not require a vehicle',async()=>{
   await load('supplier');
