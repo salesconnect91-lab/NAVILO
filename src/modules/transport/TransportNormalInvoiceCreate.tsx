@@ -4,6 +4,7 @@ import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import NaviloSearchableSelect from '@/components/SearchableSelect';
+import {useNormalInvoiceVatQuote} from './useNormalInvoiceVatQuote';
 
 type Side='customer'|'supplier';
 type Party={id:string;name:string};
@@ -28,7 +29,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  const [parties,setParties]=useState<Party[]>([]),[accounts,setAccounts]=useState<Account[]>([]);
  const [party,setParty]=useState(''),[account,setAccount]=useState(''),[date,setDate]=useState(today());
  const [number,setNumber]=useState(''),[reference,setReference]=useState(''),[vatChoice,setVatChoice]=useState<'master'|'with_vat'|'without_vat'>('master'),[lines,setLines]=useState<Line[]>([empty()]);
- const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[done,setDone]=useState<{document_id:string;invoice_no:string;status:string;gross:number}|null>(null);
+ const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[done,setDone]=useState<{document_id:string;invoice_no:string;status:string;gross:number;net?:number;vat?:number}|null>(null);
  const [loadedScope,setLoadedScope]=useState('');
  const [vehicles,setVehicles]=useState<{id:string;vehicle_no:string;revenue_account_id:string|null}[]>([]);
  const [ownership,setOwnership]=useState<{vehicle_id:string;owner_type:string;effective_from:string;effective_to:string|null}[]>([]);
@@ -67,9 +68,11 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   return()=>{cancelled=true};
  },[company,bu,scope,side]);
  const amount=useMemo(()=>lines.reduce((total,l)=>total+(Number(l.amount)||0),0),[lines]);
+ const amounts=useMemo(()=>lines.map(l=>Number(l.amount)||0),[lines]);
+ const vatQuote=useNormalInvoiceVatQuote({company,bu,side,party,date,choice:vatChoice,amounts});
  const lineError=validateNormalInvoiceLines(lines)
   ||(lines.some(l=>l.vehicle_id&&!eligibleVehicles.some(v=>v.id===l.vehicle_id))?'Select a company-owned vehicle valid on invoice date.':null);
- const available=loadedScope===scope&&!loading&&!saving&&!done&&Boolean(party&&account&&date)&&!lineError;
+ const available=loadedScope===scope&&!loading&&!saving&&!done&&Boolean(party&&account&&date)&&!lineError&&vatQuote.ready;
  const update=(index:number,k:keyof Line,value:string)=>setLines(old=>old.map((line,i)=>i===index?{...line,[k]:value}:line));
  async function save(post:boolean){
   if(!available)return;setSaving(true);setError('');
@@ -80,7 +83,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
     p_account:account,p_invoice_no:number.trim()||null,p_reference:reference.trim()||null,p_post:post,p_vat_choice:vatChoice,
    });
    if(result.error)throw result.error;
-   setDone(result.data as {document_id:string;invoice_no:string;status:string;gross:number});
+   setDone(result.data as {document_id:string;invoice_no:string;status:string;gross:number;net?:number;vat?:number});
   }catch(e:any){setError(e?.message||'Unable to create invoice. No Trip was modified.')}
   finally{setSaving(false)}
  }
@@ -106,7 +109,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   {error&&<p role="alert" className="navilo-invoice-notice navilo-invoice-error">{error}</p>}
   {done&&<section role="status" className="navilo-invoice-card navilo-invoice-success">
     <h2>{sideName} invoice {done.status}: {done.invoice_no}</h2>
-    <p>Total: SAR {money(Number(done.gross))}. Posted invoices update {side==='customer'?'receivables':'payables'}, VAT and ledgers. Payments are recorded separately.</p>
+    <p>Net: SAR {money(Number(done.net??0))} · VAT: SAR {money(Number(done.vat??0))} · Total: SAR {money(Number(done.gross))}. Posted invoices update {side==='customer'?'receivables':'payables'}, VAT and ledgers. Payments are recorded separately.</p>
     <div className="navilo-invoice-button-row">
      <Link to={`/${side==='customer'?'sales':'purchase'}/${done.document_id}`} className="btn-secondary">View Invoice</Link>
      <button type="button" className="btn-primary" onClick={()=>{setDone(null);setParty('');setNumber('');setReference('');setVatChoice('master');setLines([empty()]);}}>Create Another</button>
@@ -134,6 +137,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
      <NaviloSearchableSelect nativeCompatibility aria-label="Normal invoice VAT treatment" className="input" value={vatChoice} onChange={e=>setVatChoice(e.target.value as 'master'|'with_vat'|'without_vat')}>
       <option value="master">Auto (Master Cash/Credit)</option><option value="with_vat">With VAT</option><option value="without_vat">Without VAT</option>
      </NaviloSearchableSelect>
+     <span className="navilo-invoice-vat-master-note">Master billing: {party?vatQuote.mode??'Not configured':'Select a party'}{vatQuote.rate!==null?` · VAT ${vatQuote.rate}%`:''}</span>
     </label>
     <label className="navilo-invoice-field navilo-invoice-field-wide">{side==='customer'?'Sales Revenue Account':'Purchase / Expense Account'} *
      <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Normal invoice ledger account" className="input" value={account} onChange={e=>setAccount(e.target.value)}>
@@ -170,15 +174,19 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    <div className="navilo-invoice-review-help">
     <span className="navilo-invoice-step">03</span><h2 id="normal-invoice-review">Review & Save</h2>
     <p>Verify the {partyName.toLowerCase()}, original invoice number, description lines and VAT treatment before posting.</p>
-    <p className="navilo-invoice-small-note">VAT is calculated using the effective applicable rate and master billing rules by the posting engine. A draft does not post accounting entries.</p>
+    <p className="navilo-invoice-small-note">VAT follows the party's Master Cash/Credit rule and the invoice-date effective tax rate. A draft does not post accounting entries.</p>
+    {vatQuote.error&&<p role="alert" className="navilo-invoice-inline-warning">{vatQuote.error} <Link to={side==='customer'?'/master-data/customers?tab=billing':'/master-data/suppliers'}>Open Master</Link></p>}
+    {vatQuote.loading&&<p role="status" className="navilo-invoice-small-note">Loading VAT rate and Master billing mode…</p>}
     {side==='customer'&&<p className="navilo-invoice-small-note">Vehicle allocation is selected on each line and reported through <Link to="/master-data/vehicles">Vehicle Master</Link>; no duplicate journal is created.</p>}
     {lineError&&<p role="status" className="navilo-invoice-inline-warning">{lineError}</p>}
    </div>
    <div className="navilo-invoice-summary">
     <div className="navilo-invoice-summary-row"><span>Net amount</span><strong>SAR {money(amount)}</strong></div>
-    <div className="navilo-invoice-summary-row"><span>VAT treatment</span><strong>{vatChoice==='with_vat'?'With VAT':vatChoice==='without_vat'?'Without VAT':'Master rule'}</strong></div>
-    <div className="navilo-invoice-summary-hint">Final VAT and gross total are confirmed on the saved invoice.</div>
-    <div className="navilo-invoice-summary-total"><span>Net before VAT</span><strong>SAR {money(amount)}</strong></div>
+    <div className="navilo-invoice-summary-row"><span>VAT treatment</span><strong>{vatChoice==='with_vat'?'With VAT':vatChoice==='without_vat'?'Without VAT':'Auto · Master rule'}</strong></div>
+    <div className="navilo-invoice-summary-row"><span>VAT rate</span><strong>{vatQuote.rate!==null?`${vatQuote.rate}%`:'—'}</strong></div>
+    <div className="navilo-invoice-summary-row"><span>VAT amount</span><strong>{vatQuote.preview?`SAR ${money(vatQuote.preview.vat)}`:'—'}</strong></div>
+    <div className="navilo-invoice-summary-hint">{vatQuote.error||'Preview follows the party billing mode and tax rate effective on the invoice date. Posting is validated on the server.'}</div>
+    <div className="navilo-invoice-summary-total"><span>Grand Total</span><strong>{vatQuote.preview?`SAR ${money(vatQuote.preview.gross)}`:'—'}</strong></div>
    </div>
    <div className="navilo-invoice-review-actions">
     <Link className="btn-secondary" to={side==='customer'?'/sales':'/purchase'}>Cancel</Link>
