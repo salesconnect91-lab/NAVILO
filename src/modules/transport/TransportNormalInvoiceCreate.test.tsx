@@ -4,7 +4,7 @@ import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {MemoryRouter} from 'react-router-dom';
 import TransportNormalInvoiceCreate,{validateNormalInvoiceLines} from './TransportNormalInvoiceCreate';
 const mock=vi.hoisted(()=>({company:'a',bu:'a-bu',calls:[] as Array<{table:string;filters:Record<string,any>}>,
- posts:[] as any[],reject:false,unlinked:false}));
+ posts:[] as any[],reject:false,unlinked:false,billingMode:'Credit' as 'Credit'|'Cash',taxRate:15,taxError:false,modeMissing:false}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({
  activeCompany:{company_id:mock.company},
  activeBusinessUnit:{business_unit_id:mock.bu,business_unit_type:'transport'}
@@ -13,6 +13,8 @@ vi.mock('@/components/NaviloDateInput',()=>({default:({value,onChange,...props}:
 vi.mock('@/components/SearchableSelect',()=>({default:({children,nativeCompatibility,preserveLabel,...props}:any)=><select {...props}>{children}</select>}));
 vi.mock('@/lib/supabase',()=>({supabase:{
  rpc:async(name:string,args:any)=>{
+  if(name==='transport_billing_modes')return {data:{enabled:true,rows:[{id:mock.company+'-party',mode:mock.modeMissing?null:mock.billingMode}]},error:null};
+  if(name==='fixed_tax_rate_on')return {data:mock.taxError?null:mock.taxRate,error:mock.taxError?{message:'Effective VAT rate unavailable'}:null};
   if(name!=='transport_normal_invoice_create_vat')throw new Error('Unexpected RPC '+name);
   mock.posts.push(args);
   if(mock.reject)return {data:null,error:{message:'Finance posting permission required'}};
@@ -37,7 +39,7 @@ vi.mock('@/lib/supabase',()=>({supabase:{
   };return q;
  }
 }}));
-beforeEach(()=>{mock.company='a';mock.bu='a-bu';mock.calls=[];mock.posts=[];mock.reject=false;mock.unlinked=false});
+beforeEach(()=>{mock.company='a';mock.bu='a-bu';mock.calls=[];mock.posts=[];mock.reject=false;mock.unlinked=false;mock.billingMode='Credit';mock.taxRate=15;mock.taxError=false;mock.modeMissing=false});
 afterEach(cleanup);
 const load=async(side:'customer'|'supplier')=>{
  const ui=render(<MemoryRouter><TransportNormalInvoiceCreate side={side}/></MemoryRouter>);
@@ -60,6 +62,64 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   expect(document.querySelector('[data-navilo-invoice-side="supplier"]')).toBeTruthy();
   expect(screen.queryByRole('heading',{name:'Customer & Invoice Details'})).toBeNull();
  });
+ it('shows Sale VAT rate, VAT amount and gross using the effective company rate',async()=>{
+  await load('customer');
+  fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Description 1'}),{target:{value:'Service'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Amount 1'}),{target:{value:'100'}});
+  await waitFor(()=>expect(screen.getByText('VAT amount').parentElement?.textContent).toContain('SAR 15.00'));
+  expect(screen.getByText('VAT rate').parentElement?.textContent).toContain('15%');
+  expect(screen.getByText('Grand Total').parentElement?.textContent).toContain('SAR 115.00');
+  expect(screen.getByText(/Master billing: Credit/)).toBeTruthy();
+ });
+ it('shows supplier VAT preview and updates with invoice line amounts',async()=>{
+  await load('supplier');
+  fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice supplier'}),{target:{value:'a-party'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Description 1'}),{target:{value:'Rent'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Amount 1'}),{target:{value:'200.50'}});
+  await waitFor(()=>expect(screen.getByText('VAT amount').parentElement?.textContent).toContain('SAR 30.08'));
+  expect(screen.getByText('Grand Total').parentElement?.textContent).toContain('SAR 230.58');
+  fireEvent.change(screen.getByRole('textbox',{name:'Amount 1'}),{target:{value:'80'}});
+  expect(screen.getByText('VAT amount').parentElement?.textContent).toContain('SAR 12.00');
+  expect(screen.getByText('Grand Total').parentElement?.textContent).toContain('SAR 92.00');
+ });
+ it('shows zero VAT for Cash and blocks conflicting With VAT selection',async()=>{
+  mock.billingMode='Cash';
+  await load('customer');
+  fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Description 1'}),{target:{value:'Cash sale'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Amount 1'}),{target:{value:'100'}});
+  await waitFor(()=>expect(screen.getByText('VAT rate').parentElement?.textContent).toContain('0%'));
+  expect(screen.getByText('VAT amount').parentElement?.textContent).toContain('SAR 0.00');
+  expect(screen.getByText('Grand Total').parentElement?.textContent).toContain('SAR 100.00');
+  fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice VAT treatment'}),{target:{value:'with_vat'}});
+  expect(screen.getByRole('alert').textContent).toContain('conflicts with Cash');
+  expect((screen.getByRole('button',{name:'Post Sale Invoice'}) as HTMLButtonElement).disabled).toBe(true);
+  expect(mock.posts).toHaveLength(0);
+ });
+ it('blocks misleading totals and posting when effective VAT lookup fails',async()=>{
+  mock.taxError=true;
+  await load('supplier');
+  fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice supplier'}),{target:{value:'a-party'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Description 1'}),{target:{value:'Supplier cost'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Amount 1'}),{target:{value:'100'}});
+  await waitFor(()=>expect(screen.getByRole('alert').textContent).toContain('Effective VAT rate unavailable'));
+  expect(screen.getByText('VAT amount').parentElement?.textContent).toContain('—');
+  expect(screen.getByText('Grand Total').parentElement?.textContent).toContain('—');
+  expect((screen.getByRole('button',{name:'Post Purchase Invoice'}) as HTMLButtonElement).disabled).toBe(true);
+  expect(mock.posts).toHaveLength(0);
+ });
+ it('keeps ledger posting untouched by the read-only preview',async()=>{
+  await load('customer');
+  fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Description 1'}),{target:{value:'Revenue'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Amount 1'}),{target:{value:'100'}});
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button',{name:'Save Draft'}));
+  await screen.findByText(/Sale invoice draft/);
+  expect(mock.posts).toHaveLength(1);
+  expect(mock.posts[0].p_vat_choice).toBe('master');
+ });
  it('posts manual multi-description customer Sales using company Master/account',async()=>{
   await load('customer');
   fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
@@ -69,6 +129,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   fireEvent.change(screen.getByRole('textbox',{name:'Description 2'}),{target:{value:'Service fee'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Amount 2'}),{target:{value:'25'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Normal invoice number'}),{target:{value:'INV-PRIVATE-01'}});
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Post Sale Invoice'}) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'Post Sale Invoice'}));
   await screen.findByText(/Sale invoice posted/);
   expect(mock.posts).toHaveLength(1);
@@ -84,6 +145,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
   fireEvent.change(screen.getByLabelText('Description 1'),{target:{value:'Vehicle one'}});fireEvent.change(screen.getByLabelText('Amount 1'),{target:{value:'100'}});fireEvent.change(screen.getByLabelText('Vehicle 1'),{target:{value:'a-vehicle-1'}});
   fireEvent.click(screen.getByRole('button',{name:'+ Description Line'}));fireEvent.change(screen.getByLabelText('Description 2'),{target:{value:'Vehicle two'}});fireEvent.change(screen.getByLabelText('Amount 2'),{target:{value:'200'}});fireEvent.change(screen.getByLabelText('Vehicle 2'),{target:{value:'a-vehicle-2'}});
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'Save Draft'}));await screen.findByText(/Sale invoice draft/);
   expect(mock.posts[0].p_lines).toEqual([{description:'Vehicle one',amount:'100',vehicle_id:'a-vehicle-1'},{description:'Vehicle two',amount:'200',vehicle_id:'a-vehicle-2'}]);
   expect(mock.posts).toHaveLength(1);
@@ -97,6 +159,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   fireEvent.change(screen.getByLabelText('Vehicle 1'),{target:{value:'a-vehicle-1'}});
   expect(screen.queryByText(/Vehicle 7979 has no linked Income COA/)).toBeNull();
   expect((screen.getByRole('button',{name:'Post Sale Invoice'}) as HTMLButtonElement).disabled).toBe(false);
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Post Sale Invoice'}) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'Post Sale Invoice'}));
   await screen.findByText(/Sale invoice posted/);
   expect(mock.posts).toHaveLength(1);
@@ -108,6 +171,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice supplier'}),{target:{value:'a-party'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Description 1'}),{target:{value:'Admin purchase'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Amount 1'}),{target:{value:'50'}});
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'Save Draft'}));
   await screen.findByText(/Purchase invoice draft/);
   expect(mock.posts[0]).toEqual(expect.objectContaining({p_side:'supplier',p_post:false,p_account:'a-account'}));
@@ -127,6 +191,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Description 1'}),{target:{value:'Service'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Amount 1'}),{target:{value:'30'}});
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Post Sale Invoice'}) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'Post Sale Invoice'}));
   expect((await screen.findByRole('alert')).textContent).toContain('permission');
   expect(mock.posts).toHaveLength(1);
