@@ -384,3 +384,61 @@
   .navilo-generic-report .navilo-report-title {color:#173c49!important}
   .print-document * {-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 }
+
+
+/* NAVILO DOCUMENT HEADER — LEFT-ALIGNED COMPANY IDENTITY
+   Keep company name / address / VAT anchored to the left edge, with the
+   company-uploaded logo in its own space before the document title.
+   Layout-only: no company or financial identity is substituted. */
+.print-document .print-header {
+  align-items:flex-start!important;
+  gap:3.5mm!important;
+}
+.print-document .print-company {
+  flex-direction:row-reverse!important;
+  align-items:flex-start!important;
+  justify-content:flex-end!important;
+  gap:3mm!important;
+  text-align:left!important;
+}
+.print-document .print-company > div {
+  flex:1 1 0!important;
+  min-width:0!important;
+  align-self:flex-start!important;
+  text-align:left!important;
+}
+.print-document .print-company :is(.print-company-name,.print-company-addr,.print-company-tax) {
+  text-align:left!important;
+  margin-left:0!important;
+  margin-right:0!important;
+}
+.print-document .print-company .print-company-name {
+  font-size:13pt!important;
+  line-height:1.16!important;
+}
+.print-document .print-company .print-company-addr {
+  white-space:pre-line!important;
+  overflow-wrap:anywhere!important;
+  line-height:1.3!important;
+}
+.print-document .print-company .print-company-tax {
+  overflow-wrap:anywhere!important;
+  line-height:1.3!important;
+}
+.print-document .print-company .print-logo {
+  display:block!important;
+  flex:0 0 auto!important;
+  width:auto!important;
+  height:auto!important;
+  max-width:43mm!important;
+  max-height:22mm!important;
+  object-fit:contain!important;
+  object-position:center top!important;
+  margin:0!important;
+}
+.print-document .print-voucher-title-box {
+  flex:0 0 48mm!important;
+  max-width:48mm!important;
+  min-width:0!important;
+  align-self:flex-start!important;
+}
