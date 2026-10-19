@@ -6,6 +6,7 @@ import MainPurchaseInvoice from "./MainPurchaseInvoiceV2";
 import ConsolidatedPurchaseInvoices from "./ConsolidatedPurchaseInvoices";
 import PurchaseInvoiceDetail from "./PurchaseInvoiceDetail";
 import GeneralExpenseBillCreate from "./GeneralExpenseBillCreate";
+import GeneralExpenseBillImport from "./GeneralExpenseBillImport";
 import OrderBook from "@/modules/orders/OrderBook";
 import PreInvoiceWorkspace from "@/modules/commercial/PreInvoiceWorkspace";
 import ConsolidatedInvoiceGuard from "@/components/ConsolidatedInvoiceGuard";
@@ -20,6 +21,7 @@ export default function Purchase() {
       <Route path="/" element={<PurchaseOrderList />} />
       <Route path="/new" element={<PurchaseNewRoute />} />
       <Route path="/expense/new" element={<GeneralExpenseBillCreate />} />
+      <Route path="/expense/import" element={<GeneralExpenseBillImport />} />
       <Route path="/consolidated" element={<ConsolidatedInvoiceGuard side="purchase"><ConsolidatedPurchaseInvoices /></ConsolidatedInvoiceGuard>} />
       <Route path="/order-book" element={<OrderBook type="purchase" />} />
       <Route path="/workflow" element={<PreInvoiceWorkspace side="purchase" />} />
