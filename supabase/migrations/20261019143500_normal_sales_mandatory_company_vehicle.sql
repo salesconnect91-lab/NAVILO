@@ -38,7 +38,7 @@ IF selected_vehicle IS NULL OR NOT EXISTS (
   old_import text := $oldimport$
 SELECT jsonb_agg(jsonb_build_object('description',z->>'description','amount',z->>'amount')) INTO lines$oldimport$;
   new_import text := $newimport$
-SELECT jsonb_agg(jsonb_build_object('description',z->>'description','amount',z->>'amount','vehicle_id',z->>'vehicle_id')) INTO lines$newimport$;
+SELECT jsonb_agg(jsonb_build_object('description',z->>'description','amount',z->>'amount','vehicle_id',z->>'vehicle_id'))$newimport$;
 begin
   f:=pg_get_functiondef('public.transport_normal_invoice_create(text,uuid,date,jsonb,uuid,text,text,boolean)'::regprocedure);
   -- Match stable statement boundaries, not pretty-printed whitespace from
