@@ -57,17 +57,17 @@ begin
 end $test$;
 do $$
 declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;ar uuid;ap uuid;cost uuid;cash_id uuid;acct uuid;
- code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
+ test_suffix text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
  customer uuid;cash_customer uuid;supplier uuid;second_supplier uuid;tt uuid;tt2 uuid;from_id uuid;to_id uuid;v uuid;company_v uuid;d uuid;company_d uuid;employee uuid;
  ownership uuid;rate uuid;result jsonb;payload jsonb;supplier_payload jsonb;trip uuid;trip2 uuid;request_id uuid:=gen_random_uuid();number text;deleted_number text;
  other_bu uuid;foreign_v uuid;other_c uuid;other_customer uuid;before_count bigint;canonical public.customers;canonical_supplier public.suppliers;
 data jsonb;bank_account uuid;fixed_account uuid;noncash_asset uuid;rent uuid;second_rent uuid;bill uuid;customer_trip uuid;
 begin
  insert into auth.users(id,role,email,created_at,updated_at)
- values(u,'authenticated','service-'||code||'@navilo.test',now(),now());
+ values(u,'authenticated','service-'||test_suffix||'@navilo.test',now(),now());
  insert into public.user_profiles(id,user_id,email,role,platform_role,is_active)
- values(u,u,'service-'||code||'@navilo.test','admin','user',true);
- insert into public.companies(name,code,status) values('Service rehearsal','SV'||code,'active') returning id into c;
+ values(u,u,'service-'||test_suffix||'@navilo.test','admin','user',true);
+ insert into public.companies(name,code,status) values('Service rehearsal','SV'||test_suffix,'active') returning id into c;
  select id into strict b from public.business_units where company_id=c and is_default;
  update public.business_units set unit_type='transport' where id=b;
  insert into public.company_memberships(company_id,user_id,role,is_active) values(c,u,'company_owner',true);
@@ -147,7 +147,7 @@ begin
  update public.user_profiles set last_business_unit_id=other_bu where id=u;
  insert into public.transport_vehicles(company_id,business_unit_id,vehicle_no) values(c,other_bu,'FOREIGN-BU') returning id into foreign_v;
  update public.user_profiles set last_business_unit_id=b where id=u;
- insert into public.companies(name,code,status) values('Steel entry isolation','SE'||code,'active') returning id into other_c;
+ insert into public.companies(name,code,status) values('Steel entry isolation','SE'||test_suffix,'active') returning id into other_c;
  insert into public.company_memberships(company_id,user_id,role,is_active) values(other_c,u,'company_owner',true);
  -- Trusted fixture seeding of the second company; no production data involved.
  update public.user_profiles set last_company_id=other_c,last_business_unit_id=(select id from public.business_units where company_id=other_c and is_default) where id=u;
@@ -172,7 +172,7 @@ begin
  -- creation/posting behavior is covered independently by canonical rehearsals.
  alter table public.transport_trips disable trigger user;
  insert into public.transport_trips(company_id,business_unit_id,operating_location_id,trip_no,trip_date,customer_id,customer_name_snapshot,from_location_id,to_location_id,from_location,to_location,po_do_job_no,customer_rate,sale_type,ppr_status)
- select c,b,loc,'SORT-'||code||'-'||i,current_date,customer,'Entry Customer',from_id,to_id,'Entry From','Entry To','SORT-ONLY',i,'credit','pending' from generate_series(1,501) i;
+ select c,b,loc,'SORT-'||test_suffix||'-'||i,current_date,customer,'Entry Customer',from_id,to_id,'Entry From','Entry To','SORT-ONLY',i,'credit','pending' from generate_series(1,501) i;
  alter table public.transport_trips enable trigger user;
  analyze public.transport_trips;
  raise notice '501 Trips sort fixture prepared';
@@ -213,7 +213,7 @@ begin
  data:=public.transport_register_query(1,0,'{}','','asc','job_no','TEST-2');
  if data->'options' is distinct from '["TEST-2"]'::jsonb then raise exception 'Remote option search failed';end if;
  select id into rent from public.transport_trip_supplier_rents where trip_id=trip;
- perform public.transport_post_customer_bill_numbered(trip,current_date,false,'READER-S-'||code);
+ perform public.transport_post_customer_bill_numbered(trip,current_date,false,'READER-S-'||test_suffix);
  perform public.transport_post_supplier_bill(rent,current_date,acct,false,'Reader test');
  second_rent:=public.transport_add_supplier_rent(trip,second_supplier,400,'Extra supplier line');
  perform public.transport_finalize_supplier_rent(second_rent,400,'Extra finalized line');
@@ -315,9 +315,9 @@ begin
  if jsonb_array_length(public.transport_account_report_page('vehicle',1,0))<>1 or jsonb_array_length(public.transport_account_report_page('vehicle',1,100000))<>0 then raise exception 'Account report pagination failed';end if;
  perform pg_temp.entry_rejected('select public.transport_account_report_page(''unknown'')','Invalid account report');
  perform pg_temp.entry_rejected('select public.transport_party_report_page(''unknown'')','Invalid report');
- insert into auth.users(id,role,email,created_at,updated_at) values(request_id,'authenticated','other-import-'||code||'@navilo.test',now(),now());
+ insert into auth.users(id,role,email,created_at,updated_at) values(request_id,'authenticated','other-import-'||test_suffix||'@navilo.test',now(),now());
  insert into public.user_profiles(id,user_id,email,role,platform_role,is_active,last_company_id,last_business_unit_id)
- values(request_id,request_id,'other-import-'||code||'@navilo.test','user','user',true,c,b);
+ values(request_id,request_id,'other-import-'||test_suffix||'@navilo.test','user','user',true,c,b);
  insert into public.company_memberships(company_id,user_id,role,is_active) values(c,request_id,'company_owner',true);
  insert into public.business_unit_memberships(company_id,business_unit_id,user_id,role,is_active) values(c,b,request_id,'company_owner',true) on conflict(business_unit_id,user_id) do update set role='company_owner',is_active=true;
  perform set_config('request.jwt.claim.sub',request_id::text,true);
