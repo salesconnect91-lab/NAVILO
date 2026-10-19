@@ -7,7 +7,7 @@ export function vatPreviewAmounts(amounts:number[],rate:number){
  const vat=amounts.reduce((s,n)=>s+Math.round(Math.round(n*100)*rate/100),0);
  return {net:net/100,vat:vat/100,total:(net+vat)/100};
 }
-export default function TransportVatPreview({side,date,withTax,amounts,onReady}:{side:'customer'|'supplier';date:string;withTax:boolean;amounts:number[];onReady?:(ready:boolean)=>void}){
+export default function TransportVatPreview({side,date,withTax,amounts,onReady,onRate}:{side:'customer'|'supplier';date:string;withTax:boolean;amounts:number[];onReady?:(ready:boolean)=>void;onRate?:(rate:number|null)=>void}){
  const {activeCompany}=useAuth();const company=activeCompany?.company_id;
  const key=`${company}:${side}:${date}:${withTax}`;
  const [result,setResult]=useState<{key:string;rate:number|null;error:string}>({key:'',rate:null,error:''});
@@ -21,9 +21,11 @@ export default function TransportVatPreview({side,date,withTax,amounts,onReady}:
  const valid=amounts.every(n=>Number.isFinite(n)&&n>=0);
  const ready=(!withTax||(result.key===key&&result.rate!==null&&!result.error))&&valid;
  useEffect(()=>{onReady?.(ready)},[ready,onReady]);
+ const visibleRate=ready?(withTax?result.rate:0):null;
+ useEffect(()=>{onRate?.(visibleRate)},[visibleRate,onRate]);
  const totals=ready?vatPreviewAmounts(amounts,withTax?result.rate!:0):null;
  return <div className="my-1 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-[11px]" aria-label="VAT posting preview">
- {totals&&!withTax?<p>Amount: <strong>{financialNumber(totals.net)}</strong></p>:totals?<p>Net: {financialNumber(totals.net)} · VAT {withTax?`${result.rate}%`:'off'}: {financialNumber(totals.vat)} · Total including VAT: <strong>{financialNumber(totals.total)}</strong></p>:<p role="status">{!valid?'Enter valid nonnegative net amounts.':result.key===key&&result.error?result.error:'Loading VAT rate…'}</p>}
+ {totals?<p><strong>Net:</strong> {financialNumber(totals.net)} · <strong>VAT {visibleRate}%:</strong> {financialNumber(totals.vat)} · <strong>Total including VAT:</strong> {financialNumber(totals.total)}</p>:<p role="status">{!valid?'Enter valid nonnegative net amounts.':result.key===key&&result.error?result.error:'Loading VAT rate…'}</p>}
  {withTax&&<p className="text-[10px] text-slate-600">Company and party tax registration are validated on posting. Invoice date selects the VAT rate; payments include VAT. Preview only—no posting.</p>}
  </div>;
 }
