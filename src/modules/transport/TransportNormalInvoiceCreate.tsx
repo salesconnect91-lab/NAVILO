@@ -32,19 +32,25 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  const [number,setNumber]=useState(''),[reference,setReference]=useState(''),[vatChoice,setVatChoice]=useState<'master'|'with_vat'|'without_vat'>('master'),[lines,setLines]=useState<Line[]>([empty()]);
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[done,setDone]=useState<{document_id:string;invoice_no:string;status:string;gross:number;net?:number;vat?:number}|null>(null);
  const [loadedScope,setLoadedScope]=useState('');
- const [vehicles,setVehicles]=useState<{id:string;vehicle_no:string;revenue_account_id:string|null}[]>([]);
+ const [vehicles,setVehicles]=useState<{id:string;vehicle_no:string;ownership_type:string|null;revenue_account_id:string|null}[]>([]);
  const [ownership,setOwnership]=useState<{vehicle_id:string;owner_type:string;effective_from:string;effective_to:string|null}[]>([]);
  useEffect(()=>{
   let live=true;setVehicles([]);setOwnership([]);setLines([empty()]);
   if(!company||!bu)return;
   void (async()=>{
    const v:typeof vehicles=[];const o:typeof ownership=[];
-   for(let offset=0;;offset+=500){const r=await supabase.from('transport_vehicles').select('id,vehicle_no,revenue_account_id').eq('company_id',company).eq('business_unit_id',bu).eq('is_active',true).order('id').range(offset,offset+499);if(r.error)throw r.error;v.push(...r.data??[]);if((r.data??[]).length<500)break;}
+   for(let offset=0;;offset+=500){const r=await supabase.from('transport_vehicles').select('id,vehicle_no,ownership_type,revenue_account_id').eq('company_id',company).eq('business_unit_id',bu).eq('is_active',true).order('id').range(offset,offset+499);if(r.error)throw r.error;v.push(...r.data??[]);if((r.data??[]).length<500)break;}
    for(let offset=0;;offset+=500){const r=await supabase.from('transport_vehicle_ownership').select('vehicle_id,owner_type,effective_from,effective_to').eq('company_id',company).eq('business_unit_id',bu).order('id').range(offset,offset+499);if(r.error)throw r.error;o.push(...r.data??[]);if((r.data??[]).length<500)break;}
    if(live){setVehicles(v);setOwnership(o);}
   })().catch(e=>{if(live)setError(e.message||'Vehicle Master unavailable');});return()=>{live=false};
  },[company,bu]);
- const eligibleVehicles=vehicles.filter(v=>ownership.some(o=>o.vehicle_id===v.id&&o.owner_type==='company'&&o.effective_from<=date&&(!o.effective_to||o.effective_to>=date)));
+ const eligibleVehicles=vehicles.filter(v=>{
+  const history=ownership.filter(o=>o.vehicle_id===v.id);
+  // Only fall back to an explicitly company-owned Master when no history exists.
+  return history.length
+    ? history.some(o=>o.owner_type==='company'&&o.effective_from<=date&&(!o.effective_to||o.effective_to>=date))
+    : v.ownership_type==='company';
+ });
 
  useEffect(()=>{
   let cancelled=false;setParty('');setAccount('');setParties([]);setAccounts([]);setServiceRevenueId('');setError('');setDone(null);setLoadedScope('');setLoading(true);
@@ -80,6 +86,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
     !number.trim()||/^H-S-/i.test(number.trim())||/^(YES|CLEARED|NO INVOICE|BAD DEBTS|PENDING)$/i.test(number.trim())
   )?'Credit Sales requires a genuine original invoice number (also for drafts).':null;
  const lineError=validateNormalInvoiceLines(lines)
+  ||(side==='customer'&&lines.some(l=>!l.vehicle_id)?'Select a company-owned vehicle for every Normal Sale invoice line.':null)
   ||(lines.some(l=>l.vehicle_id&&!eligibleVehicles.some(v=>v.id===l.vehicle_id))?'Select a company-owned vehicle valid on invoice date.':null);
  const available=loadedScope===scope&&!loading&&!saving&&!done&&Boolean(party&&account&&date)&&!lineError&&vatQuote.ready
   &&(side!=='customer'||account!==serviceRevenueId)&&!originalNumberError;
@@ -153,14 +160,14 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
      <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Normal invoice ledger account" className="input" value={account} onChange={e=>setAccount(e.target.value)}>
       <option value="">Select active company account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
      </NaviloSearchableSelect>
-     <span className="navilo-invoice-ledger-note">{side==='customer'?'Normal Sale defaults to Sales Revenue. Trip-linked Service Revenue is selected only in Service Invoices; vehicle selection below is an optional P&L reporting tag.':'Costs post to this expense account. Optional vehicle selection tags the expense for vehicle-wise reports.'}</span>
+     <span className="navilo-invoice-ledger-note">{side==='customer'?'Normal Sale defaults to Sales Revenue. Trip-linked Service Revenue is selected only in Service Invoices; each Normal Sale line requires a company-owned Vehicle Master selection for vehicle-wise P&L.':'Costs post to this expense account. Optional vehicle selection tags the expense for vehicle-wise reports.'}</span>
     </label>
    </fieldset>
   </section>
 
   <section className="navilo-invoice-card" aria-labelledby="normal-invoice-lines">
    <div className="navilo-invoice-card-heading navilo-invoice-line-heading">
-    <div><span className="navilo-invoice-step">02</span><h2 id="normal-invoice-lines">Invoice Lines</h2><p>Enter descriptions and amounts. Select a vehicle only when this line belongs to a company vehicle.</p></div>
+    <div><span className="navilo-invoice-step">02</span><h2 id="normal-invoice-lines">Invoice Lines</h2><p>{side==='customer'?'Select the company vehicle earning each Normal Sale line. Vehicle selection is required.':'Enter descriptions and amounts; vehicle allocation on Purchase is optional.'}</p></div>
     <button type="button" disabled={saving||!!done||lines.length>=50} className="btn-secondary" onClick={()=>setLines(v=>[...v,empty()])}>+ Description Line</button>
    </div>
    <div className="navilo-invoice-lines-wrap">
@@ -168,8 +175,8 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
      <label className="navilo-invoice-line-field"><span className="navilo-invoice-line-label">Description {i+1}</span>
       <input aria-label={`Description ${i+1}`} className="input" placeholder="Enter goods or service description" value={line.description} maxLength={1000} disabled={saving||!!done} onChange={e=>update(i,'description',e.target.value)}/>
      </label>
-     <label className="navilo-invoice-line-field"><span className="navilo-invoice-line-label">Vehicle (optional)</span>
-      <NaviloSearchableSelect nativeCompatibility aria-label={`Vehicle ${i+1}`} className="input" value={line.vehicle_id??''} disabled={saving||!!done} onChange={e=>update(i,'vehicle_id',e.target.value)}><option value="">No vehicle</option>{eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</NaviloSearchableSelect>
+     <label className="navilo-invoice-line-field"><span className="navilo-invoice-line-label">Vehicle {side==='customer'?'*':'(optional)'}</span>
+      <NaviloSearchableSelect nativeCompatibility aria-label={`Vehicle ${i+1}`} className="input" value={line.vehicle_id??''} required={side==='customer'} disabled={saving||!!done} onChange={e=>update(i,'vehicle_id',e.target.value)}><option value="">{side==='customer'?'Select company vehicle':'No vehicle'}</option>{eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</NaviloSearchableSelect>
      </label>
      <label className="navilo-invoice-line-field"><span className="navilo-invoice-line-label">Net Amount (SAR)</span>
       <input aria-label={`Amount ${i+1}`} className="input navilo-align-right" inputMode="decimal" placeholder="0.00" value={line.amount} disabled={saving||!!done} onChange={e=>update(i,'amount',e.target.value)}/>
@@ -188,7 +195,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
     {vatQuote.error&&<p role="alert" className="navilo-invoice-inline-warning">{vatQuote.error} <button type="button" className="underline font-semibold" onClick={()=>setVatChoice("master")}>Use Master VAT</button> <Link to={side==='customer'?'/master-data/customers?tab=billing':'/master-data/suppliers'}>Open Master</Link></p>}
     {originalNumberError&&<p role="status" className="navilo-invoice-inline-warning">{originalNumberError}</p>}
     {vatQuote.loading&&<p role="status" className="navilo-invoice-small-note">Loading VAT rate and Master billing mode…</p>}
-    <p className="navilo-invoice-small-note">{side==='customer'?'Revenue':'Expense'} uses the selected GL account. A vehicle is optional and only assigns this line to a vehicle-wise report. “No vehicle” leaves it as general company income or expense.</p>
+    <p className="navilo-invoice-small-note">{side==='customer'?'Normal Sales revenue posts to the selected Sales Revenue GL; each line must be assigned to one company-owned vehicle for the vehicle-wise P&L. No Trip Register posting.':'Expenses use the selected GL account; a vehicle is optional for Purchase invoices.'}</p>
     {lineError&&<p role="status" className="navilo-invoice-inline-warning">{lineError}</p>}
    </div>
    <div className="navilo-invoice-summary">
