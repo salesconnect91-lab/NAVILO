@@ -27,6 +27,7 @@ import "./modules/transport/transportProfessionalUi.css";
 import "./naviloCompactSpacing.css";
 import "./naviloInteractionPolish.css";
 import "./naviloModern.css";
+import "./invoiceEditorExperience.css";
 
 // A deployment can replace hashed Vite chunks while an already-open browser tab still
 // holds the previous entry bundle. Recover once instead of leaving NAVILO on a spinner.
