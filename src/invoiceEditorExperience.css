@@ -171,3 +171,216 @@
  .navilo-invoice-review-actions > * {flex:1;min-width:105px}
 }
 @media print {.navilo-invoice-hero-actions,.navilo-invoice-review-actions,.navilo-invoice-line-remove {display:none!important}}
+
+
+/* NAVILO UNIFIED DOCUMENT PRINT THEME
+   Sales, Purchase, Service, Credit Note and Debit Note use PrintLayout.
+   This final presentation layer is shared by on-screen print preview and
+   PDF/physical printing. Keep document amounts, VAT, QR and evidence untouched. */
+.print-document {
+  --nv-doc-primary:#173c49;
+  --nv-doc-accent:#087f68;
+  --nv-doc-ink:#182c36;
+  --nv-doc-muted:#59717a;
+  --nv-doc-border:#d3e1e2;
+  --nv-doc-soft:#f4faf8;
+}
+.print-document .print-page {
+  color:var(--nv-doc-ink)!important;
+  font-family:Inter,"Segoe UI",Arial,"Noto Sans Arabic",sans-serif!important;
+  font-size:9pt!important;
+  line-height:1.4!important;
+}
+.print-document .print-header {
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:5mm!important;
+  min-height:27mm!important;
+  margin:0 0 4mm!important;
+  padding:3.5mm 3mm 4mm!important;
+  border-top:2.5px solid var(--nv-doc-accent)!important;
+  border-bottom:1px solid #aebfc4!important;
+  border-radius:2mm 2mm 0 0!important;
+  background:linear-gradient(100deg,#f0f8f5 0%,#fff 74%)!important;
+  break-inside:avoid!important;
+}
+.print-document .print-company {
+  display:flex!important;
+  flex:1 1 auto!important;
+  flex-direction:row!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  gap:3.5mm!important;
+  min-width:0!important;
+}
+.print-document .print-company > div {min-width:0!important;overflow-wrap:anywhere!important}
+.print-document .print-logo {
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  max-width:43mm!important;
+  max-height:19mm!important;
+  min-width:0!important;
+  object-fit:contain!important;
+  object-position:left center!important;
+  flex:0 1 auto!important;
+}
+.print-document .print-company-name {
+  font-size:14pt!important;
+  font-weight:800!important;
+  letter-spacing:-.015em!important;
+  line-height:1.14!important;
+  color:var(--nv-doc-primary)!important;
+  overflow-wrap:anywhere!important;
+}
+.print-document :is(.print-company-addr,.print-company-tax) {
+  color:var(--nv-doc-muted)!important;
+  font-size:7.5pt!important;
+  line-height:1.35!important;
+}
+.print-document .print-voucher-title-box {
+  flex:0 1 auto!important;
+  max-width:72mm!important;
+  min-width:37mm!important;
+  border:1px solid var(--nv-doc-primary)!important;
+  border-radius:2mm!important;
+  background:var(--nv-doc-primary)!important;
+  padding:3mm!important;
+  text-align:right!important;
+  break-inside:avoid!important;
+}
+.print-document .print-voucher-title {
+  white-space:normal!important;
+  font-size:12pt!important;
+  line-height:1.18!important;
+  letter-spacing:.025em!important;
+  font-weight:800!important;
+  color:#fff!important;
+  overflow-wrap:anywhere!important;
+}
+.print-document .print-meta {gap:3mm!important;margin-bottom:4mm!important}
+.print-document .print-meta > .print-meta-col {
+  min-width:0!important;
+  border:1px solid var(--nv-doc-border)!important;
+  border-radius:2mm!important;
+  background:#fff!important;
+  padding:2.8mm!important;
+}
+.print-document .print-meta > .print-meta-col:first-child {
+  border-left:2.5px solid var(--nv-doc-accent)!important;
+  background:var(--nv-doc-soft)!important;
+}
+.print-document .print-meta > .print-meta-col:last-child {
+  padding:0!important;
+  background:#fff!important;
+}
+.print-document .print-meta-row {
+  grid-template-columns:minmax(26mm,auto) minmax(0,1fr)!important;
+  gap:2mm!important;
+  padding:.75mm 0!important;
+}
+.print-document :is(.print-meta-label,.print-party-label) {
+  font-size:7.3pt!important;
+  font-weight:750!important;
+  color:var(--nv-doc-muted)!important;
+}
+.print-document :is(.print-meta-value,.print-party-name) {
+  font-size:8.8pt!important;
+  font-weight:750!important;
+  color:var(--nv-doc-primary)!important;
+}
+.print-document .print-party-box {
+  border:0!important;
+  border-radius:2mm!important;
+  background:#fff!important;
+  padding:2.7mm!important;
+  height:100%!important;
+}
+.print-document .invoice-items-wrap {
+  border-color:var(--nv-doc-border)!important;
+  border-radius:2mm 2mm 0 0!important;
+  overflow:hidden!important;
+}
+.print-document .invoice-items-head {
+  background:var(--nv-doc-primary)!important;
+  color:#fff!important;
+  font-weight:800!important;
+  letter-spacing:.025em!important;
+}
+.print-document .invoice-items-head > div {
+  background:transparent!important;
+  color:#fff!important;
+  font-size:7.6pt!important;
+}
+.print-document .invoice-items-grid > div {
+  border-color:var(--nv-doc-border)!important;
+  line-height:1.35!important;
+}
+.print-document .invoice-items-row:nth-child(odd) {background:#f6faf9!important}
+.print-document .invoice-item-name {color:var(--nv-doc-primary)!important}
+.print-document :is(.invoice-num,.invoice-amount-col) {font-variant-numeric:tabular-nums!important}
+.print-document :is(.print-charges-box,.print-totals-side,.print-payment-summary,.print-consolidated-box) {
+  border:1px solid var(--nv-doc-border)!important;
+  border-radius:2mm!important;
+  background:#fff!important;
+  overflow:hidden!important;
+}
+.print-document :is(.print-charges-title,.print-charge-total) {
+  color:var(--nv-doc-primary)!important;
+  background:var(--nv-doc-soft)!important;
+}
+.print-document .print-total-row {
+  color:var(--nv-doc-muted)!important;
+  padding:1.5mm 2.7mm!important;
+  border-bottom:1px solid #e3ebeb!important;
+}
+.print-document .print-total-row > span:last-child {color:var(--nv-doc-ink)!important}
+.print-document .print-grand-total {
+  margin:1mm 0 0!important;
+  padding:2.6mm 2.7mm!important;
+  background:var(--nv-doc-primary)!important;
+  border:0!important;
+  border-top:2px solid var(--nv-doc-accent)!important;
+  border-radius:0!important;
+  color:#fff!important;
+  font-size:10.5pt!important;
+  font-weight:850!important;
+}
+.print-document .print-grand-total > span,
+.print-document .print-grand-total > span:last-child {color:#fff!important}
+.print-document .print-payment-summary > div:first-child {
+  background:var(--nv-doc-soft)!important;
+  border-bottom-color:var(--nv-doc-border)!important;
+  color:var(--nv-doc-primary)!important;
+}
+.print-document .print-signature-line {border-bottom-color:#9bafb6!important}
+.print-document .print-footer {border-top-color:var(--nv-doc-border)!important}
+.print-document .print-footer p {color:var(--nv-doc-muted)!important}
+
+/* Report print headers use the same logo proportions and brand accents,
+   without changing the on-screen report filters or tables. */
+:is(.navilo-live-preview,.navilo-print-output) .navilo-generic-report .navilo-report-header {
+  border-bottom:2px solid #087f68!important;
+  padding-bottom:3mm!important;
+}
+:is(.navilo-live-preview,.navilo-print-output) .navilo-generic-report .navilo-report-logo {
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  max-width:45mm!important;
+  max-height:18mm!important;
+  object-fit:contain!important;
+}
+:is(.navilo-live-preview,.navilo-print-output) .navilo-generic-report .navilo-report-title {
+  color:#173c49!important;
+}
+@media print {
+  .navilo-generic-report .navilo-report-header {border-bottom:2px solid #087f68!important;padding-bottom:3mm!important}
+  .navilo-generic-report .navilo-report-logo {
+    display:block!important;width:auto!important;height:auto!important;
+    max-width:45mm!important;max-height:18mm!important;object-fit:contain!important;
+  }
+  .navilo-generic-report .navilo-report-title {color:#173c49!important}
+  .print-document * {-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+}
