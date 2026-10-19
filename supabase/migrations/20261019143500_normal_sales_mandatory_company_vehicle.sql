@@ -130,3 +130,46 @@ begin
  end if;
  return new;
 end $normal_vehicle_trigger$;
+
+-- The normal-document header trigger also validates vehicle attribution during
+-- VAT refresh/posting. It must read the dedicated transport_vehicle_id and use
+-- the same Master-only ownership fallback as the line-level guard.
+CREATE OR REPLACE FUNCTION public.guard_normal_vehicle_invoice_header()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','pg_temp'
+AS $normal_header_trigger$
+declare ids uuid[];
+begin
+ if old.status<>'draft' then return new;end if;
+ if tg_table_name='sales_orders' then
+   select array_agg(coalesce(transport_vehicle_id,source_id)) into ids
+   from public.sales_service_lines
+   where order_id=new.id and source_module='transport_normal_vehicle';
+ else
+   select array_agg(coalesce(transport_vehicle_id,source_id)) into ids
+   from public.purchase_service_lines
+   where order_id=new.id and source_module='transport_normal_vehicle';
+ end if;
+ if ids is null then return new;end if;
+ if exists(
+   select 1 from unnest(ids) vid
+   where vid is null or not exists(
+     select 1 from public.transport_vehicles v
+     where v.id=vid and v.company_id=new.company_id
+       and v.business_unit_id=new.business_unit_id and v.is_active
+       and (
+         exists(
+           select 1 from public.transport_vehicle_ownership o
+           where o.vehicle_id=v.id and o.company_id=new.company_id
+            and o.business_unit_id=new.business_unit_id and o.owner_type='company'
+            and o.effective_from<=new.order_date
+            and (o.effective_to is null or o.effective_to>=new.order_date)
+         )
+         or (v.ownership_type='company' and not exists(
+           select 1 from public.transport_vehicle_ownership o
+           where o.vehicle_id=v.id and o.company_id=new.company_id and o.business_unit_id=new.business_unit_id
+         ))
+       )
+   )
+ ) then raise exception 'Vehicle must be company-owned on invoice date';end if;
+ return new;
+end $normal_header_trigger$;
