@@ -124,6 +124,128 @@ begin
  res:=public.general_expense_bill_create(supplier,'2026-10-17','EXP-CASH-TEST',acct,
   '[{"description":"General no VAT","amount":"100"}]'::jsonb,false,true,null);
  if (res->>'vat')::numeric<>0 then raise exception 'Expense without VAT mismatch';end if;
+ if (res->>'invoice_no') !~ '^EXP-[0-9]{4,}
+ res:=public.general_expense_bill_create(supplier2,'2026-10-17','EXP-CREDIT-TEST',acct,
+  '[{"description":"General with VAT","amount":"200"}]'::jsonb,true,true,null);
+ if (res->>'vat')::numeric<>30 then raise exception 'Expense VAT mismatch';end if;
+ if (res->>'invoice_no') !~ '^EXP-[0-9]{4,}
+ res:=public.general_expense_bill_import(jsonb_build_array(
+  jsonb_build_object('batch_ref','EXCEL-TEST-1','supplier_id',supplier2,'account_id',acct,'invoice_date','2026-10-17','supplier_invoice_no','EXCEL-SUP-1','description','Invoice row 1','amount','50','vat_choice','with_vat'),
+  jsonb_build_object('batch_ref','EXCEL-TEST-1','supplier_id',supplier2,'account_id',acct,'invoice_date','2026-10-17','supplier_invoice_no','EXCEL-SUP-1','description','Invoice row 2','amount','25','vat_choice','with_vat')
+ ),true);
+ if (res->>'invoices')::integer<>1 or (res->>'lines')::integer<>2
+ then raise exception 'Expense Excel import summary incorrect';end if;
+ if not exists(select 1 from public.purchase_orders p where p.id=(res->'documents'->0->>'document_id')::uuid and p.status='posted')
+ then raise exception 'Expense Excel import did not post invoice';end if;
+ res:=public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
+  '[{"description":"VAT choice invoice","amount":"100"}]'::jsonb,revenue,'VAT-CHOICE-GOOD',null,true,'with_vat');
+ if (res->>'vat')::numeric<>15 then raise exception 'Normal VAT choice wrong total';end if;
+ bad:=false;
+ begin
+  perform public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
+   '[{"description":"Wrong VAT choice","amount":"100"}]'::jsonb,revenue,'VAT-CHOICE-INVALID',null,true,'without_vat');
+ exception when others then bad:=true;end;
+ if not bad then raise exception 'Normal VAT selection rule not enforced';end if;
+ reset role;
+ before_trips:=(select count(*) from public.transport_trips where company_id=c);
+ set local role authenticated;
+ res:=public.transport_normal_invoice_create('customer',customer,'2026-10-17',jsonb_build_array(
+ jsonb_build_object('description','Vehicle one sale','amount','300','vehicle_id',v1),jsonb_build_object('description','Vehicle two sale','amount','200','vehicle_id',v2),jsonb_build_object('description','Shared sale','amount','50')),revenue,'VEH-SALE-1',null,true);
+ sale:=(res->>'document_id')::uuid;je:=(res->>'journal_entry_id')::uuid;
+ if (select count(*) from public.transport_normal_vehicle_allocations where journal_entry_id=je)<>3 then raise exception 'Posted allocation snapshots incomplete';end if;
+ if (res->>'net')::numeric<>550 or (res->>'vat')::numeric<>82.5 then raise exception 'Sale VAT %',res;end if;
+ res:=public.transport_vehicle_ledger(v1,'2026-10-01','2026-10-31');if (res->>'revenue')::numeric<>300 then raise exception 'Normal Sale vehicle allocation wrong %',res;end if;
+ res:=public.transport_vehicle_ledger(v2,'2026-10-01','2026-10-31');if (res->>'revenue')::numeric<>200 then raise exception 'Normal Sale vehicle 2 wrong %',res;end if;
+ reset role;
+ if (select sum(debit-credit) from public.party_ledgers where journal_entry_id=je and party_type='customer')<>632.5 then raise exception 'Customer AR not updated';end if;
+ if (select count(*) from public.transport_trips where company_id=c)<>before_trips then raise exception 'Normal Sale created Trip';end if;
+ if (select sum(debit-credit) from public.ledgers where journal_entry_id=je)<>0 then raise exception 'Normal Sale GL imbalance';end if;
+ if coalesce((select sum(credit) from public.journal_lines where entry_id=je and account_id=revenue),0)<>550
+    or exists (select 1 from public.journal_lines l join public.transport_vehicles v on v.revenue_account_id=l.account_id where l.entry_id=je and v.id in (v1,v2))
+ then raise exception 'Normal Sale must credit chosen common Revenue once; vehicle attribution stays in snapshots';end if;
+ raise notice 'PASS vehicle expense mixed VAT, Cash/Bank/AP, atomic imports, ownership, idempotency, reversal, normal Sales AR/VAT/GL and multi-vehicle reports';
+end $$;
+rollback;
+ then raise exception 'Expected compact Expense invoice sequence';end if;
+ res:=public.general_expense_bill_create(supplier2,'2026-10-17','EXP-CREDIT-TEST',acct,
+  '[{"description":"General with VAT","amount":"200"}]'::jsonb,true,true,null);
+ if (res->>'vat')::numeric<>30 then raise exception 'Expense VAT mismatch';end if;
+ res:=public.general_expense_bill_import(jsonb_build_array(
+  jsonb_build_object('batch_ref','EXCEL-TEST-1','supplier_id',supplier2,'account_id',acct,'invoice_date','2026-10-17','supplier_invoice_no','EXCEL-SUP-1','description','Invoice row 1','amount','50','vat_choice','with_vat'),
+  jsonb_build_object('batch_ref','EXCEL-TEST-1','supplier_id',supplier2,'account_id',acct,'invoice_date','2026-10-17','supplier_invoice_no','EXCEL-SUP-1','description','Invoice row 2','amount','25','vat_choice','with_vat')
+ ),true);
+ if (res->>'invoices')::integer<>1 or (res->>'lines')::integer<>2
+ then raise exception 'Expense Excel import summary incorrect';end if;
+ if not exists(select 1 from public.purchase_orders p where p.id=(res->'documents'->0->>'document_id')::uuid and p.status='posted')
+ then raise exception 'Expense Excel import did not post invoice';end if;
+ res:=public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
+  '[{"description":"VAT choice invoice","amount":"100"}]'::jsonb,revenue,'VAT-CHOICE-GOOD',null,true,'with_vat');
+ if (res->>'vat')::numeric<>15 then raise exception 'Normal VAT choice wrong total';end if;
+ bad:=false;
+ begin
+  perform public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
+   '[{"description":"Wrong VAT choice","amount":"100"}]'::jsonb,revenue,'VAT-CHOICE-INVALID',null,true,'without_vat');
+ exception when others then bad:=true;end;
+ if not bad then raise exception 'Normal VAT selection rule not enforced';end if;
+ reset role;
+ before_trips:=(select count(*) from public.transport_trips where company_id=c);
+ set local role authenticated;
+ res:=public.transport_normal_invoice_create('customer',customer,'2026-10-17',jsonb_build_array(
+ jsonb_build_object('description','Vehicle one sale','amount','300','vehicle_id',v1),jsonb_build_object('description','Vehicle two sale','amount','200','vehicle_id',v2),jsonb_build_object('description','Shared sale','amount','50')),revenue,'VEH-SALE-1',null,true);
+ sale:=(res->>'document_id')::uuid;je:=(res->>'journal_entry_id')::uuid;
+ if (select count(*) from public.transport_normal_vehicle_allocations where journal_entry_id=je)<>3 then raise exception 'Posted allocation snapshots incomplete';end if;
+ if (res->>'net')::numeric<>550 or (res->>'vat')::numeric<>82.5 then raise exception 'Sale VAT %',res;end if;
+ res:=public.transport_vehicle_ledger(v1,'2026-10-01','2026-10-31');if (res->>'revenue')::numeric<>300 then raise exception 'Normal Sale vehicle allocation wrong %',res;end if;
+ res:=public.transport_vehicle_ledger(v2,'2026-10-01','2026-10-31');if (res->>'revenue')::numeric<>200 then raise exception 'Normal Sale vehicle 2 wrong %',res;end if;
+ reset role;
+ if (select sum(debit-credit) from public.party_ledgers where journal_entry_id=je and party_type='customer')<>632.5 then raise exception 'Customer AR not updated';end if;
+ if (select count(*) from public.transport_trips where company_id=c)<>before_trips then raise exception 'Normal Sale created Trip';end if;
+ if (select sum(debit-credit) from public.ledgers where journal_entry_id=je)<>0 then raise exception 'Normal Sale GL imbalance';end if;
+ if coalesce((select sum(credit) from public.journal_lines where entry_id=je and account_id=revenue),0)<>550
+    or exists (select 1 from public.journal_lines l join public.transport_vehicles v on v.revenue_account_id=l.account_id where l.entry_id=je and v.id in (v1,v2))
+ then raise exception 'Normal Sale must credit chosen common Revenue once; vehicle attribution stays in snapshots';end if;
+ raise notice 'PASS vehicle expense mixed VAT, Cash/Bank/AP, atomic imports, ownership, idempotency, reversal, normal Sales AR/VAT/GL and multi-vehicle reports';
+end $$;
+rollback;
+ then raise exception 'Expected compact VAT Expense invoice sequence';end if;
+ res:=public.general_expense_bill_import(jsonb_build_array(
+  jsonb_build_object('batch_ref','EXCEL-TEST-1','supplier_id',supplier2,'account_id',acct,'invoice_date','2026-10-17','supplier_invoice_no','EXCEL-SUP-1','description','Invoice row 1','amount','50','vat_choice','with_vat'),
+  jsonb_build_object('batch_ref','EXCEL-TEST-1','supplier_id',supplier2,'account_id',acct,'invoice_date','2026-10-17','supplier_invoice_no','EXCEL-SUP-1','description','Invoice row 2','amount','25','vat_choice','with_vat')
+ ),true);
+ if (res->>'invoices')::integer<>1 or (res->>'lines')::integer<>2
+ then raise exception 'Expense Excel import summary incorrect';end if;
+ if not exists(select 1 from public.purchase_orders p where p.id=(res->'documents'->0->>'document_id')::uuid and p.status='posted')
+ then raise exception 'Expense Excel import did not post invoice';end if;
+ res:=public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
+  '[{"description":"VAT choice invoice","amount":"100"}]'::jsonb,revenue,'VAT-CHOICE-GOOD',null,true,'with_vat');
+ if (res->>'vat')::numeric<>15 then raise exception 'Normal VAT choice wrong total';end if;
+ bad:=false;
+ begin
+  perform public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
+   '[{"description":"Wrong VAT choice","amount":"100"}]'::jsonb,revenue,'VAT-CHOICE-INVALID',null,true,'without_vat');
+ exception when others then bad:=true;end;
+ if not bad then raise exception 'Normal VAT selection rule not enforced';end if;
+ reset role;
+ before_trips:=(select count(*) from public.transport_trips where company_id=c);
+ set local role authenticated;
+ res:=public.transport_normal_invoice_create('customer',customer,'2026-10-17',jsonb_build_array(
+ jsonb_build_object('description','Vehicle one sale','amount','300','vehicle_id',v1),jsonb_build_object('description','Vehicle two sale','amount','200','vehicle_id',v2),jsonb_build_object('description','Shared sale','amount','50')),revenue,'VEH-SALE-1',null,true);
+ sale:=(res->>'document_id')::uuid;je:=(res->>'journal_entry_id')::uuid;
+ if (select count(*) from public.transport_normal_vehicle_allocations where journal_entry_id=je)<>3 then raise exception 'Posted allocation snapshots incomplete';end if;
+ if (res->>'net')::numeric<>550 or (res->>'vat')::numeric<>82.5 then raise exception 'Sale VAT %',res;end if;
+ res:=public.transport_vehicle_ledger(v1,'2026-10-01','2026-10-31');if (res->>'revenue')::numeric<>300 then raise exception 'Normal Sale vehicle allocation wrong %',res;end if;
+ res:=public.transport_vehicle_ledger(v2,'2026-10-01','2026-10-31');if (res->>'revenue')::numeric<>200 then raise exception 'Normal Sale vehicle 2 wrong %',res;end if;
+ reset role;
+ if (select sum(debit-credit) from public.party_ledgers where journal_entry_id=je and party_type='customer')<>632.5 then raise exception 'Customer AR not updated';end if;
+ if (select count(*) from public.transport_trips where company_id=c)<>before_trips then raise exception 'Normal Sale created Trip';end if;
+ if (select sum(debit-credit) from public.ledgers where journal_entry_id=je)<>0 then raise exception 'Normal Sale GL imbalance';end if;
+ if coalesce((select sum(credit) from public.journal_lines where entry_id=je and account_id=revenue),0)<>550
+    or exists (select 1 from public.journal_lines l join public.transport_vehicles v on v.revenue_account_id=l.account_id where l.entry_id=je and v.id in (v1,v2))
+ then raise exception 'Normal Sale must credit chosen common Revenue once; vehicle attribution stays in snapshots';end if;
+ raise notice 'PASS vehicle expense mixed VAT, Cash/Bank/AP, atomic imports, ownership, idempotency, reversal, normal Sales AR/VAT/GL and multi-vehicle reports';
+end $$;
+rollback;
+ then raise exception 'Expected compact Expense invoice sequence';end if;
  res:=public.general_expense_bill_create(supplier2,'2026-10-17','EXP-CREDIT-TEST',acct,
   '[{"description":"General with VAT","amount":"200"}]'::jsonb,true,true,null);
  if (res->>'vat')::numeric<>30 then raise exception 'Expense VAT mismatch';end if;
