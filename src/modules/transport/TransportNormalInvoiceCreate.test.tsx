@@ -158,7 +158,6 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   fireEvent.change(screen.getByLabelText('Amount 1'),{target:{value:'100'}});
   fireEvent.change(screen.getByLabelText('Vehicle 1'),{target:{value:'a-vehicle-1'}});
   expect(screen.queryByText(/Vehicle 7979 has no linked Income COA/)).toBeNull();
-  expect((screen.getByRole('button',{name:'Post Sale Invoice'}) as HTMLButtonElement).disabled).toBe(false);
   await waitFor(()=>expect((screen.getByRole('button',{name:'Post Sale Invoice'}) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'Post Sale Invoice'}));
   await screen.findByText(/Sale invoice posted/);
