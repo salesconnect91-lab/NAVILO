@@ -13,7 +13,7 @@ vi.mock('@/components/NaviloDateInput',()=>({default:({value,onChange,...props}:
 vi.mock('@/components/SearchableSelect',()=>({default:({children,nativeCompatibility,preserveLabel,...props}:any)=><select {...props}>{children}</select>}));
 vi.mock('@/lib/supabase',()=>({supabase:{
  rpc:async(name:string,args:any)=>{
-  if(name!=='transport_normal_invoice_create')throw new Error('Unexpected RPC '+name);
+  if(name!=='transport_normal_invoice_create_vat')throw new Error('Unexpected RPC '+name);
   mock.posts.push(args);
   if(mock.reject)return {data:null,error:{message:'Finance posting permission required'}};
   return {data:{document_id:'doc-1',invoice_no:args.p_invoice_no||'AUTO-1',gross:325,status:args.p_post?'posted':'draft'},error:null};
@@ -62,6 +62,7 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
    p_post:true,p_lines:[{description:'Additional service',amount:'300.00'},{description:'Service fee',amount:'25'}],
   }));
   expect(Object.keys(mock.posts[0]).some(x=>x.includes('trip'))).toBe(false);
+  expect(mock.posts[0].p_vat_choice).toBe('master');
  });
  it('keeps multiple vehicle allocations on separate description lines in one invoice',async()=>{
   await load('customer');await screen.findByRole('option',{name:/7979/});
