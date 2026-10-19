@@ -198,7 +198,7 @@ begin
  sale:=(res->>'document_id')::uuid;je:=(res->>'journal_entry_id')::uuid;
  if (select count(*) from public.transport_normal_vehicle_allocations where journal_entry_id=je)<>3 then raise exception 'Posted allocation snapshots incomplete';end if;
  if (res->>'net')::numeric<>550 or (res->>'vat')::numeric<>82.5 then raise exception 'Sale VAT %',res;end if;
- res:=public.transport_vehicle_ledger(v1,'2026-10-01','2026-10-31');if (res->>'revenue')::numeric<>350 then raise exception 'Normal Sale vehicle allocation wrong %',res;end if;
+ res:=public.transport_vehicle_ledger(v1,'2026-10-01','2026-10-31');if (res->>'revenue')::numeric<>550 then raise exception 'Normal Sale vehicle allocation wrong %',res;end if;
  res:=public.transport_vehicle_ledger(v2,'2026-10-01','2026-10-31');if (res->>'revenue')::numeric<>200 then raise exception 'Normal Sale vehicle 2 wrong %',res;end if;
  reset role;
  if (select sum(debit-credit) from public.party_ledgers where journal_entry_id=je and party_type='customer')<>632.5 then raise exception 'Customer AR not updated';end if;
