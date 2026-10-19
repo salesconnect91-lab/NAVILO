@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach,describe,expect,it,vi} from "vitest";
-import {cleanup,fireEvent,render,screen} from "@testing-library/react";
+import {cleanup,fireEvent,render,screen,within} from "@testing-library/react";
 import SearchableSelect from "./SearchableSelect";
 
 afterEach(cleanup);
@@ -53,6 +53,22 @@ it('centers Transport options while preserving anchored selection elsewhere',()=
   const popup=document.querySelector<HTMLElement>('[data-navilo-searchable-dropdown]')!;
   expect(popup.style.left).toBe('50%');expect(popup.style.top).toBe('50%');
   fireEvent.click(screen.getByRole('button',{name:'Close options'}));expect(screen.queryByRole('listbox')).toBeNull();unmount();
+ }finally{window.history.replaceState({},'',previous);}
+});
+it('opens searchable options on the Transport Reports Center route',()=>{
+ const previous=window.location.pathname;
+ try{
+  window.history.replaceState({},'','/reports/transport');
+  const change=vi.fn();
+  const {container}=render(<SearchableSelect nativeCompatibility value="" aria-label="Party" onChange={change}><option value="">Select party</option><option value="a">Akmal Dyna</option><option value="b">Hakeem Crane</option></SearchableSelect>);
+  fireEvent.click(container.querySelector('[aria-haspopup="listbox"]')!);
+  const popup=document.querySelector<HTMLElement>('[data-navilo-searchable-dropdown]')!;
+  expect(popup.style.top).toBe('50%');
+  fireEvent.change(screen.getByRole('textbox',{name:'Search Party'}),{target:{value:'hakeem'}});
+  expect(within(screen.getByRole('listbox')).queryByRole('option',{name:'Akmal Dyna'})).toBeNull();
+  fireEvent.click(within(screen.getByRole('listbox')).getByRole('option',{name:'Hakeem Crane'}));
+  expect(change.mock.calls[0][0].target.value).toBe('b');
+  expect(screen.queryByRole('listbox')).toBeNull();
  }finally{window.history.replaceState({},'',previous);}
 });
 

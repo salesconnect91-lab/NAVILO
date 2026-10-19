@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach,describe,expect,it,vi} from 'vitest';
-import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
+import {cleanup,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
 import TransportPartySettlement from './TransportPartySettlement';
 import type {PartyDocument,PartySide} from './transportPartyReporting';
 const {rpc}=vi.hoisted(()=>({rpc:vi.fn()}));
@@ -43,12 +43,26 @@ describe('Cash Counter Transport allocations',()=>{
   expect(payload).toMatchObject({p_side:side,p_party_id:'party',p_account_id:'cash',p_allocations:[{document_id:'B',amount:75}]});
   expect(payload.p_request_id).toBeTruthy();
  });
+ it('searches and selects a Cash / Bank option without posting',async()=>{
+  const docs=[doc('A','supplier',100,'2026-10-01')];
+  rpc.mockImplementation(async(name:string)=>name==='transport_party_report_query'?{data:docs,error:null}:name==='transport_opening_invoice_query'?{data:[],error:null}:name==='transport_finance_allowed'?{data:true,error:null}:{data:{success:true},error:null});
+  render(<TransportPartySettlement side="supplier" party="party" documents={docs} accounts={[{id:'cash',name:'Cash Account',detail_type:'Cash on Hand'},{id:'bank',name:'Bank Account',detail_type:'Bank Account'}]} onPosted={async()=>{}} onBusyChange={()=>{}}/>);
+  await screen.findByLabelText('Allocate INV-A');
+  const native=screen.getByLabelText('Cash / Bank') as HTMLSelectElement;
+  const trigger=native.parentElement?.querySelector('[aria-haspopup="listbox"]');
+  expect(trigger).toBeTruthy();fireEvent.click(trigger!);
+  fireEvent.change(screen.getByPlaceholderText('Type to search...'),{target:{value:'Bank Account'}});
+  fireEvent.click(within(screen.getByRole('listbox')).getByRole('option',{name:'Bank Account'}));
+  expect(native.value).toBe('bank');
+  expect(rpc.mock.calls.some(([name])=>name.startsWith('transport_settle_'))).toBe(false);
+ });
  it('views a supplier bill and its source without posting or changing the draft',async()=>{
   const docs=[doc('A','supplier',100,'2026-10-01')];
   rpc.mockImplementation(async(name:string)=>name==='transport_party_report_query'?{data:docs,error:null}:name==='transport_opening_invoice_query'?{data:[],error:null}:name==='transport_finance_allowed'?{data:true,error:null}:{data:{success:true},error:null});
   render(<TransportPartySettlement side="supplier" party="party" documents={docs} accounts={[]} onPosted={async()=>{}} onBusyChange={()=>{}}/>);
   await screen.findByLabelText('View INV-A');fireEvent.click(screen.getByLabelText('View INV-A'));
-  expect(screen.getByRole('dialog',{name:'Allocation invoice details'})).toBeTruthy();
+  const details=screen.getByRole('dialog',{name:'Allocation invoice details'});
+  expect(details.parentElement?.classList.contains('navilo-transport-dialog')).toBe(true);
   expect((screen.getByRole('link',{name:/Open supplier invoice/}) as HTMLAnchorElement).getAttribute('href')).toBe('/purchase/A');
   expect((screen.getByRole('link',{name:/Open journal voucher/}) as HTMLAnchorElement).getAttribute('href')).toBe('/accounting/A');
   expect(rpc.mock.calls.some(([name])=>name.startsWith('transport_settle_'))).toBe(false);

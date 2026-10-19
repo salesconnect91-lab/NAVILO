@@ -16,6 +16,22 @@ beforeEach(()=>{mock.export.mockReset();mock.rpc.mockReset();mock.ledger=true;mo
 function setup(){render(<TransportPartyReports onClose={()=>{}} onChanged={async()=>{}}/>)}
 async function chooseCustomer(){await screen.findByRole('option',{name:'Customer A'});fireEvent.change(screen.getByLabelText('Party'),{target:{value:'customer'}});await screen.findByText('TOTAL')}
 describe('Separate Transport party reporting',()=>{
+ it('searches the party dropdown without fetching financial rows per keystroke',async()=>{
+  setup();await screen.findByRole('option',{name:'Customer A'});
+  const select=screen.getByLabelText('Party') as HTMLSelectElement;
+  fireEvent.click(select.parentElement!.querySelector('[aria-haspopup="listbox"]')!);
+  fireEvent.change(screen.getByPlaceholderText('Search customers or suppliers...'),{target:{value:'Unposted'}});
+  fireEvent.click(within(screen.getByRole('listbox')).getByRole('option',{name:'Unposted Customer'}));
+  expect(select.value).toBe('unposted');
+ });
+ it('applies trip/document search only when Search is clicked',async()=>{
+  setup();await chooseCustomer();
+  const before=mock.rpc.mock.calls.filter(([name])=>name==='transport_party_report_query').length;
+  fireEvent.change(screen.getByLabelText('Trip / document search'),{target:{value:'Trip-1'}});
+  expect(mock.rpc.mock.calls.filter(([name])=>name==='transport_party_report_query')).toHaveLength(before);
+  fireEvent.click(screen.getByRole('button',{name:'Search'}));
+  await waitFor(()=>expect(mock.rpc.mock.calls.filter(([name])=>name==='transport_party_report_query').length).toBeGreaterThan(before));
+ });
  it('does not scan all party financial records when the report opens',async()=>{
   setup();await screen.findByRole('option',{name:'Customer A'});
   await waitFor(()=>expect((screen.getByRole('button',{name:'Load all parties (large report)'}) as HTMLButtonElement).disabled).toBe(false));
@@ -33,6 +49,7 @@ describe('Separate Transport party reporting',()=>{
  it('previews an outstanding row with open invoice and journal links',async()=>{
   setup();await chooseCustomer();fireEvent.click(screen.getByRole('button',{name:'View report row 1'}));
   const details=screen.getByRole('dialog',{name:'Report row details'});
+  expect(details.parentElement?.classList.contains('navilo-transport-dialog')).toBe(true);
   expect(within(details).getByRole('link',{name:/Open sales invoice/}).getAttribute('href')).toBe('/sales/A');
   expect(within(details).getByRole('link',{name:/Open journal voucher/}).getAttribute('href')).toBe('/accounting/j');
   fireEvent.click(within(details).getByRole('button',{name:'Close'}));expect(screen.queryByRole('dialog',{name:'Report row details'})).toBeNull();

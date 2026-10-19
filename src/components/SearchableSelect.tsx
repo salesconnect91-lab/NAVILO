@@ -112,7 +112,7 @@ export default function SearchableSelect({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
-  const centeredPopup=typeof window!=="undefined"&&/^\/transport(?:\/|$)/.test(window.location.pathname);
+  const centeredPopup=typeof window!=="undefined"&&/^\/(?:transport(?:\/|$)|reports\/transport(?:\/|$))/.test(window.location.pathname);
   const positionDropdown = () => {
     const rect = rootRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -224,7 +224,7 @@ export default function SearchableSelect({
           <div className="border-b border-slate-100 p-2">
             <div className="flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-2 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500">
               <Search className="h-4 w-4 shrink-0 text-slate-400" />
-              <input ref={inputRef} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => {
+              <input ref={inputRef} aria-label={`Search ${props["aria-label"]||"dropdown options"}`} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => {
                 if (event.key !== "Enter") return;
                 event.preventDefault();
                 const first = filtered.find(option => !option.disabled);
