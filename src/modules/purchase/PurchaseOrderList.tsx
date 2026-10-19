@@ -69,7 +69,7 @@ export default function PurchaseOrderList() {
       if(readError)throw readError;
       const pageRows=(data?.rows??[]) as PurchaseOrder[];
       const ids=pageRows.map(row=>row.id);
-      const needsConsolidated=pageRows.some(row=>row.document_kind!=='service');
+      const needsConsolidated=pageRows.some(row=>(row as PurchaseOrder & {document_kind?:string|null}).document_kind!=='service');
       const linked=ids.length&&needsConsolidated?await supabase.from("purchase_order_consolidated_invoices")
         .select("purchase_order_id,consolidated_invoice:consolidated_purchase_invoices(invoice_no)")
         .in("purchase_order_id",ids):null;
