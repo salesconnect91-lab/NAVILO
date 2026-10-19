@@ -127,7 +127,7 @@ const DEFAULT_PRINT_VISIBILITY: PrintVisibility = {
 };
 const n = (value: unknown) => Number(value) || 0;
 
-export default function PurchaseInvoiceDetail() {
+function InventoryPurchaseInvoiceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
@@ -421,4 +421,31 @@ export default function PurchaseInvoiceDetail() {
       />
     </div>
   </div>;
+}
+
+/**
+ * Route the supplier service document before loading item, godown and
+ * consolidated inventory data. Transport supplier invoices have no stock lines.
+ * Keep the existing inventory editor unchanged for document_kind != service.
+ */
+export default function PurchaseInvoiceDetail() {
+  const {id}=useParams<{id:string}>();
+  const [resolved,setResolved]=useState<{id:string;kind:string|null;error:string|null}|null>(null);
+  useEffect(()=>{
+    let cancelled=false;
+    setResolved(null);
+    if(!id){setResolved({id:'',kind:null,error:'Missing Purchase Invoice ID'});return;}
+    void supabase.from('purchase_orders').select('id,document_kind').eq('id',id).maybeSingle().then(({data,error})=>{
+      if(cancelled)return;
+      setResolved({id,kind:data?.document_kind??null,error:error?.message??(!data?'Purchase Invoice not found.':null)});
+    }).catch((error:unknown)=>{
+      if(!cancelled)setResolved({id,kind:null,error:error instanceof Error?error.message:'Unable to open Purchase Invoice'});
+    });
+    return()=>{cancelled=true;};
+  },[id]);
+  if(!resolved||resolved.id!==id)return <p role="status" className="card p-8">Loading Purchase Invoice…</p>;
+  if(resolved.error)return <div className="p-4"><ErrorBanner message={resolved.error}/><Link to="/purchase" className="text-sm text-blue-700 underline">Back to Purchase Invoices</Link></div>;
+  return resolved.kind==='service'
+    ? <TransportServiceDocument side="supplier" id={id!} canPost />
+    : <InventoryPurchaseInvoiceDetail/>;
 }
