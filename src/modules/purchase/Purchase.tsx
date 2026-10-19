@@ -1,4 +1,4 @@
-import { Routes, Route, useSearchParams } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import {useAuth} from "@/auth/AuthContext";
 import TransportInvoiceCreate from "@/modules/transport/TransportInvoiceCreate";
 import PurchaseOrderList from "./PurchaseOrderList";
@@ -12,20 +12,20 @@ import PreInvoiceWorkspace from "@/modules/commercial/PreInvoiceWorkspace";
 import ConsolidatedInvoiceGuard from "@/components/ConsolidatedInvoiceGuard";
 
 function PurchaseNewRoute(){
- const {activeBusinessUnit}=useAuth();const [params]=useSearchParams();
+ const {activeBusinessUnit}=useAuth();
  return activeBusinessUnit?.business_unit_type==="transport" ? <TransportInvoiceCreate side="supplier"/> : <MainPurchaseInvoice/>;
 }
 export default function Purchase() {
   return (
     <Routes>
-      <Route path="/" element={<PurchaseOrderList />} />
-      <Route path="/new" element={<PurchaseNewRoute />} />
-      <Route path="/expense/new" element={<GeneralExpenseBillCreate />} />
-      <Route path="/expense/import" element={<GeneralExpenseBillImport />} />
-      <Route path="/consolidated" element={<ConsolidatedInvoiceGuard side="purchase"><ConsolidatedPurchaseInvoices /></ConsolidatedInvoiceGuard>} />
-      <Route path="/order-book" element={<OrderBook type="purchase" />} />
-      <Route path="/workflow" element={<PreInvoiceWorkspace side="purchase" />} />
-      <Route path="/:id" element={<PurchaseInvoiceDetail />} />
+      <Route index element={<PurchaseOrderList />} />
+      <Route path="new" element={<PurchaseNewRoute />} />
+      <Route path="expense/new" element={<GeneralExpenseBillCreate />} />
+      <Route path="expense/import" element={<GeneralExpenseBillImport />} />
+      <Route path="consolidated" element={<ConsolidatedInvoiceGuard side="purchase"><ConsolidatedPurchaseInvoices /></ConsolidatedInvoiceGuard>} />
+      <Route path="order-book" element={<OrderBook type="purchase" />} />
+      <Route path="workflow" element={<PreInvoiceWorkspace side="purchase" />} />
+      <Route path=":id" element={<PurchaseInvoiceDetail />} />
     </Routes>
   );
 }
