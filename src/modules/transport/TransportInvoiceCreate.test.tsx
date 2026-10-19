@@ -31,8 +31,16 @@ describe('Separate Transport invoice formats',()=>{
   open('/sales/new');
   expect(screen.getByTestId('trip-service-form')).toBeTruthy();
  });
- it('does not replace supplier Trip rent workflow with normal purchase',()=>{
+ it('opens the same trip-wise supplier-rent popup workflow as Sales, not the normal non-trip purchase form',()=>{
   open('/purchase/new?type=service','supplier');
+  expect(screen.getByText('Purchase Transport Service Invoice')).toBeTruthy();
   expect(screen.getByTestId('supplier-rent-form')).toBeTruthy();
+  expect(screen.queryByTestId('normal-sale-form')).toBeNull();
+  expect(document.querySelector('[data-navilo-transport-invoice-type="service"]')).toBeTruthy();
+ });
+ it('keeps normal Purchase invoices independently accessible',()=>{
+  open('/purchase/new?type=normal','supplier');
+  expect(screen.getByTestId('normal-sale-form')).toBeTruthy();
+  expect(screen.queryByTestId('supplier-rent-form')).toBeNull();
  });
 });
