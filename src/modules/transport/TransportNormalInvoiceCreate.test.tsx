@@ -120,6 +120,27 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   expect(mock.posts).toHaveLength(1);
   expect(mock.posts[0].p_vat_choice).toBe('master');
  });
+ it('separates one GL account from optional vehicle reporting and keeps line labels aligned',async()=>{
+  await load('customer');
+  expect(screen.getByText('Revenue GL Account')).toBeTruthy();
+  expect(screen.getByText(/Vehicle selection below is only a reporting allocation/)).toBeTruthy();
+  expect(screen.getByText('Vehicle (optional)')).toBeTruthy();
+  expect(screen.getByRole('option',{name:'No vehicle'})).toBeTruthy();
+  expect(screen.getByRole('textbox',{name:'Description 1'})).toBeTruthy();
+  expect(screen.queryByText('Vehicle / Allocation')).toBeNull();
+  const row=document.querySelector('.navilo-transport-invoice .navilo-invoice-line-row');
+  expect(row?.querySelectorAll('.navilo-invoice-line-label')).toHaveLength(3);
+  expect(document.querySelector('.navilo-invoice-line-columns')).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'+ Description Line'}));
+  expect(screen.getByText('Description 2')).toBeTruthy();
+  expect(screen.getAllByText('Vehicle (optional)')).toHaveLength(2);
+ });
+ it('preserves Purchase GL mapping and does not require a vehicle',async()=>{
+  await load('supplier');
+  expect(screen.getByText('Purchase / Expense GL Account')).toBeTruthy();
+  expect(screen.getByRole('option',{name:'No vehicle'})).toBeTruthy();
+  expect(screen.getByRole('combobox',{name:'Normal invoice ledger account'})).toBeTruthy();
+ });
  it('posts manual multi-description customer Sales using company Master/account',async()=>{
   await load('customer');
   fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
