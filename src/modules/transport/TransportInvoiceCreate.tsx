@@ -11,13 +11,16 @@ export default function TransportInvoiceCreate({side}:{side:'customer'|'supplier
  const title=isSale
    ? (side==='customer'?'Sale Invoice':'Purchase Invoice')
    : (side==='customer'?'Service Invoice':'Service Purchase Invoice');
- return <div className="space-y-3">
-  {isSale
-   ? <header><h1 className="text-lg font-semibold">{title}</h1><p className="text-xs text-slate-600">Direct invoice from Customer/Supplier Master and descriptions. No Trip required.</p></header>
-   : <header>
-       <h1 className="text-lg font-semibold">{side==='customer'?'Sales':'Purchase'} Transport Service Invoice</h1>
-       <p className="text-xs">Select the {side==='customer'?'Customer and Trips':'Supplier and Trip rents'}, review the service amounts, invoice date and VAT, then post the selected services. Posting multiple eligible lines for the same party creates one canonical service invoice linked to every selected Trip / rent. Finalize only saves agreed amounts; it does not post. Check selected lines, invoice number and VAT before posting.</p>
-     </header>}
+ return <div className="navilo-invoice-pro space-y-3" data-navilo-transport-invoice-type={isSale?'normal':'service'}>
+  {!isSale&&<header className="navilo-invoice-hero">
+   <div className="navilo-invoice-hero-main">
+    <button type="button" className="navilo-invoice-breadcrumb" onClick={close}>← {side==='customer'?'Sales':'Purchase'} Invoices</button>
+    <div className="navilo-invoice-eyebrow">NEW DOCUMENT <span aria-hidden="true">/</span> TRIP-LINKED SERVICE</div>
+    <h1>{side==='customer'?'Sales Transport Service Invoice':'Purchase Transport Service Invoice'}</h1>
+    <p>Choose {side==='customer'?'customer trips':'supplier trips and rents'}, check linked service amounts, invoice date and VAT before posting. Finalize saves agreed rates; posting creates the financial document.</p>
+   </div>
+   <div className="navilo-invoice-hero-actions"><span className="navilo-invoice-status">Trip-linked</span></div>
+  </header>}
   {isSale
    ? <TransportNormalInvoiceCreate key={`sale-${side}`} side={side}/>
    : side==='customer'
