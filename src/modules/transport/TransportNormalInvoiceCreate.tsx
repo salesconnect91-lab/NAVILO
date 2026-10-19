@@ -27,7 +27,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  const company=activeCompany?.company_id,bu=activeBusinessUnit?.business_unit_id,scope=`${company}/${bu}`;
  const [parties,setParties]=useState<Party[]>([]),[accounts,setAccounts]=useState<Account[]>([]);
  const [party,setParty]=useState(''),[account,setAccount]=useState(''),[date,setDate]=useState(today());
- const [number,setNumber]=useState(''),[reference,setReference]=useState(''),[lines,setLines]=useState<Line[]>([empty()]);
+ const [number,setNumber]=useState(''),[reference,setReference]=useState(''),[vatChoice,setVatChoice]=useState<'master'|'with_vat'|'without_vat'>('master'),[lines,setLines]=useState<Line[]>([empty()]);
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[done,setDone]=useState<{document_id:string;invoice_no:string;status:string;gross:number}|null>(null);
  const [loadedScope,setLoadedScope]=useState('');
  const [vehicles,setVehicles]=useState<{id:string;vehicle_no:string;revenue_account_id:string|null}[]>([]);
@@ -74,10 +74,10 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  async function save(post:boolean){
   if(!available)return;setSaving(true);setError('');
   try{
-   const result=await supabase.rpc('transport_normal_invoice_create',{
+   const result=await supabase.rpc('transport_normal_invoice_create_vat',{ 
     p_side:side,p_party:party,p_date:date,
     p_lines:lines.map(l=>({description:l.description.trim(),amount:l.amount.trim(),...(l.vehicle_id?{vehicle_id:l.vehicle_id}:{})})),
-    p_account:account,p_invoice_no:number.trim()||null,p_reference:reference.trim()||null,p_post:post,
+    p_account:account,p_invoice_no:number.trim()||null,p_reference:reference.trim()||null,p_post:post,p_vat_choice:vatChoice,
    });
    if(result.error)throw result.error;
    setDone(result.data as {document_id:string;invoice_no:string;status:string;gross:number});
@@ -98,7 +98,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
     <strong>{sideName} invoice {done.status}: {done.invoice_no}</strong> · Amount {Number(done.gross).toLocaleString('en-US',{minimumFractionDigits:2})}.
     <p>Posted invoices update canonical {side==='customer'?'receivables':'payables'} and accounting. Record actual payments separately.</p>
     <div className="mt-2 flex gap-2"><Link to={`/${side==='customer'?'sales':'purchase'}/${done.document_id}`} className="btn">View Invoice</Link>
-     <button className="btn-primary" onClick={()=>{setDone(null);setParty('');setNumber('');setReference('');setLines([empty()]);}}>Create Another</button></div>
+     <button className="btn-primary" onClick={()=>{setDone(null);setParty('');setNumber('');setReference('');setVatChoice('master');setLines([empty()]);}}>Create Another</button></div>
    </div>}
   <fieldset disabled={loading||saving||!!done||loadedScope!==scope} className="grid gap-2 md:grid-cols-4">
    <label className="block font-semibold">{side==='customer'?'Customer Master':'Supplier Master'} *
@@ -113,6 +113,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    <label className="block font-semibold">Reference (optional)
     <input className="input mt-1 w-full" value={reference} maxLength={120} onChange={e=>setReference(e.target.value)}/>
    </label>
+   <label className="block font-semibold">VAT Treatment<NaviloSearchableSelect nativeCompatibility aria-label="Normal invoice VAT treatment" className="input mt-1 w-full" value={vatChoice} onChange={e=>setVatChoice(e.target.value as 'master'|'with_vat'|'without_vat')}><option value="master">Auto (Master Cash/Credit)</option><option value="with_vat">With VAT</option><option value="without_vat">Without VAT</option></NaviloSearchableSelect></label>
    <label className="block font-semibold md:col-span-3">{side==='customer'?'General / Shared Revenue COA':'Expense Account'} *
     <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Normal invoice ledger account" className="input mt-1 w-full" value={account} onChange={e=>setAccount(e.target.value)}>
      <option value="">Select active company account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
@@ -129,7 +130,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    </div>)}
   </div>
   <div className="flex flex-wrap items-center justify-between border-t pt-2 gap-2">
-   <span><strong>Net: SAR {amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong> · Cash/Credit and effective VAT follow Master Billing Rules.</span>
+   <span><strong>Net: SAR {amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong> · Selected VAT must match the effective Customer/Supplier Master billing rule.</span>
    <div className="flex gap-2"><button type="button" className="btn" disabled={!available} onClick={()=>void save(false)}>{saving?'Saving…':'Save Draft'}</button>
     <button type="button" className="btn-primary" disabled={!available} onClick={()=>void save(true)}>{saving?'Posting…':`Post ${sideName} Invoice`}</button></div>
   </div>
