@@ -37,6 +37,8 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [retiringLegacy, setRetiringLegacy] = useState(false);
+  const [legacyRetired, setLegacyRetired] = useState(false);
   const [show, setShow] = useState(Boolean(quickCreate));
   const createdRecord=useRef<{id:string;name:string;truck_type_id:string}|null>(null);
   const submitting=useRef(false);
@@ -102,6 +104,24 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
     setEditing(row); setForm({ ...EMPTY, ...row, effectiveFrom: "" }); setError(""); setShow(true);
   };
   const changed = async () => { window.dispatchEvent(new Event("navilo-master-data-changed")); await load(); };
+  const legacyCandidates=vehicle && activeCompany?.company_id==="c611adca-fd2f-4cc1-b379-3aed22924f65"
+    && activeBusinessUnit?.business_unit_id==="bbd67d8b-930e-4ef4-8f61-0061f07b686a"
+    ? rows.filter(row=>row.ownerType==="company" && !!row.revenueAccountId
+      && incomeAccounts.some(a=>a.id===row.revenueAccountId && a.is_active
+        && a.code==="VREV-"+row.id.replace(/-/g,"")
+        && a.name==="Vehicle "+row.name+" Income")) : [];
+  const retireUnusedLegacy=async()=>{
+    if(!allowed || !vehicle || legacyCandidates.length!==6 || retiringLegacy)return;
+    setRetiringLegacy(true);setLegacyRetired(false);setError("");
+    try{
+      const result=await supabase.rpc("transport_retire_unused_vehicle_income_coas");
+      if(result.error)throw result.error;
+      if(Number(result.data)!==6)throw new Error("Unexpected account retirement result; please verify the workspace.");
+      setLegacyRetired(true);
+      await changed();
+    }catch(e:any){setError(e?.message??"Unable to safely retire legacy vehicle Income accounts.");}
+    finally{setRetiringLegacy(false);}
+  };
   const save = async (event: React.FormEvent) => {
     event.preventDefault(); if(submitting.current)return; setError("");
     if (!allowed || !activeCompany?.company_id || !activeBusinessUnit?.business_unit_id) return setError("Select an authorized Transport workspace.");
@@ -217,9 +237,17 @@ export default function TransportMaster({ kind, quickCreate, supplierOwner, empl
     <MasterSummaryStrip kind={kind} title={masterTitle} subtitle={vehicle ? "Vehicle identities and dated ownership" : supplierOwner ? "Trip and licence details only. Payments belong to the Supplier account; no Employee or Driver Salary Khata." : "Company drivers link to Employees; supplier drivers link only to Suppliers. Trip and licence details only; financial driver bookkeeping is disabled."}
       total={rows.length} active={rows.filter(r => r.active).length} inactive={rows.filter(r => !r.active).length} fourthLabel="Displayed" fourthValue={filtered.length} />
     {!vehicle&&!quickCreate&&!supplierOwner&&!employeeOwner&&<div className="flex gap-3 text-xs"><Link className="text-emerald-800 underline" to="/master-data/employees">Manage Employees</Link><Link className="text-emerald-800 underline" to="/master-data/suppliers">Supplier Master</Link></div>}
-    <div className="flex justify-end gap-2" data-no-print data-no-export>{vehicle && <Link className="btn-secondary" to="/master-data/vehicle-ownership">Vehicle Ownership History</Link>}
+    <div className="flex justify-end gap-2" data-no-print data-no-export>
+      {allowed && vehicle && legacyCandidates.length===6 && <MasterActionButton tone="danger"
+        title="Retire six unused legacy Vehicle Income accounts?"
+        message="Only generated, unused Twakkal Income GLs will be unlinked from Vehicle Master and deactivated. Server checks all accounting references and your company-owner permissions first. No posted entries or Vehicles will be deleted."
+        onConfirm={retireUnusedLegacy} className="btn-secondary text-xs">
+        {retiringLegacy?"Checking…":"Retire 6 unused legacy Income GLs"}
+      </MasterActionButton>}
+      {vehicle && <Link className="btn-secondary" to="/master-data/vehicle-ownership">Vehicle Ownership History</Link>}
       {allowed && (!vehicle || canAddOwner) && (!employeeOwner||!rows.length) && <button className="btn-primary" onClick={openAdd}><Plus className="h-4 w-4" />Add {vehicle ? "Vehicle" : "Driver"}</button>}</div>
     {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</div>}
+    {legacyRetired && <p role="status" className="text-xs text-emerald-700">Six unused legacy Income GL accounts safely retired. Vehicle and journal history retained.</p>
     <div className="navilo-master-filterbar flex flex-wrap items-center gap-2 px-3 py-2" data-no-print data-no-export>
       <div className="relative min-w-52 flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input className="input w-full pl-9"
         aria-label={`Search ${kind}`} placeholder={vehicle ? "Search vehicle, type or supplier..." : "Search driver, code, mobile or supplier..."} value={q} onChange={e => setQ(e.target.value)} /></div>
