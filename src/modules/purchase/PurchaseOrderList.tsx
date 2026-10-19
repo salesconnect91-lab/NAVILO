@@ -69,7 +69,8 @@ export default function PurchaseOrderList() {
       if(readError)throw readError;
       const pageRows=(data?.rows??[]) as PurchaseOrder[];
       const ids=pageRows.map(row=>row.id);
-      const linked=ids.length?await supabase.from("purchase_order_consolidated_invoices")
+      const needsConsolidated=pageRows.some(row=>row.document_kind!=='service');
+      const linked=ids.length&&needsConsolidated?await supabase.from("purchase_order_consolidated_invoices")
         .select("purchase_order_id,consolidated_invoice:consolidated_purchase_invoices(invoice_no)")
         .in("purchase_order_id",ids):null;
       // Consolidated links are optional supplementary metadata, not a prerequisite
@@ -78,7 +79,7 @@ export default function PurchaseOrderList() {
       if(linked?.error)console.warn('Purchase consolidated reference lookup unavailable:',linked.error.message);
       if(request!==listRequest.current)return;
       const numbers:Record<string,string[]>={};
-      for(const link of linked?.error?[]:linked?.data??[]){
+      for(const link of (linked?.error ? [] : linked?.data ?? [])){
         const invoice=Array.isArray((link as any).consolidated_invoice)
           ?(link as any).consolidated_invoice[0]:(link as any).consolidated_invoice;
         if(invoice?.invoice_no)(numbers[(link as any).purchase_order_id]??=[]).push(invoice.invoice_no);
