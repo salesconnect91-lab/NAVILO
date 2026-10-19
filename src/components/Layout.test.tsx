@@ -80,12 +80,14 @@ describe("collapsed navigation", () => {
     const sales=screen.getByRole("link",{name:"Sales Invoices"});
     expect(sales.getAttribute("href")).toBe("/sales");
     fireEvent.click(screen.getByRole("button",{name:"Purchase"}));
+    fireEvent.click(screen.getAllByRole("button",{name:"Invoices"})[1]);
     const purchase=screen.getByRole("link",{name:"Purchase Invoices"});
     expect(purchase.getAttribute("href")).toBe("/purchase");
     fireEvent.click(purchase);
     await waitFor(()=>expect(screen.getByTestId("current-invoice-path").textContent).toBe("/purchase"));
     fireEvent.click(screen.getByRole("button",{name:"Open navigation"}));
     fireEvent.click(screen.getByRole("button",{name:"Sales"}));
+    fireEvent.click(screen.getAllByRole("button",{name:"Invoices"})[0]);
     fireEvent.click(screen.getByRole("link",{name:"Sales Invoices"}));
     await waitFor(()=>expect(screen.getByTestId("current-invoice-path").textContent).toBe("/sales"));
   });
