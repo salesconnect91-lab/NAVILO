@@ -72,7 +72,7 @@ declare
 begin
  f:=pg_get_functiondef('public.transport_normal_invoice_create(text,uuid,date,jsonb,uuid,text,text,boolean)'::regprocedure);
  start_at:=strpos(f,'INSERT INTO public.sales_service_lines(');
- end_at:=strpos(f,'IF p_post THEN outcome:=public.post_sales_invoice',start_at);
+ end_at:=start_at+strpos(substring(f from start_at),'IF p_post THEN outcome:=public.post_sales_invoice')-1;
  if start_at=0 or end_at<=start_at then
    raise exception 'Normal Sales service-line insertion changed; migration halted';
  end if;
