@@ -274,7 +274,8 @@ export default function PrintLayout({
   return <div className="print-document"><div className="print-page">
     <div className="print-header">
       <div className="print-company">
-        <div>
+        {showLogo && company.logoUrl && <div className="print-logo-top"><img src={company.logoUrl} alt={`${company.name || "Company"} logo`} className="print-logo" /></div>}
+        <div className="print-company-details">
           {showCompanyName && company.name && <h1 className="print-company-name">{company.name}</h1>}
           {showAddress && company.address && <p className="print-company-addr">{company.address}</p>}
           {showPhoneEmail && (company.phone || company.email) && <p className="print-company-addr">{[company.phone ? `${docLabel("Phone", "فون")}: ${company.phone}` : "", company.email || ""].filter(Boolean).join(" · ")}</p>}
@@ -282,10 +283,9 @@ export default function PrintLayout({
         </div>
       </div>
       <div className="print-voucher-title-box" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
-        <div><h2 className="print-voucher-title">{isDraft ? "DRAFT · " : ""}{voucherTitle}{effectiveBilingual ? ` / ${urduTitle(voucherTitle)}` : ""}</h2>{showDocumentQr && <div style={{ marginTop: 3, textAlign: "right", fontSize: 8, color: "#d6e5e8", lineHeight: 1.35 }}>{docLabel("Internal Reference QR", "اندرونی حوالہ کیو آر")}</div>}</div>
-        {showDocumentQr && <div style={{ background: "#fff", padding: 2, lineHeight: 0, breakInside: "avoid" }}><QRCodeSVG value={qrPayload} size={62} level="M" includeMargin={false} /></div>}
+        <div><h2 className="print-voucher-title">{isDraft ? "DRAFT · " : ""}{voucherTitle}{effectiveBilingual ? ` / ${urduTitle(voucherTitle)}` : ""}</h2>{showDocumentQr && <div className="print-reference-qr-label">{docLabel("Internal Reference QR", "اندرونی حوالہ کیو آر")}</div>}</div>
+        {showDocumentQr && <div className="print-reference-qr"><QRCodeSVG value={qrPayload} size={62} level="M" includeMargin={false} /></div>}
       </div>
-      {showLogo && company.logoUrl && <div className="print-logo-side"><img src={company.logoUrl} alt={`${company.name || "Company"} logo`} className="print-logo" /></div>}
     </div>
 
     {showHeader && (visibleEnglishHeader || visibleUrduHeader) && <div style={{ textAlign: "center", margin: "6px 0 10px", fontSize: 11, color: "#475569" }}>{visibleEnglishHeader && <div>{visibleEnglishHeader}</div>}{visibleUrduHeader && <div>{visibleUrduHeader}</div>}</div>}
