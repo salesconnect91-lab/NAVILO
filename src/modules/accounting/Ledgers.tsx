@@ -80,9 +80,9 @@ const PARTY_COLUMNS = [
   ["description", "Description"], ["base", "Base Amount"], ["charges", "Charges"], ["tax", "VAT / Tax"], ["postedTotal", "Posted Total"], ["debit", "Debit"], ["credit", "Credit"], ["balance", "Balance"],
 ] as const;
 type PartyColumnKey = (typeof PARTY_COLUMNS)[number][0];
-const DEFAULT_PARTY_COLUMNS: PartyColumnKey[] = [
-  "sourceGross","sourceSettled","sourceRemaining","date","party","reference","documentRefs","trip","from","to","vehicle","description","base","charges","tax","postedTotal","debit","credit","balance",
-];
+// Party statements show posted accounting first, like the General Ledger.
+const DEFAULT_PARTY_COLUMNS: PartyColumnKey[] = ["date","party","reference","description","debit","credit","balance"];
+const DEFAULT_PARTY_COLUMN_ORDER: PartyColumnKey[] = [...DEFAULT_PARTY_COLUMNS,...PARTY_COLUMNS.map(([key])=>key).filter(key=>!DEFAULT_PARTY_COLUMNS.includes(key))];
 
 const escapeCsv = (value: unknown) => {
   const text = value === null || value === undefined ? "" : String(value);
@@ -188,6 +188,8 @@ export default function Ledgers() {
     useState<PartyFilterType>("all");
   const [selectedPartyKey, setSelectedPartyKey] = useState("");
   const [partySearch, setPartySearch] = useState("");
+  const [loadAllParties,setLoadAllParties]=useState(false);
+  const [showTripEvidence,setShowTripEvidence]=useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -200,7 +202,7 @@ export default function Ledgers() {
   const partyColumnDragKey = useRef<PartyColumnKey | null>(null);
   const [partyColumnOrder, setPartyColumnOrder] = useState<PartyColumnKey[]>(() => {
     try {
-      const saved = localStorage.getItem("navilo-ledger-party-column-order");
+      const saved = localStorage.getItem("navilo-ledger-party-column-order-v2");
       if (saved) {
         const parsed = JSON.parse(saved) as PartyColumnKey[];
         const allowed = new Set(PARTY_COLUMNS.map(([key]) => key));
@@ -209,16 +211,16 @@ export default function Ledgers() {
         if (valid.length) return [...valid, ...missing];
       }
     } catch {}
-    return PARTY_COLUMNS.map(([key]) => key);
+    return DEFAULT_PARTY_COLUMN_ORDER;
   });
   const [visiblePartyColumns, setVisiblePartyColumns] = useState<PartyColumnKey[]>(() => {
     try {
-      const saved = localStorage.getItem("navilo-ledger-party-columns");
+      const saved = localStorage.getItem("navilo-ledger-party-columns-v2");
       if (saved) {
         const parsed = JSON.parse(saved) as PartyColumnKey[];
         const allowed = new Set(PARTY_COLUMNS.map(([key]) => key));
         const valid = parsed.filter((key) => allowed.has(key));
-        if (valid.length) return [...new Set<PartyColumnKey>([...valid,"sourceGross","sourceSettled","sourceRemaining"])];
+        if (valid.length) return [...new Set<PartyColumnKey>(valid)];
       }
     } catch {}
     return DEFAULT_PARTY_COLUMNS;
@@ -290,7 +292,7 @@ export default function Ledgers() {
   }, [selectedAccount, fromDate, toDate, fetchOwnerCancelledJournalIds]);
 
   const fetchOpeningBalances=useCallback(async()=>{
-    if(!fromDate){setOpeningBalances({});return;}
+    if(!fromDate||(viewMode==='party'&&!selectedPartyKey&&!loadAllParties)){setOpeningBalances({});return;}
     const {data,error}=await supabase.rpc('accounting_ledger_opening_balances_scoped',{
       p_before:fromDate,p_kind:viewMode,
     });
@@ -303,9 +305,10 @@ export default function Ledgers() {
       balances[key]=Number(record.opening_balance)||0;
     }
     setOpeningBalances(balances);
-  },[fromDate,viewMode]);
+  },[fromDate,viewMode,selectedPartyKey,loadAllParties]);
 
   const fetchPartyLedger = useCallback(async () => {
+    if(!selectedPartyKey&&!loadAllParties){setPartyRows([]);return;}
     const [data, excluded] = await Promise.all([
       fetchAllPages<PartyLedgerRow>((fromRow, toRow) => {
         let query = supabase
@@ -336,12 +339,14 @@ export default function Ledgers() {
     ]);
 
     setPartyRows(excludeOwnerCancelledLedgerRows(data, excluded));
-  }, [partyFilterType, selectedPartyKey, fromDate, toDate, fetchOwnerCancelledJournalIds]);
+  }, [partyFilterType, selectedPartyKey, loadAllParties, fromDate, toDate, fetchOwnerCancelledJournalIds]);
 
   const transportRequest=useRef(0);
   const fetchTransportContext = useCallback(async () => {
     const request=++transportRequest.current;
     setTransportDetails([]);setTransportMovements([]);
+    // Optional enrichment: never scan every party's Trips on page open.
+    if(!showTripEvidence||!selectedPartyKey)return;
     const selected = selectedPartyKey ? selectedPartyKey.split(":") as [PartyType, string] : null;
     const sides: PartyType[] = selected ? [selected[0]] : partyFilterType === "all" ? ["customer", "supplier"] : [partyFilterType];
     setTransportWarning(null);
@@ -374,21 +379,21 @@ export default function Ledgers() {
     }));
 
     if(request===transportRequest.current){setTransportDetails(details);setTransportMovements(movements);}
-  }, [partyFilterType, selectedPartyKey,activeCompany?.company_id,activeBusinessUnit?.business_unit_id,branch]);
+  }, [partyFilterType, selectedPartyKey,showTripEvidence,activeCompany?.company_id,activeBusinessUnit?.business_unit_id,branch]);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem("navilo-ledger-report-default");
       if (!saved) return;
-      const data = JSON.parse(saved) as { fromDate?: string; toDate?: string; visiblePartyColumns?: PartyColumnKey[]; partyColumnOrder?: PartyColumnKey[] };
+      const data = JSON.parse(saved) as { fromDate?: string; toDate?: string; visiblePartyColumns?: PartyColumnKey[]; partyColumnOrder?: PartyColumnKey[];partyColumnVersion?:number };
       if (data.fromDate) setFromDate(data.fromDate);
       if (data.toDate) setToDate(data.toDate);
       const allowed = new Set(PARTY_COLUMNS.map(([key]) => key));
-      if (Array.isArray(data.visiblePartyColumns)) {
+      if (data.partyColumnVersion===2&&Array.isArray(data.visiblePartyColumns)) {
         const valid = data.visiblePartyColumns.filter(key => allowed.has(key));
         if (valid.length) setVisiblePartyColumns(valid);
       }
-      if (Array.isArray(data.partyColumnOrder)) {
+      if (data.partyColumnVersion===2&&Array.isArray(data.partyColumnOrder)) {
         const valid = data.partyColumnOrder.filter(key => allowed.has(key));
         setPartyColumnOrder([...valid, ...PARTY_COLUMNS.map(([key]) => key).filter(key => !valid.includes(key))]);
       }
@@ -397,7 +402,7 @@ export default function Ledgers() {
   const setReportAsDefault = () => {
     try {
       localStorage.setItem("navilo-ledger-report-default", JSON.stringify({
-        fromDate, toDate, visiblePartyColumns, partyColumnOrder,
+        fromDate, toDate, visiblePartyColumns, partyColumnOrder, partyColumnVersion:2,
       }));
       setDefaultSaved(true);
     } catch {
@@ -406,8 +411,8 @@ export default function Ledgers() {
   };
   useEffect(() => {
     try {
-      localStorage.setItem("navilo-ledger-party-columns", JSON.stringify(visiblePartyColumns));
-      localStorage.setItem("navilo-ledger-party-column-order", JSON.stringify(partyColumnOrder));
+      localStorage.setItem("navilo-ledger-party-columns-v2", JSON.stringify(visiblePartyColumns));
+      localStorage.setItem("navilo-ledger-party-column-order-v2", JSON.stringify(partyColumnOrder));
     } catch {}
   }, [visiblePartyColumns, partyColumnOrder]);
 
@@ -447,7 +452,7 @@ export default function Ledgers() {
           setTransportDetails([]);setTransportMovements([]);setTransportWarning(null);
           await Promise.all([fetchGeneralLedger(),fetchOpeningBalances()]);
         } else {
-          await Promise.all([fetchPartyLedger(), fetchTransportContext(),fetchOpeningBalances()]);
+          await Promise.all([fetchPartyLedger(),fetchOpeningBalances()]);
         }
       } catch (err: any) {
         if (mounted) {
@@ -464,7 +469,16 @@ export default function Ledgers() {
       mounted = false;
       transportRequest.current++;
     };
-  }, [viewMode, fetchGeneralLedger, fetchPartyLedger, fetchTransportContext, fetchOpeningBalances]);
+  }, [viewMode, fetchGeneralLedger, fetchPartyLedger, fetchOpeningBalances]);
+  useEffect(()=>{
+    if(viewMode!=='party'||!selectedPartyKey||!showTripEvidence){
+      transportRequest.current++;
+      setTransportDetails([]);setTransportMovements([]);setTransportWarning(null);
+      return;
+    }
+    void fetchTransportContext();
+    return ()=>{transportRequest.current++};
+  },[viewMode,selectedPartyKey,showTripEvidence,fetchTransportContext]);
 
   const selectedAccountObj = useMemo(
     () => accounts.find((account) => account.id === selectedAccount) ?? null,
@@ -707,7 +721,7 @@ export default function Ledgers() {
       });
     }
     return ledgerStatementPrintMarkup(rows,{
-      title:viewMode==='general'?'General Ledger':'Party Statement',
+      title:viewMode==='general'?'General Ledger':selectedParty?.name?selectedParty.name+' — Party Statement':'Party Statement',
       companyName:activeCompany?.company_name,
       period:(fromDate||'All dates')+' to '+(toDate||'latest'),
       partySelected:single,
@@ -718,7 +732,7 @@ export default function Ledgers() {
     });
   },[loading,viewMode,selectedAccount,selectedPartyKey,generalRowsWithBalance,partyRowsWithBalance,
     transportInfoByJournal,getPartyName,activeCompany?.company_name,fromDate,toDate,openingBalance,
-    statementBalance,totalDebit,totalCredit]);
+    statementBalance,totalDebit,totalCredit,selectedParty?.name]);
   useEffect(()=>{
     const table=partyTableRef.current;if(!table||viewMode!=='party')return;
     return registerPrintSource(table,()=>{
@@ -739,16 +753,22 @@ export default function Ledgers() {
     setPartyFilterType(value);
     setSelectedPartyKey("");
     setPartySearch("");
+    setLoadAllParties(false);
+    setShowTripEvidence(false);
   };
 
   const handleSelectParty = (partyKey: string, partyName: string) => {
     setSelectedPartyKey(partyKey);
     setPartySearch(partyName);
+    setLoadAllParties(false);
+    setShowTripEvidence(false);
   };
 
   const handleClearParty = () => {
     setSelectedPartyKey("");
     setPartySearch("");
+    setLoadAllParties(false);
+    setShowTripEvidence(false);
   };
 
   return (
@@ -760,6 +780,7 @@ export default function Ledgers() {
           <div className="flex items-center gap-3 print:hidden">
             <button
               onClick={exportToExcel}
+              disabled={loading||(viewMode==='party'&&!selectedPartyKey&&!loadAllParties)}
               className="px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
             >
               Export
@@ -767,6 +788,7 @@ export default function Ledgers() {
 
             <button
               onClick={exportToPDF}
+              disabled={loading||(viewMode==='party'&&!selectedPartyKey&&!loadAllParties)}
               className="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5"
             >
               Print / PDF
@@ -789,14 +811,14 @@ export default function Ledgers() {
             <SearchableSelect
               className="input text-sm"
               value={viewMode}
-              onChange={(e) => setViewMode(e.target.value as ViewMode)}
+              onChange={(e) => {setViewMode(e.target.value as ViewMode);setShowTripEvidence(false)}}
             >
               <option value="general">General Ledger</option>
               <option value="party">Party Statement</option>
             </SearchableSelect>
           </div>
 
-          {!loading && fromDate && (viewMode==='general'?Boolean(selectedAccount):Boolean(selectedPartyKey)) && (
+          {!loading && (viewMode==='general'?(Boolean(fromDate)&&Boolean(selectedAccount)):Boolean(selectedPartyKey)) && (
           <p className="rounded border bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-800" role="status">
             Opening Balance: {signedBalanceLabel(openingBalance)} · Period Debit: {formatCurrency(totalDebit)} · Period Credit: {formatCurrency(totalCredit)} · Closing Balance: {signedBalanceLabel(statementBalance)}
           </p>
@@ -966,7 +988,7 @@ export default function Ledgers() {
                   <div className="absolute right-0 z-40 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-xl">
                     <div className="mb-2 flex items-center justify-between">
                       <strong className="text-xs">Statement columns</strong>
-                      <button type="button" className="text-xs text-blue-700" onClick={() => { setVisiblePartyColumns(DEFAULT_PARTY_COLUMNS); setPartyColumnOrder(PARTY_COLUMNS.map(([key]) => key)); }}>Reset</button>
+                      <button type="button" className="text-xs text-blue-700" onClick={() => { setVisiblePartyColumns(DEFAULT_PARTY_COLUMNS); setPartyColumnOrder(DEFAULT_PARTY_COLUMN_ORDER); }}>Reset</button>
                     </div>
                     <div className="max-h-64 space-y-1 overflow-auto">
                       {PARTY_COLUMNS.map(([key, label]) => (
@@ -1082,21 +1104,25 @@ export default function Ledgers() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <p className="text-sm p-2">Imported invoice rows explain the existing opening voucher. Source gross and previously settled amounts are register evidence. Debit, credit and balance show the posted opening remaining. Original invoice dates were not supplied.</p>
+            <p className="mb-2 text-sm text-slate-600">Posted Party Ledger · Debit, Credit and Running Balance follow original accounting entries. Imported invoice dates may be opening balance dates; original issue dates were not supplied.</p>
+            {!selectedPartyKey&&!loadAllParties&&<div className="mb-3 flex flex-wrap items-center gap-3 rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700"><span>Select a customer or supplier above for a fast statement.</span><button type="button" className="btn" disabled={loading} onClick={()=>setLoadAllParties(true)}>Load all parties (large report)</button></div>}
+            {selectedPartyKey&&<div className="mb-3 flex flex-wrap items-center gap-3 text-xs"><button type="button" className="btn" onClick={()=>setShowTripEvidence(v=>!v)}>{showTripEvidence?'Hide Trip / Invoice Details':'Show Trip / Invoice Details'}</button><span className="text-slate-500">Optional source evidence; posted accounting balances remain unchanged.</span></div>}
             <div className="flex gap-3 p-2 print:hidden"><button disabled={!partyPage} onClick={()=>setPartyPage(p=>p-1)}>Previous</button><span>{partyPage*200+Math.min(partyRowsWithBalance.length,1)}–{Math.min((partyPage+1)*200,partyRowsWithBalance.length)} / {partyRowsWithBalance.length} rows</span><button disabled={(partyPage+1)*200>=partyRowsWithBalance.length} onClick={()=>setPartyPage(p=>p+1)}>Next</button><span>Print and export include all matching rows.</span></div>
-            <table ref={partyTableRef} className="w-full text-sm min-w-max">
+            <table ref={partyTableRef} className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
                   {displayedPartyColumns.map(([key, label]) => (
-                    <th key={key} draggable onDragStart={(e) => { partyColumnDragKey.current = key; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", key); }} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }} onDrop={(e) => { e.preventDefault(); const source = partyColumnDragKey.current || e.dataTransfer.getData("text/plain") as PartyColumnKey; partyColumnDragKey.current = null; if (source) movePartyColumn(source, key); }} onDragEnd={() => { partyColumnDragKey.current = null; }} title="Drag left or right to reorder" className={`cursor-grab select-none py-2 px-2 font-medium whitespace-nowrap active:cursor-grabbing ${["base","charges","tax","postedTotal","debit","credit","balance"].includes(key) ? "text-right" : "text-left"}`}>{label}</th>
+                    <th key={key} draggable onDragStart={(e) => { partyColumnDragKey.current = key; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", key); }} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }} onDrop={(e) => { e.preventDefault(); const source = partyColumnDragKey.current || e.dataTransfer.getData("text/plain") as PartyColumnKey; partyColumnDragKey.current = null; if (source) movePartyColumn(source, key); }} onDragEnd={() => { partyColumnDragKey.current = null; }} title="Drag left or right to reorder" className={`cursor-grab select-none py-2.5 px-3 font-semibold whitespace-nowrap active:cursor-grabbing ${["base","charges","tax","postedTotal","debit","credit","balance"].includes(key) ? "text-right" : "text-left"}`}>{label}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr><td colSpan={visiblePartyColumns.length} className="text-center py-8 text-slate-400">Loading Party Statement...</td></tr>
+                ) : !selectedPartyKey&&!loadAllParties ? (
+                  <tr><td colSpan={visiblePartyColumns.length} className="text-center py-8 text-slate-500">Select a party to view its ledger, or choose Load all parties.</td></tr>
                 ) : partyRowsWithBalance.length === 0 ? (
-                  <tr><td colSpan={visiblePartyColumns.length} className="text-center py-8 text-slate-400">No party ledger entries found for this selection.</td></tr>
+                  <tr><td colSpan={visiblePartyColumns.length} className="text-center py-8 text-slate-400">No posted party ledger entries found for this selection.</td></tr>
                 ) : partyRowsWithBalance.slice(partyPage*200,(partyPage+1)*200).map((row) => {
                   const transport = transportInfoByJournal(row);
                   const cells: Record<PartyColumnKey, ReactNode> = {
@@ -1118,7 +1144,7 @@ export default function Ledgers() {
                   return (
                     <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50/50">
                       {displayedPartyColumns.map(([key]) => (
-                        <td key={key} className={`py-2 px-2 whitespace-nowrap ${["base","charges","tax","postedTotal","debit","credit","balance"].includes(key) ? "text-right" : "text-left"} ${key === "balance" ? "font-semibold text-slate-900" : "text-slate-700"}`}>
+                        <td key={key} className={`py-2.5 px-3 ${key==="description"?"min-w-[180px]":"whitespace-nowrap"} ${["base","charges","tax","postedTotal","debit","credit","balance"].includes(key) ? "text-right" : "text-left"} ${key === "balance" ? "font-semibold text-slate-900" : "text-slate-700"}`}>
                           {cells[key]}
                         </td>
                       ))}
