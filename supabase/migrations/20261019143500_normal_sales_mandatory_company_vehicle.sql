@@ -41,12 +41,15 @@ SELECT jsonb_agg(jsonb_build_object('description',z->>'description','amount',z->
 SELECT jsonb_agg(jsonb_build_object('description',z->>'description','amount',z->>'amount','vehicle_id',z->>'vehicle_id')) INTO lines$newimport$;
 begin
   f:=pg_get_functiondef('public.transport_normal_invoice_create(text,uuid,date,jsonb,uuid,text,text,boolean)'::regprocedure);
-  if position(existing_vehicle_rule in f)=0 then
-    if position(required_vehicle_rule in f)=0 then
-      raise exception 'Normal Sales vehicle posting function changed; migration halted';
-    end if;
-  else
-    execute replace(f,existing_vehicle_rule,required_vehicle_rule);
+  -- Match stable statement boundaries, not pretty-printed whitespace from
+  -- pg_get_functiondef: production and replayed migrations can differ in indent.
+  if position(required_vehicle_rule in f)=0 then
+    if strpos(f,'IF selected_vehicle IS NOT NULL AND NOT EXISTS (')=0
+       or strpos(f,'INSERT INTO public.sales_service_lines')<=strpos(f,'IF selected_vehicle IS NOT NULL AND NOT EXISTS (')
+    then raise exception 'Normal Sales vehicle posting function changed; migration halted';end if;
+    execute left(f,strpos(f,'IF selected_vehicle IS NOT NULL AND NOT EXISTS (')-1)
+      || required_vehicle_rule || chr(10)||'    '
+      || substring(f from strpos(f,'INSERT INTO public.sales_service_lines'));
   end if;
   f:=pg_get_functiondef('public.transport_normal_invoice_import(text,jsonb,boolean)'::regprocedure);
   if position(old_import in f)=0 then
