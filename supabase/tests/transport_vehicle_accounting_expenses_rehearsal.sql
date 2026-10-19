@@ -127,6 +127,14 @@ begin
  res:=public.general_expense_bill_create(supplier2,'2026-10-17','EXP-CREDIT-TEST',acct,
   '[{"description":"General with VAT","amount":"200"}]'::jsonb,true,true,null);
  if (res->>'vat')::numeric<>30 then raise exception 'Expense VAT mismatch';end if;
+ res:=public.general_expense_bill_import(jsonb_build_array(
+  jsonb_build_object('batch_ref','EXCEL-TEST-1','supplier_id',supplier2,'account_id',acct,'invoice_date','2026-10-17','supplier_invoice_no','EXCEL-SUP-1','description','Invoice row 1','amount','50','vat_choice','with_vat'),
+  jsonb_build_object('batch_ref','EXCEL-TEST-1','supplier_id',supplier2,'account_id',acct,'invoice_date','2026-10-17','supplier_invoice_no','EXCEL-SUP-1','description','Invoice row 2','amount','25','vat_choice','with_vat')
+ ),true);
+ if (res->>'invoices')::integer<>1 or (res->>'lines')::integer<>2
+ then raise exception 'Expense Excel import summary incorrect';end if;
+ if not exists(select 1 from public.purchase_orders p where p.id=(res->'documents'->0->>'document_id')::uuid and p.status='posted')
+ then raise exception 'Expense Excel import did not post invoice';end if;
  res:=public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
   '[{"description":"VAT choice invoice","amount":"100"}]'::jsonb,revenue,'VAT-CHOICE-GOOD',null,true,'with_vat');
  if (res->>'vat')::numeric<>15 then raise exception 'Normal VAT choice wrong total';end if;
