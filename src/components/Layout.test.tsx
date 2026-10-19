@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import Layout from "./Layout";
 
 vi.mock("@/auth/AuthContext", () => ({
@@ -10,7 +10,7 @@ vi.mock("@/auth/AuthContext", () => ({
     signOut: vi.fn(),
     isPlatformOwner: false,
     activeCompany: { company_name: "Synthetic Company", membership_role: "company_owner" },
-    activeBusinessUnit: { membership_role: "company_owner", business_unit_type: "transport", enabled_modules: ["master", "dashboard", "sales", "transport"] },
+    activeBusinessUnit: { membership_role: "company_owner", business_unit_type: "transport", enabled_modules: ["master", "dashboard", "sales", "purchase", "transport"] },
   }),
 }));
 vi.mock("@/auth/FeatureAccess", () => ({ useFeatureAccess: () => ({ isFeatureEnabled: () => true }) }));
@@ -68,6 +68,26 @@ describe("collapsed navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Master Data" }));
     expect(screen.getByRole("link", { name: "Customers" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Collapse navigation" })).toBeTruthy();
+  });
+
+  it("opens distinct Sales and Purchase invoice lists through their sidebar links", async () => {
+    function RouteView() {
+      const route=useLocation();
+      return <output data-testid="current-invoice-path">{route.pathname+route.search}</output>;
+    }
+    render(<MemoryRouter initialEntries={["/sales"]}><Layout><RouteView/></Layout></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button",{name:"Open navigation"}));
+    const sales=screen.getByRole("link",{name:"Sales Invoices"});
+    expect(sales.getAttribute("href")).toBe("/sales");
+    fireEvent.click(screen.getByRole("button",{name:"Purchase"}));
+    const purchase=screen.getByRole("link",{name:"Purchase Invoices"});
+    expect(purchase.getAttribute("href")).toBe("/purchase");
+    fireEvent.click(purchase);
+    await waitFor(()=>expect(screen.getByTestId("current-invoice-path").textContent).toBe("/purchase"));
+    fireEvent.click(screen.getByRole("button",{name:"Open navigation"}));
+    fireEvent.click(screen.getByRole("button",{name:"Sales"}));
+    fireEvent.click(screen.getByRole("link",{name:"Sales Invoices"}));
+    await waitFor(()=>expect(screen.getByTestId("current-invoice-path").textContent).toBe("/sales"));
   });
 
   it("names the sales invoice editor instead of showing a generic ERP title", () => {
