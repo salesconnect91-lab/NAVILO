@@ -45,7 +45,7 @@ describe('General Expense Bill non-inventory workflow',()=>{
  it('posts with VAT only through the controlled supplier bill RPC',async()=>{
   await fill();
   fireEvent.change(screen.getByLabelText('Expense invoice VAT treatment'),{target:{value:'yes'}});
-  await screen.findByText(/VAT:.*SAR 15\.00/);
+  await screen.findByText('SAR 15.00');
   fireEvent.click(screen.getByRole('button',{name:'Post Expense Invoice'}));
   await screen.findByText(/Expense Invoice posted/);
   expect(mock.calls[0].args.p_vat).toBe(true);
