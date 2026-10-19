@@ -45,6 +45,21 @@ const load=async(side:'customer'|'supplier')=>{
  return ui;
 };
 describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
+ it('keeps the professional Sale and Purchase forms distinct, with consistent sections',async()=>{
+  const customer=await load('customer');
+  expect(screen.getByRole('heading',{name:'New Sale Invoice'})).toBeTruthy();
+  expect(screen.getByRole('heading',{name:'Customer & Invoice Details'})).toBeTruthy();
+  expect(screen.getByRole('heading',{name:'Invoice Lines'})).toBeTruthy();
+  expect(screen.getByRole('heading',{name:'Review & Save'})).toBeTruthy();
+  expect(document.querySelector('[data-navilo-invoice-side="customer"]')).toBeTruthy();
+  expect(screen.getAllByRole('link',{name:/Sale Invoices/})).toHaveLength(1);
+  customer.unmount();
+  await load('supplier');
+  expect(screen.getByRole('heading',{name:'New Purchase Invoice'})).toBeTruthy();
+  expect(screen.getByRole('heading',{name:'Supplier & Invoice Details'})).toBeTruthy();
+  expect(document.querySelector('[data-navilo-invoice-side="supplier"]')).toBeTruthy();
+  expect(screen.queryByRole('heading',{name:'Customer & Invoice Details'})).toBeNull();
+ });
  it('posts manual multi-description customer Sales using company Master/account',async()=>{
   await load('customer');
   fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice customer'}),{target:{value:'a-party'}});
