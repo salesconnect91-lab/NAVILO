@@ -29,7 +29,7 @@ function labelDate(value:string,bucket:string){const d=new Date(`${value}T00:00:
 function Panel({title,action,children}:{title:string;action?:ReactNode;children:ReactNode}){return <section className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm "><div className="flex min-h-9 items-center justify-between gap-2 border-b border-slate-200 px-3 py-2 "><h2 className="text-xs font-black text-slate-900 ">{title}</h2>{action}</div><div className="p-2.5">{children}</div></section>}
 function EmptyChart({message}:{message:string}){return <div className="flex h-32 items-center justify-center rounded-lg bg-slate-50 text-center"><div><div className="text-sm font-black text-slate-700">No activity</div><div className="mt-1 text-xs font-semibold text-slate-400">{message}</div></div></div>}
 export default function Dashboard(){
- const navigate=useNavigate();const{activeCompany,activeBusinessUnit}=useAuth();const companyId=activeCompany?.company_id??null;const businessUnitId=activeBusinessUnit?.business_unit_id??null;const isTransportBusiness=activeBusinessUnit?.business_unit_type==='transport';
+ const navigate=useNavigate();const{activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();const companyId=activeCompany?.company_id??null;const businessUnitId=activeBusinessUnit?.business_unit_id??null;const isTransportBusiness=activeBusinessUnit?.business_unit_type==='transport';
  const initial=rangeFor("6m");const[rangeKey,setRangeKey]=useState<RangeKey>("6m");const[startDate,setStartDate]=useState(initial.start);const[endDate,setEndDate]=useState(initial.end);const[summary,setSummary]=useState<Summary>(EMPTY);const[hidden,setHidden]=useState<WidgetId[]>(DEFAULT_HIDDEN);const[preferenceId,setPreferenceId]=useState<string|null>(null);const[loading,setLoading]=useState(true);const[error,setError]=useState<string|null>(null);const[customizeOpen,setCustomizeOpen]=useState(false);const[savingPreference,setSavingPreference]=useState(false);const[expandedAccount,setExpandedAccount]=useState<"cash"|"bank"|null>(null);
  const widgetOrderKey=`navilo-dashboard-kpi-order:${companyId??"none"}:${businessUnitId??"none"}`;
  const[kpiOrder,setKpiOrder]=useState<WidgetId[]>(()=>{try{const saved=JSON.parse(localStorage.getItem(widgetOrderKey)||"[]") as WidgetId[];return saved.length?saved:["sales","purchases","receivables","payables","cash","bank","inventory","net_liquidity"]}catch{return["sales","purchases","receivables","payables","cash","bank","inventory","net_liquidity"]}});
@@ -37,6 +37,11 @@ export default function Dashboard(){
  useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem(widgetOrderKey)||"[]") as WidgetId[];setKpiOrder(saved.length?saved:["sales","purchases","receivables","payables","cash","bank","inventory","net_liquidity"])}catch{setKpiOrder(["sales","purchases","receivables","payables","cash","bank","inventory","net_liquidity"])}},[widgetOrderKey]);
  const moveKpi=(target:WidgetId)=>{if(!dragging||dragging===target)return;setKpiOrder(current=>{const next=current.filter(id=>id!==dragging);const at=Math.max(0,next.indexOf(target));next.splice(at,0,dragging);localStorage.setItem(widgetOrderKey,JSON.stringify(next));return next});setDragging(null)};
  const analyticsRequest=useRef<AbortController|null>(null);
+ const usesAccountingFastPath=Boolean(
+   activeCompany?.enabled_modules?.includes('accounting')
+   && activeBusinessUnit?.enabled_modules?.includes('accounting')
+   && (isPlatformOwner || ['company_owner','admin','accounts'].includes(activeCompany?.membership_role??''))
+ );
  const load=useCallback(async()=>{
    // Heavy dashboard aggregates must not keep running after navigation,
    // or overlap with the Transport Register and exhaust the REST worker pool.
@@ -45,7 +50,8 @@ export default function Dashboard(){
    setLoading(true);setError(null);
    try{
      const bucket=bucketFor(startDate,endDate);
-     const {data,error:rpcError}=await supabase.rpc("dashboard_professional_analytics",
+     const {data,error:rpcError}=await supabase.rpc(
+        usesAccountingFastPath ? "dashboard_professional_analytics_fast" : "dashboard_professional_analytics",
        {p_start_date:startDate,p_end_date:endDate,p_bucket:bucket}).abortSignal(controller.signal);
      if(controller.signal.aborted)return;
      if(rpcError)setError(rpcError.message);
@@ -58,7 +64,7 @@ export default function Dashboard(){
    }finally{
      if(analyticsRequest.current===controller){analyticsRequest.current=null;setLoading(false);}
    }
- },[startDate,endDate]);
+ },[startDate,endDate,usesAccountingFastPath]);
  const loadPreferences=useCallback(async()=>{if(!companyId)return;let q=supabase.from("dashboard_widget_preferences").select("id,hidden_widgets").eq("company_id",companyId);q=businessUnitId?q.eq("business_unit_id",businessUnitId):q.is("business_unit_id",null);const{data,error:e}=await q.maybeSingle();if(e){setError(e.message);return}setPreferenceId(data?.id??null);setHidden(((data?.hidden_widgets??DEFAULT_HIDDEN) as string[]).filter((id):id is WidgetId=>WIDGETS.some(w=>w.id===id)))},[companyId,businessUnitId]);
  useEffect(()=>{void load();return()=>{analyticsRequest.current?.abort();analyticsRequest.current=null;}},[load,companyId,businessUnitId]);
  useEffect(()=>{void loadPreferences()},[loadPreferences]);

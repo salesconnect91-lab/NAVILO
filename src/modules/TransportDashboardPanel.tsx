@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, ClipboardCheck, FileClock, ReceiptText, Route, Truck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -33,10 +33,33 @@ export default function TransportDashboardPanel({
   const [summary, setSummary] = useState<TransportSummary | null>(null);
   const [contributions, setContributions] = useState<Contribution[] | null>(null);
   const [error, setError] = useState("");
+  const [financialError, setFinancialError] = useState("");
+  const [financialLoading, setFinancialLoading] = useState(false);
+  const financialRequest = useRef<AbortController | null>(null);
+  const loadContributions = async () => {
+    financialRequest.current?.abort();
+    const controller = new AbortController();
+    financialRequest.current = controller;
+    setFinancialError("");setFinancialLoading(true);
+    try {
+      const financial = await supabase.rpc("transport_contribution_summary",
+        { p_from: startDate, p_to: endDate }).abortSignal(controller.signal);
+      if(controller.signal.aborted)return;
+      if(financial.error)throw financial.error;
+      setContributions(Array.isArray(financial.data)?financial.data as Contribution[]:[]);
+    } catch (err) {
+      if(!controller.signal.aborted)setFinancialError(err instanceof Error?err.message:
+        (typeof err==="object"&&err!==null&&"message" in err?String(err.message):"Financial summary unavailable."));
+    } finally {
+      if(financialRequest.current===controller){financialRequest.current=null;setFinancialLoading(false);}
+    }
+  };
   useEffect(() => {
     const controller = new AbortController();
     setSummary(null);
     setContributions(null);
+    setFinancialError("");
+    financialRequest.current?.abort();
     setError("");
     void (async () => {
       try {
@@ -50,18 +73,14 @@ export default function TransportDashboardPanel({
           return;
         }
         setSummary(operational.data as TransportSummary);
-        const financial = await supabase.rpc("transport_contribution_summary",
-          { p_from: startDate, p_to: endDate }).abortSignal(controller.signal);
-        if (controller.signal.aborted) return;
-        // Server-side permissions protect both sides of financial data.
-        if (!financial.error && Array.isArray(financial.data)) {
-          setContributions(financial.data as Contribution[]);
-        }
+        // Financial attribution is deliberately on demand. It can perform a
+        // large historical contribution aggregation and must not block or
+        // compete with the initial Dashboard and Trip Register requests.
       } catch(error) {
         if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Dashboard unavailable");
       }
     })();
-    return () => { controller.abort(); };
+    return () => { controller.abort();financialRequest.current?.abort(); };
   }, [companyId, businessUnitId, startDate, endDate]);
 
   const tiles = [
@@ -109,6 +128,17 @@ export default function TransportDashboardPanel({
         <span>Trips without direct sales invoice link: <strong>{summary ? number(summary.trips_without_linked_sales_invoice) : "—"}</strong></span>
         <span>Trips with direct sales invoice link: <strong>{summary ? number(summary.customer_billed) : "—"}</strong></span>
       </div>
+      {summary && <div className="flex flex-wrap items-center gap-2" data-no-print>
+        <button type="button" disabled={financialLoading}
+          onClick={() => void loadContributions()}
+          className="rounded-md border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 disabled:opacity-60">
+          {financialLoading?"Loading posted financial contribution…":contributions?"Refresh posted financial contribution":"Load posted financial contribution"}
+        </button>
+        <span className="text-[10px] text-slate-500">On demand · full selected period · posted evidence only</span>
+      </div>}
+      {financialError && <p role="alert" className="text-xs text-amber-700">
+        Posted contribution could not load: {financialError}. Try a shorter period or use Transport financial reports.
+      </p>}
       {financial && (
         <div className="grid gap-2 sm:grid-cols-3">
           {financial.map((item) => (

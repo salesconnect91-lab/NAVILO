@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import TransportDashboardPanel from "./TransportDashboardPanel";
 import { supabase } from "@/lib/supabase";
@@ -19,6 +19,9 @@ it("shows scoped transport lifecycle and PPR metrics with posted contribution on
     return Object.assign(pending, {abortSignal: () => pending}) as never;
   }) as never);
   render(<MemoryRouter><TransportDashboardPanel companyId="orbit" businessUnitId="transport" startDate="2026-10-01" endDate="2026-10-10" /></MemoryRouter>);
+  await waitFor(() => expect(screen.getByText("PPR Pending")).toBeTruthy());
+  expect(supabase.rpc).not.toHaveBeenCalledWith("transport_contribution_summary", { p_from: "2026-10-01", p_to: "2026-10-10" });
+  fireEvent.click(screen.getByRole("button",{name:"Load posted financial contribution"}));
   await waitFor(() => expect(screen.getByText("SAR 5,000")).toBeTruthy());
   expect(screen.getByText("PPR Pending")).toBeTruthy();
   expect(screen.getByText("SAR 3,000")).toBeTruthy();
@@ -37,5 +40,8 @@ it("never displays financial amounts when financial RPC denies permission", asyn
   }) as never);
   render(<MemoryRouter><TransportDashboardPanel companyId="gondal" businessUnitId="transport" startDate="2026-10-01" endDate="2026-10-10" /></MemoryRouter>);
   await waitFor(() => expect(screen.getByText("3")).toBeTruthy());
+  expect(screen.queryByText("Posted trip revenue")).toBeNull();
+  fireEvent.click(screen.getByRole("button",{name:"Load posted financial contribution"}));
+  await waitFor(() => expect(screen.getByRole("alert").textContent).toMatch(/Both financial view permissions required/));
   expect(screen.queryByText("Posted trip revenue")).toBeNull();
 });

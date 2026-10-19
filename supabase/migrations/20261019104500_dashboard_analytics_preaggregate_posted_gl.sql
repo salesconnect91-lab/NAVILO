@@ -1,20 +1,33 @@
--- Aggregate journal evidence only once; retain every dashboard JSON field and scope.
--- Forward-only, fail closed if the live function definition changed.
+-- Owner/accounting-only fast analytics. The original invoker RPC remains
+-- unchanged for other users so existing RLS and report permissions are retained.
 DO $guard$ BEGIN
  IF (SELECT md5(pg_get_functiondef(p.oid)) FROM pg_proc p
      JOIN pg_namespace n ON n.oid=p.pronamespace
      WHERE n.nspname='public' AND p.proname='dashboard_professional_analytics')
  IS DISTINCT FROM '42e7237c1d0fafcfeab2b0413eb21371'
- THEN RAISE EXCEPTION 'dashboard_professional_analytics changed: migration refused'; END IF;
+ THEN RAISE EXCEPTION 'Dashboard baseline changed; optimized migration refused'; END IF;
 END $guard$;
 
-CREATE OR REPLACE FUNCTION public.dashboard_professional_analytics(p_start_date date, p_end_date date, p_bucket text DEFAULT 'month'::text)
+CREATE OR REPLACE FUNCTION public.dashboard_professional_analytics_fast(p_start_date date, p_end_date date, p_bucket text DEFAULT 'month'::text)
  RETURNS jsonb
- LANGUAGE sql
- STABLE
- SET search_path TO 'public'
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
 AS $function$
-with recursive ctx as (
+DECLARE v_result jsonb;
+BEGIN
+ -- A privileged scoped reporting path, never available to non-accounting roles.
+ IF auth.uid() IS NULL
+   OR NOT public.has_module_permission(public.current_company_id(),'dashboard','view')
+   OR NOT public.has_module_permission(public.current_company_id(),'accounting','view')
+   OR NOT (
+     public.is_platform_owner()
+     OR EXISTS (SELECT 1 FROM public.company_memberships m
+       WHERE m.company_id=public.current_company_id() AND m.user_id=auth.uid()
+         AND m.is_active AND m.role IN ('company_owner','admin','accounts'))
+   )
+ THEN RAISE EXCEPTION 'Accounting dashboard permission required'; END IF;
+ with recursive ctx as (
   select public.current_company_id() company_id,
          public.current_business_unit_id() business_unit_id,
          public.current_operating_location_id() operating_location_id,
@@ -137,5 +150,11 @@ select jsonb_build_object(
  'cash_accounts',coalesce((select data from account_breakdown where mapping_key='cash'),'[]'::jsonb),
  'bank_accounts',coalesce((select data from account_breakdown where mapping_key='bank'),'[]'::jsonb),
  'stock_quantity',(select quantity from stock_state),'stock_alerts',(select alerts from stock_state),
- 'pending_work_orders',(select pending from work_state),'trend',coalesce((select data from trend),'[]'::jsonb),'as_of',now());
+ 'pending_work_orders',(select pending from work_state),'trend',coalesce((select data from trend),'[]'::jsonb),'as_of',now()) INTO v_result;
+ RETURN v_result;
+END;
 $function$;
+
+REVOKE ALL ON FUNCTION public.dashboard_professional_analytics_fast(date,date,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.dashboard_professional_analytics_fast(date,date,text) FROM anon;
+GRANT EXECUTE ON FUNCTION public.dashboard_professional_analytics_fast(date,date,text) TO authenticated;
