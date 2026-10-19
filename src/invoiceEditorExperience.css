@@ -84,6 +84,10 @@
 .navilo-invoice-summary {align-self:start;border:1px solid #dce6f1;background:#f7f9fc;padding:15px 18px;border-radius:10px;font-size:12px}
 .navilo-invoice-summary-row {display:flex;justify-content:space-between;gap:12px;padding:6px 0;color:#63758a}
 .navilo-invoice-summary-row strong {font-variant-numeric:tabular-nums;color:#223b57;text-align:right}
+.navilo-transport-invoice .navilo-invoice-summary-row:has(span:first-child) strong {white-space:nowrap}
+.navilo-invoice-vat-master-note {display:block;margin-top:2px;font-size:10px;font-weight:500;color:#56718a;line-height:1.35}
+.navilo-transport-invoice .navilo-invoice-summary-total {margin-top:6px}
+.navilo-transport-invoice .navilo-invoice-summary-hint {padding:7px 0;line-height:1.35}
 .navilo-invoice-summary-hint {color:#7c8b9d;font-size:10px;line-height:1.5;padding:9px 0}
 .navilo-invoice-summary-total {display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-top:1px solid #d7e1ec;margin-top:3px;padding-top:14px;color:#193451;font-weight:750}
 .navilo-invoice-summary-total strong {font-size:18px;font-variant-numeric:tabular-nums}
