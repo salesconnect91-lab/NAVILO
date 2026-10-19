@@ -45,6 +45,26 @@
 .navilo-invoice-pro .input,.navilo-invoice-pro input.input,.navilo-invoice-pro select.input {min-width:0;max-width:100%;border-radius:7px;border-color:#d8e2ec;background-color:#fff;height:36px;font-size:12px;font-weight:500;color:#243952}
 .navilo-invoice-pro .input:focus-visible,.navilo-invoice-pro button:focus-visible,.navilo-invoice-pro a:focus-visible {outline:2px solid #6599cc;outline-offset:2px}
 .navilo-invoice-pro .input:disabled {background:#f2f5f8;color:#8190a3}
+/* Standalone Sale and Purchase invoice line headings: no double-spaced header.
+   Keep scope narrow; do not change Trip Register grids or posted invoice print styles. */
+.navilo-transport-invoice .navilo-invoice-line-heading {
+  align-items:center;
+  padding-bottom:8px;
+  margin-bottom:8px;
+  border-bottom:0;
+}
+.navilo-transport-invoice .navilo-invoice-line-heading h2 {vertical-align:middle}
+.navilo-transport-invoice .navilo-invoice-line-heading p {margin-top:3px;line-height:1.25}
+.navilo-transport-invoice .navilo-invoice-line-columns {
+  min-height:30px;
+  padding:7px 12px;
+  line-height:1.3;
+  align-items:center;
+}
+.navilo-transport-invoice .navilo-invoice-line-row {
+  padding-block:8px;
+}
+.navilo-transport-invoice .navilo-invoice-lines-wrap {margin-top:0}
 .navilo-invoice-lines-wrap {border:1px solid #e1e8f0;border-radius:9px;overflow:hidden}
 .navilo-invoice-line-grid {display:grid;grid-template-columns:minmax(0,1fr) minmax(145px,210px) 155px 40px;gap:11px;align-items:center}
 .navilo-invoice-line-columns {padding:10px 12px;background:#f3f6fa;color:#62768e;font-weight:750;font-size:10px;text-transform:uppercase;letter-spacing:.045em}
