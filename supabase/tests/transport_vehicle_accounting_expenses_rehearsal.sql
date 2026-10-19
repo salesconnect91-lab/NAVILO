@@ -117,6 +117,17 @@ begin
  res:=public.transport_save_vehicle_expense_draft('COMPAT','2026-10-17',null,'cash',jsonb_build_array(jsonb_build_object('vehicle_id',v1,'expense_type','Fuel','description','Compatible draft','net_amount','25','vat_rate',0,'source_reference','COMPAT-1')));
  if (select operating_location_id from public.transport_vehicle_expense_documents where id=(res->>'document_id')::uuid) is distinct from loc then raise exception 'Legacy draft RPC lost location scope';end if;
  -- Normal Sale: two vehicles + shared description, single AR/GL invoice, no Trip.
+ -- Validate general expense billing with existing supplier modes.
+ perform public.transport_set_party_billing_mode('supplier',supplier2,'Credit');
+ update public.suppliers set strn='VAT-TEST-SUPPLIER' where id=supplier2;
+ set local role authenticated;
+ res:=public.general_expense_bill_create(supplier,'2026-10-17','EXP-CASH-TEST',acct,
+  '[{"description":"General no VAT","amount":"100"}]'::jsonb,false,true,null);
+ if (res->>'vat')::numeric<>0 then raise exception 'Expense without VAT mismatch';end if;
+ res:=public.general_expense_bill_create(supplier2,'2026-10-17','EXP-CREDIT-TEST',acct,
+  '[{"description":"General with VAT","amount":"200"}]'::jsonb,true,true,null);
+ if (res->>'vat')::numeric<>30 then raise exception 'Expense VAT mismatch';end if;
+ reset role;
  before_trips:=(select count(*) from public.transport_trips where company_id=c);
  set local role authenticated;
  res:=public.transport_normal_invoice_create('customer',customer,'2026-10-17',jsonb_build_array(
