@@ -385,6 +385,16 @@ export default function ProfitLoss() {
     };
   }, [data]);
 
+  // Export uses identical attribution as the visible screen; never add vehicle
+  // subtotals to GL Total Income a second time.
+  const revenueExportRows:(string|number)[][]=isTransport&&transportIncome?[
+    ['Sales Income — Normal Invoices','Sales Revenue GL total',transportIncome.sales],
+    ...(transportIncome.vehicleError?[]:transportIncome.vehicles.map(v=>['Sales Income — Normal Invoices','Vehicle '+v.vehicle_no,v.amount] as (string|number)[])),
+    ...(transportIncome.vehicleError?[]:Math.abs(transportIncome.residual)>=0.005?[['Sales Income — Normal Invoices','Sales Revenue GL adjustments / legacy attribution',transportIncome.residual]]:[]),
+    ['Service Income — Trip Invoices','Service Revenue GL total',transportIncome.service],
+    ...(Math.abs(transportIncome.other)>=0.005?[['Other Operating Revenue','Other revenue GL',transportIncome.other]]:[])
+  ]:printSectionRows('Operating Revenue',data.operatingRevenue);
+
   const setThisMonth = () => {
     const today = new Date();
     setFromDate(localDateValue(new Date(today.getFullYear(), today.getMonth(), 1)));
@@ -438,7 +448,7 @@ export default function ProfitLoss() {
           <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-slate-400 shadow-sm">Loading Profit & Loss statement...</div>
         ) : (
           <>
-            <details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; monthly and year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...printSectionRows('Operating Revenue',data.operatingRevenue),...vehicleIncome.map(v=>['Legacy Vehicle Income GL (reference only)',v.amount===null?'Vehicle '+v.vehicle_no+' — See Vehicle Ledger':'Vehicle '+v.vehicle_no,v.amount===null?'—':v.amount]),...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...printSectionRows('Other Income',data.otherIncome),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; monthly and year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...revenueExportRows,...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...printSectionRows('Other Income',data.otherIncome),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {([
                 ["Revenue", data.operatingRevenue.total, "text-emerald-700"],
                 ["Cost of Sales", data.costOfSales.total, "text-rose-700"],
@@ -451,23 +461,29 @@ export default function ProfitLoss() {
             </div>
 
             <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" />
-              {isTransport && <section aria-label="Company Vehicle Income" className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-slate-50 px-3 py-2">
-                  <div><h3 className="text-xs font-bold uppercase tracking-wide">Legacy Vehicle Income Account Activity</h3>
-                    <p className="text-[11px] text-slate-500">Only activity in legacy dedicated vehicle Income GL accounts, NOT the full vehicle P&L. Already in Company totals; use Posted Vehicle Ledger for complete amounts.</p></div>
-                  {vehicleIncome.some(v=>v.status!=='dedicated')&&<button type="button" disabled={settingUpVehicles||loading} onClick={()=>void setupVehicleAccounts()} className="no-print btn text-xs" aria-label="Open Posted Vehicle Ledger and P&L">
-                    {settingUpVehicles?'Opening…':'Open Vehicle Ledger & P&L'}
-                  </button>}
-                </div>
-                {vehicleWarning&&<p role="status" className="px-3 py-2 text-xs text-amber-800">{vehicleWarning}</p>}
-                {vehicleIncome.length===0?<p className="px-3 py-3 text-xs text-slate-500">No active company-owned vehicles in this report scope.</p>:
-                <div className="divide-y divide-slate-100">{vehicleIncome.map(v=><div key={v.id} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
-                  <div><span className="font-semibold">Vehicle {v.vehicle_no}</span>
-                    <span className="ml-2 text-slate-500">{v.status==='dedicated'?'Income account linked':v.status==='shared'?'Shared Revenue — vehicle attribution supported':'No legacy income GL (not required)'}</span></div>
-                  <span className="font-mono font-semibold">{v.amount===null?'—':formatCurrency(v.amount)}</span>
-                </div>)}</div>}
-              </section>}
+              {isTransport&&transportIncome?<>
+                <StatementSection title="Sales Income — Normal Invoices"
+                  section={{total:transportIncome.sales,items:transportIncome.vehicleError?[]:[
+                    ...transportIncome.vehicles.map(v=>({
+                      name:'Vehicle '+v.vehicle_no,amount:v.amount,detailType:'Posted Normal Sale invoice allocations',
+                    })),
+                    ...(Math.abs(transportIncome.residual)>=0.005?[{
+                      name:'Sales Revenue GL adjustments / unallocated legacy postings',
+                      amount:transportIncome.residual,detailType:'Reconciliation difference — review accounting entries',
+                    }]:[]),
+                  ]}} tone="income" />
+                {transportIncome.vehicleError&&<p role="alert" className="rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                  Vehicle breakdown unavailable: {transportIncome.vehicleError}. Sales Revenue GL balance remains authoritative; do not assume zero vehicle income.
+                </p>}
+                <StatementSection title="Service Income — Trip Invoices"
+                  section={{total:transportIncome.service,items:Math.abs(transportIncome.service)>=0.005||!hideZeroBalances?[{
+                    name:'Service Revenue — Posted Trip invoices',
+                    amount:transportIncome.service,detailType:'Trip service revenue GL',
+                  }]:[]}} tone="income" />
+                {(Math.abs(transportIncome.other)>=0.005||!hideZeroBalances)&&
+                  <StatementSection title="Other Operating Revenue" section={{total:transportIncome.other,
+                    items:[{name:'Other revenue accounts / manual adjustments',amount:transportIncome.other,detailType:'Posted GL — outside Sales and Service Revenue'}]}} tone="income"/>}
+              </>:<StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" />}
               <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" />
               <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} />
               <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" />
