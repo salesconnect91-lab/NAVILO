@@ -139,29 +139,29 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
      </NaviloSearchableSelect>
      <span className="navilo-invoice-vat-master-note">Master billing: {party?vatQuote.mode??'Not configured':'Select a party'}{vatQuote.rate!==null?` · VAT ${vatQuote.rate}%`:''}</span>
     </label>
-    <label className="navilo-invoice-field navilo-invoice-field-wide">{side==='customer'?'Sales Revenue Account':'Purchase / Expense Account'} *
+    <label className="navilo-invoice-field navilo-invoice-field-wide">{side==='customer'?'Revenue GL Account':'Purchase / Expense GL Account'} *
      <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Normal invoice ledger account" className="input" value={account} onChange={e=>setAccount(e.target.value)}>
       <option value="">Select active company account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
      </NaviloSearchableSelect>
+     <span className="navilo-invoice-ledger-note">{side==='customer'?'Income is posted to this account. Vehicle selection below is only a reporting allocation, not another GL entry.':'Costs post to this expense account. Optional vehicle selection tags the expense for vehicle-wise reports.'}</span>
     </label>
    </fieldset>
   </section>
 
   <section className="navilo-invoice-card" aria-labelledby="normal-invoice-lines">
    <div className="navilo-invoice-card-heading navilo-invoice-line-heading">
-    <div><span className="navilo-invoice-step">02</span><h2 id="normal-invoice-lines">Invoice Lines</h2><p>Description, optional company vehicle and net amount (SAR).</p></div>
+    <div><span className="navilo-invoice-step">02</span><h2 id="normal-invoice-lines">Invoice Lines</h2><p>Enter descriptions and amounts. Select a vehicle only when this line belongs to a company vehicle.</p></div>
     <button type="button" disabled={saving||!!done||lines.length>=50} className="btn-secondary" onClick={()=>setLines(v=>[...v,empty()])}>+ Description Line</button>
    </div>
    <div className="navilo-invoice-lines-wrap">
-    <div className="navilo-invoice-line-grid navilo-invoice-line-columns" aria-hidden="true"><span>Description</span><span>Vehicle / Allocation</span><span className="navilo-align-right">Net Amount (SAR)</span><span/></div>
     {lines.map((line,i)=><div key={i} className="navilo-invoice-line-grid navilo-invoice-line-row">
-     <label className="navilo-invoice-line-field"><span className="navilo-mobile-label">Description {i+1}</span>
+     <label className="navilo-invoice-line-field"><span className="navilo-invoice-line-label">Description {i+1}</span>
       <input aria-label={`Description ${i+1}`} className="input" placeholder="Enter goods or service description" value={line.description} maxLength={1000} disabled={saving||!!done} onChange={e=>update(i,'description',e.target.value)}/>
      </label>
-     <label className="navilo-invoice-line-field"><span className="navilo-mobile-label">Vehicle</span>
-      <NaviloSearchableSelect nativeCompatibility aria-label={`Vehicle ${i+1}`} className="input" value={line.vehicle_id??''} disabled={saving||!!done} onChange={e=>update(i,'vehicle_id',e.target.value)}><option value="">General / Shared</option>{eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</NaviloSearchableSelect>
+     <label className="navilo-invoice-line-field"><span className="navilo-invoice-line-label">Vehicle (optional)</span>
+      <NaviloSearchableSelect nativeCompatibility aria-label={`Vehicle ${i+1}`} className="input" value={line.vehicle_id??''} disabled={saving||!!done} onChange={e=>update(i,'vehicle_id',e.target.value)}><option value="">No vehicle</option>{eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</NaviloSearchableSelect>
      </label>
-     <label className="navilo-invoice-line-field"><span className="navilo-mobile-label">Net Amount (SAR)</span>
+     <label className="navilo-invoice-line-field"><span className="navilo-invoice-line-label">Net Amount (SAR)</span>
       <input aria-label={`Amount ${i+1}`} className="input navilo-align-right" inputMode="decimal" placeholder="0.00" value={line.amount} disabled={saving||!!done} onChange={e=>update(i,'amount',e.target.value)}/>
      </label>
      <button type="button" aria-label={`Remove line ${i+1}`} title="Remove line" className="navilo-invoice-line-remove" disabled={saving||!!done||lines.length<=1} onClick={()=>setLines(v=>v.filter((_,index)=>index!==i))}>×</button>
@@ -177,7 +177,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
     <p className="navilo-invoice-small-note">VAT follows the party's Master Cash/Credit rule and the invoice-date effective tax rate. A draft does not post accounting entries.</p>
     {vatQuote.error&&<p role="alert" className="navilo-invoice-inline-warning">{vatQuote.error} <Link to={side==='customer'?'/master-data/customers?tab=billing':'/master-data/suppliers'}>Open Master</Link></p>}
     {vatQuote.loading&&<p role="status" className="navilo-invoice-small-note">Loading VAT rate and Master billing mode…</p>}
-    {side==='customer'&&<p className="navilo-invoice-small-note">Vehicle allocation is selected on each line and reported through <Link to="/master-data/vehicles">Vehicle Master</Link>; no duplicate journal is created.</p>}
+    <p className="navilo-invoice-small-note">{side==='customer'?'Revenue':'Expense'} uses the selected GL account. A vehicle is optional and only assigns this line to a vehicle-wise report. “No vehicle” leaves it as general company income or expense.</p>
     {lineError&&<p role="status" className="navilo-invoice-inline-warning">{lineError}</p>}
    </div>
    <div className="navilo-invoice-summary">
