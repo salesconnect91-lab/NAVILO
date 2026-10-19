@@ -22,7 +22,8 @@ describe('Separate Transport invoice formats',()=>{
  });
  it('keeps the normal Sale invoice separate from Trip billing',()=>{
   open('/sales/new?type=normal');
-  expect(screen.getByText('Sale Invoice')).toBeTruthy();
+  expect(screen.queryByText('Sales Transport Service Invoice')).toBeNull();
+  expect(document.querySelector('[data-navilo-transport-invoice-type="normal"]')).toBeTruthy();
   expect(screen.getByTestId('normal-sale-form')).toBeTruthy();
   expect(screen.queryByTestId('trip-service-form')).toBeNull();
  });
