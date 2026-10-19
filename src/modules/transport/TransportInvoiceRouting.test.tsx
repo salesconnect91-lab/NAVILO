@@ -13,5 +13,5 @@ describe('Business-unit invoice route isolation',()=>{
  it('uses Trip services on Transport Sales without querying inventory',()=>{render(<MemoryRouter><SalesInvoiceCreate/></MemoryRouter>);expect(screen.getByText('Trip service invoice: customer')).toBeTruthy();expect(mock.from).not.toHaveBeenCalled()});
  it('uses Trip rents on Transport Purchase without querying inventory',()=>{render(<MemoryRouter><PurchaseInvoiceCreate/></MemoryRouter>);expect(screen.getByText('Trip service invoice: supplier')).toBeTruthy();expect(mock.from).not.toHaveBeenCalled()});
  it('retains the existing Steel Sales editor',()=>{mock.type='steel';render(<MemoryRouter><SalesInvoiceCreate/></MemoryRouter>);expect(screen.getByText('New Sales Invoice')).toBeTruthy();expect(screen.queryByText('Trip service invoice: customer')).toBeNull()});
- it('retains the existing Steel Purchase editor',()=>{mock.type='steel';render(<MemoryRouter><PurchaseInvoiceCreate/></MemoryRouter>);expect(screen.getByText('Main Purchase Invoice')).toBeTruthy();expect(screen.queryByText('Trip service invoice: supplier')).toBeNull()});
+ it('retains the existing Steel Purchase editor',()=>{mock.type='steel';render(<MemoryRouter><PurchaseInvoiceCreate/></MemoryRouter>);expect(screen.getByText('New Purchase Invoice')).toBeTruthy();expect(screen.queryByText('Trip service invoice: supplier')).toBeNull()});
 });
