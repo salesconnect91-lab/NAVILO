@@ -52,11 +52,12 @@ begin
       || substring(f from strpos(f,'INSERT INTO public.sales_service_lines'));
   end if;
   f:=pg_get_functiondef('public.transport_normal_invoice_import(text,jsonb,boolean)'::regprocedure);
-  if position(old_import in f)=0 then
-    if position(new_import in f)=0 then
-      raise exception 'Normal Sales Excel import function changed; migration halted';
-    end if;
-  else
-    execute replace(f,old_import,new_import);
+  if position(new_import in f)=0 then
+    if strpos(f,'SELECT jsonb_agg(')=0
+      or strpos(f,' INTO lines')<=strpos(f,'SELECT jsonb_agg(')
+    then raise exception 'Normal Sales Excel import function changed; migration halted';end if;
+    execute left(f,strpos(f,'SELECT jsonb_agg(')-1)
+      || new_import
+      || substring(f from strpos(f,' INTO lines'));
   end if;
 end $migration$;
