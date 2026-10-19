@@ -16,20 +16,20 @@ export default function WorkspaceCenter(){
   </section>
 }
 const importTasks=[
-  {key:"expense-bills",name:"Expense invoices — with or without VAT",effect:"Non-inventory supplier bills",to:"/purchase/expense/import",module:"purchase"},
-  {key:"masters",name:"Customers & suppliers",effect:"Master records",to:"/settings/imports#import-masters",module:"master"},
-  {key:"rates",name:"Transport masters & rates",effect:"Master records and agreed rates",to:"/settings/imports#import-masters",module:"transport"},
-  {key:"trips",name:"Daily trip upload",effect:"Trip records only",to:"/settings/imports?transportUpload=bulk",module:"transport"},
-  {key:"service",name:"Service invoices & ready invoices",effect:"Validate and import drafts",to:"/settings/imports#import-daily",module:"transport"},
-  {key:"normal",name:"Sale / Purchase — without trips",effect:"Independent draft invoices",to:"/settings/imports#import-normal",module:"transport"},
-  {key:"expenses",name:"Vehicle expense Excel",effect:"Validate → draft → review",to:"/settings/imports#import-vehicle-expenses",module:"transport"},
-  {key:"money",name:"Receipts, payments & journals",effect:"Payments post; journals start as drafts",to:"/settings/imports#import-accounting",module:"accounting"},
-  {key:"transfer",name:"One-time records & transfer",effect:"Controlled one-time workflow",to:"/settings/imports#import-history",module:"transport"},
+  {key:"expense-bills",name:"Expense invoices — with or without VAT",effect:"Non-inventory supplier bills",to:"/settings/imports?section=expense",module:"purchase"},
+  {key:"masters",name:"Customers & suppliers",effect:"Master records",to:"/settings/imports?section=masters",module:"master"},
+  {key:"rates",name:"Transport masters & rates",effect:"Master records and agreed rates",to:"/settings/imports?section=rates",module:"transport"},
+  {key:"trips",name:"Daily trip upload",effect:"Trip records only",to:"/settings/imports?section=trips",module:"transport"},
+  {key:"service",name:"Service invoices & ready invoices",effect:"Validate and import drafts",to:"/settings/imports?section=service",module:"transport"},
+  {key:"normal",name:"Sale / Purchase — without trips",effect:"Independent draft invoices",to:"/settings/imports?section=normal",module:"transport"},
+  {key:"expenses",name:"Vehicle expense Excel",effect:"Validate → draft → review",to:"/settings/imports?section=vehicle-expenses",module:"transport"},
+  {key:"money",name:"Receipts, payments & journals",effect:"Payments post; journals start as drafts",to:"/settings/imports?section=accounting",module:"accounting"},
+  {key:"transfer",name:"One-time records & transfer",effect:"Controlled one-time workflow",to:"/settings/imports?section=history",module:"transport"},
 ];
 function ImportDirectory({canOpen}:{canOpen:boolean}){
   const {importModules}=useWorkspaceCatalog();
   const [query,setQuery]=useState("");const tasks=importTasks.filter(t=>importModules.includes(t.module)&&(t.name+' '+t.effect).toLowerCase().includes(query.toLowerCase()));
   if(!canOpen)return <p className="workspace-empty">Import Center is unavailable for this workspace.</p>;
-  return <><div className="workspace-catalog-toolbar"><label><Search size={16}/><input aria-label="Search imports" placeholder="Search imports…" value={query} onChange={e=>setQuery(e.target.value)}/></label><Link className="btn" to="/settings/imports">All import workflows</Link></div><div className="workspace-catalog-grid">{tasks.map(t=><article key={t.key} className="workspace-catalog-card"><Link to={t.to}><span>{t.effect}</span><strong>{t.name}</strong><ArrowUpRight size={16}/></Link></article>)}</div>{!tasks.length&&<p>No matching import workflows.</p>}</>;
+  return <><div className="workspace-catalog-toolbar"><label><Search size={16}/><input aria-label="Search imports" placeholder="Search imports…" value={query} onChange={e=>setQuery(e.target.value)}/></label></div><div className="workspace-catalog-grid">{tasks.map(t=><article key={t.key} className="workspace-catalog-card"><Link to={t.to}><span>{t.effect}</span><strong>{t.name}</strong><ArrowUpRight size={16}/></Link></article>)}</div>{!tasks.length&&<p>No matching import workflows.</p>}</>;
 }
 export function WorkspaceShortcuts(){const {entries,favorites,recent}=useWorkspaceCatalog();const chosen=[...new Set([...favorites,...recent])].slice(0,6).flatMap(k=>entries.filter(e=>e.key===k));return <section className="workspace-shortcuts" data-no-print><div><strong>Your workspace</strong><Link to="/workspace/functions">All functions <ArrowUpRight size={13}/></Link></div><nav aria-label="Workspace shortcuts">{chosen.length?chosen.map(e=><Link key={e.key} to={e.to}>{e.label}</Link>):<><Link to="/workspace/favorites">Favorites</Link><Link to="/workspace/recent">Recent pages</Link></>}</nav></section>}
