@@ -70,6 +70,42 @@
 .navilo-invoice-line-columns {padding:10px 12px;background:#f3f6fa;color:#62768e;font-weight:750;font-size:10px;text-transform:uppercase;letter-spacing:.045em}
 .navilo-invoice-line-row {padding:10px 12px;border-top:1px solid #ebeff4}
 .navilo-invoice-line-row:nth-child(odd) {background:#fbfcfe}
+/* Transport standalone invoice: labels belong to their fields, not a clipped overlay strip. */
+.navilo-transport-invoice .navilo-invoice-detail-grid > .navilo-invoice-field-wide {grid-column:1/-1}
+.navilo-transport-invoice .navilo-invoice-ledger-note {
+  display:block;
+  margin-top:1px;
+  color:#687d94;
+  font-size:10.5px;
+  line-height:1.4;
+  font-weight:500;
+}
+.navilo-transport-invoice .navilo-invoice-line-heading {
+  border:0;
+  padding-bottom:6px;
+  margin-bottom:11px;
+}
+.navilo-transport-invoice .navilo-invoice-lines-wrap {border:1px solid #e1e8f0;border-radius:9px;overflow:hidden}
+.navilo-transport-invoice .navilo-invoice-line-row {
+  align-items:start;
+  padding:10px 12px;
+  border-top:0;
+  gap:12px;
+}
+.navilo-transport-invoice .navilo-invoice-line-row + .navilo-invoice-line-row {border-top:1px solid #e6edf4}
+.navilo-transport-invoice .navilo-invoice-line-field {display:flex;flex-direction:column;min-width:0;gap:5px}
+.navilo-transport-invoice .navilo-invoice-line-label {
+  display:block;
+  position:static;
+  padding:0;
+  margin:0;
+  color:#5e748d;
+  font-size:10px;
+  font-weight:700;
+  line-height:1.3;
+  letter-spacing:.01em;
+}
+.navilo-transport-invoice .navilo-invoice-line-remove {align-self:end;margin-bottom:2px}
 .navilo-invoice-line-field {display:block;min-width:0}
 .navilo-invoice-line-field .input {width:100%}
 .navilo-mobile-label {display:none}
@@ -128,6 +164,8 @@
  .navilo-invoice-line-columns {display:none}
  .navilo-invoice-lines-wrap {border:0;overflow:visible}
  .navilo-invoice-line-row {grid-template-columns:1fr;gap:9px;margin-top:9px;border:1px solid #e1e8f0!important;border-radius:9px;background:#fff!important;padding:12px}
+ .navilo-transport-invoice .navilo-invoice-line-row + .navilo-invoice-line-row {border-top:1px solid #e1e8f0}
+ .navilo-transport-invoice .navilo-invoice-line-remove {margin-bottom:0}
  .navilo-mobile-label {display:block;font-size:10px;font-weight:700;color:#63758a;margin-bottom:5px}
  .navilo-invoice-line-remove {justify-self:end}
  .navilo-invoice-review-actions > * {flex:1;min-width:105px}
