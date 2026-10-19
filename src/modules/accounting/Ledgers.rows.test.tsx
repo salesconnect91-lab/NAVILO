@@ -9,7 +9,23 @@ const fixture=vi.hoisted(()=>{
 const api=vi.hoisted(()=>({reads:vi.fn(),rpc:vi.fn()}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'c'},activeBusinessUnit:{business_unit_id:'b'}})}));
 vi.mock('@/components/SearchableSelect',()=>({default:({children,...props}:any)=><select {...props}>{children}</select>}));
-vi.mock('@/lib/supabase',()=>({supabase:{from:(table:string)=>{const q:any={table,filters:[]};api.reads(table);for(const name of ['select','order','range'])q[name]=()=>q;q.eq=(field:string,value:unknown)=>{q.filters.push([field,value]);return q};return q;},rpc:async(name:string,args:any)=>{api.rpc(name,args);return {error:null,data:name==='transport_financial_read_allowed'?true:name==='transport_opening_invoice_query'&&args.p_kind==='details'&&args.p_side==='customer'?fixture.events.map(e=>({side:e.side,party_id:e.party_id,order_id:e.order_id,order_no:e.order_no,trip_no:`T${e.order_id}`)):[]}}}}}));
+vi.mock('@/lib/supabase',()=>({
+ supabase:{
+  from:(table:string)=>{
+   const q:any={table,filters:[]};api.reads(table);
+   for(const name of ['select','order','range'])q[name]=()=>q;
+   q.eq=(field:string,value:unknown)=>{q.filters.push([field,value]);return q};
+   return q;
+  },
+  rpc:async(name:string,args:any)=>{
+   api.rpc(name,args);
+   const data=name==='transport_financial_read_allowed'?true:
+    name==='transport_opening_invoice_query'&&args.p_kind==='details'&&args.p_side==='customer'
+     ?fixture.events.map(e=>({side:e.side,party_id:e.party_id,order_id:e.order_id,order_no:e.order_no,trip_no:`T${e.order_id}`})):[];
+   return {error:null,data};
+  },
+ }
+}));
 vi.mock('@/lib/fetchAllPages',()=>({fetchByIdChunks:vi.fn(),fetchAllPages:async(callback:any)=>{const q=callback(0,999);if(q.table){if(q.table==='party_ledgers')return fixture.ledger.filter(r=>q.filters.every(([k,v]:[string,unknown])=>(r as any)[k]===v));if(q.table==='customers')return [{id:'bari',name:'CASH BARI'},{id:'other',name:'OTHER CUSTOMER'}];return [];}return (await q).data;}}));
 vi.mock('@/modules/transport/transportOpeningInvoices',()=>({linkedPartyRows:async(_:string,side:string)=>side==='customer'?fixture.events:[]}));
 import Ledgers from './Ledgers';
