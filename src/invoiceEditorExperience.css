@@ -1,0 +1,112 @@
+/* NAVILO professional invoice workspace — presentation only; finance logic stays in the form components. */
+.navilo-invoice-pro {
+  width:100%;
+  max-width:1536px;
+  margin-inline:auto;
+  padding:clamp(8px,1.1vw,20px);
+  color:#16243a;
+}
+.navilo-invoice-hero {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  padding:21px 24px;
+  border:1px solid #dae3ed;
+  border-radius:14px;
+  background:linear-gradient(110deg,#fff 58%,#f3f7fc);
+  box-shadow:0 2px 8px rgba(16,37,62,.035);
+}
+.navilo-invoice-hero-main {min-width:0}
+.navilo-invoice-breadcrumb {display:inline-flex;align-items:center;gap:6px;color:#315986;font-weight:600;font-size:12px;text-decoration:none;margin-bottom:8px}
+.navilo-invoice-breadcrumb:hover {text-decoration:underline}
+.navilo-invoice-eyebrow {font-size:10px;text-transform:uppercase;letter-spacing:.105em;font-weight:750;color:#667991;margin-bottom:4px}
+.navilo-invoice-eyebrow span {padding:0 6px;color:#b0becd}
+.navilo-invoice-hero h1 {font-size:clamp(20px,2vw,26px);font-weight:750;letter-spacing:-.035em;line-height:1.22;color:#0f243d;margin:0}
+.navilo-invoice-hero p {margin-top:7px;color:#65758a;font-size:12px;line-height:1.6;max-width:750px}
+.navilo-invoice-hero-actions {display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.navilo-invoice-status {display:inline-flex;align-items:center;min-height:31px;padding:5px 12px;border:1px solid #d5e0ee;border-radius:30px;background:#f7faff;color:#335778;font-size:11px;font-weight:750;letter-spacing:.015em}
+.navilo-invoice-card {
+  background:#fff;
+  border:1px solid #dae3ed;
+  border-radius:12px;
+  padding:20px 22px;
+  box-shadow:0 1px 6px rgba(26,47,72,.035);
+  min-width:0;
+}
+.navilo-invoice-card-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:17px;margin-bottom:17px;border-bottom:1px solid #edf1f5}
+.navilo-invoice-card-heading h2,.navilo-invoice-review-help h2 {display:inline;font-size:15px;font-weight:750;line-height:1.4;color:#1e3450;letter-spacing:-.015em}
+.navilo-invoice-card-heading p {font-size:11px;color:#7b899a;margin:5px 0 0;line-height:1.5}
+.navilo-invoice-step {display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:7px;background:#edf3fb;color:#315a89;font-size:11px;font-weight:800;margin-right:10px;vertical-align:middle}
+.navilo-invoice-detail-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px 16px;min-width:0}
+.navilo-invoice-field {display:flex;flex-direction:column;gap:6px;min-width:0;font-size:11px;line-height:1.4;font-weight:700;color:#40536c}
+.navilo-invoice-field-primary {grid-column:span 2}
+.navilo-invoice-field-wide {grid-column:span 3}
+.navilo-invoice-pro .input,.navilo-invoice-pro input.input,.navilo-invoice-pro select.input {min-width:0;max-width:100%;border-radius:7px;border-color:#d8e2ec;background-color:#fff;height:36px;font-size:12px;font-weight:500;color:#243952}
+.navilo-invoice-pro .input:focus-visible,.navilo-invoice-pro button:focus-visible,.navilo-invoice-pro a:focus-visible {outline:2px solid #6599cc;outline-offset:2px}
+.navilo-invoice-pro .input:disabled {background:#f2f5f8;color:#8190a3}
+.navilo-invoice-lines-wrap {border:1px solid #e1e8f0;border-radius:9px;overflow:hidden}
+.navilo-invoice-line-grid {display:grid;grid-template-columns:minmax(0,1fr) minmax(145px,210px) 155px 40px;gap:11px;align-items:center}
+.navilo-invoice-line-columns {padding:10px 12px;background:#f3f6fa;color:#62768e;font-weight:750;font-size:10px;text-transform:uppercase;letter-spacing:.045em}
+.navilo-invoice-line-row {padding:10px 12px;border-top:1px solid #ebeff4}
+.navilo-invoice-line-row:nth-child(odd) {background:#fbfcfe}
+.navilo-invoice-line-field {display:block;min-width:0}
+.navilo-invoice-line-field .input {width:100%}
+.navilo-mobile-label {display:none}
+.navilo-align-right {text-align:right;font-variant-numeric:tabular-nums}
+.navilo-invoice-line-remove {display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid #e1e7ef;border-radius:7px;background:#fff;font-size:20px;color:#a24d59;cursor:pointer}
+.navilo-invoice-line-remove:disabled {opacity:.35;cursor:not-allowed}
+.navilo-invoice-lines-footer {margin-top:11px;font-size:11px;color:#77889b}
+.navilo-invoice-review {display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,385px);gap:18px 30px}
+.navilo-invoice-review-help p {font-size:12px;line-height:1.65;margin:10px 0 0;color:#586d83;max-width:530px}
+.navilo-invoice-review-help .navilo-invoice-small-note {font-size:11px;color:#75879b}
+.navilo-invoice-review-help a {color:#2261a8;text-decoration:underline}
+.navilo-invoice-summary {align-self:start;border:1px solid #dce6f1;background:#f7f9fc;padding:15px 18px;border-radius:10px;font-size:12px}
+.navilo-invoice-summary-row {display:flex;justify-content:space-between;gap:12px;padding:6px 0;color:#63758a}
+.navilo-invoice-summary-row strong {font-variant-numeric:tabular-nums;color:#223b57;text-align:right}
+.navilo-invoice-summary-hint {color:#7c8b9d;font-size:10px;line-height:1.5;padding:9px 0}
+.navilo-invoice-summary-total {display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-top:1px solid #d7e1ec;margin-top:3px;padding-top:14px;color:#193451;font-weight:750}
+.navilo-invoice-summary-total strong {font-size:18px;font-variant-numeric:tabular-nums}
+.navilo-invoice-review-actions {grid-column:1/-1;display:flex;justify-content:flex-end;flex-wrap:wrap;gap:9px;border-top:1px solid #edf1f5;padding-top:17px}
+.navilo-invoice-pro .btn-primary,.navilo-invoice-pro .btn-secondary {display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:7px;min-height:35px;padding:7px 13px;font-weight:700;font-size:11px}
+.navilo-invoice-notice {padding:11px 14px;border-radius:8px;border:1px solid #dce5ee;background:#f6f9fc;color:#375574;font-size:12px}
+.navilo-invoice-error {border-color:#f7c9c9;background:#fff5f5;color:#9e3030}
+.navilo-invoice-success {border-color:#a6dbc3;background:#f4fdf8}
+.navilo-invoice-success h2 {font-weight:750;font-size:15px}
+.navilo-invoice-success p {margin:7px 0;color:#465b6b;font-size:12px}
+.navilo-invoice-button-row {display:flex;gap:9px;margin-top:11px}
+.navilo-invoice-inline-warning {font-size:11px;color:#a75e0e!important;padding:9px;background:#fff9ee;border-radius:7px}
+.navilo-invoice-editor[data-navilo-commercial-standard="true"] {max-width:1536px;margin-inline:auto}
+.navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-meta,
+.navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-lines,
+.navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-charges,
+.navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-review,
+.navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-totals {border:1px solid #dae3ed!important;border-radius:12px!important;box-shadow:0 1px 6px rgba(26,47,72,.035);background:#fff}
+.navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-lines-table th {background:#f3f6fa;color:#49617c;font-size:11px;letter-spacing:.02em;font-weight:750}
+.navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-lines-table td {vertical-align:middle}
+.navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-lines-table tbody tr:nth-child(even) {background:#fbfcfe}
+.navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-lines-table .input {min-width:0}
+.navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-review {display:block}
+.navilo-invoice-editor[data-navilo-commercial-standard="true"] .navilo-invoice-review > div {display:block}
+@media(max-width:900px){
+ .navilo-invoice-detail-grid {grid-template-columns:repeat(2,minmax(0,1fr))}
+ .navilo-invoice-field-primary,.navilo-invoice-field-wide {grid-column:auto}
+ .navilo-invoice-review {grid-template-columns:1fr}
+ .navilo-invoice-review-actions {grid-column:1}
+ .navilo-invoice-line-grid {grid-template-columns:minmax(0,1fr) minmax(110px,180px) 130px 36px;gap:7px}
+}
+@media(max-width:640px){
+ .navilo-invoice-pro {padding:7px}
+ .navilo-invoice-hero {padding:15px;flex-direction:column}
+ .navilo-invoice-hero-actions {justify-content:flex-start}
+ .navilo-invoice-card {padding:14px}
+ .navilo-invoice-detail-grid {grid-template-columns:1fr;gap:12px}
+ .navilo-invoice-card-heading {flex-wrap:wrap}
+ .navilo-invoice-line-columns {display:none}
+ .navilo-invoice-lines-wrap {border:0;overflow:visible}
+ .navilo-invoice-line-row {grid-template-columns:1fr;gap:9px;margin-top:9px;border:1px solid #e1e8f0!important;border-radius:9px;background:#fff!important;padding:12px}
+ .navilo-mobile-label {display:block;font-size:10px;font-weight:700;color:#63758a;margin-bottom:5px}
+ .navilo-invoice-line-remove {justify-self:end}
+ .navilo-invoice-review-actions > * {flex:1;min-width:105px}
+}
+@media print {.navilo-invoice-hero-actions,.navilo-invoice-review-actions,.navilo-invoice-line-remove {display:none!important}}
