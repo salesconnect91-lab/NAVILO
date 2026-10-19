@@ -2,7 +2,7 @@ import {invoiceImportDate} from './transportExternalInvoiceImport';
 export type NormalSide='customer'|'supplier';
 export type NormalImportRow={
  batch_ref:string;invoice_no:string;invoice_date:string;party_id:string;account_id:string;
- description:string;amount:string;reference:string;
+ description:string;amount:string;reference:string;vat_choice:'master'|'with_vat'|'without_vat';
 };
 const clean=(x:unknown)=>String(x??'').trim();
 const key=(x:string)=>x.toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -21,7 +21,7 @@ export function parseNormalInvoiceImport(
   const k=party.name.trim().toLowerCase();
   lookup.set(k,lookup.has(k)?null:party.id);
  }
- const groups=new Map<string,{party:string;date:string;number:string;reference:string}>();
+ const groups=new Map<string,{party:string;date:string;number:string;reference:string;vat_choice:string}>();
  const numbers=new Map<string,string>();
  const rows=raw.map((row,i)=>{
   const lineNo=i+2;
@@ -32,6 +32,9 @@ export function parseNormalInvoiceImport(
   const invoice_date=invoiceImportDate(get(row,'Date','Invoice Date'));
   const description=clean(get(row,'Description','Service Description'));
   const reference=clean(get(row,'Reference','Notes'));
+  const choice=clean(get(row,'VAT Treatment','VAT Choice','VAT')).toLowerCase();
+  const vat_choice:NormalImportRow['vat_choice']=!choice||choice==='master'||choice==='auto'?'master':['with vat','with_vat','yes','15','15%'].includes(choice)?'with_vat':['without vat','without_vat','no','0','0%'].includes(choice)?'without_vat':'master';
+  if(choice&&!['master','auto','with vat','with_vat','yes','15','15%','without vat','without_vat','no','0','0%'].includes(choice))throw new Error('Row '+lineNo+': invalid VAT Treatment');
   const amountInput=clean(get(row,'Amount','Net Amount')).replaceAll(',','');
   if(!batch_ref||batch_ref.length>80)throw new Error(`Row ${lineNo}: Invoice Group (up to 80 characters) required.`);
   if(!party_id)throw new Error(`Row ${lineNo}: ${side==='customer'?'Customer':'Supplier'} must uniquely match an active Master in this company.`);
@@ -40,7 +43,7 @@ export function parseNormalInvoiceImport(
   if(!description||description.length>1000)throw new Error(`Row ${lineNo}: Description required (max 1,000 characters).`);
   if(invoice_no.length>80||reference.length>120)throw new Error(`Row ${lineNo}: Invoice No or Reference is too long.`);
   const existing=groups.get(batch_ref.toLowerCase());
-  const info={party:party_id,date:invoice_date,number:invoice_no.toLowerCase(),reference:reference.toLowerCase()};
+  const info={party:party_id,date:invoice_date,number:invoice_no.toLowerCase(),reference:reference.toLowerCase(),vat_choice};
   if(existing&&JSON.stringify(existing)!==JSON.stringify(info))
    throw new Error(`Row ${lineNo}: Invoice Group has inconsistent Master, date, number or Reference.`);
   groups.set(batch_ref.toLowerCase(),info);
@@ -51,7 +54,7 @@ export function parseNormalInvoiceImport(
     throw new Error(`Row ${lineNo}: Invoice No is used by two different invoice groups.`);
    numbers.set(k,batch_ref.toLowerCase());
   }
-  return {batch_ref,invoice_no,invoice_date,party_id,account_id:accountId,description,amount:amountInput,reference};
+  return {batch_ref,invoice_no,invoice_date,party_id,account_id:accountId,description,amount:amountInput,reference,vat_choice};
  });
  if(groups.size>50)throw new Error('Maximum 50 separate invoices per import batch.');
  return rows;
