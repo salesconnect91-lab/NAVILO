@@ -78,3 +78,8 @@
 @media(pointer:coarse){.workspace-tools button,.workspace-category-list button,.workspace-catalog-card>button,.workspace-shortcuts a{min-height:44px}.workspace-command input,.workspace-catalog-toolbar input{font-size:16px}}
 }
 @media print{.workspace-tools,.workspace-context,.workspace-shortcuts,.workspace-command,.workspace-center{display:none!important}}
+
+/* Keep compact register rows independent of generic form input sizing. */
+@media screen and (pointer:fine){
+.erp-shell.navilo-modern #navilo-main-content [data-navilo-transport-register] table input[type="checkbox"]{height:14px!important;min-height:14px!important;max-height:14px!important;width:14px!important;min-width:14px!important;padding:0!important;vertical-align:middle}
+}
