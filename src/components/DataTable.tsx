@@ -330,11 +330,11 @@ export default function DataTable<T extends { id: string }>({
           {!unpaginated && <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Rows per page" className="input h-8 min-h-8 w-auto py-0 text-xs" value={effectivePageSize} onChange={e => remote?remote.onPageChange(1,Number(e.target.value)):savePrefs({...prefs,pageSize:Number(e.target.value)})}>
             {[25,50,100,250].map(n => <option key={n} value={n}>{n} / page</option>)}
           </NaviloSearchableSelect>}
-          {!unpaginated && <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage<=1} onClick={()=>changePage(1)}>First</button>
+          {!unpaginated && <><button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage<=1} onClick={()=>changePage(1)}>First</button>
           <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage<=1} onClick={()=>changePage(Math.max(1,safePage-1))}>Previous</button>
           <span className="text-xs font-semibold text-slate-600">{safePage} / {totalPages}</span>
           <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage>=totalPages} onClick={()=>changePage(Math.min(totalPages,safePage+1))}>Next</button>
-          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage>=totalPages} onClick={()=>changePage(totalPages)}>Last</button>}
+          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage>=totalPages} onClick={()=>changePage(totalPages)}>Last</button></>}
         </div>
       </div>
     </div>
