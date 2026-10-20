@@ -6,6 +6,7 @@ export type BulkPostSummary={posted:number;skipped:number;failed:number;results:
 type InvoiceRow={
  id:string;status:string;document_kind:string|null;company_id:string;business_unit_id:string;
  order_no:string;total:number|string|null;customer_id?:string|null;supplier_id?:string|null;
+ transport_source_invoice_id?:string|null;transport_billing_origin_id?:string|null;
  supplier_invoice_no?:string|null;supplier_invoice_date?:string|null;invoice_type?:string|null;
  purchase_person_employee_id?:string|null;
 };
@@ -23,7 +24,7 @@ export function positiveAmount(value:unknown):boolean{return Number.isFinite(Num
 async function checkCandidate(side:InvoiceSide,id:string,companyId:string,businessUnitId:string):Promise<{ok:true;row:InvoiceRow}|{ok:false;reason:string}>{
  const table=side==='sales'?'sales_orders':'purchase_orders';
  const fields=side==='sales'
-  ? 'id,status,document_kind,company_id,business_unit_id,order_no,total,customer_id'
+  ? 'id,status,document_kind,company_id,business_unit_id,order_no,total,customer_id,transport_source_invoice_id,transport_billing_origin_id'
   : 'id,status,document_kind,company_id,business_unit_id,order_no,total,supplier_id,supplier_invoice_no,supplier_invoice_date,invoice_type,purchase_person_employee_id';
  const {data,error}=await supabase.from(table).select(fields).eq('id',id)
   .eq('company_id',companyId).eq('business_unit_id',businessUnitId).maybeSingle();
@@ -36,11 +37,34 @@ async function checkCandidate(side:InvoiceSide,id:string,companyId:string,busine
   const linesTable=side==='sales'?'sales_service_lines':'purchase_service_lines';
   // Bounded read; if a draft contains more than 500 lines it must be posted
   // individually after review, never with an incomplete bulk validation.
-  const {data:lines,error:lineError}=await supabase.from(linesTable).select('source_module,amount')
+  const {data:lines,error:lineError}=await supabase.from(linesTable).select('id,source_module,amount')
    .eq('order_id',id).limit(501);
   if(lineError)throw lineError;
   if(!lines?.length||lines.length>500)return {ok:false,reason:'No lines, or too many lines for bulk review.'};
-  if(!allowedServiceSource(lines.map(x=>x.source_module)))return {ok:false,reason:'Trip-linked or imported service invoice: use its existing review/finalize/post flow.'};
+  const external=side==='sales'&&lines.every(x=>x.source_module==='external_transport');
+  if(!external&&!allowedServiceSource(lines.map(x=>x.source_module)))
+   return {ok:false,reason:'Trip-linked or unsupported service invoice: use its existing review/finalize/post flow.'};
+  if(external){
+   // External customer invoices have their own validated import sources and are
+   // independent of the Trip Register. Only originals, never debit/credit notes.
+   if(!row.order_no?.trim()||row.transport_source_invoice_id!==row.order_no||row.transport_billing_origin_id)
+    return {ok:false,reason:'Original external invoice number/source mismatch; review individually.'};
+   const {data:links,error:linkError}=await supabase.from('transport_external_invoice_lines')
+    .select('sales_line_id,vehicle_id,source_company,source_reference')
+    .eq('sales_order_id',id).limit(501);
+   if(linkError)throw linkError;
+   const lineIds=new Set(lines.map(x=>x.id));
+   const refs=new Set<string>();
+   const invalid=!links||links.length!==lines.length||links.some(link=>{
+    const company=String(link.source_company||'').trim().toLowerCase();
+    const reference=String(link.source_reference||'').trim().toLowerCase();
+    const key=company+':'+reference;
+    if(!lineIds.delete(link.sales_line_id)||!link.vehicle_id||!company||!reference||refs.has(key))return true;
+    refs.add(key);
+    return false;
+   })||lineIds.size!==0;
+   if(invalid)return {ok:false,reason:'External invoice vehicle/source links incomplete. Review imported invoice.'};
+  }
   const net=lines.reduce((n,x)=>n+Number(x.amount||0),0);
   if(!positiveAmount(net))return {ok:false,reason:'Invoice amount is zero. Complete its description lines first.'};
   if(side==='purchase'&&!String(row.supplier_invoice_no||'').trim())return {ok:false,reason:'Supplier original invoice number is missing.'};
