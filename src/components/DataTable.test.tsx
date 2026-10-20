@@ -46,6 +46,52 @@ describe("shared ERP table", () => {
     expect(container.querySelector("[data-navilo-data-table]")?.getAttribute("data-density")).toBe("comfortable");
   });
 
+
+  it("filters the entire loaded dataset using preloaded Excel-style column values", () => {
+    const records=[
+      {id:"local-1",customer:"Alpha Co",amount:10},
+      {id:"local-2",customer:"Beta Co",amount:20},
+      {id:"local-3",customer:"Alpha Co",amount:30},
+    ];
+    render(<DataTable columns={columns} rows={records} />);
+    fireEvent.click(screen.getByRole("button",{name:"Filter Customer"}));
+    const menu=screen.getByRole("dialog",{name:"Filter Customer"});
+    expect(menu).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox",{name:"Search column values"}),{target:{value:"Alpha"}});
+    expect(screen.queryByText("Beta Co",{selector:"span.break-all"})).toBeNull();
+    fireEvent.click(screen.getByRole("checkbox",{name:"Alpha Co"}));
+    fireEvent.click(screen.getByRole("button",{name:"Apply"}));
+    expect(screen.getAllByText("Alpha Co")).toHaveLength(2);
+    expect(screen.queryByText("Beta Co")).toBeNull();
+    expect(screen.getByText("Showing 1–2 of 2")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button",{name:"Filter Customer"}));
+    fireEvent.click(screen.getByRole("button",{name:"Clear"}));
+    fireEvent.click(screen.getByRole("button",{name:"Apply"}));
+    expect(screen.getByText("Beta Co")).toBeTruthy();
+    expect(screen.getByText("Showing 1–3 of 3")).toBeTruthy();
+  });
+
+  it("preserves the selected Smart Table filter in the saved local view", () => {
+    const records=[{id:"row-a",customer:"Alpha Co",amount:10},{id:"row-b",customer:"Beta Co",amount:20}];
+    const {unmount}=render(<DataTable columns={columns} rows={records}/>);
+    fireEvent.click(screen.getByRole("button",{name:"Filter Customer"}));
+    fireEvent.click(screen.getByRole("checkbox",{name:"Beta Co"}));
+    fireEvent.click(screen.getByRole("button",{name:"Apply"}));
+    const key=`navilo:table-columns:${location.pathname}:customer|amount:neus-v3`;
+    expect(JSON.parse(localStorage.getItem(key)||"{}").filters.customer).toEqual(["Beta Co"]);
+    unmount();
+    render(<DataTable columns={columns} rows={records}/>);
+    expect(screen.getByText("Beta Co")).toBeTruthy();
+    expect(screen.queryByText("Alpha Co")).toBeNull();
+  });
+
+  it("never offers current-page-only filtering on a remote table without server filter support",()=>{
+    render(<DataTable columns={columns} rows={rows} remote={{
+      total:1000,page:1,pageSize:25,sort:null,
+      onSortChange:vi.fn(),onPageChange:vi.fn(),
+    }}/>);
+    expect(screen.queryByRole("button",{name:"Filter Customer"})).toBeNull();
+  });
   it("uses server result totals, paging and sorting without client re-pagination", () => {
     const onPageChange=vi.fn();
     const onSortChange=vi.fn();
