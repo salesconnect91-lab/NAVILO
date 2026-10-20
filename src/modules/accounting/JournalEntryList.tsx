@@ -1,6 +1,7 @@
 import {TEMPLATE_HEADERS,TEMPLATE_ROWS,downloadCSVTemplate,downloadExcelTemplate} from './journalImportTemplates';
 import { createPrintDocument } from "@/lib/printDocument";
 import OwnerJournalAuditHistory from "./OwnerJournalAuditHistory";
+import JournalEntryOverview from "./JournalEntryOverview";
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import {
@@ -2765,108 +2766,13 @@ export default function JournalEntryList() {
 
           </div>
         ) : (
-          <div className="overflow-x-auto">
-
-            <div data-report-content data-navilo-customizable="true" className="contents"><table className="w-full text-sm">
-
-              <thead>
-                <tr className="border-b bg-slate-50 text-slate-600">
-
-                  <th className="text-left py-3 px-4">
-                    Entry #
-                  </th>
-
-                  <th className="text-left py-3 px-4">Date</th>
-
-                  <th className="text-left py-3 px-4">Description</th>
-
-                  <th className="text-left py-3 px-4">Status</th>
-
-                  <th className="text-right py-3 px-4">
-                    Action
-                  </th>
-
-                </tr>
-              </thead>
-
-              <tbody className="divide-y">
-
-                {entries.map(
-                  (entry) => (
-                    <tr
-                      key={entry.id}
-                      className="hover:bg-slate-50 cursor-pointer"
-                      onClick={() =>
-                        navigate(
-                          `/accounting/${entry.id}`
-                        )
-                      }
-                    >
-
-                      <td className="py-3.5 px-4 font-medium">
-                        {entry.entry_no}
-                      </td>
-
-                      <td className="py-3.5 px-4 text-slate-600">
-                        {formatDate(
-                          entry.entry_date
-                        )}
-                      </td>
-
-                      <td className="py-3.5 px-4 text-slate-600">
-                        {entry.description ||
-                          "—"}
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        <StatusBadge
-                          status={
-                            entry.status
-                          }
-                        />
-                      </td>
-
-                      <td className="py-3.5 px-4 text-right">
-
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            to={`/accounting/${entry.id}`}
-                            onClick={(event) => event.stopPropagation()}
-                            className="text-primary-600 hover:text-primary-800 font-medium text-xs"
-                            aria-label={`${entry.status === "posted" ? "View" : "Edit"} journal ${entry.entry_no}`}
-                          >
-                            {entry.status === "posted" ? "View →" : "Edit →"}
-                          </Link>
-                          {!entry.entry_no.startsWith("COB-") && <button type="button" onClick={event=>{event.stopPropagation();void copyJournalAsDraft(entry)}}
-                            disabled={copyingJournalId!==null}
-                            className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-blue-700 disabled:opacity-50"
-                            title="Copy journal into a new editable draft without posting">
-                            {copyingJournalId===entry.id?"Copying...":"Copy"}
-                          </button>}
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void printJournalVoucher(entry);
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                            title="Print journal voucher"
-                          >
-                            🖨 Print
-                          </button>
-                        </div>
-
-                      </td>
-
-                    </tr>
-                  )
-                )}
-
-              </tbody>
-
-            </table></div>
-
-          </div>
+          <JournalEntryOverview
+            entries={entries}
+            currency={baseCurrency||'SAR'}
+            copyingId={copyingJournalId}
+            onCopy={entry=>{void copyJournalAsDraft(entry)}}
+            onPrint={entry=>{void printJournalVoucher(entry)}}
+          />
         )}
 
       </div>
