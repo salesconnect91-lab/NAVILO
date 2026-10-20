@@ -32,6 +32,8 @@ export default function GeneralExpenseBillImport(){
    'VAT Treatment: With VAT or Without VAT. The configured effective Purchase VAT rate applies.',
    'Transport supplier Cash/Credit VAT Master Billing Rules are enforced server-side.',
    'Post creates Expense, Input VAT and Accounts Payable ledgers; no inventory stock movements.',
+   'For Office vs Yard reporting use separate active Expense GL accounts. Description alone does not split the P&L. Set these up in Accounting > Chart of Accounts before posting.',
+   'Do not import a Cash/Bank-paid voucher as a new credit bill if the same expense has already been recognized.',
    'Maximum 200 lines / 50 invoices. One failed invoice rolls back the entire batch.']
  });}
  async function choose(e:React.ChangeEvent<HTMLInputElement>){
@@ -56,6 +58,9 @@ export default function GeneralExpenseBillImport(){
  const amount=rows.reduce((s,x)=>s+Number(x.amount),0);
  return <section className="space-y-3 p-3" aria-label="Expense Invoice Excel Import">
   <div className="flex items-center justify-between"><div><h1 className="text-lg font-bold">Expense Invoice Excel Import</h1><p className="text-xs text-slate-600">Original supplier bills • With/without VAT • no inventory or Trip linkage</p></div><Link to="/purchase" className="text-blue-700 underline">Back to Purchases</Link></div>
+  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+    <strong>Office / Yard GL setup:</strong> If you want separate Office and Yard expense totals on P&amp;L, create distinct active expense posting accounts first. Descriptions do not create cost centres. <Link className="font-semibold underline" to="/accounting/accounts">Open Chart of Accounts</Link>. Supplier bills create Payables; pay them once through Supplier Payment. Do not duplicate already-paid expenses.
+  </div>
   <div className="flex gap-2 flex-wrap"><button className="btn" onClick={template}>Download Excel Template</button><button className="btn-primary" disabled={loading||busy} onClick={()=>input.current?.click()}>Choose Excel/CSV</button><input className="hidden" ref={input} type="file" aria-label="Expense invoice import file" accept=".xlsx,.xls,.csv" onChange={e=>void choose(e)}/></div>
   {name&&<p>{name}</p>}{error&&<p role="alert" className="text-red-700">{error}</p>}{message&&<p role="status" className="text-emerald-800">{message}</p>}
   {rows.length>0&&<div className="space-y-2">
