@@ -153,7 +153,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
      </NaviloSearchableSelect>
     </label>
     <label className="navilo-invoice-field">Invoice Date *<NaviloDateInput type="date" className="input" value={date} onChange={e=>setDate(e.target.value)}/></label>
-    <label className="navilo-invoice-field">{side==='supplier'?'Original Supplier Invoice Number': 'Original Invoice Number'}{needsOriginalInvoice||side==='supplier'?" *":""}
+    <label className="navilo-invoice-field">{side==='supplier'?'Original Supplier Invoice Number': 'Original Invoice Number'}{needsOriginalInvoice?" *":""}
      <input className="input" maxLength={80} aria-label="Normal invoice number" required={needsOriginalInvoice} aria-invalid={Boolean(originalNumberError)} value={number} onChange={e=>setNumber(e.target.value)} placeholder={side==='customer'?'Customer invoice number':'Supplier invoice number'}/>
     </label>
     {side==='customer'&&<label className="navilo-invoice-field">Reference / PO Number
