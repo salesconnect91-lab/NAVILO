@@ -232,13 +232,13 @@ describe('Transport register interactions',()=>{
    await screen.findByText('No trips yet.');
    expect(document.querySelector('[data-navilo-transport-register]')?.getAttribute('data-navilo-theme')).toBe('theme1');
    expect(screen.queryByRole('button',{name:/Theme [1-4]/})).toBeNull();
-   const pay=screen.getByRole('button',{name:'Pay Rent to Suppliers'}),receive=screen.getByRole('button',{name:'Receive Customer Payment'});
    const strip=document.querySelector('.navilo-transport-topbar');
-   expect(strip?.contains(pay)).toBe(true);expect(strip?.contains(receive)).toBe(true);
+   expect(screen.queryByRole('button',{name:'Pay Rent to Suppliers'})).toBeNull();
+   expect(screen.queryByRole('button',{name:'Receive Customer Payment'})).toBeNull();
    expect(strip?.contains(screen.getByRole('button',{name:'Search Trips'}))).toBe(true);
    expect(strip?.contains(screen.getAllByRole('button',{name:'Add Trip'})[0])).toBe(true);
+   expect(strip?.contains(screen.getByRole('button',{name:'Filter Trip dates'}))).toBe(true);
    expect(document.querySelector('.navilo-transport-toolbar-wrap')).toBeNull();
-   expect(pay.textContent).toBe('');expect(receive.textContent).toBe('');expect(pay.getAttribute('title')).toContain('suppliers');expect(receive.getAttribute('title')).toContain('customers');
   }finally{localStorage.removeItem(key);}
  });
  it('shows customer and supplier invoice numbers in their own financial groups',async()=>{
