@@ -5,7 +5,8 @@ import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
 import {downloadImportTemplate} from '@/lib/importExcelTemplate';
 import NaviloSearchableSelect from '@/components/SearchableSelect';
-import {parseNormalInvoiceImport,type NormalSide,type NormalImportRow} from './transportNormalInvoiceImport';
+import {parseNormalInvoiceImport,type NormalSide,type NormalImportRow,type NormalImportVehicle} from './transportNormalInvoiceImport';
+import {fetchAllPages} from '@/lib/fetchAllPages';
 
 type Party={id:string;name:string};
 type Account={id:string;name:string};
@@ -13,7 +14,7 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
  const {activeCompany,activeBusinessUnit}=useAuth();
  const company=activeCompany?.company_id,bu=activeBusinessUnit?.business_unit_id,scope=`${company}/${bu}`;
  const ref=useRef<HTMLInputElement>(null),request=useRef(0),working=useRef(false);
- const [parties,setParties]=useState<Party[]>([]),[accounts,setAccounts]=useState<Account[]>([]),[vehicles,setVehicles]=useState<{id:string;vehicle_no:string}[]>([]);
+ const [parties,setParties]=useState<Party[]>([]),[accounts,setAccounts]=useState<Account[]>([]),[vehicles,setVehicles]=useState<NormalImportVehicle[]>([]);
  const [account,setAccount]=useState(''),[rows,setRows]=useState<NormalImportRow[]>([]);
  const [filename,setFilename]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
  const [error,setError]=useState(''),[message,setMessage]=useState('');
@@ -24,11 +25,20 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
    supabase.from(side==='customer'?'customers':'suppliers').select('id,name').eq('company_id',company).eq('is_active',true).order('name'),
    supabase.from('chart_of_accounts').select('id,name').eq('company_id',company).eq('is_active',true).eq('is_group',false).eq('type',side==='customer'?'revenue':'expense').order('name'),
    supabase.from('account_mappings').select('account_id').eq('company_id',company).eq('mapping_key',side==='customer'?'sales_revenue':'cogs').limit(1).maybeSingle(),
-   ...(side==='customer'?[supabase.from('transport_vehicles').select('id,vehicle_no').eq('company_id',company).eq('business_unit_id',bu).eq('ownership_type','company').eq('is_active',true).order('vehicle_no').limit(200)]:[])
+   Promise.all([
+    fetchAllPages<{id:string;vehicle_no:string;ownership_type:string|null}>(
+     (from,to)=>supabase.from('transport_vehicles').select('id,vehicle_no,ownership_type')
+      .eq('company_id',company).eq('business_unit_id',bu).eq('is_active',true).order('id').range(from,to),500),
+    fetchAllPages<{vehicle_id:string;owner_type:string;effective_from:string;effective_to:string|null}>(
+     (from,to)=>supabase.from('transport_vehicle_ownership').select('vehicle_id,owner_type,effective_from,effective_to')
+      .eq('company_id',company).eq('business_unit_id',bu).order('id').range(from,to),500)
+   ]).then(([master,history])=>master.map(v=>({...v,
+    ownershipPeriods:history.filter(o=>o.vehicle_id===v.id).map(({owner_type,effective_from,effective_to})=>({owner_type,effective_from,effective_to}))
+   })))
   ]).then(([partyList,accountList,mapping,vehicleList])=>{
    if(id!==request.current)return;
-   if(partyList.error)throw partyList.error;if(accountList.error)throw accountList.error;if(mapping.error)throw mapping.error;if(vehicleList?.error)throw vehicleList.error;
-   if(side==='customer')setVehicles(vehicleList?.data??[]);
+   if(partyList.error)throw partyList.error;if(accountList.error)throw accountList.error;if(mapping.error)throw mapping.error;
+   setVehicles(vehicleList.filter(v=>v.ownership_type==='company'||v.ownershipPeriods.some(o=>o.owner_type==='company')));
    const mapped=mapping.data?.account_id??'';
    const acc=(accountList.data??[]).filter(a=>side!=='customer'||a.id===mapped);
    if(side==='customer'&&(!mapped||acc.length!==1))
@@ -44,10 +54,10 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
   downloadImportTemplate({
    filename:`NAVILO-Transport-Normal-${side==='customer'?'Sales':'Purchase'}-Import.xlsx`,sheetName:'Normal Invoices',
    title:`Trip-independent Normal ${side==='customer'?'Sales':'Purchase'} invoice import`,
-   headers:['Invoice Group','Invoice No','Date',party,'Description',...(side==='customer'?['Vehicle No']:[]),'Amount','Reference','VAT Treatment'],
-   example:['INV-1','ORIGINAL-1001','2026-10-17',`Replace with active ${party}`,'Description of service',...(side==='customer'?['Replace with company Vehicle No']:[]),500,'Optional reference','Master'],
+   headers:['Invoice Group','Invoice No','Date',party,'Description','Vehicle No','Amount','Reference','VAT Treatment'],
+   example:['INV-1','ORIGINAL-1001','2026-10-17',`Replace with active ${party}`,'Description of service',side==='customer'?'Company Vehicle No required':'Optional company Vehicle No',500,'Optional reference','Master'],
    notes:[
-    side==='customer'?'No Trip or inventory movement. Every Sale line REQUIRES an existing company-owned Vehicle No from Vehicle Master.':'No Trip, Vehicle, Driver or inventory item is required or created.',
+    side==='customer'?'No Trip or stock movement. Every Sale line REQUIRES a valid company-owned Vehicle No.':'No Trip or stock movement. Vehicle No is OPTIONAL on Purchase lines: enter company-owned vehicle for vehicle P&L, leave blank only for office/yard/general overhead.',
     'Invoice Group identifies one invoice. Repeat group/name/date/number/reference for multiple description lines.',
     'Customer/Supplier name must match the active company Master exactly (case-insensitive).',
     'Select one active Revenue/Expense Account for this file. Lines post through canonical GL and AR/AP.',
@@ -88,8 +98,11 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
  const label=side==='customer'?'Sale':'Purchase';
  return <section aria-label={`Normal ${label} Import`} className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
   <h3 className="font-bold text-sm">{label} Invoice Bulk Import — No Trips</h3>
-  {side==='customer'&&<p className="text-xs font-medium text-amber-800">Normal Sales require Vehicle No on each Excel row, matched to a company-owned Vehicle Master (not Trip Register).</p>}
-  <p className="text-[11px] text-slate-600">Existing {side==='customer'?'Customer':'Supplier'} Master → descriptions and amounts → canonical {side==='customer'?'AR':'AP'} / GL / VAT. No Trip or stock movement.</p>
+  <p className="text-xs font-medium text-amber-800">{side==='customer'
+   ?'Normal Sales require Vehicle No on every line.'
+   :'Normal Purchases: Vehicle No optional. For vehicle repairs/diesel enter valid company vehicle on each related line; for Office/Yard leave blank.'}
+   {' '}Vehicle Master ownership must be valid on invoice date. <Link className="underline" to="/master-data/vehicle-ownership">Check ownership</Link>.</p>
+  <p className="text-[11px] text-slate-600">Existing {side==='customer'?'Customer':'Supplier'} Master → descriptions and amounts → canonical {side==='customer'?'AR':'AP'} / GL / VAT. No Trip or stock movement. {vehicles.length} eligible company-owned vehicles loaded.</p>
   <label className="block text-xs font-semibold">{side==='customer'?'Sales Revenue':'Purchase Expense'} Account
    <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label={`Normal ${label} import account`} className="input mt-1 w-full" disabled={loading||busy} value={account}
      onChange={e=>{setAccount(e.target.value);setRows([]);setFilename('')}}>
@@ -107,7 +120,7 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
   {rows.length>0&&<div className="space-y-2">
    <p className="text-xs font-semibold">{groups} invoices · {rows.length} lines · Net SAR {net.toFixed(2)} (before VAT) · VAT follows each invoice group's selected Master-compatible treatment</p>
    <div className="max-h-48 overflow-auto border"><table className="w-full text-left text-xs">
-    <thead className="sticky top-0 bg-slate-100"><tr>{['Invoice Group','Invoice No','Date',side==='customer'?'Customer':'Supplier','Description',...(side==='customer'?['Vehicle No']:[]),'Amount','VAT Treatment'].map(h=><th key={h} className="p-1">{h}</th>)}</tr></thead>
+    <thead className="sticky top-0 bg-slate-100"><tr>{['Invoice Group','Invoice No','Date',side==='customer'?'Customer':'Supplier','Description','Vehicle No','Amount','VAT Treatment'].map(h=><th key={h} className="p-1">{h}</th>)}</tr></thead>
     <tbody>{rows.map((r,i)=><tr key={i} className="border-t"><td className="p-1">{r.batch_ref}</td><td className="p-1">{r.invoice_no||'Automatic Cash number'}</td><td className="p-1">{r.invoice_date}</td><td className="p-1">{parties.find(p=>p.id===r.party_id)?.name}</td><td className="p-1">{r.description}</td>{side==='customer'&&<td className="p-1">{vehicles.find(v=>v.id===r.vehicle_id)?.vehicle_no||'—'}</td>}<td className="p-1 tabular-nums">{r.amount}</td><td className="p-1">{r.vat_choice==='master'?'Master':r.vat_choice==='with_vat'?'With VAT':'Without VAT'}</td></tr>)}</tbody>
    </table></div>
    <p className="text-xs text-amber-900">Import & Post creates real accounting entries for all invoices. If any invoice fails, the complete file rolls back.</p>
