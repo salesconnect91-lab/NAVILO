@@ -17,7 +17,7 @@ export function createImportTemplateWorkbook(spec:ImportTemplateSpec):XLSX.WorkB
  const book=XLSX.utils.book_new();
  const sheet=XLSX.utils.aoa_to_sheet([[...spec.headers],...(spec.example.length?[[...spec.example]]:[])]);
  sheet['!cols']=spec.headers.map(h=>({wch:Math.min(36,Math.max(15,h.length+3))}));
- sheet['!autofilter']={ref:`A1:${XLSX.utils.encode_col(spec.headers.length-1)}2`};
+ sheet['!autofilter']={ref:`A1:${XLSX.utils.encode_col(spec.headers.length-1)}${spec.example.length?2:1}`};
  XLSX.utils.book_append_sheet(book,sheet,spec.sheetName);
  const instructions=[
   ['NAVILO IMPORT TEMPLATE',spec.title],
