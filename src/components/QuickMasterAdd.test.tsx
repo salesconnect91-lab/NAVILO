@@ -13,7 +13,7 @@ vi.mock("@/modules/transport/TransportQuickAdd",()=>({
  </div>
 }));
 vi.mock("@/modules/master-data/TransportFoundationMaster",()=>({
- default:({onCreated,quickCreate}:any)=><div role="dialog" aria-label="Create expense type">
+ default:({quickCreate}:any)=><div role="dialog" aria-label="Create expense type">
   <button onClick={()=>void quickCreate.onCreated({id:"new-type",name:"Tyres"})}>Save</button>
  </div>
 }));
