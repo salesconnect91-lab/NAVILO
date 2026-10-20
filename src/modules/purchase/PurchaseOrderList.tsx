@@ -150,12 +150,13 @@ export default function PurchaseOrderList() {
         subtitle="Supplier invoices, payables and posting"
         action={<div className="flex flex-wrap items-center gap-2">
           {canCreate && activeBusinessUnit?.business_unit_type==='transport'&&<><button type="button" onClick={() => navigate("/purchase/new?type=service")} className="btn-primary" aria-label="Create Trip Service Purchase Invoice">+ Service Purchase Invoice (Trips)</button><button type="button" onClick={() => navigate("/purchase/new?type=normal")} className="btn border border-blue-300 bg-blue-50 text-blue-800" aria-label="Create Normal Purchase Invoice">+ Purchase Invoice (Normal)</button></>}{canCreate && activeBusinessUnit?.business_unit_type!=='transport' && <button onClick={() => navigate("/purchase/new")} className="btn-primary">+ New Purchase Invoice</button>}
-          {canCreate && <button type="button" onClick={()=>navigate("/purchase/expense/new")} className="btn border border-emerald-300 bg-emerald-50 text-emerald-900">+ Expense Invoice</button>}
-          {canCreate && <button type="button" onClick={()=>navigate("/purchase/expense/import")} className="btn">Import Expenses</button>}
+          {canCreate && activeBusinessUnit?.business_unit_type!=="transport" && <button type="button" onClick={()=>navigate("/purchase/expense/new")} className="btn border border-emerald-300 bg-emerald-50 text-emerald-900">+ Expense Invoice</button>}
+          {canCreate && <button type="button" onClick={()=>navigate("/purchase/expense/import")} className="btn">{activeBusinessUnit?.business_unit_type==="transport"?"Import General Expenses":"Import Expenses"}</button>}
           <span data-navilo-standard-tools-host className="contents" />
         </div>}
       />
 
+      {activeBusinessUnit?.business_unit_type==="transport"&&<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-700" role="note"><strong>Which purchase entry?</strong> Trip supplier rent → <button type="button" className="font-semibold text-blue-700 underline" onClick={()=>navigate("/purchase/new?type=service")}>Service Purchase (Trips)</button>. Fuel, repair or non-trip supplier bill → <button type="button" className="font-semibold text-blue-700 underline" onClick={()=>navigate("/purchase/new?type=normal")}>Normal Purchase</button> (choose vehicle per line). A supplier payment settles the posted payable; it does not create another expense. For direct cash expenses without an invoice, use an accounting Journal Entry. Do not enter one expense twice.</div>}
       <TransportOpeningInvoices side="supplier"/>
       <div className="grid gap-3 md:grid-cols-4" data-no-export>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-blue-50 p-2 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Filtered Invoices</div><div className="font-bold">{listReadFailed ? '—' : listSummary.count}</div></div></div>
