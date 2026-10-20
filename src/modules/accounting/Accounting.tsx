@@ -18,6 +18,7 @@ import ReturnNotes from "./ReturnNotes";
 import BankReconciliation from "./BankReconciliation";
 import FiscalYearClosing from "./FiscalYearClosing";
 import CashFlowStatement from "./CashFlowStatement";
+import DailyCashClosing from "./DailyCashClosing";
 import FinancialControls from "./FinancialControls";
 import PaymentReversals from "./PaymentReversals";
 import VatRegister from "./VatRegister";
@@ -44,6 +45,7 @@ export default function Accounting() {
         <Route path="/bank-reconciliation" element={report(<BankReconciliation />)} />
         <Route path="/year-closing" element={<FiscalYearClosing />} />
         <Route path="/cash-flow" element={report(<CashFlowStatement />)} />
+        <Route path="/daily-closing" element={report(<DailyCashClosing />)} />
         <Route path="/controls" element={report(<FinancialControls />)} />
         <Route path="/ledgers" element={report(<Ledgers />)} />
         <Route path="/trial-balance" element={report(<TrialBalance />)} />
