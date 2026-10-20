@@ -132,7 +132,7 @@ $$;
 -- until the migration has been explicitly approved and deployed.
 create or replace function public.accounting_direct_cash_expense_import_ready()
 returns boolean language sql stable security invoker set search_path=public,pg_temp
-as $ select true $;
+as 'select true';
 revoke all on function public.accounting_direct_cash_expense_import_ready() from public,anon;
 grant execute on function public.accounting_direct_cash_expense_import_ready() to authenticated;
 revoke all on function public.accounting_import_direct_cash_expenses(jsonb) from public,anon;
