@@ -2,7 +2,7 @@ import {useAuth} from '@/auth/AuthContext';
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
-import {reconcileNormalVehicleIncome,splitTransportRevenue,type VehicleIncome} from './transportIncomeBreakdown';
+import {externalVehicleIncome,reconcileNormalVehicleIncome,splitTransportRevenue,type ExternalVehicleLedgerRow,type VehicleIncome} from './transportIncomeBreakdown';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -225,7 +225,27 @@ export default function ProfitLoss() {
                 });
                 if(result.error)throw result.error;
                 if(!Array.isArray(result.data?.rows))throw new Error('Incomplete Normal Sale vehicle breakdown');
-                return {rows:result.data.rows,error:''};
+                // External Transport imports also post to the SAME Sales Revenue GL.
+                // Their journal-backed vehicle allocations exist in a separate
+                // secured source view. Include them in the breakdown, not the GL total.
+                let locationId:string|null=null;
+                if(scope==='branch'){
+                  const location=await supabase.rpc('current_operating_location_id');
+                  if(location.error)throw location.error;
+                  if(!location.data)throw new Error('Active branch is missing for vehicle income breakdown');
+                  locationId=String(location.data);
+                }
+                const externalRows=await fetchAllPages<ExternalVehicleLedgerRow>((from,to)=>{
+                  let query=supabase.from('transport_external_vehicle_contributions')
+                    .select('event_id,account_id,account_name,revenue')
+                    .eq('company_id',companyId)
+                    .gte('event_date',fromDate).lte('event_date',toDate);
+                  if(scope!=='company')query=query.eq('business_unit_id',businessUnitId);
+                  if(scope==='branch')query=query.eq('operating_location_id',locationId!);
+                  return query.order('event_id',{ascending:true}).range(from,to);
+                },500);
+                const external=externalVehicleIncome(externalRows);
+                return {rows:[...result.data.rows,...external],error:''};
               }catch(err){
                 return {rows:[],error:err instanceof Error?err.message:'Vehicle income breakdown unavailable'};
               }
@@ -465,7 +485,7 @@ export default function ProfitLoss() {
                 <StatementSection title="Sales Income — Normal Invoices"
                   section={{total:transportIncome.sales,items:transportIncome.vehicleError?[]:[
                     ...transportIncome.vehicles.map(v=>({
-                      name:'Vehicle '+v.vehicle_no,amount:v.amount,detailType:'Posted Normal Sale invoice allocations',
+                      name:'Vehicle '+v.vehicle_no,amount:v.amount,detailType:'Posted Normal and External Sale invoice allocations',
                     })),
                     ...(Math.abs(transportIncome.residual)>=0.005?[{
                       name:'Sales Revenue GL adjustments / unallocated legacy postings',
