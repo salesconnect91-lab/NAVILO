@@ -53,7 +53,7 @@ export default function DailyCashClosing(){
     const projection=buildDailyClosing(date,accounts,balanceEvidence.data as ClosingBalance[],
       entries,lines,cashFlow.data as ClosingSummary);
     if(live)setState({key,branchId,projection});
-   }catch(e){if(live){setState(null);setError(e instanceof Error?e.message:String(e))}}
+   }catch(e){if(live){setState(null);setError(e instanceof Error?e.message:(e&&typeof e==='object'&&'message' in e&&typeof e.message==='string'?e.message:'Unable to reconcile posted Cash/Bank ledgers.'))}}
    finally{if(live)setLoading(false)}
   })();
   return()=>{live=false};
