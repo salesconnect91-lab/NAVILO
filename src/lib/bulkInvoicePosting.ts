@@ -74,7 +74,7 @@ export async function postSelectedInvoices({
  for(const id of unique){
   try{
    const check=await checkCandidate(side,id,companyId,businessUnitId);
-   if(!check.ok){results.push({id,status:'skipped',message:check.reason});continue;}
+   if('reason' in check){results.push({id,status:'skipped',message:check.reason});continue;}
    const {data,error}=await supabase.rpc(side==='sales'?'post_sales_invoice':'post_purchase_invoice',{p_order_id:id});
    if(error)throw error;
    if(!data||data.success!==true||data.status&&data.status!=='posted')
