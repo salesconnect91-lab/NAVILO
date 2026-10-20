@@ -13,15 +13,15 @@ export type ImportTemplateSpec={
  * separate sheets so existing NAVILO import parsers keep reading row one.
  */
 export function createImportTemplateWorkbook(spec:ImportTemplateSpec):XLSX.WorkBook{
- if(spec.headers.length!==spec.example.length)throw new Error(`Template ${spec.sheetName}: example does not match headers`);
+ if(spec.example.length>0 && spec.headers.length!==spec.example.length)throw new Error(`Template ${spec.sheetName}: example does not match headers`);
  const book=XLSX.utils.book_new();
- const sheet=XLSX.utils.aoa_to_sheet([[...spec.headers],[...spec.example]]);
+ const sheet=XLSX.utils.aoa_to_sheet([[...spec.headers],...(spec.example.length?[[...spec.example]]:[])]);
  sheet['!cols']=spec.headers.map(h=>({wch:Math.min(36,Math.max(15,h.length+3))}));
  sheet['!autofilter']={ref:`A1:${XLSX.utils.encode_col(spec.headers.length-1)}2`};
  XLSX.utils.book_append_sheet(book,sheet,spec.sheetName);
  const instructions=[
   ['NAVILO IMPORT TEMPLATE',spec.title],
-  ['IMPORTANT','Replace the sample row with your own records before uploading.'],
+  ['IMPORTANT',spec.example.length?'Replace the sample row with your own records before uploading.':'Blank template: add real records starting in row 2. No sample journals are inserted.'],
   ['SCOPE','Import affects the currently selected and authorized Company/Business Unit only.'],
   ['DATES','Use YYYY-MM-DD (example: 2026-10-10).'],
   ['AMOUNTS','Use numeric values with a maximum of two decimal places unless a field says otherwise.'],

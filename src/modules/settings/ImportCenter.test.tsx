@@ -5,6 +5,8 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { MemoryRouter } from "react-router-dom";
 import ImportCenter from "./ImportCenter";
+import {downloadExcelTemplate} from "@/modules/accounting/journalImportTemplates";
+vi.mock("@/modules/accounting/journalImportTemplates",async(importOriginal)=>({...await importOriginal<typeof import("@/modules/accounting/journalImportTemplates")>(),downloadExcelTemplate:vi.fn()}));
 
 vi.mock('@/modules/purchase/GeneralExpenseBillImport',()=>({default:()=> <div>Expense Invoice Bulk Import</div>}));
 vi.mock('@/modules/transport/TransportVehicleExpenseImportPreview',()=>({default:()=> <div>Vehicle Expense Excel Import</div>}));
@@ -50,6 +52,12 @@ describe("import center workflow routing", () => {
   }
   expect(screen.queryByRole("heading",{name:"Customers"})).toBeNull();
   expect(screen.queryByRole("heading",{name:"Transport Sales Invoice Import"})).toBeNull();
+ });
+ it("routes the Bulk Journal Download Template button to the journal Excel generator",()=>{
+  render(<MemoryRouter initialEntries={["/settings/imports?section=accounting"]}><ImportCenter/></MemoryRouter>);
+  const card=screen.getByRole("heading",{name:"Bulk Journal Entries"}).closest("section")!;
+  fireEvent.click(within(card).getByRole("button",{name:"Download Template"}));
+  expect(downloadExcelTemplate).toHaveBeenCalledTimes(1);
  });
  it("keeps receipts and journals separate from invoices",()=>{
   render(<MemoryRouter initialEntries={["/settings/imports?section=accounting"]}><ImportCenter/></MemoryRouter>);

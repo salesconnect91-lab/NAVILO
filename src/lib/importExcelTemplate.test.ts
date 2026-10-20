@@ -12,6 +12,15 @@ describe('NAVILO import workbook schema',()=>{
   expect(rows[0].Amount).toBe(500);
   expect(XLSX.utils.sheet_to_json<unknown[]>(roundtrip.Sheets.Instructions,{header:1}).length).toBeGreaterThan(5);
  });
+ it('supports intentionally empty accounting templates with their actual upload headers only',()=>{
+  const w=createImportTemplateWorkbook({filename:'journal.xlsx',sheetName:'Journal Import',headers:['entry_no','entry_date','debit','credit'],example:[],title:'Journal import',notes:['Draft only']});
+  const roundtrip=XLSX.read(XLSX.write(w,{bookType:'xlsx',type:'array'}),{type:'array'});
+  expect(roundtrip.SheetNames).toEqual(['Journal Import','Instructions']);
+  expect(XLSX.utils.sheet_to_json<unknown[]>(roundtrip.Sheets['Journal Import'],{header:1})).toEqual([['entry_no','entry_date','debit','credit']]);
+  expect(roundtrip.Sheets['Journal Import']['!autofilter']?.ref).toBe('A1:D1');
+  const help=XLSX.utils.sheet_to_json<unknown[]>(roundtrip.Sheets.Instructions,{header:1});
+  expect(help.some(row=>String(row[1]).includes('starting in row 2'))).toBe(true);
+ });
  it('rejects a broken template where sample columns do not match headers',()=>{
   expect(()=>createImportTemplateWorkbook({filename:'bad.xlsx',sheetName:'Data',headers:['A','B'],example:['only one'],title:'Bad',notes:[]})).toThrow('example does not match headers');
  });
