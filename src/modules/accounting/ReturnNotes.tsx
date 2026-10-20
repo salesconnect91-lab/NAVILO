@@ -18,7 +18,17 @@ type PrintState = { note:Note; sourceNo:string; items:PrintItemRow[]; company:an
 const money=(value:number)=>new Intl.NumberFormat("en-PK",{minimumFractionDigits:2,maximumFractionDigits:2}).format(value||0);
 
 export default function ReturnNotes(){
- const [type,setType]=useState<NoteType>("sales_credit"); const [orders,setOrders]=useState<Order[]>([]); const [orderId,setOrderId]=useState(""); const [lines,setLines]=useState<InvoiceLine[]>([]); const [notes,setNotes]=useState<Note[]>([]); const [noteDate,setNoteDate]=useState(new Date().toISOString().slice(0,10)); const [reason,setReason]=useState(""); const [loading,setLoading]=useState(true); const [posting,setPosting]=useState(false); const [error,setError]=useState(""); const [success,setSuccess]=useState(""); const [printState,setPrintState]=useState<PrintState|null>(null);
+ // Posted invoice correction links can preselect the exact source invoice.
+ // Do not infer permission to change the posted original.
+ const [correctionTarget]=useState<{type:NoteType;invoiceId:string}|null>(()=>{
+  const params=new URLSearchParams(typeof window==="undefined"?"":window.location.search);
+  const requestedType=params.get("type");
+  const invoiceId=params.get("invoice_id")||"";
+  return invoiceId&&(requestedType==="sales_credit"||requestedType==="purchase_debit")
+    ?{type:requestedType,invoiceId}:null;
+ });
+ const prefilled=useRef(false);
+ const [type,setType]=useState<NoteType>(correctionTarget?.type||"sales_credit"); const [orders,setOrders]=useState<Order[]>([]); const [orderId,setOrderId]=useState(""); const [lines,setLines]=useState<InvoiceLine[]>([]); const [notes,setNotes]=useState<Note[]>([]); const [noteDate,setNoteDate]=useState(new Date().toISOString().slice(0,10)); const [reason,setReason]=useState(""); const [loading,setLoading]=useState(true); const [posting,setPosting]=useState(false); const [error,setError]=useState(""); const [success,setSuccess]=useState(""); const [printState,setPrintState]=useState<PrintState|null>(null);
 
  const printRoot=useRef<HTMLTableElement|null>(null);
  useEffect(()=>{const root=printRoot.current;if(!root)return;return registerPrintSource(root,async()=>{
@@ -30,6 +40,31 @@ export default function ReturnNotes(){
   supabase.from("return_notes").select("id,note_no,note_type,note_date,party_name,reason,subtotal,tax_total,total,sales_order_id,purchase_order_id,fbr_invoice_no,fbr_qr_payload,fbr_verification_url").eq("note_type",type).order("note_date",{ascending:false}).limit(100)
  ]); if(orderResult.error)setError(orderResult.error.message); else setOrders((orderResult.data??[]).map((row:any)=>({...row,party_name:row.customer?.name??row.supplier?.name??"—"}))); if(noteResult.error)setError(c=>c||noteResult.error!.message); else setNotes((noteResult.data??[]) as Note[]); setLoading(false); },[type]);
  useEffect(()=>{setOrderId("");setLines([]);void load();},[load]);
+ // A normal invoice can be older than the first 1,000 rows returned by
+ // PostgREST. Fetch the exact selected document by ID if necessary.
+ useEffect(()=>{
+  if(!correctionTarget||type!==correctionTarget.type||loading||prefilled.current)return;
+  prefilled.current=true;
+  if(orders.some(row=>row.id===correctionTarget.invoiceId)){
+   setOrderId(correctionTarget.invoiceId);
+   return;
+  }
+  const isSale=type==="sales_credit";
+  let active=true;
+  void (async()=>{
+   const {data,error:lookupError}=await supabase
+    .from(isSale?"sales_orders":"purchase_orders")
+    .select(isSale?"id,order_no,order_date,total,tax_percent,document_kind,customer:customers(name)":"id,order_no,order_date,total,tax_percent,document_kind,supplier:suppliers(name)")
+    .eq("id",correctionTarget.invoiceId).eq("status","posted").maybeSingle();
+   if(!active)return;
+   if(lookupError){setError(lookupError.message);return;}
+   if(!data){setError("The selected posted invoice was not found in the active company/branch.");return;}
+   const row=data as any;
+   setOrders(prev=>prev.some(o=>o.id===row.id)?prev:[...prev,{...row,party_name:row.customer?.name??row.supplier?.name??"—"}]);
+   setOrderId(correctionTarget.invoiceId);
+  })();
+  return()=>{active=false};
+ },[correctionTarget,type,loading,orders]);
  useEffect(()=>{ if(!orderId){setLines([]);return;} void(async()=>{setError("");const isSale=type==="sales_credit";const {data,error:lineError}=await supabase.from(isSale?"sales_order_lines":"purchase_order_lines").select(isSale?"id,item_id,godown_id,qty,unit_price,tax_percent,item:items(name)":"id,item_id,godown_id,qty,unit_cost,item:items(name)").eq("order_id",orderId).order("id");if(lineError){setError(lineError.message);return;}const ids=(data??[]).map((r:any)=>r.id);let returned=new Map<string,number>();if(ids.length){const {data:prior,error:priorError}=await supabase.from("return_note_lines").select("original_line_id,qty").in("original_line_id",ids);if(priorError){setError(priorError.message);return;}returned=(prior??[]).reduce((m:Map<string,number>,r:any)=>m.set(r.original_line_id,(m.get(r.original_line_id)??0)+Number(r.qty)),new Map());}const selected:any=orders.find(o=>o.id===orderId);setLines((data??[]).map((r:any)=>({id:r.id,item_id:r.item_id,godown_id:r.godown_id,qty:Number(r.qty),rate:Number(isSale?r.unit_price:r.unit_cost),tax_percent:Number(isSale?r.tax_percent:selected?.tax_percent??0),item_name:r.item?.name??"Unknown item",returned:returned.get(r.id)??0,returnQty:""})));})(); },[orderId,orders,type]);
  const totals=useMemo(()=>lines.reduce((s,l)=>{const q=Number(l.returnQty||0),net=q*l.rate;return{net:s.net+net,tax:s.tax+net*l.tax_percent/100};},{net:0,tax:0}),[lines]);
 
