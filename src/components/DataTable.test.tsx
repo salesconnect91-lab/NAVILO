@@ -117,6 +117,15 @@ describe("shared ERP table", () => {
     render(<DataTable columns={columns} rows={localRows} scopeKey="company-B"/>);
     expect(screen.getByText("Beta Co")).toBeTruthy();
   });
+  it("sorts actual numeric amounts rather than comma-formatted SAR display labels",()=>{
+    const moneyColumns=[{key:"amount",label:"Amount",render:(row:{amount:number})=>`SAR ${row.amount.toLocaleString("en-US")}`,
+      getFilterValue:(row:{amount:number})=>`SAR ${row.amount.toLocaleString("en-US")}`}];
+    const reportRows=[{id:"money-1000",amount:1000},{id:"money-20",amount:20}];
+    const {container}=render(<DataTable columns={moneyColumns} rows={reportRows}/>);
+    fireEvent.click(screen.getByRole("button",{name:"Amount"}));
+    expect(Array.from(container.querySelectorAll("tbody tr")).map(tr=>tr.textContent?.trim())).toEqual(["SAR 20","SAR 1,000"]);
+  });
+
   it("uses server result totals, paging and sorting without client re-pagination", () => {
     const onPageChange=vi.fn();
     const onSortChange=vi.fn();
