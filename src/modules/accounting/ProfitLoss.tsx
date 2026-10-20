@@ -2,7 +2,8 @@ import {useAuth} from '@/auth/AuthContext';
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
-import {externalVehicleIncome,reconcileNormalVehicleIncome,splitTransportRevenue,type ExternalVehicleLedgerRow,type VehicleIncome} from './transportIncomeBreakdown';
+import {externalVehicleIncome,reconcileNormalVehicleIncome,splitTransportRevenue,type VehicleIncome} from './transportIncomeBreakdown';
+import {readExternalVehicleIncomeFast,type ExternalAttributionRow} from './externalVehicleIncomeFast';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -197,7 +198,7 @@ export default function ProfitLoss() {
     let accounts: AccountRow[] = [];
     let rawLedger: LedgerRow[] = [];
     let mappings: Array<{mapping_key:string;account_id:string}> = [];
-    let vehicleResult: {rows:Array<{vehicle_id:string;vehicle_no:string;amount:number|string}>;error:string} = {rows:[],error:''};
+    let vehicleResult: {rows:Array<{vehicle_id:string;vehicle_no:string;amount:number|string}>;externalRows:ExternalAttributionRow[];error:string} = {rows:[],externalRows:[],error:''};
     setTransportIncome(null);
 
     try {
@@ -220,14 +221,22 @@ export default function ProfitLoss() {
         isTransport
           ? (async()=>{
               try{
-                const result=await supabase.rpc('transport_pl_normal_sales_vehicle_income_scoped',{
-                  p_from:fromDate,p_to:toDate,p_scope:scope
-                });
-                if(result.error)throw result.error;
-                if(!Array.isArray(result.data?.rows))throw new Error('Incomplete Normal Sale vehicle breakdown');
-                // External Transport imports also post to the SAME Sales Revenue GL.
-                // Their journal-backed vehicle allocations exist in a separate
-                // secured source view. Include them in the breakdown, not the GL total.
+                // A missing Normal Sale allocation needs no expensive aggregation.
+                // External imports have separate, journal-backed source evidence.
+                let normalQuery=supabase.from('transport_normal_vehicle_allocations')
+                  .select('id').eq('company_id',companyId);
+                if(scope!=='company')normalQuery=normalQuery.eq('business_unit_id',businessUnitId);
+                const normalCheck=await normalQuery.limit(1);
+                if(normalCheck.error)throw normalCheck.error;
+                let normalRows:Array<{vehicle_id:string;vehicle_no:string;amount:number|string}>=[];
+                if((normalCheck.data??[]).length){
+                  const result=await supabase.rpc('transport_pl_normal_sales_vehicle_income_scoped',{
+                    p_from:fromDate,p_to:toDate,p_scope:scope
+                  });
+                  if(result.error)throw result.error;
+                  if(!Array.isArray(result.data?.rows))throw new Error('Incomplete Normal Sale vehicle breakdown');
+                  normalRows=result.data.rows;
+                }
                 let locationId:string|null=null;
                 if(scope==='branch'){
                   const location=await supabase.rpc('current_operating_location_id');
@@ -235,21 +244,16 @@ export default function ProfitLoss() {
                   if(!location.data)throw new Error('Active branch is missing for vehicle income breakdown');
                   locationId=String(location.data);
                 }
-                const externalRows=await fetchAllPages<ExternalVehicleLedgerRow>((from,to)=>{
-                  let query=supabase.from('transport_external_vehicle_contributions')
-                    .select('event_id,account_id,account_name,revenue')
-                    .eq('company_id',companyId)
-                    .gte('event_date',fromDate).lte('event_date',toDate);
-                  if(scope!=='company')query=query.eq('business_unit_id',businessUnitId);
-                  if(scope==='branch')query=query.eq('operating_location_id',locationId!);
-                  return query.order('event_id',{ascending:true}).range(from,to);
-                },500);
-                const external=externalVehicleIncome(externalRows);
-                return {rows:[...result.data.rows,...external],error:''};
+                // Source rows use indexed company / order / journal lookups instead
+                // of the expensive external vehicle-contributions UNION view.
+                const externalRows=await readExternalVehicleIncomeFast({
+                  companyId,businessUnitId,locationId,scope,fromDate,toDate,
+                });
+                return {rows:normalRows,externalRows,error:''};
               }catch(err){
-                return {rows:[],error:err instanceof Error?err.message:'Vehicle income breakdown unavailable'};
+                return {rows:[],externalRows:[],error:err instanceof Error?err.message:'Vehicle income breakdown unavailable'};
               }
-            })():Promise.resolve({rows:[],error:''}),
+            })():Promise.resolve({rows:[],externalRows:[] as ExternalAttributionRow[],error:''}),
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load Profit & Loss statement.");
@@ -359,7 +363,9 @@ export default function ProfitLoss() {
         const salesAccountId=mappings.find(m=>m.mapping_key==='sales_revenue')?.account_id??'';
         const serviceAccountId=mappings.find(m=>m.mapping_key==='service_revenue')?.account_id??'';
         const {sales,service}=splitTransportRevenue(ledgerLines,salesAccountId,serviceAccountId);
-        const vehicleData=vehicleResult.rows.map(x=>({
+        const external=externalVehicleIncome(vehicleResult.externalRows.filter(x=>
+          x.revenue_account_id===salesAccountId));
+        const vehicleData=[...vehicleResult.rows,...external].map(x=>({
           vehicle_id:String(x.vehicle_id??''),vehicle_no:String(x.vehicle_no??''),amount:Number(x.amount)
         }));
         const breakdown=vehicleResult.error
