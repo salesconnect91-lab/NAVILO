@@ -564,3 +564,75 @@
     display: none !important;
   }
 }
+
+/* Register readability refinement: more legible bands and fine grid rules; no sizing changes. */
+@media screen {
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:first-child th {
+    background: #cad9e9 !important;
+    color: #203750 !important;
+    border-right-color: #a7bbd0 !important;
+    border-bottom-color: #a7bbd0 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:first-child th[data-financial-group="customer"] {
+    background: #cbdceb !important;
+    color: #235675 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:first-child th[data-financial-group="supplier"] {
+    background: #e5d5d9 !important;
+    color: #754752 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:first-child th[data-financial-group="vehicle"] {
+    background: #d1d9e8 !important;
+    color: #3d4c6c !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:first-child th[data-financial-group="ppr"] {
+    background: #d0e3d9 !important;
+    color: #2a6049 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:first-child th[data-financial-group="profit"] {
+    background: #ecdfc5 !important;
+    color: #73571f !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:nth-child(2) th {
+    background: #dfe8f2 !important;
+    color: #253d58 !important;
+    border-right-color: #b5c5d6 !important;
+    border-bottom-color: #b1c1d2 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:nth-child(2) th[data-financial-group="customer"] {
+    background: #e0ebf2 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:nth-child(2) th[data-financial-group="supplier"] {
+    background: #f0e5e7 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:nth-child(2) th[data-financial-group="ppr"] {
+    background: #e1eee8 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport tbody tr:not([data-trip-selected="true"]) > td {
+    border-right-color: #c7d3e0 !important;
+    border-bottom-color: #d8e1eb !important;
+  }
+}
+@media screen and (min-width: 768px) {
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-actions > .navilo-register-add-trip {
+    display: inline-flex !important;
+    align-items: center;
+    flex: 0 0 auto;
+    margin-right: 4px;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-actions .navilo-register-add-trip > button {
+    height: 25px !important;
+    min-height: 25px !important;
+    padding: 0 10px !important;
+    border-radius: 5px !important;
+    border: 1px solid #7dabdc !important;
+    background: #2b70bf !important;
+    color: #fff !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-actions .navilo-register-add-trip > button:hover {
+    background: #205b9f !important;
+  }
+}

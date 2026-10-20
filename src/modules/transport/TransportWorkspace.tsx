@@ -1962,12 +1962,12 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
             <input aria-label="Search all Trip data" placeholder="Search all Trip data…" className="input min-w-0 flex-1 rounded-r-none text-[11px] h-9 rounded-l-lg border-slate-200 shadow-sm" value={registerSearchDraft} onChange={e=>setRegisterSearchDraft(e.target.value)}/>
             <button type="submit" aria-label="Search Trips" className="flex items-center justify-center border border-l-0 border-blue-300 bg-white text-blue-700 hover:bg-blue-50 h-9 w-9 rounded-r-lg shadow-sm"><Search className="h-3.5 w-3.5"/></button>
           </form>
-          <div className="navilo-register-add-trip flex shrink-0 items-center gap-1.5">
-          <button type="button" onClick={()=>{entryReturnTab.current="trips";setEditingTripId(null);setTab("new")}} className="flex h-9 items-center gap-1 rounded-lg border border-blue-500 bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
-          </div>
 
         </div>
         <div className="navilo-transport-register-actions flex items-center gap-1">
+          <div className="navilo-register-add-trip flex shrink-0 items-center gap-1.5">
+          <button type="button" onClick={()=>{entryReturnTab.current="trips";setEditingTripId(null);setTab("new")}} className="flex h-9 items-center gap-1 rounded-lg border border-blue-500 bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
+          </div>
           <button type="button" onClick={()=>{setDateDraft({from:fromDate,to:toDate});setDateFilterOpen(true);}} className={`flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border ${fromDate||toDate?"border-amber-400 bg-amber-700":"border-slate-500 bg-slate-900/70"} hover:bg-slate-800`} aria-label="Filter Trip dates">Dates{fromDate||toDate?" ●":""}</button>
           <button type="button" onClick={resetGrid} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Reset</button>
           <button type="button" onClick={refreshRegister} disabled={registerLoading} className="flex h-7 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold text-white border border-blue-500 bg-blue-600 hover:bg-blue-700"><RefreshCw className="h-3 w-3"/>Refresh</button>

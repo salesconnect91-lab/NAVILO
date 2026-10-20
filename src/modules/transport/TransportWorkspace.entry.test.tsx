@@ -237,6 +237,8 @@ describe('Transport register interactions',()=>{
    expect(screen.queryByRole('button',{name:'Receive Customer Payment'})).toBeNull();
    expect(strip?.contains(screen.getByRole('button',{name:'Search Trips'}))).toBe(true);
    expect(strip?.contains(screen.getAllByRole('button',{name:'Add Trip'})[0])).toBe(true);
+   expect(document.querySelector('.navilo-transport-register-actions')?.contains(screen.getAllByRole('button',{name:'Add Trip'})[0])).toBe(true);
+   expect(document.querySelector('.navilo-transport-register-toolbar')?.contains(screen.getAllByRole('button',{name:'Add Trip'})[0])).toBe(false);
    expect(strip?.contains(screen.getByRole('button',{name:'Filter Trip dates'}))).toBe(true);
    expect(document.querySelector('.navilo-transport-toolbar-wrap')).toBeNull();
   }finally{localStorage.removeItem(key);}
