@@ -381,6 +381,12 @@ export default function SalesInvoiceDetail() {
               <Pencil className="h-3.5 w-3.5" /> Edit
             </button>
           )}
+          {locked && (
+            <Link className="btn-secondary inline-flex items-center gap-1.5" to={`/accounting/returns?type=sales_credit&invoice_id=${encodeURIComponent(order.id)}`}
+              title="Correct this posted sale with an audited credit note; the original invoice stays posted">
+              <Pencil className="h-3.5 w-3.5" /> Correct Posted Invoice
+            </Link>
+          )}
           {canPrint && (
             <button type="button" className="btn-secondary" onClick={() => exportToCSV(`sales-invoice-${order.order_no}.csv`, exportColumns, exportRows)}>
               <Download className="h-3.5 w-3.5" /> CSV
