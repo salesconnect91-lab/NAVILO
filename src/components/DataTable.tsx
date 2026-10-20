@@ -167,7 +167,14 @@ export default function DataTable<T extends { id: string }>({
     const column=columns.find(c=>c.key===sortKey);
     const d = dir === "asc" ? 1 : -1;
     return [...filteredRows].sort((a,b) => {
-      const av=column?cellFilterValue(column,a):"",bv=column?cellFilterValue(column,b):"";
+      const aRaw=(a as Record<string,unknown>)[sortKey];
+      const bRaw=(b as Record<string,unknown>)[sortKey];
+      // Financial amounts sort by their original numeric values, not by
+      // formatted strings such as "SAR 1,000.00" / "SAR 20.00".
+      if (typeof aRaw==="number"&&typeof bRaw==="number"&&Number.isFinite(aRaw)&&Number.isFinite(bRaw))
+        return (aRaw-bRaw)*d;
+      const av=aRaw==null?(column?cellFilterValue(column,a):""):String(aRaw);
+      const bv=bRaw==null?(column?cellFilterValue(column,b):""):String(bRaw);
       return av.localeCompare(bv,undefined,{numeric:true,sensitivity:"base"})*d;
     });
   }, [filteredRows, prefs.sort, remote, columns]);
