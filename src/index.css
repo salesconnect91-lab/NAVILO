@@ -7262,3 +7262,40 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
   padding-top: 20px !important;
   padding-bottom: 20px !important;
 }
+
+
+/* NAVILO enterprise UI refinement — shared, non-print presentation.
+   Preserve explicit DataTable density controls and Transport register widths. */
+@media screen and (min-width: 1024px) {
+  #navilo-main-content[data-neus-route] {
+    max-width: none;
+  }
+}
+@media screen {
+  .erp-shell .page-header {
+    align-items: center;
+  }
+  .erp-shell .page-actions {
+    gap: 6px;
+  }
+  .erp-shell .table-shell {
+    border-color: #dbe2ea;
+  }
+  .erp-shell .data-table th {
+    color: #334155;
+    border-bottom-color: #cbd5e1;
+  }
+  .erp-shell .data-table td {
+    border-bottom-color: #e7ecf2;
+  }
+  .erp-shell :is(.btn, .btn-primary, .btn-secondary, .btn-danger, .input):focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+  .erp-shell :is(.btn, .btn-primary, .btn-secondary, .btn-danger) {
+    white-space: nowrap;
+  }
+  .erp-shell .page-subtitle:empty {
+    display: none;
+  }
+}
