@@ -80,8 +80,8 @@ type RemotePaging = {
   onFilterChange?: (column: string, selected: string[]) => void;
 };
 export default function DataTable<T extends { id: string }>({
-  columns, rows, loading, emptyMessage, showSerialNumber = false, remote, scopeKey = "",
-}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; showSerialNumber?: boolean; remote?: RemotePaging; scopeKey?: string }) {
+  columns, rows, loading, emptyMessage, showSerialNumber = false, remote, scopeKey = "", unpaginated = false,
+}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; showSerialNumber?: boolean; remote?: RemotePaging; scopeKey?: string; unpaginated?: boolean }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const configurableColumns = useMemo(() => columns.filter(c => c.key !== "actions" && c.key !== "action"), [columns]);
   const key = useMemo(() => storageKey(columns,scopeKey), [columns,scopeKey]);
@@ -194,11 +194,11 @@ export default function DataTable<T extends { id: string }>({
     setPage(1);
     setFilterKey(null);
   };
-  const effectivePageSize = remote?.pageSize ?? prefs.pageSize;
+  const effectivePageSize = unpaginated && !remote ? Math.max(1,sortedRows.length) : (remote?.pageSize ?? prefs.pageSize);
   const totalRecords = remote?.total ?? sortedRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / effectivePageSize));
   const safePage = Math.min(remote?.page ?? page, totalPages);
-  const pagedRows = remote ? sortedRows : sortedRows.slice((safePage - 1) * effectivePageSize, safePage * effectivePageSize);
+  const pagedRows = remote || unpaginated ? sortedRows : sortedRows.slice((safePage - 1) * effectivePageSize, safePage * effectivePageSize);
   const changePage = (p: number, n = effectivePageSize) => {
     if (remote) remote.onPageChange(p,n);
     else setPage(p);
@@ -327,14 +327,14 @@ export default function DataTable<T extends { id: string }>({
           <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Table density" className="input h-8 min-h-8 w-auto py-0 text-xs" value={prefs.density} onChange={e => savePrefs({ ...prefs, density:e.target.value as Density })}>
             <option value="compact">Compact</option><option value="comfortable">Comfortable</option><option value="spacious">Spacious</option>
           </NaviloSearchableSelect>
-          <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Rows per page" className="input h-8 min-h-8 w-auto py-0 text-xs" value={effectivePageSize} onChange={e => remote?remote.onPageChange(1,Number(e.target.value)):savePrefs({...prefs,pageSize:Number(e.target.value)})}>
+          {!unpaginated && <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Rows per page" className="input h-8 min-h-8 w-auto py-0 text-xs" value={effectivePageSize} onChange={e => remote?remote.onPageChange(1,Number(e.target.value)):savePrefs({...prefs,pageSize:Number(e.target.value)})}>
             {[25,50,100,250].map(n => <option key={n} value={n}>{n} / page</option>)}
-          </NaviloSearchableSelect>
-          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage<=1} onClick={()=>changePage(1)}>First</button>
+          </NaviloSearchableSelect>}
+          {!unpaginated && <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage<=1} onClick={()=>changePage(1)}>First</button>
           <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage<=1} onClick={()=>changePage(Math.max(1,safePage-1))}>Previous</button>
           <span className="text-xs font-semibold text-slate-600">{safePage} / {totalPages}</span>
           <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage>=totalPages} onClick={()=>changePage(Math.min(totalPages,safePage+1))}>Next</button>
-          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage>=totalPages} onClick={()=>changePage(totalPages)}>Last</button>
+          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" disabled={safePage>=totalPages} onClick={()=>changePage(totalPages)}>Last</button>}
         </div>
       </div>
     </div>
