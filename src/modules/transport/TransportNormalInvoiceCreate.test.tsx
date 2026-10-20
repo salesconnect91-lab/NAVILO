@@ -245,6 +245,26 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   expect(mock.posts[0].p_account).toBe('a-account');
   expect(mock.posts[0].p_lines[0].vehicle_id).toBe('a-vehicle-1');
  });
+ it('requires original supplier invoice number on post and stores it as supplier reference',async()=>{
+  await load('supplier');
+  fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice supplier'}),{target:{value:'a-party'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Description 1'}),{target:{value:'Repairs for company vehicle'}});
+  fireEvent.change(screen.getByRole('textbox',{name:'Amount 1'}),{target:{value:'100.00'}});
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(false));
+  expect((screen.getByRole('button',{name:'Post Purchase Invoice'}) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText(/supplier's original invoice number before posting/i)).toBeTruthy();
+  fireEvent.change(screen.getByRole('textbox',{name:'Normal invoice number'}),{target:{value:'SUP-ORIGINAL-2026-10'}});
+  fireEvent.change(screen.getByRole('combobox',{name:'Vehicle 1'}),{target:{value:'a-vehicle-1'}});
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Post Purchase Invoice'}) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button',{name:'Post Purchase Invoice'}));
+  await screen.findByText(/Purchase invoice posted/);
+  expect(mock.posts).toHaveLength(1);
+  expect(mock.posts[0]).toEqual(expect.objectContaining({
+   p_side:'supplier',p_reference:'SUP-ORIGINAL-2026-10',p_post:true,
+   p_lines:[{description:'Repairs for company vehicle',amount:'100.00',vehicle_id:'a-vehicle-1'}],
+  }));
+  expect(Object.keys(mock.posts[0]).some(k=>k.includes('trip'))).toBe(false);
+ });
  it('saves supplier Purchase draft through same canonical service model',async()=>{
   await load('supplier');
   fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice supplier'}),{target:{value:'a-party'}});
