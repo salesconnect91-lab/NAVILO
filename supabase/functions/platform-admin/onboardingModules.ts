@@ -17,13 +17,32 @@ export function onboardingFiscalSettings(baseCurrency: unknown, taxMode: unknown
   return { base_currency_code: currency, tax_mode: mode, tax_effective_from: date, authority_code: authorityCode || null };
 }
 
+export const REQUIRED_CORE_MODULES = ["dashboard", "master", "accounting", "reports", "settings"] as const;
+export function requiredOnboardingModules(businessType: string): string[] {
+  if (!(BUSINESS_TYPES as readonly string[]).includes(businessType)) throw new Error("Invalid business type");
+  return [
+    ...REQUIRED_CORE_MODULES,
+    ...(businessType === "transport" ? ["transport"] : businessType === "steel" ? ["inventory", "production"] : []),
+  ];
+}
+
+/** Shared by owner onboarding and the platform API; one consistent service profile. */
+export function suggestedOnboardingModules(planDefaults: unknown, businessType: string): string[] {
+  const allowed = new Set<string>(MODULE_KEYS);
+  const selected = Array.isArray(planDefaults)
+    ? planDefaults.filter((value): value is string => typeof value === "string" && allowed.has(value))
+    : [];
+  const compatible = selected.filter(key => businessType === "transport" ? key !== "production" : key !== "transport");
+  return [...new Set([...requiredOnboardingModules(businessType), ...compatible])];
+}
+
 export function onboardingModules(requested: unknown, defaults: unknown, businessType: string): string[] {
   if (!(BUSINESS_TYPES as readonly string[]).includes(businessType)) throw new Error("Invalid business type");
   const selected = Array.isArray(requested) && requested.length ? requested : defaults;
   if (!Array.isArray(selected) || !selected.length || selected.some(key => typeof key !== "string" || !(MODULE_KEYS as readonly string[]).includes(key))) {
     throw new Error("Select valid licensed modules");
   }
-  const modules = [...new Set<string>(selected)];
+  const modules = [...new Set<string>([...requiredOnboardingModules(businessType), ...selected])];
   if (businessType === "transport" && modules.includes("production")) throw new Error("Production is unavailable for a transport workspace");
   if (businessType !== "transport" && modules.includes("transport")) throw new Error("Transport requires a transport workspace");
   return modules;

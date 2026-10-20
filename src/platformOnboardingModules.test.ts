@@ -1,22 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { onboardingFiscalSettings, onboardingModules } from "../supabase/functions/platform-admin/onboardingModules";
+import { onboardingFiscalSettings, onboardingModules, suggestedOnboardingModules, requiredOnboardingModules } from "../supabase/functions/platform-admin/onboardingModules";
 
 describe("first workspace module provisioning", () => {
   it("uses the selected modules for both company and unit and removes duplicates", () => {
     expect(onboardingModules(["dashboard", "sales", "sales"], ["dashboard", "production"], "custom"))
-      .toEqual(["dashboard", "sales"]);
+      .toEqual(["dashboard", "master", "accounting", "reports", "settings", "sales"]);
   });
   it("keeps manufacturing off transport and transport off other businesses", () => {
     expect(() => onboardingModules(["dashboard", "production"], [], "transport")).toThrow();
     expect(() => onboardingModules(["dashboard", "transport"], [], "retail")).toThrow();
     expect(onboardingModules(["dashboard", "transport"], [], "transport")).toContain("transport");
   });
-  it("allows Dashboard to be omitted while rejecting unknown modules and business types", () => {
+  it("auto-includes core and service modules while rejecting unknown modules and business types", () => {
     expect(() => onboardingModules(["dashboard", "owner"], [], "custom")).toThrow();
     expect(() => onboardingModules(["dashboard"], [], "unknown")).toThrow();
     expect(onboardingModules(["transport", "master", "accounting"], [], "transport"))
-      .toEqual(["transport", "master", "accounting"]);
+      .toEqual(["dashboard", "master", "accounting", "reports", "settings", "transport"]);
   });
+  it("selects steel and transport presets even if plans omit their service modules", () => {
+    expect(suggestedOnboardingModules(["sales", "purchase", "inventory"], "steel"))
+      .toEqual(["dashboard", "master", "accounting", "reports", "settings", "inventory", "production", "sales", "purchase"]);
+    expect(suggestedOnboardingModules(["sales", "purchase", "production"], "transport"))
+      .toEqual(["dashboard", "master", "accounting", "reports", "settings", "transport", "sales", "purchase"]);
+  });
+  it("keeps general business flexible with common accounting controls", () => {
+    expect(requiredOnboardingModules("custom")).toEqual(["dashboard", "master", "accounting", "reports", "settings"]);
+    expect(onboardingModules(["sales"], ["production"], "retail"))
+      .toEqual(["dashboard", "master", "accounting", "reports", "settings", "sales"]);
+  });
+
 });
 
 describe("company fiscal onboarding", () => {

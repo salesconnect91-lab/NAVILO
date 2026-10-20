@@ -99,6 +99,8 @@ Deno.serve(async (request) => {
       const unitName = String(body.business_unit_name || name).trim();
       const unitCode = String(body.business_unit_code || code).trim().toUpperCase();
       const createFirstBranch = body.create_first_branch !== false;
+      // Active/live companies must have an operating location for scoped posting.
+      if (body.is_test_company !== true && !createFirstBranch) return json({ error: "Live company onboarding requires a first branch / operating location." }, 400);
       const branchName = String(body.branch_name || "Head Office").trim();
       const branchCode = String(body.branch_code || "HO").trim().toUpperCase();
       const status = body.status === "active" ? "active" : "trial";
