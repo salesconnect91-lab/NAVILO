@@ -3,14 +3,14 @@ import {beforeEach,describe,expect,it,vi} from 'vitest';
 import {allowedServiceSource,isSelectableDraft,MAX_BULK_POST,postSelectedInvoices} from './bulkInvoicePosting';
 
 const state=vi.hoisted(()=>({
- records:{} as Record<string,any>,lines:{} as Record<string,any[]>,calls:[] as {name:string;id:string}[],
+ records:{} as Record<string,any>,lines:{} as Record<string,any[]>,links:{} as Record<string,any[]>,calls:[] as {name:string;id:string}[],
  rpcFailure:false,
 }));
 vi.mock('@/lib/supabase',()=>({supabase:{
- from:(_table:string)=>{
-  const q:any={_id:'',select:()=>q,eq:(col:string,val:string)=>{if(col==='id'||col==='order_id')q._id=val;return q;},
+ from:(table:string)=>{
+  const q:any={_id:'',select:()=>q,eq:(col:string,val:string)=>{if(col==='id'||col==='order_id'||col==='sales_order_id')q._id=val;return q;},
    maybeSingle:async()=>({data:state.records[q._id]??null,error:null}),
-   limit:async()=>({data:state.lines[q._id]??[],error:null})};
+   limit:async()=>({data:table==='transport_external_invoice_lines'?(state.links[q._id]??[]):(state.lines[q._id]??[]),error:null})};
   return q;
  },
  rpc:async(name:string,args:{p_order_id:string})=>{
@@ -24,7 +24,7 @@ const row=(id:string,extra:Record<string,unknown>={})=>({
  supplier_invoice_no:'SUP-EXT-33',supplier_invoice_date:'2026-10-20',invoice_type:'Tax Invoice',
  purchase_person_employee_id:'buyer',...extra,
 });
-beforeEach(()=>{state.records={};state.lines={};state.calls=[];state.rpcFailure=false});
+beforeEach(()=>{state.records={};state.lines={};state.links={};state.calls=[];state.rpcFailure=false});
 
 describe('read-only bulk invoice preflight',()=>{
  it('allows draft invoices only, and whitelists normal non-trip service sources',()=>{
@@ -62,6 +62,20 @@ describe('read-only bulk invoice preflight',()=>{
   const sales=await postSelectedInvoices({side:'sales',ids:['sale'],companyId:'tenant',businessUnitId:'unit'});
   expect(sales.posted).toBe(1);
   expect(state.calls).toEqual([{name:'post_sales_invoice',id:'sale'}]);
+ });
+ it('posts only fully linked external-import Sales drafts using the canonical posting RPC',async()=>{
+  const external={id:'line-1',source_module:'external_transport',amount:2900};
+  const link={sales_line_id:'line-1',vehicle_id:'vehicle-a',source_company:'twakkal',source_reference:'TRIP-18373'};
+  state.records={
+   valid:row('valid',{order_no:'2026-03026',transport_source_invoice_id:'2026-03026'}),
+   missing:row('missing',{order_no:'2026-03027',transport_source_invoice_id:'2026-03027'}),
+   note:row('note',{order_no:'2026-03028',transport_source_invoice_id:'2026-03028',transport_billing_origin_id:'original'}),
+  };
+  state.lines={valid:[external],missing:[external],note:[external]};
+  state.links={valid:[link],missing:[],note:[link]};
+  const res=await postSelectedInvoices({side:'sales',ids:['valid','missing','note'],companyId:'tenant',businessUnitId:'unit'});
+  expect(res).toMatchObject({posted:1,skipped:2,failed:0});
+  expect(state.calls).toEqual([{name:'post_sales_invoice',id:'valid'}]);
  });
  it('never claims success for a rejected posting, and limits the batch size',async()=>{
   state.records={candidate:row('candidate')};
