@@ -77,6 +77,32 @@ describe('read-only bulk invoice preflight',()=>{
   expect(res).toMatchObject({posted:1,skipped:2,failed:0});
   expect(state.calls).toEqual([{name:'post_sales_invoice',id:'valid'}]);
  });
+ it('accepts six imported Cash Bills when database canonical source references are lowercase',async()=>{
+  const ids=['cash-1','cash-2','cash-3','cash-4','cash-5','cash-6'];
+  for(let n=1;n<=6;n++){
+   const id=ids[n-1];
+   state.records[id]=row(id,{
+    order_no:'Cash Bill-'+n,transport_source_invoice_id:'cash bill-'+n,
+    payment_mode:'Cash',status:'draft',
+   });
+   state.lines[id]=[{id:'line-'+n,source_module:'external_transport',amount:n===3?12000:1000}];
+   state.links[id]=[{sales_line_id:'line-'+n,vehicle_id:'vehicle-'+n,
+    source_company:'twakkal',source_reference:'18'+(300+n)}];
+  }
+  const result=await postSelectedInvoices({
+   side:'sales',ids,companyId:'tenant',businessUnitId:'unit',
+  });
+  expect(result).toMatchObject({posted:6,skipped:0,failed:0});
+  expect(state.calls).toEqual(ids.map(id=>({name:'post_sales_invoice',id})));
+ });
+ it('still rejects different invoice identities despite case-insensitive matching',async()=>{
+  state.records.wrong=row('wrong',{order_no:'Cash Bill-2',transport_source_invoice_id:'cash bill-99'});
+  state.lines.wrong=[{id:'line-wrong',source_module:'external_transport',amount:1000}];
+  state.links.wrong=[{sales_line_id:'line-wrong',vehicle_id:'v',source_company:'twakkal',source_reference:'18345'}];
+  const result=await postSelectedInvoices({side:'sales',ids:['wrong'],companyId:'tenant',businessUnitId:'unit'});
+  expect(result).toMatchObject({posted:0,skipped:1,failed:0});
+  expect(state.calls).toHaveLength(0);
+ });
  it('never claims success for a rejected posting, and limits the batch size',async()=>{
   state.records={candidate:row('candidate')};
   state.lines={candidate:[{source_module:'transport_normal',amount:200}]};
