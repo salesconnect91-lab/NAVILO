@@ -8,6 +8,7 @@ import ImportCenter from "./ImportCenter";
 
 vi.mock('@/modules/purchase/GeneralExpenseBillImport',()=>({default:()=> <div>Expense Invoice Bulk Import</div>}));
 vi.mock('@/modules/transport/TransportVehicleExpenseImportPreview',()=>({default:()=> <div>Vehicle Expense Excel Import</div>}));
+vi.mock('@/modules/accounting/DirectCashExpenseImport',()=>({default:()=> <section aria-label="Direct Cash Expense Excel Import">Office Yard General Cash Expense</section>}));
 vi.mock("@/lib/supabase", () => ({ supabase: { rpc: vi.fn(), from: vi.fn() } }));
 vi.mock("@/modules/transport/TransportNormalInvoiceImport", () => ({
  default: ({side}:{side:string}) => <section aria-label={side==="customer"?"Normal Sales Import":"Normal Purchase Import"}><h3>Normal {side==="customer"?"Sales":"Purchase"} Invoice Bulk Import — No Trips</h3></section>
@@ -57,13 +58,20 @@ describe("import center workflow routing", () => {
   expect(screen.getByRole("link",{name:"Open Journal Import"}).getAttribute("href")).toBe("/accounting?import=journal");
   expect(screen.queryByRole("heading",{name:"Transport Sales Invoice Import"})).toBeNull();
  });
+ it("keeps supplier-less cash expense import separate from VAT supplier bills and vehicle expenses",()=>{
+  render(<MemoryRouter initialEntries={["/settings/imports?section=cash-expenses"]}><ImportCenter/></MemoryRouter>);
+  expect(screen.getByLabelText("Direct Cash Expense Excel Import")).toBeTruthy();
+  expect(document.querySelector('[data-import-section]')?.getAttribute("data-import-section")).toBe("cash-expenses");
+  expect(screen.queryByText("Expense Invoice Bulk Import")).toBeNull();
+  expect(screen.queryByText("Vehicle Expense Excel Import")).toBeNull();
+ });
  it("shows only the one-time import/transfer options on the history screen",()=>{
   render(<MemoryRouter initialEntries={["/settings/imports?section=history"]}><ImportCenter/></MemoryRouter>);
   expect(screen.getByRole("link",{name:"Open One-time Import"}).getAttribute("href")).toBe("/settings/imports?transportUpload=historical");
   expect(screen.queryByRole("heading",{name:"Customers"})).toBeNull();
  });
  it("shows only the selected workflow and one return link, without extra section tabs",()=>{
-  for(const section of ["masters","rates","service","normal","vehicle-expenses","expense","accounting","history"]){
+  for(const section of ["masters","rates","service","normal","vehicle-expenses","expense","cash-expenses","accounting","history"]){
    const {unmount}=render(<MemoryRouter initialEntries={[`/settings/imports?section=${section}`]}><ImportCenter/></MemoryRouter>);
    expect(screen.queryByRole("navigation",{name:"Import workflows"})).toBeNull();
    const back=screen.getByRole("link",{name:/All import workflows/});
