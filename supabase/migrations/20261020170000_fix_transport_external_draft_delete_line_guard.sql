@@ -47,8 +47,7 @@ begin
   then return new; end if;
  end if;
  raise exception 'Transport financial evidence is immutable';
-end $function$
-
+end $function$;
 
 CREATE OR REPLACE FUNCTION public.guard_service_document_line()
  RETURNS trigger
@@ -87,5 +86,4 @@ begin
  if tg_op='UPDATE' and(to_jsonb(new)-'description'-'amount'-'tax_percent'-'cost_account_id') is distinct from(to_jsonb(old)-'description'-'amount'-'tax_percent'-'cost_account_id') then raise exception 'Service line identity is immutable';end if;
  if tg_op='INSERT' then new.created_by:=auth.uid();end if;
  return new;
-end $function$
-
+end $function$;
