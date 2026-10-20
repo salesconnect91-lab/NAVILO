@@ -4,6 +4,7 @@ import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import NaviloSearchableSelect from '@/components/SearchableSelect';
+import QuickMasterAdd from '@/components/QuickMasterAdd';
 import {useNormalInvoiceVatQuote} from './useNormalInvoiceVatQuote';
 
 type Side='customer'|'supplier';
@@ -44,6 +45,19 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    if(live){setVehicles(v);setOwnership(o);}
   })().catch(e=>{if(live)setError(e.message||'Vehicle Master unavailable');});return()=>{live=false};
  },[company,bu]);
+ const refreshVehicles=async()=>{
+  if(!company||!bu)throw Error("Select an active company.");
+  const v:typeof vehicles=[],o:typeof ownership=[];
+  for(let offset=0;;offset+=500){const r=await supabase.from("transport_vehicles").select("id,vehicle_no,ownership_type,revenue_account_id").eq("company_id",company).eq("business_unit_id",bu).eq("is_active",true).order("id").range(offset,offset+499);if(r.error)throw r.error;v.push(...r.data??[]);if((r.data??[]).length<500)break}
+  for(let offset=0;;offset+=500){const r=await supabase.from("transport_vehicle_ownership").select("vehicle_id,owner_type,effective_from,effective_to").eq("company_id",company).eq("business_unit_id",bu).order("id").range(offset,offset+499);if(r.error)throw r.error;o.push(...r.data??[]);if((r.data??[]).length<500)break}
+  setVehicles(v);setOwnership(o);return {vehicles:v,ownership:o};
+ };
+ const refreshAccounts=async()=>{
+  if(!company)return;
+  const r=await supabase.from("chart_of_accounts").select("id,code,name").eq("company_id",company).eq("type","expense").eq("is_active",true).eq("is_group",false).order("name");
+  if(r.error)throw r.error;
+  if(side==="supplier")setAccounts(r.data??[]);
+ };
  const eligibleVehicles=vehicles.filter(v=>{
   const history=ownership.filter(o=>o.vehicle_id===v.id);
   // Only fall back to an explicitly company-owned Master when no history exists.
@@ -147,11 +161,13 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
     <div><span className="navilo-invoice-step">01</span><h2 id="normal-invoice-details">{partyName} & Invoice Details</h2><p>Party, original document reference and VAT treatment.</p></div>
    </div>
    <fieldset disabled={loading||saving||!!done||loadedScope!==scope} className="navilo-invoice-detail-grid">
-    <label className="navilo-invoice-field navilo-invoice-field-primary">{partyName} *
+    <div className="navilo-invoice-field navilo-invoice-field-primary"><label className="block">{partyName} *
      <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label={side==='customer'?'Normal invoice customer':'Normal invoice supplier'} className="input" value={party} onChange={e=>setParty(e.target.value)}>
       <option value="">Select {partyName}</option>{parties.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
      </NaviloSearchableSelect>
     </label>
+      <QuickMasterAdd kind={side==="customer"?"customer":"supplier"} compact disabled={saving||!!done}
+        onCreated={async created=>{setParties(old=>old.some(r=>r.id===created.id)?old:[...old,created]);setParty(created.id)}}/></div>
     <label className="navilo-invoice-field">Invoice Date *<NaviloDateInput type="date" className="input" value={date} onChange={e=>setDate(e.target.value)}/></label>
     <label className="navilo-invoice-field">{side==='supplier'?'Original Supplier Invoice Number': 'Original Invoice Number'}{needsOriginalInvoice?" *":""}
      <input className="input" maxLength={80} aria-label="Normal invoice number" required={needsOriginalInvoice} aria-invalid={Boolean(originalNumberError)} value={number} onChange={e=>setNumber(e.target.value)} placeholder={side==='customer'?'Customer invoice number':'Supplier invoice number'}/>
@@ -165,12 +181,13 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
      </NaviloSearchableSelect>
      <span className="navilo-invoice-vat-master-note">Master billing: {party?vatQuote.mode??'Not configured':'Select a party'}{vatQuote.rate!==null?` · VAT ${vatQuote.rate}%`:''}</span>
     </label>
-    <label className="navilo-invoice-field navilo-invoice-field-wide">{side==='customer'?'Revenue GL Account':'Purchase / Expense GL Account'} *
+    <div className="navilo-invoice-field navilo-invoice-field-wide"><label className="block">{side==='customer'?'Revenue GL Account':'Purchase / Expense GL Account'} *
      <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Normal invoice ledger account" className="input" value={account} onChange={e=>setAccount(e.target.value)}>
       <option value="">Select active company account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
      </NaviloSearchableSelect>
      <span className="navilo-invoice-ledger-note">{side==='customer'?'Normal Sale defaults to Sales Revenue. Trip-linked Service Revenue is selected only in Service Invoices; each Normal Sale line requires a company-owned Vehicle Master selection for vehicle-wise P&L.':'Costs post to this expense account. Optional vehicle selection tags the expense for vehicle-wise reports.'}</span>
     </label>
+      {side==="supplier"&&<QuickMasterAdd kind="account" compact disabled={saving||!!done} onRefresh={refreshAccounts}/>} </div>
    </fieldset>
   </section>
 
@@ -184,9 +201,17 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
      <label className="navilo-invoice-line-field"><span className="navilo-invoice-line-label">Description {i+1}</span>
       <input aria-label={`Description ${i+1}`} className="input" placeholder="Enter goods or service description" value={line.description} maxLength={1000} disabled={saving||!!done} onChange={e=>update(i,'description',e.target.value)}/>
      </label>
-     <label className="navilo-invoice-line-field"><span className="navilo-invoice-line-label">Vehicle {side==='customer'?'*':'(optional)'}</span>
+     <div className="navilo-invoice-line-field"><label className="block"><span className="navilo-invoice-line-label">Vehicle {side==='customer'?'*':'(optional)'}</span>
       <NaviloSearchableSelect nativeCompatibility aria-label={`Vehicle ${i+1}`} className="input" value={line.vehicle_id??''} required={side==='customer'} disabled={saving||!!done} onChange={e=>update(i,'vehicle_id',e.target.value)}><option value="">{side==='customer'?'Select company vehicle':'No vehicle'}</option>{eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</NaviloSearchableSelect>
      </label>
+      <QuickMasterAdd kind="vehicle" compact disabled={saving||!!done} onCreated={async created=>{
+        const snapshot=await refreshVehicles();const v=snapshot.vehicles.find(r=>r.id===created.id);
+        if(!v)throw Error("New vehicle is not visible in this company.");
+        const h=snapshot.ownership.filter(r=>r.vehicle_id===v.id);
+        const valid=h.length?h.some(r=>r.owner_type==="company"&&r.effective_from<=date&&(!r.effective_to||r.effective_to>=date)):v.ownership_type==="company";
+        if(!valid)throw Error("Vehicle ownership must be company-owned and effective on invoice date.");
+        update(i,"vehicle_id",created.id);
+       }}/></div>
      <label className="navilo-invoice-line-field"><span className="navilo-invoice-line-label">Net Amount (SAR)</span>
       <input aria-label={`Amount ${i+1}`} className="input navilo-align-right" inputMode="decimal" placeholder="0.00" value={line.amount} disabled={saving||!!done} onChange={e=>update(i,'amount',e.target.value)}/>
      </label>
