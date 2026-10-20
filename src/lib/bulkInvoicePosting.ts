@@ -47,7 +47,7 @@ async function checkCandidate(side:InvoiceSide,id:string,companyId:string,busine
   if(external){
    // External customer invoices have their own validated import sources and are
    // independent of the Trip Register. Only originals, never debit/credit notes.
-   if(!row.order_no?.trim()||row.transport_source_invoice_id!==row.order_no||row.transport_billing_origin_id)
+   if(!row.order_no?.trim()||!row.transport_source_invoice_id?.trim()||row.transport_source_invoice_id.trim().toLocaleLowerCase('en')!==row.order_no.trim().toLocaleLowerCase('en')||row.transport_billing_origin_id)
     return {ok:false,reason:'Original external invoice number/source mismatch; review individually.'};
    const {data:links,error:linkError}=await supabase.from('transport_external_invoice_lines')
     .select('sales_line_id,vehicle_id,source_company,source_reference')
