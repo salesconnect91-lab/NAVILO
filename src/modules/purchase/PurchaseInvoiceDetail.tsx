@@ -336,6 +336,9 @@ function InventoryPurchaseInvoiceDetail() {
         <button className="btn-secondary" onClick={() => exportToExcel(`${order.order_no}-purchase.xlsx`, exportColumns, rowsForExport)}>Excel</button>
         <button className="btn-secondary" onClick={() => void printInvoice()}>Print / PDF</button>
         {order.status !== "posted" && <button className="btn-secondary" onClick={() => { document.getElementById("purchase-draft-editor")?.scrollIntoView({ behavior: "smooth", block: "start" }); setSuccess("Draft editing is active below. Update the required section and save the change."); }}>Edit Draft</button>}
+        {order.status === "posted" && <Link className="btn-secondary inline-flex items-center gap-1.5"
+          to={`/accounting/returns?type=purchase_debit&invoice_id=${encodeURIComponent(order.id)}`}
+          title="Correct this posted purchase through an audited debit note; original stock and journal history stay intact">Correct Posted Invoice</Link>}
         {order.status !== "posted" && <button className="btn-danger" onClick={async () => { if (!window.confirm("Delete this draft Purchase Invoice?")) return; setError(null); const { data: deleted, error: delError } = await supabase.rpc("delete_draft_purchase_invoice", { p_order_id: order.id }); if (delError) { setError(delError.message); return; } if (!deleted) { setError("Draft Purchase Invoice could not be deleted. Refresh and try again."); return; } navigate("/purchase"); }}>Delete</button>}
       </div>
     </div>
