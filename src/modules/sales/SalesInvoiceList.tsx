@@ -15,6 +15,7 @@ import { SalesOrder, Customer, ChartOfAccount } from "@/types";
 import DataTable, { Column } from "@/components/DataTable";
 import BulkInvoicePostAction from "@/components/BulkInvoicePostAction";
 import {isSelectableDraft} from "@/lib/bulkInvoicePosting";
+import {draftInvoicePreviewTotals} from "@/lib/invoiceDraftPreview";
 import {
   PageHeader,
   Modal,
@@ -36,6 +37,7 @@ type SalesInvoiceRow = SalesOrder & {
   outstanding_amount?: number | string | null;
   payment_status?: PaymentStatus | null;
   consolidated_invoice_numbers?: string[];
+  draft_preview_total?: number;
 };
 
 type AgingInvoice = {
@@ -144,6 +146,7 @@ export default function SalesInvoiceList() {
   const [listPageSize,setListPageSize]=useState(25);
   const [listSort,setListSort]=useState<{key:string;dir:"asc"|"desc"}|null>(null);
   const [listSummary,setListSummary]=useState({count:0,total:0,balance:0,parties:0});
+  const [draftPreview,setDraftPreview]=useState<{gross:number;added:number;complete:boolean}|null>(null);
   const [listReadFailed,setListReadFailed]=useState(false);
   const listRequest=useRef(0);
   // Only the current remote page can be posted; changes of context and filters
@@ -183,6 +186,31 @@ export default function SalesInvoiceList() {
       });
       if(readError)throw readError;
       const pageRows=(data?.rows??[]) as SalesInvoiceRow[];
+      // Draft order headers can be zero until posting. Preview saved service lines
+      // independently, without mutating an invoice or inventing receivables.
+      const count=Number(data?.count??0);
+      let previewRows=pageRows;
+      if(count>pageRows.length&&count<=200){
+        const full=await supabase.rpc('commercial_invoice_list_query',{
+          p_side:'sales',p_search:listSearch,p_status:postingFilter,p_payment:paymentFilter,
+          p_type:'all',p_from:fromDate||null,p_to:toDate||null,
+          p_sort:listSort?.key??'created_at',p_desc:listSort?listSort.dir==='desc':true,
+          p_limit:200,p_offset:0,
+        });
+        if(!full.error&&Array.isArray(full.data?.rows)&&full.data.rows.length===count)
+          previewRows=full.data.rows as SalesInvoiceRow[];
+      }
+      const complete=count===previewRows.length;
+      const draftIds=previewRows.filter(row=>row.status==='draft'&&row.document_kind==='service').map(row=>row.id);
+      let previews=new Map<string,number>();
+      if(draftIds.length){
+        const [savedLines,savedCharges]=await Promise.all([
+          supabase.from('sales_service_lines').select('order_id,amount,tax_percent,historical_vat_amount').in('order_id',draftIds).limit(1001),
+          supabase.from('sales_order_charges').select('order_id,amount,tax_percent').in('order_id',draftIds).limit(1001),
+        ]);
+        if(!savedLines.error&&!savedCharges.error&&(savedLines.data??[]).length<1001&&(savedCharges.data??[]).length<1001)
+          previews=draftInvoicePreviewTotals(savedLines.data??[],savedCharges.data??[]);
+      }
       const ids=pageRows.map(row=>row.id);
       const linked=ids.length?await supabase.from("sales_order_hawala_invoices")
         .select("sales_order_id,hawala_invoice:consolidated_sales_invoices(invoice_no)")
@@ -198,12 +226,17 @@ export default function SalesInvoiceList() {
           numbers.set(k,[...(numbers.get(k)??[]),invoice.invoice_no]);
         }
       }
-      setRows(pageRows.map(row=>({...row,consolidated_invoice_numbers:numbers.get(row.id)??[]})));
+      setRows(pageRows.map(row=>({...row,consolidated_invoice_numbers:numbers.get(row.id)??[],
+        ...(previews.has(row.id)?{draft_preview_total:previews.get(row.id)}:{})})));
       setListReadFailed(false);
+      const matching=previewRows.filter(row=>row.status==='draft'&&previews.has(row.id));
+      const gross=matching.reduce((n,row)=>n+(previews.get(row.id)??0),0);
+      const added=matching.reduce((n,row)=>n+(previews.get(row.id)??0)-Number(row.total??0),0);
+      setDraftPreview(previews.size?{gross,added,complete}:null);
       setListSummary({count:Number(data?.count??0),total:Number(data?.total??0),
         balance:Number(data?.balance??0),parties:Number(data?.parties??0)});
     }catch(e:any){
-      if(request===listRequest.current){setListReadFailed(true);setError(e?.message??"Unable to read Sales invoices. Retry.");}
+      if(request===listRequest.current){setListReadFailed(true);setDraftPreview(null);setError(e?.message??"Unable to read Sales invoices. Retry.");}
     }finally{
       if(request===listRequest.current)setLoading(false);
     }
@@ -641,7 +674,8 @@ export default function SalesInvoiceList() {
       className: "text-right",
       render: (r) => (
         <span className="font-semibold text-slate-900">
-          {formatCurrency(toNumber(r.total))}
+          {formatCurrency(r.status==='draft'&&r.draft_preview_total!==undefined?r.draft_preview_total:toNumber(r.total))}
+          {r.status==='draft'&&r.draft_preview_total!==undefined&&<span title="Draft preview from saved lines and VAT. Not posted." className="ml-1 text-[10px] font-medium text-amber-700">Draft preview</span>}
         </span>
       ),
     },
@@ -707,7 +741,7 @@ export default function SalesInvoiceList() {
       <TransportOpeningInvoices side="customer"/>
       <section className="grid grid-cols-1 gap-3 md:grid-cols-4" data-no-print data-no-export>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-blue-50 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Filtered Invoices</div><div className="text-lg font-bold text-slate-900">{listReadFailed ? '—' : listSummary.count}</div></div></div>
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-50 text-emerald-600"><Coins className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Invoice Total</div><div className="text-lg font-bold text-slate-900">{listReadFailed ? '—' : formatCurrency(filteredInvoiceTotal)}</div></div></div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-50 text-emerald-600"><Coins className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Invoice Total</div><div className="text-lg font-bold text-slate-900">{listReadFailed ? '—' : formatCurrency(filteredInvoiceTotal+(draftPreview?.complete?draftPreview.added:0))}</div>{draftPreview&&<div className="text-[10px] text-amber-700">{draftPreview.complete?'Includes':'Excludes'} {formatCurrency(draftPreview.gross)} unposted draft preview{!draftPreview.complete?' on this page':''}</div>}</div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-rose-50 text-rose-600"><Clock3 className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Balance Due</div><div className="text-lg font-bold text-rose-700">{listReadFailed ? '—' : formatCurrency(filteredBalanceDue)}</div></div></div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-full bg-violet-50 text-violet-600"><Users className="h-5 w-5"/></span><div><div className="text-xs font-medium text-slate-500">Customers</div><div className="text-lg font-bold text-slate-900">{listReadFailed ? '—' : visibleCustomerCount}</div></div></div>
       </section>
