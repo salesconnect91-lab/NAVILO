@@ -38,8 +38,11 @@ export default function QuickMasterAdd({
   if(disabled)return;
   setError("");
   if(route){
-   const windowRef=window.open(route,"_blank","noopener,noreferrer");
+   // Browsers deliberately return null when window.open uses noopener.
+   // Open synchronously on the user gesture, then detach the opener.
+   const windowRef=window.open(route,"_blank");
    if(!windowRef){setError("Allow opening a new tab for "+label+" Master.");return}
+   windowRef.opener=null;
    setMasterTab(true);
   }else{setDialogScope(scope);setOpen(true)}
  };
