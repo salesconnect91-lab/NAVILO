@@ -45,6 +45,19 @@ beforeEach(() => {localStorage.clear();paging.enabled=false;paging.fail=false;pa
 afterEach(cleanup);
 
 describe("generic report workspace", () => {
+
+  it("provides the central Smart Table controls for a flat operational return register",async()=>{
+    render(<MemoryRouter initialEntries={["/reports/returns-register"]}><ReportSurface><Reports /></ReportSurface></MemoryRouter>);
+    const button=await screen.findByRole("button",{name:"Filter Note No"});
+    expect(button).toBeTruthy();
+    expect(screen.getByRole("button",{name:"Customize Smart Table"})).toBeTruthy();
+    expect(screen.getByRole("button",{name:"Note No"})).toBeTruthy();
+    fireEvent.click(button);
+    expect(screen.getByRole("dialog",{name:"Filter Note No"})).toBeTruthy();
+    fireEvent.click(screen.getByRole("button",{name:"Close column filter"}));
+    expect(screen.queryByRole("dialog",{name:"Filter Note No"})).toBeNull();
+  });
+
   it("includes master parties beyond the first page and historical parties from report data",async()=>{
     paging.partyPaging=true;showReport();
     fireEvent.click(await screen.findByRole("button",{name:"Party"}));
