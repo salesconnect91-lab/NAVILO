@@ -40,6 +40,7 @@ import {useAuth} from "@/auth/AuthContext";
 import PaymentBalanceControls from "./PaymentBalanceControls";
 import PaymentVoucherHistory from "./PaymentVoucherHistory";
 import GeneralCashBankPanel from "./GeneralCashBankPanel";
+import QuickMasterAdd from "@/components/QuickMasterAdd";
 
 type Customer = {
   id: string;
@@ -1794,7 +1795,11 @@ export default function CashCounter() {
 
             </>}
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-600">Customer</label>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <label className="block text-xs font-semibold text-slate-600">Customer</label>
+                <QuickMasterAdd kind="customer" compact disabled={saving}
+                  onCreated={async created=>{setCustomers(old=>old.some(x=>x.id===created.id)?old:[...old,created]);selectCustomer(created)}}/>
+              </div>
 
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
