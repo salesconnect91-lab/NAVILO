@@ -4,7 +4,6 @@ import {detailedTransportLedger,partySearchKey,type DetailedPartyLedger} from '.
 import {registerPrintSource,showPrintDocument} from '@/lib/printDocument';
 import {ledgerStatementPrintMarkup,type LedgerPrintRow} from '@/lib/ledgerStatementPrint';
 import {useAuth} from '@/auth/AuthContext';
-import {Link} from 'react-router-dom';
 import type {PartyMovement} from '@/modules/transport/transportPartyReporting';
 import {linkedPartyRows} from '@/modules/transport/transportOpeningInvoices';
 import SearchableSelect from "@/components/SearchableSelect";
@@ -1160,7 +1159,7 @@ export default function Ledgers() {
                       <p className="text-xs text-slate-500">A party in Customer / Supplier Master does not automatically have a financial balance. Only posted accounting entries appear here. A non-zero opening balance, if any, is shown above.</p>
                       {selectedParty&&<div className="flex flex-wrap items-center justify-center gap-3 pt-1 text-xs">
                         <button type="button" className="font-semibold text-blue-700 underline" onClick={()=>{setFromDate('');setToDate('')}} disabled={!fromDate&&!toDate}>Check all dates</button>
-                        <Link className="font-semibold text-blue-700 underline" to={selectedParty.type==='supplier'?'/purchase':'/sales'}>Review {selectedParty.type==='supplier'?'Purchase':'Sales'} Invoices</Link>
+                        <a className="font-semibold text-blue-700 underline" href={selectedParty.type==='supplier'?'/purchase':'/sales'}>Review {selectedParty.type==='supplier'?'Purchase':'Sales'} Invoices</a>
                       </div>}
                     </div>
                   </td></tr>
