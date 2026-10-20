@@ -285,17 +285,19 @@ export default function CashCounter() {
     }, []);
 
   useEffect(() => {
+    // Supplier/General Cash panels own their respective datasets.
+    // Do not query unrelated customer masters or Customer Receipt journals
+    // whenever someone opens a supplier settlement screen.
+    if(counterMode!=="customer")return;
     void loadMasterData();
     void loadRecentPayments();
-  }, [
-    loadMasterData,
-    loadRecentPayments,
-  ]);
+  }, [counterMode,loadMasterData,loadRecentPayments]);
 
   useEffect(()=>{
+    if(counterMode!=="customer")return()=>{invoiceRequest.current++};
     void loadInvoicesForCustomer(selectedCustomerId);
     return()=>{invoiceRequest.current++};
-  },[selectedCustomerId,loadInvoicesForCustomer]);
+  },[counterMode,selectedCustomerId,loadInvoicesForCustomer]);
 
   useEffect(() => {
     const customerId = searchParams.get("customer_id");
