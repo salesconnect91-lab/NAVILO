@@ -92,6 +92,31 @@ describe("shared ERP table", () => {
     }}/>);
     expect(screen.queryByRole("button",{name:"Filter Customer"})).toBeNull();
   });
+
+  it("keeps full matching report rows visible and available to export without a 25-row page cut", () => {
+    const reportRows=Array.from({length:61},(_,i)=>({id:"synthetic-"+i,customer:i%2?"Beta Co":"Alpha Co",amount:i}));
+    render(<DataTable columns={columns} rows={reportRows} unpaginated scopeKey="synthetic-company"/>);
+    expect(screen.getByText("Showing 1–61 of 61")).toBeTruthy();
+    expect(screen.getAllByRole("row")).toHaveLength(62);
+    expect(screen.queryByRole("button",{name:"Next"})).toBeNull();
+    fireEvent.click(screen.getByRole("button",{name:"Filter Customer"}));
+    fireEvent.click(screen.getByRole("checkbox",{name:"Beta Co"}));
+    fireEvent.click(screen.getByRole("button",{name:"Apply"}));
+    expect(screen.getByText("Showing 1–30 of 30")).toBeTruthy();
+    expect(screen.getAllByRole("row")).toHaveLength(31);
+  });
+
+  it("isolates saved filter preferences by tenant scope",()=>{
+    const localRows=[{id:"scope-1",customer:"Alpha Co",amount:1},{id:"scope-2",customer:"Beta Co",amount:2}];
+    const first=render(<DataTable columns={columns} rows={localRows} scopeKey="company-A"/>);
+    fireEvent.click(screen.getByRole("button",{name:"Filter Customer"}));
+    fireEvent.click(screen.getByRole("checkbox",{name:"Alpha Co"}));
+    fireEvent.click(screen.getByRole("button",{name:"Apply"}));
+    expect(screen.queryByText("Beta Co")).toBeNull();
+    first.unmount();
+    render(<DataTable columns={columns} rows={localRows} scopeKey="company-B"/>);
+    expect(screen.getByText("Beta Co")).toBeTruthy();
+  });
   it("uses server result totals, paging and sorting without client re-pagination", () => {
     const onPageChange=vi.fn();
     const onSortChange=vi.fn();
