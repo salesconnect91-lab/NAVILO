@@ -92,14 +92,20 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   ||(lines.some(l=>l.vehicle_id&&!eligibleVehicles.some(v=>v.id===l.vehicle_id))?'Select a company-owned vehicle valid on invoice date.':null);
  const available=loadedScope===scope&&!loading&&!saving&&!done&&Boolean(party&&account&&date)&&!lineError&&vatQuote.ready
   &&(side!=='customer'||account!==serviceRevenueId)&&!originalNumberError;
+ // A supplier bill can be saved as a draft without its original number, but cannot post without it.
+ const canPost=available&&(side!=='supplier'||Boolean(number.trim()));
  const update=(index:number,k:keyof Line,value:string)=>setLines(old=>old.map((line,i)=>i===index?{...line,[k]:value}:line));
  async function save(post:boolean){
-  if(!available)return;setSaving(true);setError('');
+  if(!available||(post&&!canPost))return;setSaving(true);setError('');
   try{
    const result=await supabase.rpc('transport_normal_invoice_create_vat',{ 
     p_side:side,p_party:party,p_date:date,
     p_lines:lines.map(l=>({description:l.description.trim(),amount:l.amount.trim(),...(l.vehicle_id?{vehicle_id:l.vehicle_id}:{})})),
-    p_account:account,p_invoice_no:number.trim()||null,p_reference:reference.trim()||null,p_post:post,p_vat_choice:vatChoice,
+    p_account:account,p_invoice_no:number.trim()||null,
+    // The supplier's actual invoice number belongs in supplier_invoice_no (p_reference),
+    // not just NAVILO's purchase order_no. Never overwrite trip-linked supplier invoices.
+    p_reference:side==='supplier'?number.trim()||null:reference.trim()||null,
+    p_post:post,p_vat_choice:vatChoice,
    });
    if(result.error)throw result.error;
    setDone(result.data as {document_id:string;invoice_no:string;status:string;gross:number;net?:number;vat?:number});
@@ -146,12 +152,12 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
      </NaviloSearchableSelect>
     </label>
     <label className="navilo-invoice-field">Invoice Date *<NaviloDateInput type="date" className="input" value={date} onChange={e=>setDate(e.target.value)}/></label>
-    <label className="navilo-invoice-field">Original Invoice Number{needsOriginalInvoice?" *":""}
+    <label className="navilo-invoice-field">{side==='supplier'?'Original Supplier Invoice Number': 'Original Invoice Number'}{needsOriginalInvoice||side==='supplier'?" *":""}
      <input className="input" maxLength={80} aria-label="Normal invoice number" required={needsOriginalInvoice} aria-invalid={Boolean(originalNumberError)} value={number} onChange={e=>setNumber(e.target.value)} placeholder={side==='customer'?'Customer invoice number':'Supplier invoice number'}/>
     </label>
-    <label className="navilo-invoice-field">Reference / PO Number
+    {side==='customer'&&<label className="navilo-invoice-field">Reference / PO Number
      <input className="input" value={reference} maxLength={120} onChange={e=>setReference(e.target.value)} placeholder="Optional reference"/>
-    </label>
+    </label>}
     <label className="navilo-invoice-field">VAT Treatment
      <NaviloSearchableSelect nativeCompatibility aria-label="Normal invoice VAT treatment" className="input" value={vatChoice} onChange={e=>setVatChoice(e.target.value as 'master'|'with_vat'|'without_vat')}>
       <option value="master">Auto (Master Cash/Credit)</option><option value="with_vat">With VAT</option><option value="without_vat">Without VAT</option>
@@ -196,8 +202,9 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
     <p className="navilo-invoice-small-note">VAT follows the party's Master Cash/Credit rule and the invoice-date effective tax rate. A draft does not post accounting entries.</p>
     {vatQuote.error&&<p role="alert" className="navilo-invoice-inline-warning">{vatQuote.error} <button type="button" className="underline font-semibold" onClick={()=>setVatChoice("master")}>Use Master VAT</button> <Link to={side==='customer'?'/master-data/customers?tab=billing':'/master-data/suppliers'}>Open Master</Link></p>}
     {originalNumberError&&<p role="status" className="navilo-invoice-inline-warning">{originalNumberError}</p>}
+    {side==='supplier'&&!number.trim()&&<p role="status" className="navilo-invoice-inline-warning">Enter the supplier's original invoice number before posting. Drafts may be saved without posting payables or expenses.</p>}
     {vatQuote.loading&&<p role="status" className="navilo-invoice-small-note">Loading VAT rate and Master billing mode…</p>}
-    <p className="navilo-invoice-small-note">{side==='customer'?'Normal Sales revenue posts to the selected Sales Revenue GL; each line must be assigned to one company-owned vehicle for the vehicle-wise P&L. No Trip Register posting.':'Expenses use the selected GL account; a vehicle is optional for Purchase invoices.'}</p>
+    <p className="navilo-invoice-small-note">{side==='customer'?'Normal Sales revenue posts to the selected Sales Revenue GL; each line must be assigned to one company-owned vehicle for the vehicle-wise P&L. No Trip Register posting.':'A posted Purchase Invoice creates the expense, applicable input VAT and supplier payable once. Select the company-owned vehicle on each related cost line for vehicle-wise P&L; leave it blank only for genuinely general expenses. Pay the supplier separately. Do not also post a Journal Entry for the same bill.'}</p>
     {lineError&&<p role="status" className="navilo-invoice-inline-warning">{lineError}</p>}
    </div>
    <div className="navilo-invoice-summary">
@@ -211,7 +218,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    <div className="navilo-invoice-review-actions">
     <Link className="btn-secondary" to={side==='customer'?'/sales':'/purchase'}>Cancel</Link>
     <button type="button" className="btn-secondary" disabled={!available} onClick={()=>void save(false)}>{saving?'Saving…':'Save Draft'}</button>
-    <button type="button" className="btn-primary" disabled={!available} onClick={()=>void save(true)}>{saving?'Posting…':`Post ${sideName} Invoice`}</button>
+    <button type="button" className="btn-primary" disabled={!canPost} onClick={()=>void save(true)}>{saving?'Posting…':`Post ${sideName} Invoice`}</button>
    </div>
   </section>
  </main>;
