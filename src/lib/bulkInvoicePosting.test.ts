@@ -7,7 +7,7 @@ const state=vi.hoisted(()=>({
  rpcFailure:false,
 }));
 vi.mock('@/lib/supabase',()=>({supabase:{
- from:(table:string)=>{
+ from:(_table:string)=>{
   const q:any={_id:'',select:()=>q,eq:(col:string,val:string)=>{if(col==='id'||col==='order_id')q._id=val;return q;},
    maybeSingle:async()=>({data:state.records[q._id]??null,error:null}),
    limit:async()=>({data:state.lines[q._id]??[],error:null})};
