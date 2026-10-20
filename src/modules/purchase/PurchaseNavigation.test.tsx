@@ -3,6 +3,7 @@ import {afterEach,describe,expect,it,vi} from 'vitest';
 import {cleanup,render,screen} from '@testing-library/react';
 import {MemoryRouter,Route,Routes} from 'react-router-dom';
 import Purchase from './Purchase';
+import {navigation,flatten} from '@/config/navigation';
 const mock=vi.hoisted(()=>({type:'transport'}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeBusinessUnit:{business_unit_type:mock.type}})}));
 vi.mock('./PurchaseOrderList',()=>({default:()=> <div>Purchase index</div>}));
@@ -48,4 +49,13 @@ describe('Purchase section nested navigation',()=>{
   open('/purchase/11111111-1111-1111-1111-111111111111');
   expect(screen.getByText('Purchase Detail')).toBeTruthy();
  });
+ it('shows purchase creation only in the invoice page actions, not redundant sidebar links',()=>{
+  const purchase=navigation.find(n=>n.key==='purchase');
+  expect(purchase).toBeTruthy();
+  const items=flatten(purchase?.children??[]);
+  expect(items.some(n=>n.key==='transport-service-purchase-create')).toBe(false);
+  expect(items.some(n=>n.key==='transport-normal-purchase-create')).toBe(false);
+  expect(items.some(n=>n.key==='purchase-invoices'&&n.to==='/purchase')).toBe(true);
+ });
+
 });

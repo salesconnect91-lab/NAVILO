@@ -156,7 +156,6 @@ export default function PurchaseOrderList() {
         </div>}
       />
 
-      {activeBusinessUnit?.business_unit_type==="transport"&&<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-700" role="note"><strong>Which purchase entry?</strong> Trip supplier rent → <button type="button" className="font-semibold text-blue-700 underline" onClick={()=>navigate("/purchase/trip-service/new")}>Service Purchase (Trips)</button>. Fuel, repair or non-trip supplier bill → <button type="button" className="font-semibold text-blue-700 underline" onClick={()=>navigate("/purchase/normal/new")}>Normal Purchase</button> (choose vehicle per line). A supplier payment settles the posted payable; it does not create another expense. For direct cash expenses without an invoice, use an accounting Journal Entry. Do not enter one expense twice.</div>}
       <TransportOpeningInvoices side="supplier"/>
       <div className="grid gap-3 md:grid-cols-4" data-no-export>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"><span className="rounded-full bg-blue-50 p-2 text-blue-600"><FileText className="h-5 w-5"/></span><div><div className="text-xs text-slate-600">Filtered Invoices</div><div className="font-bold">{listReadFailed ? '—' : listSummary.count}</div></div></div>
