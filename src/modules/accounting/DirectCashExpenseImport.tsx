@@ -22,9 +22,13 @@ export default function DirectCashExpenseImport(){
  useEffect(()=>{
   let live=true;setCheckingReady(true);setImportReady(false);
   if(!company||!bu){setCheckingReady(false);return()=>{live=false}};
-  void supabase.rpc('accounting_direct_cash_expense_import_ready').then(result=>{
-   if(live)setImportReady(!result.error&&result.data===true);
-  }).catch(()=>{if(live)setImportReady(false)}).finally(()=>{if(live)setCheckingReady(false)});
+  void (async()=>{
+   try{
+    const result=await supabase.rpc('accounting_direct_cash_expense_import_ready');
+    if(live)setImportReady(!result.error&&result.data===true);
+   }catch{if(live)setImportReady(false)}
+   finally{if(live)setCheckingReady(false)}
+  })();
   return()=>{live=false};
  },[scope,company,bu]);
  useEffect(()=>{
