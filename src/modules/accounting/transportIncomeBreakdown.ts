@@ -36,3 +36,39 @@ export function reconcileNormalVehicleIncome(
  const allocated=amount([...totals.values()].reduce((v,r)=>v+cents(r.amount),0));
  return {vehicles,allocated,residual:amount(cents(totalSales)-cents(allocated))};
 }
+
+
+export type ExternalVehicleLedgerRow={
+ event_id:string;account_id:string|null;account_name:string|null;revenue:number|string|null;
+};
+
+/** Only posted, journal-backed external invoice revenue is passed here. It is
+ * an attribution of existing Sales Revenue, never an extra GL movement.
+ * Keep reversals / credit notes as signed contributions.
+ */
+export function externalVehicleIncome(rows:ExternalVehicleLedgerRow[]):VehicleIncome[]{
+ const byEvent=new Map<string,ExternalVehicleLedgerRow>();
+ for(const row of rows){
+  if(!row.event_id||!row.account_id||!row.account_name?.trim()||
+     row.revenue===null||row.revenue===undefined||!Number.isFinite(Number(row.revenue)))
+   throw new Error('Incomplete posted external vehicle income evidence');
+  if(byEvent.has(row.event_id)){
+   const prior=byEvent.get(row.event_id)!;
+   if(prior.account_id!==row.account_id||prior.account_name!==row.account_name||
+       cents(Number(prior.revenue))!==cents(Number(row.revenue)))
+    throw new Error('Conflicting external vehicle journal events');
+   continue;
+  }
+  byEvent.set(row.event_id,row);
+ }
+ const totals=new Map<string,VehicleIncome>();
+ for(const row of byEvent.values()){
+  const id=row.account_id!;
+  const prior=totals.get(id);
+  if(prior&&prior.vehicle_no!==row.account_name)
+   throw new Error('Conflicting vehicle labels for posted journal entries');
+  totals.set(id,{vehicle_id:id,vehicle_no:row.account_name!,
+   amount:amount(cents(prior?.amount??0)+cents(Number(row.revenue)))});
+ }
+ return [...totals.values()];
+}
