@@ -1,6 +1,7 @@
 import {TEMPLATE_HEADERS,TEMPLATE_ROWS,downloadCSVTemplate,downloadExcelTemplate} from './journalImportTemplates';
 import {expandFundedJournalRows,isFundedJournalTemplate} from './journalFundedImport';
 import {downloadSimpleJournalTemplate,isSimpleJournalTemplate,normalizeSimpleJournalRows} from './journalSimpleImport';
+import JournalImportFilePicker from './JournalImportFilePicker';
 import { createPrintDocument } from "@/lib/printDocument";
 import OwnerJournalAuditHistory from "./OwnerJournalAuditHistory";
 import JournalEntryOverview from "./JournalEntryOverview";
@@ -605,10 +606,11 @@ export default function JournalEntryList() {
     setError(null);
     setSuccess(null);
 
-    /*
-      A new upload means we are starting
-      a completely new import session.
-    */
+    // Show file selection immediately, even when Excel validation fails.
+    // Never leave a stale previous-file preview available after a failed select.
+    setImportFileName(file.name);
+    setImportRows([]);
+    setImportStep("upload");
     setDraftsLoaded(false);
     setImportEntries([]);
 
@@ -3183,47 +3185,13 @@ export default function JournalEntryList() {
 
               {/* UPLOAD */}
 
-              <div className="border-2 border-dashed border-blue-300 bg-blue-50 rounded-xl p-8 text-center">
-
-                <h3 className="font-bold">
-                  Upload Journal File
-                </h3>
-
-                <p className="text-xs text-slate-500 mt-1 mb-4">
-                  CSV, XLS or XLSX · Simple Debit/Credit or Advanced Journal
-                </p>
-
-                <label className="inline-flex cursor-pointer">
-
-                  <span className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold">
-                    {importing
-                      ? "Processing..."
-                      : "Choose File"}
-                  </span>
-
-                  <input
-                    type="file"
-                    accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    onChange={
-                      handleFileUpload
-                    }
-                    disabled={
-                      importing ||
-                      postingBulk
-                    }
-                    className="hidden"
-                  />
-
-                </label>
-
-                {importFileName && (
-                  <p className="text-xs font-semibold text-blue-700 mt-3">
-                    Selected:{" "}
-                    {importFileName}
-                  </p>
-                )}
-
-              </div>
+              <JournalImportFilePicker
+                disabled={importing||postingBulk}
+                processing={importing}
+                fileName={importFileName}
+                error={error}
+                onFile={handleFileUpload}
+              />
 
               {/* SUMMARY */}
 

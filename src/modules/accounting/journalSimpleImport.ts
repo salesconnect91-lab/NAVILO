@@ -16,6 +16,30 @@ const validDate=(s:string)=>{
  const d=new Date(s+'T00:00:00Z');
  return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===s;
 };
+/** Accept ISO dates, Excel serial dates, or NAVILO dd-mmm-yy display dates. */
+export function journalImportISODate(input:unknown):string{
+ const value=str(input);
+ if(validDate(value))return value;
+ if(/^\d{5}(?:\.0+)?$/.test(value)){
+  const serial=Number(value);
+  if(serial>20000&&serial<80000){
+   const result=new Date(Date.UTC(1899,11,30)+serial*86400000).toISOString().slice(0,10);
+   if(validDate(result))return result;
+  }
+ }
+ const named=value.match(/^(\d{1,2})[-\s]([A-Za-z]{3,9})[-\s](\d{2}|\d{4})$/);
+ if(named){
+  const months=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const month=months.indexOf(named[2].toLowerCase().slice(0,3))+1;
+  const yr=Number(named[3]);
+  const year=named[3].length===2?2000+yr:yr;
+  if(month){
+   const iso=String(year)+'-'+String(month).padStart(2,'0')+'-'+String(Number(named[1])).padStart(2,'0');
+   if(validDate(iso))return iso;
+  }
+ }
+ return value;
+}
 function money(input:unknown,line:number,name:string):number{
  const s=str(input).replace(/,/g,'');
  if(s===''||s==='—'||s==='-')return 0;
@@ -59,7 +83,7 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   if(!row.some(c=>str(c)))continue;
   const line=i+1;
   const suppliedId=str(row[idx('entry_no')]);
-  const suppliedDate=str(row[idx('entry_date')]);
+  const suppliedDate=journalImportISODate(row[idx('entry_date')]);
   const entry=suppliedId||currentEntry;
   const date=suppliedDate||(!suppliedId?currentDate:'');
   if(!entry||entry.length>80)throw Error(`Row ${line}: Entry No is required for the first row of every journal (max 80 characters).`);

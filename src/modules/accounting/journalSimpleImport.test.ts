@@ -1,6 +1,6 @@
 import {describe,expect,it,vi} from 'vitest';
 import * as XLSX from 'xlsx';
-import {SIMPLE_JOURNAL_HEADERS,isSimpleJournalTemplate,normalizeSimpleJournalRows,downloadSimpleJournalTemplate} from './journalSimpleImport';
+import {SIMPLE_JOURNAL_HEADERS,isSimpleJournalTemplate,normalizeSimpleJournalRows,downloadSimpleJournalTemplate,journalImportISODate} from './journalSimpleImport';
 vi.mock('xlsx',async(importOriginal)=>({...await importOriginal<typeof import('xlsx')>(),writeFile:vi.fn()}));
 const headers=[...SIMPLE_JOURNAL_HEADERS];
 const pair=[
@@ -8,6 +8,17 @@ const pair=[
  ['','','Amjad Payable','Paid by Amjad','','',600]
 ];
 describe('Simple Debit/Credit Journal import matches General Journal Entry form',()=>{
+ it('accepts uploaded Excel serial dates and NAVILO dd-MMM-yy without changing entry date',()=>{
+  expect(journalImportISODate('46266')).toBe('2026-09-01');
+  expect(journalImportISODate('01-Sep-26')).toBe('2026-09-01');
+  expect(journalImportISODate('15-Oct-2026')).toBe('2026-10-15');
+  expect(journalImportISODate('2026-09-05')).toBe('2026-09-05');
+  expect(journalImportISODate('2026-02-31')).toBe('2026-02-31');
+  const rows=normalizeSimpleJournalRows([headers,['R','46266','General Expenses','Repair','7979',500,0],['R','','Amjad Payable','Funded','','',500]]);
+  expect(rows[1][1]).toBe('2026-09-01');
+  expect(rows[2][1]).toBe('2026-09-01');
+ });
+
  it('preserves explicit DR/CR for vehicle expenses and Amjad funding without inventing Bank',()=>{
   const result=normalizeSimpleJournalRows([headers,...pair]);
   expect(result[0]).toEqual(['entry_no','entry_date','description','account_name','line_description','party_type','party_name','vehicle_no','debit','credit']);
