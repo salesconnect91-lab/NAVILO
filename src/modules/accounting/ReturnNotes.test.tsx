@@ -11,7 +11,7 @@ vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{
  const data:any={sales_orders:[{id:'s1',order_no:'INV-1',order_date:'2026-10-01',document_kind:'service',total:118,customer:{name:'Customer'}}],return_notes:[note],return_note_lines:[],sales_order_lines:[],company_settings:{company_name:'Company'},transport_service_note_lines:[{net_amount:100,vat_amount:18}]};
  const q:any={};for(const name of ['select','eq','order','limit','in','maybeSingle'])q[name]=()=>q;q.then=(resolve:any)=>Promise.resolve({data:data[table]??[],error:null}).then(resolve);return q;
 }}}));
-afterEach(()=>{cleanup();mock.rpc.mockReset();mock.queries=[]});
+afterEach(()=>{cleanup();mock.rpc.mockReset();mock.queries=[];window.history.replaceState(null,'','/');});
 it('routes service invoice corrections to Transport without requesting stock return quantities',async()=>{
  render(<ReturnNotes/>);await screen.findByText('INV-1 — Customer — 118.00');
  fireEvent.change(screen.getByLabelText('Original posted invoice'),{target:{value:'s1'}});
@@ -20,4 +20,13 @@ it('routes service invoice corrections to Transport without requesting stock ret
 it('prints service credit-note net and VAT lines from canonical service evidence',async()=>{
  render(<ReturnNotes/>);await screen.findByText('CN-1');fireEvent.click(screen.getByRole('button',{name:'Print Note'}));
  const result=await screen.findByTestId('note-print');expect(result.textContent).toContain('Transport service');expect(result.textContent).toContain('"taxAmount":18');expect(result.textContent).toContain('"lineTotal":100');expect(mock.queries).toContain('transport_service_note_lines');
+});
+
+it('opens a posted Sales invoice correction link with its exact original invoice selected',async()=>{
+ window.history.replaceState(null,'','/accounting/returns?type=sales_credit&invoice_id=s1');
+ render(<ReturnNotes/>);
+ const select=await screen.findByLabelText('Original posted invoice') as HTMLSelectElement;
+ await screen.findByText(/Service invoices have no stock return quantities/);
+ expect(select.value).toBe('s1');
+ expect(mock.rpc).not.toHaveBeenCalled();
 });
