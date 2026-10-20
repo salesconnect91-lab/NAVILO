@@ -68,7 +68,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
    const {data,error}=await supabase.from('journal_lines')
     .select('id,entry_id,account,account_id,debit,credit,party_name,transport_vehicle_no,transport_vehicle_id,description')
     .in('entry_id',ids).order('id').limit(1501);
-   if(error)throw error;
+   if(error)throw new Error(error.message||'Unable to load journal lines');
    if((data??[]).length>=1501)throw new Error('More than 1,500 journal lines on this page. Choose a smaller page size.');
    const lines=(data??[]) as JournalPreviewLine[];
    const vehicleIds=distinct(lines.filter(x=>x.transport_vehicle_id&&!x.transport_vehicle_no).map(x=>x.transport_vehicle_id!));
