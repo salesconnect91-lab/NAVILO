@@ -105,12 +105,12 @@ const escapeHtml = (value: unknown) =>
 export default function CashCounter() {
   const {activeBusinessUnit}=useAuth();
   const [searchParams] = useSearchParams();
-  const [counterMode, setCounterMode] = useState<"customer" | "supplier" | "general">(()=>searchParams.get("mode")==="supplier"?"supplier":"customer");
+  const [counterMode, setCounterMode] = useState<"customer" | "supplier" | "general">(()=>searchParams.get("mode")==="supplier"?"supplier":searchParams.get("mode")==="general"?"general":"customer");
   const transportEntry=activeBusinessUnit?.business_unit_type==="transport"&&searchParams.get("allocation")==="transport";
   const entryKey=searchParams.toString();
   useEffect(()=>{
     if(!transportEntry)return;
-    setCounterMode(searchParams.get("mode")==="supplier"?"supplier":"customer");
+    setCounterMode(searchParams.get("mode")==="supplier"?"supplier":searchParams.get("mode")==="general"?"general":"customer");
     setPaymentType("transport");
   },[entryKey,transportEntry]);
   const customerInputRef =
