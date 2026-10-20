@@ -636,3 +636,17 @@
     background: #205b9f !important;
   }
 }
+
+
+/* Uniform Trip Register header: one blue-grey across all financial and operational groups. */
+@media screen {
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:first-child th,
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:first-child th[data-financial-group],
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:nth-child(2) th,
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:nth-child(2) th[data-financial-group] {
+    background: #cad9e9 !important;
+    color: #203750 !important;
+    border-right-color: #a7bbd0 !important;
+    border-bottom-color: #a7bbd0 !important;
+  }
+}
