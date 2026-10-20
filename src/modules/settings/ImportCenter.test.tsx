@@ -7,6 +7,7 @@ import { MemoryRouter } from "react-router-dom";
 import ImportCenter from "./ImportCenter";
 
 vi.mock('@/modules/purchase/GeneralExpenseBillImport',()=>({default:()=> <div>Expense Invoice Bulk Import</div>}));
+vi.mock('@/modules/transport/TransportVehicleExpenseImportPreview',()=>({default:()=> <div>Vehicle Expense Excel Import</div>}));
 vi.mock("@/lib/supabase", () => ({ supabase: { rpc: vi.fn(), from: vi.fn() } }));
 vi.mock("@/modules/transport/TransportNormalInvoiceImport", () => ({
  default: ({side}:{side:string}) => <section aria-label={side==="customer"?"Normal Sales Import":"Normal Purchase Import"}><h3>Normal {side==="customer"?"Sales":"Purchase"} Invoice Bulk Import — No Trips</h3></section>
