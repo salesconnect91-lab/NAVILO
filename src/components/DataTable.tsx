@@ -8,6 +8,9 @@ export interface Column<T> {
   render?: (row: T) => React.ReactNode;
   className?: string;
   sortable?: boolean;
+  filterable?: boolean;
+  /** Value used for Excel-style filtering when a cell uses custom rendering. */
+  getFilterValue?: (row: T) => string | number | boolean | null | undefined;
 }
 
 type Density = "compact" | "comfortable" | "spacious";
@@ -21,6 +24,7 @@ type ViewPrefs = {
   hidden: string[];
   sort: { key: string; dir: "asc" | "desc" } | null;
   pageSize: number;
+  filters: Record<string,string[]>;
 };
 
 function storageKey(columns: { key: string }[]) {
@@ -41,7 +45,7 @@ function restoredHiddenKeys(raw: string | null, configurable: { key: string }[])
 }
 
 function defaultPrefs<T>(columns: Column<T>[]): ViewPrefs {
-  return { order: columns.map(c => c.key), widths: {}, pins: {}, density: "compact", densityVersion: 1, hidden: [], sort: null, pageSize: 25 };
+  return { order: columns.map(c => c.key), widths: {}, pins: {}, density: "compact", densityVersion: 1, hidden: [], sort: null, pageSize: 25, filters: {} };
 }
 function readPrefs<T>(columns: Column<T>[]): ViewPrefs {
   const fallback = defaultPrefs(columns);
@@ -59,6 +63,9 @@ function readPrefs<T>(columns: Column<T>[]): ViewPrefs {
       densityVersion: 1,
       pageSize: [25,50,100,250].includes(Number(raw.pageSize)) ? Number(raw.pageSize) : 25,
       sort: raw.sort && valid.has(raw.sort.key) ? raw.sort : null,
+      filters: raw.filters && typeof raw.filters === "object"
+        ? Object.fromEntries(Object.entries(raw.filters).filter(([k,v])=>valid.has(k)&&Array.isArray(v)).map(([k,v])=>[k,(v as unknown[]).filter((x):x is string=>typeof x==="string")]))
+        : {},
     };
   } catch { return fallback; }
 }
@@ -68,6 +75,9 @@ type RemotePaging = {
   onPageChange: (page: number, pageSize: number) => void;
   sort: { key: string; dir: "asc" | "desc" } | null;
   onSortChange: (sort: { key: string; dir: "asc" | "desc" }) => void;
+  /** Remote filters require a real server query and complete server-provided values. */
+  filterOptions?: Record<string,string[]>;
+  onFilterChange?: (column: string, selected: string[]) => void;
 };
 export default function DataTable<T extends { id: string }>({
   columns, rows, loading, emptyMessage, showSerialNumber = false, remote,
@@ -84,6 +94,10 @@ export default function DataTable<T extends { id: string }>({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [viewName, setViewName] = useState("");
+  const [filterKey,setFilterKey] = useState<string|null>(null);
+  const [filterSearch,setFilterSearch] = useState("");
+  const [filterDraft,setFilterDraft] = useState<string[]>([]);
+  const [filterPosition,setFilterPosition] = useState({top:80,left:20});
   const [savedViews, setSavedViews] = useState<Record<string, ViewPrefs>>(() => {
     try { return JSON.parse(window.localStorage.getItem(viewsKey(columns)) || "{}"); } catch { return {}; }
   });
@@ -122,7 +136,7 @@ export default function DataTable<T extends { id: string }>({
     persistHidden(next);
   };
 
-  useEffect(() => { setPage(1); setSelected(new Set()); }, [rows.length, prefs.pageSize, remote?.page]);
+  useEffect(() => { setPage(1); setSelected(new Set()); }, [rows.length, prefs.pageSize, prefs.filters, remote?.page]);
 
   const orderedColumns = useMemo(() => {
     const rank = new Map(prefs.order.map((k, i) => [k, i]));
@@ -130,14 +144,52 @@ export default function DataTable<T extends { id: string }>({
   }, [columns, prefs.order]);
 
   const visibleColumns = orderedColumns.filter(c => c.key === "actions" || c.key === "action" || !hiddenKeys.has(c.key));
+  const cellFilterValue = (col: Column<T>, row: T): string => {
+    const value = col.getFilterValue ? col.getFilterValue(row) : (row as Record<string,unknown>)[col.key];
+    return value == null ? "" : String(value).trim();
+  };
+  const filteredRows = useMemo(() => {
+    if (remote) return rows; // Never filter only the loaded server page.
+    const active = Object.entries(prefs.filters || {}).filter(([,values])=>values.length);
+    if (!active.length) return rows;
+    return rows.filter(row=>active.every(([colKey,values])=>{
+      const col=columns.find(c=>c.key===colKey);
+      return !col || values.includes(cellFilterValue(col,row));
+    }));
+  }, [rows, remote, prefs.filters, columns]);
   const sortedRows = useMemo(() => {
-    if (remote || !prefs.sort) return rows;
+    if (remote || !prefs.sort) return filteredRows;
     const { key: sortKey, dir } = prefs.sort;
+    const column=columns.find(c=>c.key===sortKey);
     const d = dir === "asc" ? 1 : -1;
-    return [...rows].sort((a,b) => String((a as Record<string,unknown>)[sortKey] ?? "").localeCompare(
-      String((b as Record<string,unknown>)[sortKey] ?? ""), undefined, { numeric: true, sensitivity: "base" }
-    ) * d);
-  }, [rows, prefs.sort, remote]);
+    return [...filteredRows].sort((a,b) => {
+      const av=column?cellFilterValue(column,a):"",bv=column?cellFilterValue(column,b):"";
+      return av.localeCompare(bv,undefined,{numeric:true,sensitivity:"base"})*d;
+    });
+  }, [filteredRows, prefs.sort, remote, columns]);
+  const filterOptions = useMemo(() => {
+    if (!filterKey) return [];
+    if (remote) return remote.filterOptions?.[filterKey] || [];
+    const col=columns.find(c=>c.key===filterKey);
+    if (!col) return [];
+    return [...new Set(rows.map(row=>cellFilterValue(col,row)))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:"base"}));
+  },[filterKey,rows,columns,remote]);
+  const shownFilterOptions=filterOptions.filter(value=>value.toLowerCase().includes(filterSearch.toLowerCase()));
+  const openFilter=(colKey:string,element:HTMLElement)=>{
+    const rect=element.getBoundingClientRect();
+    setFilterPosition({top:Math.max(8,Math.min(rect.bottom+5,window.innerHeight-380)),left:Math.max(8,Math.min(rect.left,window.innerWidth-302))});
+    setFilterSearch("");
+    setFilterDraft([...(prefs.filters[colKey]||[])]);
+    setFilterKey(colKey);
+  };
+  const applyFilter=()=>{
+    if (!filterKey) return;
+    const next=[...new Set(filterDraft)];
+    if (remote) remote.onFilterChange?.(filterKey,next);
+    else savePrefs({...prefs,filters:{...prefs.filters,[filterKey]:next}});
+    setPage(1);
+    setFilterKey(null);
+  };
   const effectivePageSize = remote?.pageSize ?? prefs.pageSize;
   const totalRecords = remote?.total ?? sortedRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / effectivePageSize));
@@ -172,13 +224,13 @@ export default function DataTable<T extends { id: string }>({
     savePrefs({ ...prefs, order: next });
   };
   const beginResize = (columnKey: string, startX: number, startWidth: number) => {
-    const move = (event: MouseEvent) => setPrefs(current => {
+    const move = (event: PointerEvent) => setPrefs(current => {
       const next = { ...current, widths: { ...current.widths, [columnKey]: Math.max(90, startWidth + event.clientX - startX) } };
       try { window.localStorage.setItem(prefsKey(columns), JSON.stringify(next)); } catch {}
       return next;
     });
-    const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
-    window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
   };
   const pin = (columnKey: string, side: PinSide) => savePrefs({ ...prefs, pins: { ...prefs.pins, [columnKey]: side } });
 
@@ -217,7 +269,7 @@ export default function DataTable<T extends { id: string }>({
                   data-no-print={action || undefined} data-no-export={action || undefined}
                   style={{ width:prefs.widths[col.key], minWidth:prefs.widths[col.key], ...stickyStyle(col.key) }}
                   className={`relative select-none bg-slate-50 ${cellPad} ${prefs.density === "compact" ? "py-2" : prefs.density === "spacious" ? "py-4" : "py-3"} text-left font-medium text-slate-600 ${col.className ?? ""}`}>
-                  <button type="button" className="inline-flex items-center gap-1 text-left"
+                  <button type="button" className="inline-flex items-center gap-1 pr-5 text-left"
                     disabled={action || col.sortable === false}
                     onClick={() => {
                     if (action || col.sortable === false) return;
@@ -229,13 +281,19 @@ export default function DataTable<T extends { id: string }>({
                     <span className={!action ? "cursor-grab" : ""}>{col.key === "actions" && !col.label ? "Actions" : col.label}</span>
                     {(remote ? remote.sort : prefs.sort)?.key===col.key ? <span aria-hidden="true">{(remote ? remote.sort : prefs.sort)?.dir==="asc"?"↑":"↓"}</span> : null}
                   </button>
-                  {!action ? <span aria-hidden="true" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-slate-300"
-                    onMouseDown={e => { e.preventDefault(); beginResize(col.key,e.clientX,e.currentTarget.parentElement?.getBoundingClientRect().width || 160); }}/> : null}
+                  {!action && col.filterable !== false && (!remote || (remote.onFilterChange && remote.filterOptions?.[col.key])) &&
+                    <button type="button" data-no-print data-no-export aria-label={`Filter ${col.label}`} title={`Filter ${col.label}`}
+                      aria-expanded={filterKey===col.key} aria-haspopup="dialog"
+                      className={`absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 hover:bg-emerald-50 ${prefs.filters[col.key]?.length?"text-emerald-700":"text-slate-500"}`}
+                      onClick={e=>{e.stopPropagation();openFilter(col.key,e.currentTarget)}}>▾</button>}
+                  {!action ? <span aria-hidden="true" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-slate-300" style={{touchAction:"none"}}
+                    onPointerDown={e => { e.preventDefault(); e.stopPropagation();beginResize(col.key,e.clientX,e.currentTarget.parentElement?.getBoundingClientRect().width || 160); }}/> : null}
                 </th>;
               })}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
+            {!pagedRows.length && <tr><td colSpan={visibleColumns.length+2} className="px-4 py-8 text-center text-slate-500">No rows match the selected column filters.</td></tr>}
             {pagedRows.map((row, rowIndex) => <tr key={row.id} className={`transition-colors hover:bg-slate-50 ${prefs.density === "compact" ? "h-8" : prefs.density === "comfortable" ? "h-11" : "h-14"} ${selected.has(row.id) ? "bg-slate-50" : ""}`}>
               <td className={`sticky left-0 z-10 bg-white ${selectPad} ${rowPad}`} data-no-print data-no-export>
                 <input aria-label="Select row" type="checkbox" checked={selected.has(row.id)} onChange={() => {
@@ -276,10 +334,33 @@ export default function DataTable<T extends { id: string }>({
       </div>
     </div>
 
+    {filterKey && <div role="dialog" aria-modal="false" aria-label={`Filter ${columns.find(c=>c.key===filterKey)?.label||filterKey}`}
+      className="fixed z-[140] flex w-[min(288px,calc(100vw-16px))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-2xl"
+      style={{top:filterPosition.top,left:filterPosition.left}} data-no-print data-no-export
+      onKeyDown={e=>{if(e.key==="Escape")setFilterKey(null)}}>
+      <div className="mb-2 flex items-center justify-between text-xs font-bold text-slate-800"><span>{columns.find(c=>c.key===filterKey)?.label} · Filter</span>
+        <button aria-label="Close column filter" type="button" onClick={()=>setFilterKey(null)}>✕</button></div>
+      <input autoFocus aria-label="Search column values" className="input mb-2 h-9 w-full" placeholder="Search values..." value={filterSearch} onChange={e=>setFilterSearch(e.target.value)}/>
+      <div className="mb-2 flex items-center justify-between gap-2 text-xs">
+        <button type="button" className="text-emerald-700 underline" onClick={()=>setFilterDraft(filterOptions)}>Select all</button>
+        <button type="button" className="text-slate-600 underline" onClick={()=>setFilterDraft([])}>Clear</button>
+      </div>
+      <div className="max-h-52 min-h-12 space-y-1 overflow-y-auto">
+        {shownFilterOptions.map(value=><label key={value} className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 text-xs hover:bg-emerald-50">
+          <input type="checkbox" checked={filterDraft.includes(value)} onChange={e=>setFilterDraft(old=>e.target.checked?[...old,value]:old.filter(x=>x!==value))}/>
+          <span className="break-all">{value||"(Blank)"}</span>
+        </label>)}
+        {!shownFilterOptions.length&&<p className="py-3 text-center text-xs text-slate-500">No matching values</p>}
+      </div>
+      <div className="mt-3 flex items-center justify-end gap-2 border-t pt-2">
+        <button type="button" className="btn-secondary" onClick={()=>setFilterKey(null)}>Cancel</button>
+        <button type="button" className="btn-primary" onClick={applyFilter}>Apply</button>
+      </div>
+    </div>}
     {customizeOpen && <div role="dialog" aria-modal="true" aria-label="Customize table columns" className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/30 p-4" data-no-print data-no-export>
       <div className="flex max-h-[88vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-3">
-          <div><h3 className="text-sm font-bold text-slate-900">Customize Table</h3><p className="mt-0.5 text-xs text-slate-500">Show, reorder, resize, pin and save your view.</p></div>
+          <div><h3 className="text-sm font-bold text-slate-900">Professional Smart Table</h3><p className="mt-0.5 text-xs text-slate-500">Show, reorder, resize, pin, filter and save your view.</p></div>
           <button type="button" className="btn-secondary !min-h-8 h-8 px-3 text-xs" onClick={()=>setCustomizeOpen(false)}>Close</button>
         </div>
         <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-2">
@@ -314,7 +395,7 @@ export default function DataTable<T extends { id: string }>({
           </div>
         </div>
         <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-2.5">
-          <button type="button" className="btn-secondary !min-h-8 h-8 px-3 text-xs" onClick={()=>{try{window.localStorage.removeItem(key);window.localStorage.removeItem(prefsKey(columns))}catch{}persistHidden(new Set());savePrefs(defaultPrefs(columns))}}>Reset Default</button>
+          <button type="button" className="btn-secondary !min-h-8 h-8 px-3 text-xs" onClick={()=>{try{window.localStorage.removeItem(key);window.localStorage.removeItem(prefsKey(columns))}catch{}persistHidden(new Set());savePrefs(defaultPrefs(columns));setFilterKey(null)}}>Reset Default</button>
           <button type="button" className="btn-primary !min-h-8 h-8 px-4 text-xs" onClick={()=>setCustomizeOpen(false)}>Done</button>
         </div>
       </div>
