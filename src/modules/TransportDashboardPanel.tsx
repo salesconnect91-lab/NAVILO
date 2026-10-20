@@ -30,6 +30,12 @@ export default function TransportDashboardPanel({
   endDate: string;
 }) {
   const navigate = useNavigate();
+  const openFilteredTrips = (filter?: string) => {
+    const query = new URLSearchParams({dashboard_from:startDate,dashboard_to:endDate});
+    if(filter==="ppr_pending")query.set("dashboard_ppr","pending");
+    else if(filter)query.set("dashboard_status",filter);
+    navigate(`/transport?${query.toString()}`);
+  };
   const [summary, setSummary] = useState<TransportSummary | null>(null);
   const [contributions, setContributions] = useState<Contribution[] | null>(null);
   const [error, setError] = useState("");
@@ -84,13 +90,13 @@ export default function TransportDashboardPanel({
   }, [companyId, businessUnitId, startDate, endDate]);
 
   const tiles = [
-    { label: "Trips", value: summary?.total_trips, icon: Truck },
-    { label: "Draft", value: summary?.draft_trips, icon: FileClock },
-    { label: "Incomplete", value: summary?.incomplete_trips, icon: AlertTriangle },
-    { label: "Complete", value: summary?.complete_trips, icon: ClipboardCheck },
-    { label: "Locked", value: summary?.locked_trips, icon: Route },
-    { label: "Settled", value: summary?.settled_trips, icon: CheckCircle2 },
-    { label: "PPR Pending", value: summary?.ppr_pending, icon: ReceiptText },
+    { label: "Trips", value: summary?.total_trips, filter: "", icon: Truck },
+    { label: "Draft", value: summary?.draft_trips, filter: "draft", icon: FileClock },
+    { label: "Incomplete", value: summary?.incomplete_trips, filter: "incomplete", icon: AlertTriangle },
+    { label: "Complete", value: summary?.complete_trips, filter: "complete", icon: ClipboardCheck },
+    { label: "Locked", value: summary?.locked_trips, filter: "locked", icon: Route },
+    { label: "Settled", value: summary?.settled_trips, filter: "settled", icon: CheckCircle2 },
+    { label: "PPR Pending", value: summary?.ppr_pending, filter: "ppr_pending", icon: ReceiptText },
   ];
   const financial = contributions && [
     { label: "Posted trip revenue", value: contributions.reduce((n, row) => n + Number(row.revenue || 0), 0) },
@@ -112,8 +118,8 @@ export default function TransportDashboardPanel({
       </div>
       {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
-        {tiles.map(({ label, value, icon: Icon }) => (
-          <button key={label} type="button" onClick={() => navigate("/transport")}
+        {tiles.map(({ label, value, filter, icon: Icon }) => (
+          <button key={label} type="button" onClick={() => openFilteredTrips(filter)}
             className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-2 text-left hover:border-blue-300">
             <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600">
               <Icon className="h-3.5 w-3.5 shrink-0" /> {label}

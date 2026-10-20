@@ -232,22 +232,29 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
 
   const registerViewStorageKey=`navilo:transport:view:${user?.id??"anonymous"}:${scopeKey}`;
   const savedRegisterView=useMemo(()=>readRegisterViewState(registerViewStorageKey),[registerViewStorageKey]);
-  const [fromDate,setFromDate]=useState(()=>savedRegisterView.fromDate??"");
-  const [toDate,setToDate]=useState(()=>savedRegisterView.toDate??"");
+  // The dashboard opens trips for its selected date range, without stale session filters.
+  const dashboardFrom=params.get("dashboard_from")??"";
+  const dashboardTo=params.get("dashboard_to")??"";
+  const dashboardDrilldown=/^\d{4}-\d{2}-\d{2}$/.test(dashboardFrom)&&/^\d{4}-\d{2}-\d{2}$/.test(dashboardTo)&&dashboardFrom<=dashboardTo;
+  const dashboardStatus=params.get("dashboard_status");
+  const dashboardPpr=params.get("dashboard_ppr");
+  const validDashboardStatus=dashboardDrilldown&&["draft","incomplete","complete","locked","settled"].includes(dashboardStatus??"");
+  const [fromDate,setFromDate]=useState(()=>dashboardDrilldown?dashboardFrom:(savedRegisterView.fromDate??""));
+  const [toDate,setToDate]=useState(()=>dashboardDrilldown?dashboardTo:(savedRegisterView.toDate??""));
   const [dateFilterOpen,setDateFilterOpen]=useState(false);
   const [dateDraft,setDateDraft]=useState({from:"",to:""});
-  const [customerFilter,setCustomerFilter]=useState(()=>savedRegisterView.customerFilter??"");
-  const [driverFilter,setDriverFilter]=useState(()=>savedRegisterView.driverFilter??"");
-  const [vehicleFilter,setVehicleFilter]=useState(()=>savedRegisterView.vehicleFilter??"");
-  const [fromFilter,setFromFilter]=useState(()=>savedRegisterView.fromFilter??"");
-  const [toFilter,setToFilter]=useState(()=>savedRegisterView.toFilter??"");
-  const [pprFilter,setPprFilter]=useState(()=>savedRegisterView.pprFilter??"");
-  const [statusFilters,setStatusFilters]=useState<string[]>(()=>savedRegisterView.statusFilters??[]);
+  const [customerFilter,setCustomerFilter]=useState(()=>dashboardDrilldown?"":(savedRegisterView.customerFilter??""));
+  const [driverFilter,setDriverFilter]=useState(()=>dashboardDrilldown?"":(savedRegisterView.driverFilter??""));
+  const [vehicleFilter,setVehicleFilter]=useState(()=>dashboardDrilldown?"":(savedRegisterView.vehicleFilter??""));
+  const [fromFilter,setFromFilter]=useState(()=>dashboardDrilldown?"":(savedRegisterView.fromFilter??""));
+  const [toFilter,setToFilter]=useState(()=>dashboardDrilldown?"":(savedRegisterView.toFilter??""));
+  const [pprFilter,setPprFilter]=useState(()=>dashboardDrilldown?(dashboardPpr==="pending"?"pending":""):(savedRegisterView.pprFilter??""));
+  const [statusFilters,setStatusFilters]=useState<string[]>(()=>dashboardDrilldown?(validDashboardStatus?["status:"+dashboardStatus]:[]):(savedRegisterView.statusFilters??[]));
   const [statusSearch,setStatusSearch]=useState("");
   const [statusOpen,setStatusOpen]=useState(false);
 
-  const [columnFilters,setColumnFilters]=useState<Record<string,string[]>>(()=>savedRegisterView.columnFilters??{});
-  const [sortColumn,setSortColumn]=useState<string>(()=>savedRegisterView.sortColumn??"");
+  const [columnFilters,setColumnFilters]=useState<Record<string,string[]>>(()=>dashboardDrilldown?{}:(savedRegisterView.columnFilters??{}));
+  const [sortColumn,setSortColumn]=useState<string>(()=>dashboardDrilldown?"":(savedRegisterView.sortColumn??""));
   const [sortDirection,setSortDirection]=useState<"asc"|"desc">(()=>savedRegisterView.sortDirection??"asc");
   const [openColumnFilter,setOpenColumnFilter]=useState<string|null>(null);
 
@@ -268,9 +275,9 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
   const importScope=`${user?.id??'session'}/${scopeKey}`;
   const importScopeRef=useRef(importScope);importScopeRef.current=importScope;
   useEffect(()=>{importStop.current=true;setImportJob(null);void storedImport(importScope).then(job=>{if(importScopeRef.current===importScope)setImportJob(job)}).catch(()=>{});return()=>{importStop.current=true}},[importScope]);
-  const [page,setPage]=useState(()=>savedRegisterView.page??0);
-  const [registerSearch,setRegisterSearch]=useState(()=>savedRegisterView.registerSearch??'');
-  const [registerSearchDraft,setRegisterSearchDraft]=useState(()=>savedRegisterView.registerSearch??'');
+  const [page,setPage]=useState(()=>dashboardDrilldown?0:(savedRegisterView.page??0));
+  const [registerSearch,setRegisterSearch]=useState(()=>dashboardDrilldown?'':(savedRegisterView.registerSearch??''));
+  const [registerSearchDraft,setRegisterSearchDraft]=useState(()=>dashboardDrilldown?'':(savedRegisterView.registerSearch??''));
   const [registerSearchMode,setRegisterSearchMode]=useState<'contains'|'starts_with'>(()=>savedRegisterView.registerSearchMode??'contains');
   const [registerSearchModeDraft,setRegisterSearchModeDraft]=useState<'contains'|'starts_with'>(()=>savedRegisterView.registerSearchMode??'contains');
   const [registerMeta,setRegisterMeta]=useState<any>({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});

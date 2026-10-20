@@ -45,3 +45,21 @@ it("never displays financial amounts when financial RPC denies permission", asyn
   await waitFor(() => expect(screen.getByRole("alert").textContent).toMatch(/Both financial view permissions required/));
   expect(screen.queryByText("Posted trip revenue")).toBeNull();
 });
+
+it("opens lifecycle and PPR tiles with explicit scoped Trip Register filters",async()=>{
+  vi.mocked(supabase.rpc).mockImplementation(((name:string)=>{
+    const response={data:name==="transport_dashboard_operational_summary"
+      ? {currency:"SAR",total_trips:12,draft_trips:2,incomplete_trips:3,complete_trips:4,
+         locked_trips:2,settled_trips:1,ppr_pending:5}:[],error:null};
+    const pending=Promise.resolve(response);
+    return Object.assign(pending,{abortSignal:()=>pending}) as never;
+  }) as never);
+  const {useLocation}=await import("react-router-dom");
+  function RouteProbe(){const loc=useLocation();return <div data-testid="dash-route">{loc.pathname}{loc.search}</div>;}
+  render(<MemoryRouter><TransportDashboardPanel companyId="twakkal" businessUnitId="transport" startDate="2026-10-01" endDate="2026-10-21"/><RouteProbe/></MemoryRouter>);
+  await waitFor(()=>expect(screen.getByRole("button",{name:/Draft\s+2/})).toBeTruthy());
+  fireEvent.click(screen.getByRole("button",{name:/Draft\s+2/}));
+  expect(screen.getByTestId("dash-route").textContent).toContain("dashboard_status=draft");
+  fireEvent.click(screen.getByRole("button",{name:/PPR Pending\s+5/}));
+  expect(screen.getByTestId("dash-route").textContent).toContain("dashboard_ppr=pending");
+});
