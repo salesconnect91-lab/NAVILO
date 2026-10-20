@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {splitTransportRevenue,reconcileNormalVehicleIncome} from './transportIncomeBreakdown';
+import {externalVehicleIncome,splitTransportRevenue,reconcileNormalVehicleIncome} from './transportIncomeBreakdown';
 describe('Transport company P&L - separate Sale and Trip Service income',()=>{
  it('reads posted accounting by different mapped revenue accounts, respecting contra debits',()=>{
   expect(splitTransportRevenue([
@@ -28,6 +28,41 @@ describe('Transport company P&L - separate Sale and Trip Service income',()=>{
   ]);
   expect(rows.residual).toBe(-10);
   expect(rows.vehicles).toHaveLength(1);
+ });
+ it('allocates all posted Orbit external sales to four vehicles without adding GL revenue',()=>{
+  const events=[
+   {event_id:'journal1:line1',account_id:'v7979',account_name:'7979',revenue:'26295.00'},
+   {event_id:'journal2:line2',account_id:'v2512',account_name:'2512',revenue:'20430.00'},
+   {event_id:'journal3:line3',account_id:'v5731',account_name:'5731',revenue:'18730.00'},
+   {event_id:'journal4:line4',account_id:'v7494',account_name:'7494',revenue:'18200.00'},
+  ];
+  const result=reconcileNormalVehicleIncome(83655,externalVehicleIncome(events));
+  expect(result.vehicles).toEqual([
+   {vehicle_id:'v2512',vehicle_no:'2512',amount:20430},
+   {vehicle_id:'v5731',vehicle_no:'5731',amount:18730},
+   {vehicle_id:'v7494',vehicle_no:'7494',amount:18200},
+   {vehicle_id:'v7979',vehicle_no:'7979',amount:26295},
+  ]);
+  expect(result.allocated).toBe(83655);
+  expect(result.residual).toBe(0);
+ });
+ it('preserves posting reversals and credit notes without double-counting repeated event ids',()=>{
+  const posted=externalVehicleIncome([
+   {event_id:'bill1',account_id:'v1',account_name:'7979',revenue:'1000.00'},
+   {event_id:'bill1',account_id:'v1',account_name:'7979',revenue:'1000.00'},
+   {event_id:'credit1',account_id:'v1',account_name:'7979',revenue:'-200.25'},
+  ]);
+  expect(reconcileNormalVehicleIncome(799.75,posted)).toEqual({
+   vehicles:[{vehicle_id:'v1',vehicle_no:'7979',amount:799.75}],
+   allocated:799.75,residual:0,
+  });
+ });
+ it('rejects missing evidence rather than silently treating unallocated income as linked',()=>{
+  expect(()=>externalVehicleIncome([{event_id:'event',account_id:'',account_name:'7979',revenue:'100'}])).toThrow(/Incomplete/);
+  expect(()=>externalVehicleIncome([
+   {event_id:'dup',account_id:'v1',account_name:'7979',revenue:'100'},
+   {event_id:'dup',account_id:'v2',account_name:'2512',revenue:'100'}
+  ])).toThrow(/Conflicting/);
  });
  it('keeps reversal differences in cents and zero balances displayable',()=>{
   const rows=reconcileNormalVehicleIncome(0,[
