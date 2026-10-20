@@ -18,6 +18,15 @@ export default function DirectCashExpenseImport(){
  const [rows,setRows]=useState<DirectCashExpenseRow[]>([]),[selectedScope,setSelectedScope]=useState('');
  const [filename,setFilename]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
  const [error,setError]=useState(''),[message,setMessage]=useState('');
+ const [importReady,setImportReady]=useState(false),[checkingReady,setCheckingReady]=useState(true);
+ useEffect(()=>{
+  let live=true;setCheckingReady(true);setImportReady(false);
+  if(!company||!bu){setCheckingReady(false);return()=>{live=false}};
+  void supabase.rpc('accounting_direct_cash_expense_import_ready').then(result=>{
+   if(live)setImportReady(!result.error&&result.data===true);
+  }).catch(()=>{if(live)setImportReady(false)}).finally(()=>{if(live)setCheckingReady(false)});
+  return()=>{live=false};
+ },[scope,company,bu]);
  useEffect(()=>{
   let live=true;
   setRows([]);setFilename('');setSelectedScope('');setError('');setMessage('');setAccounts([]);setLoading(true);
@@ -58,7 +67,7 @@ export default function DirectCashExpenseImport(){
   finally{lock.current=false;setBusy(false)}
  }
  async function post(){
-  if(lock.current||!rows.length||selectedScope!==scope||!company||!bu)return;
+  if(lock.current||!importReady||!rows.length||selectedScope!==scope||!company||!bu)return;
   if(!window.confirm('Post '+rows.length+' Office/Yard/General CASH expenses? This creates real, immutable vouchers, reduces Cash/Bank and has no supplier payable. Verify GL accounts and references first.'))return;
   lock.current=true;setBusy(true);setError('');setMessage('');
   try{
@@ -86,7 +95,7 @@ export default function DirectCashExpenseImport(){
   </div>
   <input ref={picker} type="file" accept=".xlsx,.xls,.csv" className="hidden" aria-label="Upload direct cash expense Excel" onChange={e=>void choose(e)}/>
   <p className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-   <strong>Posting requires the approved database migration.</strong> Until then Excel preview works but the server will refuse posting.
+   <strong>{checkingReady?'Checking atomic posting setup…':importReady?'Atomic posting backend available.':'Database migration not yet approved/applied: Preview Only.'}</strong> {importReady?'All records will post in one transaction with duplicate-source protection.':'You can download and validate Excel now. Posting is safely disabled until database rollout.'}
    Vehicle expenses must use <Link className="underline font-semibold" to="/settings/imports?section=vehicle-expenses">Vehicle Expense Excel</Link>.
    Individual payment: <Link className="underline font-semibold" to="/accounting/cash-counter?mode=general">General Cash Expense Payment</Link>.
   </p>
@@ -104,7 +113,7 @@ export default function DirectCashExpenseImport(){
      <td className="p-2">{r.paid_to||'—'}</td><td className="p-2">{r.description}</td>
      <td className="p-2 text-right">{r.amount.toFixed(2)}</td><td className="p-2">{r.source_reference}</td>
     </tr>)}</tbody></table></div>
-   <button type="button" className="btn-primary" disabled={busy} onClick={()=>void post()}>{busy?'Checking / Posting…':'Confirm & Post '+rows.length+' Cash Expenses'}</button>
+   <button type="button" className="btn-primary" disabled={busy||!importReady} onClick={()=>void post()}>{busy?'Checking / Posting…':'Confirm & Post '+rows.length+' Cash Expenses'}</button>
   </div>}
   <p className="text-xs text-slate-500">Only Office/Yard/General direct payments. Distinct Expense GL accounts for separate P&amp;L; VAT requires valid source tax invoice. Do not re-import posted expenses.</p>
  </section>;
