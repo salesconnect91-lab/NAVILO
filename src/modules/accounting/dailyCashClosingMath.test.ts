@@ -51,7 +51,7 @@ describe('Daily Cash & Bank Closing reconciled report',()=>{
  it('rejects mismatched posted cash flow and keeps misleading closing figures out of exports',()=>{
   expect(()=>buildDailyClosing(day,accounts,balances,entries,lines,{...summary,closing:321})).toThrow(/reconcile/);
   expect(()=>buildDailyClosing(day,accounts,balances,entries,lines,{...summary,difference:1})).toThrow(/reconcile/);
-  expect(()=>buildDailyClosing(day,accounts,balances,entries,lines.filter(l=>l.id!=='l5'),summary)).toThrow(/reconcile/);
+  expect(()=>buildDailyClosing(day,accounts,balances,entries,lines.filter(l=>l.id!=='l5'),summary)).toThrow(/unbalanced posted voucher/);
  });
  it('rejects a posted voucher whose lines were not completely fetched',()=>{
   expect(()=>buildDailyClosing(day,accounts,balances,entries,[...lines.filter(l=>l.entry_id!=='j3')],summary)).toThrow(/Incomplete posted voucher lines/);
