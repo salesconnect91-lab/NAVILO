@@ -3,6 +3,7 @@ import {Link} from 'react-router-dom';
 import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
 import SearchableSelect from '@/components/SearchableSelect';
+import QuickMasterAdd from '@/components/QuickMasterAdd';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import {fixedTaxRateOn} from '@/lib/effectiveTaxRate';
 
@@ -31,6 +32,11 @@ export default function GeneralExpenseBillCreate(){
  useEffect(()=>{let live=true;void fixedTaxRateOn(date,'purchase').then(r=>{if(live)setTaxRate(Number(r)||0)}).catch(()=>{if(live)setTaxRate(0)});
   return()=>{live=false};
  },[date,company]);
+ const refreshExpenseAccounts=async()=>{
+  if(!company)return;
+  const r=await supabase.from("chart_of_accounts").select("id,name").eq("company_id",company).eq("type","expense").eq("is_active",true).eq("is_group",false).order("name");
+  if(r.error)throw r.error;setAccounts(r.data??[]);
+ };
  const subtotal=useMemo(()=>lines.reduce((sum,l)=>sum+(Number(l.amount)||0),0),[lines]);
  const total=subtotal*(1+(vat?taxRate:0)/100);
  const invalid=lines.length<1||lines.length>100||lines.some(l=>!l.description.trim()||l.description.length>1000||!/^[0-9]{1,12}(\.[0-9]{1,2})?$/.test(l.amount)||Number(l.amount)<=0);
@@ -56,10 +62,12 @@ export default function GeneralExpenseBillCreate(){
   {loading&&<p role="status">Loading company suppliers and Expense accounts…</p>}
   {done&&<div role="status" className="rounded border p-3"><strong>Expense Invoice {done.status}: {done.invoice_no}</strong> · SAR {Number(done.gross).toFixed(2)} <Link className="text-blue-700 underline ml-3" to={`/purchase/${done.document_id}`}>Open Invoice</Link><button className="btn ml-3" onClick={()=>{setDone(null);setOriginal('');setLines([blank()])}}>New Expense Invoice</button></div>}
   <fieldset className="grid grid-cols-1 gap-3 md:grid-cols-3" disabled={loading||busy||!!done}>
-   <label className="text-xs font-semibold">Supplier *<SearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" aria-label="Expense invoice supplier" value={supplier} onChange={e=>setSupplier(e.target.value)}><option value="">Select Supplier Master</option>{suppliers.map(x=><option value={x.id} key={x.id}>{x.name}</option>)}</SearchableSelect></label>
+   <div><label className="text-xs font-semibold">Supplier *<SearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" aria-label="Expense invoice supplier" value={supplier} onChange={e=>setSupplier(e.target.value)}><option value="">Select Supplier Master</option>{suppliers.map(x=><option value={x.id} key={x.id}>{x.name}</option>)}</SearchableSelect></label>
+    <QuickMasterAdd kind="supplier" compact disabled={busy||!!done} onCreated={async r=>{setSuppliers(v=>v.some(x=>x.id===r.id)?v:[...v,r]);setSupplier(r.id)}}/></div>
    <label className="text-xs font-semibold">Original Supplier Invoice No. *<input aria-label="Expense supplier invoice number" className="input mt-1 w-full" maxLength={80} value={original} onChange={e=>setOriginal(e.target.value)} placeholder="Supplier's invoice reference"/></label>
    <label className="text-xs font-semibold">Invoice Date *<NaviloDateInput type="date" className="input mt-1 w-full" value={date} onChange={e=>setDate(e.target.value)}/></label>
-   <label className="text-xs font-semibold">Expense Account *<SearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" aria-label="Expense invoice account" value={account} onChange={e=>setAccount(e.target.value)}><option value="">Select Expense GL</option>{accounts.map(x=><option value={x.id} key={x.id}>{x.name}</option>)}</SearchableSelect></label>
+   <div><label className="text-xs font-semibold">Expense Account *<SearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" aria-label="Expense invoice account" value={account} onChange={e=>setAccount(e.target.value)}><option value="">Select Expense GL</option>{accounts.map(x=><option value={x.id} key={x.id}>{x.name}</option>)}</SearchableSelect></label>
+    <QuickMasterAdd kind="account" compact disabled={busy||!!done} onRefresh={refreshExpenseAccounts}/></div>
    <label className="text-xs font-semibold">VAT Treatment<SearchableSelect nativeCompatibility className="input mt-1 w-full" aria-label="Expense invoice VAT treatment" value={vat?'yes':'no'} onChange={e=>setVat(e.target.value==='yes')}><option value="no">Without VAT</option><option value="yes">With VAT (effective company rate)</option></SearchableSelect></label>
    <div className="rounded border p-2 text-xs"><div>Effective VAT rate: <strong>{taxRate}%</strong></div><div className="mt-1 text-slate-600">For Transport suppliers, existing Cash/Credit Master VAT rules must match your selection.</div></div>
   </fieldset>
