@@ -31,6 +31,7 @@ vi.mock('@/lib/supabase',()=>({supabase:{
   mock.scope.push(q);return q;
  }
 }}));
+vi.mock('@/lib/accountingLocalDate',()=>({accountingLocalDate:()=> '2026-10-19'}));
 vi.mock('@/lib/fetchAllPages',()=>({
  fetchAllPages:async(cb:any)=>{
   const query=cb(0,999);
