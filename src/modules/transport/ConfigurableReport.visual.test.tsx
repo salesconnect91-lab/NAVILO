@@ -25,8 +25,8 @@ describe("shared configurable report headers",()=>{
     const header=handle.closest("th")!;
     expect(header.style.width).toBe("176px");
     expect(JSON.parse(localStorage.getItem("transport-report:test-resize")||"{}").widths.Trip).toBe(176);
-    expect(screen.getByText("100")).toBeTruthy();
-    expect(screen.getByText("200")).toBeTruthy();
+    expect(screen.getByText("100.00")).toBeTruthy();
+    expect(screen.getByText("200.00")).toBeTruthy();
     first.unmount();
     render(<ConfigurableReport report={report} preferenceKey="test-resize"/>);
     expect(screen.getByRole("columnheader",{name:/Trip/}).style.width).toBe("176px");
