@@ -200,6 +200,35 @@ export default function Ledgers() {
   const partyTableRef=useRef<HTMLTableElement|null>(null);
   const [showColumns, setShowColumns] = useState(false);
   const partyColumnDragKey = useRef<PartyColumnKey | null>(null);
+  // Resize is presentation-only. Ledger order, journal amounts and running balances
+  // remain derived from the full canonical transaction sequence.
+  const partyWidthScope=`navilo-ledger-party-widths:${activeCompany?.company_id??"none"}:${activeBusinessUnit?.business_unit_id??"none"}`;
+  const [partyColumnWidths,setPartyColumnWidths]=useState<Partial<Record<PartyColumnKey,number>>>({});
+  useEffect(()=>{
+    try {
+      const parsed=JSON.parse(localStorage.getItem(partyWidthScope)||"{}") as Record<string,number>;
+      const valid=Object.fromEntries(Object.entries(parsed).filter(([k,v])=>PARTY_COLUMNS.some(([key])=>key===k)&&Number.isFinite(v)&&v>=72&&v<=700));
+      setPartyColumnWidths(valid);
+    } catch {setPartyColumnWidths({})}
+  },[partyWidthScope]);
+  const persistPartyColumnWidth=(key:PartyColumnKey,width:number)=>{
+    setPartyColumnWidths(current=>{
+      const next={...current,[key]:Math.max(72,Math.min(700,Math.round(width)))};
+      try {localStorage.setItem(partyWidthScope,JSON.stringify(next))} catch {}
+      return next;
+    });
+  };
+  const beginPartyColumnResize=(event:React.PointerEvent<HTMLSpanElement>,key:PartyColumnKey)=>{
+    event.stopPropagation();event.preventDefault();
+    const target=event.currentTarget.parentElement;
+    const base=partyColumnWidths[key]??target?.getBoundingClientRect().width??140;
+    const startX=event.clientX;
+    const move=(e:PointerEvent)=>persistPartyColumnWidth(key,base+e.clientX-startX);
+    const stop=()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",stop);window.removeEventListener("pointercancel",stop)};
+    window.addEventListener("pointermove",move);
+    window.addEventListener("pointerup",stop);
+    window.addEventListener("pointercancel",stop);
+  };
   const [partyColumnOrder, setPartyColumnOrder] = useState<PartyColumnKey[]>(() => {
     try {
       const saved = localStorage.getItem("navilo-ledger-party-column-order-v2");
@@ -1112,7 +1141,7 @@ export default function Ledgers() {
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
                   {displayedPartyColumns.map(([key, label]) => (
-                    <th key={key} draggable onDragStart={(e) => { partyColumnDragKey.current = key; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", key); }} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }} onDrop={(e) => { e.preventDefault(); const source = partyColumnDragKey.current || e.dataTransfer.getData("text/plain") as PartyColumnKey; partyColumnDragKey.current = null; if (source) movePartyColumn(source, key); }} onDragEnd={() => { partyColumnDragKey.current = null; }} title="Drag left or right to reorder" className={`cursor-grab select-none py-2.5 px-3 font-semibold whitespace-nowrap active:cursor-grabbing ${["base","charges","tax","postedTotal","debit","credit","balance"].includes(key) ? "text-right" : "text-left"}`}>{label}</th>
+                    <th key={key} draggable onDragStart={(e) => { partyColumnDragKey.current = key; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", key); }} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }} onDrop={(e) => { e.preventDefault(); const source = partyColumnDragKey.current || e.dataTransfer.getData("text/plain") as PartyColumnKey; partyColumnDragKey.current = null; if (source) movePartyColumn(source, key); }} onDragEnd={() => { partyColumnDragKey.current = null; }} title="Drag left or right to reorder; resize from the right edge" style={partyColumnWidths[key] ? {width:partyColumnWidths[key],minWidth:partyColumnWidths[key]} : undefined} className={`relative cursor-grab select-none py-2.5 px-3 pr-5 font-semibold whitespace-nowrap active:cursor-grabbing ${["base","charges","tax","postedTotal","debit","credit","balance"].includes(key) ? "text-right" : "text-left"}`}>{label}<span role="separator" tabIndex={0} aria-orientation="vertical" aria-label={`Resize ${label} column`} title={`Resize ${label}`} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100 focus:bg-emerald-100" style={{touchAction:"none"}} onPointerDown={e=>beginPartyColumnResize(e,key)} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.stopPropagation();e.preventDefault();persistPartyColumnWidth(key,(partyColumnWidths[key]||140)+(e.key==="ArrowRight"?16:-16))}}}/></th>
                   ))}
                 </tr>
               </thead>
@@ -1144,7 +1173,7 @@ export default function Ledgers() {
                   return (
                     <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50/50">
                       {displayedPartyColumns.map(([key]) => (
-                        <td key={key} className={`py-2.5 px-3 ${key==="description"?"min-w-[180px]":"whitespace-nowrap"} ${["base","charges","tax","postedTotal","debit","credit","balance"].includes(key) ? "text-right" : "text-left"} ${key === "balance" ? "font-semibold text-slate-900" : "text-slate-700"}`}>
+                        <td key={key} style={partyColumnWidths[key] ? {width:partyColumnWidths[key],minWidth:partyColumnWidths[key]} : undefined} className={`py-2.5 px-3 ${key==="description"&&!partyColumnWidths[key]?"min-w-[180px]":"whitespace-nowrap"} ${["base","charges","tax","postedTotal","debit","credit","balance"].includes(key) ? "text-right" : "text-left"} ${key === "balance" ? "font-semibold text-slate-900" : "text-slate-700"}`}>
                           {cells[key]}
                         </td>
                       ))}
@@ -1156,7 +1185,7 @@ export default function Ledgers() {
                 <tfoot>
                   <tr className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-200">
                     {displayedPartyColumns.map(([key], index) => (
-                      <td key={key} className={`py-2 px-2 ${["base","charges","tax","postedTotal","debit","credit","balance"].includes(key) ? "text-right" : ""}`}>
+                      <td key={key} style={partyColumnWidths[key] ? {width:partyColumnWidths[key],minWidth:partyColumnWidths[key]} : undefined} className={`py-2 px-2 ${["base","charges","tax","postedTotal","debit","credit","balance"].includes(key) ? "text-right" : ""}`}>
                         {key === "debit" ? formatCurrency(totalDebit) : key === "credit" ? formatCurrency(totalCredit) : key === "balance" ? (selectedPartyKey ? signedBalanceLabel(statementBalance) : "Per Party") : index === 0 ? "Total:" : ""}
                       </td>
                     ))}
