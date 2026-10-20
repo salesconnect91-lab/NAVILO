@@ -260,3 +260,177 @@
   }
   .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td[data-financial-group="customer"] button[data-register-editable]:focus-visible { outline-color: #187c48; }
 }
+
+
+/* Scoped premium register visual finish — preserve all existing sizing, behavior and financial actions. */
+@media screen {
+  .erp-shell #navilo-main-content [data-navilo-transport-register] {
+    --transport-ui-accent: #2b68b1;
+    background: #f8fafc !important;
+    color: #26364c;
+    border-color: #cbd7e5 !important;
+    box-shadow: 0 3px 14px rgb(23 42 66 / 0.08) !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar {
+    background: linear-gradient(110deg, #14253c 0%, #193655 65%, #1b4165 100%) !important;
+    border-bottom: 1px solid #365372 !important;
+    box-shadow: inset 0 1px rgb(255 255 255 / 0.09) !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar > div:first-child > span:first-child {
+    color: #f8fafc !important;
+    letter-spacing: -0.015em !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar > div:first-child > span:nth-child(2) {
+    color: #b8cbe1 !important;
+    letter-spacing: 0.035em !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > div:first-child,
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > div:nth-child(3) {
+    background: #f8fbff !important;
+    border-color: #bfcfe0 !important;
+    box-shadow: 0 1px 2px rgb(12 28 47 / 0.08) !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar [data-testid="trip-selection-count"] {
+    box-shadow: 0 1px 2px rgb(12 28 47 / 0.08) !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar .relative > button,
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar form input,
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar form select {
+    background: #fff !important;
+    color: #26364c !important;
+    border-color: #c3d1df !important;
+    box-shadow: none !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar button[type="submit"] {
+    background: #e9f1fc !important;
+    border-color: #adc6e5 !important;
+    color: #1c4f86 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar button[type="submit"]:hover {
+    background: #d7e8fd !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar button.bg-blue-600 {
+    background: #2765ad !important;
+    border-color: #4d83c0 !important;
+    color: #fff !important;
+    box-shadow: 0 1px 2px rgb(3 23 55 / 0.14) !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar button.bg-blue-600:hover {
+    background: #1c518f !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar [data-payment-shortcut="supplier"] {
+    background: #f9eee7 !important;
+    color: #885439 !important;
+    border-color: #dbbea7 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar [data-payment-shortcut="customer"] {
+    background: #e9f6ee !important;
+    color: #23714d !important;
+    border-color: #b0d4c0 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-actions > button:not(.bg-blue-600):not(.bg-rose-700):not(.bg-amber-700),
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar .navilo-report-tool {
+    background: #29425f !important;
+    border-color: #5e7897 !important;
+    color: #f5f8fc !important;
+    box-shadow: none !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-actions > button:not(.bg-blue-600):not(.bg-rose-700):not(.bg-amber-700):hover,
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar .navilo-report-tool:hover {
+    background: #365777 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-actions > button.bg-amber-700 {
+    background: #866020 !important;
+    border-color: #e5b864 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-actions > button.bg-blue-600 {
+    background: #2765ad !important;
+    border-color: #4e87c7 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-actions > button.bg-rose-700 {
+    background: #8f3947 !important;
+    border-color: #c57f89 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-actions > button:disabled {
+    opacity: 0.45 !important;
+    cursor: not-allowed;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-result-count {
+    color: #c4d5e7 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport,
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-toolbar-wrap {
+    background: #f8fafc !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead tr:first-child th {
+    background: #e5edf7 !important;
+    color: #203750 !important;
+    border-color: #c8d5e3 !important;
+    border-style: solid !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead tr:nth-child(2) th {
+    background: #f1f5fa !important;
+    color: #30465e !important;
+    border-color: #d5dfeb !important;
+    border-style: solid !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead [data-financial-group="customer"] {
+    background: #e1f2e9 !important;
+    color: #205b41 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead [data-financial-group="supplier"] {
+    background: #f7e7e8 !important;
+    color: #7c3f4a !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead [data-financial-group="ppr"] {
+    background: #e5f0eb !important;
+    color: #315f4e !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody tr:not([data-trip-selected="true"]) > td {
+    background: #fff !important;
+    color: #26364b !important;
+    border-color: #e0e7f0 !important;
+    border-style: solid !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody tr:nth-child(even):not([data-trip-selected="true"]) > td {
+    background: #f6f9fd !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody tr:not([data-trip-selected="true"]):hover > td {
+    background: #eaf2fc !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody tr[data-trip-selected="true"] > td {
+    background: #fff2d7 !important;
+    border-color: #e3c88f !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody button[data-register-editable] {
+    background: #f0f5fb !important;
+    border-color: #b8cee5 !important;
+    color: #285781 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody button[data-register-editable]:hover {
+    background: #dfecfb !important;
+    border-color: #7da4d0 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td[data-financial-group="customer"] button[data-register-editable] {
+    background: #e9f6ef !important;
+    border-color: #acd4bd !important;
+    color: #216343 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td[data-financial-group="customer"] button[data-register-editable]:hover {
+    background: #d7eddf !important;
+    border-color: #70b28c !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td[data-financial-group="supplier"] button[data-register-editable] {
+    background: #fbeded !important;
+    border-color: #e0b9bc !important;
+    color: #8e4650 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] tbody td[data-financial-group="supplier"] button[data-register-editable]:hover {
+    background: #f7dfe2 !important;
+    border-color: #c8868d !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] :is(button, input, select):focus-visible {
+    outline: 2px solid #4a92e0 !important;
+    outline-offset: 1px;
+  }
+}
