@@ -15,8 +15,8 @@ describe('Vehicle expense workflow',()=>{
   expect(screen.getByRole('button',{name:/New Expense Bill/})).toBeTruthy();
   expect(screen.queryByRole('button',{name:'Save Draft / Changes'})).toBeNull();
   expect(screen.getByText(/do not post a second expense/i)).toBeTruthy();
-  expect(screen.getByRole('link',{name:'Normal Purchase Invoice'}).getAttribute('href')).toBe('/purchase/new?type=normal');
-  expect(screen.getByRole('link',{name:'Trip Supplier Rent'}).getAttribute('href')).toBe('/purchase/new?type=service');
+  expect(screen.getByRole('link',{name:'Normal Purchase Invoice'}).getAttribute('href')).toBe('/purchase/normal/new');
+  expect(screen.getByRole('link',{name:'Trip Supplier Rent'}).getAttribute('href')).toBe('/purchase/trip-service/new');
   fireEvent.click(await screen.findByRole('button',{name:'Open / Review'}));
   await screen.findByLabelText('Expense vehicle 1');
   fireEvent.change(screen.getByLabelText('Expense net 1'),{target:{value:'200'}});
