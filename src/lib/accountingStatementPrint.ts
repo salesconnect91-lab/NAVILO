@@ -62,7 +62,7 @@ export function accountingStatementLayout(report: ReportTable): AccountingPrintL
     subtitle: printReportDescription(report.description).replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_match,year:string,month:string,day:string) => `${day}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(month)-1]}-${year.slice(2)}`),
     columns,
     rows,
-    orientation: columns.length >= 6 ? 'landscape' : 'portrait',
+    orientation: /daily cash.*bank closing/i.test(report.title) ? 'portrait' : (columns.length >= 6 ? 'landscape' : 'portrait'),
   };
 }
 
@@ -101,6 +101,13 @@ export const ACCOUNTING_STATEMENT_PRINT_CSS = `
 .accounting-statement-print .acct-check td{font-weight:700;background:#f7f9fc;border-top:1px solid #c4ced8}
 .accounting-statement-print .acct-number{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .accounting-statement-print tr{break-inside:avoid;page-break-inside:avoid}
+.accounting-statement-print [data-print-report-title="Daily Cash & Bank Closing"] table {table-layout:fixed;font-size:7pt}
+.accounting-statement-print [data-print-report-title="Daily Cash & Bank Closing"] th:nth-child(1),
+.accounting-statement-print [data-print-report-title="Daily Cash & Bank Closing"] td:nth-child(1) {width:18%;overflow-wrap:anywhere}
+.accounting-statement-print [data-print-report-title="Daily Cash & Bank Closing"] th:nth-child(2),
+.accounting-statement-print [data-print-report-title="Daily Cash & Bank Closing"] td:nth-child(2) {width:36%;overflow-wrap:anywhere;white-space:normal}
+.accounting-statement-print [data-print-report-title="Daily Cash & Bank Closing"] th:nth-child(n+3),
+.accounting-statement-print [data-print-report-title="Daily Cash & Bank Closing"] td:nth-child(n+3) {width:11.5%;word-break:normal}
 .accounting-statement-print .acct-note{font-size:7pt;color:#6a7989;margin-top:4mm}
 `;
 
