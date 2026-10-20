@@ -74,6 +74,12 @@ export function buildDailyClosing(
      counter.add(line.coa?.name||line.account||'Counter account');
     }
   }
+  // Accounting evidence must be complete for each posted voucher, including
+  // its non-cash counterlines. Otherwise Cash/Bank numbers may look balanced
+  // while missing underlying expense, receivable or bank-control lines.
+  const debits=round(voucherLines.reduce((sum,l)=>sum+num(l.debit,'voucher debit'),0));
+  const credits=round(voucherLines.reduce((sum,l)=>sum+num(l.credit,'voucher credit'),0));
+  if(!approx(debits,credits))throw new Error('Incomplete or unbalanced posted voucher: '+entry.entry_no);
   if(!cash.size)continue;
   voucherCount++;
   const legs=[...cash].map(([id,x])=>({id,in:round(x.debit),out:round(x.credit),net:round(x.debit-x.credit)}));
