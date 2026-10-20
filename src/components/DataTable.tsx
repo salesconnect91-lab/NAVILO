@@ -70,6 +70,12 @@ function readPrefs<T>(columns: Column<T>[], scopeKey = ""): ViewPrefs {
   } catch { return fallback; }
 }
 
+export type TableRowSelection<T> = {
+  ids: string[];
+  onChange: (ids: string[]) => void;
+  isRowSelectable?: (row: T) => boolean;
+};
+
 type RemotePaging = {
   total: number; page: number; pageSize: number;
   onPageChange: (page: number, pageSize: number) => void;
@@ -80,8 +86,8 @@ type RemotePaging = {
   onFilterChange?: (column: string, selected: string[]) => void;
 };
 export default function DataTable<T extends { id: string }>({
-  columns, rows, loading, emptyMessage, showSerialNumber = false, remote, scopeKey = "", unpaginated = false,
-}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; showSerialNumber?: boolean; remote?: RemotePaging; scopeKey?: string; unpaginated?: boolean }) {
+  columns, rows, loading, emptyMessage, showSerialNumber = false, remote, scopeKey = "", unpaginated = false, selection,
+}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; showSerialNumber?: boolean; remote?: RemotePaging; scopeKey?: string; unpaginated?: boolean; selection?: TableRowSelection<T> }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const configurableColumns = useMemo(() => columns.filter(c => c.key !== "actions" && c.key !== "action"), [columns]);
   const key = useMemo(() => storageKey(columns,scopeKey), [columns,scopeKey]);
@@ -93,7 +99,10 @@ export default function DataTable<T extends { id: string }>({
   const [prefs, setPrefs] = useState<ViewPrefs>(() => readPrefs(columns,scopeKey));
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [localSelected, setLocalSelected] = useState<Set<string>>(new Set());
+  const selected = selection ? new Set(selection.ids) : localSelected;
+  const rowSelectable = (row: T) => !selection?.isRowSelectable || selection.isRowSelectable(row);
+  const updateSelection = (ids: Set<string>) => { if(selection) selection.onChange([...ids]); else setLocalSelected(ids); };
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [viewName, setViewName] = useState("");
   const [filterKey,setFilterKey] = useState<string|null>(null);
@@ -140,7 +149,7 @@ export default function DataTable<T extends { id: string }>({
     persistHidden(next);
   };
 
-  useEffect(() => { setPage(1); setSelected(new Set()); }, [rows.length, prefs.pageSize, prefs.filters, remote?.page]);
+  useEffect(() => { setPage(1); setLocalSelected(new Set()); }, [rows.length, prefs.pageSize, prefs.filters, remote?.page]);
 
   const orderedColumns = useMemo(() => {
     const rank = new Map(prefs.order.map((k, i) => [k, i]));
@@ -221,7 +230,8 @@ export default function DataTable<T extends { id: string }>({
     });
   }, [sortedRows, visibleColumns, showSerialNumber, loading]);
 
-  const allPageSelected = pagedRows.length > 0 && pagedRows.every(row => selected.has(row.id));
+  const selectablePageRows = pagedRows.filter(rowSelectable);
+  const allPageSelected = selectablePageRows.length > 0 && selectablePageRows.every(row => selected.has(row.id));
   const densityClass = prefs.density === "compact" ? "text-xs" : prefs.density === "spacious" ? "text-base" : "text-sm";
   const rowPad = prefs.density === "compact" ? "py-0.5" : prefs.density === "spacious" ? "py-5" : "py-2.5";
   const cellPad = prefs.density === "compact" ? "px-2" : prefs.density === "spacious" ? "px-6" : "px-4";
@@ -267,8 +277,8 @@ export default function DataTable<T extends { id: string }>({
           <thead className="sticky top-0 z-20">
             <tr className="border-b border-slate-200 bg-slate-50">
               <th aria-label="Select rows" className={`sticky left-0 z-30 w-10 bg-slate-50 ${selectPad}`} data-no-print data-no-export>
-                <input aria-label="Select all rows on page" type="checkbox" checked={allPageSelected} onChange={() => {
-                  const next = new Set(selected); pagedRows.forEach(row => allPageSelected ? next.delete(row.id) : next.add(row.id)); setSelected(next);
+                <input aria-label="Select all rows on page" type="checkbox" checked={allPageSelected} disabled={!selectablePageRows.length} onChange={() => {
+                  const next = new Set(selected); selectablePageRows.forEach(row => allPageSelected ? next.delete(row.id) : next.add(row.id)); updateSelection(next);
                 }}/>
               </th>
               {showSerialNumber ? <th aria-label="Serial number" className={`bg-slate-50 ${cellPad} ${prefs.density === "compact" ? "py-2" : prefs.density === "spacious" ? "py-4" : "py-3"} text-left font-medium text-slate-600`} style={{width:72,minWidth:72}}>S.No.</th> : null}
@@ -307,8 +317,8 @@ export default function DataTable<T extends { id: string }>({
             {!pagedRows.length && <tr><td colSpan={visibleColumns.length+2} className="px-4 py-8 text-center text-slate-500">No rows match the selected column filters.</td></tr>}
             {pagedRows.map((row, rowIndex) => <tr key={row.id} className={`transition-colors hover:bg-slate-50 ${prefs.density === "compact" ? "h-8" : prefs.density === "comfortable" ? "h-11" : "h-14"} ${selected.has(row.id) ? "bg-slate-50" : ""}`}>
               <td className={`sticky left-0 z-10 bg-white ${selectPad} ${rowPad}`} data-no-print data-no-export>
-                <input aria-label="Select row" type="checkbox" checked={selected.has(row.id)} onChange={() => {
-                  const next = new Set(selected); next.has(row.id) ? next.delete(row.id) : next.add(row.id); setSelected(next);
+                <input aria-label="Select row" type="checkbox" checked={selected.has(row.id)} disabled={!rowSelectable(row)} onChange={() => {
+                  const next = new Set(selected); next.has(row.id) ? next.delete(row.id) : next.add(row.id); updateSelection(next);
                 }}/>
               </td>
               {showSerialNumber ? <td className={`${cellPad} ${rowPad} text-slate-500`} style={{width:72,minWidth:72}}>{(safePage - 1) * effectivePageSize + rowIndex + 1}</td> : null}
@@ -327,7 +337,7 @@ export default function DataTable<T extends { id: string }>({
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3" data-no-print data-no-export>
         <div className="text-xs text-slate-500">
           Showing {totalRecords?(safePage-1)*effectivePageSize+1:0}–{Math.min(safePage*effectivePageSize,totalRecords)} of {totalRecords}
-          {selected.size ? <span className="ml-3 font-semibold">{selected.size} selected · <button type="button" className="underline" onClick={() => setSelected(new Set())}>Clear</button></span> : null}
+          {selected.size ? <span className="ml-3 font-semibold">{selected.size} selected · <button type="button" className="underline" onClick={() => updateSelection(new Set())}>Clear</button></span> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" aria-label="Customize Smart Table" onClick={()=>setCustomizeOpen(true)}>Columns / View</button>

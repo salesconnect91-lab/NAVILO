@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { PurchaseOrder } from "@/types";
 import DataTable, { Column } from "@/components/DataTable";
+import BulkInvoicePostAction from "@/components/BulkInvoicePostAction";
+import {isSelectableDraft} from "@/lib/bulkInvoicePosting";
 import { PageHeader, ErrorBanner, StatusBadge, formatCurrency, formatDate } from "@/components/ui";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
@@ -39,7 +41,11 @@ export default function PurchaseOrderList() {
   const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
   const canCreate = canPerformModule(activeCompany?.membership_role, "purchase", "create", activeCompany?.permissions, isPlatformOwner);
   const canDelete = canPerformModule(activeCompany?.membership_role, "purchase", "delete", activeCompany?.permissions, isPlatformOwner);
-    const [rows, setRows] = useState<PurchaseOrder[]>([]);
+  const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role;
+  const permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
+  const canBulkPost=canPerformModule(role,"purchase","post",permissions,isPlatformOwner);
+  const [rows, setRows] = useState<PurchaseOrder[]>([]);
+  const [selectedPostIds,setSelectedPostIds]=useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -55,6 +61,7 @@ export default function PurchaseOrderList() {
   const [listSummary,setListSummary]=useState({count:0,total:0,balance:0,parties:0});
   const [listReadFailed,setListReadFailed]=useState(false);
   const listRequest=useRef(0);
+  useEffect(()=>{setSelectedPostIds([])},[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,search,typeFilter,statusFilter,paymentFilter,fromDate,toDate,listPage,listPageSize,listSort]);
 
   const fetchRows=useCallback(async()=>{
     const request=++listRequest.current;
@@ -178,7 +185,8 @@ export default function PurchaseOrderList() {
       <div data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white">
         <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-bold text-slate-900">Purchase Invoices <span className="text-slate-500">({listReadFailed ? '—' : listSummary.count})</span></h2></div>
         {listReadFailed && <p role="status" className="mx-3 mt-2 text-xs font-semibold text-amber-800">Invoice query failed. Rows shown may be from the last successful filter; totals and counts are unavailable until Retry succeeds.</p>}
-        <DataTable columns={columns} rows={filteredRows} loading={loading} emptyMessage={error?"Query failed; retry Purchase invoices.":"No Main Purchase Invoices found."} showSerialNumber remote={{total:listSummary.count,page:listPage,pageSize:listPageSize,onPageChange:(page,pageSize)=>{setListPage(page);setListPageSize(pageSize)},sort:listSort,onSortChange:sort=>setListSort(sort)}} />
+        {canBulkPost&&<div className="border-b border-slate-200 px-4 py-2"><BulkInvoicePostAction side="purchase" ids={selectedPostIds} companyId={activeCompany?.company_id} businessUnitId={activeBusinessUnit?.business_unit_id} disabled={loading||listReadFailed} onFinished={async()=>{setSelectedPostIds([]);await fetchRows()}}/></div>}
+        <DataTable columns={columns} rows={filteredRows} loading={loading} selection={canBulkPost?{ids:selectedPostIds,onChange:setSelectedPostIds,isRowSelectable:isSelectableDraft}:undefined} emptyMessage={error?"Query failed; retry Purchase invoices.":"No Main Purchase Invoices found."} showSerialNumber remote={{total:listSummary.count,page:listPage,pageSize:listPageSize,onPageChange:(page,pageSize)=>{setListPage(page);setListPageSize(pageSize)},sort:listSort,onSortChange:sort=>setListSort(sort)}} />
       </div>
     </div>
   );

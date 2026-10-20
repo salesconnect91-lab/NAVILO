@@ -126,6 +126,27 @@ describe("shared ERP table", () => {
     expect(Array.from(container.querySelectorAll("tbody tr")).map(tr=>tr.textContent?.trim())).toEqual(["SAR 20","SAR 1,000"]);
   });
 
+  it("allows only Draft rows to be selected for controlled bulk posting",()=>{
+    const onChange=vi.fn();
+    const r=[
+      {id:"draft-1",customer:"Draft One",amount:100,status:"draft"},
+      {id:"posted-2",customer:"Already Posted",amount:120,status:"posted"},
+      {id:"draft-3",customer:"Draft Three",amount:30,status:"draft"}
+    ];
+    const ui=render(<DataTable columns={columns} rows={r} selection={{ids:[],onChange,isRowSelectable:x=>x.status==="draft"}} remote={{
+      total:3,page:1,pageSize:25,sort:null,onPageChange:vi.fn(),onSortChange:vi.fn()
+    }}/>);
+    expect(screen.getAllByRole<HTMLInputElement>("checkbox",{name:"Select row"})[1].disabled).toBe(true);
+    fireEvent.click(screen.getByRole("checkbox",{name:"Select all rows on page"}));
+    expect(onChange).toHaveBeenCalledWith(["draft-1","draft-3"]);
+    ui.rerender(<DataTable columns={columns} rows={r} selection={{ids:["draft-1","draft-3"],onChange,isRowSelectable:x=>x.status==="draft"}} remote={{
+      total:3,page:1,pageSize:25,sort:null,onPageChange:vi.fn(),onSortChange:vi.fn()
+    }}/>);
+    expect(screen.getByRole<HTMLInputElement>("checkbox",{name:"Select all rows on page"}).checked).toBe(true);
+    fireEvent.click(screen.getByRole("checkbox",{name:"Select all rows on page"}));
+    expect(onChange).toHaveBeenLastCalledWith([]);
+  });
+
   it("uses server result totals, paging and sorting without client re-pagination", () => {
     const onPageChange=vi.fn();
     const onSortChange=vi.fn();

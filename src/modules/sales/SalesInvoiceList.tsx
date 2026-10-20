@@ -13,6 +13,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { SalesOrder, Customer, ChartOfAccount } from "@/types";
 import DataTable, { Column } from "@/components/DataTable";
+import BulkInvoicePostAction from "@/components/BulkInvoicePostAction";
+import {isSelectableDraft} from "@/lib/bulkInvoicePosting";
 import {
   PageHeader,
   Modal,
@@ -122,9 +124,11 @@ export default function SalesInvoiceList() {
   const permissions = activeBusinessUnit?.permissions ?? activeCompany?.permissions;
   const canEditSales = canPerformModule(role, "sales", "edit", permissions, isPlatformOwner);
   const canDeleteSales = canPerformModule(role, "sales", "delete", permissions, isPlatformOwner);
+  const canBulkPost = canPerformModule(role, "sales", "post", permissions, isPlatformOwner);
   const canReceivePayment = canPerformModule(activeCompany?.membership_role, "accounting", "post", activeCompany?.permissions, isPlatformOwner);
 
   const [rows, setRows] = useState<SalesInvoiceRow[]>([]);
+  const [selectedPostIds,setSelectedPostIds]=useState<string[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<ChartOfAccount[]>([]);
 
@@ -142,6 +146,9 @@ export default function SalesInvoiceList() {
   const [listSummary,setListSummary]=useState({count:0,total:0,balance:0,parties:0});
   const [listReadFailed,setListReadFailed]=useState(false);
   const listRequest=useRef(0);
+  // Only the current remote page can be posted; changes of context and filters
+  // must invalidate checkbox selection instead of posting stale hidden invoices.
+  useEffect(()=>{setSelectedPostIds([])},[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,listSearch,postingFilter,paymentFilter,fromDate,toDate,listPage,listPageSize,listSort]);
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentSaving, setPaymentSaving] = useState(false);
@@ -717,7 +724,8 @@ export default function SalesInvoiceList() {
       <section data-report-content data-navilo-customizable="true" data-navilo-print-surface className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3"><h2 className="navilo-report-title text-base font-bold text-slate-900">Sales Invoices <span className="text-slate-400">({listReadFailed ? '—' : listSummary.count})</span></h2><div data-navilo-standard-tools-host /></div>
         {listReadFailed && <p role="status" className="mx-3 mt-2 text-xs font-semibold text-amber-800">Invoice query failed. Rows shown may be from the last successful filter; totals and counts are unavailable until Retry succeeds.</p>}
-        <DataTable showSerialNumber columns={columns} rows={filteredRows} loading={loading} emptyMessage={error?"Query failed; retry Sales invoices.":"No invoices match the selected filters."} remote={{total:listSummary.count,page:listPage,pageSize:listPageSize,onPageChange:(page,pageSize)=>{setListPage(page);setListPageSize(pageSize)},sort:listSort,onSortChange:sort=>setListSort(sort)}} />
+        {canBulkPost&&<div className="border-b border-slate-200 px-4 py-2"><BulkInvoicePostAction side="sales" ids={selectedPostIds} companyId={activeCompany?.company_id} businessUnitId={activeBusinessUnit?.business_unit_id} disabled={loading||listReadFailed} onFinished={async()=>{setSelectedPostIds([]);await fetchRows()}}/></div>}
+        <DataTable showSerialNumber columns={columns} rows={filteredRows} loading={loading} selection={canBulkPost?{ids:selectedPostIds,onChange:setSelectedPostIds,isRowSelectable:isSelectableDraft}:undefined} emptyMessage={error?"Query failed; retry Sales invoices.":"No invoices match the selected filters."} remote={{total:listSummary.count,page:listPage,pageSize:listPageSize,onPageChange:(page,pageSize)=>{setListPage(page);setListPageSize(pageSize)},sort:listSort,onSortChange:sort=>setListSort(sort)}} />
       </section>
 
       <Modal
