@@ -56,7 +56,7 @@ describe('Simple Debit/Credit Journal import matches General Journal Entry form'
  });
  it('download has 7 headers and no transactions; examples never appear in import sheet',()=>{
   downloadSimpleJournalTemplate();
-  const [book,filename]=vi.mocked(XLSX.writeFile).mock.calls.at(-1)!;
+  const [book,filename]=vi.mocked(XLSX.writeFile).mock.calls[vi.mocked(XLSX.writeFile).mock.calls.length-1];
   expect(filename).toBe('NAVILO-Journal-Simple-Debit-Credit.xlsx');
   expect(book.SheetNames).toEqual(['Journal Import','Instructions','Worked Examples - DO NOT IMPORT']);
   const rows=XLSX.utils.sheet_to_json<any[]>(book.Sheets['Journal Import'],{header:1});
