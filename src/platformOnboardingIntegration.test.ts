@@ -13,8 +13,8 @@ describe("platform-admin onboarding handler regression guard", () => {
   it("requires a branch for a live company before any company or Auth write", () => {
     const firstWrite = onboarding.indexOf('admin.from("companies").insert(');
     expect(firstWrite).toBeGreaterThan(0);
-    expect(onboarding.slice(0, firstWrite)).toMatch(/is_test_company\\s*!==\\s*true\\s*&&\\s*!createFirstBranch/);
-    expect(onboarding.slice(0, firstWrite)).toMatch(/onboardingModules\\(body.modules, plan.module_defaults, businessType\\)/);
+    expect(onboarding.slice(0, firstWrite)).toMatch(/is_test_company\s*!==\s*true\s*&&\s*!createFirstBranch/);
+    expect(onboarding.slice(0, firstWrite)).toMatch(/onboardingModules\(body.modules, plan.module_defaults, businessType\)/);
   });
 
   it("checks all lookup errors and rejects unverified plans before creating a company or Auth user", () => {
