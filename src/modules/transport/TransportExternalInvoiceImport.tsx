@@ -5,7 +5,7 @@ import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
 import {fetchAllPages} from '@/lib/fetchAllPages';
 import SearchableSelect from '@/components/SearchableSelect';
-import {parseExternalInvoiceRows,type ExternalInvoiceRow} from './transportExternalInvoiceImport';
+import {assertExternalInvoicePreviewDates,parseExternalInvoiceRows,type ExternalInvoiceRow} from './transportExternalInvoiceImport';
 import {downloadImportTemplate} from '@/lib/importExcelTemplate';
 type Preview=ExternalInvoiceRow&{import_status:string;import_reason:string};
 export default function TransportExternalInvoiceImport(){
@@ -39,7 +39,9 @@ export default function TransportExternalInvoiceImport(){
 // for some workbook/browser timezones (01-Sep-2026 was previewed as 31-Aug-2026).
 // invoiceImportDate converts the serial as a UTC calendar date, without local timezone math.
  const wb=XLSX.read(await selected.arrayBuffer(),{type:'array',cellDates:false});
- const data=parseExternalInvoiceRows(XLSX.utils.sheet_to_json<Record<string,unknown>>(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:true}));if(request!==generation.current)return;const preview=await supabase.rpc('transport_preview_external_invoices',{p_source_company:source.trim(),p_rows:data});if(preview.error)throw preview.error;if(request===generation.current){setRows(preview.data.rows);setFile(selected.name);}}catch(e:any){if(request===generation.current)setError(e.message||'Unable to read invoices.');}finally{if(request===generation.current)setBusy(false);}}
+ const data=parseExternalInvoiceRows(XLSX.utils.sheet_to_json<Record<string,unknown>>(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:true}));if(request!==generation.current)return;const preview=await supabase.rpc('transport_preview_external_invoices',{p_source_company:source.trim(),p_rows:data});if(preview.error)throw preview.error;
+ assertExternalInvoicePreviewDates(data,preview.data?.rows??[]);
+ if(request===generation.current){setRows(preview.data.rows);setFile(selected.name);}}catch(e:any){if(request===generation.current)setError(e.message||'Unable to read invoices.');}finally{if(request===generation.current)setBusy(false);}}
  async function run(){if(submitting.current||busy||!account||!rows.length||rows.some(r=>r.import_status!=='New'))return;const request=generation.current;submitting.current=true;setBusy(true);setError('');setMessage('');try{const result=await supabase.rpc('transport_import_external_invoices',{p_source_company:source.trim(),p_revenue_account_id:account,p_rows:rows.map(({import_status,import_reason,...r})=>r)});if(result.error)throw result.error;if(request===generation.current){setMessage(`${result.data.invoices} draft invoice(s) / cash bill(s), ${result.data.lines} vehicle lines imported. Review and post in Sales. No trips or receipts were created.`);setRows([]);setFile('');}}catch(e:any){if(request===generation.current)setError(e.message||'Import failed.');}finally{submitting.current=false;if(request===generation.current)setBusy(false);}}
  const totals=rows.reduce((a,r)=>({net:a.net+r.amount,vat:a.vat+r.tax_amount,total:a.total+r.bill_amount}),{net:0,vat:0,total:0});
 
