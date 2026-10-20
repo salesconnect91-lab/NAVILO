@@ -68,6 +68,7 @@ export const FEATURE_REGISTRY: FeatureDefinition[] = [
   { key:"profit-loss", module:"accounting", label:"Profit & Loss", category:"statement", route:"/accounting/profit-loss", actions:report, sortOrder:810 },
   { key:"balance-sheet", module:"accounting", label:"Balance Sheet", category:"statement", route:"/accounting/balance-sheet", actions:report, sortOrder:820 },
   { key:"cash-flow", module:"accounting", label:"Cash Flow", category:"statement", route:"/accounting/cash-flow", actions:report, sortOrder:830 },
+  { key:"daily-cash-closing", module:"accounting", label:"Daily Cash & Bank Closing", category:"statement", route:"/accounting/daily-closing", actions:report, sortOrder:831 },
   { key:"period-closing", module:"accounting", label:"Period Closing", category:"control", route:"/accounting/periods", actions:["view","edit","post","print","export"], sortOrder:840 },
   { key:"year-closing", module:"accounting", label:"Year Closing", category:"control", route:"/accounting/year-closing", actions:["view","post","print","export"], sortOrder:850 },
   { key:"financial-controls", module:"accounting", label:"Financial Controls", category:"control", route:"/accounting/controls", actions:["view","edit","print","export"], sortOrder:860 },
