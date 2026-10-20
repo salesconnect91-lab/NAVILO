@@ -799,7 +799,6 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
   // Canonical Trip Status options, narration and counts are supplied by the register RPC.
   const statusNarration=(option:any)=>String(option?.narration??'');
   const visibleStatusOptions=statusOptions.filter((option:any)=>!statusSearch||`${option.label} ${statusNarration(option)}`.toLowerCase().includes(statusSearch.toLowerCase()));
-  const dashboardSummary=registerMeta.summary??{};
   const statusMark=(status?:string|null)=>{
     const key=String(status??'').toLowerCase();
     if(key==='draft')return {mark:'○',className:'text-slate-500',title:'Draft'};
@@ -1924,11 +1923,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
             {selectedTripCount>0&&<button type="button" onClick={()=>setSelectedTripIds(new Set())} className="ml-0.5 text-[9px] font-bold underline underline-offset-2" aria-label="Clear selected trips">Clear</button>}
           </div>
 
-          <div className="flex items-center gap-2 border border-slate-200 bg-slate-50 h-9 min-w-[215px] rounded-lg px-3 shadow-sm">
-            <span className="text-[10px] font-extrabold uppercase text-slate-700">▣ Paper</span>
-            <span className="text-[9px] font-semibold text-emerald-700">Received <b>{registerDataCurrent?Number(dashboardSummary.paper?.received??0).toLocaleString():'—'}</b></span>
-            <span className="text-[9px] font-semibold text-amber-700">Not Received <b>{registerDataCurrent?Number(dashboardSummary.paper?.not_received??0).toLocaleString():'—'}</b></span>
-          </div>
+
 
           <div className="relative">
             <button type="button" onClick={()=>setStatusOpen(v=>!v)} className="flex items-center justify-between gap-2 border border-slate-200 bg-white text-[10px] font-semibold text-slate-700 h-9 min-w-[200px] rounded-lg px-3 shadow-sm">
