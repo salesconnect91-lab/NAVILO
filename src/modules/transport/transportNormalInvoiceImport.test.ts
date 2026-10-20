@@ -20,6 +20,19 @@ describe('Transport normal Sales/Purchase import lines',()=>{
   const rows=parseNormalInvoiceImport([row(),row({'Vehicle No':'2442','Amount':'50'})],'customer',people,account,cars);
   expect(rows.map(x=>x.vehicle_id)).toEqual(cars.map(x=>x.id));
  });
+
+ it('maps optional purchase vehicle to its canonical ID, and rejects wrong or expired ownership',()=>{
+  const owned={...cars[0],ownership_type:'company',ownershipPeriods:[{owner_type:'company',effective_from:'2026-09-01',effective_to:null}]};
+  const supplierRow={'Invoice Group':'P-1','Invoice No':'SUP-888','Date':'2026-10-17',
+    'Supplier':'Supplier Co','Description':'Diesel','Amount':'45.25','Vehicle No':'1631'};
+  const parsed=parseNormalInvoiceImport([supplierRow],'supplier',people,account,[owned]);
+  expect(parsed[0].vehicle_id).toBe(cars[0].id);
+  const office=parseNormalInvoiceImport([{...supplierRow,'Vehicle No':'','Description':'Office rent'}],'supplier',people,account,[owned]);
+  expect(office[0].vehicle_id).toBeUndefined();
+  expect(()=>parseNormalInvoiceImport([{...supplierRow,'Vehicle No':'9999'}],'supplier',people,account,[owned])).toThrow(/Vehicle No/);
+  expect(()=>parseNormalInvoiceImport([supplierRow],'supplier',people,account,[{...owned,ownershipPeriods:[{owner_type:'company',effective_from:'2026-01-01',effective_to:'2026-08-31'}]}])).toThrow(/not company-owned/);
+  expect(()=>parseNormalInvoiceImport([supplierRow],'supplier',people,account,[{...owned,ownership_type:'supplier',ownershipPeriods:[]}])).toThrow(/not company-owned/);
+ });
  it('maps supplier against Supplier Master independently of Customer Master',()=>{
   const input={'Invoice Group':'P-1','Invoice No':'P-100','Date':'2026-10-17','Supplier':'Supplier Co','Description':'Materials service','Amount':'45.25'};
   const parsed=parseNormalInvoiceImport([input],'supplier',people,account);
