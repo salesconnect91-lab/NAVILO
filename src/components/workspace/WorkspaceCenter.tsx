@@ -17,6 +17,7 @@ export default function WorkspaceCenter(){
 }
 const importTasks=[
   {key:"expense-bills",name:"Expense invoices — with or without VAT",effect:"Non-inventory supplier bills",to:"/settings/imports?section=expense",module:"purchase"},
+  {key:"cash-expenses",name:"Office / Yard Direct Cash Expenses Excel",effect:"No supplier account • atomic posted vouchers after database approval",to:"/settings/imports?section=cash-expenses",module:"accounting"},
   {key:"masters",name:"Customers & suppliers",effect:"Master records",to:"/settings/imports?section=masters",module:"master"},
   {key:"rates",name:"Transport masters & rates",effect:"Master records and agreed rates",to:"/settings/imports?section=rates",module:"transport"},
   {key:"trips",name:"Daily trip upload",effect:"Trip records only",to:"/settings/imports?section=trips",module:"transport"},
