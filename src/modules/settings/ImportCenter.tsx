@@ -1,5 +1,5 @@
 import {downloadDailyTripTemplate,downloadHistoricalTemplate} from '@/modules/transport/transportImportTemplates';
-import {downloadExcelTemplate} from '@/modules/accounting/journalImportTemplates';
+import {downloadFundedJournalTemplate} from '@/modules/accounting/journalFundedImport';
 import TransportExternalInvoiceImport from '@/modules/transport/TransportExternalInvoiceImport';
 import TransportNormalInvoiceImport from '@/modules/transport/TransportNormalInvoiceImport';
 import GeneralExpenseBillImport from '@/modules/purchase/GeneralExpenseBillImport';
@@ -411,7 +411,7 @@ export default function ImportCenter() {
    {section==="cash-expenses"&&<ImportGroup id="import-cash-expenses" title="Office / Yard / General Cash Expense Excel" detail="Supplier-less, no Accounts Payable. Validate Excel then post atomically after database rollout approval. Vehicle expenses use the separate vehicle uploader."><DirectCashExpenseImport/></ImportGroup>}
    {section==="accounting"&&<ImportGroup id="import-accounting" title="Receipts, Payments & Journals" detail="Record actual money received or paid, or create draft general journal entries.">
     {isTransport&&canImport("transport")&&canImport("accounting")&&<TransportSettlementImports/>}
-    {canImport("accounting")&&<ImportEntry title="Bulk Journal Entries" effect="Drafts first; post after review" detail="Import balanced debit and credit rows; post later in Accounting." to="/accounting?import=journal" label="Open Journal Import" download={downloadExcelTemplate}/>}
+    {canImport("accounting")&&<ImportEntry title="Bulk Journal Entries" effect="Drafts first; post after review" detail="Simple funded Excel: one expense per row, Vehicle tag and Amjad Payable funding. Debit/Credit preview is automatic; post later in Accounting." to="/accounting?import=journal" label="Open Journal Import" download={downloadFundedJournalTemplate} downloadLabel="Download Simple Excel"/>}
    </ImportGroup>}
    {section==="history"&&<ImportGroup id="import-history" title="One-time Import & Transfer" detail="Bring in one-time records or transfer trips between NAVILO companies with review.">
     <ImportEntry title="One-time Import" effect="One-time accounting import" detail="Review cutoff, opening balances and accounts before posting." to="/settings/imports?transportUpload=historical" label="Open One-time Import" download={downloadHistoricalTemplate}/>
@@ -424,6 +424,6 @@ function ImportGroup({id,title,detail,children}:{id:string;title:string;detail:s
  return <fieldset id={id} className="scroll-mt-14 space-y-2 rounded border border-slate-200 p-2"><legend className="px-1 text-sm font-bold text-slate-900">{title}</legend><p className="text-xs text-slate-600">{detail}</p>{children}</fieldset>;
 }
 
-function ImportEntry({title,effect,detail,to,label,download}:{title:string;effect:string;detail:string;to:string;label:string;download:()=>void}){
- return <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"><h2 className="text-sm font-bold text-slate-900">{title}</h2><p className="mt-1 text-xs font-semibold text-emerald-800">{effect}</p><p className="mt-1 text-xs text-slate-600">{detail}</p><div className="mt-2 flex flex-wrap items-center gap-2"><button type="button" className="btn" onClick={download}>Download Template</button><Link className="btn-primary" to={to}>{label}</Link></div></section>;
+function ImportEntry({title,effect,detail,to,label,download,downloadLabel}:{title:string;effect:string;detail:string;to:string;label:string;download:()=>void;downloadLabel?:string}){
+ return <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"><h2 className="text-sm font-bold text-slate-900">{title}</h2><p className="mt-1 text-xs font-semibold text-emerald-800">{effect}</p><p className="mt-1 text-xs text-slate-600">{detail}</p><div className="mt-2 flex flex-wrap items-center gap-2"><button type="button" className="btn" onClick={download}>{downloadLabel??"Download Template"}</button><Link className="btn-primary" to={to}>{label}</Link></div></section>;
 }

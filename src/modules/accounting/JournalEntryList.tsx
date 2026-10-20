@@ -1,4 +1,5 @@
 import {TEMPLATE_HEADERS,TEMPLATE_ROWS,downloadCSVTemplate,downloadExcelTemplate} from './journalImportTemplates';
+import {downloadFundedJournalTemplate,expandFundedJournalRows,isFundedJournalTemplate} from './journalFundedImport';
 import { createPrintDocument } from "@/lib/printDocument";
 import OwnerJournalAuditHistory from "./OwnerJournalAuditHistory";
 import JournalEntryOverview from "./JournalEntryOverview";
@@ -651,6 +652,12 @@ export default function JournalEntryList() {
         );
       }
 
+      // Simple funded sheet is converted into standard TWO-line balanced journals
+      // before the existing validation, duplicate checks and Draft-only RPC.
+      // The second (Funding Account) line never carries a vehicle tag.
+      if (isFundedJournalTemplate(rawRows[0])) {
+        rawRows = expandFundedJournalRows(rawRows);
+      }
       const headers =
         rawRows[0].map(
           normalizeHeader
@@ -3058,8 +3065,12 @@ export default function JournalEntryList() {
                       Journal Import Template
                     </h3>
 
+                    <p className="text-xs text-slate-600 mt-1">
+                      <strong>Simple funded Excel:</strong> one transaction per row with the debit Account, Vehicle (if it is a real expense) and Funding Account (e.g. Amjad Payable).
+                      The preview creates two balanced lines automatically. No Bank/Cash is assumed.
+                    </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Use the original Account Name per line. Vehicle No attributes income adjustments or expenses without changing the selected GL.
+                      The advanced journal template keeps the manual Debit/Credit format. Posted ledgers change only after Draft review and Post.
                     </p>
 
                     <p className="text-xs text-slate-500 mt-1">
@@ -3068,8 +3079,11 @@ export default function JournalEntryList() {
 
                   </div>
 
-                  <div className="flex gap-2">
-
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={downloadFundedJournalTemplate}
+                      className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold">
+                      Simple Funded Excel
+                    </button>
                     <button
                       type="button"
                       onClick={
@@ -3077,7 +3091,7 @@ export default function JournalEntryList() {
                       }
                       className="px-4 py-2 bg-white border rounded-lg text-sm font-semibold"
                     >
-                      CSV Template
+                      Advanced CSV
                     </button>
 
                     <button
@@ -3087,15 +3101,21 @@ export default function JournalEntryList() {
                       }
                       className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold"
                     >
-                      Excel Template
+                      Advanced Excel
                     </button>
 
                   </div>
 
                 </div>
 
-                <div className="mt-4 overflow-x-auto">
-
+                <div className="mt-2 text-[11px] text-amber-800">
+                  Vehicle repairs: Debit operating expense + Vehicle tag, Credit Amjad Payable.
+                  Existing driver payable: Debit driver running account, Credit Amjad Payable (not wages again).
+                  Syarah wallet recharge: Debit wallet asset, Credit Amjad Payable (not fuel expense).
+                </div>
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-xs font-semibold text-slate-600">Advanced Journal Excel columns (optional)</summary>
+                  <div className="mt-2 overflow-x-auto">
                   <table className="w-full text-xs">
 
                     <thead>
@@ -3152,7 +3172,8 @@ export default function JournalEntryList() {
 
                   </table>
 
-                </div>
+                  </div>
+                </details>
 
               </div>
 
@@ -3165,8 +3186,7 @@ export default function JournalEntryList() {
                 </h3>
 
                 <p className="text-xs text-slate-500 mt-1 mb-4">
-                  CSV or Excel-compatible
-                  XLS
+                  CSV, XLS or XLSX · Simple funded or advanced journal
                 </p>
 
                 <label className="inline-flex cursor-pointer">
@@ -3179,7 +3199,7 @@ export default function JournalEntryList() {
 
                   <input
                     type="file"
-                    accept=".csv,.xls,text/csv,application/vnd.ms-excel"
+                    accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     onChange={
                       handleFileUpload
                     }

@@ -9,12 +9,24 @@ vi.mock('./ConfigurableReport',()=>({default:({report}:any)=><div data-testid="r
 vi.mock('@/lib/supabase',()=>({supabase:{from:()=>{const q:any={select:()=>q,eq:()=>q,order:()=>q,range:()=>Promise.resolve({data:[{id:'v1',vehicle_no:'7979'}],error:null})};return q;},rpc:async(n:string,args:any)=>{mock.calls.push({n,args});if(n==='transport_vehicle_source_billing')return {data:{count:2,net:120,vat:18,gross:138,rows:[{event_date:'2026-10-15',original_invoice_no:'CLIENT-001',trip_no:'T-1',net:100,vat:15,gross:115},{event_date:'2026-10-16',original_invoice_no:'CLIENT-002',trip_no:'T-2',net:20,vat:3,gross:23}]},error:null};return mock.failed?{data:null,error:{message:'Accounting permission denied'}}:{data:{count:mock.count,revenue:300-mock.revenueDebit,cost:115,rows:[{event_date:'2026-10-17',entry_no:'SALE',category:'Sale Invoice',revenue:300,cost:0},{event_date:'2026-10-17',entry_no:'VEXP',category:'Vehicle expense',revenue:0,cost:115},...(mock.revenueDebit?[{event_date:'2026-10-17',entry_no:'MANUAL',category:'Manual journal',revenue:-mock.revenueDebit,cost:0}]:[])]},error:null};}}}));
 beforeEach(()=>{mock.company='c1';mock.unit='b1';mock.count=2;mock.calls=[];mock.failed=false;mock.revenueDebit=0;});afterEach(cleanup);
 describe('Vehicle accounting reports',()=>{
- it('includes sale income and expense cost and exports complete totals',async()=>{render(<VehicleAccounting/>);await screen.findByRole('option',{name:'7979'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});const report=await screen.findByTestId('report');expect(report.textContent).toContain('SALE');expect(report.textContent).toContain('VEXP');expect(report.textContent).toContain('185');fireEvent.change(screen.getByLabelText('Statement'),{target:{value:'profit'}});await waitFor(()=>expect(screen.getByTestId('report').textContent).toContain('Net Profit'));expect(mock.calls.every(c=>c.n==='transport_vehicle_ledger'&&c.args.p_vehicle==='v1')).toBe(true);});
+ it('opens a posted month-by-month ledger and shows net plus linked expense categories',async()=>{
+  render(<VehicleAccounting/>);
+  await screen.findByRole('option',{name:'7979'});
+  fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});
+  const report=JSON.parse((await screen.findByTestId('report')).textContent??'{}');
+  expect(report.title).toContain('Monthly Income, Expenses & Net Profit');
+  expect(report.rows).toEqual([['2026-10','Posted Month Total',300,115,185],['','  ↳ Vehicle expense','',115,''],['TOTAL · selected period','',300,115,185]]);
+  expect(report.description).toContain('Unposted expenses can overstate profit');
+  expect(mock.calls.every(c=>c.n==='transport_vehicle_ledger')).toBe(true);
+ });
+
+ it('includes sale income and expense cost and exports complete totals',async()=>{render(<VehicleAccounting/>);await screen.findByRole('option',{name:'7979'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});fireEvent.change(screen.getByLabelText('Statement'),{target:{value:'ledger'}});const report=await screen.findByTestId('report');expect(report.textContent).toContain('SALE');expect(report.textContent).toContain('VEXP');expect(report.textContent).toContain('185');fireEvent.change(screen.getByLabelText('Statement'),{target:{value:'profit'}});await waitFor(()=>expect(screen.getByTestId('report').textContent).toContain('Net Profit'));expect(mock.calls.every(c=>c.n==='transport_vehicle_ledger'&&c.args.p_vehicle==='v1')).toBe(true);});
  it('shows revenue-account manual debits separately while preserving vehicle net profit',async()=>{
   mock.count=3;mock.revenueDebit=75;
   render(<VehicleAccounting/>);
   await screen.findByRole('option',{name:'7979'});
   fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});
+  fireEvent.change(screen.getByLabelText('Statement'),{target:{value:'ledger'}});
   await waitFor(()=>expect(screen.getByTestId('report').textContent).toContain('MANUAL'));
   const ledger=JSON.parse(screen.getByTestId('report').textContent??'{}');
   expect(ledger.rows[2].slice(4,8)).toEqual([0,75,-75,110]);
