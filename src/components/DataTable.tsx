@@ -117,7 +117,7 @@ export default function DataTable<T extends { id: string }>({
   }, []);
 
   const savePrefs = (next: ViewPrefs) => {
-    next = { ...next, densityVersion: 1 };
+    next = { ...next, densityVersion: 1, filters:next.filters || {} };
     setPrefs(next);
     try { window.localStorage.setItem(prefsKey(columns), JSON.stringify(next)); } catch {}
   };
@@ -179,14 +179,14 @@ export default function DataTable<T extends { id: string }>({
     const rect=element.getBoundingClientRect();
     setFilterPosition({top:Math.max(8,Math.min(rect.bottom+5,window.innerHeight-380)),left:Math.max(8,Math.min(rect.left,window.innerWidth-302))});
     setFilterSearch("");
-    setFilterDraft([...(prefs.filters[colKey]||[])]);
+    setFilterDraft([...((prefs.filters||{})[colKey]||[])]);
     setFilterKey(colKey);
   };
   const applyFilter=()=>{
     if (!filterKey) return;
     const next=[...new Set(filterDraft)];
     if (remote) remote.onFilterChange?.(filterKey,next);
-    else savePrefs({...prefs,filters:{...prefs.filters,[filterKey]:next}});
+    else savePrefs({...prefs,filters:{...(prefs.filters||{}),[filterKey]:next}});
     setPage(1);
     setFilterKey(null);
   };
@@ -284,7 +284,7 @@ export default function DataTable<T extends { id: string }>({
                   {!action && col.filterable !== false && (!remote || (remote.onFilterChange && remote.filterOptions?.[col.key])) &&
                     <button type="button" data-no-print data-no-export aria-label={`Filter ${col.label}`} title={`Filter ${col.label}`}
                       aria-expanded={filterKey===col.key} aria-haspopup="dialog"
-                      className={`absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 hover:bg-emerald-50 ${prefs.filters[col.key]?.length?"text-emerald-700":"text-slate-500"}`}
+                      className={`absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 hover:bg-emerald-50 ${prefs.filters?.[col.key]?.length?"text-emerald-700":"text-slate-500"}`}
                       onClick={e=>{e.stopPropagation();openFilter(col.key,e.currentTarget)}}>▾</button>}
                   {!action ? <span aria-hidden="true" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-slate-300" style={{touchAction:"none"}}
                     onPointerDown={e => { e.preventDefault(); e.stopPropagation();beginResize(col.key,e.clientX,e.currentTarget.parentElement?.getBoundingClientRect().width || 160); }}/> : null}
@@ -315,7 +315,7 @@ export default function DataTable<T extends { id: string }>({
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3" data-no-print data-no-export>
         <div className="text-xs text-slate-500">
-          Showing {(safePage-1)*effectivePageSize+1}–{Math.min(safePage*effectivePageSize,totalRecords)} of {totalRecords}
+          Showing {totalRecords?(safePage-1)*effectivePageSize+1:0}–{Math.min(safePage*effectivePageSize,totalRecords)} of {totalRecords}
           {selected.size ? <span className="ml-3 font-semibold">{selected.size} selected · <button type="button" className="underline" onClick={() => setSelected(new Set())}>Clear</button></span> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -335,7 +335,7 @@ export default function DataTable<T extends { id: string }>({
     </div>
 
     {filterKey && <div role="dialog" aria-modal="false" aria-label={`Filter ${columns.find(c=>c.key===filterKey)?.label||filterKey}`}
-      className="fixed z-[140] flex w-[min(288px,calc(100vw-16px))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-2xl"
+      className="fixed z-[140] flex w-[min(288px,calc(100vw-16px))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-2xl" data-navilo-smart-filter="true"
       style={{top:filterPosition.top,left:filterPosition.left}} data-no-print data-no-export
       onKeyDown={e=>{if(e.key==="Escape")setFilterKey(null)}}>
       <div className="mb-2 flex items-center justify-between text-xs font-bold text-slate-800"><span>{columns.find(c=>c.key===filterKey)?.label} · Filter</span>
