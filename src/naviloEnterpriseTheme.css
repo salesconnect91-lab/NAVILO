@@ -1,0 +1,150 @@
+/* NAVILO Enterprise UI v1 — one official screen-level visual contract.
+   Applies to existing business pages, dialogs and shared Smart Tables.
+   Print/PDF, the original 28-column Transport Register and branded popovers
+   retain their dedicated tested layouts. No business logic changes. */
+@media screen {
+  .erp-shell.navilo-modern {
+    --navilo-action:#087f68;
+    --navilo-ui-primary:#087f68;
+    --navilo-ui-primary-hover:#066d59;
+    --navilo-ui-primary-pressed:#055644;
+    --navilo-ui-focus:rgba(8,127,104,.20);
+    --navilo-ui-border:#cfddda;
+    --navilo-ui-ink:#173c49;
+    --navilo-ui-muted:#5c7378;
+    --navilo-line:#d5e1df;
+    --nv-primary:#087f68;
+    --nv-primary-hover:#066d59;
+    --nv-canvas:#f5f8f7;
+    --nv-surface:#fff;
+    --nv-ink:#183743;
+    --erp-font:Inter,"Segoe UI",Arial,sans-serif;
+    background:#f5f8f7!important;
+    color:#183743;
+  }
+  .erp-shell.navilo-modern .navilo-sidebar {
+    background:linear-gradient(180deg,#183940,#122d35)!important;
+    border-color:#284b50!important;
+  }
+  .erp-shell.navilo-modern .navilo-topbar {
+    background:#fff!important;
+    border-bottom:1px solid #dbe6e4!important;
+    box-shadow:0 1px 6px rgba(12,48,55,.035)!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) {
+    background:transparent;
+  }
+  /* Do not alter Trip Register density: it's a separate 28-column data editor. */
+  .erp-shell.navilo-modern #navilo-main-content :is(.btn-primary,.btn-secondary,.btn-danger,.btn):not(:where([data-navilo-transport-register] *,[data-navilo-print-preview] *)),
+  .erp-shell.navilo-modern [data-navilo-ui-dialog] :is(.btn-primary,.btn-secondary,.btn-danger,.btn) {
+    border-radius:8px!important;
+    font-family:inherit!important;
+    font-size:12.5px!important;
+    font-weight:650!important;
+    line-height:1.35!important;
+    min-height:34px!important;
+    padding:6px 12px!important;
+    transition:background-color .15s,border-color .15s,box-shadow .15s!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content .btn-primary:not(:where([data-navilo-transport-register] *,[data-navilo-print-preview] *)),
+  .erp-shell.navilo-modern [data-navilo-ui-dialog] .btn-primary {
+    color:#fff!important;
+    background:linear-gradient(180deg,#119579,#087f68)!important;
+    border:1px solid #06715e!important;
+    box-shadow:0 1px 3px rgba(8,89,74,.15)!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content .btn-primary:hover:not(:disabled):not(:where([data-navilo-transport-register] *)),
+  .erp-shell.navilo-modern [data-navilo-ui-dialog] .btn-primary:hover:not(:disabled) {
+    background:#066d59!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content :is(.btn-secondary,.btn):not(.btn-danger):not(.btn-primary):not(:where([data-navilo-transport-register] *)),
+  .erp-shell.navilo-modern [data-navilo-ui-dialog] :is(.btn-secondary,.btn):not(.btn-danger):not(.btn-primary) {
+    color:#244755!important;
+    background:#fff!important;
+    border:1px solid #ceddda!important;
+    box-shadow:0 1px 3px rgba(12,48,55,.045)!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content :is(.btn-secondary,.btn):not(.btn-danger):not(.btn-primary):hover:not(:disabled):not(:where([data-navilo-transport-register] *)) {
+    background:#f0f8f5!important;
+    border-color:#a8cfc6!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content .btn-danger:not(:where([data-navilo-transport-register] *)),
+  .erp-shell.navilo-modern [data-navilo-ui-dialog] .btn-danger {
+    color:#fff!important;
+    background:#b63747!important;
+    border:1px solid #a42b3c!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content :is(.btn,.btn-primary,.btn-secondary,.btn-danger,button):focus-visible,
+  .erp-shell.navilo-modern [data-navilo-ui-dialog] :is(button,input,select,textarea):focus-visible {
+    outline:2px solid #087f68!important;
+    outline-offset:2px!important;
+    box-shadow:0 0 0 3px rgba(8,127,104,.16)!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),textarea,select,.input):not(:where([data-navilo-transport-register] *,[data-navilo-print-preview] *)) {
+    border:1px solid #cbdcd8!important;
+    border-radius:7px!important;
+    background-color:#fff!important;
+    color:#173c49!important;
+    font-family:inherit!important;
+    font-size:13px!important;
+    min-height:34px!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content :is(.card,.table-shell):not(:where([data-navilo-transport-register] *,[data-navilo-print-preview] *)) {
+    border-color:#d8e4e1!important;
+    border-radius:10px!important;
+    background:#fff;
+    box-shadow:0 1px 4px rgba(20,57,66,.045)!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content :is(.page-title,h1):not(:where([data-navilo-transport-register] *,[data-navilo-print-preview] *)) {
+    color:#153947!important;
+    font-size:19px!important;
+    font-weight:750!important;
+    line-height:1.3!important;
+    letter-spacing:-.017em!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content :is(.page-subtitle,.text-slate-500):not(:where([data-navilo-transport-register] *,[data-navilo-print-preview] *)) {
+    color:#60777a!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content [data-navilo-data-table] {
+    border:1px solid #d3e3df!important;
+    border-radius:10px!important;
+    overflow:hidden;
+    background:#fff!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content [data-navilo-data-table] thead th {
+    background:#edf5f3!important;
+    color:#214c54!important;
+    font-weight:700!important;
+    border-bottom:1px solid #c7dad5!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content [data-navilo-data-table] tbody tr:hover td {
+    background:#f2faf7!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content [data-navilo-data-table] [aria-expanded="true"] {
+    color:#087f68!important;
+  }
+  .erp-shell.navilo-modern [role="dialog"]:not([data-navilo-print-preview]):not([data-navilo-searchable-dropdown]),
+  .erp-shell.navilo-modern dialog:not([data-navilo-print-preview]) {
+    border-color:#d2e1de!important;
+    border-radius:12px!important;
+  }
+  [data-navilo-smart-filter] {
+    z-index:140;
+    box-shadow:0 14px 38px rgba(21,59,63,.18)!important;
+    border-color:#c7dfd9!important;
+  }
+  @media (max-width:767px) and (pointer:coarse) {
+    .erp-shell.navilo-modern #navilo-main-content :is(.btn-primary,.btn-secondary,.btn-danger,.btn):not(:where([data-navilo-transport-register] *,[data-navilo-data-table] *,[data-navilo-print-preview] *)) {
+      min-height:42px!important;
+    }
+    .erp-shell.navilo-modern #navilo-main-content :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),select,textarea):not(:where([data-navilo-transport-register] *,[data-navilo-print-preview] *)) {
+      min-height:42px!important;
+      font-size:16px!important;
+    }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    .erp-shell.navilo-modern :is(button,.btn,.btn-primary,.btn-secondary,.btn-danger) {
+      transition:none!important;
+    }
+  }
+}
