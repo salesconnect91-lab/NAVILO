@@ -4,12 +4,13 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import {supabase} from '@/lib/supabase';
 import {financialNumber} from './transportFinancialTypes';
 import {fifoPreview,reviewedAllocations,type PartyDocument,type PartySide} from './transportPartyReporting';
-import {linkedPartyRows} from './transportOpeningInvoices';
 import TransportDialog from './TransportDialog';
 type CashAccount={id:string;name:string;detail_type:string};
 export default function TransportPartySettlement({side,party,documents,accounts,onPosted,onBusyChange}:{side:PartySide;party:string;documents:PartyDocument[];accounts:CashAccount[];onPosted:()=>Promise<void>;onBusyChange:(busy:boolean)=>void}){
  const [allowed,setAllowed]=useState(false);const [amounts,setAmounts]=useState<Record<string,string>>({});
- const [settlementDocuments,setSettlementDocuments]=useState<PartyDocument[]>([]);const [loadingDocuments,setLoadingDocuments]=useState(true);
+ // Parent TransportCashSettlement owns the scoped invoice fetch. Do not launch
+ // a second identical RPC scan here (especially expensive on large ledgers).
+ const [settlementDocuments,setSettlementDocuments]=useState<PartyDocument[]>(documents);const [loadingDocuments,setLoadingDocuments]=useState(false);
  const [invoiceSet,setInvoiceSet]=useState<'all'|'opening'|'native'>('all');
  const [account,setAccount]=useState('');const [date,setDate]=useState(new Date().toISOString().slice(0,10));
  const [reference,setReference]=useState('');const [fifo,setFifo]=useState('');const [search,setSearch]=useState('');
@@ -17,7 +18,14 @@ export default function TransportPartySettlement({side,party,documents,accounts,
  const [review,setReview]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');
  const [result,setResult]=useState<{message:string;journals:string[]}|null>(null);const [viewDocumentId,setViewDocumentId]=useState<string|null>(null);const request=useRef<string|null>(null);const submitting=useRef(false);
  useEffect(()=>{let live=true;void supabase.rpc('transport_finance_allowed',{p_action:'settlement'}).then(({data,error})=>{if(live){setAllowed(!error&&data===true);if(error)setError(error.message)}});return()=>{live=false}},[]);
- useEffect(()=>{let live=true;setLoadingDocuments(true);setReview(false);request.current=null;void linkedPartyRows<PartyDocument>('documents',side,{party,to:'',search:''}).then(rows=>{if(live)setSettlementDocuments(rows)}).catch(e=>{if(live){setSettlementDocuments([]);setError(e.message)}}).finally(()=>{if(live)setLoadingDocuments(false)});return()=>{live=false}},[side,party,documents]);
+ useEffect(()=>{
+  // A new authoritative snapshot arrives only after the parent completes a
+  // successful scoped refresh. All selection and posting validation still use it.
+  setSettlementDocuments(documents);
+  setLoadingDocuments(false);
+  setReview(false);
+  request.current=null;
+ },[side,party,documents]);
  const eligible=useMemo(()=>settlementDocuments.filter(d=>d.side===side&&d.party_id===party&&Number(d.current_outstanding_gross)>0&&(invoiceSet==='all'||(d.kind==='opening_balance')===(invoiceSet==='opening'))),[settlementDocuments,side,party,invoiceSet]);
  const visible=eligible.filter(d=>`${d.trip_no} ${d.order_no}`.toLowerCase().includes(search.toLowerCase()));
  const viewedDocument=viewDocumentId?settlementDocuments.find(d=>d.order_id===viewDocumentId&&d.side===side&&d.party_id===party):undefined;
@@ -39,7 +47,15 @@ export default function TransportPartySettlement({side,party,documents,accounts,
  const values=r.data?.payments??[r.data];const journals=values.map((v:{journal_entry_id?:string})=>v?.journal_entry_id).filter(Boolean) as string[];
  setResult({message:`Posted ${financialNumber(checked.total)} through canonical ${side==='customer'?'customer receipts':'supplier payments'}.`,journals});
  setAmounts({});setReview(false);request.current=null;
- try{setSettlementDocuments(await linkedPartyRows<PartyDocument>('documents',side,{party,to:'',search:''}));await onPosted()}catch(e){setSettlementDocuments([]);setError(`Payment posted; refresh failed. Refresh reports before another payment. ${e instanceof Error?e.message:''}`)}
+ try{
+  // Only the parent refreshes both native and imported invoices, once.
+  // Disable further allocation until it supplies the next valid snapshot.
+  setLoadingDocuments(true);
+  await onPosted();
+ }catch(e){
+  setSettlementDocuments([]);
+  setError(`Payment posted; refresh failed. Refresh reports before another payment. ${e instanceof Error?e.message:''}`);
+ }
  }catch(e){setError(`${e&&typeof e==='object'&&'message' in e?String(e.message):'Settlement failed'}. If the connection failed, retry the unchanged reviewed request safely.`)}
  finally{submitting.current=false;setBusy(false);onBusyChange(false)}
  }
