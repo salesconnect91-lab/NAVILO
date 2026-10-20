@@ -100,8 +100,16 @@ export default function DailyCashClosing(){
     <div className="rounded border p-2"><strong>SAR {money(p.grossReceipts)}</strong> gross account receipts</div>
     <div className="rounded border p-2"><strong>SAR {money(p.grossPayments)}</strong> gross account payments</div>
    </div>
+   {(p.accounts.filter(a=>a.kind==='Bank').length<2 || !p.accounts.some(a=>a.kind==='Petty Cash'))&&
+    <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900" role="note">
+     <strong>Bank / Petty Cash setup needed for the photographed closing format.</strong>
+     {' '}This active company has {p.accounts.filter(a=>a.kind==='Bank').length} bank ledger(s) and {p.accounts.filter(a=>a.kind==='Petty Cash').length} named petty-cash ledger(s).
+     {' '}The report can show only accounts actually maintained and posted in the Chart of Accounts—not invent separate SNB, Riyadh, Alinma, AlBilad or staff petty-cash balances.
+     {' '}<Link to="/accounting/accounts" className="font-semibold underline">Review Cash / Bank accounts</Link>
+     {' '}and their opening balances before relying on individual account closing totals.
+    </div>}
    <section aria-label="Bank and petty cash closing balances" className="rounded-lg border border-slate-200">
-    <h2 className="border-b bg-[#eef6f4] px-3 py-2 text-sm font-bold text-[#173c49]">SNB / Riyadh / All Banks / Cash in Hand / Petty Cash — Closing by Ledger</h2>
+    <h2 className="border-b bg-[#eef6f4] px-3 py-2 text-sm font-bold text-[#173c49]">All Banks / Cash in Hand / Petty Cash — Closing by Ledger</h2>
     <div className="overflow-x-auto"><table className="min-w-full text-xs">
      <thead className="bg-slate-100 text-left text-slate-700"><tr><th className="p-2">Account / Bank</th><th className="p-2">Type</th>
       <th className="p-2 text-right">Opening</th><th className="p-2 text-right">In</th>
