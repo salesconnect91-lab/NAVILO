@@ -8,18 +8,20 @@ vi.mock('@/lib/supabase',()=>({supabase:{rpc}}));
 afterEach(()=>{cleanup();vi.clearAllMocks()});
 function doc(id:string,side:PartySide,outstanding:number,date:string):PartyDocument{return {side,order_id:id,order_no:`INV-${id}`,order_date:date,party_id:'party',party_name:'Party',trip_ids:[id],trip_no:`OIC-${id}`,kind:'rent',original_net:outstanding,original_gross:outstanding,journal_entry_id:id,current_billed_gross:outstanding,current_paid_gross:0,current_refunded_gross:0,current_outstanding_gross:outstanding,current_credit_gross:0}}
 describe('Cash Counter Transport allocations',()=>{
- for(const side of ['customer','supplier'] as const)it(`${side}: imported invoice uses opening settlement and loads beyond report filters`,async()=>{
+ for(const side of ['customer','supplier'] as const)it(`${side}: imported opening invoice from parent's scoped snapshot posts through opening engine`,async()=>{
   const opening={...doc('OPEN',side,100,'2026-10-12'),kind:'opening_balance',historical_settled:50};
   rpc.mockImplementation(async(name:string)=>name==='transport_finance_allowed'?{data:true,error:null}:name==='transport_party_report_query'?{data:[],error:null}:name==='transport_opening_invoice_query'?{data:[opening],error:null}:{data:{success:true,journal_entry_id:'opening-voucher'},error:null});
   const posted=vi.fn(async()=>{});
-  render(<TransportPartySettlement side={side} party="party" documents={[]} accounts={[{id:'cash',name:'Cash',detail_type:'Cash on Hand'}]} onPosted={posted} onBusyChange={()=>{}}/>);
+  render(<TransportPartySettlement side={side} party="party" documents={[opening]} accounts={[{id:'cash',name:'Cash',detail_type:'Cash on Hand'}]} onPosted={posted} onBusyChange={()=>{}}/>);
   await screen.findByLabelText('Allocate INV-OPEN');
   fireEvent.change(screen.getByLabelText('Allocate INV-OPEN'),{target:{value:'30'}});fireEvent.change(screen.getByLabelText('Cash / Bank'),{target:{value:'cash'}});
   fireEvent.click(screen.getByText('Review allocations'));expect(rpc.mock.calls.some(([name])=>name==='transport_settle_opening_invoices')).toBe(false);
   fireEvent.click(screen.getByText('Confirm and post'));await waitFor(()=>expect(posted).toHaveBeenCalledOnce());
   expect(rpc).toHaveBeenCalledWith('transport_settle_opening_invoices',expect.objectContaining({p_side:side,p_party_id:'party',p_allocations:[{document_id:'OPEN',amount:30}]}));
   expect(rpc.mock.calls.some(([name])=>name==='transport_settle_reviewed_documents')).toBe(false);
-  expect(rpc).toHaveBeenCalledWith('transport_opening_invoice_query',expect.objectContaining({p_filters:{party:'party',to:'',search:''}}));
+  // The parent has already fetched both sources. This child must not refetch
+  // either RPC while preparing, reviewing, or posting a payment.
+  expect(rpc.mock.calls.some(([name])=>name==='transport_opening_invoice_query'||name==='transport_party_report_query')).toBe(false);
  });
  for(const side of ['customer','supplier'] as const)it(`${side}: selected invoices, partial FIFO and reviewed canonical posting`,async()=>{
   const docs=[doc('A',side,100,'2026-10-01'),doc('B',side,200,'2026-10-02')];
@@ -42,6 +44,17 @@ describe('Cash Counter Transport allocations',()=>{
   const payload=rpc.mock.calls.find(([name])=>name==='transport_settle_reviewed_documents')![1];
   expect(payload).toMatchObject({p_side:side,p_party_id:'party',p_account_id:'cash',p_allocations:[{document_id:'B',amount:75}]});
   expect(payload.p_request_id).toBeTruthy();
+ });
+ it('uses fresh parent invoices without a second identical RPC query',async()=>{
+  const oldDocs=[doc('A','supplier',100,'2026-10-01')];
+  rpc.mockImplementation(async(name:string)=>name==='transport_finance_allowed'?{data:true,error:null}:{data:{success:true},error:null});
+  const renderResult=render(<TransportPartySettlement side="supplier" party="party" documents={oldDocs} accounts={[]} onPosted={async()=>{}} onBusyChange={()=>{}}/>);
+  expect(await screen.findByLabelText('Allocate INV-A')).toBeTruthy();
+  const refreshed=[doc('B','supplier',50,'2026-10-02')];
+  renderResult.rerender(<TransportPartySettlement side="supplier" party="party" documents={refreshed} accounts={[]} onPosted={async()=>{}} onBusyChange={()=>{}}/>);
+  expect(await screen.findByLabelText('Allocate INV-B')).toBeTruthy();
+  expect(screen.queryByLabelText('Allocate INV-A')).toBeNull();
+  expect(rpc.mock.calls.filter(([name])=>name==='transport_party_report_query'||name==='transport_opening_invoice_query')).toHaveLength(0);
  });
  it('searches and selects a Cash / Bank option without posting',async()=>{
   const docs=[doc('A','supplier',100,'2026-10-01')];
