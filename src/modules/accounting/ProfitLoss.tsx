@@ -224,10 +224,10 @@ export default function ProfitLoss() {
                 // A missing Normal Sale allocation needs no expensive aggregation.
                 // External imports have separate, journal-backed source evidence.
                 let normalQuery=supabase.from('transport_normal_vehicle_allocations')
-                  .select('id').eq('company_id',companyId);
+                  .select('source_line_id').eq('company_id',companyId);
                 if(scope!=='company')normalQuery=normalQuery.eq('business_unit_id',businessUnitId);
                 const normalCheck=await normalQuery.limit(1);
-                if(normalCheck.error)throw normalCheck.error;
+                if(normalCheck.error)throw new Error(`Normal Sale allocation lookup failed: ${normalCheck.error.message}`);
                 let normalRows:Array<{vehicle_id:string;vehicle_no:string;amount:number|string}>=[];
                 if((normalCheck.data??[]).length){
                   const result=await supabase.rpc('transport_pl_normal_sales_vehicle_income_scoped',{
@@ -240,7 +240,7 @@ export default function ProfitLoss() {
                 let locationId:string|null=null;
                 if(scope==='branch'){
                   const location=await supabase.rpc('current_operating_location_id');
-                  if(location.error)throw location.error;
+                  if(location.error)throw new Error(`Active location lookup failed: ${location.error.message}`);
                   if(!location.data)throw new Error('Active branch is missing for vehicle income breakdown');
                   locationId=String(location.data);
                 }
