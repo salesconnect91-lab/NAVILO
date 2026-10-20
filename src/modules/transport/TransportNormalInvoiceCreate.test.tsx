@@ -250,9 +250,9 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice supplier'}),{target:{value:'a-party'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Description 1'}),{target:{value:'Repairs for company vehicle'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Amount 1'}),{target:{value:'100.00'}});
-  await waitFor(()=>expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(false));
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(true));
   expect((screen.getByRole('button',{name:'Post Purchase Invoice'}) as HTMLButtonElement).disabled).toBe(true);
-  expect(screen.getByText(/supplier's original invoice number before posting/i)).toBeTruthy();
+  expect(screen.getByText(/Supplier Purchase requires a genuine original invoice number/)).toBeTruthy();
   fireEvent.change(screen.getByRole('textbox',{name:'Normal invoice number'}),{target:{value:'SUP-ORIGINAL-2026-10'}});
   fireEvent.change(screen.getByRole('combobox',{name:'Vehicle 1'}),{target:{value:'a-vehicle-1'}});
   await waitFor(()=>expect((screen.getByRole('button',{name:'Post Purchase Invoice'}) as HTMLButtonElement).disabled).toBe(false));
@@ -270,10 +270,12 @@ describe('Normal Transport Sales and Purchase UI, without Trip linkage',()=>{
   fireEvent.change(screen.getByRole('combobox',{name:'Normal invoice supplier'}),{target:{value:'a-party'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Description 1'}),{target:{value:'Admin purchase'}});
   fireEvent.change(screen.getByRole('textbox',{name:'Amount 1'}),{target:{value:'50'}});
+  expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.change(screen.getByRole('textbox',{name:'Normal invoice number'}),{target:{value:'SUP-DRAFT-ORIGINAL-01'}});
   await waitFor(()=>expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'Save Draft'}));
   await screen.findByText(/Purchase invoice draft/);
-  expect(mock.posts[0]).toEqual(expect.objectContaining({p_side:'supplier',p_post:false,p_account:'a-account'}));
+  expect(mock.posts[0]).toEqual(expect.objectContaining({p_side:'supplier',p_post:false,p_account:'a-account',p_reference:'SUP-DRAFT-ORIGINAL-01'}));
   expect(screen.getByRole('link',{name:'View Invoice'}).getAttribute('href')).toBe('/purchase/doc-1');
  });
  it('keeps each company\'s Master/account isolated on company switch',async()=>{
