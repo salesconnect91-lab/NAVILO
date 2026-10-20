@@ -15,7 +15,7 @@ const money=(amount:number|string)=>Number(amount);
 const inPeriod=(journal:Journal|undefined,from:string,to:string)=>
  !!journal&&journal.status==='posted'&&journal.entry_date>=from&&journal.entry_date<=to;
 const unique=(ids:string[])=>[...new Set(ids.filter(Boolean))];
-const batches=<T,>(items:T[],size=150)=>Array.from({length:Math.ceil(items.length/size)},(_,i)=>items.slice(i*size,(i+1)*size));
+
 
 /**
  * The external vehicle-contributions view performs a company-wide journal and
@@ -45,9 +45,11 @@ export async function readExternalVehicleIncomeFast(args:{
    throw new Error('External vehicle evidence is incomplete');
  }
  const read=<T,>(table:string,fields:string,col:string,ids:string[])=>
-  fetchByIdChunks<T>(unique(ids),(chunk,from,to)=>
-   supabase.from(table).select(fields).eq('company_id',companyId)
-    .in(col,chunk).range(from,to),batchSize,500);
+  fetchByIdChunks<T>(unique(ids),async (chunk,from,to)=>{
+   const r=await supabase.from(table).select(fields).eq('company_id',companyId)
+    .in(col,chunk).range(from,to);
+   return {data:r.data as unknown as T[]|null,error:r.error};
+  },batchSize,500);
  const [lines,docs,credits]=await Promise.all([
   read<Line>('sales_service_lines','id,amount,revenue_account_id','id',sources.map(x=>x.sales_line_id)),
   read<Bill>('transport_customer_documents','sales_order_id,journal_entry_id','sales_order_id',sources.map(x=>x.sales_order_id)),
@@ -60,11 +62,13 @@ export async function readExternalVehicleIncomeFast(args:{
  const journalIds=unique([...billJournalIds,...noteJournalIds]);
  const [journals,reversals]=await Promise.all([
   read<Journal>('journal_entries','id,entry_date,status,reversal_of_entry_id','id',journalIds),
-  fetchByIdChunks<Journal>(journalIds,(ids,from,to)=>
-   supabase.from('journal_entries')
+  fetchByIdChunks<Journal>(journalIds,async (ids,from,to)=>{
+   const r=await supabase.from('journal_entries')
     .select('id,entry_date,status,reversal_of_entry_id')
     .eq('company_id',companyId).eq('status','posted')
-    .in('reversal_of_entry_id',ids).range(from,to),batchSize,500),
+    .in('reversal_of_entry_id',ids).range(from,to);
+   return {data:r.data as unknown as Journal[]|null,error:r.error};
+  },batchSize,500),
  ]);
  const posted=new Map(journals.map(x=>[x.id,x]));
  const reverseByOriginal=new Map<string,Journal>();
