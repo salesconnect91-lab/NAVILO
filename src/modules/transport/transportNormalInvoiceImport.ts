@@ -1,5 +1,15 @@
 import {invoiceImportDate} from './transportExternalInvoiceImport';
 export type NormalSide='customer'|'supplier';
+export type NormalImportVehicle={
+ id:string;vehicle_no:string;ownership_type?:string|null;
+ ownershipPeriods?:Array<{owner_type:string;effective_from:string;effective_to:string|null}>;
+};
+export function normalImportVehicleValidOn(vehicle:NormalImportVehicle,date:string):boolean{
+ const periods=vehicle.ownershipPeriods;
+ if(!periods)return true; // Legacy callers only; production passes dated ownership metadata.
+ if(periods.length)return periods.some(o=>o.owner_type==='company'&&o.effective_from<=date&&(!o.effective_to||o.effective_to>=date));
+ return vehicle.ownership_type==='company';
+}
 export type NormalImportRow={
  batch_ref:string;invoice_no:string;invoice_date:string;party_id:string;account_id:string;
  description:string;amount:string;reference:string;vat_choice:'master'|'with_vat'|'without_vat';vehicle_id?:string;
@@ -12,7 +22,7 @@ const get=(r:Record<string,unknown>,...keys:string[])=>{
 };
 export function parseNormalInvoiceImport(
  raw:Record<string,unknown>[],side:NormalSide,
- parties:Array<{id:string;name:string}>,accountId:string,vehicles:Array<{id:string;vehicle_no:string}>=[]
+ parties:Array<{id:string;name:string}>,accountId:string,vehicles:NormalImportVehicle[]=[]
 ):NormalImportRow[]{
  if(raw.length<1||raw.length>200)throw new Error('Import 1–200 invoice description lines.');
  if(!accountId)throw new Error('Select the company Revenue/Expense Account.');
@@ -21,10 +31,10 @@ export function parseNormalInvoiceImport(
   const k=party.name.trim().toLowerCase();
   lookup.set(k,lookup.has(k)?null:party.id);
  }
- const vehicleLookup=new Map<string,string|null>();
+ const vehicleLookup=new Map<string,NormalImportVehicle|null>();
  for(const v of vehicles){
   const vehicleKey=v.vehicle_no.trim().toLowerCase();
-  vehicleLookup.set(vehicleKey,vehicleLookup.has(vehicleKey)?null:v.id);
+  vehicleLookup.set(vehicleKey,vehicleLookup.has(vehicleKey)?null:v);
  }
  const groups=new Map<string,{party:string;date:string;number:string;reference:string;vat_choice:string}>();
  const numbers=new Map<string,string>();
@@ -37,8 +47,12 @@ export function parseNormalInvoiceImport(
   const invoice_date=invoiceImportDate(get(row,'Date','Invoice Date'));
   const description=clean(get(row,'Description','Service Description'));
   const vehicleNo=clean(get(row,'Vehicle No','Vehicle Number','Vehicle'));
-  const vehicle_id=side==='customer'?vehicleLookup.get(vehicleNo.toLowerCase()):undefined;
-  if(side==='customer'&&!vehicle_id)throw new Error(`Row ${lineNo}: valid company-owned Vehicle Number from Vehicle Master is required for each Normal Sale line.`);
+  const vehicle=vehicleNo?vehicleLookup.get(vehicleNo.toLowerCase()):undefined;
+  if(side==='customer'&&!vehicle)throw new Error(`Row ${lineNo}: valid company-owned Vehicle Number from Vehicle Master is required for each Normal Sale line.`);
+  if(vehicleNo&&!vehicle)throw new Error(`Row ${lineNo}: Vehicle No does not uniquely match an active company Vehicle Master.`);
+  if(vehicle&&!normalImportVehicleValidOn(vehicle,invoice_date))
+   throw new Error(`Row ${lineNo}: Vehicle No ${vehicleNo} is not company-owned on invoice date ${invoice_date}. Check Vehicle Ownership History.`);
+  const vehicle_id=vehicle?.id;
   const reference=clean(get(row,'Reference','Notes'));
   const choice=clean(get(row,'VAT Treatment','VAT Choice','VAT')).toLowerCase();
   const vat_choice:NormalImportRow['vat_choice']=!choice||choice==='master'||choice==='auto'?'master':['with vat','with_vat','yes','15','15%'].includes(choice)?'with_vat':['without vat','without_vat','no','0','0%'].includes(choice)?'without_vat':'master';
