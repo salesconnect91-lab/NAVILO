@@ -2,6 +2,7 @@ import {recordDisplayText} from '@/lib/recordDisplayText';
 import {useAuth} from '@/auth/AuthContext';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
+import QuickMasterAdd from "@/components/QuickMasterAdd";
 import {
   useEffect,
   useState,
@@ -2674,9 +2675,9 @@ export default function JournalEntryDetail() {
 
               <div className="min-w-0 px-2 py-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
                 <span>{postingAccounts.length} posting accounts available{journalExcludedAccounts > 0 ? ` · ${journalExcludedAccounts} group/inactive/non-posting accounts excluded` : ""}. Search by account name or type.</span>
-                <button type="button" className="rounded border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50" data-navilo-keep-local-action="true" onClick={() => { void fetchAccounts().catch((e:unknown) => setError(e instanceof Error ? e.message : "Unable to refresh Chart of Accounts.")); }}>
+                <div className="flex items-center gap-2"><QuickMasterAdd kind="account" compact disabled={saving||posting||importing} onRefresh={fetchAccounts}/><button type="button" className="rounded border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50" data-navilo-keep-local-action="true" onClick={() => { void fetchAccounts().catch((e:unknown) => setError(e instanceof Error ? e.message : "Unable to refresh Chart of Accounts.")); }}>
                   Refresh Accounts
-                </button>
+                </button></div>
               </div>
               <div className="w-full max-w-full min-w-0 overflow-x-auto" aria-label="Journal line editor">
                 <table className="w-full table-fixed min-w-[690px] text-[12px]">
