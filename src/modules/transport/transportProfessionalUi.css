@@ -434,3 +434,133 @@
     outline-offset: 1px;
   }
 }
+
+
+/* Compact two-strip register header; trip grid geometry and business actions are unchanged. */
+@media screen and (min-width: 768px) {
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 33px 36px;
+    align-items: center !important;
+    column-gap: 0 !important;
+    row-gap: 0 !important;
+    flex-wrap: nowrap !important;
+    width: 100%;
+    min-height: 69px !important;
+    height: 69px !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-topbar > div:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    padding-left: 10px;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-actions {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    margin-left: 0 !important;
+    padding: 0 9px 0 4px;
+    gap: 5px !important;
+    white-space: nowrap;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-actions > button,
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-actions .navilo-report-tool {
+    min-height: 25px !important;
+    height: 25px !important;
+    border-radius: 5px !important;
+    font-size: 10px !important;
+    box-shadow: none !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex !important;
+    flex: initial !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    margin: 0 !important;
+    padding: 4px 9px !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none;
+    border-top: 1px solid #cbd8e7;
+    border-radius: 0 !important;
+    background: #eef3f9 !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > * {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: 27px !important;
+    min-height: 27px !important;
+    border-radius: 5px !important;
+    box-shadow: none !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > div:first-child {
+    min-width: 120px !important;
+    padding-inline: 8px !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > [data-testid="trip-selection-count"] {
+    min-width: 114px !important;
+    padding-inline: 8px !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > div:nth-child(3) {
+    min-width: 255px !important;
+    padding-inline: 8px !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > div.relative {
+    min-width: 165px !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > div.relative > button {
+    width: 100% !important;
+    min-width: 165px !important;
+    height: 27px !important;
+    min-height: 27px !important;
+    padding-inline: 9px !important;
+    border-radius: 5px !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > form {
+    display: flex !important;
+    flex: 1 1 255px !important;
+    min-width: 205px !important;
+    max-width: 450px !important;
+    width: auto !important;
+    height: 27px !important;
+    min-height: 27px !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > form input,
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > form button,
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > form [aria-label="Trip search mode"] {
+    height: 27px !important;
+    min-height: 27px !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-register-toolbar > .navilo-register-add-trip {
+    margin-left: auto !important;
+  }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-register-add-trip > button {
+    height: 27px !important;
+    min-height: 27px !important;
+    padding-inline: 10px !important;
+    border-radius: 5px !important;
+    white-space: nowrap;
+  }
+  /* Identical page count remains displayed in the Register pagination footer. */
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-result-count {
+    display: none !important;
+  }
+}

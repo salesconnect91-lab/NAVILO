@@ -9,7 +9,7 @@ import NaviloDateInput from '@/components/NaviloDateInput';
 import { formatNaviloDate } from "@/lib/naviloDate";
 import {vehicleDisplayLabel} from '@/lib/transportVehicleLabel';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment} from "react";
-import { Search, Plus, Upload, Route, History, ReceiptText, Truck, RefreshCw, LockKeyhole, Mic, Trash2, BanknoteArrowDown, BanknoteArrowUp } from "lucide-react";
+import { Search, Plus, Upload, Route, History, ReceiptText, Truck, RefreshCw, LockKeyhole, Mic, Trash2 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
 import { useOptionalFeatureAccess } from "@/auth/FeatureAccess";
@@ -1819,47 +1819,6 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
 
     {!showPartyReports&&tab==="trips"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className="relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden bg-white rounded-lg border border-slate-700 shadow-sm shadow-slate-300" data-navilo-theme={tripTheme} data-navilo-customizable="true">
       <style>{`
-        /* Desktop toolbar: separate the primary controls and actions into two deliberate rows.
-           Do not allow the register count/search controls to wrap into arbitrary positions. */
-        @media (min-width: 768px) {
-          [data-navilo-transport-register] .navilo-transport-topbar {
-            display: grid !important;
-            grid-template-columns: max-content minmax(0, 1fr);
-            grid-template-rows: auto auto;
-            align-items: center;
-            column-gap: 10px;
-            row-gap: 5px;
-            height: auto !important;
-            min-height: 78px;
-            padding-top: 5px;
-            padding-bottom: 5px;
-          }
-          [data-navilo-transport-register] .navilo-transport-register-toolbar {
-            min-width: 0;
-            display: flex;
-            flex-wrap: nowrap !important;
-            overflow-x: auto;
-            overflow-y: hidden;
-            gap: 5px;
-            scrollbar-width: thin;
-          }
-          [data-navilo-transport-register] .navilo-transport-register-toolbar > * {
-            flex-shrink: 0;
-          }
-          [data-navilo-transport-register] .navilo-transport-register-actions {
-            grid-column: 2;
-            grid-row: 2;
-            justify-self: end;
-            flex-wrap: nowrap;
-          }
-          [data-navilo-transport-register] .navilo-transport-result-count {
-            grid-column: 1;
-            grid-row: 2;
-            font-size: 10px;
-            white-space: nowrap;
-            color: #cbd5e1;
-          }
-        }
         /* Mobile containment: keep the register full viewport width and scroll the data grid instead of squeezing it. */
         @media (max-width: 767px) {
           [data-navilo-transport-register] {
@@ -2003,11 +1962,9 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
             <input aria-label="Search all Trip data" placeholder="Search all Trip data…" className="input min-w-0 flex-1 rounded-r-none text-[11px] h-9 rounded-l-lg border-slate-200 shadow-sm" value={registerSearchDraft} onChange={e=>setRegisterSearchDraft(e.target.value)}/>
             <button type="submit" aria-label="Search Trips" className="flex items-center justify-center border border-l-0 border-blue-300 bg-white text-blue-700 hover:bg-blue-50 h-9 w-9 rounded-r-lg shadow-sm"><Search className="h-3.5 w-3.5"/></button>
           </form>
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="navilo-register-add-trip flex shrink-0 items-center gap-1.5">
           <button type="button" onClick={()=>{entryReturnTab.current="trips";setEditingTripId(null);setTab("new")}} className="flex h-9 items-center gap-1 rounded-lg border border-blue-500 bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
           </div>
-          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=supplier&allocation=transport")} className="h-9 rounded-lg border border-amber-300 bg-amber-50 px-3 text-[11px] font-semibold text-amber-900 shadow-sm hover:bg-amber-100" aria-label="Pay Rent to Suppliers" title="Pay rent to suppliers" data-payment-shortcut="supplier"><BanknoteArrowUp aria-hidden="true" className="h-5 w-5"/></button>
-          <button type="button" onClick={()=>navigate("/accounting/cash-counter?mode=customer&allocation=transport")} className="h-9 rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100" aria-label="Receive Customer Payment" title="Receive payment from customers" data-payment-shortcut="customer"><BanknoteArrowDown aria-hidden="true" className="h-5 w-5"/></button>
 
         </div>
         <div className="navilo-transport-register-actions flex items-center gap-1">

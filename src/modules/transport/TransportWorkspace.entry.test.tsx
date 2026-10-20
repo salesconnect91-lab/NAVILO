@@ -816,12 +816,16 @@ describe('Transport Register workspace isolation',()=>{
  });
 });
 
-describe('Normal invoice create is discoverable directly in Transport Register',()=>{
- it('renders separate Sale and Purchase entry points for Transport companies',async()=>{
+describe('Trip Register keeps a compact operational toolbar',()=>{
+ it('shows essential trip actions without redundant payment or invoice shortcuts',async()=>{
   render(<MemoryRouter initialEntries={['/transport?view=trips']}><TransportWorkspace/></MemoryRouter>);
-  const sale=await screen.findByRole('button',{name:'Create Sale Invoice'});
-  const purchase=screen.getByRole('button',{name:'Create Purchase Invoice'});
-  expect(sale.textContent).toContain('Sale');
-  expect(purchase.textContent).toContain('Purchase');
+  expect(await screen.findByRole('button',{name:'Add Trip'})).toBeTruthy();
+  expect(screen.getByRole('button',{name:'Search Trips'})).toBeTruthy();
+  expect(screen.getByRole('button',{name:'Filter Trip dates'})).toBeTruthy();
+  expect(screen.getByRole('button',{name:'Refresh'})).toBeTruthy();
+  expect(screen.queryByRole('button',{name:'Pay Rent to Suppliers'})).toBeNull();
+  expect(screen.queryByRole('button',{name:'Receive Customer Payment'})).toBeNull();
+  expect(screen.queryByRole('button',{name:'Create Sale Invoice'})).toBeNull();
+  expect(screen.queryByRole('button',{name:'Create Purchase Invoice'})).toBeNull();
  });
 });
