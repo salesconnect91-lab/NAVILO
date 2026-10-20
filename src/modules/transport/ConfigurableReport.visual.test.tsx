@@ -2,6 +2,9 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from "vitest";
 import {cleanup,fireEvent,render,screen} from "@testing-library/react";
 
+vi.mock("@/lib/documentPrintSettings",()=>({
+  loadDocumentPrintSettings:vi.fn(async()=>({company:{},visibility:{}}))
+}));
 vi.mock("@/auth/AuthContext",()=>({
   useAuth:()=>({activeCompany:{company_id:"company-1",company_name:"Synthetic Co"},
     activeBusinessUnit:{business_unit_id:"bu-1",business_unit_name:"Transport"}})
