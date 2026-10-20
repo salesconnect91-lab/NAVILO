@@ -1,6 +1,6 @@
 import {describe,it,expect} from 'vitest';
 import * as XLSX from 'xlsx';
-import {invoiceImportDate,parseExternalInvoiceRows} from './transportExternalInvoiceImport';
+import {assertExternalInvoicePreviewDates,invoiceImportDate,parseExternalInvoiceRows} from './transportExternalInvoiceImport';
 const row={'TRIP NO.':16512,DATE:'2026-06-04','Invoice / Bill Date':'31-Aug-26',INVOICED:'2026-03098','COMPANY NAME':'ENERCO','PLATE #':7979,'RATE WITH COMPANY':3000,'TAX (%)':15,'TAX AMOUNT':450,'BILL AMOUNT':3450,'Cash/Credit':'Credit',Discription:'Delivery'};
 describe('external invoice import',()=>{
  it('preserves invoice dates independently of source trip dates and supports multiple vehicles',()=>{const rows=parseExternalInvoiceRows([row,{...row,'TRIP NO.':16521,'PLATE #':5731,DATE:'2026-06-05'}]);expect(rows.map(r=>r.invoice_no)).toEqual(['2026-03098','2026-03098']);expect(rows[0].invoice_date).toBe('2026-08-31');expect(rows[0].reference_date).toBe('2026-06-04');expect(rows[1].vehicle_no).toBe('5731');});
@@ -33,6 +33,12 @@ describe('external invoice import',()=>{
   const result=parseExternalInvoiceRows([{...row,DATE:46266,'Invoice / Bill Date':'01-Sep-26'}]);
   expect(result[0].invoice_date).toBe('2026-09-01');
   expect(result[0].reference_date).toBe('2026-09-01');
+ });
+ it('blocks any mismatched preview date before a draft can be imported',()=>{
+  const original=[{source_reference:'18345',invoice_date:'2026-09-01'}];
+  expect(()=>assertExternalInvoicePreviewDates(original,[{source_reference:'18345',invoice_date:'2026-08-31'}])).toThrow('Import preview invoice date differs');
+  expect(()=>assertExternalInvoicePreviewDates(original,[{source_reference:'18345',invoice_date:'2026-09-01'}])).not.toThrow();
+  expect(()=>assertExternalInvoicePreviewDates(original,[])).toThrow('row count differs');
  });
  it('treats CLEARED as blank but retains Cash type without inventing a receipt',()=>{const rows=parseExternalInvoiceRows([{...row,INVOICED:'CLEARED ASAD','Cash/Credit':'Cash','TAX (%)':0,'TAX AMOUNT':0,'BILL AMOUNT':3000}]);expect(rows[0].invoice_no).toBe('');expect(rows[0].sale_type).toBe('Cash');expect(rows[0]).not.toHaveProperty('paid_amount');});
  it('rejects inconsistent invoice headers, duplicates, missing dates and wrong source totals',()=>{
