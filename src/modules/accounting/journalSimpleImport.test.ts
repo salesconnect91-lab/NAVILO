@@ -8,6 +8,20 @@ const pair=[
  ['','','Amjad Payable','Paid by Amjad','','',600]
 ];
 describe('Simple Debit/Credit Journal import matches General Journal Entry form',()=>{
+ it('explains multiple file mistakes with precise columns and row numbers in one upload',()=>{
+  const wrong=[headers,
+   ['', '2026-09-01','Vehicle 7979 Income','PAID FOR REPAIR OF 7979','Amjad Payable',600,600],
+   ['', '2026-09-01','General Expenses','Fuel','Amjad Payable',500,500]
+  ];
+  let message='';
+  try{normalizeSimpleJournalRows(wrong)}catch(e){message=String((e as Error).message)}
+  expect(message).toContain('Column A (entry_no) is blank');
+  expect(message).toContain('Row 2, columns F/G');
+  expect(message).toContain('Row 2, column E (related_to)');
+  expect(message).toContain('Row 3, columns F/G');
+  expect(message).toContain('5 problem(s)');
+ });
+
  it('accepts uploaded Excel serial dates and NAVILO dd-MMM-yy without changing entry date',()=>{
   expect(journalImportISODate('46266')).toBe('2026-09-01');
   expect(journalImportISODate('01-Sep-26')).toBe('2026-09-01');

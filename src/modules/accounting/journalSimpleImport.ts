@@ -75,6 +75,25 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   if(!headers.includes(key(h)))throw Error(`Missing simple journal column: ${h}.`);
  }
  const idx=(h:string)=>headers.indexOf(key(h));
+ // Explain multiple common Excel mistakes together instead of forcing a
+ // repeated choose-file/fix-one-row/reupload cycle.
+ const supplied=rows.slice(1).map((r,index)=>({r,line:index+2})).filter(({r})=>r.some(cell=>str(cell)));
+ const problems:string[]=[];
+ if(supplied.length&&supplied.every(({r})=>!str(r[idx('entry_no')]))){
+  problems.push('Column A (entry_no) is blank in every transaction row. Enter a unique reference for each journal and repeat it on its Debit/Credit lines.');
+ }
+ for(const {r,line} of supplied){
+  const dr=Number(str(r[idx('debit')]).replace(/,/g,'')),cr=Number(str(r[idx('credit')]).replace(/,/g,''));
+  if(Number.isFinite(dr)&&Number.isFinite(cr)&&dr>0&&cr>0)
+   problems.push(`Row ${line}, columns F/G: enter a positive Debit OR Credit, not both. Move the funding side to another row (e.g. Amjad Payable Credit).`);
+  if(str(r[idx('related_to')]).toLowerCase()==='amjad payable')
+   problems.push(`Row ${line}, column E (related_to): Amjad Payable is a Chart of Accounts name, not a Vehicle. Enter a vehicle number here only for an expense/income line; use Amjad Payable as Account Name on a separate Credit row.`);
+ }
+ if(problems.length){
+  const visible=problems.slice(0,9);
+  const remaining=problems.length-visible.length;
+  throw Error('Excel validation found '+problems.length+' problem(s):\n'+visible.join('\n')+(remaining?'\n…and '+remaining+' more similar issues.':''));
+ }
  const output:string[][]=[['entry_no','entry_date','description','account_name','line_description','party_type','party_name','vehicle_no','debit','credit']];
  const groups=new Map<string,{date:string,debit:number,credit:number,lines:number,firstDescription:string}>();
  let currentEntry='',currentDate='';
