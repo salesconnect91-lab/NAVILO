@@ -1,121 +1,132 @@
 import {useEffect,useMemo,useState} from 'react';
+import {Link} from 'react-router-dom';
 import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import ConfigurableReport from '../transport/ConfigurableReport';
 import {fetchAllPages,fetchByIdChunks} from '@/lib/fetchAllPages';
 import {accountingLocalDate} from '@/lib/accountingLocalDate';
-type Entry={id:string;entry_no:string;entry_date:string;description:string|null;status:string};
-type Line={id:string;entry_id:string;debit:number;credit:number;account:string|null;coa?:{name:string;type:string;detail_type:string|null}|null};
-type CashSummary={opening:number|string;closing:number|string;movement:number|string;difference:number|string};
-type CashData={key:string;entries:Entry[];lines:Line[];summary:CashSummary};
-const isCash=(l:Line)=>{
-  const detail=(l.coa?.detail_type||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-  return l.coa?.type==='asset'&&['cashonhand','cashandcashequivalents','cash','bank','bankaccount','cashandcashequivalent'].includes(detail);
-};
-const validCashSummary=(s:unknown):s is CashSummary=>{
-  if(!s||typeof s!=='object')return false;
-  const o=s as Record<string,unknown>;
-  return ['opening','closing','movement','difference'].every(k=>o[k]!=null&&Number.isFinite(Number(o[k])));
-};
+import {formatNaviloDate} from '@/lib/naviloDate';
+import {buildDailyClosing,type ClosingAccount,type ClosingEntry,type ClosingLine,type ClosingBalance,type ClosingSummary} from './dailyCashClosingMath';
+
+type ClosingData={key:string;branchId:string;projection:ReturnType<typeof buildDailyClosing>};
+const money=(n:number)=>n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 export default function DailyCashClosing(){
-  const {activeCompany,activeBusinessUnit}=useAuth();
-  const company=activeCompany?.company_id??'',businessUnit=activeBusinessUnit?.business_unit_id??'';
-  const [date,setDate]=useState(()=>accountingLocalDate());
-  const [reload,setReload]=useState(0);
-  const [state,setState]=useState<CashData|null>(null);
-  const [loading,setLoading]=useState(true),[error,setError]=useState('');
-  const key=[company,businessUnit,date,reload].join('|');
-  const data=state?.key===key?state:null;
+ const {activeCompany,activeBusinessUnit}=useAuth();
+ const company=activeCompany?.company_id??'',businessUnit=activeBusinessUnit?.business_unit_id??'';
+ const [date,setDate]=useState(()=>accountingLocalDate()),[reload,setReload]=useState(0);
+ const [state,setState]=useState<ClosingData|null>(null);
+ const [loading,setLoading]=useState(true),[error,setError]=useState('');
+ const key=[company,businessUnit,date,reload].join('|');
+ const data=state?.key===key?state:null;
+ useEffect(()=>{
+  let live=true;setState(null);setLoading(true);setError('');
+  if(!company||!businessUnit||!date){setError('Active company, business unit and closing date required.');setLoading(false);return()=>{live=false}}
+  (async()=>{
+   try{
+    const {data:branchId,error:locError}=await supabase.rpc('current_operating_location_id');
+    if(locError)throw locError;
+    if(!branchId||typeof branchId!=='string')throw new Error('Select active operating branch.');
+    const [cashFlow,balanceEvidence,entries,accounts]=await Promise.all([
+     supabase.rpc('accounting_cash_flow_report_scoped',{p_from:date,p_to:date,p_scope:'branch'}),
+     supabase.rpc('accounting_report_balances_scoped',{p_from:date,p_to:date,p_exclude_closing:false,p_scope:'branch'}),
+     fetchAllPages<ClosingEntry>((from,to)=>supabase.from('journal_entries')
+       .select('id,entry_no,entry_date,description,party_name,trans_type,created_at')
+       .eq('company_id',company).eq('business_unit_id',businessUnit)
+       .eq('operating_location_id',branchId).eq('status','posted').eq('entry_date',date)
+       .order('created_at').order('id').range(from,to)),
+     fetchAllPages<ClosingAccount>((from,to)=>supabase.from('chart_of_accounts')
+       .select('id,code,name,type,detail_type,account_role').eq('company_id',company)
+       .eq('is_group',false).order('id').range(from,to))
+    ]);
+    if(cashFlow.error)throw cashFlow.error;
+    if(balanceEvidence.error)throw balanceEvidence.error;
+    if(!cashFlow.data||!Array.isArray(balanceEvidence.data)||!Array.isArray(entries)||!Array.isArray(accounts))
+      throw new Error('Incomplete posted closing evidence; no final totals can be printed.');
+    const ids=entries.map(e=>e.id);
+    const lines=ids.length?await fetchByIdChunks<ClosingLine>(ids,(chunk,from,to)=>
+      supabase.from('journal_lines')
+       .select('id,entry_id,account_id,account,debit,credit,coa:chart_of_accounts(id,name,type,detail_type)')
+       .eq('company_id',company).eq('business_unit_id',businessUnit)
+       .eq('operating_location_id',branchId).in('entry_id',chunk).order('id').range(from,to) as any):[];
+    if(!Array.isArray(lines))throw new Error('Incomplete posted voucher lines; daily closing withheld.');
+    const projection=buildDailyClosing(date,accounts,balanceEvidence.data as ClosingBalance[],
+      entries,lines,cashFlow.data as ClosingSummary);
+    if(live)setState({key,branchId,projection});
+   }catch(e){if(live){setState(null);setError(e instanceof Error?e.message:String(e))}}
+   finally{if(live)setLoading(false)}
+  })();
+  return()=>{live=false};
+ },[company,businessUnit,date,reload,key]);
 
-  useEffect(()=>{
-    let live=true;
-    setState(null);setLoading(true);setError('');
-    if(!company||!businessUnit||!date){
-      setError('Active company, business unit and closing date required.');
-      setLoading(false);
-      return()=>{live=false};
-    }
-    (async()=>{
-      try{
-        const {data:loc,error:locationError}=await supabase.rpc('current_operating_location_id');
-        if(locationError)throw locationError;
-        if(!loc||typeof loc!=='string')throw new Error('Active operating branch required.');
-        const [{data:summary,error:summaryError},entries]=await Promise.all([
-          supabase.rpc('accounting_cash_flow_report_scoped',{p_from:date,p_to:date,p_scope:'branch'}),
-          fetchAllPages<Entry>((from,to)=>supabase.from('journal_entries')
-            .select('id,entry_no,entry_date,description,status')
-            .eq('company_id',company)
-            .eq('business_unit_id',businessUnit)
-            .eq('operating_location_id',loc)
-            .eq('status','posted')
-            .eq('entry_date',date)
-            .order('entry_no').range(from,to))
-        ]);
-        if(summaryError)throw summaryError;
-        if(!validCashSummary(summary))throw new Error('Incomplete posted cash flow evidence; totals withheld.');
-        if(!Array.isArray(entries))throw new Error('Incomplete posted vouchers; totals withheld.');
-        if(!live)return;
-        const ids=entries.map(x=>x.id);
-        const lines=ids.length?await fetchByIdChunks<Line>(ids,(chunk,from,to)=>
-          supabase.from('journal_lines')
-            .select('id,entry_id,debit,credit,account,coa:chart_of_accounts(name,type,detail_type)')
-            .eq('company_id',company)
-            .eq('business_unit_id',businessUnit)
-            .eq('operating_location_id',loc)
-            .in('entry_id',chunk)
-            .order('id').range(from,to) as any):[];
-        if(!Array.isArray(lines))throw new Error('Incomplete voucher line details; totals withheld.');
-        if(live)setState({key,entries,lines,summary});
-      }catch(e){
-        if(live){setState(null);setError(e instanceof Error?e.message:(typeof e==='object'&&e!==null&&'message' in e&&typeof e.message==='string'?e.message:'Unable to load daily closing'));}
-      }finally{if(live)setLoading(false);}
-    })();
-    return()=>{live=false};
-  },[company,businessUnit,date,reload,key]);
-
-  const rows=useMemo(()=>{
-    const by=new Map<string,Line[]>();
-    (data?.lines??[]).forEach(l=>by.set(l.entry_id,[...(by.get(l.entry_id)||[]),l]));
-    return (data?.entries??[]).flatMap(entry=>{
-      const voucherLines=by.get(entry.id)||[];
-      const cash=voucherLines.filter(isCash);
-      const movement=cash.reduce((sum,l)=>sum+Number(l.debit||0)-Number(l.credit||0),0);
-      if(Math.abs(movement)<0.005)return [];
-      const accounts=[...new Set(cash.map(l=>l.coa?.name||l.account||'Cash / Bank'))].join(' / ');
-      const counter=[...new Set(voucherLines.filter(l=>!isCash(l)&&(Number(l.debit||0)||Number(l.credit||0))).map(l=>l.coa?.name||l.account||'Unlinked'))].join(' / ');
-      return [[entry.entry_no,movement>0?'RECEIPT':'PAYMENT',entry.description||counter,counter,accounts,movement>0?movement:0,movement<0?-movement:0]];
-    });
-  },[data]);
-
-  const received=rows.reduce((sum,row)=>sum+Number(row[5]||0),0);
-  const paid=rows.reduce((sum,row)=>sum+Number(row[6]||0),0);
-  const opening=Number(data?.summary.opening??0);
-  const closing=Number(data?.summary.closing??0);
-  const net=Number(data?.summary.movement??0);
-  const difference=net-(received-paid);
-  const report={
-    title:'Daily Cash / Bank Closing',
-    description:(activeCompany?.company_name??'')+' / '+(activeBusinessUnit?.business_unit_name??'')+' · '+date
-      +' · Posted branch vouchers only · Opening '+opening.toFixed(2)+' · Received '+received.toFixed(2)
-      +' · Paid '+paid.toFixed(2)+' · Closing '+closing.toFixed(2),
-    columns:['Voucher','Type','Party / Purpose / Reference','Counter Account','Cash / Bank Account','Money In','Money Out'],
-    rows:[...rows,['TOTAL','','','','',received,paid]],
-  };
-  return <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-3">
-    <div className="flex flex-wrap items-end gap-2">
-      <label className="text-sm font-semibold">Closing date<NaviloDateInput className="input" value={date} onChange={e=>setDate(e.target.value)}/></label>
-      <button className="btn" disabled={loading} onClick={()=>setReload(n=>n+1)}>Refresh</button>
-      {!loading&&!error&&data&&<div className="rounded-lg border bg-slate-50 px-3 py-2 text-xs">
-        <b>Opening:</b> {opening.toFixed(2)} · <b>In:</b> {received.toFixed(2)}
-        {' · '}<b>Out:</b> {paid.toFixed(2)} · <b>Closing:</b> {closing.toFixed(2)}
-      </div>}
-    </div>
-    {error&&<p role="alert" className="text-red-700">{error}</p>}
-    {loading?<p role="status">Loading daily closing…</p>:!error&&data&&<>
-      <ConfigurableReport module="accounting" preferenceKey={company+':'+businessUnit+':daily-cash-closing'} report={report}/>
-      {Math.abs(difference)>=0.005&&<p role="alert">Daily voucher movements differ from the posted branch cash flow by {difference.toFixed(2)}. Verify voucher details before relying on closing totals.</p>}
-    </>}
-    <p className="text-xs text-slate-500">Cash/bank transfers are excluded because their net voucher movement is zero. Print/PDF/Excel use the same posted daily evidence.</p>
-  </section>;
+ const p=data?.projection;
+ const report=useMemo(()=>p?{
+  title:'Daily Cash & Bank Closing',
+  description:[activeCompany?.company_name||'Company',activeBusinessUnit?.business_unit_name||'',
+    formatNaviloDate(date),'Posted branch transactions only',
+    'Opening SAR '+money(p.opening),'Closing SAR '+money(p.closing),
+    'All cash and bank movements including internal transfers',
+    'Cash/Bank account reconciliation PASS'].filter(Boolean).join(' · '),
+  columns:['Cash / Bank','Description / Voucher','Receipts (SAR)','Payments (SAR)','Running Balance','Account Balance'],
+  rows:p.reportRows,
+ }:null,[p,activeCompany?.company_name,activeBusinessUnit?.business_unit_name,date]);
+ return <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-3">
+  <header className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-3">
+   <div><h1 className="text-lg font-bold text-slate-900">Daily Cash &amp; Bank Closing</h1>
+    <p className="text-xs text-slate-600">TWAKKAL-style daily sheet + complete posted voucher / bank / petty cash register</p></div>
+   <div className="no-print flex flex-wrap items-end gap-2" data-no-export>
+    <label className="text-xs font-semibold text-slate-700">Closing date
+     <NaviloDateInput className="input mt-1 block" value={date} onChange={e=>setDate(e.target.value)}/></label>
+    <button className="btn-secondary" type="button" disabled={loading} onClick={()=>setReload(x=>x+1)}>Refresh</button>
+    <Link className="btn-secondary" to="/accounting/cash-counter">Cash Counter</Link>
+    <Link className="btn-secondary" to="/accounting/bank-reconciliation">Bank Reconciliation</Link>
+   </div>
+  </header>
+  {error&&<div role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+   Daily closing is not reconciled: {error}. No report will be shown until posted evidence is complete.</div>}
+  {loading&&<p role="status" className="p-5 text-sm text-slate-600">Reconciling posted vouchers, bank transfers and account balances…</p>}
+  {!loading&&!error&&p&&report&&<>
+   <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+    {([['Opening balance',p.opening],['Today receipts',p.externalReceipts],
+      ['Today payments',p.externalPayments],['Closing balance',p.closing]] as const).map(([label,value])=>
+      <div key={label} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+       <div className="mt-1 text-lg font-bold tabular-nums text-[#173c49]">SAR {money(value)}</div>
+      </div>)}
+   </div>
+   <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+    <div className="rounded border p-2"><strong>{p.voucherCount}</strong> posted vouchers with cash/bank movements</div>
+    <div className="rounded border p-2"><strong>SAR {money(p.transferAmount)}</strong> internal transfers (not expenses)</div>
+    <div className="rounded border p-2"><strong>SAR {money(p.grossReceipts)}</strong> gross account receipts</div>
+    <div className="rounded border p-2"><strong>SAR {money(p.grossPayments)}</strong> gross account payments</div>
+   </div>
+   <section aria-label="Bank and petty cash closing balances" className="rounded-lg border border-slate-200">
+    <h2 className="border-b bg-[#eef6f4] px-3 py-2 text-sm font-bold text-[#173c49]">SNB / Riyadh / All Banks / Cash in Hand / Petty Cash — Closing by Ledger</h2>
+    <div className="overflow-x-auto"><table className="min-w-full text-xs">
+     <thead className="bg-slate-100 text-left text-slate-700"><tr><th className="p-2">Account / Bank</th><th className="p-2">Type</th>
+      <th className="p-2 text-right">Opening</th><th className="p-2 text-right">In</th>
+      <th className="p-2 text-right">Out</th><th className="p-2 text-right">Closing</th></tr></thead>
+     <tbody>{p.accounts.map(a=><tr key={a.id} className="border-t">
+      <td className="p-2 font-medium">{a.name}</td><td className="p-2">{a.kind}</td>
+      <td className="p-2 text-right tabular-nums">{money(a.opening)}</td>
+      <td className="p-2 text-right tabular-nums">{money(a.received)}</td>
+      <td className="p-2 text-right tabular-nums">{money(a.paid)}</td>
+      <td className="p-2 text-right font-semibold tabular-nums">{money(a.closing)}</td></tr>)}</tbody>
+     <tfoot><tr className="border-t-2 bg-slate-50 font-bold"><td className="p-2" colSpan={2}>ALL CASH / BANK ACCOUNTS</td>
+      <td className="p-2 text-right">{money(p.opening)}</td><td className="p-2 text-right">{money(p.grossReceipts)}</td>
+      <td className="p-2 text-right">{money(p.grossPayments)}</td><td className="p-2 text-right">{money(p.closing)}</td></tr></tfoot>
+    </table></div>
+   </section>
+   <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs font-semibold text-emerald-900">
+    Posted reconciliation PASS: Opening + Net External Receipts − Net External Payments = Closing. Bank-to-bank transfers remain visible, without being counted as company expenses.
+   </div>
+   <section aria-label="Complete daily closing sheet">
+    <h2 className="mb-1 text-sm font-bold text-slate-800">Complete Daily Closing Sheet — All transactions, running balances and account summary</h2>
+    <p className="text-xs text-slate-500">The full detail and closing account breakdown below are included in the same Print / PDF / Excel report; exports are not restricted to the visible 100-row page.</p>
+    <ConfigurableReport module="accounting" preferenceKey={company+':'+businessUnit+':'+data.branchId+':daily-cash-bank'}
+     report={report}/>
+   </section>
+  </>}
+  <p className="text-xs text-slate-500">Posted journal/ledger evidence only. Supplier bills are not counted as cash payments until actually settled. The report never creates journals. Cash/Bank-to-Cash/Bank transfers show both legs but are not P&amp;L expenses.</p>
+ </section>;
 }
