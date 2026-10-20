@@ -39,7 +39,8 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
    if(id!==request.current)return;
    if(partyList.error)throw partyList.error;if(accountList.error)throw accountList.error;if(mapping.error)throw mapping.error;
    setVehicles(vehicleList.filter(v=>v.ownership_type==='company'||v.ownershipPeriods.some(o=>o.owner_type==='company')));
-   const mapped=mapping.data?.account_id??'';
+   // Purchases must choose a real expense ledger explicitly; COGS is not the default for overhead or vehicle repairs.
+   const mapped=side==='customer'?(mapping.data?.account_id??''):'';
    const acc=(accountList.data??[]).filter(a=>side!=='customer'||a.id===mapped);
    if(side==='customer'&&(!mapped||acc.length!==1))
      throw new Error('Active Sales Revenue mapping required for Normal Sale import.');
@@ -103,6 +104,7 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
    :'Normal Purchases: Vehicle No optional. For vehicle repairs/diesel enter valid company vehicle on each related line; for Office/Yard leave blank.'}
    {' '}Vehicle Master ownership must be valid on invoice date. <Link className="underline" to="/master-data/vehicle-ownership">Check ownership</Link>.</p>
   <p className="text-[11px] text-slate-600">Existing {side==='customer'?'Customer':'Supplier'} Master → descriptions and amounts → canonical {side==='customer'?'AR':'AP'} / GL / VAT. No Trip or stock movement. {vehicles.length} eligible company-owned vehicles loaded.</p>
+  {side==='supplier'&&<p className="text-[11px] text-amber-900">Choose the expense GL for this file explicitly (for example Rent, Utilities or General Expenses). Do not put Office/Yard repairs under COGS just because it was previously the default. Different expense accounts require separate import files.</p>}
   <label className="block text-xs font-semibold">{side==='customer'?'Sales Revenue':'Purchase Expense'} Account
    <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label={`Normal ${label} import account`} className="input mt-1 w-full" disabled={loading||busy} value={account}
      onChange={e=>{setAccount(e.target.value);setRows([]);setFilename('')}}>
@@ -121,7 +123,7 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
    <p className="text-xs font-semibold">{groups} invoices · {rows.length} lines · Net SAR {net.toFixed(2)} (before VAT) · VAT follows each invoice group's selected Master-compatible treatment</p>
    <div className="max-h-48 overflow-auto border"><table className="w-full text-left text-xs">
     <thead className="sticky top-0 bg-slate-100"><tr>{['Invoice Group','Invoice No','Date',side==='customer'?'Customer':'Supplier','Description','Vehicle No','Amount','VAT Treatment'].map(h=><th key={h} className="p-1">{h}</th>)}</tr></thead>
-    <tbody>{rows.map((r,i)=><tr key={i} className="border-t"><td className="p-1">{r.batch_ref}</td><td className="p-1">{r.invoice_no||'Automatic Cash number'}</td><td className="p-1">{r.invoice_date}</td><td className="p-1">{parties.find(p=>p.id===r.party_id)?.name}</td><td className="p-1">{r.description}</td>{side==='customer'&&<td className="p-1">{vehicles.find(v=>v.id===r.vehicle_id)?.vehicle_no||'—'}</td>}<td className="p-1 tabular-nums">{r.amount}</td><td className="p-1">{r.vat_choice==='master'?'Master':r.vat_choice==='with_vat'?'With VAT':'Without VAT'}</td></tr>)}</tbody>
+    <tbody>{rows.map((r,i)=><tr key={i} className="border-t"><td className="p-1">{r.batch_ref}</td><td className="p-1">{r.invoice_no||'Automatic Cash number'}</td><td className="p-1">{r.invoice_date}</td><td className="p-1">{parties.find(p=>p.id===r.party_id)?.name}</td><td className="p-1">{r.description}</td><td className="p-1">{vehicles.find(v=>v.id===r.vehicle_id)?.vehicle_no||'—'}</td><td className="p-1 tabular-nums">{r.amount}</td><td className="p-1">{r.vat_choice==='master'?'Master':r.vat_choice==='with_vat'?'With VAT':'Without VAT'}</td></tr>)}</tbody>
    </table></div>
    <p className="text-xs text-amber-900">Import & Post creates real accounting entries for all invoices. If any invoice fails, the complete file rolls back.</p>
    <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} className="btn" onClick={()=>void run(false)}>Import as Drafts</button>
