@@ -47,7 +47,7 @@ function VehicleExpensesScoped(){
   if(v.error)throw v.error;if(o.error)throw o.error;
   if(!v.data||!o.data?.some(x=>x.owner_type==="company"&&x.effective_from<=date&&(!x.effective_to||x.effective_to>=date)))
     throw Error("Vehicle saved, but company ownership is not valid on this expense date.");
-  setVehicles(old=>old.some(x=>x.id===v.data.id)?old:[...old,v.data]);
+  setVehicles(old=>old.some(x=>x.id===v.data.id)?old:[...old,{...v.data,name:v.data.vehicle_no||created.name}]);
   setOwnership(old=>[...old.filter(x=>x.vehicle_id!==created.id),...(o.data||[])]);
  };
  const eligible=vehicles.filter(v=>v.is_active!==false&&ownership.some(o=>o.vehicle_id===v.id&&o.owner_type==='company'&&o.effective_from<=date&&(!o.effective_to||o.effective_to>=date)));
