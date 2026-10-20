@@ -171,6 +171,29 @@ describe("Import Center supplier upload",()=>{
  });
 });
 
+describe("Import Center safe import validation",()=>{
+ it("rejects blank route rates before calling the server",async()=>{
+  render(<MemoryRouter initialEntries={["/settings/imports?section=rates"]}><ImportCenter/></MemoryRouter>);
+  const card=screen.getByRole("heading",{name:"Transport Rate Imports"}).closest("section")!;
+  const file=customerFile([["Company","Truck Type","From","To","Rate","Effective From"],["Customer A","Flatbed","Dammam","Khobar","","2026-10-20"]]);
+  fireEvent.change(card.querySelector('input[type="file"]')!,{target:{files:[file]}});
+  await waitFor(()=>expect(within(card).getByRole("alert").textContent).toMatch(/Row 2: Rate must be a valid nonnegative number/));
+  expect(supabase.rpc).not.toHaveBeenCalled();
+ });
+ it("requires explicit confirmation before posting customer receipts or supplier payments",async()=>{
+  vi.spyOn(window,"confirm").mockReturnValue(false);
+  render(<MemoryRouter initialEntries={["/settings/imports?section=accounting"]}><ImportCenter/></MemoryRouter>);
+  const card=screen.getByRole("heading",{name:"Transport Receipts / Payments Import"}).closest("section")!;
+  const file=customerFile([["Source Reference","Side","Payment Date","Party","Document No","Amount","Account","Method"],
+    ["RCPT-0001","Customer","2026-10-20","Customer A","INV-1001",1000,"1000","bank"]]);
+  fireEvent.change(card.querySelector('input[type="file"]')!,{target:{files:[file]}});
+  await waitFor(()=>expect(within(card).getByText(/1 row\(s\) in preview/)).toBeTruthy());
+  fireEvent.click(within(card).getByRole("button",{name:"Post 1 Rows"}));
+  expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining("SAR 1,000.00"));
+  expect(supabase.rpc).not.toHaveBeenCalled();
+ });
+});
+
 describe("Import Center financial review",()=>{
  it("does not expose driver earnings or vehicle expense uploads",()=>{render(<MemoryRouter initialEntries={["/settings/imports?section=rates"]}><ImportCenter/></MemoryRouter>);expect(screen.queryByRole("heading",{name:"Driver Trip Earnings Import"})).toBeNull();expect(screen.queryByRole("heading",{name:"Transport Trip Expense Import"})).toBeNull();expect(screen.queryByRole("option",{name:"Vehicle Expense Types"})).toBeNull()});
  it("disables invoice import when the server preview rejects a row",async()=>{
