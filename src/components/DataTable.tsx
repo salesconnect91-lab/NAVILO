@@ -27,12 +27,12 @@ type ViewPrefs = {
   filters: Record<string,string[]>;
 };
 
-function storageKey(columns: { key: string }[]) {
+function storageKey(columns: { key: string }[], scopeKey = "") {
   const path = typeof window === "undefined" ? "unknown" : window.location.pathname;
-  return `navilo:table-columns:${path}:${columns.map((column) => column.key).join("|")}`;
+  return `navilo:table-columns:${path}${scopeKey ? ":" + encodeURIComponent(scopeKey) : ""}:${columns.map((column) => column.key).join("|")}`;
 }
-function prefsKey(columns: { key: string }[]) { return `${storageKey(columns)}:neus-v3`; }
-function viewsKey(columns: { key: string }[]) { return `${storageKey(columns)}:views-v3`; }
+function prefsKey(columns: { key: string }[], scopeKey = "") { return `${storageKey(columns,scopeKey)}:neus-v3`; }
+function viewsKey(columns: { key: string }[], scopeKey = "") { return `${storageKey(columns,scopeKey)}:views-v3`; }
 
 function restoredHiddenKeys(raw: string | null, configurable: { key: string }[]): Set<string> {
   try {
@@ -47,11 +47,11 @@ function restoredHiddenKeys(raw: string | null, configurable: { key: string }[])
 function defaultPrefs<T>(columns: Column<T>[]): ViewPrefs {
   return { order: columns.map(c => c.key), widths: {}, pins: {}, density: "compact", densityVersion: 1, hidden: [], sort: null, pageSize: 25, filters: {} };
 }
-function readPrefs<T>(columns: Column<T>[]): ViewPrefs {
+function readPrefs<T>(columns: Column<T>[], scopeKey = ""): ViewPrefs {
   const fallback = defaultPrefs(columns);
   if (typeof window === "undefined") return fallback;
   try {
-    const raw = JSON.parse(window.localStorage.getItem(prefsKey(columns)) || "{}");
+    const raw = JSON.parse(window.localStorage.getItem(prefsKey(columns,scopeKey)) || "{}");
     const valid = new Set(columns.map(c => c.key));
     const order = Array.isArray(raw.order) ? raw.order.map(String).filter((k: string) => valid.has(k)) : [];
     return {
@@ -80,15 +80,17 @@ type RemotePaging = {
   onFilterChange?: (column: string, selected: string[]) => void;
 };
 export default function DataTable<T extends { id: string }>({
-  columns, rows, loading, emptyMessage, showSerialNumber = false, remote,
-}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; showSerialNumber?: boolean; remote?: RemotePaging }) {
+  columns, rows, loading, emptyMessage, showSerialNumber = false, remote, scopeKey = "",
+}: { columns: Column<T>[]; rows: T[]; loading?: boolean; emptyMessage?: string; showSerialNumber?: boolean; remote?: RemotePaging; scopeKey?: string }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const configurableColumns = useMemo(() => columns.filter(c => c.key !== "actions" && c.key !== "action"), [columns]);
-  const key = useMemo(() => storageKey(columns), [columns]);
+  const key = useMemo(() => storageKey(columns,scopeKey), [columns,scopeKey]);
+  const prefStorageKey = useMemo(() => prefsKey(columns,scopeKey),[columns,scopeKey]);
+  const viewStorageKey = useMemo(() => viewsKey(columns,scopeKey),[columns,scopeKey]);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() =>
-    typeof window === "undefined" ? new Set() : restoredHiddenKeys(window.localStorage.getItem(storageKey(columns)), configurableColumns)
+    typeof window === "undefined" ? new Set() : restoredHiddenKeys(window.localStorage.getItem(storageKey(columns,scopeKey)), configurableColumns)
   );
-  const [prefs, setPrefs] = useState<ViewPrefs>(() => readPrefs(columns));
+  const [prefs, setPrefs] = useState<ViewPrefs>(() => readPrefs(columns,scopeKey));
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -99,18 +101,20 @@ export default function DataTable<T extends { id: string }>({
   const [filterDraft,setFilterDraft] = useState<string[]>([]);
   const [filterPosition,setFilterPosition] = useState({top:80,left:20});
   const [savedViews, setSavedViews] = useState<Record<string, ViewPrefs>>(() => {
-    try { return JSON.parse(window.localStorage.getItem(viewsKey(columns)) || "{}"); } catch { return {}; }
+    try { return JSON.parse(window.localStorage.getItem(viewsKey(columns,scopeKey)) || "{}"); } catch { return {}; }
   });
 
   useEffect(() => {
     setHiddenKeys(restoredHiddenKeys(window.localStorage.getItem(key), configurableColumns));
-    setPrefs(readPrefs(columns));
-  }, [key, configurableColumns, columns]);
+    setPrefs(readPrefs(columns,scopeKey));
+    try { setSavedViews(JSON.parse(window.localStorage.getItem(viewStorageKey)||"{}")); } catch { setSavedViews({}); }
+    setFilterKey(null);
+  }, [key, configurableColumns, columns, scopeKey, viewStorageKey]);
 
   useEffect(() => {
     const openCustomizer = () => {
       const firstTable = document.querySelector<HTMLElement>("[data-navilo-data-table]");
-      if (firstTable === rootRef.current) setCustomizeOpen(true);
+      if (firstTable === rootRef.current && !rootRef.current?.closest("[data-report-root]")) setCustomizeOpen(true);
     };
     window.addEventListener("navilo:report-customize", openCustomizer);
     return () => window.removeEventListener("navilo:report-customize", openCustomizer);
@@ -119,7 +123,7 @@ export default function DataTable<T extends { id: string }>({
   const savePrefs = (next: ViewPrefs) => {
     next = { ...next, densityVersion: 1, filters:next.filters || {} };
     setPrefs(next);
-    try { window.localStorage.setItem(prefsKey(columns), JSON.stringify(next)); } catch {}
+    try { window.localStorage.setItem(prefStorageKey, JSON.stringify(next)); } catch {}
   };
   const persistHidden = (next: Set<string>) => {
     setHiddenKeys(next);
@@ -226,7 +230,7 @@ export default function DataTable<T extends { id: string }>({
   const beginResize = (columnKey: string, startX: number, startWidth: number) => {
     const move = (event: PointerEvent) => setPrefs(current => {
       const next = { ...current, widths: { ...current.widths, [columnKey]: Math.max(90, startWidth + event.clientX - startX) } };
-      try { window.localStorage.setItem(prefsKey(columns), JSON.stringify(next)); } catch {}
+      try { window.localStorage.setItem(prefStorageKey, JSON.stringify(next)); } catch {}
       return next;
     });
     const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
@@ -319,6 +323,7 @@ export default function DataTable<T extends { id: string }>({
           {selected.size ? <span className="ml-3 font-semibold">{selected.size} selected · <button type="button" className="underline" onClick={() => setSelected(new Set())}>Clear</button></span> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className="btn-secondary h-8 min-h-8 px-2 text-xs" aria-label="Customize Smart Table" onClick={()=>setCustomizeOpen(true)}>Columns / View</button>
           <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Table density" className="input h-8 min-h-8 w-auto py-0 text-xs" value={prefs.density} onChange={e => savePrefs({ ...prefs, density:e.target.value as Density })}>
             <option value="compact">Compact</option><option value="comfortable">Comfortable</option><option value="spacious">Spacious</option>
           </NaviloSearchableSelect>
@@ -342,7 +347,7 @@ export default function DataTable<T extends { id: string }>({
         <button aria-label="Close column filter" type="button" onClick={()=>setFilterKey(null)}>✕</button></div>
       <input autoFocus aria-label="Search column values" className="input mb-2 h-9 w-full" placeholder="Search values..." value={filterSearch} onChange={e=>setFilterSearch(e.target.value)}/>
       <div className="mb-2 flex items-center justify-between gap-2 text-xs">
-        <button type="button" className="text-emerald-700 underline" onClick={()=>setFilterDraft(filterOptions)}>Select all</button>
+        <button type="button" className="text-emerald-700 underline" onClick={()=>setFilterDraft(old=>[...new Set([...old,...shownFilterOptions])])}>Select all</button>
         <button type="button" className="text-slate-600 underline" onClick={()=>setFilterDraft([])}>Clear</button>
       </div>
       <div className="max-h-52 min-h-12 space-y-1 overflow-y-auto">
@@ -389,13 +394,13 @@ export default function DataTable<T extends { id: string }>({
           <div className="mt-2 border-t border-slate-200 pt-2">
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Saved Views</div>
             <div className="flex gap-2"><input className="input !min-h-8 h-8 flex-1 text-xs" placeholder="Saved view name" value={viewName} onChange={e=>setViewName(e.target.value)}/>
-              <button type="button" className="btn-primary !min-h-8 h-8 px-3 text-xs" onClick={()=>{const name=viewName.trim();if(!name)return;const snap={...prefs,hidden:[...hiddenKeys]};const next={...savedViews,[name]:snap};setSavedViews(next);try{window.localStorage.setItem(viewsKey(columns),JSON.stringify(next))}catch{}setViewName("")}}>Save View</button>
+              <button type="button" className="btn-primary !min-h-8 h-8 px-3 text-xs" onClick={()=>{const name=viewName.trim();if(!name)return;const snap={...prefs,hidden:[...hiddenKeys]};const next={...savedViews,[name]:snap};setSavedViews(next);try{window.localStorage.setItem(viewStorageKey,JSON.stringify(next))}catch{}setViewName("")}}>Save View</button>
             </div>
-            {Object.keys(savedViews).length ? <div className="mt-2 space-y-1">{Object.keys(savedViews).map(name=><div key={name} className="flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1"><span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700">{name}</span><button type="button" className="btn-secondary !min-h-7 h-7 px-2 text-[11px]" onClick={()=>{const v=savedViews[name];savePrefs(v);persistHidden(restoredHiddenKeys(JSON.stringify(v.hidden),configurableColumns))}}>Load</button><button type="button" className="btn-secondary !min-h-7 h-7 px-2 text-[11px] text-rose-600" onClick={()=>{const next={...savedViews};delete next[name];setSavedViews(next);try{window.localStorage.setItem(viewsKey(columns),JSON.stringify(next))}catch{}}}>Delete</button></div>)}</div> : <p className="mt-1.5 text-[11px] text-slate-400">No saved views yet.</p>}
+            {Object.keys(savedViews).length ? <div className="mt-2 space-y-1">{Object.keys(savedViews).map(name=><div key={name} className="flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1"><span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700">{name}</span><button type="button" className="btn-secondary !min-h-7 h-7 px-2 text-[11px]" onClick={()=>{const v=savedViews[name];savePrefs(v);persistHidden(restoredHiddenKeys(JSON.stringify(v.hidden),configurableColumns))}}>Load</button><button type="button" className="btn-secondary !min-h-7 h-7 px-2 text-[11px] text-rose-600" onClick={()=>{const next={...savedViews};delete next[name];setSavedViews(next);try{window.localStorage.setItem(viewStorageKey,JSON.stringify(next))}catch{}}}>Delete</button></div>)}</div> : <p className="mt-1.5 text-[11px] text-slate-400">No saved views yet.</p>}
           </div>
         </div>
         <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-2.5">
-          <button type="button" className="btn-secondary !min-h-8 h-8 px-3 text-xs" onClick={()=>{try{window.localStorage.removeItem(key);window.localStorage.removeItem(prefsKey(columns))}catch{}persistHidden(new Set());savePrefs(defaultPrefs(columns));setFilterKey(null)}}>Reset Default</button>
+          <button type="button" className="btn-secondary !min-h-8 h-8 px-3 text-xs" onClick={()=>{try{window.localStorage.removeItem(key);window.localStorage.removeItem(prefStorageKey)}catch{}persistHidden(new Set());savePrefs(defaultPrefs(columns));setFilterKey(null)}}>Reset Default</button>
           <button type="button" className="btn-primary !min-h-8 h-8 px-4 text-xs" onClick={()=>setCustomizeOpen(false)}>Done</button>
         </div>
       </div>
