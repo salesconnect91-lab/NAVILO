@@ -8,6 +8,7 @@ export default function CashCounterWorkspace(){
         <NavLink to="/accounting/cash-counter" className={({isActive})=>isActive?"btn-primary":"btn-secondary"}>Cash Counter</NavLink>
         <NavLink to="/accounting/payroll" className="btn-secondary">Payroll & Salary Ledger</NavLink>
         <NavLink to="/accounting/loans" className="btn-secondary">Loan & Lender Ledger</NavLink>
+        <NavLink to="/accounting/daily-closing" className="btn-secondary">Daily Cash &amp; Bank Closing</NavLink>
       </div>
       <span data-navilo-standard-tools-host className="contents" />
     </div>
