@@ -4,6 +4,7 @@ import {detailedTransportLedger,partySearchKey,type DetailedPartyLedger} from '.
 import {registerPrintSource,showPrintDocument} from '@/lib/printDocument';
 import {ledgerStatementPrintMarkup,type LedgerPrintRow} from '@/lib/ledgerStatementPrint';
 import {useAuth} from '@/auth/AuthContext';
+import {Link} from 'react-router-dom';
 import type {PartyMovement} from '@/modules/transport/transportPartyReporting';
 import {linkedPartyRows} from '@/modules/transport/transportOpeningInvoices';
 import SearchableSelect from "@/components/SearchableSelect";
@@ -1151,7 +1152,18 @@ export default function Ledgers() {
                 ) : !selectedPartyKey&&!loadAllParties ? (
                   <tr><td colSpan={visiblePartyColumns.length} className="text-center py-8 text-slate-500">Select a party to view its ledger, or choose Load all parties.</td></tr>
                 ) : partyRowsWithBalance.length === 0 ? (
-                  <tr><td colSpan={visiblePartyColumns.length} className="text-center py-8 text-slate-400">No posted party ledger entries found for this selection.</td></tr>
+                  <tr><td colSpan={visiblePartyColumns.length} className="px-4 py-7 text-center text-slate-600">
+                    <div className="mx-auto max-w-2xl space-y-2">
+                      <p className="font-semibold text-slate-800">{selectedParty
+                        ? `No posted movements for ${selectedParty.name} in this date range.`
+                        : 'No posted party ledger entries for the current filters.'}</p>
+                      <p className="text-xs text-slate-500">A party in Customer / Supplier Master does not automatically have a financial balance. Only posted accounting entries appear here. A non-zero opening balance, if any, is shown above.</p>
+                      {selectedParty&&<div className="flex flex-wrap items-center justify-center gap-3 pt-1 text-xs">
+                        <button type="button" className="font-semibold text-blue-700 underline" onClick={()=>{setFromDate('');setToDate('')}} disabled={!fromDate&&!toDate}>Check all dates</button>
+                        <Link className="font-semibold text-blue-700 underline" to={selectedParty.type==='supplier'?'/purchase':'/sales'}>Review {selectedParty.type==='supplier'?'Purchase':'Sales'} Invoices</Link>
+                      </div>}
+                    </div>
+                  </td></tr>
                 ) : partyRowsWithBalance.slice(partyPage*200,(partyPage+1)*200).map((row) => {
                   const transport = transportInfoByJournal(row);
                   const cells: Record<PartyColumnKey, ReactNode> = {
