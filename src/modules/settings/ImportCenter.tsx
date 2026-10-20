@@ -3,6 +3,7 @@ import {downloadExcelTemplate} from '@/modules/accounting/journalImportTemplates
 import TransportExternalInvoiceImport from '@/modules/transport/TransportExternalInvoiceImport';
 import TransportNormalInvoiceImport from '@/modules/transport/TransportNormalInvoiceImport';
 import GeneralExpenseBillImport from '@/modules/purchase/GeneralExpenseBillImport';
+import DirectCashExpenseImport from '@/modules/accounting/DirectCashExpenseImport';
 import TransportVehicleExpenseImportPreview from '@/modules/transport/TransportVehicleExpenseImportPreview';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import { ArrowRight, FileText, Landmark, Truck, Users, Upload } from "lucide-react";
@@ -322,7 +323,7 @@ function TripLinkedInvoiceImports(){
  </section>
 }
 
-type ImportSection = "masters"|"rates"|"trips"|"service"|"normal"|"vehicle-expenses"|"expense"|"accounting"|"history";
+type ImportSection = "masters"|"rates"|"trips"|"service"|"normal"|"vehicle-expenses"|"expense"|"cash-expenses"|"accounting"|"history";
 const importWorkflowSections: {id:ImportSection;title:string;module:ModuleKey}[] = [
  {id:"masters",title:"Customers & Suppliers",module:"master"},
  {id:"rates",title:"Transport Masters & Rates",module:"transport"},
@@ -331,12 +332,13 @@ const importWorkflowSections: {id:ImportSection;title:string;module:ModuleKey}[]
  {id:"normal",title:"Sale / Purchase — No Trips",module:"transport"},
  {id:"vehicle-expenses",title:"Vehicle Expense Excel",module:"transport"},
  {id:"expense",title:"Expense Invoices",module:"purchase"},
+ {id:"cash-expenses",title:"Direct Cash Expense Excel",module:"accounting"},
  {id:"accounting",title:"Receipts, Payments & Journals",module:"accounting"},
  {id:"history",title:"One-time Import & Transfer",module:"transport"},
 ];
 const legacyImportSections: Record<string,ImportSection> = {
  "#import-masters":"masters","#import-daily":"service","#import-normal":"normal",
- "#import-vehicle-expenses":"vehicle-expenses","#import-expense":"expense",
+ "#import-vehicle-expenses":"vehicle-expenses","#import-expense":"expense","#import-cash-expenses":"cash-expenses",
  "#import-accounting":"accounting","#import-history":"history"
 };
 
@@ -354,6 +356,7 @@ export default function ImportCenter() {
  const section=importWorkflowSections.find(s=>s.id===requestedSection)?.id;
  const legacySection=legacyImportSections[hash];
  const permitted=(id:ImportSection)=>{
+  if(id==="cash-expenses")return canImport("accounting");
   if(id==="normal")return isTransport&&(canImport("sales")||canImport("purchase"));
   if(id==="service")return isTransport&&canImport("transport")&&canImport("sales");
   if(id==="vehicle-expenses")return isTransport&&canImport("transport");
@@ -404,6 +407,7 @@ export default function ImportCenter() {
    {section==="expense"&&<ImportGroup id="import-expense" title="Expense Invoices — With or Without VAT" detail="Non-inventory supplier bills. Use the existing expense invoice validation, draft and posting workflow.">
     <GeneralExpenseBillImport/>
    </ImportGroup>}
+   {section==="cash-expenses"&&<ImportGroup id="import-cash-expenses" title="Office / Yard / General Cash Expense Excel" detail="Supplier-less, no Accounts Payable. Validate Excel then post atomically after database rollout approval. Vehicle expenses use the separate vehicle uploader."><DirectCashExpenseImport/></ImportGroup>}
    {section==="accounting"&&<ImportGroup id="import-accounting" title="Receipts, Payments & Journals" detail="Record actual money received or paid, or create draft general journal entries.">
     {isTransport&&canImport("transport")&&canImport("accounting")&&<TransportSettlementImports/>}
     {canImport("accounting")&&<ImportEntry title="Bulk Journal Entries" effect="Drafts first; post after review" detail="Import balanced debit and credit rows; post later in Accounting." to="/accounting?import=journal" label="Open Journal Import" download={downloadExcelTemplate}/>}
