@@ -3,10 +3,11 @@ import TransportBulkCustomerRate from './TransportBulkCustomerRate';
 import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportNormalInvoiceCreate from './TransportNormalInvoiceCreate';
 
-export default function TransportInvoiceCreate({side}:{side:'customer'|'supplier'}){
+export default function TransportInvoiceCreate({side,mode}:{side:'customer'|'supplier';mode?:'service'|'normal'}){
  const navigate=useNavigate();
  const [params]=useSearchParams();
- const isSale=params.get('type')==='normal';
+ // Explicit routes always win over query parameters. The query alias remains backward compatible.
+ const isSale=(mode??params.get('type'))==='normal';
  const close=()=>navigate(side==='customer'?'/sales':'/purchase');
  const title=isSale
    ? (side==='customer'?'Sale Invoice':'Purchase Invoice')

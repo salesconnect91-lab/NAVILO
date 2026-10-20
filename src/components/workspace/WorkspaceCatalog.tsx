@@ -65,7 +65,7 @@ export function WorkspaceCatalogProvider({children}:{children:ReactNode}) {
   const quick:CatalogEntry[]=[];
   const create=(key:string,label:string,to:string,module:ModuleKey,featureKey=key)=>{if(moduleAllowed(module,"create")&&access.isFeatureEnabled(featureKey,"create"))quick.push({key:`create-${key}`,label,to,module,group:"Quick Create",report:false})};
   create("sales-invoices","Sale Invoice",unit?.business_unit_type==="transport"?"/sales/new?type=normal":"/sales/new","sales");
-  create("purchase-invoices","Purchase Invoice",unit?.business_unit_type==="transport"?"/purchase/new?type=normal":"/purchase/new","purchase");
+  create("purchase-invoices","Purchase Invoice",unit?.business_unit_type==="transport"?"/purchase/normal/new":"/purchase/new","purchase");
   create("expense-invoice","Expense Invoice","/purchase/expense/new","purchase","purchase-invoices");
   create("journal","Journal Entry","/accounting","accounting");
   create("cash-counter","Receipt / Payment","/accounting/cash-counter","accounting");

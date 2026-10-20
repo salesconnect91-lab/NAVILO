@@ -7,7 +7,7 @@ const mock=vi.hoisted(()=>({type:'transport'}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeBusinessUnit:{business_unit_type:mock.type}})}));
 vi.mock('./PurchaseOrderList',()=>({default:()=> <div>Purchase index</div>}));
 vi.mock('./MainPurchaseInvoiceV2',()=>({default:()=> <div>Inventory Purchase Invoice</div>}));
-vi.mock('@/modules/transport/TransportInvoiceCreate',()=>({default:({side}:{side:string})=><div>Transport {side} Invoice</div>}));
+vi.mock('@/modules/transport/TransportInvoiceCreate',()=>({default:({side,mode}:{side:string;mode?:string})=><div>Transport {side} {mode??'legacy'} Invoice</div>}));
 vi.mock('./GeneralExpenseBillCreate',()=>({default:()=> <div>Expense Invoice Create</div>}));
 vi.mock('./GeneralExpenseBillImport',()=>({default:()=> <div>Expense Invoice Import</div>}));
 vi.mock('./PurchaseInvoiceDetail',()=>({default:()=> <div>Purchase Detail</div>}));
@@ -22,10 +22,18 @@ function open(path:string){
 }
 describe('Purchase section nested navigation',()=>{
  it('opens Purchase List on /purchase',()=>{open('/purchase');expect(screen.getByText('Purchase index')).toBeTruthy()});
- it('opens Transport supplier invoice on /purchase/new and preserves query type',()=>{
+ it('uses distinct direct routes for service rent and non-trip supplier invoices',()=>{
+  mock.type='transport';
+  const service=open('/purchase/trip-service/new');
+  expect(screen.getByText('Transport supplier service Invoice')).toBeTruthy();
+  service.unmount();
+  open('/purchase/normal/new');
+  expect(screen.getByText('Transport supplier normal Invoice')).toBeTruthy();
+ });
+ it('keeps legacy query-based purchase bookmarks functional',()=>{
   mock.type='transport';
   open('/purchase/new?type=service');
-  expect(screen.getByText('Transport supplier Invoice')).toBeTruthy();
+  expect(screen.getByText('Transport supplier legacy Invoice')).toBeTruthy();
  });
  it('keeps Inventory Purchase Invoice for non-transport companies',()=>{
   mock.type='steel';open('/purchase/new');expect(screen.getByText('Inventory Purchase Invoice')).toBeTruthy();mock.type='transport';
