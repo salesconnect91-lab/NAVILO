@@ -1,5 +1,6 @@
 import {TEMPLATE_HEADERS,TEMPLATE_ROWS,downloadCSVTemplate,downloadExcelTemplate} from './journalImportTemplates';
-import {downloadFundedJournalTemplate,expandFundedJournalRows,isFundedJournalTemplate} from './journalFundedImport';
+import {expandFundedJournalRows,isFundedJournalTemplate} from './journalFundedImport';
+import {downloadSimpleJournalTemplate,isSimpleJournalTemplate,normalizeSimpleJournalRows} from './journalSimpleImport';
 import { createPrintDocument } from "@/lib/printDocument";
 import OwnerJournalAuditHistory from "./OwnerJournalAuditHistory";
 import JournalEntryOverview from "./JournalEntryOverview";
@@ -652,10 +653,12 @@ export default function JournalEntryList() {
         );
       }
 
-      // Simple funded sheet is converted into standard TWO-line balanced journals
-      // before the existing validation, duplicate checks and Draft-only RPC.
-      // The second (Funding Account) line never carries a vehicle tag.
-      if (isFundedJournalTemplate(rawRows[0])) {
+      // The General Journal-like simple Debit/Credit sheet goes through the
+      // SAME existing advanced validation and Draft-only RPC. Previously
+      // downloaded funded/advanced files remain import-compatible.
+      if (isSimpleJournalTemplate(rawRows[0])) {
+        rawRows = normalizeSimpleJournalRows(rawRows);
+      } else if (isFundedJournalTemplate(rawRows[0])) {
         rawRows = expandFundedJournalRows(rawRows);
       }
       const headers =
@@ -3066,11 +3069,11 @@ export default function JournalEntryList() {
                     </h3>
 
                     <p className="text-xs text-slate-600 mt-1">
-                      <strong>Simple funded Excel:</strong> one transaction per row with the debit Account, Vehicle (if it is a real expense) and Funding Account (e.g. Amjad Payable).
-                      The preview creates two balanced lines automatically. No Bank/Cash is assumed.
+                      <strong>Simple Journal Excel:</strong> same Account, Line Description, Related To, Debit and Credit columns as a normal Journal Entry.
+                      Use one row for Debit and another for Credit with the same Entry No. Example: Expense Dr with Vehicle 7979, Amjad Payable Cr.
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      The advanced journal template keeps the manual Debit/Credit format. Posted ledgers change only after Draft review and Post.
+                      Both Simple and Advanced Excel keep explicit Debit/Credit. Posted ledgers change only after Draft review and Post.
                     </p>
 
                     <p className="text-xs text-slate-500 mt-1">
@@ -3080,9 +3083,9 @@ export default function JournalEntryList() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={downloadFundedJournalTemplate}
+                    <button type="button" onClick={downloadSimpleJournalTemplate}
                       className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold">
-                      Simple Funded Excel
+                      Simple Journal Excel (Debit / Credit)
                     </button>
                     <button
                       type="button"
@@ -3109,9 +3112,10 @@ export default function JournalEntryList() {
                 </div>
 
                 <div className="mt-2 text-[11px] text-amber-800">
-                  Vehicle repairs: Debit operating expense + Vehicle tag, Credit Amjad Payable.
-                  Existing driver payable: Debit driver running account, Credit Amjad Payable (not wages again).
-                  Syarah wallet recharge: Debit wallet asset, Credit Amjad Payable (not fuel expense).
+                  Every transaction needs balanced Debit and Credit lines with the same Entry No.
+                  Vehicle repairs: Expense Debit + Vehicle tag, Amjad Payable Credit.
+                  Existing driver payable: Driver Running Debit, Amjad Payable Credit (not wages again).
+                  Syarah wallet recharge: Current Asset Debit, Amjad Payable Credit (not fuel expense).
                 </div>
                 <details className="mt-3">
                   <summary className="cursor-pointer text-xs font-semibold text-slate-600">Advanced Journal Excel columns (optional)</summary>
@@ -3186,7 +3190,7 @@ export default function JournalEntryList() {
                 </h3>
 
                 <p className="text-xs text-slate-500 mt-1 mb-4">
-                  CSV, XLS or XLSX · Simple funded or advanced journal
+                  CSV, XLS or XLSX · Simple Debit/Credit or Advanced Journal
                 </p>
 
                 <label className="inline-flex cursor-pointer">

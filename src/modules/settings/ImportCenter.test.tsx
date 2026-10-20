@@ -5,8 +5,8 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { MemoryRouter } from "react-router-dom";
 import ImportCenter from "./ImportCenter";
-import {downloadFundedJournalTemplate} from "@/modules/accounting/journalFundedImport";
-vi.mock("@/modules/accounting/journalFundedImport",async(importOriginal)=>({...await importOriginal<typeof import("@/modules/accounting/journalFundedImport")>(),downloadFundedJournalTemplate:vi.fn()}));
+import {downloadSimpleJournalTemplate} from "@/modules/accounting/journalSimpleImport";
+vi.mock("@/modules/accounting/journalSimpleImport",async(importOriginal)=>({...await importOriginal<typeof import("@/modules/accounting/journalSimpleImport")>(),downloadSimpleJournalTemplate:vi.fn()}));
 
 vi.mock('@/modules/purchase/GeneralExpenseBillImport',()=>({default:()=> <div>Expense Invoice Bulk Import</div>}));
 vi.mock('@/modules/transport/TransportVehicleExpenseImportPreview',()=>({default:()=> <div>Vehicle Expense Excel Import</div>}));
@@ -53,11 +53,11 @@ describe("import center workflow routing", () => {
   expect(screen.queryByRole("heading",{name:"Customers"})).toBeNull();
   expect(screen.queryByRole("heading",{name:"Transport Sales Invoice Import"})).toBeNull();
  });
- it("routes Import Center Bulk Journal download to the simple funded journal Excel generator",()=>{
+ it("routes Bulk Journal download to the simple explicit Debit / Credit Excel generator",()=>{
   render(<MemoryRouter initialEntries={["/settings/imports?section=accounting"]}><ImportCenter/></MemoryRouter>);
   const card=screen.getByRole("heading",{name:"Bulk Journal Entries"}).closest("section")!;
-  fireEvent.click(within(card).getByRole("button",{name:"Download Simple Excel"}));
-  expect(downloadFundedJournalTemplate).toHaveBeenCalledTimes(1);
+  fireEvent.click(within(card).getByRole("button",{name:"Download Simple Journal Excel (Dr / Cr)"}));
+  expect(downloadSimpleJournalTemplate).toHaveBeenCalledTimes(1);
  });
  it("keeps receipts and journals separate from invoices",()=>{
   render(<MemoryRouter initialEntries={["/settings/imports?section=accounting"]}><ImportCenter/></MemoryRouter>);
