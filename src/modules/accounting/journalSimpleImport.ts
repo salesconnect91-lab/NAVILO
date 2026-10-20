@@ -85,7 +85,7 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   const suppliedId=str(row[idx('entry_no')]);
   const suppliedDate=journalImportISODate(row[idx('entry_date')]);
   const entry=suppliedId||currentEntry;
-  const date=suppliedDate||(!suppliedId?currentDate:'');
+  const date=suppliedDate||(!suppliedId||suppliedId.toLowerCase()===currentEntry.toLowerCase()?currentDate:'');
   if(!entry||entry.length>80)throw Error(`Row ${line}: Entry No is required for the first row of every journal (max 80 characters).`);
   if(!validDate(date))throw Error(`Row ${line}: enter a valid YYYY-MM-DD date on the first row of this journal.`);
   if(suppliedId){currentEntry=entry;currentDate=date;}
