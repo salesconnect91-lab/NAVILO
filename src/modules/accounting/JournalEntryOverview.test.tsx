@@ -60,7 +60,7 @@ describe('Journal Entry list detailed preview',()=>{
   expect(screen.getByText('Journal voucher lines · JE-00001')).toBeTruthy();
   expect(screen.getByText('TOTAL · 2 lines')).toBeTruthy();
   fireEvent.click(screen.getByRole('button',{name:'Next'}));
-  await waitFor(()=>expect(state.fetched.filter(x=>x.table==='journal_lines').at(-1)?.ids).toHaveLength(6));
+  await waitFor(()=>expect(state.fetched.filter(x=>x.table==='journal_lines').slice(-1)[0]?.ids).toHaveLength(6));
   expect(screen.getByText('Showing 26–31 of 31. Journal details are read-only.')).toBeTruthy();
  });
  it('does not present missing journal details as zero when read fails',async()=>{
