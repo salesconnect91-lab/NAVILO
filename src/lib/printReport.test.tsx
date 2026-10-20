@@ -64,7 +64,7 @@ describe('document report data contract',()=>{
   const rows=Array.from({length:61},(_,i)=>({id:String(i),name:`Party ${String(i).padStart(2,'0')}`,amount:i}));
   const {container}=render(<main><h1>Parties</h1><DataTable showSerialNumber columns={[{key:'name',label:'Party'},{key:'amount',label:'Amount',className:'text-right'},{key:'actions',label:'Actions',render:()=> <button>Edit</button>}]} rows={rows}/></main>);
   expect(container.querySelectorAll('tbody tr').length).toBe(25);
-  fireEvent.click(screen.getByRole('button',{name:'Party'}));fireEvent.click(screen.getByRole('button',{name:/Party/}));
+  fireEvent.click(screen.getByRole('button',{name:'Party'}));fireEvent.click(screen.getByRole('button',{name:'Party'}));
   const report=await buildReport(container.querySelector('main')!,{companyName:'Orbit',businessUnitName:'Head Office'});
   const doc=new DOMParser().parseFromString(report.html,'text/html');
   expect(doc.querySelectorAll('tbody tr').length).toBe(61);expect(doc.querySelector('tbody tr')?.textContent).toContain('Party 60');
@@ -153,7 +153,8 @@ it('keeps totals and removes action controls without deleting sortable column na
  it('offers column customization for legacy print requests and restores the original complete snapshot',async()=>{
   render(<PrintPreviewController/>);
   window.dispatchEvent(new CustomEvent('navilo:print-preview',{detail:{html:'<table><thead><tr><th>Description</th><th>Amount</th></tr></thead><tbody><tr><td>Trip waiting</td><td>400</td></tr></tbody></table>',title:'Trip Statement'}}));
-  await waitFor(()=>expect(screen.getByRole('checkbox',{name:'Amount'})).toBeTruthy());
+  fireEvent.click(await screen.findByRole('button',{name:'Customize Print'}));
+   await waitFor(()=>expect(screen.getByRole('checkbox',{name:'Amount'})).toBeTruthy());
   fireEvent.click(screen.getByRole('checkbox',{name:'Amount'}));
   const frame=screen.getByTitle('Document pages') as HTMLIFrameElement;
   expect(frame.srcdoc).toContain('Trip waiting');expect(frame.srcdoc).not.toContain('<th colspan="1">Amount</th>');
