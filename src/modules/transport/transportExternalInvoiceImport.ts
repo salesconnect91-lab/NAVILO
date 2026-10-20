@@ -28,3 +28,21 @@ export function parseExternalInvoiceRows(raw:Record<string,unknown>[]):ExternalI
  for(const row of rows){const group=row.invoice_no.toLowerCase()||`cash:${row.source_reference.toLowerCase()}`;const prior=invoices.get(group);if(prior&&(prior.customer.toLowerCase()!==row.customer.toLowerCase()||prior.invoice_date!==row.invoice_date||prior.sale_type!==row.sale_type||prior.tax_percent!==row.tax_percent))throw new Error(`Invoice ${row.invoice_no}: all lines must use the same Customer, Invoice Date, Cash/Credit and VAT rate.`);invoices.set(group,row);}
  return rows;
 }
+
+
+/** Refuse import if server preview silently changes the invoice date from
+ * the user's Excel. This protects the date that will later drive GL posting. */
+export function assertExternalInvoicePreviewDates(
+ original:Pick<ExternalInvoiceRow,'source_reference'|'invoice_date'>[],
+ preview:Pick<ExternalInvoiceRow,'source_reference'|'invoice_date'>[]
+):void{
+ if(original.length!==preview.length)throw new Error('Import preview row count differs from the Excel. Import blocked.');
+ const expected=new Map(original.map(row=>[row.source_reference.trim().toLowerCase(),row.invoice_date]));
+ for(const row of preview){
+  const key=String(row.source_reference??'').trim().toLowerCase();
+  const date=expected.get(key);
+  if(!date||row.invoice_date!==date)throw new Error('Import preview invoice date differs from your Excel. Import blocked; re-upload and verify Invoice / Bill Date.');
+  expected.delete(key);
+ }
+ if(expected.size)throw new Error('Import preview is missing Excel invoice rows. Import blocked.');
+}
