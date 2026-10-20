@@ -83,16 +83,17 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  const amount=useMemo(()=>lines.reduce((total,l)=>total+(Number(l.amount)||0),0),[lines]);
  const amounts=useMemo(()=>lines.map(l=>Number(l.amount)||0),[lines]);
  const vatQuote=useNormalInvoiceVatQuote({company,bu,side,party,date,choice:vatChoice,amounts});
- const needsOriginalInvoice=side==='customer'&&vatQuote.mode==='Credit';
+ const needsOriginalInvoice=side==='supplier'||(side==='customer'&&vatQuote.mode==='Credit');
  const originalNumberError=needsOriginalInvoice&&(
     !number.trim()||/^H-S-/i.test(number.trim())||/^(YES|CLEARED|NO INVOICE|BAD DEBTS|PENDING)$/i.test(number.trim())
-  )?'Credit Sales requires a genuine original invoice number (also for drafts).':null;
+  )?(side==='supplier'?'Supplier Purchase requires a genuine original invoice number before saving or posting.':'Credit Sales requires a genuine original invoice number (also for drafts).'):null;
  const lineError=validateNormalInvoiceLines(lines)
   ||(side==='customer'&&lines.some(l=>!l.vehicle_id)?'Select a company-owned vehicle for every Normal Sale invoice line.':null)
   ||(lines.some(l=>l.vehicle_id&&!eligibleVehicles.some(v=>v.id===l.vehicle_id))?'Select a company-owned vehicle valid on invoice date.':null);
  const available=loadedScope===scope&&!loading&&!saving&&!done&&Boolean(party&&account&&date)&&!lineError&&vatQuote.ready
   &&(side!=='customer'||account!==serviceRevenueId)&&!originalNumberError;
- // A supplier bill can be saved as a draft without its original number, but cannot post without it.
+ // Supplier original references are required even for new drafts: the backend must never
+ // substitute a generated internal number for the actual supplier invoice number.
  const canPost=available&&(side!=='supplier'||Boolean(number.trim()));
  const update=(index:number,k:keyof Line,value:string)=>setLines(old=>old.map((line,i)=>i===index?{...line,[k]:value}:line));
  async function save(post:boolean){
@@ -202,7 +203,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
     <p className="navilo-invoice-small-note">VAT follows the party's Master Cash/Credit rule and the invoice-date effective tax rate. A draft does not post accounting entries.</p>
     {vatQuote.error&&<p role="alert" className="navilo-invoice-inline-warning">{vatQuote.error} <button type="button" className="underline font-semibold" onClick={()=>setVatChoice("master")}>Use Master VAT</button> <Link to={side==='customer'?'/master-data/customers?tab=billing':'/master-data/suppliers'}>Open Master</Link></p>}
     {originalNumberError&&<p role="status" className="navilo-invoice-inline-warning">{originalNumberError}</p>}
-    {side==='supplier'&&!number.trim()&&<p role="status" className="navilo-invoice-inline-warning">Enter the supplier's original invoice number before posting. Drafts may be saved without posting payables or expenses.</p>}
+    {side==='supplier'&&!number.trim()&&<p className="navilo-invoice-small-note">Enter the supplier's original invoice number. No expense or payable is posted until the invoice is explicitly posted.</p>}
     {vatQuote.loading&&<p role="status" className="navilo-invoice-small-note">Loading VAT rate and Master billing mode…</p>}
     <p className="navilo-invoice-small-note">{side==='customer'?'Normal Sales revenue posts to the selected Sales Revenue GL; each line must be assigned to one company-owned vehicle for the vehicle-wise P&L. No Trip Register posting.':'A posted Purchase Invoice creates the expense, applicable input VAT and supplier payable once. Select the company-owned vehicle on each related cost line for vehicle-wise P&L; leave it blank only for genuinely general expenses. Pay the supplier separately. Do not also post a Journal Entry for the same bill.'}</p>
     {lineError&&<p role="status" className="navilo-invoice-inline-warning">{lineError}</p>}
