@@ -1,0 +1,120 @@
+/* Final ERP screen layer. Loaded last so the existing module styles share one
+   compact visual contract; Transport Register and print surfaces are excluded. */
+@media screen {
+  :root {
+    --navilo-screen-canvas: #f5f8f7;
+    --navilo-screen-surface: #fff;
+    --navilo-screen-ink: #183743;
+    --navilo-screen-muted: #60777a;
+    --navilo-screen-line: #d5e1df;
+    --navilo-screen-primary: #087f68;
+  }
+
+  html,
+  body,
+  #root {
+    min-width: 320px;
+    min-height: 100%;
+  }
+
+  .erp-shell.navilo-modern {
+    background: var(--navilo-screen-canvas) !important;
+    color: var(--navilo-screen-ink);
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) {
+    min-width: 0;
+    padding: 8px 12px !important;
+  }
+
+  /* Let wide data screens use the workspace width while retaining intentional
+     max-width constraints on dialogs, forms and small content blocks. */
+  .erp-shell.navilo-modern #navilo-main-content > div.mx-auto[class~="max-w-7xl"]:not(:has([role="dialog"])) {
+    width: 100%;
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content > div.mx-auto[class~="max-w-6xl"]:not(:has([role="dialog"])) {
+    width: 100%;
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content :is(.card, .table-shell):not(:where([data-navilo-transport-register] *, [data-navilo-print-preview] *)) {
+    border-color: var(--navilo-screen-line);
+    box-shadow: 0 1px 3px rgb(19 53 62 / 5%);
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) table:not(:where([data-navilo-transport-register] *, .navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-print-preview] *)) {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) table:not(:where([data-navilo-transport-register] *, .navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-print-preview] *)) :is(th, td) {
+    line-height: 1.35;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) table:not(:where([data-navilo-transport-register] *, .navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-print-preview] *)) thead th {
+    background: #edf5f3;
+    color: #214c54;
+    border-bottom-color: #c7dad5;
+  }
+
+  .navilo-journal-overview-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(64px, 1fr));
+    min-width: 136px;
+    gap: 4px;
+  }
+
+  .navilo-journal-overview-actions :is(button, a) {
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 26px;
+    padding: 4px 6px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  /* Keep the original Transport register columns and sequence while making
+     the dense sheet comfortable to read at standard desktop zoom. */
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport table {
+    font-size: 12px !important;
+  }
+
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport thead tr:nth-child(2) th {
+    padding: 3px 5px !important;
+    font-size: 11px !important;
+    line-height: 13px !important;
+  }
+
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport tbody tr,
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport tbody td {
+    height: 28px !important;
+    max-height: 28px !important;
+  }
+
+  .erp-shell #navilo-main-content [data-navilo-transport-register] .navilo-transport-trips-scrollport tbody td {
+    padding-right: 4px !important;
+    padding-left: 4px !important;
+    font-size: 12px !important;
+    line-height: 14px !important;
+  }
+
+  @media (max-width: 767px) {
+    .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) {
+      padding: 8px !important;
+    }
+
+    .erp-shell.navilo-modern #navilo-main-content > div.mx-auto[class~="max-w-7xl"],
+    .erp-shell.navilo-modern #navilo-main-content > div.mx-auto[class~="max-w-6xl"] {
+      min-width: 0;
+    }
+
+    .navilo-journal-overview-actions {
+      min-width: 128px;
+      grid-template-columns: repeat(2, minmax(58px, 1fr));
+    }
+  }
+}
