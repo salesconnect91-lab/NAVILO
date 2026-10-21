@@ -60,6 +60,35 @@
     margin-inline: 0 !important;
   }
 
+  /* Apply a compact screen rhythm across every ERP module. Keep dialog and
+     print layouts at their designed sizes; Transport has its own grid rules. */
+  .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) :is([class~="p-6"], [class~="p-7"], [class~="p-8"]):not([role="dialog"]):not([data-navilo-ui-dialog]):not(:where([role="dialog"] *, [data-navilo-ui-dialog] *, [data-navilo-print-preview] *, [data-navilo-transport-register] *) ) {
+    padding: 12px !important;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) :is([class~="px-6"], [class~="px-7"], [class~="px-8"]):not(:where([role="dialog"] *, [data-navilo-ui-dialog] *, [data-navilo-print-preview] *, [data-navilo-transport-register] *) ) {
+    padding-inline: 12px !important;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) :is([class~="py-6"], [class~="py-7"], [class~="py-8"]):not(:where([role="dialog"] *, [data-navilo-ui-dialog] *, [data-navilo-print-preview] *, [data-navilo-transport-register] *) ) {
+    padding-block: 10px !important;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) :is([class~="space-y-6"], [class~="space-y-7"], [class~="space-y-8"]):not(:where([role="dialog"] *, [data-navilo-ui-dialog] *, [data-navilo-print-preview] *, [data-navilo-transport-register] *)) > :not(:first-child) {
+    margin-block-start: 12px !important;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) :is([class~="gap-6"], [class~="gap-7"], [class~="gap-8"]):not(:where([role="dialog"] *, [data-navilo-ui-dialog] *, [data-navilo-print-preview] *, [data-navilo-transport-register] *)) {
+    gap: 12px !important;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) :is([class~="mt-6"], [class~="mt-7"], [class~="mt-8"]):not(:where([role="dialog"] *, [data-navilo-ui-dialog] *, [data-navilo-print-preview] *, [data-navilo-transport-register] *)) { margin-block-start: 12px !important; }
+  .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) :is([class~="mb-6"], [class~="mb-7"], [class~="mb-8"]):not(:where([role="dialog"] *, [data-navilo-ui-dialog] *, [data-navilo-print-preview] *, [data-navilo-transport-register] *)) { margin-block-end: 12px !important; }
+
+  .erp-shell.navilo-modern #navilo-main-content:not([data-neus-route^="/transport"]) table:not(:where([data-navilo-transport-register] *, .navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-print-preview] *)) tbody td {
+    padding-block: 6px;
+  }
+
   .erp-shell.navilo-modern #navilo-main-content :is(.card, .table-shell):not(:where([data-navilo-transport-register] *, [data-navilo-print-preview] *)) {
     border-color: var(--navilo-screen-line);
     box-shadow: 0 1px 3px rgb(19 53 62 / 5%);
