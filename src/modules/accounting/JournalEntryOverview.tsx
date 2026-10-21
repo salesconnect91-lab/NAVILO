@@ -128,17 +128,17 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
       return <tr key={entry.id}><td colSpan={8} className="p-0">
        <table className="w-full table-fixed text-xs"><tbody>
         <tr className="hover:bg-slate-50">
-         <td className="w-[14%] px-2 py-1 align-middle">
+         <td className="w-[12%] px-2 py-1 align-middle">
           <Link to={`/accounting/${entry.id}`} className="font-semibold text-blue-700 hover:underline">{entry.entry_no}</Link>
           <div className="text-slate-500 leading-tight">{formatDate(entry.entry_date)}</div>
          </td>
-         <td className="w-[19%] px-2 py-1 align-middle">
+         <td className="w-[16%] px-2 py-1 align-middle">
           <div className="max-w-[250px] break-words text-slate-800">{entry.description||'—'}</div>
           <div className="text-[10px] text-slate-500 leading-tight">{sourceType}</div>
          </td>
-         <td className="w-[15%] px-2 py-1 align-middle text-slate-700">{info?info.accountsDr||'—':loading?'Loading…':'—'}</td>
-         <td className="w-[15%] px-2 py-1 align-middle text-slate-700">{info?info.accountsCr||'—':loading?'Loading…':'—'}</td>
-         <td className="w-[14%] px-2 py-1 align-middle">
+         <td className="w-[13%] px-2 py-1 align-middle text-slate-700">{info?info.accountsDr||'—':loading?'Loading…':'—'}</td>
+         <td className="w-[13%] px-2 py-1 align-middle text-slate-700">{info?info.accountsCr||'—':loading?'Loading…':'—'}</td>
+         <td className="w-[12%] px-2 py-1 align-middle">
           {info?.party&&<div className="text-slate-800">Party: {info.party}</div>}
           {info?.vehicles&&<div className="text-blue-800">Vehicle: {info.vehicles}</div>}
           {!info&&!loading?'—':!info?'Loading…':!info.party&&!info.vehicles?'—':null}
@@ -147,16 +147,16 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
           {info?<><div>{money(info.debit,currency)}</div>
            {!info.balanced&&<div className="text-rose-700" title="Journal debit and credit do not reconcile">Cr {money(info.credit,currency)} — Check</div>}</>:loading?'Loading…':'—'}
          </td>
-         <td className="w-[7%] px-1 py-1 text-center align-middle"><StatusBadge status={entry.status}/></td>
-         <td className="w-[6%] px-1 py-1 align-middle">
-          <div className="grid grid-cols-2 gap-0.5">
+         <td className="w-[8%] px-1 py-1 text-center align-middle"><StatusBadge status={entry.status}/></td>
+         <td className="w-[16%] px-1 py-1 align-middle">
+          <div className="grid grid-cols-2 gap-1">
            <button aria-label={`Show lines for ${entry.entry_no}`} aria-expanded={open} type="button"
-            onClick={toggle} disabled={!info} className="rounded border px-1 py-0.5 text-[11px] text-blue-700 disabled:opacity-40">{open?'Hide':'Details'}</button>
-           <Link className="rounded border px-1 py-0.5 text-center text-[11px] text-blue-700" to={`/accounting/${entry.id}`}>Open</Link>
-           {!entry.entry_no.startsWith('COB-')&&<button className="rounded border px-1 py-0.5 text-[11px]" type="button"
+            onClick={toggle} disabled={!info} className="min-w-0 rounded border px-1.5 py-1 text-[11px] text-blue-700 disabled:opacity-40">{open?'Hide':'Details'}</button>
+           <Link className="min-w-0 rounded border px-1.5 py-1 text-center text-[11px] text-blue-700" to={`/accounting/${entry.id}`}>Open</Link>
+           {!entry.entry_no.startsWith('COB-')&&<button className="min-w-0 rounded border px-1.5 py-1 text-[11px]" type="button"
              onClick={()=>onCopy(entry)} disabled={!!copyingId} title="Copy as an editable draft">
              {copyingId===entry.id?'…':'Copy'}</button>}
-           <button className="rounded border px-1 py-0.5 text-[11px]" type="button" onClick={()=>onPrint(entry)}>Print</button>
+           <button className="min-w-0 rounded border px-1.5 py-1 text-[11px]" type="button" onClick={()=>onPrint(entry)}>Print</button>
           </div>
          </td>
         </tr>
