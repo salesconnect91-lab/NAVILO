@@ -137,7 +137,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
           <div className="text-slate-500 leading-tight">{formatDate(entry.entry_date)}</div>
          </td>
          <td className="w-[16%] px-2 py-1 align-middle">
-          <div className="max-w-[250px] break-words text-slate-800">{entry.description||'—'}</div>
+          <div className="line-clamp-2 max-w-[250px] break-words text-slate-800" title={entry.description||'—'}>{entry.description||'—'}</div>
           <div className="text-[10px] text-slate-500 leading-tight">{sourceType}</div>
          </td>
          <td className="w-[13%] px-2 py-1 align-middle text-slate-700">{info?info.accountsDr||'—':loading?'Loading…':'—'}</td>

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 
-const NON_SEARCH_ROUTES=[/^\/sales\/(new|[^/]+\/edit)$/, /^\/purchase\/new$/, /^\/settings(?:\/|$)/, /^\/owner(?:\/|$)/];
+const NON_SEARCH_ROUTES=[/^\/sales\/(new|[^/]+\/edit)$/, /^\/purchase\/new$/, /^\/accounting$/, /^\/settings(?:\/|$)/, /^\/owner(?:\/|$)/];
 function isSearchableRoute(pathname:string){return !NON_SEARCH_ROUTES.some(rule=>rule.test(pathname))}
 function hasNativeSearch(root:HTMLElement|null){
  if(!root)return false;
