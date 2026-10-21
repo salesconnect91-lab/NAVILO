@@ -10,6 +10,17 @@ import { pathToFileURL } from "node:url";
 
 export const productionRef = "ijdaosaqpbgnqojudjbj";
 
+export function assertLocalApiUrl(url) {
+  let parsed;
+  try { parsed = new URL(url); } catch { throw new Error("Invalid local Supabase API URL."); }
+  if (parsed.protocol !== "http:" || parsed.username || parsed.password
+      || !["127.0.0.1", "localhost"].includes(parsed.hostname)
+      || parsed.port !== "54321" || url.includes(productionRef)) {
+    throw new Error("Refusing non-local Supabase endpoint. Only plain http://localhost:54321 is permitted.");
+  }
+  return parsed.origin;
+}
+
 export function readLocalStatus() {
   const isWindows = process.platform === "win32";
   const executable = isWindows
@@ -44,12 +55,7 @@ export function readLocalStatus() {
   if (!url || !publicKey || !secretKey) {
     throw new Error("Supabase local status did not provide API, publishable/anon and secret/service-role values.");
   }
-  const parsed = new URL(url);
-  if (!["127.0.0.1", "localhost"].includes(parsed.hostname) || parsed.port !== "54321") {
-    throw new Error("Refusing non-local Supabase endpoint. This runner only accepts localhost:54321.");
-  }
-  if (url.includes(productionRef)) throw new Error("Production Supabase is explicitly refused.");
-  return { url: parsed.origin, publicKey, secretKey };
+  return { url: assertLocalApiUrl(url), publicKey, secretKey };
 }
 
 export async function requestJson(url, path, apiKey, bearer, options = {}) {
@@ -170,7 +176,7 @@ function record(role, test, expected, result, pass, successValue) {
 
 export async function provision(local) {
   const runId = `${Date.now()}-${randomBytes(3).toString("hex")}`;
-  const labels = ["owner", "accountsA", "salesA", "viewerA", "revokedA", "tenantB"];
+  const labels = ["owner", "ownerA", "ownerB", "accountsA", "salesA", "viewerA", "revokedA", "tenantB"];
   const identities = {};
   for (const label of labels) identities[label] = await createIdentity(local, label.toLowerCase(), runId);
 
@@ -215,6 +221,8 @@ export async function provision(local) {
   ]);
 
   const profileRows = [
+    ["ownerA", "admin", companyA, businessUnitA1, branchA1],
+    ["ownerB", "admin", companyB, businessUnitB1, branchB1],
     ["accountsA", "accountant", companyA, businessUnitA1, branchA1],
     ["salesA", "sales", companyA, businessUnitA1, branchA1],
     ["viewerA", "viewer", companyA, businessUnitA1, branchA1],
@@ -236,6 +244,8 @@ export async function provision(local) {
   await serviceInsert(local, "user_profiles", profileRows);
 
   await serviceInsert(local, "company_memberships", [
+    { company_id: companyA, user_id: identities.ownerA.id, role: "company_owner", is_active: true },
+    { company_id: companyB, user_id: identities.ownerB.id, role: "company_owner", is_active: true },
     { company_id: companyA, user_id: identities.accountsA.id, role: "accounts", is_active: true },
     { company_id: companyA, user_id: identities.salesA.id, role: "sales", is_active: true },
     { company_id: companyA, user_id: identities.viewerA.id, role: "viewer", is_active: true },
@@ -244,6 +254,8 @@ export async function provision(local) {
   ]);
 
   const memberships = [
+    [companyA, businessUnitA1, branchA1, "ownerA", "company_owner", true],
+    [companyB, businessUnitB1, branchB1, "ownerB", "company_owner", true],
     [companyA, businessUnitA1, branchA1, "accountsA", "accounts", true],
     [companyA, businessUnitA1, branchA1, "salesA", "sales", true],
     [companyA, businessUnitA1, branchA1, "viewerA", "viewer", true],
@@ -274,6 +286,12 @@ export async function provision(local) {
     [companyA, businessUnitA1], [companyA, businessUnitA2], [companyB, businessUnitB1], [companyB, businessUnitB2],
   ].flatMap(([company_id, business_unit_id]) => modules.map((module_key) => ({ company_id, business_unit_id, module_key, enabled: true }))), "business_unit_id,module_key");
 
+  const accountsA = await serviceSelect(local, "chart_of_accounts", `select=id&company_id=eq.${companyA}&limit=1`);
+  const accountsB = await serviceSelect(local, "chart_of_accounts", `select=id&company_id=eq.${companyB}&limit=1`);
+  if (accountsA.length !== 1 || accountsB.length !== 1) throw new Error("Both synthetic tenants require bootstrapped Chart of Accounts records.");
+  const accountA = accountsA[0].id;
+  const accountB = accountsB[0].id;
+
   const customerA = randomUUID();
   const customerB = randomUUID();
   const ownerToken = await signIn(local, identities.owner);
@@ -291,14 +309,14 @@ export async function provision(local) {
 
   return {
     identities, companyA, companyB, businessUnitA1, businessUnitA2, businessUnitB1, businessUnitB2,
-    branchA1, branchA2, branchB1, branchB2, customerA, customerB,
+    branchA1, branchA2, branchB1, branchB2, customerA, customerB, accountA, accountB,
   };
 }
 
 async function runTests(local, fixture) {
-  const activeRoles = ["accountsA", "salesA", "viewerA", "tenantB"];
+  const activeRoles = ["ownerA", "ownerB", "accountsA", "salesA", "viewerA", "tenantB"];
   for (const role of activeRoles) {
-    const isTenantB = role === "tenantB";
+    const isTenantB = role === "tenantB" || role === "ownerB";
     const token = await signIn(local, fixture.identities[role]);
     const ownCompany = isTenantB ? fixture.companyB : fixture.companyA;
     const foreignCompany = isTenantB ? fixture.companyA : fixture.companyB;
@@ -306,6 +324,9 @@ async function runTests(local, fixture) {
     const inaccessibleOwnCompanyUnit = isTenantB ? fixture.businessUnitB2 : fixture.businessUnitA2;
     const inaccessibleOwnCompanyBranch = isTenantB ? fixture.branchB2 : fixture.branchA2;
     const foreignCustomer = isTenantB ? fixture.customerA : fixture.customerB;
+    const ownCustomer = isTenantB ? fixture.customerB : fixture.customerA;
+    const foreignAccount = isTenantB ? fixture.accountA : fixture.accountB;
+    const ownAccount = isTenantB ? fixture.accountB : fixture.accountA;
 
     let result = await asUser(local, token, rpcPath("has_company_access"), { method: "POST", body: { p_company_id: ownCompany } });
     record(role, "own company positive control", "VALUE:true", result, result.ok && result.data === true);
@@ -318,6 +339,69 @@ async function runTests(local, fixture) {
 
     result = await asUser(local, token, rowQuery("customers", foreignCustomer));
     record(role, "foreign customer row", "ROWS:0 or denied", result, !result.ok || result.data?.length === 0);
+
+    result = await asUser(local, token, rowQuery("chart_of_accounts", foreignAccount));
+    record(role, "foreign Chart of Accounts", "ROWS:0 or denied", result, !result.ok || result.data?.length === 0);
+
+    if (["ownerA", "ownerB", "accountsA"].includes(role)) {
+      result = await asUser(local, token, rowQuery("chart_of_accounts", ownAccount));
+      record(role, "own Chart of Accounts positive control", "ROWS:1", result, result.ok && result.data?.length === 1);
+    }
+    if (["ownerA", "ownerB", "salesA", "accountsA"].includes(role)) {
+      result = await asUser(local, token, rowQuery("customers", ownCustomer));
+      record(role, "own customer positive control", "ROWS:1", result, result.ok && result.data?.length === 1);
+    }
+
+    // Every financial module must deny foreign-company rows. No local fixture row
+    // exists for all these modules, so this is only a secondary contract check.
+    for (const table of ["sales_orders", "purchase_orders", "journal_entries", "journal_lines",
+                         "transport_trips", "invoice_payment_allocations", "purchase_payment_allocations"]) {
+      result = await asUser(local, token,
+        `/rest/v1/${table}?select=id&company_id=eq.${encodeURIComponent(foreignCompany)}&limit=1`);
+      record(role, `foreign ${table} read surface`, "ROWS:0 or denied", result,
+        !result.ok || Array.isArray(result.data) && result.data.length === 0);
+    }
+
+    if (role === "ownerA" || role === "ownerB") {
+      // These are deliberately attempted ONLY on synthetic local customers.
+      // The read-after-write check makes a silent RLS UPDATE/DELETE denial visible.
+      const before = await serviceSelect(local, "customers",
+        `select=id,name&id=eq.${encodeURIComponent(foreignCustomer)}`);
+      if (before.length !== 1) throw new Error("Missing foreign-customer fixture.");
+      const nameBefore = before[0].name;
+
+      const attemptedInsert = randomUUID();
+      result = await asUser(local, token, "/rest/v1/customers", {
+        method: "POST",
+        body: [{ id: attemptedInsert, company_id: foreignCompany, name: "Forbidden synthetic insert" }],
+        prefer: "return=representation",
+      });
+      const inserted = await serviceSelect(local, "customers",
+        `select=id&id=eq.${encodeURIComponent(attemptedInsert)}`);
+      record(role, "foreign customer INSERT", "DENIED + no created row", result,
+        !result.ok && inserted.length === 0);
+
+      result = await asUser(local, token,
+        `/rest/v1/customers?id=eq.${encodeURIComponent(foreignCustomer)}`, {
+          method: "PATCH", body: { name: "Forbidden synthetic mutation" },
+          prefer: "return=representation",
+        });
+      const afterUpdate = await serviceSelect(local, "customers",
+        `select=id,name&id=eq.${encodeURIComponent(foreignCustomer)}`);
+      record(role, "foreign customer UPDATE", "DENIED/0 affected + unchanged", result,
+        (!result.ok || Array.isArray(result.data) && result.data.length === 0)
+        && afterUpdate.length === 1 && afterUpdate[0].name === nameBefore);
+
+      result = await asUser(local, token,
+        `/rest/v1/customers?id=eq.${encodeURIComponent(foreignCustomer)}`, {
+          method: "DELETE", prefer: "return=representation",
+        });
+      const afterDelete = await serviceSelect(local, "customers",
+        `select=id,name&id=eq.${encodeURIComponent(foreignCustomer)}`);
+      record(role, "foreign customer DELETE", "DENIED/0 affected + row retained", result,
+        (!result.ok || Array.isArray(result.data) && result.data.length === 0)
+        && afterDelete.length === 1 && afterDelete[0].name === nameBefore);
+    }
 
     result = await asUser(local, token, rpcPath("has_company_access"), { method: "POST", body: { p_company_id: foreignCompany } });
     record(role, "foreign company helper", "VALUE:false or denied", result, !result.ok || result.data === false);
@@ -373,7 +457,7 @@ if (invokedDirectly) {
   console.log(JSON.stringify({
     environment: "local-only",
     production_ref_refused: productionRef,
-    synthetic_topology: { companies: 2, business_units_per_company: 2, branches_per_company: 2, authenticated_identities: 6 },
+    synthetic_topology: { companies: 2, business_units_per_company: 2, branches_per_company: 2, authenticated_identities: 8 },
     summary: { total: evidence.length, passed: evidence.length - failed.length, failed: failed.length },
     evidence,
   }, null, 2));
