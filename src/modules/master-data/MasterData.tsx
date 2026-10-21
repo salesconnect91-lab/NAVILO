@@ -24,7 +24,7 @@ export default function MasterData() {
   const { activeCompany, activeBusinessUnit } = useAuth();
   const scopeKey = `${activeCompany?.company_id}:${activeBusinessUnit?.business_unit_id}`;
   return (
-    <div className="space-y-5 pb-12 max-w-7xl mx-auto font-sans" data-navilo-master-standard="true">
+    <div className="w-full min-w-0 space-y-3 pb-3 font-sans" data-navilo-master-standard="true">
       <Routes key={scopeKey}>
         <Route path="/" element={<Items />} />
         <Route path="/items/:id" element={<MasterRecordDetail entity="item" />} />
