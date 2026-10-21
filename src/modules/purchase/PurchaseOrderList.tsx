@@ -133,7 +133,7 @@ export default function PurchaseOrderList() {
   const visibleSuppliers=listSummary.parties;
 
   const columns: Column<PurchaseOrder>[] = [
-    { key: "order_no", label: "Purchase Invoice #", sortable: true, render: (r) => <span className="font-semibold text-blue-600" title={r.order_no}>{(r as PurchaseOrder & {display_invoice_no?: string | null}).display_invoice_no || "0"}</span> },
+    { key: "order_no", label: "Purchase Invoice #", sortable: true, render: (r) => {const row=r as PurchaseOrder & {display_invoice_no?:string|null;document_kind?:string|null;supplier_invoice_no?:string|null};const isService=row.document_kind==='service';const registerNo=isService?String(row.supplier_invoice_no??'').trim():'';const label=isService?(registerNo||'Register invoice not entered'):(row.display_invoice_no||'—');return <span className="inline-flex flex-col items-start"><span className="font-semibold text-blue-600" title={registerNo||label}>{label}</span>{registerNo&&<span className="text-[10px] font-medium text-slate-500">Transport Register invoice</span>}</span>;} },
     { key: "supplier", label: "Supplier", render: (r) => r.supplier?.name ?? "—" },
     { key: "order_date", label: "Invoice Date", sortable: true, render: (r) => formatDate(r.order_date) },
     { key: "invoice_type", label: "Type", sortable: true, render: (r) => r.invoice_type === "Tax Invoice" ? <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700">With Tax</span> : <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Without Tax</span> },

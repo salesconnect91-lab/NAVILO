@@ -64,7 +64,7 @@ export default function PaymentReversals(){
 
   const reverse=async()=>{
     if(!target)return;
-    if(!ownerAllowed){setError('Only the active company owner or platform owner may reverse posted vouchers.');return;}
+    if(!ownerAllowed){setError('Only an active Admin in this company and business unit may reverse posted vouchers.');return;}
     if(reason.trim().length<10){setError("A cancellation reason of at least 10 characters is required.");return;}
     setBusy(target.id);setError("");
     try{
@@ -76,8 +76,8 @@ export default function PaymentReversals(){
   };
 
   return <div className="space-y-4">
-    <PageHeader title="Payment Voucher Reversals" subtitle="Owner-only cancellation of eligible unallocated customer receipts or supplier payments. Allocated, FX and Transport-linked vouchers require separate controlled correction. Originals remain posted and locked." action={<div className="flex items-center gap-2"><span data-navilo-standard-tools-host className="contents" /></div>}/>
-    {!ownerAllowed&&<p className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">Posted payment reversal is restricted to the active Company Owner or Platform Owner. This list remains read-only for other users.</p>}
+    <PageHeader title="Payment Voucher Reversals" subtitle="Admin-only cancellation of eligible unallocated customer receipts or supplier payments. Allocated, FX and Transport-linked vouchers require separate controlled correction. Originals remain posted and locked." action={<div className="flex items-center gap-2"><span data-navilo-standard-tools-host className="contents" /></div>}/>
+    {!ownerAllowed&&<p className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">Posted payment reversal is restricted to an active Admin in this company and business unit. This list remains read-only for other users.</p>}
     {error&&<ErrorBanner message={error}/>}<div className="card flex flex-wrap items-center gap-2 p-4" data-no-print data-no-export><input className="input min-w-64 flex-1" value={search} onChange={e=>{setSearch(e.target.value);setPage(0)}} placeholder="Search voucher, party, method..."/><SearchableSelect className="input w-auto" value={kind} onChange={e=>{setKind(e.target.value as any);setPage(0)}}><option value="all">All payments</option><option value="Customer Receipt">Customer Receipts</option><option value="Supplier Payment">Supplier Payments</option></SearchableSelect><button className="btn btn-secondary" disabled={loading||busy!==null} onClick={()=>void load()}><RefreshCw size={15}/>Refresh</button></div>
 
     {loading&&<p role="status" className="text-xs text-slate-500">Loading payment vouchers…</p>}

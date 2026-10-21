@@ -234,29 +234,32 @@ export default function SalesInvoiceList() {
         // available for allocation, but show the original Register invoice # as
         // the main reference so a correction never looks like a renumbered trip.
         const docs=await supabase.from('transport_customer_documents')
-          .select('id,sales_order_id,document_kind,trip_links:transport_customer_document_trips(trip_id)')
+          .select('id,sales_order_id,document_kind,trip_links:transport_customer_document_trips(trip_id,is_adjustment)')
           .in('sales_order_id',ids);
         if(!docs.error){
-          const adjustmentDocs=(docs.data??[]).filter((d:any)=>d.document_kind==='adjustment');
+          const documentRows=docs.data??[];
+          const registerTripIds=[...new Set(documentRows.flatMap((d:any)=>(d.trip_links??[]).map((l:any)=>l.trip_id).filter(Boolean)))];
+          const adjustmentDocs=documentRows.filter((d:any)=>d.document_kind==='adjustment');
           const adjustmentTripIds=[...new Set(adjustmentDocs.flatMap((d:any)=>(d.trip_links??[]).map((l:any)=>l.trip_id).filter(Boolean)))];
+          const registerTrips=registerTripIds.length?await supabase.from('transport_financial_register').select('id,source_invoice_no,historical_customer_invoice_ref').in('id',registerTripIds):null;
+          const registerNoByTrip=new Map((registerTrips&&!registerTrips.error?(registerTrips.data??[]):[]).map((t:any)=>[t.id,String(t.historical_customer_invoice_ref??t.source_invoice_no??'').trim()]));
+          for(const doc of documentRows){
+            if(doc.document_kind==='adjustment')continue;
+            const tripId=(doc.trip_links??[]).filter((l:any)=>!l.is_adjustment).map((l:any)=>l.trip_id).find((id:string)=>registerNoByTrip.get(id));
+            const registerNo=tripId?registerNoByTrip.get(tripId):null;
+            if(registerNo)transportAdjustments.set(doc.sales_order_id,{sourceInvoiceNo:registerNo,adjustmentNo:''});
+          }
           if(adjustmentTripIds.length){
             const sourceLinks=await supabase.from('transport_customer_document_trips')
-              .select('trip_id,source:transport_customer_documents!inner(sales_order_id,document_kind)')
-              .in('trip_id',adjustmentTripIds).eq('is_adjustment',false);
+              .select('trip_id').in('trip_id',adjustmentTripIds).eq('is_adjustment',false);
             if(!sourceLinks.error){
-              const sourceOrderByTrip=new Map<string,string>();
-              for(const link of sourceLinks.data??[]){
-                const source=(link as any).source;
-                const doc=Array.isArray(source)?source[0]:source;
-                if(link.trip_id&&doc?.sales_order_id)sourceOrderByTrip.set(link.trip_id,doc.sales_order_id);
-              }
-              const sourceOrderIds=[...new Set([...sourceOrderByTrip.values()])];
-              const sourceOrders=sourceOrderIds.length?await supabase.from('sales_orders').select('id,order_no').in('id',sourceOrderIds):null;
-              if(sourceOrders&&!sourceOrders.error){
-                const invoiceNoByOrder=new Map((sourceOrders.data??[]).map((o:any)=>[o.id,String(o.order_no??'')]))
+              const sourceTripIds=[...new Set((sourceLinks.data??[]).map((link:any)=>link.trip_id).filter(Boolean))];
+              const sourceRegisterTrips=sourceTripIds.length?await supabase.from('transport_financial_register').select('id,source_invoice_no,historical_customer_invoice_ref').in('id',sourceTripIds):null;
+              if(sourceRegisterTrips&&!sourceRegisterTrips.error){
+                const sourceRegisterNoByTrip=new Map((sourceRegisterTrips.data??[]).map((trip:any)=>[trip.id,String(trip.historical_customer_invoice_ref??trip.source_invoice_no??'').trim()]));
                 for(const doc of adjustmentDocs){
-                  const tripId=(doc.trip_links??[]).map((l:any)=>l.trip_id).find((id:string)=>Boolean(sourceOrderByTrip.get(id)));
-                  const sourceNo=tripId?invoiceNoByOrder.get(sourceOrderByTrip.get(tripId)!):null;
+                  const tripId=(doc.trip_links??[]).map((l:any)=>l.trip_id).find((id:string)=>sourceRegisterNoByTrip.get(id));
+                  const sourceNo=tripId?sourceRegisterNoByTrip.get(tripId):null;
                   if(sourceNo)transportAdjustments.set(doc.sales_order_id,{sourceInvoiceNo:sourceNo,adjustmentNo:String(pageRows.find(r=>r.id===doc.sales_order_id)?.order_no??'')});
                 }
               }
@@ -675,8 +678,8 @@ export default function SalesInvoiceList() {
       label: "Invoice #",
       render: (r) => (
         <span className="inline-flex flex-col items-start">
-          <span className="font-semibold text-blue-600" title={r.transport_adjustment_source_invoice_no?`Register invoice ${r.transport_adjustment_source_invoice_no}; correction document ${r.transport_adjustment_reference}`:r.order_no}>{r.transport_adjustment_source_invoice_no??salesInvoiceDisplayNumber(r)}</span>
-          {r.transport_adjustment_source_invoice_no&&<span className="text-[10px] font-medium text-amber-700" title={`Adjustment reference: ${r.transport_adjustment_reference}`}>Rate adjustment · {r.transport_adjustment_reference}</span>}
+          <span className="font-semibold text-blue-600" title={r.transport_adjustment_source_invoice_no?`Manually entered Transport Register invoice number: ${r.transport_adjustment_source_invoice_no}`:r.document_kind==='service'?'Register invoice not entered':r.order_no}>{r.transport_adjustment_source_invoice_no??(r.document_kind==='service'?'Register invoice not entered':salesInvoiceDisplayNumber(r))}</span>
+          {r.transport_adjustment_source_invoice_no&&<span className="text-[10px] font-medium text-amber-700">{r.transport_adjustment_reference?'Rate adjustment':'Transport Register invoice'}</span>}
         </span>
       ),
     },

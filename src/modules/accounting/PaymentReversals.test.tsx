@@ -45,10 +45,10 @@ it('recovers the reversal form after a rejected network request',async()=>{
  expect((screen.getByRole('button',{name:'Post Reversal'}) as HTMLButtonElement).disabled).toBe(false);
 });
 
-it('shows posted vouchers read-only when caller is not a Company or Platform Owner',async()=>{
+it('shows posted vouchers read-only when caller is not an Admin',async()=>{
  mock.ownerAllowed=false;
  render(<PaymentReversals/>);
  await screen.findByText('PAY-1');
- expect(screen.getByText(/restricted to the active Company Owner/i)).toBeTruthy();
+ expect(screen.getByText(/restricted to an active Admin/i)).toBeTruthy();
  expect(screen.queryByRole('button',{name:'Reverse'})).toBeNull();
 });
