@@ -7299,3 +7299,32 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
     display: none;
   }
 }
+
+
+/* NAVILO density consistency: opt-in DataTable modes take precedence over
+   legacy module table header heights. No change to transport register grids. */
+@media screen {
+  .erp-shell [data-navilo-data-table][data-density="compact"] thead th {
+    height: 30px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    line-height: 1.2;
+  }
+  .erp-shell [data-navilo-data-table][data-density="comfortable"] thead th {
+    height: 36px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .erp-shell [data-navilo-data-table][data-density="spacious"] thead th {
+    height: 44px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .erp-shell [data-navilo-data-table] thead th {
+    color: #334155;
+    border-bottom: 1px solid #cbd5e1;
+  }
+  .erp-shell [data-navilo-data-table] tbody td {
+    border-bottom: 1px solid #e7ecf2;
+  }
+}
