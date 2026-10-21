@@ -49,12 +49,14 @@ describe('Purchase section nested navigation',()=>{
   open('/purchase/11111111-1111-1111-1111-111111111111');
   expect(screen.getByText('Purchase Detail')).toBeTruthy();
  });
- it('shows purchase creation only in the invoice page actions, not redundant sidebar links',()=>{
+ it('shows the same two invoice entries as Sales for Transport',()=>{
   const purchase=navigation.find(n=>n.key==='purchase');
   expect(purchase).toBeTruthy();
   const items=flatten(purchase?.children??[]);
   expect(items.some(n=>n.key==='transport-service-purchase-create')).toBe(false);
-  expect(items.some(n=>n.key==='transport-normal-purchase-create')).toBe(false);
+  const normalPurchase=items.find(n=>n.key==='transport-normal-purchase-create');
+  expect(normalPurchase?.label).toBe('Create Normal Purchase Invoice');
+  expect(normalPurchase?.to).toBe('/purchase/normal/new');
   expect(items.some(n=>n.key==='purchase-invoices'&&n.to==='/purchase')).toBe(true);
  });
  it('labels the Transport Sales entry as a normal non-trip invoice',()=>{
