@@ -544,7 +544,7 @@ function SalesInvoiceCreateItems() {
   }));
 
   return (
-    <div className="navilo-invoice-editor navilo-invoice-pro space-y-4" data-navilo-commercial-standard="true" data-navilo-document-editor="true" data-navilo-invoice-side="customer">
+    <div className="navilo-invoice-editor navilo-invoice-pro min-w-0 space-y-3" data-navilo-commercial-standard="true" data-navilo-document-editor="true" data-navilo-invoice-side="customer">
       <section className="navilo-invoice-hero navilo-page-header flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <button type="button" onClick={() => navigate("/sales")} className="mb-1 inline-flex items-center gap-1 text-[12px] font-medium text-slate-500 hover:text-blue-700">
