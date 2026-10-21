@@ -7274,6 +7274,7 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
   }
   .erp-shell .page-actions {
     gap: 6px;
+    min-width: 0;
   }
   .erp-shell .table-shell {
     border-color: #dbe2ea;
@@ -7366,7 +7367,6 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
    Scoped to shared surfaces; keep module-specific register, print, and density rules. */
 @media screen {
   .erp-shell .page-header,
-  .erp-shell .page-actions,
   .erp-shell .navilo-report-toolbar {
     min-width: 0;
   }
