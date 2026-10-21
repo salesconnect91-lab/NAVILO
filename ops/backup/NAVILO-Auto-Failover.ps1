@@ -14,7 +14,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 if ([string]::IsNullOrWhiteSpace($DailyBackupScript)) {
-  $DailyBackupScript = Join-Path -Path (Split-Path -Parent $MyInvocation.MyCommand.Path) -ChildPath "NAVILO-Daily-Backup.ps1"
+  $DailyBackupScript = Join-Path -Path $PSScriptRoot -ChildPath "NAVILO-Daily-Backup.ps1"
 }
 $mutex = $null
 $locked = $false
