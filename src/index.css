@@ -7350,3 +7350,16 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
     line-height: 1.4;
   }
 }
+
+
+/* Phase 7: use available desktop width for standard sales/purchase lists
+   without changing invoice modal widths or specialized transport grids. */
+@media screen and (min-width: 1024px) {
+  .erp-shell .navilo-sales-neus,
+  .erp-shell .navilo-purchase-neus,
+  .erp-shell .navilo-invoice-detail {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+}
