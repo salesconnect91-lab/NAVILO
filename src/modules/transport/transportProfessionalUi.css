@@ -70,9 +70,9 @@
     font-weight: 600 !important;
     letter-spacing: 0 !important;
     padding-block: 2px !important;
-    background: #edf1f6 !important;
-    color: #283d59 !important;
-    border-color: #d5dfeb !important;
+    background: #edf5f3 !important;
+    color: #214c54 !important;
+    border-color: #c7dad5 !important;
   }
   .erp-shell #navilo-main-content [data-navilo-transport-register] thead tr:nth-child(2) th {
     font-size: 12px !important;
@@ -80,14 +80,12 @@
     font-weight: 600 !important;
     letter-spacing: 0 !important;
     text-transform: none;
-    color: #283d59 !important;
-    background: #f1f4f8 !important;
-    border-color: #d5dfeb !important;
+    color: #214c54 !important;
+    background: #edf5f3 !important;
+    border-color: #c7dad5 !important;
     box-shadow: none !important;
   }
-  .erp-shell #navilo-main-content [data-navilo-transport-register] thead th:is([class~="bg-blue-100"], [class~="bg-sky-50"], [class~="bg-emerald-50"], [class~="bg-blue-50"], [class~="bg-sky-100"], [class~="bg-[#065f46]"]) { background: #eaf4fd !important; color: #244f75 !important; }
-  .erp-shell #navilo-main-content [data-navilo-transport-register] thead th:is([class~="bg-rose-100"], [class~="bg-amber-50"], [class~="bg-orange-50"], [class~="bg-rose-50"], [class~="bg-amber-100"], [class~="bg-[#7c2d12]"]) { background: #fff4e3 !important; color: #815515 !important; }
-  .erp-shell #navilo-main-content [data-navilo-transport-register] thead th:is([class~="bg-emerald-100"], [class~="bg-[#115e59]"]) { background: #edf5ef !important; color: #2d6041 !important; }
+  .erp-shell #navilo-main-content [data-navilo-transport-register] thead th { background: #edf5f3 !important; color: #214c54 !important; border-color: #c7dad5 !important; }
   .erp-shell #navilo-main-content [data-navilo-transport-register] thead th button { font-family: "Segoe UI", Arial, sans-serif !important; font-size: 12px !important; font-weight: 600 !important; color: inherit !important; }
   .erp-shell #navilo-main-content [data-navilo-transport-register] thead th > div:last-of-type { font-size: 12px !important; font-weight: 600 !important; }
   .erp-shell #navilo-main-content [data-navilo-transport-register] tbody :is(tr, td) { height: 24px !important; max-height: none !important; }
