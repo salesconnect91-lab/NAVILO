@@ -32,6 +32,8 @@ type PaymentStatus = "unpaid" | "partial" | "paid" | "overpaid";
 type SalesInvoiceRow = SalesOrder & {
   display_invoice_no?: string | null;
   document_kind?: string | null;
+  transport_adjustment_source_invoice_no?: string | null;
+  transport_adjustment_reference?: string | null;
   due_date?: string | null;
   paid_amount?: number | string | null;
   outstanding_amount?: number | string | null;
@@ -226,7 +228,44 @@ export default function SalesInvoiceList() {
           numbers.set(k,[...(numbers.get(k)??[]),invoice.invoice_no]);
         }
       }
+      let transportAdjustments=new Map<string,{sourceInvoiceNo:string;adjustmentNo:string}>();
+      if(activeBusinessUnit?.business_unit_type==='transport'&&ids.length){
+        // Rate corrections are separate posted accounting documents. Keep them
+        // available for allocation, but show the original Register invoice # as
+        // the main reference so a correction never looks like a renumbered trip.
+        const docs=await supabase.from('transport_customer_documents')
+          .select('id,sales_order_id,document_kind,trip_links:transport_customer_document_trips(trip_id)')
+          .in('sales_order_id',ids);
+        if(!docs.error){
+          const adjustmentDocs=(docs.data??[]).filter((d:any)=>d.document_kind==='adjustment');
+          const adjustmentTripIds=[...new Set(adjustmentDocs.flatMap((d:any)=>(d.trip_links??[]).map((l:any)=>l.trip_id).filter(Boolean)))];
+          if(adjustmentTripIds.length){
+            const sourceLinks=await supabase.from('transport_customer_document_trips')
+              .select('trip_id,source:transport_customer_documents!inner(sales_order_id,document_kind)')
+              .in('trip_id',adjustmentTripIds).eq('is_adjustment',false);
+            if(!sourceLinks.error){
+              const sourceOrderByTrip=new Map<string,string>();
+              for(const link of sourceLinks.data??[]){
+                const source=(link as any).source;
+                const doc=Array.isArray(source)?source[0]:source;
+                if(link.trip_id&&doc?.sales_order_id)sourceOrderByTrip.set(link.trip_id,doc.sales_order_id);
+              }
+              const sourceOrderIds=[...new Set([...sourceOrderByTrip.values()])];
+              const sourceOrders=sourceOrderIds.length?await supabase.from('sales_orders').select('id,order_no').in('id',sourceOrderIds):null;
+              if(sourceOrders&&!sourceOrders.error){
+                const invoiceNoByOrder=new Map((sourceOrders.data??[]).map((o:any)=>[o.id,String(o.order_no??'')]))
+                for(const doc of adjustmentDocs){
+                  const tripId=(doc.trip_links??[]).map((l:any)=>l.trip_id).find((id:string)=>Boolean(sourceOrderByTrip.get(id)));
+                  const sourceNo=tripId?invoiceNoByOrder.get(sourceOrderByTrip.get(tripId)!):null;
+                  if(sourceNo)transportAdjustments.set(doc.sales_order_id,{sourceInvoiceNo:sourceNo,adjustmentNo:String(pageRows.find(r=>r.id===doc.sales_order_id)?.order_no??'')});
+                }
+              }
+            }
+          }
+        }
+      }
       setRows(pageRows.map(row=>({...row,consolidated_invoice_numbers:numbers.get(row.id)??[],
+        ...(transportAdjustments.has(row.id)?{transport_adjustment_source_invoice_no:transportAdjustments.get(row.id)!.sourceInvoiceNo,transport_adjustment_reference:transportAdjustments.get(row.id)!.adjustmentNo}:{}),
         ...(previews.has(row.id)?{draft_preview_total:previews.get(row.id)}:{})})));
       setListReadFailed(false);
       const matching=previewRows.filter(row=>row.status==='draft'&&previews.has(row.id));
@@ -635,7 +674,10 @@ export default function SalesInvoiceList() {
       key: "order_no",
       label: "Invoice #",
       render: (r) => (
-        <span className="font-semibold text-blue-600" title={r.order_no}>{salesInvoiceDisplayNumber(r)}</span>
+        <span className="inline-flex flex-col items-start">
+          <span className="font-semibold text-blue-600" title={r.transport_adjustment_source_invoice_no?`Register invoice ${r.transport_adjustment_source_invoice_no}; correction document ${r.transport_adjustment_reference}`:r.order_no}>{r.transport_adjustment_source_invoice_no??salesInvoiceDisplayNumber(r)}</span>
+          {r.transport_adjustment_source_invoice_no&&<span className="text-[10px] font-medium text-amber-700" title={`Adjustment reference: ${r.transport_adjustment_reference}`}>Rate adjustment · {r.transport_adjustment_reference}</span>}
+        </span>
       ),
     },
     {
