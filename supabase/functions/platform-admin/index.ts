@@ -133,9 +133,11 @@ Deno.serve(async (request) => {
       const expiresAt = requestedExpiry && !Number.isNaN(requestedExpiry.getTime())
         ? requestedExpiry
         : new Date(startsAt.getTime() + (status === "trial" ? Number(plan.trial_days || 14) : (plan.billing_cycle === "yearly" ? 365 : 30)) * 86400000);
+      if (expiresAt.getTime() <= Date.now()) return json({ error: "Licence expiry must be in the future." }, 400);
       let companyId = "";
       let userId = "";
       let createdNewUser = false;
+      let previousProfileSelection: {last_company_id: string | null; last_business_unit_id: string | null} | null = null;
       try {
         const { data: createdCompany, error: companyError } = await admin.from("companies").insert({
           name, code, status, contact_email: ownerEmail, contact_phone: body.contact_phone || null,
@@ -193,9 +195,13 @@ Deno.serve(async (request) => {
         }
 
         const { data: existingProfile, error: existingProfileError } = await admin.from("user_profiles")
-          .select("id,is_active").eq("id", userId).maybeSingle();
+          .select("id,is_active,last_company_id,last_business_unit_id").eq("id", userId).maybeSingle();
         if (existingProfileError) throw existingProfileError;
         if (existingProfile && !existingProfile.is_active) throw new Error("Existing owner login is inactive");
+        if (existingProfile) previousProfileSelection = {
+          last_company_id: existingProfile.last_company_id ?? null,
+          last_business_unit_id: existingProfile.last_business_unit_id ?? null,
+        };
 
         const profileWrite = existingProfile
           ? await admin.from("user_profiles").update({
@@ -232,9 +238,30 @@ Deno.serve(async (request) => {
         if (writeError) throw writeError;
         return json({ company_id:companyId,user_id:userId,business_unit_id:unit.id,branch_id:branch?.id ?? null,status,expires_at:expiresAt.toISOString() }, 201);
       } catch (error) {
-        if (createdNewUser && userId) await admin.auth.admin.deleteUser(userId);
-        if (companyId) await admin.from("companies").delete().eq("id", companyId);
-        return json({ error:error instanceof Error ? error.message : "Onboarding failed and was rolled back." }, 400);
+        // Existing company owners may reuse their login. Failed onboarding must
+        // not strand them with a last_company_id pointing to a deleted tenant.
+        const cleanupErrors: string[] = [];
+        if (previousProfileSelection && userId) {
+          const { error: restoreError } = await admin.from("user_profiles")
+            .update({ ...previousProfileSelection, updated_at: new Date().toISOString() })
+            .eq("id", userId);
+          if (restoreError) cleanupErrors.push("owner profile restoration");
+        }
+        if (createdNewUser && userId) {
+          const { error: userCleanupError } = await admin.auth.admin.deleteUser(userId);
+          if (userCleanupError) cleanupErrors.push("new login cleanup");
+        }
+        if (companyId) {
+          const { error: companyCleanupError } = await admin.from("companies").delete().eq("id", companyId);
+          if (companyCleanupError) cleanupErrors.push("new company cleanup");
+        }
+        const reason = error instanceof Error ? error.message : "Onboarding failed.";
+        return json({
+          error: cleanupErrors.length
+            ? reason + " Automatic cleanup was incomplete; review required."
+            : reason,
+          cleanup_complete: cleanupErrors.length === 0,
+        }, cleanupErrors.length ? 500 : 400);
       }
     }
 

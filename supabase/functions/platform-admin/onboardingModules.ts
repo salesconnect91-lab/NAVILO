@@ -10,8 +10,8 @@ export function onboardingFiscalSettings(baseCurrency: unknown, taxMode: unknown
   if (mode === "tax_registered" && !String(effectiveFrom || "").trim()) throw new Error("Tax effective date is required for a registered company");
   const date = String(effectiveFrom || new Date().toISOString().slice(0, 10));
   const parsedDate = new Date(`${date}T00:00:00Z`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0,10)!==date || date < new Date().toISOString().slice(0, 10))
-    throw new Error("Tax effective date must be today or later");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0,10)!==date)
+    throw new Error("Tax effective date must be a real YYYY-MM-DD date");
   const authorityCode = String(authority || "").trim().toUpperCase();
   if (mode === "tax_registered" && !authorityCode) throw new Error("Tax authority is required for a registered company");
   return { base_currency_code: currency, tax_mode: mode, tax_effective_from: date, authority_code: authorityCode || null };

@@ -17,6 +17,14 @@ describe("platform-admin onboarding handler regression guard", () => {
     expect(onboarding.slice(0, firstWrite)).toMatch(/onboardingModules\(body.modules, plan.module_defaults, businessType\)/);
   });
 
+  it("rejects expired new licences and restores reused owner profile after onboarding failure", () => {
+    const firstWrite = onboarding.indexOf('admin.from("companies").insert(');
+    expect(onboarding.slice(0, firstWrite)).toContain("expiresAt.getTime() <= Date.now()");
+    expect(onboarding).toContain("previousProfileSelection");
+    expect(onboarding).toContain("last_company_id: existingProfile.last_company_id");
+    expect(onboarding).toContain("cleanup_complete: cleanupErrors.length === 0");
+  });
+
   it("checks all lookup errors and rejects unverified plans before creating a company or Auth user", () => {
     expect(onboarding).not.toBe("");
     const firstWrite = onboarding.indexOf('admin.from("companies").insert(');
