@@ -431,47 +431,51 @@ export default function JournalEntryList() {
     useCallback(async () => {
       setLoading(true);
       setError(null);
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 30_000);
+      try {
+        const {
+          data,
+          error: fetchError,
+        } = await supabase
+          .from("journal_entries")
+          .select("*")
+          .order("entry_date", {
+            ascending: false,
+          })
+          .order("entry_no", {
+            ascending: false,
+          })
+          .abortSignal(controller.signal);
 
-      const {
-        data,
-        error: fetchError,
-      } = await supabase
-        .from("journal_entries")
-        .select("*")
-        .order("entry_date", {
-          ascending: false,
-        })
-        .order("entry_no", {
-          ascending: false,
-        });
+        if (fetchError) throw fetchError;
 
-      if (fetchError) {
-        setEntries([]);
-        setError(fetchError.message);
-      } else {
         const { data: cancelled, error: cancelledError } =
-          await supabase.rpc("owner_cancelled_journal_ids");
-        if (cancelledError) {
-          setEntries([]);
-          setError(cancelledError.message);
-        } else {
-          const excluded = new Set(
-            (cancelled ?? []).map((row: { entry_id: string }) => row.entry_id)
-          );
-          // Hide only the two explicitly verified acceptance-test journals from
-          // the normal register. They remain posted in the database, with all
-          // ledger and reversal evidence intact and available by direct link.
-          const hiddenAcceptanceTestIds = new Set([
-            "e6fe9b05-5056-4441-ac8c-2d50c04f671d",
-            "b064dca7-e0a3-4315-8cdc-136e8257c757",
-          ]);
-          setEntries(((data ?? []) as JournalEntry[]).filter(
-            (entry) => !excluded.has(entry.id) && !hiddenAcceptanceTestIds.has(entry.id)
-          ));
-        }
-      }
+          await supabase.rpc("owner_cancelled_journal_ids").abortSignal(controller.signal);
+        if (cancelledError) throw cancelledError;
 
-      setLoading(false);
+        const excluded = new Set(
+          (cancelled ?? []).map((row: { entry_id: string }) => row.entry_id)
+        );
+        // Hide only the two explicitly verified acceptance-test journals from
+        // the normal register. They remain posted in the database, with all
+        // ledger and reversal evidence intact and available by direct link.
+        const hiddenAcceptanceTestIds = new Set([
+          "e6fe9b05-5056-4441-ac8c-2d50c04f671d",
+          "b064dca7-e0a3-4315-8cdc-136e8257c757",
+        ]);
+        setEntries(((data ?? []) as JournalEntry[]).filter(
+          (entry) => !excluded.has(entry.id) && !hiddenAcceptanceTestIds.has(entry.id)
+        ));
+      } catch (fetchError) {
+        setEntries([]);
+        setError(controller.signal.aborted
+          ? "Journal entries took longer than 30 seconds to load. Check the connection and retry."
+          : String((fetchError as { message?: string } | null)?.message || (fetchError instanceof Error ? fetchError.message : "Unable to load journal entries. Please retry.")));
+      } finally {
+        window.clearTimeout(timeout);
+        setLoading(false);
+      }
     }, []);
 
   useEffect(() => {
@@ -2763,6 +2767,13 @@ export default function JournalEntryList() {
         {loading ? (
           <div className="p-12 text-center text-slate-400">
             Loading journal entries...
+          </div>
+        ) : error && entries.length === 0 ? (
+          <div className="p-8 text-center">
+            <p className="text-sm text-rose-700">Journal entries could not be loaded.</p>
+            <button type="button" onClick={() => void fetchEntries()} className="mt-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+              Retry loading
+            </button>
           </div>
         ) : entries.length === 0 ? (
           <div className="p-12 text-center text-slate-500">
