@@ -202,7 +202,7 @@ export default function Reports(){
  })),[def]);
  const smartTableScope=`${user?.id??"anonymous"}:${activeCompany?.company_id??"none"}:${activeBusinessUnit?.business_unit_id??"none"}`;
  const exportReport=(kind:"excel"|"csv")=>{const root=document.querySelector<HTMLElement>(".navilo-report-source");if(!root)return;const filename=loc.pathname.replace(/^\//,"").replace(/\W+/g,"-")||"report";if(kind==="excel")exportDomReportToExcel(filename,root,def.title);else exportDomReportToCSV(filename,root,def.title);setExportOpen(false)};
- return <div className="space-y-3 pb-12" data-generic-report>
+ return <div className="min-w-0 space-y-3 pb-3" data-generic-report>
   {activeBusinessUnit?.business_unit_type==='transport'&&['/reports/sales-register','/reports/purchase-register'].includes(loc.pathname)&&<TransportOpeningInvoices side={loc.pathname==='/reports/sales-register'?'customer':'supplier'}/> }
   <section className="no-print flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5 xl:flex-row xl:items-end">
     <div className="min-w-0 flex-1 overflow-x-auto" data-report-filters><div className="flex min-w-max items-end gap-2">
