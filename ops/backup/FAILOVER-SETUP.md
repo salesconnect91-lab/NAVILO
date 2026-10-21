@@ -67,3 +67,28 @@ PC2 checks the original backup timestamp in the **filename** and verifies its SH
 To replace PC1, install the same tools/script/backup DB credentials on the replacement computer, set up its SMB permission to the existing PC2 inbox, test one mirrored backup and only then disable the old PC1 task. If the old PC1 is dead, PC2 continues on its own; no NAVILO production schema/settings change is necessary.
 
 **Constraints:** Database backup does not automatically preserve Supabase Storage objects or third-party files, and no system can guarantee zero downtime or recover data that was never successfully backed up. Verify Supabase's separate platform/PITR policy. This repository change prepares portable scripts; it does **not** remotely install tasks on your PCs.
+
+
+## Guided Windows task installation (PC 1 and PC 2)
+
+After copying NAVILO backup scripts to C:\NAVILO on BOTH PCs, configuring each PC's own restricted read-only pgpass.conf, encrypting both backup drives and configuring PC2's secure SMB share, you can run this installation helper.
+
+It defaults to **PLAN ONLY** (nothing installed). With -Install it checks the database tool installations, pgpass.conf, storage and PC2 share, refuses to overwrite any existing NAVILO task, asks for typed INSTALL, and then lets **Windows Task Scheduler itself** prompt for that Windows user's password. Never paste passwords into chat, scripts or PowerShell arguments.
+
+Run on PC 1 (primary daily 01:00):
+
+```powershell
+& "C:\NAVILO\NAVILO-Install-BackupTask.ps1" -Role Primary -BackupDirectory "D:\NAVILO-Primary" -MirrorDirectory "\\PC2\NAVILO-Inbox" -StartAt "01:00"
+& "C:\NAVILO\NAVILO-Install-BackupTask.ps1" -Role Primary -BackupDirectory "D:\NAVILO-Primary" -MirrorDirectory "\\PC2\NAVILO-Inbox" -StartAt "01:00" -Install
+```
+
+Run on PC 2 (standby hourly starting 02:00):
+
+```powershell
+& "C:\NAVILO\NAVILO-Install-BackupTask.ps1" -Role Standby -BackupDirectory "D:\NAVILO-Standby" -MirrorDirectory "D:\NAVILO-Inbox" -StartAt "02:00"
+& "C:\NAVILO\NAVILO-Install-BackupTask.ps1" -Role Standby -BackupDirectory "D:\NAVILO-Standby" -MirrorDirectory "D:\NAVILO-Inbox" -StartAt "02:00" -Install
+```
+
+If Windows reports an existing NAVILO task, inspect it in Task Scheduler; the helper will not silently replace it. After setup, enable missed-start recovery, launch PC1 manually, verify .dump and .sha256 on PC2, test PC2's decision-only checks, run the actual standby failover, and perform a separate isolated restore before considering backup protection active. Installing tasks is not equivalent to verifying backups. Use a dedicated Windows account with a real password rather than a PIN-only login.
+
+When PCs are in different offices, use an authenticated VPN (never open SMB to the public internet) and point the primary share at PC2's VPN-resolvable hostname. The standby mirror directory must stay a **local PC2 drive path**, even when PC1 connects over VPN.

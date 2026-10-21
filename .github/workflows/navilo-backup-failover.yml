@@ -6,6 +6,7 @@ on:
       - '.github/workflows/navilo-backup-failover.yml'
       - 'ops/backup/NAVILO-Auto-Failover.ps1'
       - 'ops/backup/NAVILO-Failover-SelfTest.ps1'
+      - 'ops/backup/NAVILO-Install-BackupTask.ps1'
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,3 +19,9 @@ jobs:
       - name: Validate PC1/PC2 decisions with synthetic archives only
         shell: powershell
         run: powershell.exe -NoProfile -NonInteractive -File ops/backup/NAVILO-Failover-SelfTest.ps1
+      - name: Confirm installer dry-run on Windows without creating tasks
+        shell: powershell
+        run: |
+          powershell.exe -NoProfile -NonInteractive -File ops/backup/NAVILO-Install-BackupTask.ps1 -Role Primary -BackupDirectory "D:\NAVILO-Primary" -MirrorDirectory "\\PC2\NAVILO-Inbox" -StartAt "01:00"
+          powershell.exe -NoProfile -NonInteractive -File ops/backup/NAVILO-Install-BackupTask.ps1 -Role Standby -BackupDirectory "D:\NAVILO-Standby" -MirrorDirectory "D:\NAVILO-Inbox" -StartAt "02:00"
+
