@@ -29,3 +29,7 @@ This package **prepares** a safe daily backup workflow; it does not install itse
 - Retention defaults to 14 days. NAVILO was approximately **1.5 GB before compression** at the 21-Oct-2026 audit, so monitor disk space as usage grows.
 - If the machine uses Windows Home or the destination is unencrypted, provide equivalent encrypted storage before saving financial data there.
 - For point-in-time recovery, separately verify the actual Supabase managed backup/PITR entitlement and restoration path.
+
+## PC1 → PC2 automatic failover
+
+The portable two-computer arrangement is documented in [FAILOVER-SETUP.md](FAILOVER-SETUP.md). It includes offline simulated Windows checks, primary SMB mirroring, and PC2 independent backup on stale or missing verified copies. It is **not activated on any PC by a GitHub push**. Do not interpret code CI as a successful real PC backup or restore drill.

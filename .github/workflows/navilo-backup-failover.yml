@@ -1,0 +1,20 @@
+name: NAVILO Windows backup failover offline verification
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/navilo-backup-failover.yml'
+      - 'ops/backup/NAVILO-Auto-Failover.ps1'
+      - 'ops/backup/NAVILO-Failover-SelfTest.ps1'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-failover-decision:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate PC1/PC2 decisions with synthetic archives only
+        shell: powershell
+        run: powershell.exe -NoProfile -NonInteractive -File ops/backup/NAVILO-Failover-SelfTest.ps1
