@@ -9,10 +9,13 @@ param(
   [Parameter(Mandatory=$true)][string]$MirrorDirectory,
   [ValidateRange(2,72)][int]$MaxAgeHours = 25,
   [ValidateRange(2,365)][int]$RetentionDays = 14,
-  [string]$DailyBackupScript = (Join-Path $PSScriptRoot "NAVILO-Daily-Backup.ps1"),
+  [string]$DailyBackupScript = "",
   [switch]$DecisionOnly
 )
 $ErrorActionPreference = "Stop"
+if ([string]::IsNullOrWhiteSpace($DailyBackupScript)) {
+  $DailyBackupScript = Join-Path -Path (Split-Path -Parent $MyInvocation.MyCommand.Path) -ChildPath "NAVILO-Daily-Backup.ps1"
+}
 $mutex = $null
 $locked = $false
 
