@@ -140,11 +140,11 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
           <div className="line-clamp-2 max-w-[250px] break-words text-slate-800" title={entry.description||'—'}>{entry.description||'—'}</div>
           <div className="text-[10px] text-slate-500 leading-tight">{sourceType}</div>
          </td>
-         <td className="w-[13%] px-2 py-1 align-middle text-slate-700">{info?info.accountsDr||'—':loading?'Loading…':'—'}</td>
-         <td className="w-[13%] px-2 py-1 align-middle text-slate-700">{info?info.accountsCr||'—':loading?'Loading…':'—'}</td>
+         <td className="w-[13%] px-2 py-1 align-middle text-slate-700"><div className="line-clamp-2 break-words" title={info?.accountsDr||undefined}>{info?info.accountsDr||'—':loading?'Loading…':'—'}</div></td>
+         <td className="w-[13%] px-2 py-1 align-middle text-slate-700"><div className="line-clamp-2 break-words" title={info?.accountsCr||undefined}>{info?info.accountsCr||'—':loading?'Loading…':'—'}</div></td>
          <td className="w-[12%] px-2 py-1 align-middle">
-          {info?.party&&<div className="text-slate-800">Party: {info.party}</div>}
-          {info?.vehicles&&<div className="text-blue-800">Vehicle: {info.vehicles}</div>}
+          {info?.party&&<div className="line-clamp-2 break-words text-slate-800" title={`Party: ${info.party}`}>Party: {info.party}</div>}
+          {info?.vehicles&&<div className="line-clamp-2 break-words text-blue-800" title={`Vehicle: ${info.vehicles}`}>Vehicle: {info.vehicles}</div>}
           {!info&&!loading?'—':!info?'Loading…':!info.party&&!info.vehicles?'—':null}
          </td>
          <td className="w-[10%] px-2 py-1 text-right align-middle font-semibold tabular-nums">
