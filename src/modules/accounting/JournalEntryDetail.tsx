@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 25474)
-Total output lines: 3120
-
 import {recordDisplayText} from '@/lib/recordDisplayText';
 import {useAuth} from '@/auth/AuthContext';
 import NaviloDateInput from '@/components/NaviloDateInput';
@@ -1494,7 +1491,785 @@ export default function JournalEntryDetail() {
           accounts.find(
             (item) =>
               item.id ===
- …5474 tokens truncated…dited correction actions">Open Source Purchase / Correct</Link>
+              line.accountId
+          );
+
+        if (!account) {
+          setError(
+            `Row ${rowNumber}: Account not found.`
+          );
+
+          return;
+        }
+
+        if (account.is_group) {
+          setError(
+            `Row ${rowNumber}: "${account.name}" is a group account. Select a posting account.`
+          );
+
+          return;
+        }
+
+        if (!account.is_active) {
+          setError(
+            `Row ${rowNumber}: "${account.name}" is inactive.`
+          );
+
+          return;
+        }
+
+        if (!manualAccountEligible(account)) {
+          setError(
+            `Row ${rowNumber}: "${account.name}" does not allow manual journal entries.`
+          );
+
+          return;
+        }
+
+        if (
+          accountRequiresParty(account.id) &&
+          (!line.partyType || !line.partyId)
+        ) {
+          setError(
+            `Row ${rowNumber}: "${account.name}" requires a customer or supplier in Related To.`
+          );
+
+          return;
+        }
+
+        if (
+          (line.partyType && !line.partyId) ||
+          (!line.partyType && line.partyId)
+        ) {
+          setError(
+            `Row ${rowNumber}: Party Type and Party must be selected together.`
+          );
+
+          return;
+        }
+
+        let partyName:
+          string | null = null;
+
+        if (
+          line.partyType ===
+          "customer"
+        ) {
+          const customer =
+            customers.find(
+              (item) =>
+                item.id === line.partyId
+            );
+
+          if (!customer) {
+            setError(
+              `Row ${rowNumber}: Selected customer was not found.`
+            );
+
+            return;
+          }
+
+          if (
+            customer.account_id !==
+            account.id && account.id!==partyControlAccounts.ar
+          ) {
+            setError(
+              `Row ${rowNumber}: Customer "${customer.name}" is not linked to "${account.name}".`
+            );
+
+            return;
+          }
+
+          partyName =
+            customer.name;
+        }
+
+        if (
+          line.partyType ===
+          "supplier"
+        ) {
+          const supplier =
+            suppliers.find(
+              (item) =>
+                item.id === line.partyId
+            );
+
+          if (!supplier) {
+            setError(
+              `Row ${rowNumber}: Selected supplier was not found.`
+            );
+
+            return;
+          }
+
+          if (
+            supplier.account_id !==
+            account.id && account.id!==partyControlAccounts.ap
+          ) {
+            setError(
+              `Row ${rowNumber}: Supplier "${supplier.name}" is not linked to "${account.name}".`
+            );
+
+            return;
+          }
+
+          partyName =
+            supplier.name;
+        }
+
+        const debit =
+          Math.max(
+            0,
+            parseFloat(
+              line.debit
+            ) || 0
+          );
+
+        const credit =
+          Math.max(
+            0,
+            parseFloat(
+              line.credit
+            ) || 0
+          );
+
+        if (
+          debit > 0 &&
+          credit > 0
+        ) {
+          setError(
+            `Row ${rowNumber}: Debit and Credit cannot both have values.`
+          );
+
+          return;
+        }
+
+        if (
+          debit <= 0 &&
+          credit <= 0
+        ) {
+          setError(
+            `Row ${rowNumber}: Enter either Debit or Credit.`
+          );
+
+          return;
+        }
+
+        if(line.vehicleId && (journalRelatedToMode(account.type,accountRequiresParty(account.id),isTransport)!=='vehicle' || !eligibleVehicles.some(v=>v.id===line.vehicleId))){
+          setError(`Row ${rowNumber}: Select a company-owned vehicle valid on this journal date.`);return;
+        }
+        const vehicleAccountError=journalVehicleAccountError(account.id,account.type,line.vehicleId??'',companyVehicles);
+        if(vehicleAccountError){setError(`Row ${rowNumber}: ${vehicleAccountError}`);return;}
+        rowsToInsert.push({
+          transport_vehicle_id: line.vehicleId || null,
+          entry_id: id,
+          account_id:
+            account.id,
+          account:
+            `${account.name}`,
+          party_type:
+            line.partyType || null,
+          party_id:
+            line.partyId || null,
+          party_name:
+            partyName,
+          ...(line.description.trim() ? { description: line.description.trim() } : {}),
+          debit,
+          credit,
+        });
+      }
+
+      let dateSaved = false;
+      try {
+        setSaving(true);
+        if (dateChanged) {
+          // Save the header first while the journal has no existing lines:
+          // the FX/date snapshot is maintained by the database trigger.
+          const { data: updated, error: updateError } = await supabase
+            .from("journal_entries")
+            .update({ entry_date: draftEntryDate })
+            .eq("id", entry.id)
+            .eq("status", "draft")
+            .select("id,entry_date,exchange_rate")
+            .single();
+          if (updateError) throw new Error(updateError.message);
+          if (!updated) throw new Error("Draft journal date could not be updated.");
+          dateSaved = true;
+          setEntry(previous => previous && previous.id === updated.id
+            ? {...previous,entry_date:updated.entry_date,exchange_rate:updated.exchange_rate}
+            : previous);
+          setDraftEntryDate(updated.entry_date);
+        }
+        if (rowsToInsert.length === 0) {
+          setSuccess("Journal date saved.");
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("journal_lines")
+          .insert(rowsToInsert)
+          .select(`
+              *,
+              coa:chart_of_accounts(*)
+            `);
+        if (error) throw new Error(error.message);
+
+        const mappedLines =
+          (data ?? []).map(
+            (line: any) => ({
+              ...line,
+              account_id:
+                line.account_id,
+              account:
+                line.account ||
+                (
+                  line.coa
+                    ? `${line.coa.name}`
+                    : ""
+                ),
+              party_type:
+                line.party_type ?? null,
+              party_id:
+                line.party_id ?? null,
+              party_name:
+                line.party_name ?? null,
+            })
+          ) as JournalLine[];
+
+        setLines(
+          (current) => [
+            ...current,
+            ...mappedLines,
+          ]
+        );
+
+        setDraftLines([
+          createDraftLine(),
+        ]);
+
+        setSuccess(
+          `${dateSaved ? "Journal date and " : ""}${mappedLines.length} journal line${
+            mappedLines.length ===
+            1
+              ? ""
+              : "s"
+          } saved successfully.`
+        );
+      } catch (err: any) {
+        setError(
+          `${dateSaved ? "Journal date was saved, but lines could not be saved. " : ""}${err?.message || "Failed to save journal changes."}`
+        );
+      } finally {
+        setSaving(false);
+      }
+    };
+
+  /* =========================================================
+     DELETE EXISTING LINE
+  ========================================================= */
+
+  const handleDeleteLine =
+    async () => {
+      if (
+        !deleteLineId ||
+        !entry
+      ) {
+        return;
+      }
+
+      if (
+        entry.status === "posted"
+      ) {
+        setError(
+          "Posted journal entries cannot be modified."
+        );
+
+        setDeleteLineId(null);
+
+        return;
+      }
+
+      try {
+        setSaving(true);
+        setError(null);
+        setSuccess(null);
+
+        const { error } =
+          await supabase
+            .from("journal_lines")
+            .delete()
+            .eq(
+              "id",
+              deleteLineId
+            );
+
+        if (error) {
+          throw new Error(
+            error.message
+          );
+        }
+
+        setLines(
+          (current) =>
+            current.filter(
+              (line) =>
+                line.id !==
+                deleteLineId
+            )
+        );
+
+        setDeleteLineId(null);
+
+        setSuccess(
+          "Journal line removed."
+        );
+      } catch (err: any) {
+        setError(
+          err?.message ||
+            "Failed to delete journal line."
+        );
+      } finally {
+        setSaving(false);
+      }
+    };
+
+  /* =========================================================
+     POST JOURNAL ENTRY - DATABASE RPC
+  ========================================================= */
+
+  const handlePostEntry =
+    async () => {
+      if (!entry) return;
+      if (draftEntryDate !== entry.entry_date) {
+        setError("Save the journal changes before posting.");
+        return;
+      }
+
+      const unsavedLines =
+        getActiveDraftLines();
+
+      if (
+        unsavedLines.length > 0
+      ) {
+        setError(
+          "You have unsaved journal lines. Click 'Save All Lines' before posting."
+        );
+
+        return;
+      }
+
+      if (
+        entry.status === "posted"
+      ) {
+        setError(
+          "This journal entry is already posted."
+        );
+
+        return;
+      }
+
+      if (lines.length === 0) {
+        setError(
+          "Cannot post an empty journal entry."
+        );
+
+        return;
+      }
+
+      if (!balanced) {
+        setError(
+          `Journal is not balanced. Debit ${formatJournalAmount(
+            totalDebit
+          )} must equal Credit ${formatJournalAmount(
+            totalCredit
+          )}.`
+        );
+
+        return;
+      }
+
+      const invalidAccountLine =
+        lines.find((line) => {
+          if (!line.account_id) {
+            return true;
+          }
+
+          const account =
+            accounts.find(
+              (item) =>
+                item.id ===
+                line.account_id
+            );
+
+          return (
+            !account ||
+            account.is_group ||
+            !account.is_active ||
+            !manualAccountEligible(account)
+          );
+        });
+
+      if (
+        invalidAccountLine
+      ) {
+        setError(
+          "One or more journal lines contain an invalid, inactive, group, or non-posting account."
+        );
+
+        return;
+      }
+
+      const missingPartyLine =
+        lines.find(
+          (line) =>
+            !!line.account_id &&
+            accountRequiresParty(
+              line.account_id
+            ) &&
+            (
+              !line.party_type ||
+              !line.party_id
+            )
+        );
+
+      if (
+        missingPartyLine
+      ) {
+        const account =
+          accounts.find(
+            (item) =>
+              item.id ===
+              missingPartyLine.account_id
+          );
+
+        setError(
+          `"${account?.name ?? "Party control account"}" requires a customer or supplier before posting.`
+        );
+
+        return;
+      }
+
+      try {
+        setPosting(true);
+        setError(null);
+        setSuccess(null);
+
+        const {
+          data,
+          error,
+        } =
+          await supabase.rpc(
+            companyBaseCurrency && entry.currency_code && entry.currency_code !== companyBaseCurrency
+              ? "post_foreign_manual_journal" : "post_journal_entry",
+            {
+              p_entry_id:
+                entry.id,
+            }
+          );
+
+        if (error) {
+          throw new Error(
+            error.message
+          );
+        }
+
+        if (
+          data &&
+          typeof data === "object" &&
+          "success" in data &&
+          (data as any).success === false
+        ) {
+          throw new Error(
+            (data as any).message ||
+              "Journal posting failed."
+          );
+        }
+
+        await Promise.all([
+          fetchEntry(),
+          fetchLines(),
+        ]);
+
+        setSuccess(
+          "Journal entry posted successfully. General Ledger and Party Ledger were created in company base currency."
+        );
+      } catch (err: any) {
+        setError(
+          err?.message ||
+            "Failed to post journal entry."
+        );
+      } finally {
+        setPosting(false);
+      }
+    };
+
+  /* =========================================================
+     DELETE ENTRY
+  ========================================================= */
+
+  const handleDeleteEntry =
+    async () => {
+      if (!entry) return;
+
+      if (
+        entry.status === "posted"
+      ) {
+        setError(
+          "Posted journal entries cannot be deleted."
+        );
+
+        setDeleteEntryOpen(
+          false
+        );
+
+        return;
+      }
+
+      try {
+        setSaving(true);
+        setError(null);
+        setSuccess(null);
+
+        const {
+          error: lineError,
+        } =
+          await supabase
+            .from("journal_lines")
+            .delete()
+            .eq(
+              "entry_id",
+              entry.id
+            );
+
+        if (lineError) {
+          throw new Error(
+            lineError.message
+          );
+        }
+
+        const {
+          error: entryError,
+        } =
+          await supabase
+            .from(
+              "journal_entries"
+            )
+            .delete()
+            .eq(
+              "id",
+              entry.id
+            );
+
+        if (entryError) {
+          throw new Error(
+            entryError.message
+          );
+        }
+
+        // RLS can silently delete zero rows. Confirm the record is gone before navigating.
+        const { data: remainingEntry, error: verificationError } = await supabase
+          .from("journal_entries")
+          .select("id")
+          .eq("id", entry.id)
+          .maybeSingle();
+        if (verificationError) throw new Error(verificationError.message);
+        if (remainingEntry) {
+          throw new Error("Journal was not deleted. Check Accounting delete permission, feature entitlement, and active company/branch access.");
+        }
+
+        navigate(
+          "/accounting"
+        );
+      } catch (err: any) {
+        setError(
+          err?.message ||
+            "Failed to delete journal entry."
+        );
+
+        setDeleteEntryOpen(
+          false
+        );
+      } finally {
+        setSaving(false);
+      }
+    };
+
+  /* =========================================================
+     LOADING / NOT FOUND
+  ========================================================= */
+
+  const handleOwnerCancel = async () => {
+    if (!entry || !ownerCanCancel || ownerCancelReason.trim().length < 10 || !ownerCancelDate) return;
+    if (ownerCancelDate < entry.entry_date) {
+      setError(`Cancellation date cannot be earlier than the original posting date (${entry.entry_date}).`);
+      return;
+    }
+    try {
+      setOwnerCancelling(true);
+      setError(null);
+      const { data, error: rpcError } = await supabase.rpc(
+        ["transport_opening_receipt", "transport_opening_payment"].includes((entry as JournalEntry & {source_document_type?:string}).source_document_type || "")
+          ? "transport_cancel_opening_invoice_settlement" : ["Customer Receipt", "Supplier Payment"].includes(entry.trans_type || "")
+          ? "owner_cancel_unallocated_payment" : "owner_cancel_manual_journal", {
+        p_entry_id: entry.id,
+        p_reversal_date: ownerCancelDate,
+        p_reason: ownerCancelReason.trim(),
+      });
+      if (rpcError) throw new Error(rpcError.message);
+      if (!data?.success) throw new Error("Owner cancellation was not confirmed by the server.");
+      setOwnerCancelOpen(false);
+      navigate("/accounting");
+    } catch (err: any) {
+      setError(err?.message || "Owner cancellation failed; no financial change was confirmed.");
+    } finally {
+      setOwnerCancelling(false);
+    }
+  };
+
+  const handleReverseEntry = async () => {
+    if (!entry) return;
+    if (!reversalDate) { setError("Reversal date is required."); return; }
+    if (reversalDate < entry.entry_date) { setError("Reversal date cannot precede the original journal date."); return; }
+    if (!reversalReason.trim()) { setError("Reversal reason is required."); return; }
+
+    try {
+      setReversing(true);
+      setError(null);
+      setSuccess(null);
+      const { data, error: rpcError } = await supabase.rpc("reverse_manual_journal_entry", {
+        p_entry_id: entry.id,
+        p_reversal_date: reversalDate,
+        p_reason: reversalReason.trim(),
+      });
+      if (rpcError) throw new Error(rpcError.message);
+      const reversalId = data?.reversal_entry_id;
+      if (!reversalId) throw new Error("Reversal journal was not returned by the database.");
+      setReversalOpen(false);
+      setReversalReason("");
+      navigate(`/accounting/${reversalId}`);
+    } catch (err: any) {
+      setError(err?.message || "Failed to reverse journal entry.");
+    } finally {
+      setReversing(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="card p-12 text-center text-slate-400">
+        Loading journal entry...
+      </div>
+    );
+  }
+
+  if (!entry) {
+    return (
+      <ErrorBanner message="Journal entry not found." />
+    );
+  }
+
+  const isPosted =
+    entry.status === "posted";
+  const isForeignJournal = Boolean(companyBaseCurrency && entry.currency_code && entry.currency_code !== companyBaseCurrency);
+
+  // Older manually created journals use trans_type "General". Treat them as
+  // manual journals too, so their Draft Posting Date remains editable.
+  const isManualJournal =
+    !entry.reversal_of_entry_id &&
+    (!entry.trans_type || ["General", "Journal Entry", "Manual Journal"].includes(entry.trans_type));
+  const sourceEntry = entry as JournalEntry & {
+    source_module?: string | null;
+    source_document_type?: string | null;
+    source_document_id?: string | null;
+    fiscal_year_closure_id?: string | null;
+    monthly_profit_closure_id?: string | null;
+  };
+  const canEditDraftDate = !isPosted && isManualJournal &&
+    !sourceEntry.source_module && !sourceEntry.source_document_type &&
+    !sourceEntry.source_document_id && !sourceEntry.fiscal_year_closure_id &&
+    !sourceEntry.monthly_profit_closure_id;
+  const hasUnsavedDraftDate = canEditDraftDate && draftEntryDate !== entry.entry_date;
+
+  const isOwnerCancellableJournal =
+    isPosted && ownerCanCancel && !reversalEntry &&
+    !entry.reversal_of_entry_id &&
+    !sourceEntry.source_module && !sourceEntry.source_document_type &&
+    !sourceEntry.source_document_id && !sourceEntry.fiscal_year_closure_id &&
+    !sourceEntry.monthly_profit_closure_id &&
+    !entry.entry_no.startsWith("COB-") &&
+    (!entry.trans_type || ["General", "Journal Entry", "Manual Journal"].includes(entry.trans_type));
+
+  const isOwnerCancellableOpeningPayment = isPosted && ownerCanCancel && !reversalEntry && !entry.reversal_of_entry_id && sourceEntry.source_module === "transport" && ["transport_opening_receipt", "transport_opening_payment"].includes(sourceEntry.source_document_type || "");
+
+  const isOwnerCancellablePayment =
+    isPosted && ownerCanCancel && !reversalEntry &&
+    !entry.reversal_of_entry_id && !sourceEntry.fiscal_year_closure_id &&
+    !sourceEntry.monthly_profit_closure_id &&
+    sourceEntry.source_module === "accounting" &&
+    ["customer_receipt", "supplier_payment"].includes(sourceEntry.source_document_type || "") &&
+    ["Customer Receipt", "Supplier Payment"].includes(entry.trans_type || "");
+
+  /* =========================================================
+     UI
+  ========================================================= */
+
+  return (
+    <div className="navilo-journal-detail space-y-2 w-full min-w-0 pb-2">
+      <div className="navilo-detail-header flex flex-col md:flex-row md:items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to="/accounting" className="shrink-0 text-xs font-medium text-primary-600 hover:text-primary-700">
+              ← Back to Journal Entries
+            </Link>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {entry.entry_no}
+            </h1>
+
+            <StatusBadge
+              status={entry.status}
+            />
+          </div>
+
+          {entry.description && <p className="text-sm text-slate-500 mt-1">{recordDisplayText(entry.description)}</p>}
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {!isPosted && (
+            <button
+              onClick={
+                handlePostEntry
+              }
+              disabled={
+                posting ||
+                saving ||
+                importing ||
+                hasUnsavedDraftDate ||
+                !balanced
+              }
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                balanced
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
+            >
+              {posting
+                ? "Posting..."
+                : "✓ Post Journal"}
+            </button>
+          )}
+
+          {isPosted && (
+            <span className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg">
+              ✓ Posted & Locked
+            </span>
+          )}
+          {isPosted && sourceEntry.source_document_id && sourceEntry.source_module === "sales" && (
+            <Link className="btn-secondary text-xs" to={`/sales/${sourceEntry.source_document_id}`}
+              title="Open the original sale and its audited correction actions">Open Source Sale / Correct</Link>
+          )}
+          {isPosted && sourceEntry.source_document_id && sourceEntry.source_module === "purchase" && (
+            <Link className="btn-secondary text-xs" to={`/purchase/${sourceEntry.source_document_id}`}
+              title="Open the original purchase and its audited correction actions">Open Source Purchase / Correct</Link>
           )}
           {isPosted && sourceEntry.source_module === "transport" && (
             <Link className="btn-secondary text-xs" to="/transport?view=trips"
