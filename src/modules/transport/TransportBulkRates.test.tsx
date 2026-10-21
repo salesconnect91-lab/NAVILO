@@ -236,6 +236,16 @@ describe('Transport Customer / Supplier bulk parity',()=>{
   fireEvent.change(screen.getByLabelText('New Rate'),{target:{value:'110'}});fireEvent.change(screen.getByLabelText('Correction Reason'),{target:{value:'Reason'}});
   fireEvent.click(screen.getByRole('button',{name:'Save Correction'}));await screen.findByRole('alert');expect(screen.getByLabelText('New Rate')).toBeTruthy();
  });
+ it('carries register-selected cash Trips into invoice posting with VAT fixed at zero',async()=>{
+  const selected={...trip,id:'selected-cash',trip_no:'TRP-SELECTED',sale_type:'cash',customer_rate_state:'finalized' as const,customer_rate:80};
+  render(<TransportBulkCustomerRate initialTrips={[selected]} onClose={vi.fn()} onChanged={async()=>{}}/>);
+  await screen.findByRole('option',{name:'Customer A'});
+  expect((screen.getByLabelText('Select TRP-SELECTED') as HTMLInputElement).checked).toBe(true);
+  expect(screen.getByText('Cash · Without VAT')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Invoice number'),{target:{value:'CASH-REG-1'}});
+  fireEvent.click(screen.getByRole('button',{name:'Post Finalized Selected'}));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_customer_bill_grouped',expect.objectContaining({p_trip_ids:['selected-cash'],p_with_tax:false,p_invoice_no:'CASH-REG-1'})));
+ });
  it.each(['customer','supplier'] as const)('posts the chosen %s invoice number through canonical numbered posting',async side=>{
   render(side==='customer'?<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>:<TransportBulkSupplierRent onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByRole('option',{name:side==='customer'?'Customer A':'Supplier A'});

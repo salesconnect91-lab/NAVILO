@@ -336,6 +336,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
   const removeVoiceDraft=(id:string)=>{persistVoiceDrafts(voiceDrafts.filter(d=>d.id!==id));if(currentVoiceDraftId===id)setCurrentVoiceDraftId(null)};
   const [showBulkSupplierRent,setShowBulkSupplierRent]=useState(false);
   const [showBulkCustomerRate,setShowBulkCustomerRate]=useState(false);
+  const [bulkRateInitialTrips,setBulkRateInitialTrips]=useState<Trip[]>([]);
   const [bulkSupplierRentTrip,setBulkSupplierRentTrip]=useState<Trip|null>(null);
   const [quickPprTrip,setQuickPprTrip]=useState<Trip|null>(null);
   const [quickPprEmployee,setQuickPprEmployee]=useState("");
@@ -1969,6 +1970,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
         <div className="navilo-transport-register-actions flex items-center gap-1">
           <div className="navilo-register-add-trip flex shrink-0 items-center gap-1.5">
           <button type="button" onClick={()=>{entryReturnTab.current="trips";setEditingTripId(null);setTab("new")}} className="flex h-9 items-center gap-1 rounded-lg border border-blue-500 bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
+          <button type="button" onClick={()=>{const chosen=gridRows.filter(row=>selectedTripIds.has(String(row.id)));if(selectedTripCount&&chosen.length!==selectedTripCount){setError('Selected Trips span multiple register pages. Open Rates / Invoice from one page at a time.');return;}setBulkRateInitialTrips(chosen);setShowBulkCustomerRate(true);}} className="flex h-9 items-center gap-1 rounded-lg border border-emerald-600 bg-emerald-700 px-2.5 text-[11px] font-semibold text-white shadow-sm hover:bg-emerald-800">Rates / Invoice{selectedTripCount>0?` · ${selectedTripCount}`:''}</button>
           </div>
           <button type="button" onClick={()=>{setDateDraft({from:fromDate,to:toDate});setDateFilterOpen(true);}} className={`flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border ${fromDate||toDate?"border-amber-400 bg-amber-700":"border-slate-500 bg-slate-900/70"} hover:bg-slate-800`} aria-label="Filter Trip dates">Dates{fromDate||toDate?" ●":""}</button>
           <button type="button" onClick={resetGrid} className="flex h-7 items-center rounded-md px-2.5 text-[10px] font-semibold text-white border border-slate-500 bg-slate-900/70 hover:bg-slate-800">Reset</button>
@@ -2846,7 +2848,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
     {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={refreshRegisterAfterChange}/>}
     {invoiceTrip&&<TransportInvoiceNumber trip={invoiceTrip} onClose={()=>setInvoiceTrip(null)} onChanged={refreshRegisterAfterChange}/>}
     {showBulkSupplierRent&&<TransportBulkSupplierRent compact={Boolean(bulkSupplierRentTrip)} initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={refreshRegisterAfterChange}/>}
-      {showBulkCustomerRate&&<TransportBulkCustomerRate onClose={()=>setShowBulkCustomerRate(false)} onChanged={refreshRegisterAfterChange}/>}
+      {showBulkCustomerRate&&<TransportBulkCustomerRate initialTrips={bulkRateInitialTrips} onClose={()=>{setShowBulkCustomerRate(false);setBulkRateInitialTrips([])}} onChanged={refreshRegisterAfterChange}/>}
 
   </div>
 }

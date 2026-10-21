@@ -17,7 +17,7 @@ type Row={invoice_no?:string|null;customer_rate_locked?:boolean;invoiced?:boolea
 type Account={id:string;name:string;type:string};
 const fmt=(v:string)=>{if(!v)return '—';const [y,m,d]=v.slice(0,10).split('-').map(Number);return `${String(d).padStart(2,'0')}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]}-${String(y).slice(-2)}`};
 
-export default function TransportBulkCustomerRate({onClose,onChanged}:{onClose:()=>void;onChanged:()=>Promise<void>}){
+export default function TransportBulkCustomerRate({onClose,onChanged,initialTrips=[]}:{onClose:()=>void;onChanged:()=>Promise<void>;initialTrips?:Row[]}){
  const {activeCompany,activeBusinessUnit}=useAuth();
  const [rows,setRows]=useState<Row[]>([]),[selected,setSelected]=useState<string[]>([]),[amounts,setAmounts]=useState<Record<string,string>>({}),[accounts,setAccounts]=useState<Account[]>([]);
  const [search,setSearch]=useState(''),[status,setStatus]=useState(''),[includePosted,setIncludePosted]=useState(false),[account,setAccount]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[reason,setReason]=useState('Bulk customer rate');const [vatReady,setVatReady]=useState(true),[vatRate,setVatRate]=useState<number|null>(0);
@@ -26,7 +26,7 @@ export default function TransportBulkCustomerRate({onClose,onChanged}:{onClose:(
  const [descriptions,setDescriptions]=useState<Record<string,string>>({});
  const [invoiceNumber,setInvoiceNumber]=useState('');
  const [page,setPage]=useState(0),[pageMeta,setPageMeta]=useState<{count:number;amount:number;statuses:string[]}>({count:0,amount:0,statuses:[]});
- const generation=useRef(0),submitting=useRef(false);
+ const generation=useRef(0),submitting=useRef(false),initialSelectionApplied=useRef(false);
  const scopeKey=`${activeCompany?.company_id}/${activeBusinessUnit?.business_unit_id}`;
  const masterCache=useRef<{scope:string;expires:number;data:any[]}|null>(null);
  async function load(){
@@ -44,16 +44,23 @@ export default function TransportBulkCustomerRate({onClose,onChanged}:{onClose:(
   const [people,aa,mappings,grants]=refs;
   if(request!==generation.current)return;
   if(result.error)throw result.error;
-  const tripIds=result.data.rows.map((r:any)=>r.id).filter(Boolean);
+  const fetchedRows=result.data.rows as Row[];
+  const pageIds=new Set(fetchedRows.map(r=>r.id));
+  const mergedRows=[...fetchedRows,...initialTrips.filter(r=>!pageIds.has(r.id)).map(r=>({...r,trip_status:r.trip_status??(r as any).status,financial_status:r.financial_status??(r as any).status}))];
+  const tripIds=mergedRows.map((r:any)=>r.id).filter(Boolean);
   const chargeResult=tripIds.length?await supabase.from('transport_trip_customer_charges').select('trip_id,amount,name_snapshot').in('trip_id',tripIds):{data:[],error:null};
   if(chargeResult.error)throw chargeResult.error;
   const chargesByTrip=new Map<string,{amount:number;names:string[]}>();
   for(const x of chargeResult.data??[]){const v=chargesByTrip.get(x.trip_id)??{amount:0,names:[]};v.amount+=Number(x.amount||0);if(x.name_snapshot)v.names.push(x.name_snapshot);chargesByTrip.set(x.trip_id,v);}
-  const enrichedRows=result.data.rows.map((r:any)=>{const x=chargesByTrip.get(r.id);return {...r,customer_charges:x?.amount??0,customer_charge_names:x?.names.join(', ')??''};});
-  setRows(enrichedRows);setSelected(current=>current.filter(id=>enrichedRows.some((r:any)=>r.id===id)));setPageMeta(result.data);if(page>Math.max(0,Math.ceil(result.data.count/500)-1))setPage(Math.max(0,Math.ceil(result.data.count/500)-1));setCustomers(people.sort((a,b)=>a.name.localeCompare(b.name)));setAccounts(aa);const serviceRevenue=mappings.find(m=>m.mapping_key==='service_revenue')?.account_id;if(serviceRevenue&&aa.some(a=>a.id===serviceRevenue))setAccount(current=>current||serviceRevenue);setPermissions(Object.fromEntries(grants));
+  const enrichedRows=mergedRows.map((r:any)=>{const x=chargesByTrip.get(r.id);return {...r,customer_charges:x?.amount??r.customer_charges??0,customer_charge_names:x?.names.join(', ')??r.customer_charge_names??''};});
+  setRows(enrichedRows);setSelected(current=>{
+   const retained=current.filter(id=>enrichedRows.some((r:any)=>r.id===id));
+   if(!initialSelectionApplied.current){initialSelectionApplied.current=true;return [...new Set([...retained,...initialTrips.filter(r=>!r.customer_rate_locked&&!r.invoiced&&!r.sales_order_id).map(r=>r.id)])].filter(id=>enrichedRows.some((r:any)=>r.id===id));}
+   return retained;
+  });setPageMeta(result.data);if(page>Math.max(0,Math.ceil(result.data.count/500)-1))setPage(Math.max(0,Math.ceil(result.data.count/500)-1));setCustomers(people.sort((a,b)=>a.name.localeCompare(b.name)));setAccounts(aa);const serviceRevenue=mappings.find(m=>m.mapping_key==='service_revenue')?.account_id;if(serviceRevenue&&aa.some(a=>a.id===serviceRevenue))setAccount(current=>current||serviceRevenue);setPermissions(Object.fromEntries(grants));
   }finally{if(request===generation.current)setLoading(false);}
  }
- useEffect(()=>{masterCache.current=null;setRows([]);setPermissions({});setPage(0);setSelected([]);setAmounts({});setInvoiceNumber('');setDescriptions({});setCorrection(null);setCustomer('');setAccount('');setIncludePosted(false);},[scopeKey]);
+ useEffect(()=>{masterCache.current=null;initialSelectionApplied.current=false;setRows([]);setPermissions({});setPage(0);setSelected([]);setAmounts({});setInvoiceNumber('');setDescriptions({});setCorrection(null);setCustomer('');setAccount('');setIncludePosted(false);},[scopeKey]);
  const filterKey=JSON.stringify({scopeKey,customer,status,search,columnFilters,includePosted});
  const lastFilterKey=useRef(filterKey);
  useEffect(()=>{
