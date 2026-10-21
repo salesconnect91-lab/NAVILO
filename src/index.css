@@ -7363,3 +7363,41 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
     min-width: 0;
   }
 }
+
+
+/* Phase 9: responsive ERP presentation finishing layer.
+   Scoped to shared surfaces; keep module-specific register, print, and density rules. */
+@media screen {
+  .erp-shell .page-header,
+  .erp-shell .page-actions,
+  .erp-shell .navilo-report-toolbar {
+    min-width: 0;
+  }
+  .erp-shell .card,
+  .erp-shell .table-shell,
+  .erp-shell .summary-card {
+    min-width: 0;
+  }
+  .erp-shell .table-shell {
+    max-width: 100%;
+  }
+  .erp-shell .data-table {
+    font-variant-numeric: tabular-nums;
+  }
+  .erp-shell :is(.btn-primary, .btn-secondary, .btn-danger):disabled {
+    cursor: not-allowed;
+    opacity: .55;
+  }
+}
+@media screen and (max-width: 767px) {
+  .erp-shell .page-header {
+    gap: 8px;
+  }
+  .erp-shell .page-actions {
+    max-width: 100%;
+    gap: 6px;
+  }
+  .erp-shell .page-title {
+    overflow-wrap: anywhere;
+  }
+}
