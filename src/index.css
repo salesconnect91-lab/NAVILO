@@ -7224,9 +7224,6 @@ html[data-mf-theme="black"] .mf-dashboard .mf-finance-row span {
   min-height: 40px !important;
   height: 40px;
 }
-[data-navilo-master-standard="true"] [data-navilo-data-table][data-density="compact"] table { font-size: 12px !important; }
-[data-navilo-master-standard="true"] [data-navilo-data-table][data-density="comfortable"] table { font-size: 13px !important; }
-[data-navilo-master-standard="true"] [data-navilo-data-table][data-density="spacious"] table { font-size: 14px !important; }
 
 
 /* Density must override the master-data legacy fixed cell padding. */
