@@ -22,9 +22,30 @@
     background:#f5f8f7!important;
     color:#183743;
   }
+  .erp-shell.navilo-modern #navilo-main-content {
+    font-family:var(--erp-font);
+    color:var(--nv-ink);
+    min-width:0;
+    overflow-x:clip;
+  }
+  .erp-shell.navilo-modern #navilo-main-content > :is(div,main,section).mx-auto[class*="max-w-"] {
+    width:100%;
+    max-width:none;
+    margin-inline:0;
+  }
+  .erp-shell.navilo-modern #navilo-main-content .navilo-page-root {
+    width:100%;
+    max-width:none;
+    min-width:0;
+    margin-inline:0;
+  }
   .erp-shell.navilo-modern .navilo-sidebar {
     background:linear-gradient(180deg,#183940,#122d35)!important;
     border-color:#284b50!important;
+  }
+  .erp-shell.navilo-modern .navilo-nav-link.is-active {
+    background:#087f68!important;
+    box-shadow:inset 3px 0 #9ad7ca!important;
   }
   .erp-shell.navilo-modern .navilo-topbar {
     background:#fff!important;
@@ -118,6 +139,15 @@
     border-bottom:1px solid #c7dad5!important;
   }
   .erp-shell.navilo-modern #navilo-main-content [data-navilo-data-table] tbody tr:hover td {
+    background:#f2faf7!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content table:not(:where([data-navilo-transport-register] *,[data-navilo-print-preview] *, .navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *)) thead th {
+    background:#edf5f3!important;
+    border-color:#c7dad5!important;
+    color:#214c54!important;
+    font-weight:700!important;
+  }
+  .erp-shell.navilo-modern #navilo-main-content table:not(:where([data-navilo-transport-register] *,[data-navilo-print-preview] *, .navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *)) tbody tr:hover>td {
     background:#f2faf7!important;
   }
   .erp-shell.navilo-modern #navilo-main-content [data-navilo-data-table] [aria-expanded="true"] {

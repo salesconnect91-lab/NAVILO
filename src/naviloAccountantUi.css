@@ -7,7 +7,7 @@
     --ui-ink: #17253b;
     --ui-muted: #52647b;
     --ui-line: #d5dfeb;
-    --ui-accent: #2458a6;
+    --ui-accent: #087f68;
     --ui-radius: 5px;
     font-family: var(--erp-font);
     background: #f2f5f9;
@@ -36,7 +36,7 @@
   .erp-shell .navilo-nav-link:hover,
   .erp-shell .navilo-nav-group:hover { background: #223b58; color: #fff; }
   .erp-shell .navilo-nav-link.is-active {
-    background: #2458a6;
+    background: #087f68;
     color: #fff;
     box-shadow: inset 3px 0 #9ec8ff;
   }
