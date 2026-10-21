@@ -14,12 +14,17 @@ This package **prepares** a safe daily backup workflow; it does not install itse
    ```
 6. Check for a completed `.dump` and matching `.sha256` file. Confirm that `pg_restore --list` succeeds (the script checks this). This is **not yet a full restore test**.
 7. In Windows Task Scheduler, create a daily task running the command in step 5 under the same Windows account. Enable **Run whether user is logged on or not** and **Run task as soon as possible after a scheduled start is missed**. Test it with **Run** and inspect the history and output. The PC must be powered on and network-connected; missed runs are not equivalent to a cloud backup.
-8. Do an actual **isolated restore drill** into a different local test PostgreSQL server/database; reconcile expected table counts and selected journal balances. Never point a restore at production. Keep a dated restore-test record.
+8. Create a **separate, empty** local PostgreSQL database with a name such as `navilo_restore_drill`. Use test-only credentials and no tunnelling/forwarding to the production database. Run the guard-protected restore checker:
+   ```powershell
+   powershell.exe -NoProfile -File "C:\NAVILO\NAVILO-Verify-Restore.ps1" -Archive "D:\NAVILO-Backups\navilo_YYYYMMDD_HHMMSS.dump" -TestDatabase "navilo_restore_drill"
+   ```
+   The restore checker verifies SHA256, ensures a localhost target with a strictly named *empty* test database, performs a single-transaction restore, and audits posted-journal balance. A PostgreSQL test environment with compatible extensions and roles may be needed for the full Supabase schema. Record its actual output. Never target production.
+9. Compare the restored counts with the original backup-time source snapshot before declaring disaster-recovery readiness.
 
 ## Operational safety
 
 - Backups read PostgreSQL; they never change NAVILO production tables or schema.
-- A successful archive-list check proves only that the archive can be read, **not** that the data can be restored and reconciled.
+- A successful archive-list check proves only that the archive can be read, **not** that the data can be restored and reconciled. Use `NAVILO-Verify-Restore.ps1` on a clean local test server.
 - If the job fails, retain existing good backups and investigate; the script will not prune them.
 - Retention defaults to 14 days. NAVILO was approximately **1.5 GB before compression** at the 21-Oct-2026 audit, so monitor disk space as usage grows.
 - If the machine uses Windows Home or the destination is unencrypted, provide equivalent encrypted storage before saving financial data there.
