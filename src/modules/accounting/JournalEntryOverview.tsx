@@ -107,7 +107,11 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
    Cannot display the financial details: {detailError}. Journal amounts are not assumed to be zero.
   </div>}
   <div className="overflow-x-auto">
-   <table className="w-full min-w-[1050px] text-xs" data-report-content data-navilo-customizable="true">
+   <table className="w-full min-w-[1050px] table-fixed text-xs" data-report-content data-navilo-customizable="true">
+    <colgroup>
+     <col style={{width:'12%'}}/><col style={{width:'16%'}}/><col style={{width:'13%'}}/><col style={{width:'13%'}}/>
+     <col style={{width:'12%'}}/><col style={{width:'10%'}}/><col style={{width:'8%'}}/><col style={{width:'16%'}}/>
+    </colgroup>
     <thead className="bg-slate-50 text-slate-700">
      <tr className="border-b">
       <th scope="col" className="px-2 py-1.5 text-left">Entry # / Date</th>
@@ -149,7 +153,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
          </td>
          <td className="w-[8%] px-1 py-1 text-center align-middle"><StatusBadge status={entry.status}/></td>
          <td className="w-[16%] px-1 py-1 align-middle">
-          <div className="grid grid-cols-2 gap-1">
+          <div className="navilo-journal-overview-actions grid grid-cols-2 gap-1">
            <button aria-label={`Show lines for ${entry.entry_no}`} aria-expanded={open} type="button"
             onClick={toggle} disabled={!info} className="min-w-0 rounded border px-1.5 py-1 text-[11px] text-blue-700 disabled:opacity-40">{open?'Hide':'Details'}</button>
            <Link className="min-w-0 rounded border px-1.5 py-1 text-center text-[11px] text-blue-700" to={`/accounting/${entry.id}`}>Open</Link>
