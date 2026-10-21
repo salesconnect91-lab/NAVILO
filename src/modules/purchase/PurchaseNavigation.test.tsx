@@ -57,5 +57,11 @@ describe('Purchase section nested navigation',()=>{
   expect(items.some(n=>n.key==='transport-normal-purchase-create')).toBe(false);
   expect(items.some(n=>n.key==='purchase-invoices'&&n.to==='/purchase')).toBe(true);
  });
+ it('labels the Transport Sales entry as a normal non-trip invoice',()=>{
+  const sales=navigation.find(n=>n.key==='sales');
+  const item=flatten(sales?.children??[]).find(n=>n.key==='transport-normal-sales-create');
+  expect(item?.label).toBe('Create Normal Sale Invoice');
+  expect(item?.to).toBe('/sales/new?type=normal');
+ });
 
 });
