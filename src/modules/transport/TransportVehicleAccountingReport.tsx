@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import SearchableSelect from '@/components/SearchableSelect';
 import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
@@ -9,6 +9,7 @@ import {groupPostedVehicleMonths} from './vehiclePostedMonthSummary';
 import type {ReportTable} from './transportPartyExport';
 export default function TransportVehicleAccountingReport(){
  const {activeCompany,activeBusinessUnit}=useAuth();const c=activeCompany?.company_id,b=activeBusinessUnit?.business_unit_id,scope=`${c}/${b}`;
+ const ledgerCache=useRef<{key:string;rows:any[];revenue:number;cost:number}|null>(null);
  const [vehicles,setVehicles]=useState<{id:string;vehicle_no:string}[]>([]),[vehicle,setVehicle]=useState(''),[from,setFrom]=useState(''),[to,setTo]=useState('');
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[report,setReport]=useState<ReportTable|null>(null),[mode,setMode]=useState('monthly');const selection=`${scope}/${vehicle}/${from}/${to}/${mode}`;const [loaded,setLoaded]=useState('');
  useEffect(()=>{let live=true;setVehicles([]);setVehicle('');setReport(null);setError('');if(!c||!b)return;void (async()=>{const rows:typeof vehicles=[];for(let offset=0;;offset+=500){const r=await supabase.from('transport_vehicles').select('id,vehicle_no').eq('company_id',c).eq('business_unit_id',b).order('id').range(offset,offset+499);if(r.error)throw r.error;rows.push(...r.data??[]);if((r.data??[]).length<500)break;}if(live)setVehicles(rows);})().catch(e=>{if(live)setError(e.message);});return()=>{live=false};},[c,b,scope]);
@@ -40,9 +41,18 @@ export default function TransportVehicleAccountingReport(){
     if(live){setReport(table);setLoaded(selection);}
     return;
    }
-   let count:number|null=null,revenue=0,cost=0;const rows:any[]=[];
-   for(let offset=0;;offset+=500){const r=await supabase.rpc('transport_vehicle_ledger',{p_vehicle:vehicle,p_from:from||null,p_to:to||null,p_limit:500,p_offset:offset});if(r.error)throw r.error;const d=r.data;if(!Number.isSafeInteger(d?.count)||d.count<0||!Array.isArray(d.rows))throw Error('Incomplete vehicle report response');if(count!==null&&(count!==d.count||revenue!==Number(d.revenue)||cost!==Number(d.cost)))throw Error('Accounting changed during loading; refresh report.');count=d.count;revenue=Number(d.revenue);cost=Number(d.cost);if(count>50000)throw Error('Narrow date range to 50,000 accounting rows or fewer.');rows.push(...d.rows);if(rows.length>=count||d.rows.length<500)break;}
-   if(rows.length!==count)throw Error('Incomplete report; totals withheld.');let running=0;
+   // Monthly, detailed and P&L modes share one immutable snapshot for the same selection.
+   const ledgerKey=JSON.stringify([c,b,vehicle,from,to]);
+   const cached=ledgerCache.current?.key===ledgerKey?ledgerCache.current:null;
+   let revenue=cached?.revenue??0,cost=cached?.cost??0;
+   const rows:any[]=cached?.rows??[];
+   if(!cached){
+    let count:number|null=null;
+    for(let offset=0;;offset+=500){const r=await supabase.rpc('transport_vehicle_ledger',{p_vehicle:vehicle,p_from:from||null,p_to:to||null,p_limit:500,p_offset:offset});if(r.error)throw r.error;const d=r.data;if(!Number.isSafeInteger(d?.count)||d.count<0||!Array.isArray(d.rows))throw Error('Incomplete vehicle report response');if(count!==null&&(count!==d.count||revenue!==Number(d.revenue)||cost!==Number(d.cost)))throw Error('Accounting changed during loading; refresh report.');count=d.count;revenue=Number(d.revenue);cost=Number(d.cost);if(count>50000)throw Error('Narrow date range to 50,000 accounting rows or fewer.');rows.push(...d.rows);if(rows.length>=count||d.rows.length<500)break;}
+    if(rows.length!==count)throw Error('Incomplete report; totals withheld.');
+    if(live)ledgerCache.current={key:ledgerKey,rows,revenue,cost};
+   }
+   let running=0;
    // Manual debits to a revenue account are contra-revenue in the General P&L.
    // Vehicle statement shows these journal debits separately; net profit is unchanged.
    const revenueDebits=rows.reduce((sum,x)=>sum+(x.category==='Manual journal'&&Number(x.revenue)<0?-Number(x.revenue):0),0);
