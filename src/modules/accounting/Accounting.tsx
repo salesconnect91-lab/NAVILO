@@ -28,7 +28,7 @@ const report = (node: React.ReactNode) => <ReportSurface>{node}</ReportSurface>;
 
 export default function Accounting() {
   return (
-    <div className="space-y-4">
+    <div className="w-full min-w-0 space-y-2">
       <Routes>
         <Route path="/" element={<JournalEntryList />} />
         <Route path="/cash-counter" element={<CashCounterWorkspace />} />
