@@ -2699,7 +2699,7 @@ export default function JournalEntryList() {
   ======================================================= */
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="navilo-journal-list w-full min-w-0 space-y-6 pb-12" data-navilo-workspace-width="full">
 
       {/* HEADER */}
 

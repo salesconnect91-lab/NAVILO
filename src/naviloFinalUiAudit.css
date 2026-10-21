@@ -28,6 +28,24 @@
     padding: 8px 12px !important;
   }
 
+  /* The application workspace already ends at the sidebar edge. Avoid a second
+     centered max-width frame that creates wide blank gutters on desktop. */
+  .erp-shell.navilo-modern #navilo-main-content[data-neus-route] {
+    width: 100%;
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content [data-navilo-workspace-width="full"],
+  .erp-shell.navilo-modern #navilo-main-content [data-navilo-commercial-standard="true"],
+  .erp-shell.navilo-modern #navilo-main-content [data-navilo-document-editor="true"],
+  .erp-shell.navilo-modern #navilo-main-content [data-navilo-master-standard="true"],
+  .erp-shell.navilo-modern #navilo-main-content .professional-report {
+    width: 100%;
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
+
   /* Let wide data screens use the workspace width while retaining intentional
      max-width constraints on dialogs, forms and small content blocks. */
   .erp-shell.navilo-modern #navilo-main-content > div.mx-auto[class~="max-w-7xl"]:not(:has([role="dialog"])) {
