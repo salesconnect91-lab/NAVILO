@@ -1,5 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
-import { Navigate, useLocation } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { ReactNode } from "react";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission, type ModuleKey } from "@/auth/permissions";
@@ -28,13 +28,14 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading, accessContext, accessError, isPlatformOwner, activeCompany, activeBusinessUnit, availableCompanies, requiresCompanySelection, switchingCompany, switchCompany, refreshAccess, signOut } = useAuth();
   const [selectionError,setSelectionError]=useState("");
   const location = useLocation();
+  const unavailableCompanies = accessContext?.companies.filter((company) => !company.access_allowed) ?? [];
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center"><div className="text-slate-400">Loading… / لوڈ ہو رہا ہے…</div></div>;
   }
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
 
-  if (requiresCompanySelection && accessContext) {
+  if (requiresCompanySelection && accessContext && !(isPlatformOwner && location.pathname.startsWith("/owner"))) {
     return <div className="min-h-screen bg-slate-100 px-4 py-12"><div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"><div className="flex items-center gap-3"><div className="rounded-xl bg-blue-50 p-2.5 text-blue-700"><Building2 className="h-5 w-5"/></div><div><h1 className="text-xl font-black text-slate-900">Select Business</h1><p className="text-sm text-slate-500">Your login has access to more than one business. Select the business you want to open.</p></div></div>{selectionError&&<div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{selectionError}</div>}{isPlatformOwner ? (
       <div className="mt-5">
         <label htmlFor="navilo-owner-business-picker" className="mb-1.5 block text-xs font-bold text-slate-700">
@@ -62,10 +63,26 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
               {company.company_name} · {company.company_code}
             </option>
           ))}
+          {unavailableCompanies.map((company) => {
+            const expiry = company.subscription_expires_at ? new Date(company.subscription_expires_at).getTime() : null;
+            const reason = expiry !== null && expiry <= Date.now()
+              ? "Expired"
+              : company.company_status === "suspended" ? "Suspended" : "Unavailable";
+            return (
+              <option key={`unavailable-${company.company_id}`} value={`unavailable-${company.company_id}`} disabled data-search={`${company.company_code} ${reason}`}>
+                {company.company_name} · {reason} — manage in Owner Controls
+              </option>
+            );
+          })}
         </SearchableSelect>
         <p className="mt-2 text-xs text-slate-500">
-          Only businesses available to your software-owner login are shown. Selecting a business opens its workspace.
+          Expired or unavailable companies are listed for visibility but cannot be opened until restored.
         </p>
+        {unavailableCompanies.length > 0 && (
+          <Link to="/owner" className="btn-secondary mt-3 inline-flex">
+            Open Owner Controls to manage expired companies
+          </Link>
+        )}
         {switchingCompany && <p className="mt-2 flex items-center gap-2 text-xs text-blue-700"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Opening business...</p>}
       </div>
     ) : (
