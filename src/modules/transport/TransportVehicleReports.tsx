@@ -47,14 +47,18 @@ export function TransportVehicleOperationalReport() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [mode, setMode] = useState<ReportMode>('ledger');
-  const [rows, setRows] = useState<FinancialTrip[]>([]);
+  const [rawRows, setRows] = useState<FinancialTrip[]>([]);
+  // Fleet scope is presentation-only: switching it must not rerun the expensive report RPC.
+  const rows = useMemo(() => fleetScope === 'owned'
+    ? rawRows.filter(trip => isCompanyFleetTrip(trip.owner_name, trip.ownership_class, companyName))
+    : rawRows, [rawRows, fleetScope, companyName]);
   // Distinguish a verified empty vehicle report from one not yet loaded.
   // Never flash zero totals before async rows arrive or after a failed read.
   const [loadedSelectionKey, setLoadedSelectionKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [financialAccess, setFinancialAccess] = useState<'checking'|'allowed'|'denied'>('checking');
-  const selectionKey = JSON.stringify([companyId, businessUnitId, vehicleId, from, to, fleetScope, financialAccess]);
+  const selectionKey = JSON.stringify([companyId, businessUnitId, vehicleId, from, to, financialAccess]);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,9 +196,7 @@ export function TransportVehicleOperationalReport() {
         // Company fleet excludes supplier/partner Trips sharing the plate.
         // "All vehicles" includes them for operational profitability analysis.
         if (!disposed) {
-          setRows(fleetScope === 'owned'
-            ? all.filter(trip => isCompanyFleetTrip(trip.owner_name, trip.ownership_class, companyName))
-            : all);
+          setRows(all);
           setLoadedSelectionKey(selectionKey);
         }
       } catch (reason) {
@@ -204,7 +206,7 @@ export function TransportVehicleOperationalReport() {
       }
     })();
     return () => {disposed = true;};
-  }, [vehicleId, companyId, businessUnitId, from, to, fleetScope, companyName, financialAccess, selectionKey]);
+  }, [vehicleId, companyId, businessUnitId, from, to, financialAccess, selectionKey]);
 
   const matching = useMemo(() => {
     const search = vehicleSearch.trim().toLowerCase();
