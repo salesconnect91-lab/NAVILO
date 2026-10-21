@@ -1,0 +1,52 @@
+name: NAVILO Isolated Multi-company Launch Smoke
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/navilo-launch-isolated-smoke.yml'
+      - 'scripts/navilo_local_launch_acceptance.mjs'
+      - 'scripts/phase2b_local_security_tests.mjs'
+permissions:
+  contents: read
+jobs:
+  isolated-launch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: navilo_transport_rehearsal
+          POSTGRES_PASSWORD: navilo-rehearsal-only
+        ports:
+          - 6543:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install isolated PostgreSQL driver
+        run: npm install --prefix "$RUNNER_TEMP/navilo-isolated-driver" --no-save --package-lock=false --no-audit --no-fund pg@8.16.3
+      - name: Replay full isolated accounting, tenant isolation and concurrency tests
+        env:
+          NAVILO_NATIVE_REHEARSAL: '1'
+          NAVILO_PG_DRIVER: ${{ runner.temp }}/navilo-isolated-driver/node_modules/pg/lib/index.js
+        run: |
+          set -o pipefail
+          node --expose-gc supabase/tests/replay_transport_isolated.mjs 2>&1 | tee navilo-launch-isolated.log
+      - name: Preserve isolated acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: navilo-isolated-launch-${{ github.sha }}
+          path: navilo-launch-isolated.log
+          retention-days: 14
