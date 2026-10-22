@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {externalVehicleIncome,splitTransportRevenue,reconcileNormalVehicleIncome,mergeVehicleLedgerMovements,totalVehicleLedgerMovement} from './transportIncomeBreakdown';
+import {externalVehicleIncome,splitTransportRevenue,reconcileNormalVehicleIncome,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions} from './transportIncomeBreakdown';
 describe('Transport company P&L - separate Sale and Trip Service income',()=>{
  it('reads posted accounting by different mapped revenue accounts, respecting contra debits',()=>{
   expect(splitTransportRevenue([
@@ -93,5 +93,14 @@ describe('Transport company P&L - separate Sale and Trip Service income',()=>{
   ]);
   expect(totalVehicleLedgerMovement(linked)).toBe(-6758.67);
   expect(net.reduce((sum,row)=>sum+row.amount,0)).toBeCloseTo(95096.33,2);
+ });
+ it('counts a dedicated vehicle ledger once instead of adding its invoice snapshot again',()=>{
+  const invoiceRows=[
+   {vehicle_id:'dedicated-7979',vehicle_no:'7979',amount:27395},
+   {vehicle_id:'shared-7494',vehicle_no:'7494',amount:18200},
+  ];
+  expect(excludeDedicatedVehicleAttributions(invoiceRows,new Set(['dedicated-7979']))).toEqual([
+   {vehicle_id:'shared-7494',vehicle_no:'7494',amount:18200},
+  ]);
  });
 });
