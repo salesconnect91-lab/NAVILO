@@ -124,5 +124,27 @@ export default function SteelStockControl() {
 
 function ReportTable({ headers, children }: { headers: string[]; children: React.ReactNode }) {
   const hasRows = Array.isArray(children) ? children.some(Boolean) : Boolean(children);
-  return <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full text-xs"><thead className="sticky top-0 z-10 bg-slate-50"><tr>{headers.map((h) => <th key={h} className="whitespace-nowrap border-b border-slate-200 p-2.5 text-left text-[10px] font-black uppercase tracking-wide text-slate-600">{h}</th>)}</tr></thead><tbody>{hasRows ? children : <tr><td colSpan={headers.length} className="p-10 text-center text-sm font-bold text-slate-500">No data for the current filters.</td></tr>}</tbody></table></div></div>;
+  const key="navilo:steel-report-widths:"+headers.join("|");
+  const [widths,setWidths]=useState<Record<number,number>>(()=>{
+    try{return JSON.parse(localStorage.getItem(key)||"{}");}catch{return {};}
+  });
+  useEffect(()=>{
+    try{setWidths(JSON.parse(localStorage.getItem(key)||"{}"));}catch{setWidths({});}
+  },[key]);
+  const resize=(event:React.MouseEvent<HTMLSpanElement>,index:number)=>{
+    event.preventDefault();event.stopPropagation();
+    const start=event.clientX;
+    const startWidth=(event.currentTarget.parentElement as HTMLElement).getBoundingClientRect().width;
+    const move=(e:MouseEvent)=>{
+      const value=Math.min(750,Math.max(68,Math.round(startWidth+e.clientX-start)));
+      setWidths(prev=>{
+        const next={...prev,[index]:value};
+        try{localStorage.setItem(key,JSON.stringify(next));}catch{}
+        return next;
+      });
+    };
+    const stop=()=>{window.removeEventListener("mousemove",move);window.removeEventListener("mouseup",stop);};
+    window.addEventListener("mousemove",move);window.addEventListener("mouseup",stop);
+  };
+  return <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full text-xs"><colgroup>{headers.map((h,i)=><col key={h+":"+i} style={widths[i]?{width:widths[i],minWidth:widths[i]}:undefined}/>)}</colgroup><thead className="sticky top-0 z-10 bg-slate-50"><tr>{headers.map((h,i) => <th key={h+":"+i} className="relative whitespace-nowrap border-b border-slate-200 p-2.5 text-left text-[10px] font-black uppercase tracking-wide text-slate-600">{h}<span role="separator" aria-label={`Resize ${h} column`} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-slate-300" onMouseDown={event=>resize(event,i)}/></th>)}</tr></thead><tbody>{hasRows ? children : <tr><td colSpan={headers.length} className="p-10 text-center text-sm font-bold text-slate-500">No data for the current filters.</td></tr>}</tbody></table></div></div>;
 }
