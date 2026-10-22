@@ -2094,6 +2094,12 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
                 const totalText=amountGridKeys.has(key)?registerDataCurrent?financialNumber(gridTotal(key)):'—':null;
 
                 return <th data-financial-group={visualGridGroup(key)} key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
+                  draggable={key!=="trip_no"}
+                  title="Drag header to move within its group; drag right edge to resize"
+                  onDragStart={event=>{if(key==="trip_no"){event.preventDefault();return;}tripColumnDragKey.current=key;event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("text/plain",key);}}
+                  onDragOver={event=>{const source=tripColumnDragKey.current;if(source&&visualGridGroup(source)===visualGridGroup(key)){event.preventDefault();event.dataTransfer.dropEffect="move";}}}
+                  onDrop={event=>{event.preventDefault();const source=tripColumnDragKey.current;tripColumnDragKey.current=null;if(source)moveTripColumn(source,key);}}
+                  onDragEnd={()=>{tripColumnDragKey.current=null;}}
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
                   className={`sticky top-0 border-b border-r px-0.5 !py-0 font-bold leading-none ${(isSupplierGridKey(key)?"border-rose-200 bg-rose-50 text-slate-800":isCustomerGridKey(key)?"border-blue-200 bg-blue-50 text-slate-800":isPprGridKey(key)?"border-emerald-200 bg-emerald-50 text-slate-800":"border-slate-300 bg-white text-slate-700")} ${i===0?"!sticky left-0 top-0 z-[60] shadow-[2px_0_3px_rgba(15,23,42,0.10)]":"z-40"}`}>
                   <div className="flex min-h-[22px] w-full min-w-0 items-center gap-0.5">
