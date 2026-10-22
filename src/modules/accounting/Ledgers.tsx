@@ -171,6 +171,9 @@ export default function Ledgers() {
   const scope=accessContext as unknown as {current_operating_location?:{id?:string;operating_location_id?:string};operating_location_id?:string}|null;
   const branch=scope?.current_operating_location?.id??scope?.current_operating_location?.operating_location_id??scope?.operating_location_id;
   const [viewMode, setViewMode] = useState<ViewMode>("general");
+  const [generalOrder,setGeneralOrder]=useState<number[]>(()=>{try{const v=JSON.parse(localStorage.getItem("navilo:general-ledger:order-v1")||"[]");return Array.isArray(v)&&v.length===6&&new Set(v).size===6&&v.every((n:number)=>Number.isInteger(n)&&n>=0&&n<6)?v:[0,1,2,3,4,5];}catch{return [0,1,2,3,4,5];}});
+  const [draggedGeneral,setDraggedGeneral]=useState<number|null>(null);
+  const moveGeneralColumn=(target:number)=>{if(draggedGeneral===null||draggedGeneral===target)return;setGeneralOrder(old=>{const next=old.filter(i=>i!==draggedGeneral);next.splice(next.indexOf(target),0,draggedGeneral);try{localStorage.setItem("navilo:general-ledger:order-v1",JSON.stringify(next))}catch{}return next;});setDraggedGeneral(null);};
   const [generalDisplaySort,setGeneralDisplaySort]=useState<{key:"date"|"account"|"description"|"debit"|"credit";direction:"asc"|"desc"}|null>(null);
   const toggleGeneralDisplaySort=(key:"date"|"account"|"description"|"debit"|"credit")=>setGeneralDisplaySort(previous=>({key,direction:previous?.key===key&&previous.direction==="asc"?"desc":"asc"}));
   const [generalColumnSearch,setGeneralColumnSearch]=useState("");
@@ -1089,14 +1092,14 @@ export default function Ledgers() {
             </div>
             <table className="w-full text-sm min-w-[900px]">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                  <th style={generalColumnWidths[0]?{width:generalColumnWidths[0],minWidth:generalColumnWidths[0]}:undefined} className="relative text-left py-2.5 px-3 font-semibold whitespace-nowrap min-w-[110px]"><button type="button" aria-label="Sort General Ledger by Transaction Date" onClick={()=>toggleGeneralDisplaySort("date")}>Transaction Date {generalDisplaySort?.key==="date"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Transaction Date column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(0,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
-                  <th style={generalColumnWidths[1]?{width:generalColumnWidths[1],minWidth:generalColumnWidths[1]}:undefined} className="relative text-left py-2.5 px-3 font-medium"><button type="button" aria-label="Sort General Ledger by Account" onClick={()=>toggleGeneralDisplaySort("account")}>Account {generalDisplaySort?.key==="account"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Account column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(1,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
-                  <th style={generalColumnWidths[2]?{width:generalColumnWidths[2],minWidth:generalColumnWidths[2]}:undefined} className="relative text-left py-2.5 px-3 font-medium"><button type="button" aria-label="Sort General Ledger by Description" onClick={()=>toggleGeneralDisplaySort("description")}>Description {generalDisplaySort?.key==="description"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Description column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(2,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
-                  <th style={generalColumnWidths[3]?{width:generalColumnWidths[3],minWidth:generalColumnWidths[3]}:undefined} className="relative text-right py-2.5 px-3 font-medium"><button type="button" aria-label="Sort General Ledger by Debit" onClick={()=>toggleGeneralDisplaySort("debit")}>Debit {generalDisplaySort?.key==="debit"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Debit column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(3,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
-                  <th style={generalColumnWidths[4]?{width:generalColumnWidths[4],minWidth:generalColumnWidths[4]}:undefined} className="relative text-right py-2.5 px-3 font-medium"><button type="button" aria-label="Sort General Ledger by Credit" onClick={()=>toggleGeneralDisplaySort("credit")}>Credit {generalDisplaySort?.key==="credit"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Credit column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(4,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
-                  <th style={generalColumnWidths[5]?{width:generalColumnWidths[5],minWidth:generalColumnWidths[5]}:undefined} className="relative text-right py-2.5 px-3 font-medium">Balance<span role="separator" aria-label="Resize Balance column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(5,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
-                </tr>
+                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">{generalOrder.map(i=>([
+<th key={0} draggable onDragStart={()=>setDraggedGeneral(0)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveGeneralColumn(0)} onDragEnd={()=>setDraggedGeneral(null)} title="Drag header to reorder, right edge to resize" style={generalColumnWidths[0]?{width:generalColumnWidths[0],minWidth:generalColumnWidths[0]}:undefined} className="relative text-left py-2.5 px-3 font-semibold whitespace-nowrap min-w-[110px]"><button type="button" aria-label="Sort General Ledger by Transaction Date" onClick={()=>toggleGeneralDisplaySort("date")}>Transaction Date {generalDisplaySort?.key==="date"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Transaction Date column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(0,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>,
+<th key={1} draggable onDragStart={()=>setDraggedGeneral(1)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveGeneralColumn(1)} onDragEnd={()=>setDraggedGeneral(null)} title="Drag header to reorder, right edge to resize" style={generalColumnWidths[1]?{width:generalColumnWidths[1],minWidth:generalColumnWidths[1]}:undefined} className="relative text-left py-2.5 px-3 font-medium"><button type="button" aria-label="Sort General Ledger by Account" onClick={()=>toggleGeneralDisplaySort("account")}>Account {generalDisplaySort?.key==="account"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Account column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(1,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>,
+<th key={2} draggable onDragStart={()=>setDraggedGeneral(2)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveGeneralColumn(2)} onDragEnd={()=>setDraggedGeneral(null)} title="Drag header to reorder, right edge to resize" style={generalColumnWidths[2]?{width:generalColumnWidths[2],minWidth:generalColumnWidths[2]}:undefined} className="relative text-left py-2.5 px-3 font-medium"><button type="button" aria-label="Sort General Ledger by Description" onClick={()=>toggleGeneralDisplaySort("description")}>Description {generalDisplaySort?.key==="description"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Description column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(2,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>,
+<th key={3} draggable onDragStart={()=>setDraggedGeneral(3)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveGeneralColumn(3)} onDragEnd={()=>setDraggedGeneral(null)} title="Drag header to reorder, right edge to resize" style={generalColumnWidths[3]?{width:generalColumnWidths[3],minWidth:generalColumnWidths[3]}:undefined} className="relative text-right py-2.5 px-3 font-medium"><button type="button" aria-label="Sort General Ledger by Debit" onClick={()=>toggleGeneralDisplaySort("debit")}>Debit {generalDisplaySort?.key==="debit"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Debit column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(3,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>,
+<th key={4} draggable onDragStart={()=>setDraggedGeneral(4)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveGeneralColumn(4)} onDragEnd={()=>setDraggedGeneral(null)} title="Drag header to reorder, right edge to resize" style={generalColumnWidths[4]?{width:generalColumnWidths[4],minWidth:generalColumnWidths[4]}:undefined} className="relative text-right py-2.5 px-3 font-medium"><button type="button" aria-label="Sort General Ledger by Credit" onClick={()=>toggleGeneralDisplaySort("credit")}>Credit {generalDisplaySort?.key==="credit"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Credit column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(4,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>,
+<th key={5} draggable onDragStart={()=>setDraggedGeneral(5)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveGeneralColumn(5)} onDragEnd={()=>setDraggedGeneral(null)} title="Drag header to reorder, right edge to resize" style={generalColumnWidths[5]?{width:generalColumnWidths[5],minWidth:generalColumnWidths[5]}:undefined} className="relative text-right py-2.5 px-3 font-medium">Balance<span role="separator" aria-label="Resize Balance column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(5,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
+] as ReactNode[])[i])}</tr>
               </thead>
 
               <tbody>
@@ -1124,33 +1127,30 @@ export default function Ledgers() {
                       key={row.id}
                       className="border-b border-slate-100 hover:bg-slate-50/50"
                     >
-                      <td className="py-2.5 px-3 text-slate-800 font-medium whitespace-nowrap tabular-nums">
+                      {generalOrder.map(i=>([
+<td key={0} className="py-2.5 px-3 text-slate-800 font-medium whitespace-nowrap tabular-nums">
                         <time dateTime={row.entry_date || undefined}>{displayLedgerDate(row.entry_date)}</time>
-                      </td>
-
-                      <td className="py-2.5 px-3 font-medium text-slate-900">
+                      </td>,
+<td key={1} className="py-2.5 px-3 font-medium text-slate-900">
                         {row.account?.name || ""}
-                      </td>
-
-                      <td className="py-2.5 px-3 text-slate-700">
+                      </td>,
+<td key={2} className="py-2.5 px-3 text-slate-700">
                         {recordDisplayText(row.description)}
-                      </td>
-
-                      <td className="py-2.5 px-3 text-right text-slate-700">
+                      </td>,
+<td key={3} className="py-2.5 px-3 text-right text-slate-700">
                         {Number(row.debit) > 0
                           ? formatCurrency(Number(row.debit))
                           : ""}
-                      </td>
-
-                      <td className="py-2.5 px-3 text-right text-slate-700">
+                      </td>,
+<td key={4} className="py-2.5 px-3 text-right text-slate-700">
                         {Number(row.credit) > 0
                           ? formatCurrency(Number(row.credit))
                           : ""}
-                      </td>
-
-                      <td className="py-2.5 px-3 text-right font-semibold text-slate-900">
+                      </td>,
+<td key={5} className="py-2.5 px-3 text-right font-semibold text-slate-900">
                         {signedBalanceLabel(Number(row.displayBalance) || 0)}
                       </td>
+] as ReactNode[])[i])}
                     </tr>
                   ))
                 )}
