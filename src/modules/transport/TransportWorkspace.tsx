@@ -1648,13 +1648,12 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
 
   const resetTripGridLayout=()=>{
     if(tripLayoutLoading||tripLayoutSaving)return;
-    localStorage.removeItem(tripGridStorageKey);
-    localStorage.removeItem(legacyTripGridStorageKey);
+    try{localStorage.removeItem(legacyTripGridStorageKey);}catch{}
     setTripColumnOrder([...defaultTripColumnOrder]);
     setHiddenTripColumns([]);
     setTripColumnWidths({});
     // Reset is immediately persistent, just like the previous browser-only Reset.
-    void persistTripGridLayout({order:[...defaultTripColumnOrder],hidden:[],widths:{}},false,false);
+    void persistTripGridLayout({order:[...defaultTripColumnOrder],hidden:[],widths:{}},false,true);
   };
 
   const moveTripColumn=(dragKey:string,targetKey:string)=>{
