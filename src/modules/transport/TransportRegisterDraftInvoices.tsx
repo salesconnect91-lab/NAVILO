@@ -1,6 +1,7 @@
 import {useCallback,useEffect,useState} from 'react';
 import {Link} from 'react-router-dom';
 import TransportDialog from './TransportDialog';
+import DataTable from '@/components/DataTable';
 import {supabase} from '@/lib/supabase';
 import {financialNumber} from './transportFinancialTypes';
 
@@ -18,11 +19,17 @@ export default function TransportRegisterDraftInvoices({onClose,onChanged}:{onCl
   <header className="mb-2 flex items-center justify-between border-b border-slate-200 pb-2"><div><h2 className="text-sm font-bold text-slate-900">Draft Invoices · Transport Register</h2><p className="text-[10px] text-slate-500">Review Draft invoices here; Post is a separate manual action. Cash is without VAT; Credit follows the configured VAT rate.</p></div><button className="btn" disabled={!!busy} onClick={onClose}>Close</button></header>
   {error&&<p role="alert" className="mb-2 rounded border border-red-200 bg-red-50 p-2 text-red-700">{error}</p>}{message&&<p role="status" className="mb-2 rounded border border-emerald-200 bg-emerald-50 p-2 text-emerald-700">{message}</p>}
   <div className="min-h-0 flex-1 overflow-auto rounded border border-slate-200">
-   <table className="w-full min-w-[900px] text-left"><thead className="sticky top-0 bg-slate-100 text-[10px] text-slate-700"><tr><th className="p-2">Side</th><th className="p-2">Invoice</th><th className="p-2">Date</th><th className="p-2">Customer / Supplier</th><th className="p-2 text-right">Trips</th><th className="p-2 text-right">Net</th><th className="p-2 text-right">VAT</th><th className="p-2 text-right">Total</th><th className="p-2">Actions</th></tr></thead><tbody>
-    {rows.map(row=><tr key={`${row.side}-${row.document_id}`} className="border-t border-slate-100"><td className="p-2">{row.side==='customer'?'Customer':'Supplier'}</td><td className="p-2 font-semibold">{row.invoice_no}</td><td className="p-2">{row.invoice_date}</td><td className="p-2">{row.party_name}</td><td className="p-2 text-right tabular-nums">{Number(row.trip_count)||0}</td><td className="p-2 text-right tabular-nums">{financialNumber(Number(row.net_amount)||0)}</td><td className="p-2 text-right tabular-nums">{financialNumber(Number(row.vat_amount)||0)}</td><td className="p-2 text-right font-semibold tabular-nums">{financialNumber((Number(row.net_amount)||0)+(Number(row.vat_amount)||0))}</td><td className="p-2"><div className="flex gap-1.5"><button className="btn h-7" disabled={!!busy||loading} onClick={()=>void refreshFromTrips(row)}>{busy===row.document_id?'Refreshing…':'Refresh from Trips'}</button><Link className="btn h-7" to={`${row.side==='customer'?'/sales/':'/purchase/'}${encodeURIComponent(row.order_id)}`} target="_blank" rel="noreferrer">Review</Link><button className="btn-primary h-7" disabled={!!busy||loading} onClick={()=>void post(row)}>{busy===row.document_id?'Working…':'Post Invoice'}</button><button className="btn-danger h-7" disabled={!!busy||loading} onClick={()=>void deleteDraft(row)}>{busy===row.document_id?'Deleting…':'Delete Draft'}</button></div></td></tr>)}
-    {!loading&&rows.length===0&&<tr><td colSpan={9} className="p-6 text-center text-slate-500">No Draft Transport invoices in this Register.</td></tr>}
-    {loading&&<tr><td colSpan={9} className="p-6 text-center text-slate-500">Loading Draft invoices…</td></tr>}
-   </tbody></table>
+   <DataTable columns={[
+ {key:"side",label:"Side",render:(r:any)=>r.side==='customer'?'Customer':'Supplier'},
+ {key:"invoice_no",label:"Invoice"},
+ {key:"invoice_date",label:"Date"},
+ {key:"party_name",label:"Customer / Supplier"},
+ {key:"trip_count",label:"Trips",render:(r:any)=>Number(r.trip_count)||0},
+ {key:"net_amount",label:"Net",render:(r:any)=>financialNumber(Number(r.net_amount)||0),getFilterValue:(r:any)=>Number(r.net_amount)||0},
+ {key:"vat_amount",label:"VAT",render:(r:any)=>financialNumber(Number(r.vat_amount)||0),getFilterValue:(r:any)=>Number(r.vat_amount)||0},
+ {key:"total",label:"Total",render:(r:any)=>financialNumber((Number(r.net_amount)||0)+(Number(r.vat_amount)||0)),getFilterValue:(r:any)=>(Number(r.net_amount)||0)+(Number(r.vat_amount)||0)},
+ {key:"actions",label:"Actions",sortable:false,filterable:false,render:(row:any)=><div className="flex gap-1.5"><button className="btn h-7" disabled={!!busy||loading} onClick={()=>void refreshFromTrips(row)}>{busy===row.document_id?'Refreshing…':'Refresh from Trips'}</button><Link className="btn h-7" to={`${row.side==='customer'?'/sales/':'/purchase/'}${encodeURIComponent(row.order_id)}`} target="_blank" rel="noreferrer">Review</Link><button className="btn-primary h-7" disabled={!!busy||loading} onClick={()=>void post(row)}>{busy===row.document_id?'Working…':'Post Invoice'}</button><button className="btn-danger h-7" disabled={!!busy||loading} onClick={()=>void deleteDraft(row)}>{busy===row.document_id?'Deleting…':'Delete Draft'}</button></div>}
+ ]} rows={rows.map(row=>({...row,id:`${row.side}-${row.document_id}`}))} loading={loading} emptyMessage="No Draft Transport invoices in this Register."/>
   </div>
   <footer className="mt-2 flex items-center justify-between"><span className="text-[10px] text-slate-500">{rows.length} Draft invoice(s) · No accounting entries exist until Post.</span><button className="btn" disabled={loading||!!busy} onClick={()=>void load()}>Refresh</button></footer>
  </section></TransportDialog>
