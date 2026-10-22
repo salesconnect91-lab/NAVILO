@@ -65,7 +65,7 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
     'VAT Treatment: Master, With VAT, or Without VAT; selection must match Customer/Supplier Master Cash/Credit rule.',
     'Credit Sales require the genuine original invoice number. Do not use H-S, YES, CLEARED or NO INVOICE.',
     'Maximum 200 lines or 50 invoices per batch. All invoices are atomic: any error rolls back the entire file.',
-    'Choose Import & Post to update receivables, payables and ledgers. Payments remain separate.'
+    'Every imported invoice is saved as a draft. Review and post it manually from the invoice detail screen. Payments remain separate.'
    ]
   });
  }
@@ -83,14 +83,14 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
   }catch(e:any){if(id===request.current)setError(e?.message||'Invalid normal invoice file.');}
   finally{if(id===request.current)setBusy(false)}
  }
- async function run(post:boolean){
+ async function run(){
   if(working.current||!rows.length||busy)return;
   working.current=true;setBusy(true);setError('');setMessage('');
   const id=request.current;
   try{
-   const result=await supabase.rpc('transport_normal_invoice_import_vat',{p_side:side,p_rows:rows,p_post:post});
+   const result=await supabase.rpc('transport_normal_invoice_import_vat',{p_side:side,p_rows:rows,p_post:false});
    if(result.error)throw result.error;
-   if(id===request.current){setMessage(`${result.data.invoices} ${side==='customer'?'Sale':'Purchase'} invoice(s), ${result.data.lines} description lines ${post?'POSTED to accounting':'saved as draft'}. No Trips created. Record receipts/payments separately.`);setRows([]);setFilename('');}
+   if(id===request.current){setMessage(`${result.data.invoices} ${side==='customer'?'Sale':'Purchase'} invoice(s), ${result.data.lines} description lines saved as draft. Review and post invoices manually. No Trips created. Record receipts/payments separately.`);setRows([]);setFilename('');}
   }catch(e:any){if(id===request.current)setError(e?.message||'Import failed. Entire file rolled back if the server rejected it.');}
   finally{working.current=false;if(id===request.current)setBusy(false)}
  }
@@ -125,9 +125,8 @@ export default function TransportNormalInvoiceImport({side}:{side:NormalSide}){
     <thead className="sticky top-0 bg-slate-100"><tr>{['Invoice Group','Invoice No','Date',side==='customer'?'Customer':'Supplier','Description','Vehicle No','Amount','VAT Treatment'].map(h=><th key={h} className="p-1">{h}</th>)}</tr></thead>
     <tbody>{rows.map((r,i)=><tr key={i} className="border-t"><td className="p-1">{r.batch_ref}</td><td className="p-1">{r.invoice_no||'Automatic Cash number'}</td><td className="p-1">{r.invoice_date}</td><td className="p-1">{parties.find(p=>p.id===r.party_id)?.name}</td><td className="p-1">{r.description}</td><td className="p-1">{vehicles.find(v=>v.id===r.vehicle_id)?.vehicle_no||'—'}</td><td className="p-1 tabular-nums">{r.amount}</td><td className="p-1">{r.vat_choice==='master'?'Master':r.vat_choice==='with_vat'?'With VAT':'Without VAT'}</td></tr>)}</tbody>
    </table></div>
-   <p className="text-xs text-amber-900">Import & Post creates real accounting entries for all invoices. If any invoice fails, the complete file rolls back.</p>
-   <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} className="btn" onClick={()=>void run(false)}>Import as Drafts</button>
-    <button type="button" disabled={busy} className="btn-primary" onClick={()=>void run(true)}>{busy?'Importing…':`Import & Post ${groups} ${label} Invoices`}</button></div>
+   <p className="text-xs text-amber-900">Imported invoices remain drafts. Review each invoice and post it manually from its detail screen.</p>
+   <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} className="btn-primary" onClick={()=>void run()}>{busy?'Importing…':`Import ${groups} ${label} Invoice Drafts`}</button></div>
   </div>}
   <Link to={side==='customer'?'/sales/new?type=normal':'/purchase/new?type=normal'} className="text-xs text-blue-700 underline">Create Normal {label} manually →</Link>
  </section>;
