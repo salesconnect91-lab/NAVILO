@@ -1,0 +1,18 @@
+/* Journal list only: retain NAVILO design tokens and controls while removing empty row space. */
+@media screen {
+ .erp-shell #navilo-main-content .navilo-journal-list { padding-bottom: 4px !important; width: 100%; max-width: none; }
+ .erp-shell #navilo-main-content .navilo-journal-list > :first-child { padding: 4px 8px !important; gap: 4px !important; }
+ .erp-shell #navilo-main-content .navilo-je-overview > div:first-child { padding: 2px 6px !important; }
+ .erp-shell #navilo-main-content .navilo-je-overview table { border-spacing: 0 !important; }
+ .erp-shell #navilo-main-content .navilo-je-overview tbody tr { min-height: 0 !important; height: auto !important; }
+ .erp-shell #navilo-main-content .navilo-je-overview tbody tr:not(:has(table)) > td { padding-top: 1px !important; padding-bottom: 1px !important; line-height: 16px !important; }
+ .erp-shell #navilo-main-content .navilo-je-overview table > tbody > tr > td[colspan="8"] { padding: 0 !important; }
+ .erp-shell #navilo-main-content .navilo-je-overview .navilo-je-cell-inline { display: flex; align-items: baseline; min-width: 0; gap: 5px; white-space: nowrap; overflow: hidden; line-height: 16px; }
+ .erp-shell #navilo-main-content .navilo-je-overview .navilo-je-cell-inline > :first-child { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+ .erp-shell #navilo-main-content .navilo-je-overview .navilo-je-cell-inline > :last-child { flex: 0 1 auto; }
+ .erp-shell #navilo-main-content .navilo-je-overview .navilo-journal-overview-actions { display: flex !important; flex-flow: row nowrap !important; align-items: center !important; justify-content: flex-end; gap: 3px !important; }
+ .erp-shell #navilo-main-content .navilo-je-overview .navilo-journal-overview-actions > :is(button,a) { display: inline-flex !important; align-items: center; justify-content: center; flex: 0 0 auto; min-width: 0 !important; min-height: 21px !important; height: 21px !important; padding: 1px 5px !important; border-radius: 4px !important; line-height: 16px !important; font-size: 11px !important; }
+ .erp-shell #navilo-main-content .navilo-je-overview .navilo-journal-overview-actions > a { border: 1px solid #cfddda; }
+ .erp-shell #navilo-main-content .navilo-je-overview th { padding-top: 3px !important; padding-bottom: 3px !important; }
+ .erp-shell #navilo-main-content .navilo-je-overview .overflow-x-auto { width: 100%; }
+}
