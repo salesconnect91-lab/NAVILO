@@ -2,15 +2,18 @@ import {describe,it,expect} from 'vitest';
 import {PGlite} from '@electric-sql/pglite';
 import fs from 'node:fs';
 
-describe('Isolated PostgreSQL manual Journal non-billing posting guard',()=>{
-  it('rejects direct income/expense/VAT and keeps legitimate document journals postable',async()=>{
+describe('Isolated PostgreSQL manual Journal posting guard',()=>{
+  it('allows enabled income/expense/VAT accounts and still blocks forged source-document tags',async()=>{
     const db=await PGlite.create();
     const cid='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
     const acc={
       bank:'00000000-0000-0000-0000-000000000001',
       income:'00000000-0000-0000-0000-000000000002',
       expense:'00000000-0000-0000-0000-000000000003',
-      vat:'00000000-0000-0000-0000-000000000004'
+      vat:'00000000-0000-0000-0000-000000000004',
+      inactive:'00000000-0000-0000-0000-000000000005',
+      group:'00000000-0000-0000-0000-000000000006',
+      disabled:'00000000-0000-0000-0000-000000000007'
     };
     let seq=0;
     const uuid=()=>`bbbbbbbb-bbbb-bbbb-bbbb-${String(++seq).padStart(12,'0')}`;
@@ -22,7 +25,8 @@ describe('Isolated PostgreSQL manual Journal non-billing posting guard',()=>{
           reversal_of_entry_id uuid, monthly_profit_closure_id uuid, fiscal_year_closure_id uuid
         );
         create table public.chart_of_accounts(
-          id uuid primary key,company_id uuid not null,type text not null,code text,name text
+          id uuid primary key,company_id uuid not null,type text not null,code text,name text,
+          is_active boolean,is_group boolean,allow_manual_entries boolean
         );
         create table public.journal_lines(
           entry_id uuid not null,company_id uuid not null,account_id uuid not null
@@ -31,14 +35,19 @@ describe('Isolated PostgreSQL manual Journal non-billing posting guard',()=>{
           company_id uuid not null,account_id uuid not null,mapping_key text
         );
         insert into public.chart_of_accounts values
-        ('${acc.bank}','${cid}','asset','1110','Bank'),
-        ('${acc.income}','${cid}','revenue','4100','Sales Revenue'),
-        ('${acc.expense}','${cid}','expense','6100','Rent'),
-        ('${acc.vat}','${cid}','asset','9999','Tax Control');
+        ('${acc.bank}','${cid}','asset','1110','Bank',true,false,true),
+        ('${acc.income}','${cid}','revenue','4100','Sales Revenue',true,false,true),
+        ('${acc.expense}','${cid}','expense','6100','Rent',true,false,true),
+        ('${acc.vat}','${cid}','asset','9999','Tax Control',true,false,true),
+        ('${acc.inactive}','${cid}','asset','1120','Inactive Cash',false,false,true),
+        ('${acc.group}','${cid}','asset','1100','Cash Group',true,true,true),
+        ('${acc.disabled}','${cid}','asset','1130','Disabled Cash',true,false,false);
         insert into public.account_mappings values ('${cid}','${acc.vat}','input_vat');
       `);
-      const migration=fs.readFileSync('supabase/migrations/20261018230500_guard_manual_journal_nonbilling_post.sql','utf8');
-      await db.exec(migration);
+      const previousGuard=fs.readFileSync('supabase/migrations/20261018230500_guard_manual_journal_nonbilling_post.sql','utf8');
+      const updatedGuard=fs.readFileSync('supabase/migrations/20261022121250_allow_all_enabled_manual_journal_accounts.sql','utf8');
+      await db.exec(previousGuard);
+      await db.exec(updatedGuard);
       const post=async(accountId:string,source=false,reversal=false)=>{
         const id=uuid();
         const sourceId=source?uuid():null;
@@ -50,9 +59,12 @@ describe('Isolated PostgreSQL manual Journal non-billing posting guard',()=>{
         return id;
       };
       await expect(post(acc.bank)).resolves.toBeTruthy();
-      await expect(post(acc.income)).rejects.toThrow(/Manual journals cannot post Income/);
-      await expect(post(acc.expense)).rejects.toThrow(/Manual journals cannot post Income/);
-      await expect(post(acc.vat)).rejects.toThrow(/Manual journals cannot post Income/);
+      await expect(post(acc.income)).resolves.toBeTruthy();
+      await expect(post(acc.expense)).resolves.toBeTruthy();
+      await expect(post(acc.vat)).resolves.toBeTruthy();
+      await expect(post(acc.inactive)).rejects.toThrow(/active posting accounts/);
+      await expect(post(acc.group)).rejects.toThrow(/active posting accounts/);
+      await expect(post(acc.disabled)).rejects.toThrow(/active posting accounts/);
       await expect(post(acc.income,true)).resolves.toBeTruthy();
       await expect(post(acc.expense,true)).resolves.toBeTruthy();
       await expect(post(acc.vat,true)).resolves.toBeTruthy();

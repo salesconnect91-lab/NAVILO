@@ -1,6 +1,5 @@
-/** Manual Journal is for balance-sheet entries and controlled adjustments.
- * Income, expense and VAT billing belong to source-document workflows.
- * This helper governs the manual editor; source-generated journals are unaffected.
+/** Manual Journal accepts any active posting account explicitly enabled for
+ * manual entries. Source-document and account-control safeguards remain separate.
  */
 export type ManualJournalAccount = {
   is_active: boolean;
@@ -12,9 +11,6 @@ export type ManualJournalAccount = {
 };
 export function isManualJournalAccountEligible(account: ManualJournalAccount): boolean {
   if (!account.is_active || account.is_group || !account.allow_manual_entries) return false;
-  if (['revenue','income','expense'].includes(String(account.type).toLowerCase())) return false;
-  if (['1150','2120'].includes(String(account.code ?? '').trim())) return false;
-  if (/\b(input|output)\s+vat\b/i.test(account.name ?? '')) return false;
   return true;
 }
 
@@ -29,7 +25,5 @@ export function manualJournalAccountRestriction(account: ManualJournalAccount): 
   if (account.is_group) return 'Group account · choose a posting account';
   if (!account.is_active) return 'Inactive account';
   if (!account.allow_manual_entries) return 'Manual entries disabled';
-  if (['1150','2120'].includes(String(account.code ?? '').trim()) || /\b(input|output)\s+vat\b/i.test(account.name ?? '')) return 'VAT control account';
-  if (['revenue','income','expense'].includes(String(account.type).toLowerCase())) return 'Invoice-only account';
   return null;
 }

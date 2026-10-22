@@ -7,21 +7,17 @@ describe('Manual Journal account policy',()=>{
     expect(isManualJournalAccountEligible(base)).toBe(true);
     expect(isManualJournalAccountEligible({...base,type:'liability',code:'2200',name:'Accrued Liabilities'})).toBe(true);
   });
-  it('excludes income and expense posting from manual billing',()=>{
-    for(const type of ['revenue','income','expense','REVENUE']){
-      expect(isManualJournalAccountEligible({...base,type})).toBe(false);
+  it('allows every account type when active, postable and enabled for manual entries',()=>{
+    for(const type of ['revenue','income','expense','REVENUE','liability','equity']){
+      expect(isManualJournalAccountEligible({...base,type})).toBe(true);
     }
-  });
-  it('keeps invoice-only accounts discoverable while blocking manual posting',()=>{
     const vehicleIncome={...base,type:'revenue',code:'4001',name:'Vehicle 7979 Income'};
     expect(isManualJournalAccountVisible(vehicleIncome)).toBe(true);
-    expect(isManualJournalAccountEligible(vehicleIncome)).toBe(false);
-    expect(manualJournalAccountRestriction(vehicleIncome)).toBe('Invoice-only account');
-  });
-  it('excludes VAT control accounts regardless of account type',()=>{
-    expect(isManualJournalAccountEligible({...base,code:'1150',name:'Input VAT'})).toBe(false);
-    expect(isManualJournalAccountEligible({...base,code:'2120',name:'Output VAT',type:'liability'})).toBe(false);
-    expect(isManualJournalAccountEligible({...base,code:'9999',name:'Input VAT Recoverable'})).toBe(false);
+    expect(isManualJournalAccountEligible(vehicleIncome)).toBe(true);
+    expect(manualJournalAccountRestriction(vehicleIncome)).toBe(null);
+    expect(isManualJournalAccountEligible({...base,code:'1150',name:'Input VAT'})).toBe(true);
+    expect(isManualJournalAccountEligible({...base,code:'2120',name:'Output VAT',type:'liability'})).toBe(true);
+    expect(isManualJournalAccountEligible({...base,code:'9999',name:'Input VAT Recoverable'})).toBe(true);
   });
   it('respects group and manual-entry restrictions',()=>{
     expect(isManualJournalAccountEligible({...base,is_group:true})).toBe(false);
