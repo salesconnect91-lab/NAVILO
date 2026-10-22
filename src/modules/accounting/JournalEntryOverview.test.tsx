@@ -24,9 +24,9 @@ vi.mock('@/lib/supabase',()=>({supabase:{
   return query;
  }
 }}));
-const entry=(i:number):JournalEntry=>({
+const entry=(i:number,status:'draft'|'posted'='posted'):JournalEntry=>({
  id:`j-${i}`,entry_no:`JE-${i.toString().padStart(5,'0')}`,entry_date:'2026-09-01',
- description:i===1?'Cash customer opening':'Service Sales Invoice',status:'posted',
+ description:i===1?'Cash customer opening':'Service Sales Invoice',status,
 }) as JournalEntry;
 const rows=[
  {id:'l1',entry_id:'j-1',account:'1120 - Cash',account_id:'cash',debit:150,credit:0,
@@ -50,7 +50,7 @@ describe('Journal Entry list detailed preview',()=>{
  });
  it('loads lines only for the current journal page and expands complete debit/credit',async()=>{
   render(<MemoryRouter><JournalEntryOverview entries={Array.from({length:31},(_,i)=>entry(i+1))}
-   currency="SAR" copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()}/></MemoryRouter>);
+   currency="SAR" copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={vi.fn().mockResolvedValue(true)}/></MemoryRouter>);
   await waitFor(()=>expect(screen.getByText('1120 - Cash')).toBeTruthy());
   expect(state.fetched.filter(x=>x.table==='journal_lines')[0].ids).toHaveLength(25);
   expect(screen.getByText('SAR 150.00')).toBeTruthy();
@@ -66,8 +66,30 @@ describe('Journal Entry list detailed preview',()=>{
  it('does not present missing journal details as zero when read fails',async()=>{
   state.error=true;
   render(<MemoryRouter><JournalEntryOverview entries={[entry(1)]} currency="SAR"
-   copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()}/></MemoryRouter>);
+   copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={vi.fn().mockResolvedValue(true)}/></MemoryRouter>);
   expect((await screen.findByRole('alert')).textContent).toContain('Database unavailable');
   expect(screen.queryByText('SAR 0.00')).toBeNull();
+ });
+ it('posts only selected draft entries and leaves posted entries unselectable',async()=>{
+  const post=vi.fn().mockResolvedValue(true);
+  render(<MemoryRouter><JournalEntryOverview entries={[entry(1,'draft'),entry(2,'draft'),entry(3,'posted')]}
+   currency="SAR" copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={post}/></MemoryRouter>);
+  const first=screen.getByRole('checkbox',{name:'Select JE-00001'}) as HTMLInputElement;
+  const second=screen.getByRole('checkbox',{name:'Select JE-00002'}) as HTMLInputElement;
+  const posted=screen.getByRole('checkbox',{name:'Select JE-00003'}) as HTMLInputElement;
+  expect(posted.disabled).toBe(true);
+  fireEvent.click(first);
+  fireEvent.click(screen.getByRole('button',{name:/Post Selected \(1\)/}));
+  await waitFor(()=>expect(post).toHaveBeenCalledWith(['j-1']));
+  expect(second.checked).toBe(false);
+ });
+ it('selects and clears all visible draft rows from the header checkbox',()=>{
+  render(<MemoryRouter><JournalEntryOverview entries={[entry(1,'draft'),entry(2,'draft'),entry(3,'posted')]}
+   currency="SAR" copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={vi.fn().mockResolvedValue(true)}/></MemoryRouter>);
+  const selectAll=screen.getByRole('checkbox',{name:'Select all visible drafts'});
+  fireEvent.click(selectAll);
+  expect(screen.getByText('2 draft entries selected')).toBeTruthy();
+  fireEvent.click(selectAll);
+  expect(screen.queryByText('2 draft entries selected')).toBeNull();
  });
 });
