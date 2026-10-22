@@ -18,6 +18,8 @@ type Props={
  copyingId:string|null;
  onCopy:(entry:JournalEntry)=>void;
  onPrint:(entry:JournalEntry)=>void;
+ postingSelected:boolean;
+ onPostSelected:(entryIds:string[])=>Promise<boolean>;
 };
 
 const money=(value:number,currency:string)=>`${currency||'SAR'} ${value.toLocaleString('en-SA',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
@@ -46,7 +48,7 @@ export function buildJournalOverview(lines:JournalPreviewLine[],vehicleNames:Rec
 
 /** Only journal lines on the visible page are fetched. List is read-only and
  * never treats an incomplete line result as a zero-value journal. */
-export default function JournalEntryOverview({entries,currency,copyingId,onCopy,onPrint}:Props){
+export default function JournalEntryOverview({entries,currency,copyingId,onCopy,onPrint,postingSelected,onPostSelected}:Props){
  const [search,setSearch]=useState('');
  const [sort,setSort]=useState<{key:'entry_no'|'entry_date'|'description'|'status';dir:'asc'|'desc'}|null>(null);
  const [statusFilter,setStatusFilter]=useState('all');
@@ -66,6 +68,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
  const [details,setDetails]=useState<Record<string,Overview>>({});
  const [loading,setLoading]=useState(false);
  const [detailError,setDetailError]=useState('');
+ const [selectedIds,setSelectedIds]=useState<string[]>([]);
 
  const filtered=useMemo(()=>{
   const needle=search.trim().toLowerCase();
@@ -75,9 +78,17 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
  const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));
  const safePage=Math.min(page,totalPages);
  const visible=useMemo(()=>filtered.slice((safePage-1)*pageSize,safePage*pageSize),[filtered,safePage,pageSize]);
+ const visibleDraftIds=useMemo(()=>visible.filter(entry=>entry.status==='draft').map(entry=>entry.id),[visible]);
+ const selectedDraftIds=useMemo(()=>entries.filter(entry=>entry.status==='draft'&&selectedIds.includes(entry.id)).map(entry=>entry.id),[entries,selectedIds]);
+ const allVisibleDraftsSelected=visibleDraftIds.length>0&&visibleDraftIds.every(id=>selectedIds.includes(id));
+ const someVisibleDraftsSelected=visibleDraftIds.some(id=>selectedIds.includes(id));
  const idsKey=visible.map(x=>x.id).join(',');
  useEffect(()=>{setPage(1);setExpanded([])},[search,pageSize]);
  useEffect(()=>{setExpanded([])},[idsKey]);
+ useEffect(()=>{
+  const draftIds=new Set(entries.filter(entry=>entry.status==='draft').map(entry=>entry.id));
+  setSelectedIds(current=>current.filter(id=>draftIds.has(id)));
+ },[entries]);
  useEffect(()=>{
   let cancelled=false;
   const ids=visible.map(e=>e.id);
@@ -109,6 +120,14 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[idsKey]);
  const go=(n:number)=>setPage(Math.max(1,Math.min(n,totalPages)));
+ const toggleVisibleDrafts=()=>setSelectedIds(current=>{
+  const visibleSet=new Set(visibleDraftIds);
+  return allVisibleDraftsSelected?current.filter(id=>!visibleSet.has(id)):[...new Set([...current,...visibleDraftIds])];
+ });
+ const postSelected=async()=>{
+  if(!selectedDraftIds.length||postingSelected)return;
+  if(await onPostSelected(selectedDraftIds))setSelectedIds(current=>current.filter(id=>!selectedDraftIds.includes(id)));
+ };
  return <div className="navilo-je-overview space-y-0">
   <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1" data-no-print>
    <div className="flex min-w-[230px] flex-1 items-center gap-2">
@@ -124,6 +143,15 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
     </select>
    </label>
   </div>
+  {selectedDraftIds.length>0&&<div className="flex flex-wrap items-center justify-between gap-2 border-y border-emerald-200 bg-emerald-50 px-3 py-2" data-no-print>
+   <span className="text-xs font-semibold text-emerald-900">{selectedDraftIds.length} draft {selectedDraftIds.length===1?'entry':'entries'} selected</span>
+   <div className="flex items-center gap-2">
+    <button type="button" className="rounded border border-emerald-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-emerald-100" onClick={()=>setSelectedIds([])} disabled={postingSelected}>Clear selection</button>
+    <button type="button" className="rounded bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-50" onClick={()=>void postSelected()} disabled={postingSelected||selectedDraftIds.length===0}>
+     {postingSelected?'Posting selected…':`✓ Post Selected (${selectedDraftIds.length})`}
+    </button>
+   </div>
+  </div>}
   {detailError&&<div role="alert" className="mx-3 rounded border border-rose-300 bg-rose-50 p-2 text-xs text-rose-800">
    Cannot display the financial details: {detailError}. Journal amounts are not assumed to be zero.
   </div>}
@@ -140,7 +168,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
        <th key={4} draggable={true} onDragStart={()=>setDraggedColumn(4)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveColumn(4)} onDragEnd={()=>setDraggedColumn(null)} title="Drag header to move column; drag right edge to resize" style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-left">Party / Vehicle<span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(4,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>,
        <th key={5} draggable={true} onDragStart={()=>setDraggedColumn(5)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveColumn(5)} onDragEnd={()=>setDraggedColumn(null)} title="Drag header to move column; drag right edge to resize" style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-right">Amount (Dr = Cr)<span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(5,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>,
        <th key={6} draggable={true} onDragStart={()=>setDraggedColumn(6)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveColumn(6)} onDragEnd={()=>setDraggedColumn(null)} title="Drag header to move column; drag right edge to resize" style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-center"><button type="button" aria-label="Sort journals by status" onClick={()=>setSort(old=>({key:"status",dir:old?.key==="status"&&old.dir==="asc"?"desc":"asc"}))}>Status {sort?.key==="status"?(sort.dir==="asc"?"↑":"↓"):"↕"}</button><span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(6,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>,
-       <th key={7} draggable={false} onDragStart={()=>setDraggedColumn(7)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveColumn(7)} onDragEnd={()=>setDraggedColumn(null)} title="Drag header to move column; drag right edge to resize" style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-right">Actions<span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(7,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>
+       <th key={7} draggable={false} onDragStart={()=>setDraggedColumn(7)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveColumn(7)} onDragEnd={()=>setDraggedColumn(null)} title="Drag header to move column; drag right edge to resize" style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-right"><span className="inline-flex items-center justify-end gap-1.5"><input type="checkbox" aria-label="Select all visible drafts" checked={allVisibleDraftsSelected} ref={element=>{if(element)element.indeterminate=someVisibleDraftsSelected&&!allVisibleDraftsSelected}} onChange={toggleVisibleDrafts} disabled={!visibleDraftIds.length||postingSelected} className="h-3.5 w-3.5 accent-emerald-700"/>Actions</span><span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(7,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>
       ] as React.ReactNode[])[i])}
      </tr>
     </thead>
@@ -173,6 +201,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
          <td key={6} style={{width:`${columnWidths[6]}%`}} className="w-[8%] px-1 py-0.5 text-center align-middle"><StatusBadge status={entry.status}/></td>,
          <td key={7} style={{width:`${columnWidths[7]}%`}} className="w-[16%] px-1 py-0.5 align-middle whitespace-nowrap">
           <div className="navilo-journal-overview-actions flex flex-nowrap items-center gap-1">
+           <input type="checkbox" aria-label={`Select ${entry.entry_no}`} checked={entry.status==='draft'&&selectedIds.includes(entry.id)} onChange={()=>setSelectedIds(current=>current.includes(entry.id)?current.filter(id=>id!==entry.id):[...current,entry.id])} disabled={entry.status!=='draft'||postingSelected} className="h-3.5 w-3.5 shrink-0 accent-emerald-700"/>
            <button aria-label={`Show lines for ${entry.entry_no}`} aria-expanded={open} type="button"
             onClick={toggle} disabled={!info} className="min-w-0 rounded border px-1 py-0.5 text-[11px] text-blue-700 disabled:opacity-40">{open?'Hide':'Details'}</button>
            <Link className="min-w-0 rounded border px-1 py-0.5 text-center text-[11px] text-blue-700" to={`/accounting/${entry.id}`}>Open</Link>
