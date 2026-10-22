@@ -1,3 +1,4 @@
+import DataTable from "@/components/DataTable";
 import ConfigurableReport from '../transport/ConfigurableReport';
 import {useAuth} from '@/auth/AuthContext';
 import NaviloDateInput from '@/components/NaviloDateInput';
@@ -569,51 +570,16 @@ export default function TrialBalance() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1250px] text-xs">
-                <thead>
-                  <tr className="border-b border-slate-300 bg-slate-900 text-white">
-                    
-                    <th rowSpan={2} className="px-3 py-3 text-left font-semibold">Account Name</th>
-                    <th rowSpan={2} className="px-3 py-3 text-left font-semibold">Type</th>
-                    <th colSpan={2} className="border-l border-slate-700 px-3 py-2 text-center font-semibold">Opening Balance</th>
-                    <th colSpan={2} className="border-l border-slate-700 px-3 py-2 text-center font-semibold">Period Movement</th>
-                    <th colSpan={2} className="border-l border-slate-700 px-3 py-2 text-center font-semibold">Closing Balance</th>
-                  </tr>
-                  <tr className="border-b border-slate-300 bg-slate-800 text-slate-200">
-                    {['Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit'].map((label, index) => (
-                      <th key={`${label}-${index}`} className="border-l border-slate-700 px-3 py-2 text-right font-semibold">
-                        {label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {rows.map((row) => (
-                    <tr key={row.id} className="hover:bg-slate-50">
-                      
-                      <td className="px-3 py-2.5 text-slate-800">{row.name}</td>
-                      <td className="px-3 py-2.5 text-[12px] font-semibold uppercase text-slate-500">{row.type}</td>
-                      <td className="border-l border-slate-100 px-3 py-2.5 text-right font-mono">{amountCell(row.openingDebit)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono">{amountCell(row.openingCredit)}</td>
-                      <td className="border-l border-slate-100 px-3 py-2.5 text-right font-mono">{amountCell(row.periodDebit)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono">{amountCell(row.periodCredit)}</td>
-                      <td className="border-l border-slate-100 px-3 py-2.5 text-right font-mono font-semibold text-blue-700">{amountCell(row.closingDebit)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono font-semibold text-rose-700">{amountCell(row.closingCredit)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-slate-900 bg-slate-100 font-bold text-slate-900">
-                    <td colSpan={2} className="px-3 py-3 text-sm uppercase">Total</td>
-                    <td className="border-l border-slate-300 px-3 py-3 text-right font-mono">{formatCurrency(totals.openingDebit)}</td>
-                    <td className="px-3 py-3 text-right font-mono">{formatCurrency(totals.openingCredit)}</td>
-                    <td className="border-l border-slate-300 px-3 py-3 text-right font-mono">{formatCurrency(totals.periodDebit)}</td>
-                    <td className="px-3 py-3 text-right font-mono">{formatCurrency(totals.periodCredit)}</td>
-                    <td className="border-l border-slate-300 px-3 py-3 text-right font-mono text-blue-700">{formatCurrency(totals.closingDebit)}</td>
-                    <td className="px-3 py-3 text-right font-mono text-rose-700">{formatCurrency(totals.closingCredit)}</td>
-                  </tr>
-                </tfoot>
-              </table>
+              <DataTable columns={[
+{key:"name",label:"Account Name"},
+{key:"type",label:"Type"},
+{key:"openingDebit",label:"Opening Debit",render:(r:any)=>amountCell(r.openingDebit),getFilterValue:(r:any)=>r.openingDebit},
+{key:"openingCredit",label:"Opening Credit",render:(r:any)=>amountCell(r.openingCredit),getFilterValue:(r:any)=>r.openingCredit},
+{key:"periodDebit",label:"Period Debit",render:(r:any)=>amountCell(r.periodDebit),getFilterValue:(r:any)=>r.periodDebit},
+{key:"periodCredit",label:"Period Credit",render:(r:any)=>amountCell(r.periodCredit),getFilterValue:(r:any)=>r.periodCredit},
+{key:"closingDebit",label:"Closing Debit",render:(r:any)=>amountCell(r.closingDebit),getFilterValue:(r:any)=>r.closingDebit},
+{key:"closingCredit",label:"Closing Credit",render:(r:any)=>amountCell(r.closingCredit),getFilterValue:(r:any)=>r.closingCredit}
+]} rows={rows} emptyMessage="No posted balances for this period."/><div className="grid grid-cols-2 gap-2 border-t bg-slate-100 p-3 text-xs font-semibold sm:grid-cols-4 lg:grid-cols-8"><span>Total</span><span>Opening DR: {formatCurrency(totals.openingDebit)}</span><span>Opening CR: {formatCurrency(totals.openingCredit)}</span><span>Period DR: {formatCurrency(totals.periodDebit)}</span><span>Period CR: {formatCurrency(totals.periodCredit)}</span><span>Closing DR: {formatCurrency(totals.closingDebit)}</span><span>Closing CR: {formatCurrency(totals.closingCredit)}</span></div>
             </div>
           )}
         </div>
