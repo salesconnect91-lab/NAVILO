@@ -15,7 +15,7 @@ vi.mock('@/lib/supabase',()=>({supabase:{
   from:(table:string)=>{
   const q:any={select:()=>q,eq:()=>q,order:()=>q,range:async()=>({data:table==='purchase_service_lines'?[{id:'line-1',description:'Office repair',amount:100,tax_percent:15,source_module:mock.sourceModule}]:[],error:null}),
    single:async()=>({data:{id:'expense-1',status:mock.status,order_no:'EXP-1',order_date:'2026-10-21',supplier_invoice_no:'SUP-1',supplier_invoice_date:'2026-10-21',invoice_type:'Tax Invoice',total:115,outstanding_amount:115,party:{name:'Supplier One'}},error:null}),
-   maybeSingle:async()=>({data:table==='transport_service_document_balances'?{billed_gross:115,outstanding_gross:115,credit_gross:0,paid_gross:0}:table==='transport_supplier_documents'?{document_kind:'service'}:null,error:null})};
+   maybeSingle:async()=>({data:table==='transport_service_document_balances'?{billed_gross:115,outstanding_gross:115,credit_gross:0,paid_gross:0}:table==='transport_supplier_documents'?{document_kind:'service',journal_entry_id:mock.sourceModule==='transport'?'journal-1':null}:null,error:null})};
   return q;
  },
  rpc:async(name:string,args:any)=>{mock.rpcCalls.push({name,args});return {data:name==='transport_document_trip_details'?[]:name==='transport_reverse_service_invoice'?{success:true,note_no:'TR-SVC-DN-1',total:115}:{success:true},error:null};}
