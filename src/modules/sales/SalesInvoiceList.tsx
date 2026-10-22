@@ -34,6 +34,7 @@ type SalesInvoiceRow = SalesOrder & {
   document_kind?: string | null;
   transport_adjustment_source_invoice_no?: string | null;
   transport_adjustment_reference?: string | null;
+  transport_register_linked?: boolean;
   due_date?: string | null;
   paid_amount?: number | string | null;
   outstanding_amount?: number | string | null;
@@ -229,6 +230,7 @@ export default function SalesInvoiceList() {
         }
       }
       let transportAdjustments=new Map<string,{sourceInvoiceNo:string;adjustmentNo:string}>();
+      const transportRegisterLinked=new Set<string>();
       if(activeBusinessUnit?.business_unit_type==='transport'&&ids.length){
         // Rate corrections are separate posted accounting documents. Keep them
         // available for allocation, but show the original Register invoice # as
@@ -238,11 +240,26 @@ export default function SalesInvoiceList() {
           .in('sales_order_id',ids);
         if(!docs.error){
           const documentRows=docs.data??[];
+          for(const doc of documentRows){
+            if((doc.trip_links??[]).some((link:any)=>Boolean(link.trip_id)))
+              transportRegisterLinked.add(doc.sales_order_id);
+          }
           const registerTripIds=[...new Set(documentRows.flatMap((d:any)=>(d.trip_links??[]).map((l:any)=>l.trip_id).filter(Boolean)))];
           const adjustmentDocs=documentRows.filter((d:any)=>d.document_kind==='adjustment');
           const adjustmentTripIds=[...new Set(adjustmentDocs.flatMap((d:any)=>(d.trip_links??[]).map((l:any)=>l.trip_id).filter(Boolean)))];
-          const registerTrips=registerTripIds.length?await supabase.from('transport_financial_register').select('id,source_invoice_no,historical_customer_invoice_ref').in('id',registerTripIds):null;
-          const registerNoByTrip=new Map((registerTrips&&!registerTrips.error?(registerTrips.data??[]):[]).map((t:any)=>[t.id,String(t.historical_customer_invoice_ref??t.source_invoice_no??'').trim()]));
+          const loadRegisterNumbers=async(tripIds:string[])=>{
+            if(!tripIds.length)return new Map<string,string>();
+            const [registerTrips,sourceTrips]=await Promise.all([
+              supabase.from('transport_financial_register').select('id,historical_customer_invoice_ref').in('id',tripIds),
+              supabase.from('transport_trips').select('id,source_invoice_no').in('id',tripIds),
+            ]);
+            const historical=new Map((registerTrips&&!registerTrips.error?(registerTrips.data??[]):[])
+              .map((trip:any)=>[trip.id,String(trip.historical_customer_invoice_ref??'').trim()]));
+            const source=new Map((sourceTrips&&!sourceTrips.error?(sourceTrips.data??[]):[])
+              .map((trip:any)=>[trip.id,String(trip.source_invoice_no??'').trim()]));
+            return new Map(tripIds.map(id=>[id,historical.get(id)||source.get(id)||'']));
+          };
+          const registerNoByTrip=await loadRegisterNumbers(registerTripIds);
           for(const doc of documentRows){
             if(doc.document_kind==='adjustment')continue;
             const tripId=(doc.trip_links??[]).filter((l:any)=>!l.is_adjustment).map((l:any)=>l.trip_id).find((id:string)=>registerNoByTrip.get(id));
@@ -254,9 +271,8 @@ export default function SalesInvoiceList() {
               .select('trip_id').in('trip_id',adjustmentTripIds).eq('is_adjustment',false);
             if(!sourceLinks.error){
               const sourceTripIds=[...new Set((sourceLinks.data??[]).map((link:any)=>link.trip_id).filter(Boolean))];
-              const sourceRegisterTrips=sourceTripIds.length?await supabase.from('transport_financial_register').select('id,source_invoice_no,historical_customer_invoice_ref').in('id',sourceTripIds):null;
-              if(sourceRegisterTrips&&!sourceRegisterTrips.error){
-                const sourceRegisterNoByTrip=new Map((sourceRegisterTrips.data??[]).map((trip:any)=>[trip.id,String(trip.historical_customer_invoice_ref??trip.source_invoice_no??'').trim()]));
+              if(sourceTripIds.length){
+                const sourceRegisterNoByTrip=await loadRegisterNumbers(sourceTripIds);
                 for(const doc of adjustmentDocs){
                   const tripId=(doc.trip_links??[]).map((l:any)=>l.trip_id).find((id:string)=>sourceRegisterNoByTrip.get(id));
                   const sourceNo=tripId?sourceRegisterNoByTrip.get(tripId):null;
@@ -269,6 +285,7 @@ export default function SalesInvoiceList() {
       }
       setRows(pageRows.map(row=>({...row,consolidated_invoice_numbers:numbers.get(row.id)??[],
         ...(transportAdjustments.has(row.id)?{transport_adjustment_source_invoice_no:transportAdjustments.get(row.id)!.sourceInvoiceNo,transport_adjustment_reference:transportAdjustments.get(row.id)!.adjustmentNo}:{}),
+        ...(transportRegisterLinked.has(row.id)?{transport_register_linked:true}:{}),
         ...(previews.has(row.id)?{draft_preview_total:previews.get(row.id)}:{})})));
       setListReadFailed(false);
       const matching=previewRows.filter(row=>row.status==='draft'&&previews.has(row.id));
@@ -678,7 +695,7 @@ export default function SalesInvoiceList() {
       label: "Invoice #",
       render: (r) => (
         <span className="inline-flex flex-col items-start">
-          <span className="font-semibold text-blue-600" title={r.transport_adjustment_source_invoice_no?`Manually entered Transport Register invoice number: ${r.transport_adjustment_source_invoice_no}`:r.document_kind==='service'?'Register invoice not entered':r.order_no}>{r.transport_adjustment_source_invoice_no??(r.document_kind==='service'?'Register invoice not entered':salesInvoiceDisplayNumber(r))}</span>
+          <span className="font-semibold text-blue-600" title={r.transport_adjustment_source_invoice_no?`Manually entered Transport Register invoice number: ${r.transport_adjustment_source_invoice_no}`:r.transport_register_linked?'Transport Register invoice':r.order_no}>{r.transport_adjustment_source_invoice_no??salesInvoiceDisplayNumber(r)}</span>
           {r.transport_adjustment_source_invoice_no&&<span className="text-[10px] font-medium text-amber-700">{r.transport_adjustment_reference?'Rate adjustment':'Transport Register invoice'}</span>}
         </span>
       ),
