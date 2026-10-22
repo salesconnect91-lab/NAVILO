@@ -46,8 +46,10 @@ describe('Isolated PostgreSQL manual Journal posting guard',()=>{
       `);
       const previousGuard=fs.readFileSync('supabase/migrations/20261018230500_guard_manual_journal_nonbilling_post.sql','utf8');
       const updatedGuard=fs.readFileSync('supabase/migrations/20261022121250_allow_all_enabled_manual_journal_accounts.sql','utf8');
+      const importTagGuard=fs.readFileSync('supabase/migrations/20261022175300_allow_accounting_import_source_tag.sql','utf8');
       await db.exec(previousGuard);
       await db.exec(updatedGuard);
+      await db.exec(importTagGuard);
       const post=async(accountId:string,source=false,reversal=false)=>{
         const id=uuid();
         const sourceId=source?uuid():null;
@@ -89,6 +91,18 @@ describe('Isolated PostgreSQL manual Journal posting guard',()=>{
         await expect(db.query(
           'insert into public.journal_entries(id,company_id,status,trans_type) values($1,$2,$3,$4)',
           [uuid(),cid,'draft','Sales Invoice']
+        )).rejects.toThrow(/Source-document references cannot be supplied/);
+        await expect(db.query(
+          'insert into public.journal_entries(id,company_id,status,trans_type,source_module) values($1,$2,$3,$4,$5)',
+          [uuid(),cid,'draft','Journal Entry','accounting']
+        )).resolves.toBeTruthy();
+        await expect(db.query(
+          'insert into public.journal_entries(id,company_id,status,trans_type,source_module) values($1,$2,$3,$4,$5)',
+          [uuid(),cid,'draft','Journal Entry','sales']
+        )).rejects.toThrow(/Source-document references cannot be supplied/);
+        await expect(db.query(
+          'insert into public.journal_entries(id,company_id,status,trans_type,source_module,source_document_type) values($1,$2,$3,$4,$5,$6)',
+          [uuid(),cid,'draft','Journal Entry','accounting','sales_invoice']
         )).rejects.toThrow(/Source-document references cannot be supplied/);
       } finally { await db.exec('reset role'); }
     }finally{await db.close();}
