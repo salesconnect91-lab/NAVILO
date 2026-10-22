@@ -86,7 +86,7 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   if(Number.isFinite(dr)&&Number.isFinite(cr)&&dr>0&&cr>0)
    problems.push(`Row ${line}, columns F/G: enter a positive Debit OR Credit, not both. Move the funding side to another row (e.g. Amjad Payable Credit).`);
   if(str(r[idx('related_to')]).toLowerCase()==='amjad payable')
-   problems.push(`Row ${line}, column E (related_to): Amjad Payable is a Chart of Accounts name, not a Vehicle. Enter a vehicle number here only for an expense/income line; use Amjad Payable as Account Name on a separate Credit row.`);
+   problems.push(`Row ${line}, column E (related_to): Amjad Payable is a Chart of Accounts name, not a Related To party. Use Amjad Payable as Account Name on a separate Credit row.`);
  }
  if(problems.length){
   const visible=problems.slice(0,9);
@@ -141,11 +141,11 @@ export function downloadSimpleJournalTemplate():void{
    'Each transaction must have TWO or more lines with matching Debit/Credit totals. When the entire Entry No column is blank, entries are automatically grouped by date (one compound draft per date).',
    'For individual vouchers write Entry No on the first row of each group and repeat it or leave it blank on continuation lines. To group ALL rows by date, leave EVERY Entry No blank and supply a date on EVERY row.',
    'Line Description explains the original receipt or transaction. Account Name must exactly match an active Chart of Accounts posting account.',
-   'Orbit Example: Vehicle 7979 repair SAR 600: first row General Expenses, Related To 7979, Debit 600; second row Amjad Payable, Related To blank, Credit 600.',
-   'Syarah Fuel is a prepaid CURRENT ASSET: wallet top-up Debit Syarah Fuel Payable, Credit Amjad Payable. Later fuel consumption Debit Transport & Freight with Vehicle 7979, Credit Syarah Fuel Payable.',
+   'Orbit Example: Vehicle 7979 repair SAR 600: first row General Expenses, Related To blank, Debit 600; second row Amjad Payable, Related To blank, Credit 600.',
+   'Syarah Fuel is a prepaid CURRENT ASSET: wallet top-up Debit Syarah Fuel Payable, Credit Amjad Payable. Later fuel consumption Debit Transport & Freight with Related To blank, Credit Syarah Fuel Payable.',
    'Existing driver salary liability payment: Debit Asif Driver Salary Running Account and Credit Amjad Payable. DO NOT expense driver wages again if already accrued.',
-   'New, not-yet-accrued driver wages: Debit Driver Salary & Wages, Related To Vehicle 7979; Credit Amjad Payable. Avoid double-counting.',
-   'Related To vehicle: type 7979 or Vehicle 7979 only on an Income/Expense account. Leave it blank on Amjad Payable, driver liability and Syarah wallet lines.',
+   'New, not-yet-accrued driver wages: Debit Driver Salary & Wages with Related To blank; Credit Amjad Payable. Put vehicle/driver details in Line Description. Avoid double-counting.',
+   'Leave Related To blank on all expense lines. Vehicle selection is used only for eligible Transport income lines; funding, wallet and liability lines are also blank.',
    'For actual mapped AR/AP controls only, Related To can use Customer: Customer Name or Supplier: Supplier Name. Parties require existing masters.',
    'Imported journals first become DRAFTS. Only posting after review affects Vehicle Ledger, Amjad Payable, P&L and other GL accounts.',
    'Do not re-import posted journals or reversed transactions. An existing Entry No will fail duplicate checks. No cash/bank account is invented.',
@@ -155,22 +155,22 @@ export function downloadSimpleJournalTemplate():void{
    {field:'entry_date',rule:'YYYY-MM-DD on both lines or just first line of each journal'},
    {field:'account_name',rule:'Exact Debit/Credit GL account from Chart of Accounts'},
    {field:'line_description',rule:'What was paid/earned, vehicle/driver details, supplier and receipt reference'},
-   {field:'related_to',rule:'Vehicle number for Expense/Income GL, or Customer: / Supplier: only for mapped AR/AP; blank for Amjad Payable'},
+   {field:'related_to',rule:'Vehicle number only for eligible Transport income, or Customer: / Supplier: for mapped AR/AP; blank for expenses and funding lines'},
    {field:'debit',rule:'Amount ONLY for debit line; other side blank or 0'},
    {field:'credit',rule:'Amount ONLY for credit line; other side blank or 0'},
   ]
  });
  const examples=XLSX.utils.aoa_to_sheet([
   ['Scenario','entry_no','entry_date','account_name','line_description','related_to','debit','credit'],
-  ['Repair funded by Amjad','EXAMPLE-001','2026-09-05','General Expenses','Vehicle 7979 repair','7979',600,0],
+  ['Repair funded by Amjad','EXAMPLE-001','2026-09-05','General Expenses','Vehicle 7979 repair','',600,0],
   ['↳ Amjad owes','','','Amjad Payable','Repair paid by Amjad','',0,600],
-  ['New driver wages','EXAMPLE-002','2026-09-06','Driver Salary & Wages','Driver wages for 7979','7979',250,0],
+  ['New driver wages','EXAMPLE-002','2026-09-06','Driver Salary & Wages','Driver wages for 7979','',250,0],
   ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad','',0,250],
   ['Existing driver liability','EXAMPLE-003','2026-09-07','Asif Driver Salary Running Account','Settle previously accrued wages','',417,0],
   ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad','',0,417],
   ['Syarah wallet recharge','EXAMPLE-004','2026-09-08','Syarah Fuel Payable','Syarah wallet credit','',1000,0],
   ['↳ Amjad owes','','','Amjad Payable','Wallet funded by Amjad','',0,1000],
-  ['Syarah fuel consumption','EXAMPLE-005','2026-09-09','Transport & Freight','Fuel consumed by 7979','7979',300,0],
+  ['Syarah fuel consumption','EXAMPLE-005','2026-09-09','Transport & Freight','Fuel consumed by 7979','',300,0],
   ['↳ wallet decreases','','','Syarah Fuel Payable','Deduct from Syarah wallet','',0,300],
  ]);
  examples['!cols']=[{wch:26},{wch:20},{wch:16},{wch:36},{wch:44},{wch:18},{wch:14},{wch:14}];

@@ -4,7 +4,7 @@ import {SIMPLE_JOURNAL_HEADERS,isSimpleJournalTemplate,normalizeSimpleJournalRow
 vi.mock('xlsx',async(importOriginal)=>({...await importOriginal<typeof import('xlsx')>(),writeFile:vi.fn()}));
 const headers=[...SIMPLE_JOURNAL_HEADERS];
 const pair=[
- ['ORB-SEP-001','2026-09-05','General Expenses','Vehicle 7979 repair','7979',600,''],
+ ['ORB-SEP-001','2026-09-05','General Expenses','Vehicle 7979 repair','',600,''],
  ['','','Amjad Payable','Paid by Amjad','','',600]
 ];
 describe('Simple Debit/Credit Journal import matches General Journal Entry form',()=>{
@@ -37,15 +37,15 @@ describe('Simple Debit/Credit Journal import matches General Journal Entry form'
   expect(journalImportISODate('15-Oct-2026')).toBe('2026-10-15');
   expect(journalImportISODate('2026-09-05')).toBe('2026-09-05');
   expect(journalImportISODate('2026-02-31')).toBe('2026-02-31');
-  const rows=normalizeSimpleJournalRows([headers,['R','46266','General Expenses','Repair','7979',500,0],['R','','Amjad Payable','Funded','','',500]]);
+  const rows=normalizeSimpleJournalRows([headers,['R','46266','General Expenses','Repair','',500,0],['R','','Amjad Payable','Funded','','',500]]);
   expect(rows[1][1]).toBe('2026-09-01');
   expect(rows[2][1]).toBe('2026-09-01');
  });
 
- it('preserves explicit DR/CR for vehicle expenses and Amjad funding without inventing Bank',()=>{
+ it('keeps vehicle expense details in the description without a Related To allocation',()=>{
   const result=normalizeSimpleJournalRows([headers,...pair]);
   expect(result[0]).toEqual(['entry_no','entry_date','description','account_name','line_description','party_type','party_name','vehicle_no','debit','credit']);
-  expect(result[1]).toEqual(['ORB-SEP-001','2026-09-05','Vehicle 7979 repair','General Expenses','Vehicle 7979 repair','','','7979','600.00','0.00']);
+  expect(result[1]).toEqual(['ORB-SEP-001','2026-09-05','Vehicle 7979 repair','General Expenses','Vehicle 7979 repair','','','','600.00','0.00']);
   expect(result[2]).toEqual(['ORB-SEP-001','2026-09-05','Vehicle 7979 repair','Amjad Payable','Paid by Amjad','','','','0.00','600.00']);
  });
  it('allows the same entry number/date on both lines and separates a second entry',()=>{
@@ -55,17 +55,17 @@ describe('Simple Debit/Credit Journal import matches General Journal Entry form'
   expect(rows[3][7]).toBe('');
   expect(rows[4][3]).toBe('Amjad Payable');
  });
- it('handles a vehicle tag, wallet recharge, and separate fuel consumption with correct accounts',()=>{
+ it('handles expense lines without vehicle allocation, plus wallet recharge with correct accounts',()=>{
   const entries=normalizeSimpleJournalRows([headers,
    ['WALLET','2026-09-06','Syarah Fuel Payable','Wallet deposit','',1000,''],
    ['','','Amjad Payable','Wallet funded','','',1000],
-   ['FUEL','2026-09-07','Transport & Freight','7979 diesel','Vehicle: 7979',250,''],
+   ['FUEL','2026-09-07','Transport & Freight','7979 diesel','',250,''],
    ['','','Syarah Fuel Payable','Used wallet','','',250]
   ]);
   expect(entries[1][3]).toBe('Syarah Fuel Payable');
   expect(entries[1][7]).toBe('');
   expect(entries[3][3]).toBe('Transport & Freight');
-  expect(entries[3][7]).toBe('7979');
+  expect(entries[3][7]).toBe('');
   expect(entries[4][3]).toBe('Syarah Fuel Payable');
  });
  it('maps Customer: / Supplier: only to matching party fields for existing AR/AP validations',()=>{

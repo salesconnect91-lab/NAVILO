@@ -3,7 +3,11 @@ export type JournalRelatedToMode = 'party' | 'vehicle' | 'general';
 export function journalRelatedToMode(accountType:string|undefined,requiresParty:boolean,isTransport:boolean):JournalRelatedToMode{
   // Expense/income lines never open customer/supplier identity simply because a GL is linked to a party.
   // The party selector belongs only to genuine AR/AP control accounts.
-  if(['revenue','income','expense'].includes(String(accountType??'').toLowerCase()))return isTransport?'vehicle':'general';
+  const type=String(accountType??'').toLowerCase();
+  // Transport expenses are posted to their expense GL directly. Do not ask for
+  // a second vehicle allocation; vehicle expense tagging is not part of this workflow.
+  if(type==='expense')return 'general';
+  if(['revenue','income'].includes(type))return isTransport?'vehicle':'general';
   if(requiresParty)return 'party';
   return 'general';
 }

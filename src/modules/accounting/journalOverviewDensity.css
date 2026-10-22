@@ -16,10 +16,3 @@
  .erp-shell #navilo-main-content .navilo-je-overview th { padding-top: 3px !important; padding-bottom: 3px !important; }
  .erp-shell #navilo-main-content .navilo-je-overview .overflow-x-auto { width: 100%; }
 }
-
-/* Fill the available accounting workspace. Do not affect other NAVILO modules. */
-@media screen and (min-width: 768px) {
- .erp-shell #navilo-main-content:has(.navilo-journal-list) { max-width: none !important; width: 100% !important; padding-left: 4px !important; padding-right: 4px !important; }
- .erp-shell #navilo-main-content:has(.navilo-journal-list) > :is(div,section) { max-width: none !important; width: 100% !important; margin-left: 0 !important; margin-right: 0 !important; }
- .erp-shell #navilo-main-content .navilo-journal-list { max-width: none !important; width: 100% !important; margin-inline: 0 !important; }
-}

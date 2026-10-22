@@ -1276,7 +1276,7 @@ export default function JournalEntryDetail() {
 
           if(vehicleNo){
             if(journalRelatedToMode(account.type,accountRequiresParty(account.id),isTransport)!=='vehicle'){
-              importErrors.push(`Row ${rowNumber}: Vehicle No is only valid on a Transport income/expense line.`);return;
+              importErrors.push(`Row ${rowNumber}: Related To vehicle is not used on expense lines. Leave it blank and post the expense to its expense account.`);return;
             }
             const matches=eligibleVehicles.filter(v=>normalizedJournalVehicleNo(v.vehicle_no)===normalizedJournalVehicleNo(vehicleNo));
             if(matches.length!==1){importErrors.push(`Row ${rowNumber}: Vehicle ${vehicleNo} is not uniquely company-owned on this journal date.`);return;}
@@ -2450,7 +2450,7 @@ export default function JournalEntryDetail() {
             <p className="text-xs text-slate-500 mt-0.5">
               {isPosted
                 ? "This journal entry has been posted and is locked."
-                : "Enter multiple journal lines manually or import Excel/CSV. Related To keeps party and company-vehicle dimensions correctly linked."}
+                : "Enter multiple journal lines manually or import Excel/CSV. Related To is for customer/supplier controls and eligible income lines; expenses post directly to their expense account."}
             </p>
           </div>
         </div>
@@ -2653,7 +2653,7 @@ export default function JournalEntryDetail() {
                   </h4>
 
                   <p className="text-xs text-slate-600 mt-0.5">
-                    One Journal, one posting: select Account for the GL and Related To for the customer, supplier or vehicle. Vehicle is an accounting dimension; selecting it never changes the chosen GL. Never re-enter a posted invoice or expense.
+                    One Journal, one posting: select the GL Account. Related To is for genuine customer/supplier controls; vehicle selection is used only for eligible income lines. Expenses post directly to their expense account without a vehicle allocation.
                   </p>
                 </div>
 
