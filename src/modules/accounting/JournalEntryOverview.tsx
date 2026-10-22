@@ -148,25 +148,25 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
       return <tr key={entry.id}><td colSpan={8} className="p-0">
        <table className="w-full table-fixed text-xs"><tbody>
         <tr className="hover:bg-slate-50">
-         <td className="w-[12%] px-2 py-0.5 align-middle">
+         <td style={{width:`${columnWidths[0]}%`}} className="w-[12%] px-2 py-0.5 align-middle">
           <div className="navilo-je-cell-inline"><Link to={`/accounting/${entry.id}`} className="font-semibold text-blue-700 hover:underline truncate" title={entry.entry_no}>{entry.entry_no}</Link><span className="text-slate-500 whitespace-nowrap">{formatDate(entry.entry_date)}</span></div>
          </td>
-         <td className="w-[16%] px-2 py-0.5 align-middle">
+         <td style={{width:`${columnWidths[1]}%`}} className="w-[16%] px-2 py-0.5 align-middle">
           <div className="navilo-je-cell-inline"><span className="truncate text-slate-800" title={entry.description||'—'}>{entry.description||'—'}</span><span className="text-[10px] text-slate-500 truncate" title={sourceType}>{sourceType}</span></div>
          </td>
-         <td className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsDr||undefined}>{info?info.accountsDr||'—':loading?'Loading…':'—'}</div></td>
-         <td className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsCr||undefined}>{info?info.accountsCr||'—':loading?'Loading…':'—'}</div></td>
-         <td className="w-[12%] px-2 py-0.5 align-middle">
+         <td style={{width:`${columnWidths[2]}%`}} className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsDr||undefined}>{info?info.accountsDr||'—':loading?'Loading…':'—'}</div></td>
+         <td style={{width:`${columnWidths[3]}%`}} className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsCr||undefined}>{info?info.accountsCr||'—':loading?'Loading…':'—'}</div></td>
+         <td style={{width:`${columnWidths[4]}%`}} className="w-[12%] px-2 py-0.5 align-middle">
           {info?.party&&<div className="truncate text-slate-800" title={`Party: ${info.party}`}>Party: {info.party}</div>}
           {info?.vehicles&&<div className="truncate text-blue-800" title={`Vehicle: ${info.vehicles}`}>Vehicle: {info.vehicles}</div>}
           {!info&&!loading?'—':!info?'Loading…':!info.party&&!info.vehicles?'—':null}
          </td>
-         <td className="w-[10%] px-2 py-0.5 text-right align-middle font-semibold tabular-nums">
+         <td style={{width:`${columnWidths[5]}%`}} className="w-[10%] px-2 py-0.5 text-right align-middle font-semibold tabular-nums">
           {info?<><div>{money(info.debit,currency)}</div>
            {!info.balanced&&<div className="text-rose-700" title="Journal debit and credit do not reconcile">Cr {money(info.credit,currency)} — Check</div>}</>:loading?'Loading…':'—'}
          </td>
-         <td className="w-[8%] px-1 py-0.5 text-center align-middle"><StatusBadge status={entry.status}/></td>
-         <td className="w-[16%] px-1 py-0.5 align-middle whitespace-nowrap">
+         <td style={{width:`${columnWidths[6]}%`}} className="w-[8%] px-1 py-0.5 text-center align-middle"><StatusBadge status={entry.status}/></td>
+         <td style={{width:`${columnWidths[7]}%`}} className="w-[16%] px-1 py-0.5 align-middle whitespace-nowrap">
           <div className="navilo-journal-overview-actions flex flex-nowrap items-center gap-1">
            <button aria-label={`Show lines for ${entry.entry_no}`} aria-expanded={open} type="button"
             onClick={toggle} disabled={!info} className="min-w-0 rounded border px-1 py-0.5 text-[11px] text-blue-700 disabled:opacity-40">{open?'Hide':'Details'}</button>
