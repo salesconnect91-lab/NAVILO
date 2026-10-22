@@ -91,7 +91,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
  },[idsKey]);
  const go=(n:number)=>setPage(Math.max(1,Math.min(n,totalPages)));
  return <div className="space-y-1">
-  <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1.5" data-no-print>
+  <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1" data-no-print>
    <div className="flex min-w-[230px] flex-1 items-center gap-2">
     <input aria-label="Search journal numbers and descriptions" className="input w-full max-w-xl" value={search} onChange={e=>setSearch(e.target.value)}
      placeholder="Find entry #, description, status or date…"/>
@@ -132,35 +132,35 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
       return <tr key={entry.id}><td colSpan={8} className="p-0">
        <table className="w-full table-fixed text-xs"><tbody>
         <tr className="hover:bg-slate-50">
-         <td className="w-[12%] px-2 py-1 align-middle">
+         <td className="w-[12%] px-2 py-0.5 align-middle">
           <Link to={`/accounting/${entry.id}`} className="font-semibold text-blue-700 hover:underline">{entry.entry_no}</Link>
           <div className="text-slate-500 leading-tight">{formatDate(entry.entry_date)}</div>
          </td>
-         <td className="w-[16%] px-2 py-1 align-middle">
-          <div className="line-clamp-2 max-w-[250px] break-words text-slate-800" title={entry.description||'—'}>{entry.description||'—'}</div>
+         <td className="w-[16%] px-2 py-0.5 align-middle">
+          <div className="truncate max-w-[250px] text-slate-800" title={entry.description||'—'}>{entry.description||'—'}</div>
           <div className="text-[10px] text-slate-500 leading-tight">{sourceType}</div>
          </td>
-         <td className="w-[13%] px-2 py-1 align-middle text-slate-700"><div className="line-clamp-2 break-words" title={info?.accountsDr||undefined}>{info?info.accountsDr||'—':loading?'Loading…':'—'}</div></td>
-         <td className="w-[13%] px-2 py-1 align-middle text-slate-700"><div className="line-clamp-2 break-words" title={info?.accountsCr||undefined}>{info?info.accountsCr||'—':loading?'Loading…':'—'}</div></td>
-         <td className="w-[12%] px-2 py-1 align-middle">
-          {info?.party&&<div className="line-clamp-2 break-words text-slate-800" title={`Party: ${info.party}`}>Party: {info.party}</div>}
-          {info?.vehicles&&<div className="line-clamp-2 break-words text-blue-800" title={`Vehicle: ${info.vehicles}`}>Vehicle: {info.vehicles}</div>}
+         <td className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsDr||undefined}>{info?info.accountsDr||'—':loading?'Loading…':'—'}</div></td>
+         <td className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsCr||undefined}>{info?info.accountsCr||'—':loading?'Loading…':'—'}</div></td>
+         <td className="w-[12%] px-2 py-0.5 align-middle">
+          {info?.party&&<div className="truncate text-slate-800" title={`Party: ${info.party}`}>Party: {info.party}</div>}
+          {info?.vehicles&&<div className="truncate text-blue-800" title={`Vehicle: ${info.vehicles}`}>Vehicle: {info.vehicles}</div>}
           {!info&&!loading?'—':!info?'Loading…':!info.party&&!info.vehicles?'—':null}
          </td>
-         <td className="w-[10%] px-2 py-1 text-right align-middle font-semibold tabular-nums">
+         <td className="w-[10%] px-2 py-0.5 text-right align-middle font-semibold tabular-nums">
           {info?<><div>{money(info.debit,currency)}</div>
            {!info.balanced&&<div className="text-rose-700" title="Journal debit and credit do not reconcile">Cr {money(info.credit,currency)} — Check</div>}</>:loading?'Loading…':'—'}
          </td>
-         <td className="w-[8%] px-1 py-1 text-center align-middle"><StatusBadge status={entry.status}/></td>
-         <td className="w-[16%] px-1 py-1 align-middle">
-          <div className="navilo-journal-overview-actions grid grid-cols-2 gap-1">
+         <td className="w-[8%] px-1 py-0.5 text-center align-middle"><StatusBadge status={entry.status}/></td>
+         <td className="w-[16%] px-1 py-0.5 align-middle whitespace-nowrap">
+          <div className="navilo-journal-overview-actions flex flex-nowrap items-center gap-1">
            <button aria-label={`Show lines for ${entry.entry_no}`} aria-expanded={open} type="button"
-            onClick={toggle} disabled={!info} className="min-w-0 rounded border px-1.5 py-1 text-[11px] text-blue-700 disabled:opacity-40">{open?'Hide':'Details'}</button>
+            onClick={toggle} disabled={!info} className="min-w-0 rounded border px-1 py-0.5 text-[11px] text-blue-700 disabled:opacity-40">{open?'Hide':'Details'}</button>
            <Link className="min-w-0 rounded border px-1.5 py-1 text-center text-[11px] text-blue-700" to={`/accounting/${entry.id}`}>Open</Link>
-           {!entry.entry_no.startsWith('COB-')&&<button className="min-w-0 rounded border px-1.5 py-1 text-[11px]" type="button"
+           {!entry.entry_no.startsWith('COB-')&&<button className="min-w-0 rounded border px-1 py-0.5 text-[11px]" type="button"
              onClick={()=>onCopy(entry)} disabled={!!copyingId} title="Copy as an editable draft">
              {copyingId===entry.id?'…':'Copy'}</button>}
-           <button className="min-w-0 rounded border px-1.5 py-1 text-[11px]" type="button" onClick={()=>onPrint(entry)}>Print</button>
+           <button className="min-w-0 rounded border px-1 py-0.5 text-[11px]" type="button" onClick={()=>onPrint(entry)}>Print</button>
           </div>
          </td>
         </tr>
