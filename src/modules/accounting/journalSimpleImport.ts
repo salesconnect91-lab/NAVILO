@@ -79,9 +79,8 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
  // repeated choose-file/fix-one-row/reupload cycle.
  const supplied=rows.slice(1).map((r,index)=>({r,line:index+2})).filter(({r})=>r.some(cell=>str(cell)));
  const problems:string[]=[];
- if(supplied.length&&supplied.every(({r})=>!str(r[idx('entry_no')]))){
-  problems.push('Column A (entry_no) is blank in every transaction row. Enter a unique reference for each journal and repeat it on its Debit/Credit lines.');
- }
+ // Blank Entry No files can be grouped into date-specific compound draft journals.
+ // Never guess missing contra accounts or allow an unbalanced date to post.
  for(const {r,line} of supplied){
   const dr=Number(str(r[idx('debit')]).replace(/,/g,'')),cr=Number(str(r[idx('credit')]).replace(/,/g,''));
   if(Number.isFinite(dr)&&Number.isFinite(cr)&&dr>0&&cr>0)
@@ -97,14 +96,15 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
  const output:string[][]=[['entry_no','entry_date','description','account_name','line_description','party_type','party_name','vehicle_no','debit','credit']];
  const groups=new Map<string,{date:string,debit:number,credit:number,lines:number,firstDescription:string}>();
  let currentEntry='',currentDate='';
+ const allEntryNumbersBlank=supplied.length>0&&supplied.every(({r})=>!str(r[idx('entry_no')]));
  for(let i=1;i<rows.length;i++){
   const row=rows[i];
   if(!row.some(c=>str(c)))continue;
   const line=i+1;
   const suppliedId=str(row[idx('entry_no')]);
   const suppliedDate=journalImportISODate(row[idx('entry_date')]);
-  const entry=suppliedId||currentEntry;
-  const date=suppliedDate||(!suppliedId||suppliedId.toLowerCase()===currentEntry.toLowerCase()?currentDate:'');
+  const entry=allEntryNumbersBlank?(validDate(suppliedDate)?`IMPORT-${suppliedDate}`:''):(suppliedId||currentEntry);
+  const date=allEntryNumbersBlank?suppliedDate:(suppliedDate||(!suppliedId||suppliedId.toLowerCase()===currentEntry.toLowerCase()?currentDate:''));
   if(!entry||entry.length>80)throw Error(`Row ${line}: Entry No is required for the first row of every journal (max 80 characters).`);
   if(!validDate(date))throw Error(`Row ${line}: enter a valid YYYY-MM-DD date on the first row of this journal.`);
   if(suppliedId){currentEntry=entry;currentDate=date;}
@@ -126,7 +126,7 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
  if(!groups.size)throw Error('No journal rows were found.');
  if(groups.size>200)throw Error('Maximum 200 journal entries per file.');
  for(const [id,g] of groups){
-  if(g.lines<2)throw Error(`Entry ${id}: at least two lines are required: one Debit and one Credit.`);
+  if(g.lines<2)throw Error(`Entry ${id}: at least two lines are required: one Debit and one Credit. Check that both sides use the same date and reference.`);
   if(Math.abs(Math.round(g.debit*100)-Math.round(g.credit*100))>0)
    throw Error(`Entry ${id}: not balanced — Debit ${g.debit.toFixed(2)}, Credit ${g.credit.toFixed(2)}.`);
  }
@@ -138,8 +138,8 @@ export function downloadSimpleJournalTemplate():void{
   sheetName:'Journal Import',headers:SIMPLE_JOURNAL_HEADERS,example:[],
   title:'NAVILO General Journal — same Account / Related To / Debit / Credit format as the form',
   notes:[
-   'Each transaction must have TWO or more lines, with the SAME Entry No and Date. Debit total must equal Credit total for that Entry No.',
-   'Write Entry No and Entry Date on both lines, or leave them blank on later lines of the SAME contiguous entry. Start a new Entry No with its date.',
+   'Each transaction must have TWO or more lines with matching Debit/Credit totals. When the entire Entry No column is blank, entries are automatically grouped by date (one compound draft per date).',
+   'For individual vouchers write Entry No on the first row of each group and repeat it or leave it blank on continuation lines. To group ALL rows by date, leave EVERY Entry No blank and supply a date on EVERY row.',
    'Line Description explains the original receipt or transaction. Account Name must exactly match an active Chart of Accounts posting account.',
    'Orbit Example: Vehicle 7979 repair SAR 600: first row General Expenses, Related To 7979, Debit 600; second row Amjad Payable, Related To blank, Credit 600.',
    'Syarah Fuel is a prepaid CURRENT ASSET: wallet top-up Debit Syarah Fuel Payable, Credit Amjad Payable. Later fuel consumption Debit Transport & Freight with Vehicle 7979, Credit Syarah Fuel Payable.',
