@@ -1159,20 +1159,7 @@ export default function Ledgers() {
               {generalRowsWithBalance.length > 0 && (
                 <tfoot>
                   <tr className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-200">
-                    <td colSpan={3} className="py-3 px-3 text-right">
-                      Total:
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      {formatCurrency(totalDebit)}
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      {formatCurrency(totalCredit)}
-                    </td>
-                    <td className="py-3 px-3 text-right text-primary-700">
-                      {selectedAccount
-                        ? signedBalanceLabel(statementBalance)
-                        : "Per Account"}
-                    </td>
+                    {generalOrder.map(index=><td key={index} className="py-3 px-3 text-right">{index===2?"Total:":index===3?formatCurrency(totalDebit):index===4?formatCurrency(totalCredit):index===5?(selectedAccount?signedBalanceLabel(statementBalance):"Per Account"):null}</td>)}
                   </tr>
                 </tfoot>
               )}
