@@ -1577,7 +1577,8 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
           // the user chooses Save Columns. Do not overwrite them on refresh.
           if(!localProfile){
             apply(profile);
-            localStorage.setItem(key,JSON.stringify(profile));
+            try{localStorage.setItem(key,JSON.stringify(profile));}
+            catch{/* Cloud preferences still apply when browser storage is disabled. */}
           }
         }else if(localProfile){
           // No cloud profile exists yet: carry forward this device's saved default.
@@ -1586,7 +1587,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
               {onConflict:'user_id,company_id,business_unit_id'});
           if(saveError)throw saveError;
           if(active&&tripLayoutScopeRef.current===key){
-            localStorage.setItem(key,JSON.stringify(localProfile));
+            try{localStorage.setItem(key,JSON.stringify(localProfile));}catch{}
             setTripLayoutNotice('Your existing column layout is now synced to your login.');
           }
         }
