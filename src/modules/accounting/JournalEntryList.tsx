@@ -446,6 +446,9 @@ export default function JournalEntryList() {
           .order("entry_no", {
             ascending: false,
           })
+          // Do not download tens of thousands of tenant journals on page open.
+          // Keep the newest 250 available for immediate searching/paging.
+          .limit(250)
           .abortSignal(controller.signal);
 
         if (fetchError) throw fetchError;
