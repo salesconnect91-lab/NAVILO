@@ -1,3 +1,4 @@
+import './journalOverviewDensity.css';
 import {useEffect,useMemo,useState} from 'react';
 import {Link} from 'react-router-dom';
 import {supabase} from '@/lib/supabase';
@@ -90,7 +91,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[idsKey]);
  const go=(n:number)=>setPage(Math.max(1,Math.min(n,totalPages)));
- return <div className="space-y-1">
+ return <div className="navilo-je-overview space-y-0">
   <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1" data-no-print>
    <div className="flex min-w-[230px] flex-1 items-center gap-2">
     <input aria-label="Search journal numbers and descriptions" className="input w-full max-w-xl" value={search} onChange={e=>setSearch(e.target.value)}
@@ -133,12 +134,10 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
        <table className="w-full table-fixed text-xs"><tbody>
         <tr className="hover:bg-slate-50">
          <td className="w-[12%] px-2 py-0.5 align-middle">
-          <Link to={`/accounting/${entry.id}`} className="font-semibold text-blue-700 hover:underline">{entry.entry_no}</Link>
-          <div className="text-slate-500 leading-tight">{formatDate(entry.entry_date)}</div>
+          <div className="navilo-je-cell-inline"><Link to={`/accounting/${entry.id}`} className="font-semibold text-blue-700 hover:underline truncate" title={entry.entry_no}>{entry.entry_no}</Link><span className="text-slate-500 whitespace-nowrap">{formatDate(entry.entry_date)}</span></div>
          </td>
          <td className="w-[16%] px-2 py-0.5 align-middle">
-          <div className="truncate max-w-[250px] text-slate-800" title={entry.description||'—'}>{entry.description||'—'}</div>
-          <div className="text-[10px] text-slate-500 leading-tight">{sourceType}</div>
+          <div className="navilo-je-cell-inline"><span className="truncate text-slate-800" title={entry.description||'—'}>{entry.description||'—'}</span><span className="text-[10px] text-slate-500 truncate" title={sourceType}>{sourceType}</span></div>
          </td>
          <td className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsDr||undefined}>{info?info.accountsDr||'—':loading?'Loading…':'—'}</div></td>
          <td className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsCr||undefined}>{info?info.accountsCr||'—':loading?'Loading…':'—'}</div></td>
@@ -156,7 +155,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
           <div className="navilo-journal-overview-actions flex flex-nowrap items-center gap-1">
            <button aria-label={`Show lines for ${entry.entry_no}`} aria-expanded={open} type="button"
             onClick={toggle} disabled={!info} className="min-w-0 rounded border px-1 py-0.5 text-[11px] text-blue-700 disabled:opacity-40">{open?'Hide':'Details'}</button>
-           <Link className="min-w-0 rounded border px-1.5 py-1 text-center text-[11px] text-blue-700" to={`/accounting/${entry.id}`}>Open</Link>
+           <Link className="min-w-0 rounded border px-1 py-0.5 text-center text-[11px] text-blue-700" to={`/accounting/${entry.id}`}>Open</Link>
            {!entry.entry_no.startsWith('COB-')&&<button className="min-w-0 rounded border px-1 py-0.5 text-[11px]" type="button"
              onClick={()=>onCopy(entry)} disabled={!!copyingId} title="Copy as an editable draft">
              {copyingId===entry.id?'…':'Copy'}</button>}
