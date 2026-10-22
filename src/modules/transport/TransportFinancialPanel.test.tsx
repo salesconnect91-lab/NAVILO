@@ -15,14 +15,14 @@ vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{mock
 beforeEach(()=>{mock.allowed=false;mock.cash=false;mock.failCash=false;mock.supplier=false;mock.failSettlement=false;mock.rpc.mockReset();mock.tablesRead=[];mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_finance_allowed'?mock.allowed:name==='transport_financial_register_trip'?[mock.cash?{...trip,customer_rate_locked:false,customer_rate_state:'finalized',sale_type:'cash'}:trip]:{success:true},error:(name==='transport_post_cash_bill_receive'&&mock.failCash)||(name==='transport_correct_settlement'&&mock.failSettlement)?{message:'Network interrupted'}:null}))});afterEach(cleanup);
 describe('Transport canonical finance controls',()=>{
  it('does not expose or request driver bookkeeping actions',async()=>{mock.allowed=true;render(<TransportFinancialPanel trip={trip} onClose={vi.fn()} onChanged={async()=>{}}/>);await screen.findByRole('button',{name:'Credit / Debit Note'});expect(screen.queryByRole('button',{name:'Driver Pay'})).toBeNull();expect(screen.queryByText('Driver Account / Hisaab')).toBeNull();expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_finance_allowed'&&c[1]?.p_action==='driver')).toBe(false);expect(mock.rpc).toHaveBeenCalledWith('transport_financial_register_trip',{p_trip_id:'trip-a'});expect(mock.tablesRead).not.toContain('transport_financial_register')});
- it('posts a Cash Only customer invoice without inventing a full cash receipt',async()=>{
+ it('opens the customer Draft invoice flow and does not post or create a receipt automatically',async()=>{
  mock.allowed=true;mock.cash=true;
  render(<TransportFinancialPanel trip={{...trip,customer_rate_locked:false,customer_rate_state:'finalized',sale_type:'cash'}} onClose={vi.fn()} onChanged={async()=>{}}/>);
- await screen.findByRole('button',{name:'Post Customer Bill'});
- expect(screen.getByText(/Cash Only invoice is posted without a receipt/)).toBeTruthy();
- expect((screen.getByRole('button',{name:'Post Customer Bill'}) as HTMLButtonElement).disabled).toBe(false);
- fireEvent.click(screen.getByRole('button',{name:'Post Customer Bill'}));
- await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_post_customer_bill',{p_trip_id:'trip-a',p_date:expect.any(String),p_with_tax:false}));
+ await screen.findByRole('button',{name:'Create Customer Draft'});
+ expect(screen.getByText(/Cash invoices have no VAT; Credit invoices use the configured VAT rate/)).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Create Customer Draft'}));
+ await screen.findByText('Customer Invoice · TRP-A');
+ expect(mock.rpc.mock.calls.some(([name])=>name==='transport_post_customer_bill')).toBe(false);
  expect(mock.rpc.mock.calls.some(([name])=>name==='transport_post_customer_bill_settled'||name==='transport_post_cash_bill_receive')).toBe(false);
  });
 

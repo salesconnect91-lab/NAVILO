@@ -7,7 +7,7 @@ const mock=vi.hoisted(()=>({
  company:'tw',bu:'tw-bu',permission:true,
  rates:{tw:null,or:15,go:null} as Record<string,number|null>,
  requests:[] as Array<{table:string;filters:Record<string,unknown>}>,
- posts:[] as any[],
+ posts:[] as any[],draftPosts:[] as any[],
 }));
 const names=[{id:'tw',bu:'tw-bu',name:'Twakkal Al Khaleej'},
  {id:'or',bu:'or-bu',name:'Orbit - Usman Sajjad'},
@@ -25,10 +25,11 @@ vi.mock('@/lib/supabase',()=>({supabase:{
  rpc:async(name:string,args:any)=>{
   if(name==='transport_finance_allowed')return {data:mock.permission,error:null};
   if(name==='fixed_tax_rate_on')return {data:mock.rates[args.p_company]??null,error:null};
-  if(name==='transport_post_customer_bill_accounted'){
+  if(name==='transport_create_customer_draft_grouped'){
    mock.posts.push(args);
-   return {data:{document_id:'new-bill'},error:null};
+   return {data:{transport_document_id:'draft-customer',order_id:'sales-draft',invoice_no:args.p_invoice_no||'S-AUTO-1',status:'draft'},error:null};
   }
+  if(name==='transport_post_customer_draft'){mock.draftPosts.push(args);return {data:{status:'posted'},error:null};}
   throw new Error('Unexpected RPC '+name);
  },
  from:(table:string)=>{
@@ -59,7 +60,7 @@ const trip=(sale_type:'cash'|'credit'='credit')=>({
 });
 beforeEach(()=>{
  mock.company='tw';mock.bu='tw-bu';mock.permission=true;
- mock.rates={tw:null,or:15,go:null};mock.requests=[];mock.posts=[];
+ mock.rates={tw:null,or:15,go:null};mock.requests=[];mock.posts=[];mock.draftPosts=[];
 });
 afterEach(cleanup);
 const mount=(sale_type:'cash'|'credit'='credit')=>{
@@ -91,47 +92,50 @@ describe('Transport invoice posting in all company contexts',()=>{
   fireEvent.change(screen.getByLabelText('Your Invoice Number'),{target:{value:'ORIG-123'}});
   const requirements=screen.getByRole('status',{name:'Invoice posting requirements'});
   await waitFor(()=>expect(requirements.textContent).toContain('Effective Sales VAT is unavailable'));
-  expect((screen.getByRole('button',{name:'Post Invoice'}) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(true);
   expect(mock.posts).toHaveLength(0);
  });
- it('posts an Orbit credit invoice only with its original number and its revenue account',async()=>{
+ it('saves an Orbit credit invoice as Draft, then requires a separate Post action',async()=>{
   mock.company='or';mock.bu='or-bu';
   const {onClose,onChanged}=mount();
   await readyAccount('or');
   await screen.findByText(/VAT 15%/);
   fireEvent.change(screen.getByRole('combobox',{name:'Invoice number method'}),{target:{value:'manual'}});
   fireEvent.change(screen.getByLabelText('Your Invoice Number'),{target:{value:'ORIG-2026-99'}});
-  const post=screen.getByRole('button',{name:'Post Invoice'});
-  await waitFor(()=>expect((post as HTMLButtonElement).disabled).toBe(false));
-  fireEvent.click(post);
-  await waitFor(()=>expect(onClose).toHaveBeenCalledTimes(1));
-  expect(onChanged).toHaveBeenCalledTimes(1);
+  const save=screen.getByRole('button',{name:'Save Draft'});
+  await waitFor(()=>expect((save as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(save);
+  await screen.findByText(/Draft saved. It has no accounting entry until you post it./);
+  expect(onClose).not.toHaveBeenCalled();
   expect(mock.posts).toHaveLength(1);
-  expect(mock.posts[0]).toEqual(expect.objectContaining({
-   p_trip_id:'trip-1',p_revenue_account_id:'or-rev',p_with_tax:true,p_invoice_no:'ORIG-2026-99',
-  }));
+  expect(mock.posts[0]).toEqual(expect.objectContaining({p_trip_ids:['trip-1'],p_revenue_account_id:'or-rev',p_with_tax:true,p_invoice_no:'ORIG-2026-99'}));
+  fireEvent.click(screen.getByRole('button',{name:'Post Invoice'}));
+  await waitFor(()=>expect(mock.draftPosts).toHaveLength(1));
+  expect(mock.draftPosts[0]).toEqual({p_document_id:'draft-customer'});
+  await waitFor(()=>expect(onChanged).toHaveBeenCalledTimes(2));
  });
- it('allows Cash auto numbering without VAT configuration and never invents a Credit invoice reference',async()=>{
+ it('allows Cash auto numbering without VAT configuration and saves a no-VAT Draft',async()=>{
   const {onClose}=mount('cash');
   await readyAccount('tw');
   fireEvent.change(screen.getByRole('combobox',{name:'Invoice number method'}),{target:{value:'auto'}});
-  await waitFor(()=>expect((screen.getByRole('button',{name:'Post Invoice'}) as HTMLButtonElement).disabled).toBe(false));
-  fireEvent.click(screen.getByRole('button',{name:'Post Invoice'}));
-  await waitFor(()=>expect(onClose).toHaveBeenCalled());
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button',{name:'Save Draft'}));
+  await screen.findByText(/Draft saved. It has no accounting entry until you post it./);
+  expect(onClose).not.toHaveBeenCalled();
   expect(mock.posts).toHaveLength(1);
   expect(mock.posts[0]).toEqual(expect.objectContaining({p_revenue_account_id:'tw-rev',p_with_tax:false,p_invoice_no:null}));
  });
- it('never offers a duplicate post after a successful invoice when register refresh fails',async()=>{
+ it('does not post if Draft creation refresh fails; user keeps an explicit Post button',async()=>{
   const onClose=vi.fn();
   const onChanged=vi.fn(async()=>{throw new Error('Register timed out')});
   render(<TransportInvoiceNumber trip={trip('cash')} onClose={onClose} onChanged={onChanged}/>);
   await readyAccount('tw');
   fireEvent.change(screen.getByRole('combobox',{name:'Invoice number method'}),{target:{value:'auto'}});
-  await waitFor(()=>expect((screen.getByRole('button',{name:'Post Invoice'}) as HTMLButtonElement).disabled).toBe(false));
-  fireEvent.click(screen.getByRole('button',{name:'Post Invoice'}));
-  await screen.findByText(/Invoice POSTED successfully, but Register refresh failed/);
+  await waitFor(()=>expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button',{name:'Save Draft'}));
+  await screen.findByText(/Draft saved. It has no accounting entry until you post it./);
   expect(mock.posts).toHaveLength(1);
-  expect(screen.queryByRole('button',{name:'Post Invoice'})).toBeNull();
+  expect(screen.getByRole('button',{name:'Post Invoice'})).toBeTruthy();
   expect(onClose).not.toHaveBeenCalled();
   expect(onChanged).toHaveBeenCalledTimes(1);
  });
@@ -140,7 +144,7 @@ describe('Transport invoice posting in all company contexts',()=>{
   await readyAccount('tw');
   fireEvent.change(screen.getByRole('combobox',{name:'Invoice number method'}),{target:{value:'auto'}});
   expect(screen.getByRole('status',{name:'Invoice posting requirements'}).textContent).toContain('Billing/post permission');
-  expect((screen.getByRole('button',{name:'Post Invoice'}) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(true);
  });
  it('drops the old company account on a workspace switch',async()=>{
   const a=mount('cash');await readyAccount('tw');

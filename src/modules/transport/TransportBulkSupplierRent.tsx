@@ -40,6 +40,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
  const [descriptions,setDescriptions]=useState<Record<string,string>>({});
  const [supplierReference,setSupplierReference]=useState('');
  const [invoiceNumber,setInvoiceNumber]=useState('');
+ const [createdDraft,setCreatedDraft]=useState<{id:string;orderId:string;number:string;count:number}|null>(null);
  const [page,setPage]=useState(0),[pageMeta,setPageMeta]=useState<{count:number;amount:number;statuses:string[]}>({count:0,amount:0,statuses:[]});
  const [singleRowKey,setSingleRowKey]=useState(''),[chargeRent,setChargeRent]=useState<{rent:Rent;tripNo:string}|null>(null);const [singleCorrectionMode,setSingleCorrectionMode]=useState(false),[singleConfirmFinancialPost,setSingleConfirmFinancialPost]=useState(false);const compactDialog=useRef<HTMLElement>(null);
  const generation=useRef(0),submitting=useRef(false),initialApplied=useRef(false);
@@ -103,21 +104,21 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
  const visible=rows;
  function toggle(id:string,on:boolean){setSelected(v=>on?[...new Set([...v,id])]:v.filter(x=>x!==id));}
  function selectShown(){const ids=visible.filter(r=>canFinalize(r.id)||(!unavailableTripIds.has(r.id)&&existing.get(r.id)?.state==='finalized'&&permissions.rent)).map(r=>r.id);setSelected(ids);}
- async function runBatch(kind:'finalize'|'post',ids=selected){
-  if(kind==='post'&&!billing.ready){setError(billing.error||'Select a supplier with a configured Cash/Credit billing rule.');return;}
-  if(kind==='post'&&withTax&&(!vatReady||!supplierReference.trim())){setError('Valid VAT preview and original supplier invoice reference required for the selected invoice.');return;}
+ async function runBatch(kind:'finalize'|'draft',ids=selected){
+  if(kind==='draft'&&!billing.ready){setError(billing.error||'Select a supplier with a configured Cash/Credit billing rule.');return;}
+  if(kind==='draft'&&withTax&&(!vatReady||!supplierReference.trim())){setError('Valid VAT preview and original supplier invoice reference required for the selected invoice.');return;}
   if(submitting.current||busy||loading||!ids.length)return;
   const candidates=rows.filter(r=>ids.includes(r.id)&&!unavailableTripIds.has(r.id)&&(kind==='finalize'?canFinalize(r.id):existing.get(r.id)?.state==='finalized'&&permissions.rent));
   if(!candidates.length)return;
-  if(kind==='post'){
+  if(kind==='draft'){
    const problem=invoiceNumberError([invoiceNumber]);if(problem){setError(problem);return;}
    const parties=new Set(candidates.map(r=>existing.get(r.id)?.supplier_id??r.party_id).filter(Boolean));
    if(parties.size!==1||candidates.some(r=>!(existing.get(r.id)?.supplier_id??r.party_id))){setError('Select rent lines for one supplier per invoice.');return;}
   }
   if(kind==='finalize'&&(!reason.trim()||candidates.some(r=>!validBulkMoney(amounts[r.id]??String(supplierBase(existing.get(r.id),r.supplier_rent,r.supplier_charges??0)))))){setError('Enter a nonnegative amount with at most two decimals and a reason.');return;}
   if(kind==='finalize'&&candidates.some(r=>!existing.has(r.id))&&!suppliers.some(s=>s.id===supplier&&s.is_active)){setError('Select an active supplier for new rent.');return;}
-  if(kind==='post'&&(!account||!date))return;
-  submitting.current=true;setBusy(true);setError('');setMessage('');const completed=new Set<string>();let failure='';
+  if(kind==='draft'&&(!account||!date))return;
+  submitting.current=true;setBusy(true);setError('');setMessage('');const completed=new Set<string>();let failure='';let draftCreated:{id:string;orderId:string;number:string;count:number}|null=null;
   try{
    if(kind==='finalize'){
     for(const row of candidates){
@@ -129,7 +130,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
     }
    }else{
     const rents=candidates.map(r=>existing.get(r.id)!).filter(Boolean);
-    const result=await supabase.rpc('transport_post_supplier_bill_grouped',{
+    const result=await supabase.rpc('transport_create_supplier_draft_grouped',{
      p_rent_ids:rents.map(r=>r.id),
      p_date:date,
      p_cost_account_id:account,
@@ -139,17 +140,25 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
      p_descriptions:Object.fromEntries(candidates.map(r=>[existing.get(r.id)!.id,descriptions[r.id]?.trim()||'']))
     });
     if(result.error)throw result.error;
+    draftCreated={id:String(result.data.transport_document_id),orderId:String(result.data.order_id),number:String(result.data.invoice_no),count:candidates.length};setCreatedDraft(draftCreated);
     candidates.forEach(r=>completed.add(r.id));
    }
   }catch(e:any){failure=e?.message||String(e);}
   try{await load();await onChanged()}catch(e:any){failure+=` Refresh failed: ${e?.message||e}. Refresh before another action.`;setPermissions({});}
   setDescriptions(v=>Object.fromEntries(Object.entries(v).filter(([id])=>!completed.has(id))));
-  if(kind==='post'&&completed.size){setInvoiceNumber('');setSupplierReference('');}
+  if(kind==='draft'&&completed.size){setInvoiceNumber('');setSupplierReference('');}
   setSelected(v=>v.filter(id=>!completed.has(id)));setAmounts(v=>Object.fromEntries(Object.entries(v).filter(([id])=>!completed.has(id))));
-  setMessage(kind==='post'&&completed.size?`1 invoice posted for ${completed.size} rent line(s). ${ids.length-candidates.length} ineligible row(s) skipped.`:`${completed.size} row(s) saved/finalized. ${ids.length-candidates.length} ineligible row(s) skipped.`);
+  setMessage(kind==='draft'&&completed.size?`Draft invoice ${draftCreated?.number||''} saved for ${completed.size} rent line(s). No accounting entries were posted.`:`${completed.size} row(s) saved/finalized. ${ids.length-candidates.length} ineligible row(s) skipped.`);
   if(failure)setError(`${failure} · ${completed.size} completed before this error.`);
   submitting.current=false;setBusy(false);
-  if(compact&&!failure&&completed.size===1)onClose();
+  if(compact&&kind==='finalize'&&!failure&&completed.size===1)onClose();
+ }
+ async function postDraft(){
+  if(!createdDraft||busy||loading||submitting.current)return;
+  submitting.current=true;setBusy(true);setError('');setMessage('');
+  try{const result=await supabase.rpc('transport_post_supplier_draft',{p_document_id:createdDraft.id});if(result.error)throw result.error;setMessage(`Invoice ${createdDraft.number} posted.`);setCreatedDraft(null);await load();await onChanged();}
+  catch(e:any){setError(e?.message||'Could not post this draft invoice.');}
+  finally{submitting.current=false;setBusy(false);}
  }
  async function correctPostedRent(){
   if(submitting.current||busy||loading||!permissions.adjustment||!correctionTrip||!correctionRent||!date||!reason.trim()||!validBulkMoney(correctionAmount)||Number(correctionAmount)===correctionRent.amount)return;
@@ -199,8 +208,9 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
   </section>
  </TransportDialog>;
  return <TransportDialog ><section data-navilo-bulk-rates="true" className="flex max-h-[88vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-lg bg-white p-2 text-[10px] leading-tight shadow-xl">
-  <div className="flex shrink-0 items-center justify-between"><div><h2 className="text-sm font-bold leading-tight">Bulk Supplier Rent</h2><p className="text-[9px] leading-tight text-slate-500">Select supplier rents → finalize → post one invoice for the selected rent lines of one supplier. Record actual full or partial supplier payments separately. One Invoice # and supplier reference apply to the whole selection; blank NAVILO Invoice # uses automatic numbering.</p></div><button className="btn" disabled={busy||loading} onClick={onClose}>Close</button></div>
+  <div className="flex shrink-0 items-center justify-between"><div><h2 className="text-sm font-bold leading-tight">Bulk Supplier Rent</h2><p className="text-[9px] leading-tight text-slate-500">Select supplier rents → finalize → save one Draft invoice for one supplier. Review the Draft before using the separate Post action. Cash bills are without VAT; Credit bills use the configured VAT rate.</p></div><button className="btn" disabled={busy||loading} onClick={onClose}>Close</button></div>
   {loading&&<p role="status">Loading page…</p>}
+  {createdDraft&&<div className="flex shrink-0 items-center justify-between gap-2 rounded border border-amber-300 bg-amber-50 p-2 text-xs"><span>Draft {createdDraft.number} · {createdDraft.count} rent line(s) · not posted</span><div className="flex gap-2"><a className="btn" href={`/purchase/${encodeURIComponent(createdDraft.orderId)}`} target="_blank" rel="noreferrer">Review Draft</a><button className="btn-primary" disabled={busy||loading} onClick={()=>void postDraft()}>Post Invoice</button></div></div>}
   {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}{message&&<p role="status" className="my-2 text-emerald-700">{message}</p>}
   <fieldset disabled={busy} className="my-2 grid shrink-0 grid-cols-12 items-end gap-1 rounded border bg-slate-50 p-1 text-[9px] leading-tight">
    <label className="col-span-2">Supplier<NaviloSearchableSelect nativeCompatibility preserveLabel className="input h-7 px-1 text-[10px]" value={supplier} onChange={e=>{setSupplier(e.target.value);setSelected([]);setAmounts({})}}><option value="">All Suppliers</option>{suppliers.map(s=><option key={s.id} value={s.id}>{s.name}{s.is_active?'':' (inactive)'}</option>)}</NaviloSearchableSelect></label>
@@ -226,7 +236,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
   <TransportPagination page={page} pageSize={500} count={pageMeta.count} busy={loading||busy} onPage={setPage}/>
   <p className="shrink-0 text-[10px] text-slate-500">All filtered rows: {pageMeta.count.toLocaleString()} · Total amount: {financialNumber(pageMeta.amount)}. Selection applies to this page.</p>
   {correctionTrip&&correctionRent&&<div className="shrink-0 border-t bg-amber-50 p-2 text-[10px]"><div className="flex flex-wrap items-end gap-2"><strong>{correctionTrip.trip_no} · Posted Rent Correction</strong><span>Current: {financialNumber(correctionTrip.billed_supplier_net)}</span><label>New Rent <input className="input h-7 w-28 px-1 text-[11px]" type="number" min="0" step="0.01" disabled={busy} value={correctionAmount} onChange={e=>setCorrectionAmount(e.target.value)}/></label><TransportReasonSelect className="min-w-[220px] flex-1" compact label="Correction Reason" kind="supplier_rate" value={reason} onChange={setReason} disabled={busy}/><button className="btn-primary h-7" disabled={loading||!permissions.adjustment||busy||!reason.trim()||!validBulkMoney(correctionAmount)||Number(correctionAmount)===correctionRent.amount} onClick={()=>void correctPostedRent()}>Save Correction</button><button className="btn h-7" disabled={busy||loading||!permissions.adjustment} onClick={()=>{setCorrectionTrip(null);setCorrectionRent(null);setCorrectionAmount('')}}>Cancel</button></div><p className="mt-1 text-slate-600">Original posted bill/payment history stays unchanged; NAVILO posts only the difference as a canonical AP adjustment.</p></div>}
-  <div className="mt-2 flex shrink-0 items-center justify-between gap-2 text-[9px]"><strong>{selected.length} rent line(s) selected</strong><div className="flex gap-2"><button className="btn" disabled={loading||busy||!selected.some(canFinalize)||!reason.trim()||selected.some(id=>!existing.has(id)&&!supplier)} onClick={()=>void runBatch('finalize')}>{busy?'Working…':'Finalize Selected'}</button><button className="btn-primary" disabled={loading||!permissions.rent||busy||!account||!date||!selected.some(id=>!unavailableTripIds.has(id)&&existing.get(id)?.state==='finalized')} onClick={()=>void runBatch('post')}>{busy?'Posting…':'Post Finalized Selected'}</button></div></div>
+  <div className="mt-2 flex shrink-0 items-center justify-between gap-2 text-[9px]"><strong>{selected.length} rent line(s) selected</strong><div className="flex gap-2"><button className="btn" disabled={loading||busy||!selected.some(canFinalize)||!reason.trim()||selected.some(id=>!existing.has(id)&&!supplier)} onClick={()=>void runBatch('finalize')}>{busy?'Working…':'Finalize Selected'}</button><button className="btn-primary" disabled={loading||!permissions.rent||busy||!account||!date||!selected.some(id=>!unavailableTripIds.has(id)&&existing.get(id)?.state==='finalized')} onClick={()=>void runBatch('draft')}>{busy?'Saving…':'Save Draft Invoice'}</button></div></div>
  {chargeRent&&<TransportSupplierCharges rentId={chargeRent.rent.id} tripNo={chargeRent.tripNo} onClose={()=>setChargeRent(null)} onChanged={async()=>{await onChanged();await load()}}/>}
  </section></TransportDialog>;
 }

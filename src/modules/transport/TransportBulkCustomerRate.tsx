@@ -25,6 +25,7 @@ export default function TransportBulkCustomerRate({onClose,onChanged,initialTrip
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[correction,setCorrection]=useState<Row|null>(null),[correctionAmount,setCorrectionAmount]=useState('');
  const [descriptions,setDescriptions]=useState<Record<string,string>>({});
  const [invoiceNumber,setInvoiceNumber]=useState('');
+ const [createdDraft,setCreatedDraft]=useState<{id:string;orderId:string;number:string;count:number}|null>(null);
  const [page,setPage]=useState(0),[pageMeta,setPageMeta]=useState<{count:number;amount:number;statuses:string[]}>({count:0,amount:0,statuses:[]});
  const generation=useRef(0),submitting=useRef(false),initialSelectionApplied=useRef(false);
  const scopeKey=`${activeCompany?.company_id}/${activeBusinessUnit?.business_unit_id}`;
@@ -79,11 +80,11 @@ export default function TransportBulkCustomerRate({onClose,onChanged,initialTrip
  const visible=rows;
  const canFinalize=(r:Row)=>!posted(r)&&Boolean(permissions[r.customer_rate_state==='finalized'?'customer_rate_override':'customer_rate_finalize']);
  const toggle=(id:string,on:boolean)=>setSelected(v=>on?[...new Set([...v,id])]:v.filter(x=>x!==id));
- async function runBatch(kind:'finalize'|'post'){
+ async function runBatch(kind:'finalize'|'draft'){
   if(submitting.current||busy||loading||!selected.length)return;
   const candidates=rows.filter(r=>selected.includes(r.id)&&!posted(r)&&(kind==='finalize'?canFinalize(r):r.customer_rate_state==='finalized'&&permissions.billing));
   if(!candidates.length)return;
-  if(kind==='post'){
+   if(kind==='draft'){
    const problem=invoiceNumberError([invoiceNumber]);if(problem){setError(problem);return;}
    const parties=new Set(candidates.map(r=>r.customer_id).filter(Boolean));
    const saleTypes=new Set(candidates.map(r=>r.sale_type).filter(Boolean));
@@ -91,9 +92,9 @@ export default function TransportBulkCustomerRate({onClose,onChanged,initialTrip
    if(saleTypes.size!==1||candidates.some(r=>!r.sale_type)){setError('Selected trips must use one Cash/Credit sale type per invoice.');return;}
   }
   if(kind==='finalize'&&(!reason.trim()||candidates.some(r=>!validBulkMoney(amounts[r.id]??String(baseRate(r)))))){setError('Enter a nonnegative amount with at most two decimals and a reason.');return;}
-  if(kind==='post'&&withTax&&!vatReady){setError('Wait for a valid VAT preview before posting.');return;}
-  if(kind==='post'&&(!date||!account)){setError('Select a revenue account and invoice date.');return;}
-  submitting.current=true;setBusy(true);setError('');setMessage('');const completed=new Set<string>();let failure='';
+  if(kind==='draft'&&withTax&&!vatReady){setError('Wait for a valid VAT preview before saving the draft.');return;}
+  if(kind==='draft'&&(!date||!account)){setError('Select a revenue account and invoice date.');return;}
+  submitting.current=true;setBusy(true);setError('');setMessage('');const completed=new Set<string>();let failure='';let draftCreated:{id:string;orderId:string;number:string;count:number}|null=null;
   try{
    if(kind==='finalize'){
     for(const row of candidates){
@@ -101,7 +102,7 @@ export default function TransportBulkCustomerRate({onClose,onChanged,initialTrip
      if(result.error)throw result.error;completed.add(row.id);
     }
    }else{
-    const result=await supabase.rpc('transport_post_customer_bill_grouped',{
+     const result=await supabase.rpc('transport_create_customer_draft_grouped',{
      p_trip_ids:candidates.map(r=>r.id),
      p_date:date,
      p_revenue_account_id:account,
@@ -110,16 +111,24 @@ export default function TransportBulkCustomerRate({onClose,onChanged,initialTrip
      p_descriptions:Object.fromEntries(candidates.map(r=>[r.id,descriptions[r.id]?.trim()||'']))
     });
     if(result.error)throw result.error;
+    draftCreated={id:String(result.data.transport_document_id),orderId:String(result.data.order_id),number:String(result.data.invoice_no),count:candidates.length};setCreatedDraft(draftCreated);
     candidates.forEach(r=>completed.add(r.id));
    }
   }catch(e:any){failure=e?.message||String(e);}
   try{await load();await onChanged()}catch(e:any){failure+=` Refresh failed: ${e?.message||e}. Refresh before another action.`;setPermissions({});}
   setDescriptions(v=>Object.fromEntries(Object.entries(v).filter(([id])=>!completed.has(id))));
-  if(kind==='post'&&completed.size)setInvoiceNumber('');
+  if(kind==='draft'&&completed.size)setInvoiceNumber('');
   setSelected(v=>v.filter(id=>!completed.has(id)));setAmounts(v=>Object.fromEntries(Object.entries(v).filter(([id])=>!completed.has(id))));
-  setMessage(kind==='post'&&completed.size?`1 invoice posted for ${completed.size} trip(s). ${selected.length-candidates.length} ineligible row(s) skipped.`:`${completed.size} row(s) saved/finalized. ${selected.length-candidates.length} ineligible row(s) skipped.`);
+  setMessage(kind==='draft'&&completed.size?`Draft invoice ${draftCreated?.number||''} saved for ${completed.size} trip(s). No accounting entries were posted.`:`${completed.size} row(s) saved/finalized. ${selected.length-candidates.length} ineligible row(s) skipped.`);
   if(failure)setError(`${failure} · ${completed.size} completed before this error.`);
   submitting.current=false;setBusy(false);
+ }
+ async function postDraft(){
+  if(!createdDraft||busy||loading||submitting.current)return;
+  submitting.current=true;setBusy(true);setError('');setMessage('');
+  try{const result=await supabase.rpc('transport_post_customer_draft',{p_document_id:createdDraft.id});if(result.error)throw result.error;setMessage(`Invoice ${createdDraft.number} posted.`);setCreatedDraft(null);await load();await onChanged();}
+  catch(e:any){setError(e?.message||'Could not post this draft invoice.');}
+  finally{submitting.current=false;setBusy(false);}
  }
  async function correct(){
   if(submitting.current||busy||loading||!permissions.adjustment||!correction||!date||!reason.trim()||!validBulkMoney(correctionAmount)||Number(correctionAmount)===Number(correction.billed_customer_net))return;
@@ -128,8 +137,8 @@ export default function TransportBulkCustomerRate({onClose,onChanged,initialTrip
   catch(e:any){setError(`${saved?'Correction posted; refresh failed. ':''}${e?.message||e}`);if(saved)setPermissions({});}finally{submitting.current=false;setBusy(false)}
  }
  return <TransportDialog ><section data-navilo-bulk-rates="true" className="flex max-h-[88vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-lg bg-white p-2 text-[10px] leading-tight shadow-xl">
- <div className="flex shrink-0 items-center justify-between"><div><h2 className="text-sm font-bold">Bulk Customer Rate</h2><p className="text-[9px] text-slate-500">Select trips → edit base rates (excluding charges) → finalize → post one invoice for the selected trips of one customer. Record actual full or partial receipts separately. One Invoice # applies to the whole selection; blank uses automatic numbering. Posted rates use controlled correction.</p></div><button className="btn" disabled={busy||loading} onClick={onClose}>Close</button></div>
- {loading&&<p role="status">Loading page…</p>}{error&&<p role="alert" className="my-2 text-red-700">{error}</p>}{message&&<p role="status" className="my-2 text-emerald-700">{message}</p>}
+ <div className="flex shrink-0 items-center justify-between"><div><h2 className="text-sm font-bold">Bulk Customer Rate</h2><p className="text-[9px] text-slate-500">Select trips → set rates → finalize → save one Draft invoice for one customer. Review or edit the Draft before using the separate Post action. Cash invoices are without VAT; Credit invoices use the configured VAT rate.</p></div><button className="btn" disabled={busy||loading} onClick={onClose}>Close</button></div>
+ {loading&&<p role="status">Loading page…</p>}{error&&<p role="alert" className="my-2 text-red-700">{error}</p>}{message&&<p role="status" className="my-2 text-emerald-700">{message}</p>}{createdDraft&&<div className="flex shrink-0 items-center justify-between gap-2 rounded border border-amber-300 bg-amber-50 p-2 text-xs"><span>Draft {createdDraft.number} · {createdDraft.count} trip(s) · not posted</span><div className="flex gap-2"><a className="btn" href={`/sales/${encodeURIComponent(createdDraft.orderId)}`} target="_blank" rel="noreferrer">Review Draft</a><button className="btn-primary" disabled={busy||loading} onClick={()=>void postDraft()}>Post Invoice</button></div></div>}
  <fieldset disabled={busy} className="my-2 grid shrink-0 grid-cols-12 items-end gap-1 rounded border bg-slate-50 p-1 text-[9px] leading-tight">
    <label className="col-span-2">Customer<NaviloSearchableSelect nativeCompatibility preserveLabel className="input h-7 px-1 text-[10px]" value={customer} onChange={e=>{setCustomer(e.target.value);setSelected([]);setAmounts({})}}><option value="">All Customers</option>{customers.map(s=><option key={s.id} value={s.id}>{s.name}{s.is_active?'':' (inactive)'}</option>)}</NaviloSearchableSelect></label>
    <label className="col-span-3">Revenue account<NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Revenue account" className="input h-7 px-1 text-[10px]" value={account} onChange={e=>setAccount(e.target.value)}><option value="">Select account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</NaviloSearchableSelect></label>
@@ -150,6 +159,6 @@ export default function TransportBulkCustomerRate({onClose,onChanged,initialTrip
  <input aria-label={`Description ${r.trip_no}`} title="Optional invoice description; Trip details are added automatically" className="mt-0.5 block h-5 w-full min-w-0 rounded border bg-white px-1 py-0 !text-[10px] font-normal" maxLength={2000} placeholder="Description (optional)" disabled={lock||!permissions.billing||busy||loading} value={descriptions[r.id]??''} onChange={e=>setDescriptions(v=>({...v,[r.id]:e.target.value}))}/>
  </td><td className="whitespace-nowrap">{fmt(r.trip_date)}</td><td>{r.trip_status||'—'}</td><td><span className="block max-h-[30px] overflow-hidden leading-[15px]">{r.customer_name||'—'}</span></td><td><span className="block max-h-[30px] overflow-hidden leading-[15px]">{r.from_location||'—'} → {r.to_location||'—'}{Number(r.customer_charges??0)>0?<> · <strong>{r.customer_charge_names||'Charge'} {financialNumber(r.customer_charges)}</strong></>:null}</span></td><td>{r.vehicle_no||'—'}</td><td className="truncate" title={r.driver_name||''}>{r.driver_name||'—'}</td><td className="truncate" title={r.po_do_job_no||''}>{r.po_do_job_no||'—'}</td><td>{r.sale_type||'—'}</td><td className="font-semibold tabular-nums" title={r.customer_charge_names||''}>{financialNumber(r.customer_charges??0)}</td><td className="text-[10px] tabular-nums">{selected.includes(r.id)&&!posted(r)&&r.customer_rate_state==='finalized'?(vatRate===null?'VAT …':<><span className="block text-slate-500">{vatRate}%</span>{financialNumber(Math.round(Number(r.customer_rate??0)*vatRate)/100)}</>):'—'}</td><td><input aria-label={`Rate ${r.trip_no}`} className="input h-[30px] w-full px-1 py-0 !text-[12px] !leading-[15px]" type="number" min="0" step="0.01" disabled={lock||busy||loading||!canFinalize(r)} value={lock?String(r.billed_customer_net??''):amounts[r.id]??String(baseRate(r))} onChange={e=>setAmounts(v=>({...v,[r.id]:e.target.value}))}/></td><td>{lock?<div className="flex flex-col items-start gap-0 leading-[13px]"><span data-rate-status className="text-[10px] text-emerald-700">Posted {financialNumber(r.billed_customer_net)}</span><button className="text-[10px] font-semibold leading-[13px] text-blue-700 underline" disabled={busy||loading||!permissions.adjustment} onClick={()=>{setCorrection(r);setCorrectionAmount(String(r.billed_customer_net??r.customer_rate??''));setReason('')}}>Correct Rate</button></div>:r.customer_rate_state==='finalized'?<span data-rate-status className="text-[10px] leading-[13px] text-blue-700">Finalized — Editable Until Post</span>:<span data-rate-status className="text-[10px] leading-[13px] text-amber-700">Pending — Ready to Finalize</span>}</td></tr></>})}</tbody></table></div>
  {correction&&<div className="border-t bg-blue-50 p-2"><div className="flex items-end gap-2"><strong>{correction.trip_no} · Posted Rate Correction</strong><span>Current: {financialNumber(correction.billed_customer_net)}</span><label>New Rate<input className="input h-7 w-28" type="number" min="0" step="0.01" disabled={busy} value={correctionAmount} onChange={e=>setCorrectionAmount(e.target.value)}/></label><TransportReasonSelect className="min-w-[210px] flex-1" compact label="Correction Reason" kind="customer_rate" value={reason} onChange={setReason} disabled={busy}/><button className="btn-primary h-7" disabled={loading||!permissions.adjustment||busy||!reason.trim()||!validBulkMoney(correctionAmount)||Number(correctionAmount)===Number(correction.billed_customer_net)} onClick={()=>void correct()}>Save Correction</button><button className="btn h-7" disabled={busy} onClick={()=>setCorrection(null)}>Cancel</button></div><p className="mt-1 text-slate-600">Original invoice/receipt history stays unchanged; NAVILO posts only the difference as canonical AR adjustment.</p></div>}
- <div className="mt-2 flex shrink-0 items-center justify-between text-[9px]"><strong>{selected.length} trip(s) selected</strong><div className="flex gap-2"><button className="btn" disabled={loading||busy||!selected.some(id=>rows.some(r=>r.id===id&&canFinalize(r)))||!reason.trim()} onClick={()=>void runBatch('finalize')}>Finalize Selected</button><button className="btn-primary" disabled={loading||!permissions.billing||busy||!date||!account||!selected.some(id=>rows.some(r=>r.id===id&&!posted(r)&&r.customer_rate_state==='finalized'))} onClick={()=>void runBatch('post')}>Post Finalized Selected</button></div></div>
+  <div className="mt-2 flex shrink-0 items-center justify-between text-[9px]"><strong>{selected.length} trip(s) selected</strong><div className="flex gap-2"><button className="btn" disabled={loading||busy||!selected.some(id=>rows.some(r=>r.id===id&&canFinalize(r)))||!reason.trim()} onClick={()=>void runBatch('finalize')}>Finalize Selected</button><button className="btn-primary" disabled={loading||!permissions.billing||busy||!date||!account||!selected.some(id=>rows.some(r=>r.id===id&&!posted(r)&&r.customer_rate_state==='finalized'))} onClick={()=>void runBatch('draft')}>Save Draft Invoice</button></div></div>
  </section></TransportDialog>
 }
