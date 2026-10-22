@@ -171,6 +171,20 @@ export default function Ledgers() {
   const scope=accessContext as unknown as {current_operating_location?:{id?:string;operating_location_id?:string};operating_location_id?:string}|null;
   const branch=scope?.current_operating_location?.id??scope?.current_operating_location?.operating_location_id??scope?.operating_location_id;
   const [viewMode, setViewMode] = useState<ViewMode>("general");
+  const [generalColumnWidths,setGeneralColumnWidths]=useState<Record<number,number>>(()=>{try{return JSON.parse(localStorage.getItem("navilo:general-ledger:widths-v1")||"{}")}catch{return {}}});
+  const beginGeneralResize=(index:number,event:React.PointerEvent<HTMLSpanElement>)=>{
+    event.preventDefault();event.stopPropagation();
+    const startX=event.clientX;
+    const startWidth=generalColumnWidths[index]||event.currentTarget.parentElement?.getBoundingClientRect().width||150;
+    const move=(e:PointerEvent)=>setGeneralColumnWidths(previous=>{
+      const next={...previous,[index]:Math.max(90,Math.min(650,Math.round(startWidth+e.clientX-startX)))};
+      try{localStorage.setItem("navilo:general-ledger:widths-v1",JSON.stringify(next))}catch{}
+      return next;
+    });
+    const stop=()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",stop);};
+    window.addEventListener("pointermove",move);window.addEventListener("pointerup",stop);
+  };
+
 
   const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -1043,12 +1057,12 @@ export default function Ledgers() {
             <table className="w-full text-sm min-w-[900px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                  <th className="text-left py-2.5 px-3 font-semibold whitespace-nowrap min-w-[110px]">Transaction Date</th>
-                  <th className="text-left py-2.5 px-3 font-medium">Account</th>
-                  <th className="text-left py-2.5 px-3 font-medium">Description</th>
-                  <th className="text-right py-2.5 px-3 font-medium">Debit</th>
-                  <th className="text-right py-2.5 px-3 font-medium">Credit</th>
-                  <th className="text-right py-2.5 px-3 font-medium">Balance</th>
+                  <th style={generalColumnWidths[0]?{width:generalColumnWidths[0],minWidth:generalColumnWidths[0]}:undefined} className="relative text-left py-2.5 px-3 font-semibold whitespace-nowrap min-w-[110px]">Transaction Date<span role="separator" aria-label="Resize Transaction Date column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(0,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
+                  <th style={generalColumnWidths[1]?{width:generalColumnWidths[1],minWidth:generalColumnWidths[1]}:undefined} className="relative text-left py-2.5 px-3 font-medium">Account<span role="separator" aria-label="Resize Account column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(1,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
+                  <th style={generalColumnWidths[2]?{width:generalColumnWidths[2],minWidth:generalColumnWidths[2]}:undefined} className="relative text-left py-2.5 px-3 font-medium">Description<span role="separator" aria-label="Resize Description column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(2,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
+                  <th style={generalColumnWidths[3]?{width:generalColumnWidths[3],minWidth:generalColumnWidths[3]}:undefined} className="relative text-right py-2.5 px-3 font-medium">Debit<span role="separator" aria-label="Resize Debit column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(3,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
+                  <th style={generalColumnWidths[4]?{width:generalColumnWidths[4],minWidth:generalColumnWidths[4]}:undefined} className="relative text-right py-2.5 px-3 font-medium">Credit<span role="separator" aria-label="Resize Credit column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(4,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
+                  <th style={generalColumnWidths[5]?{width:generalColumnWidths[5],minWidth:generalColumnWidths[5]}:undefined} className="relative text-right py-2.5 px-3 font-medium">Balance<span role="separator" aria-label="Resize Balance column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(5,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
                 </tr>
               </thead>
 
