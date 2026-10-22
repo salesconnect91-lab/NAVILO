@@ -204,7 +204,17 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
 
     const onMove=(event:MouseEvent)=>{
       const width=Math.min(1000,Math.max(amountGridKeys.has(key)?96:52,Math.round(startWidth+event.clientX-startX)));
-      setTripColumnWidths(current=>({...current,[key]:width}));
+      setTripColumnWidths(current=>{
+        const next={...current,[key]:width};
+        try{
+          const saved=normalizeTransportRegisterGridLayout({
+            order:tripColumnOrder.length?tripColumnOrder:defaultTripColumnOrder,
+            hidden:hiddenTripColumns,widths:next
+          },gridColumns.map(column=>column[0]));
+          localStorage.setItem(tripGridStorageKey,JSON.stringify(saved));
+        }catch{/* Browser storage may be unavailable. */}
+        return next;
+      });
     };
 
     const onUp=()=>{
@@ -2171,7 +2181,17 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
                       event.preventDefault();event.stopPropagation();
                       const step=event.shiftKey?32:12;
                       const current=tripColumnWidths[key]??displayRegisterColumnWidth(key)??120;
-                      setTripColumnWidths(previous=>({...previous,[key]:Math.min(1000,Math.max(amountGridKeys.has(key)?96:52,Math.round(current+(event.key==="ArrowRight"?step:-step))))}));
+                      setTripColumnWidths(previous=>{
+                        const next={...previous,[key]:Math.min(1000,Math.max(amountGridKeys.has(key)?96:52,Math.round(current+(event.key==="ArrowRight"?step:-step))))};
+                        try{
+                          const saved=normalizeTransportRegisterGridLayout({
+                            order:tripColumnOrder.length?tripColumnOrder:defaultTripColumnOrder,
+                            hidden:hiddenTripColumns,widths:next
+                          },gridColumns.map(column=>column[0]));
+                          localStorage.setItem(tripGridStorageKey,JSON.stringify(saved));
+                        }catch{}
+                        return next;
+                      });
                     }}
                     onMouseDown={e=>startTripColumnResize(e,key)}
                     className="absolute -right-[2px] top-0 z-40 h-full w-[5px] cursor-col-resize select-none border-r border-slate-400 hover:border-blue-500 hover:bg-blue-100"
