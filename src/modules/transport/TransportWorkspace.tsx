@@ -2155,7 +2155,16 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
                   <div
                     role="separator"
                     aria-orientation="vertical"
-                    title={`Resize ${label}`}
+                    aria-label={`Resize ${label} column`}
+                    tabIndex={0}
+                    title={`Resize ${label} — drag, or use Left / Right arrow keys`}
+                    onKeyDown={event=>{
+                      if(event.key!=="ArrowLeft"&&event.key!=="ArrowRight")return;
+                      event.preventDefault();event.stopPropagation();
+                      const step=event.shiftKey?32:12;
+                      const current=tripColumnWidths[key]??displayRegisterColumnWidth(key)??120;
+                      setTripColumnWidths(previous=>({...previous,[key]:Math.max(amountGridKeys.has(key)?96:52,Math.round(current+(event.key==="ArrowRight"?step:-step)))}));
+                    }}
                     onMouseDown={e=>startTripColumnResize(e,key)}
                     className="absolute -right-[2px] top-0 z-40 h-full w-[5px] cursor-col-resize select-none border-r border-slate-400 hover:border-blue-500 hover:bg-blue-100"
                   />
