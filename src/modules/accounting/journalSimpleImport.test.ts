@@ -15,13 +15,22 @@ describe('Simple Debit/Credit Journal import matches General Journal Entry form'
   ];
   let message='';
   try{normalizeSimpleJournalRows(wrong)}catch(e){message=String((e as Error).message)}
-  expect(message).toContain('Column A (entry_no) is blank');
   expect(message).toContain('Row 2, columns F/G');
   expect(message).toContain('Row 2, column E (related_to)');
   expect(message).toContain('Row 3, columns F/G');
-  expect(message).toContain('5 problem(s)');
+  expect(message).toContain('4 problem(s)');
  });
 
+ it('groups entirely blank entry numbers by date without inventing balancing lines',()=>{
+  const rows=normalizeSimpleJournalRows([headers,
+   ['', '2026-09-02','General Expenses','Locks','5731',40,0],
+   ['', '2026-09-02','Amjad Payable','Funding','',0,40],
+   ['', '2026-09-05','General Expenses','Welding','5731',250,0],
+   ['', '2026-09-05','Amjad Payable','Funding','',0,250],
+  ]);
+  expect(rows.slice(1).map(row=>row[0])).toEqual(['IMPORT-2026-09-02','IMPORT-2026-09-02','IMPORT-2026-09-05','IMPORT-2026-09-05']);
+  expect(()=>normalizeSimpleJournalRows([headers,['','2026-09-02','General Expenses','Unfunded','5731',40,0]])).toThrow(/at least two lines/);
+ });
  it('accepts uploaded Excel serial dates and NAVILO dd-MMM-yy without changing entry date',()=>{
   expect(journalImportISODate('46266')).toBe('2026-09-01');
   expect(journalImportISODate('01-Sep-26')).toBe('2026-09-01');
