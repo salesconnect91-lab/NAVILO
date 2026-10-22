@@ -1,5 +1,5 @@
 import TransportDialog from './TransportDialog';
-import DataTable, {type Column} from '@/components/DataTable';
+import DataTable from '@/components/DataTable';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import {useEffect,useMemo,useState} from 'react';
 import {supabase} from '@/lib/supabase';
