@@ -1,3 +1,4 @@
+import DataTable from "@/components/DataTable";
 import ImportedAccountBalances from "@/components/ImportedAccountBalances";
 import {currentCurrency} from "@/components/ui";
 import { createPrintDocument,showPrintDocument } from "@/lib/printDocument";
@@ -81,6 +82,15 @@ export default function LoanLedger(){
   <div className="flex flex-wrap gap-2 no-print"><NaviloSearchableSelect nativeCompatibility preserveLabel className="input" value={lenderId} onChange={e=>setLenderId(e.target.value)}><option value="">All Lenders</option>{lenders.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</NaviloSearchableSelect><input className="input min-w-[240px]" placeholder="Search reference or notes..." value={search} onChange={e=>setSearch(e.target.value)}/><label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={showBalances} onChange={e=>setShowBalances(e.target.checked)}/>Show balance</label></div>
   <div className="flex flex-wrap gap-2 no-print"><button className="btn-secondary" onClick={()=>exportMatrixToExcel("Loan_Lender_Ledger.xlsx",matrix(),"Loans")}>Excel</button><button className="btn-secondary" onClick={()=>exportMatrixToCSV("Loan_Lender_Ledger.csv",matrix())}>CSV</button><button className="btn-secondary" onClick={()=>exportMatrixToWord("Loan_Lender_Ledger.doc",matrix(),"Loan & Lender Ledger")}>Word</button><button className="btn-secondary" disabled={loading||!!error} onClick={printLedger}>PDF</button><button className="btn-primary" disabled={loading||!!error} onClick={printLedger}><Printer className="h-4 w-4"/>Print</button></div>
   <ImportedAccountBalances kind="loan" search={search}/>
-  <div className="overflow-x-auto rounded-xl border bg-white"><table className="w-full whitespace-nowrap text-sm"><thead><tr><th>Lender</th><th>Date</th><th>Type</th><th className="text-right">Received</th><th className="text-right">Repaid</th>{showBalances&&<th className="text-right">Balance</th>}<th>Reference</th><th className="no-print">Action</th></tr></thead><tbody>{lenderRows.map(r=><tr key={r.id}><td>{lenders.find(l=>l.id===r.lender_id)?.name||"-"}</td><td>{r.transaction_date}</td><td>{r.transaction_type==="loan_received"?"Loan Received":"Loan Repayment"}</td><td className="text-right">{r.transaction_type==="loan_received"?money(r.amount):"-"}</td><td className="text-right">{r.transaction_type==="loan_repayment"?money(r.amount):"-"}</td>{showBalances&&<td className="text-right">{money(r.balance||0)}</td>}<td>{r.reference||"-"}</td><td className="no-print"><button type="button" data-direct-print="true" className="btn-secondary" onClick={()=>printTx(r)}><FileDown className="h-4 w-4"/>Voucher</button></td></tr>)}{!loading&&!lenderRows.length&&<tr><td colSpan={8} className="p-6 text-center text-slate-400">No loan transactions for selected filters.</td></tr>}</tbody></table></div>
+  <div className="overflow-x-auto rounded-xl border bg-white"><DataTable columns={[
+ {key:"lender_id",label:"Lender",render:(r:any)=>lenders.find(l=>l.id===r.lender_id)?.name||"-",getFilterValue:(r:any)=>lenders.find(l=>l.id===r.lender_id)?.name||""},
+ {key:"transaction_date",label:"Date"},
+ {key:"transaction_type",label:"Type",render:(r:any)=>r.transaction_type==="loan_received"?"Loan Received":"Loan Repayment"},
+ {key:"received",label:"Received",render:(r:any)=>r.transaction_type==="loan_received"?money(r.amount):"-",getFilterValue:(r:any)=>r.transaction_type==="loan_received"?r.amount:0},
+ {key:"repaid",label:"Repaid",render:(r:any)=>r.transaction_type==="loan_repayment"?money(r.amount):"-",getFilterValue:(r:any)=>r.transaction_type==="loan_repayment"?r.amount:0},
+ ...(showBalances?[{key:"balance",label:"Balance",render:(r:any)=>money(r.balance||0)}]:[]),
+ {key:"reference",label:"Reference"},
+ {key:"action",label:"Action",sortable:false,filterable:false,render:(r:any)=><button type="button" data-direct-print="true" className="btn-secondary" onClick={()=>printTx(r)}><FileDown className="h-4 w-4"/>Voucher</button>}
+ ]} rows={lenderRows} loading={loading} emptyMessage="No loan transactions for selected filters."/></div>
  </div>
 }
