@@ -78,9 +78,10 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
    if(mapping.error)throw mapping.error;
    const currentAccounts=(accountsResult.data??[]) as {id:string;name:string}[];
    setAllowed(permission.data===true);
-   setAccounts(currentAccounts);
    const mapped=mapping.data?.account_id;
-   setAccount(mapped&&currentAccounts.some(a=>a.id===mapped)?mapped:'');
+   const serviceAccounts=mapped?currentAccounts.filter(a=>a.id===mapped):[];
+   setAccounts(serviceAccounts);
+   setAccount(serviceAccounts[0]?.id??'');
    setLoadedScope(scope);
   }).catch((e:any)=>{if(active)setError(e?.message||'Unable to load invoice posting setup.')})
    .finally(()=>{if(active)setSetupLoading(false)});
@@ -132,8 +133,8 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
    {posted||completed
     ?<div role="status" className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{completed?(draftPosted?'Invoice posted.':'Draft saved. It has no accounting entry until you post it.'):'This canonical Sales invoice is already posted. Its invoice number is locked and is not overwritten from the Trips grid.'}{completed&&draft?.orderId&&<p className="mt-2"><a className="underline" href={`/sales/${encodeURIComponent(draft.orderId)}`} target="_blank" rel="noreferrer">Review Draft</a></p>}</div>
     :<>
-      <label className="mt-2 block text-xs font-semibold">Revenue Account
-       <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Revenue account" className="input mt-1 w-full" value={currentAccount} disabled={busy||loading} onChange={e=>setAccount(e.target.value)}><option value="">Select account</option>{currentAccounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</NaviloSearchableSelect>
+      <label className="mt-2 block text-xs font-semibold">Service Revenue Account
+       <NaviloSearchableSelect nativeCompatibility preserveLabel aria-label="Service revenue account" className="input mt-1 w-full" value={currentAccount} disabled={busy||loading} onChange={e=>setAccount(e.target.value)}><option value="">Map Service Revenue first</option>{currentAccounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</NaviloSearchableSelect>
       </label>
       <label className="mt-2 block text-xs font-semibold">Invoice Date
        <NaviloDateInput className="input mt-1 w-full" type="date" value={date} disabled={busy} onChange={e=>{setVatReady(!withTax);setDate(e.target.value)}}/>

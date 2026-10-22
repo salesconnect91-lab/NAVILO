@@ -119,7 +119,7 @@ describe('Transport Customer / Supplier bulk parity',()=>{
  it('defaults the customer posting account from the canonical service revenue mapping',async()=>{
   render(<TransportBulkCustomerRate onClose={vi.fn()} onChanged={async()=>{}}/>);
   await screen.findByRole('option',{name:'Customer A'});
-  await waitFor(()=>expect((screen.getByLabelText('Revenue account') as HTMLSelectElement).value).toBe('revenue'));
+  await waitFor(()=>expect((screen.getByLabelText('Service revenue account') as HTMLSelectElement).value).toBe('revenue'));
  });
  it('defaults the supplier posting account from the canonical transport expense mapping',async()=>{
   render(<TransportBulkSupplierRent onClose={vi.fn()} onChanged={async()=>{}}/>);

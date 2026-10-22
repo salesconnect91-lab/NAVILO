@@ -69,7 +69,7 @@ const mount=(sale_type:'cash'|'credit'='credit')=>{
  return {view,onClose,onChanged};
 };
 async function readyAccount(company:string){
- await waitFor(()=>expect((screen.getByRole('combobox',{name:'Revenue account'}) as HTMLSelectElement).value).toBe(company+'-rev'));
+ await waitFor(()=>expect((screen.getByRole('combobox',{name:'Service revenue account'}) as HTMLSelectElement).value).toBe(company+'-rev'));
 }
 
 describe('Transport invoice posting in all company contexts',()=>{
@@ -77,9 +77,9 @@ describe('Transport invoice posting in all company contexts',()=>{
   mock.company=c.id;mock.bu=c.bu;
   mount();
   await readyAccount(c.id);
-  const selector=screen.getByRole('combobox',{name:'Revenue account'});
+  const selector=screen.getByRole('combobox',{name:'Service revenue account'});
   expect(screen.getByRole('option',{name:'Service Revenue '+c.name})).toBeTruthy();
-  expect(screen.queryAllByRole('option').filter(o=>/Service Revenue/.test(o.textContent??''))).toHaveLength(1);
+  expect(Array.from((selector as HTMLSelectElement).options).filter(o=>(o.textContent??'').startsWith('Service Revenue '))).toHaveLength(1);
   const queries=mock.requests.filter(x=>x.table==='chart_of_accounts'||x.table==='account_mappings');
   expect(queries).toHaveLength(2);
   expect(queries.every(q=>q.filters.company_id===c.id)).toBe(true);
@@ -150,7 +150,7 @@ describe('Transport invoice posting in all company contexts',()=>{
   const a=mount('cash');await readyAccount('tw');
   mock.company='or';mock.bu='or-bu';
   a.view.rerender(<TransportInvoiceNumber trip={trip('cash')} onClose={a.onClose} onChanged={a.onChanged}/>);
-  expect((screen.getByRole('combobox',{name:'Revenue account'}) as HTMLSelectElement).value).toBe('');
+  expect((screen.getByRole('combobox',{name:'Service revenue account'}) as HTMLSelectElement).value).toBe('');
   await readyAccount('or');
   expect(screen.queryByRole('option',{name:'Service Revenue Twakkal Al Khaleej'})).toBeNull();
  });
