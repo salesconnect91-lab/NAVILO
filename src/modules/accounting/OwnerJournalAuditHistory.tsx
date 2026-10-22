@@ -42,7 +42,7 @@ export default function OwnerJournalAuditHistory() {
     <section className="rounded-lg border border-slate-200 bg-white px-3 py-2">
       <button type="button" className="text-sm font-semibold text-slate-700"
         onClick={() => setOpen((previous) => !previous)}>
-        Admin Audit History · {events.length} cancelled financial voucher(s) {open ? "▲" : "▼"}
+        Owner/Admin Audit History · {events.length} cancelled financial voucher(s) {open ? "▲" : "▼"}
       </button>
       {open && (
         <div className="mt-2 space-y-2 text-xs">

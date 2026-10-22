@@ -16,7 +16,7 @@ type Review = {
 };
 
 /**
- * Admin-only, read-only review. Never alters a posted invoice or offers a
+ * Owner/Admin-only, read-only review. Never alters a posted invoice or offers a
  * generic cancel action before domain-specific stock/VAT/transport reversal is proven.
  */
 export default function OwnerInvoiceCancellationReview({
@@ -83,7 +83,7 @@ export default function OwnerInvoiceCancellationReview({
         aria-expanded={open}
       >
         <ShieldAlert className="h-3.5 w-3.5" />
-        Posted Invoice Review · Admin
+        Posted Invoice Review · Owner/Admin
       </button>
       {open && (
         <div className="mt-2 max-w-2xl rounded-lg border border-amber-200 bg-white p-3 text-xs text-slate-700" role="region" aria-label="Posted invoice cancellation review">

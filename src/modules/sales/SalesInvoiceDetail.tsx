@@ -200,6 +200,16 @@ export default function SalesInvoiceDetail() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
+  const [ownerControlAllowed, setOwnerControlAllowed] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    setOwnerControlAllowed(false);
+    void supabase.rpc("owner_posted_control_access").then(({ data, error: accessError }) => {
+      if (live && !accessError) setOwnerControlAllowed(data === true);
+    });
+    return () => { live = false; };
+  }, [activeCompany?.company_id, activeBusinessUnit?.business_unit_id]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -385,6 +395,12 @@ export default function SalesInvoiceDetail() {
             <Link className="btn-secondary inline-flex items-center gap-1.5" to={`/accounting/returns?type=sales_credit&invoice_id=${encodeURIComponent(order.id)}`}
               title="Correct this posted sale with an audited credit note; the original invoice stays posted">
               <Pencil className="h-3.5 w-3.5" /> Correct Posted Invoice
+            </Link>
+          )}
+          {locked && ownerControlAllowed && order.document_kind !== "service" && (
+            <Link className="btn-danger inline-flex items-center gap-1.5" to={`/accounting/returns?type=sales_credit&invoice_id=${encodeURIComponent(order.id)}&full_reversal=1`}
+              title="Post a full credit note for all remaining quantities; the original invoice stays in audit history">
+              <Trash2 className="h-3.5 w-3.5" /> Delete Posted Invoice
             </Link>
           )}
           {canPrint && (

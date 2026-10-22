@@ -23,7 +23,7 @@ beforeEach(()=>{
    :Promise.resolve({data:{reversal_entry_no:'REV-1'},error:null}));
 });afterEach(cleanup);
 it('finds vouchers beyond the latest 250 and checks reversals against the displayed voucher IDs',async()=>{
- render(<PaymentReversals/>);await screen.findByText('Reversed: REV-OLD');
+ render(<PaymentReversals/>);await screen.findByText('Deleted: REV-OLD');
  expect(mock.queries.find(q=>q.reversal)?.ids).toContain('v0');
  fireEvent.click(screen.getByRole('button',{name:'Last'}));await screen.findByText('PAY-500');
  expect(mock.queries.some(q=>q.table==='journal_entries'&&!q.reversal&&q.range?.[0]===500)).toBe(true);
@@ -39,16 +39,16 @@ it('recovers the reversal form after a rejected network request',async()=>{
  mock.rpc.mockImplementation((name:string)=>name==='owner_posted_control_access'
    ?Promise.resolve({data:true,error:null})
    :Promise.reject(new Error('Connection lost')));render(<PaymentReversals/>);await screen.findByText('PAY-1');
- fireEvent.click(screen.getAllByRole('button',{name:'Reverse'})[0]);
+ fireEvent.click(screen.getAllByRole('button',{name:'Delete'})[0]);
  fireEvent.change(screen.getByPlaceholderText('Wrong amount / wrong party / bank entry correction...'),{target:{value:'Correction'}});
- fireEvent.click(screen.getByRole('button',{name:'Post Reversal'}));await screen.findByText('Connection lost');
- expect((screen.getByRole('button',{name:'Post Reversal'}) as HTMLButtonElement).disabled).toBe(false);
+ fireEvent.click(screen.getByRole('button',{name:'Confirm Delete'}));await screen.findByText('Connection lost');
+ expect((screen.getByRole('button',{name:'Confirm Delete'}) as HTMLButtonElement).disabled).toBe(false);
 });
 
 it('shows posted vouchers read-only when caller is not an Admin',async()=>{
  mock.ownerAllowed=false;
  render(<PaymentReversals/>);
  await screen.findByText('PAY-1');
- expect(screen.getByText(/restricted to an active Admin/i)).toBeTruthy();
- expect(screen.queryByRole('button',{name:'Reverse'})).toBeNull();
+ expect(screen.getByText(/restricted to an active company Owner or Admin/i)).toBeTruthy();
+ expect(screen.queryByRole('button',{name:'Delete'})).toBeNull();
 });

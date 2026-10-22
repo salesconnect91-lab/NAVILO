@@ -2296,7 +2296,7 @@ export default function JournalEntryDetail() {
               disabled={ownerCancelling}
               className="px-3 py-2 text-sm font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200"
             >
-              {isOwnerCancellableOpeningPayment ? "Admin Cancel Opening Payment" : isOwnerCancellablePayment ? "Admin Cancel Unallocated Payment" : "Admin Cancel Posted"}
+              {isOwnerCancellableOpeningPayment ? "Delete Posted Opening Payment" : isOwnerCancellablePayment ? "Delete Posted Payment" : "Delete Posted Journal"}
             </button>
           )}
 
@@ -3062,22 +3062,22 @@ export default function JournalEntryDetail() {
         }
       />
 
-      <Modal open={ownerCancelOpen} title={`Admin Cancel · ${entry.entry_no}`} onClose={() => !ownerCancelling && setOwnerCancelOpen(false)}>
+      <Modal open={ownerCancelOpen} title={`Delete Posted Entry · ${entry.entry_no}`} onClose={() => !ownerCancelling && setOwnerCancelOpen(false)}>
         <div className="space-y-4">
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
             {isOwnerCancellableOpeningPayment ? "This posts an opposite journal and restores imported invoice and Trip balances. The original payment and allocation evidence remain in the audit trail." : "This action creates a permanent audit trail. The original posted journal remains locked, and an opposite posted journal offsets the financial effect. Allocated, transport-linked or FX payment vouchers are blocked until their specialized correction workflow is available."}
           </div>
           <div>
-            <label className="label">Cancellation Date</label>
+            <label className="label">Deletion / reversal date</label>
             <NaviloDateInput className="input" type="date" min={entry.entry_date} value={ownerCancelDate} onChange={(event) => setOwnerCancelDate(event.target.value)} />
           </div>
           <div>
             <label className="label">Mandatory Reason (minimum 10 characters)</label>
-            <textarea className="input" rows={3} value={ownerCancelReason} onChange={(event) => setOwnerCancelReason(event.target.value)} placeholder="Why is this posted journal being cancelled?" />
+            <textarea className="input" rows={3} value={ownerCancelReason} onChange={(event) => setOwnerCancelReason(event.target.value)} placeholder="Why is this posted entry being deleted?" />
           </div>
           <div className="flex justify-end gap-2">
             <button className="btn-secondary" disabled={ownerCancelling} onClick={() => setOwnerCancelOpen(false)}>Keep Posted</button>
-            <button className="px-3 py-2 rounded-lg bg-rose-700 text-white disabled:opacity-50" disabled={ownerCancelling || ownerCancelReason.trim().length < 10 || !ownerCancelDate || ownerCancelDate < entry.entry_date} onClick={() => void handleOwnerCancel()}>{ownerCancelling ? "Cancelling…" : "Confirm Admin Cancellation"}</button>
+            <button className="px-3 py-2 rounded-lg bg-rose-700 text-white disabled:opacity-50" disabled={ownerCancelling || ownerCancelReason.trim().length < 10 || !ownerCancelDate || ownerCancelDate < entry.entry_date} onClick={() => void handleOwnerCancel()}>{ownerCancelling ? "Deleting…" : "Confirm Delete with Reversal"}</button>
           </div>
         </div>
       </Modal>
