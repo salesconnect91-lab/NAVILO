@@ -108,10 +108,9 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   &&(side!=='customer'||account!==serviceRevenueId)&&!originalNumberError;
  // Supplier original references are required even for new drafts: the backend must never
  // substitute a generated internal number for the actual supplier invoice number.
- const canPost=available&&(side!=='supplier'||Boolean(number.trim()));
  const update=(index:number,k:keyof Line,value:string)=>setLines(old=>old.map((line,i)=>i===index?{...line,[k]:value}:line));
- async function save(post:boolean){
-  if(!available||(post&&!canPost))return;setSaving(true);setError('');
+ async function saveDraft(){
+  if(!available)return;setSaving(true);setError('');
   try{
    const result=await supabase.rpc('transport_normal_invoice_create_vat',{ 
     p_side:side,p_party:party,p_date:date,
@@ -120,7 +119,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
     // The supplier's actual invoice number belongs in supplier_invoice_no (p_reference),
     // not just NAVILO's purchase order_no. Never overwrite trip-linked supplier invoices.
     p_reference:side==='supplier'?number.trim()||null:reference.trim()||null,
-    p_post:post,p_vat_choice:vatChoice,
+    p_post:false,p_vat_choice:vatChoice,
    });
    if(result.error)throw result.error;
    setDone(result.data as {document_id:string;invoice_no:string;status:string;gross:number;net?:number;vat?:number});
@@ -149,7 +148,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   {error&&<p role="alert" className="navilo-invoice-notice navilo-invoice-error">{error}</p>}
   {done&&<section role="status" className="navilo-invoice-card navilo-invoice-success">
     <h2>{sideName} invoice {done.status}: {done.invoice_no}</h2>
-    <p>Net: SAR {money(Number(done.net??0))} · VAT: SAR {money(Number(done.vat??0))} · Total: SAR {money(Number(done.gross))}. Posted invoices update {side==='customer'?'receivables':'payables'}, VAT and ledgers. Payments are recorded separately.</p>
+    <p>Net: SAR {money(Number(done.net??0))} · VAT: SAR {money(Number(done.vat??0))} · Total: SAR {money(Number(done.gross))}. This invoice is a draft; no accounting is posted yet. Review, edit and post it manually from the invoice detail screen.</p>
     <div className="navilo-invoice-button-row">
      <Link to={`/${side==='customer'?'sales':'purchase'}/${done.document_id}`} className="btn-secondary">View Invoice</Link>
      <button type="button" className="btn-primary" onClick={()=>{setDone(null);setParty('');setNumber('');setReference('');setVatChoice('master');setLines([empty()]);}}>Create Another</button>
@@ -224,11 +223,11 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   <section className="navilo-invoice-card navilo-invoice-review" aria-labelledby="normal-invoice-review">
    <div className="navilo-invoice-review-help">
     <span className="navilo-invoice-step">03</span><h2 id="normal-invoice-review">Review & Save</h2>
-    <p>Verify the {partyName.toLowerCase()}, original invoice number, description lines and VAT treatment before posting.</p>
+    <p>Verify the {partyName.toLowerCase()}, original invoice number, description lines and VAT treatment before saving the draft.</p>
     <p className="navilo-invoice-small-note">VAT follows the party's Master Cash/Credit rule and the invoice-date effective tax rate. A draft does not post accounting entries.</p>
     {vatQuote.error&&<p role="alert" className="navilo-invoice-inline-warning">{vatQuote.error} <button type="button" className="underline font-semibold" onClick={()=>setVatChoice("master")}>Use Master VAT</button> <Link to={side==='customer'?'/master-data/customers?tab=billing':'/master-data/suppliers'}>Open Master</Link></p>}
     {originalNumberError&&<p role="status" className="navilo-invoice-inline-warning">{originalNumberError}</p>}
-    {side==='supplier'&&!number.trim()&&<p className="navilo-invoice-small-note">Enter the supplier's original invoice number. No expense or payable is posted until the invoice is explicitly posted.</p>}
+    {side==='supplier'&&!number.trim()&&<p className="navilo-invoice-small-note">Enter the supplier's original invoice number. This screen only saves a draft; posting happens later from invoice detail.</p>}
     {vatQuote.loading&&<p role="status" className="navilo-invoice-small-note">Loading VAT rate and Master billing mode…</p>}
     <p className="navilo-invoice-small-note">{side==='customer'?'Normal Sales revenue posts to the selected Sales Revenue GL; each line must be assigned to one company-owned vehicle for the vehicle-wise P&L. No Trip Register posting.':'A posted Purchase Invoice creates the expense, applicable input VAT and supplier payable once. Select the company-owned vehicle on each related cost line for vehicle-wise P&L; leave it blank only for genuinely general expenses. Pay the supplier separately. Do not also post a Journal Entry for the same bill.'}</p>
     {lineError&&<p role="status" className="navilo-invoice-inline-warning">{lineError}</p>}
@@ -243,8 +242,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    </div>
    <div className="navilo-invoice-review-actions">
     <Link className="btn-secondary" to={side==='customer'?'/sales':'/purchase'}>Cancel</Link>
-    <button type="button" className="btn-secondary" disabled={!available} onClick={()=>void save(false)}>{saving?'Saving…':'Save Draft'}</button>
-    <button type="button" className="btn-primary" disabled={!canPost} onClick={()=>void save(true)}>{saving?'Posting…':`Post ${sideName} Invoice`}</button>
+    <button type="button" className="btn-primary" disabled={!available} onClick={()=>void saveDraft()}>{saving?'Saving…':'Save Draft'}</button>
    </div>
   </section>
  </main>;
