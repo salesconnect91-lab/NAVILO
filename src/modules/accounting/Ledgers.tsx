@@ -171,6 +171,8 @@ export default function Ledgers() {
   const scope=accessContext as unknown as {current_operating_location?:{id?:string;operating_location_id?:string};operating_location_id?:string}|null;
   const branch=scope?.current_operating_location?.id??scope?.current_operating_location?.operating_location_id??scope?.operating_location_id;
   const [viewMode, setViewMode] = useState<ViewMode>("general");
+  const [generalDisplaySort,setGeneralDisplaySort]=useState<{key:"date"|"account"|"description"|"debit"|"credit";direction:"asc"|"desc"}|null>(null);
+  const toggleGeneralDisplaySort=(key:"date"|"account"|"description"|"debit"|"credit")=>setGeneralDisplaySort(previous=>({key,direction:previous?.key===key&&previous.direction==="asc"?"desc":"asc"}));
   const [generalColumnSearch,setGeneralColumnSearch]=useState("");
   const [generalColumnFilter,setGeneralColumnFilter]=useState<"account"|"description">("description");
   const [generalColumnWidths,setGeneralColumnWidths]=useState<Record<number,number>>(()=>{try{return JSON.parse(localStorage.getItem("navilo:general-ledger:widths-v1")||"{}")}catch{return {}}});
@@ -616,11 +618,27 @@ export default function Ledgers() {
     withOpeningBalances(ledgerRows,openingBalances,row=>'account:'+(row.account_id||'unassigned')),
     [ledgerRows,openingBalances]);
 
-  const generalVisibleRows=useMemo(()=>generalRowsWithBalance.filter(row=>{
-    const needle=generalColumnSearch.trim().toLowerCase();
-    if(!needle)return true;
-    return String(generalColumnFilter==="account"?row.account?.name??"":recordDisplayText(row.description)).toLowerCase().includes(needle);
-  }),[generalRowsWithBalance,generalColumnSearch,generalColumnFilter]);
+  const generalVisibleRows=useMemo(()=>{
+    const filtered=generalRowsWithBalance.filter(row=>{
+      const needle=generalColumnSearch.trim().toLowerCase();
+      if(!needle)return true;
+      return String(generalColumnFilter==="account"?row.account?.name??"":recordDisplayText(row.description)).toLowerCase().includes(needle);
+    });
+    if(!generalDisplaySort)return filtered;
+    const value=(row:(typeof filtered)[number])=>{
+      switch(generalDisplaySort.key){
+        case "date":return row.entry_date||"";
+        case "account":return row.account?.name||"";
+        case "description":return recordDisplayText(row.description);
+        case "debit":return Number(row.debit)||0;
+        case "credit":return Number(row.credit)||0;
+      }
+    };
+    return [...filtered].sort((a,b)=>{
+      const x=value(a),y=value(b),factor=generalDisplaySort.direction==="asc"?1:-1;
+      return (typeof x==="number"&&typeof y==="number"?x-y:String(x).localeCompare(String(y),undefined,{numeric:true,sensitivity:"base"}))*factor;
+    });
+  },[generalRowsWithBalance,generalColumnSearch,generalColumnFilter,generalDisplaySort]);
 
   const detailedRows=useMemo(()=>detailedTransportLedger(partyRows,transportMovements,transportDetails),[partyRows,transportMovements,transportDetails]);
   const filteredLedgerRows=useMemo(()=>detailedRows.rows.filter(row=>selectedPartyKey||!partySearchKey(partySearch)||partySearchKey(`${row.party_name||getPartyName(row.party_type,row.party_id)} ${row.party_type}`).includes(partySearchKey(partySearch))),[detailedRows,selectedPartyKey,partySearch,getPartyName]);
@@ -1067,16 +1085,16 @@ export default function Ledgers() {
               <select id="navilo-general-ledger-column" className="input !h-8 !w-32" value={generalColumnFilter} onChange={event=>setGeneralColumnFilter(event.target.value as "account"|"description")}><option value="account">Account</option><option value="description">Description</option></select>
               <input aria-label="Filter general ledger rows" className="input !h-8 !w-52" placeholder="Search matching rows" value={generalColumnSearch} onChange={event=>setGeneralColumnSearch(event.target.value)}/>
               <button type="button" className="btn" onClick={()=>setGeneralColumnSearch("")}>Clear</button>
-              <span className="text-slate-500">{generalVisibleRows.length} / {generalRowsWithBalance.length} rows · Balances and totals remain based on all entries</span>
+              <span className="text-slate-500">{generalVisibleRows.length} / {generalRowsWithBalance.length} rows · Balances and totals remain chronological and include all entries</span>
             </div>
             <table className="w-full text-sm min-w-[900px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                  <th style={generalColumnWidths[0]?{width:generalColumnWidths[0],minWidth:generalColumnWidths[0]}:undefined} className="relative text-left py-2.5 px-3 font-semibold whitespace-nowrap min-w-[110px]">Transaction Date<span role="separator" aria-label="Resize Transaction Date column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(0,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
-                  <th style={generalColumnWidths[1]?{width:generalColumnWidths[1],minWidth:generalColumnWidths[1]}:undefined} className="relative text-left py-2.5 px-3 font-medium">Account<span role="separator" aria-label="Resize Account column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(1,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
-                  <th style={generalColumnWidths[2]?{width:generalColumnWidths[2],minWidth:generalColumnWidths[2]}:undefined} className="relative text-left py-2.5 px-3 font-medium">Description<span role="separator" aria-label="Resize Description column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(2,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
-                  <th style={generalColumnWidths[3]?{width:generalColumnWidths[3],minWidth:generalColumnWidths[3]}:undefined} className="relative text-right py-2.5 px-3 font-medium">Debit<span role="separator" aria-label="Resize Debit column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(3,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
-                  <th style={generalColumnWidths[4]?{width:generalColumnWidths[4],minWidth:generalColumnWidths[4]}:undefined} className="relative text-right py-2.5 px-3 font-medium">Credit<span role="separator" aria-label="Resize Credit column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(4,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
+                  <th style={generalColumnWidths[0]?{width:generalColumnWidths[0],minWidth:generalColumnWidths[0]}:undefined} className="relative text-left py-2.5 px-3 font-semibold whitespace-nowrap min-w-[110px]"><button type="button" aria-label="Sort General Ledger by Transaction Date" onClick={()=>toggleGeneralDisplaySort("date")}>Transaction Date {generalDisplaySort?.key==="date"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Transaction Date column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(0,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
+                  <th style={generalColumnWidths[1]?{width:generalColumnWidths[1],minWidth:generalColumnWidths[1]}:undefined} className="relative text-left py-2.5 px-3 font-medium"><button type="button" aria-label="Sort General Ledger by Account" onClick={()=>toggleGeneralDisplaySort("account")}>Account {generalDisplaySort?.key==="account"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Account column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(1,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
+                  <th style={generalColumnWidths[2]?{width:generalColumnWidths[2],minWidth:generalColumnWidths[2]}:undefined} className="relative text-left py-2.5 px-3 font-medium"><button type="button" aria-label="Sort General Ledger by Description" onClick={()=>toggleGeneralDisplaySort("description")}>Description {generalDisplaySort?.key==="description"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Description column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(2,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
+                  <th style={generalColumnWidths[3]?{width:generalColumnWidths[3],minWidth:generalColumnWidths[3]}:undefined} className="relative text-right py-2.5 px-3 font-medium"><button type="button" aria-label="Sort General Ledger by Debit" onClick={()=>toggleGeneralDisplaySort("debit")}>Debit {generalDisplaySort?.key==="debit"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Debit column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(3,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
+                  <th style={generalColumnWidths[4]?{width:generalColumnWidths[4],minWidth:generalColumnWidths[4]}:undefined} className="relative text-right py-2.5 px-3 font-medium"><button type="button" aria-label="Sort General Ledger by Credit" onClick={()=>toggleGeneralDisplaySort("credit")}>Credit {generalDisplaySort?.key==="credit"?(generalDisplaySort.direction==="asc"?"↑":"↓"):"↕"}</button><span role="separator" aria-label="Resize Credit column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(4,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
                   <th style={generalColumnWidths[5]?{width:generalColumnWidths[5],minWidth:generalColumnWidths[5]}:undefined} className="relative text-right py-2.5 px-3 font-medium">Balance<span role="separator" aria-label="Resize Balance column" title="Drag to resize" onPointerDown={event=>beginGeneralResize(5,event)} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-emerald-100" style={{touchAction:'none'}}/></th>
                 </tr>
               </thead>
