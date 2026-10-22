@@ -1,3 +1,4 @@
+import DataTable from "@/components/DataTable";
 import {currentCurrency} from "@/components/ui";
 import {fetchAllPages} from "@/lib/fetchAllPages";
 import {formatNaviloDate} from "@/lib/naviloDate";
@@ -518,101 +519,15 @@ ${
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-xs">
-            <thead className="bg-slate-50 text-slate-600">
-              <tr>
-                <th className="px-4 py-3 text-left">
-                  Voucher
-                </th>
-                <th className="px-4 py-3 text-left">
-                  Date
-                </th>
-                <th className="px-4 py-3 text-left">
-                  Party
-                </th>
-                <th className="px-4 py-3 text-right">
-                  Previous
-                </th>
-                <th className="px-4 py-3 text-right">
-                  Amount
-                </th>
-                <th className="px-4 py-3 text-right">
-                  Closing
-                </th>
-                <th className="px-4 py-3 text-right">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-100">
-              {rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="hover:bg-slate-50"
-                >
-                  <td className="px-4 py-3 font-bold text-slate-800">
-                    {row.entry_no}
-                  </td>
-                  <td className="px-4 py-3">
-                    {row.entry_date}
-                  </td>
-                  <td className="px-4 py-3">
-                    {row.party_name || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {currentCurrency()}{" "}
-                    {money(
-                      Number(row.balance_before || 0)
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right font-bold">
-                    {currentCurrency()}{" "}
-                    {money(
-                      Number(row.payment_amount || 0)
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {currentCurrency()}{" "}
-                    {money(
-                      Number(row.balance_after || 0)
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        disabled={workingId === row.id}
-                        onClick={() =>
-                          void printVoucher(row)
-                        }
-                        className="btn-secondary inline-flex items-center gap-1.5 text-xs"
-                      >
-                        {workingId === row.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Printer className="h-3.5 w-3.5" />
-                        )}
-                        Print
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={workingId === row.id}
-                        onClick={() =>
-                          void downloadPdf(row)
-                        }
-                        className="btn-secondary inline-flex items-center gap-1.5 text-xs"
-                      >
-                        <FileDown className="h-3.5 w-3.5" />
-                        PDF
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable columns={[
+ {key:"entry_no",label:"Voucher"},
+ {key:"entry_date",label:"Date"},
+ {key:"party_name",label:"Party"},
+ {key:"balance_before",label:"Previous",render:(row:any)=>`${currentCurrency()} ${money(Number(row.balance_before||0))}`,getFilterValue:(row:any)=>Number(row.balance_before||0)},
+ {key:"payment_amount",label:"Amount",render:(row:any)=>`${currentCurrency()} ${money(Number(row.payment_amount||0))}`,getFilterValue:(row:any)=>Number(row.payment_amount||0)},
+ {key:"balance_after",label:"Closing",render:(row:any)=>`${currentCurrency()} ${money(Number(row.balance_after||0))}`,getFilterValue:(row:any)=>Number(row.balance_after||0)},
+ {key:"actions",label:"Actions",sortable:false,filterable:false,render:(row:any)=><div className="flex justify-end gap-2"><button type="button" disabled={workingId===row.id} onClick={()=>void printVoucher(row)} className="btn-secondary inline-flex items-center gap-1.5 text-xs">{workingId===row.id?<Loader2 className="h-3.5 w-3.5 animate-spin"/>:<Printer className="h-3.5 w-3.5"/>}Print</button><button type="button" disabled={workingId===row.id} onClick={()=>void downloadPdf(row)} className="btn-secondary inline-flex items-center gap-1.5 text-xs"><FileDown className="h-3.5 w-3.5"/>PDF</button></div>}
+ ]} rows={rows} emptyMessage="No payment vouchers found."/>
         </div>
       )}
     </section>
