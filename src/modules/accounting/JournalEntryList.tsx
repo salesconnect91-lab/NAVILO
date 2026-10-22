@@ -331,6 +331,9 @@ export default function JournalEntryList() {
   const [success, setSuccess] =
     useState<string | null>(null);
 
+  const [postingSelectedEntries, setPostingSelectedEntries] =
+    useState(false);
+
   /* =======================================================
      SINGLE ENTRY
   ======================================================= */
@@ -480,6 +483,47 @@ export default function JournalEntryList() {
         setLoading(false);
       }
     }, []);
+
+  const postSelectedEntries = useCallback(async (entryIds: string[]) => {
+    setError(null);
+    setSuccess(null);
+    if (!entryIds.length) return false;
+
+    try {
+      setPostingSelectedEntries(true);
+      const { data: selectedRows, error: selectedError } = await supabase
+        .from("journal_entries")
+        .select("id,entry_no,status")
+        .in("id", entryIds);
+      if (selectedError) throw new Error(selectedError.message);
+      if ((selectedRows ?? []).length !== entryIds.length) {
+        throw new Error("One or more selected journals could not be found. Refresh the list and select them again.");
+      }
+      const nonDraft = (selectedRows ?? []).find((row: any) => row.status !== "draft");
+      if (nonDraft) throw new Error(`${nonDraft.entry_no} is no longer a draft. Refresh the list and retry.`);
+
+      const { data, error: postError } = await supabase.rpc("bulk_post_journal_entries", {
+        p_entry_ids: entryIds,
+      });
+      if (postError) throw new Error(postError.message);
+      if (data && typeof data === "object" && "success" in data && (data as any).success === false) {
+        throw new Error((data as any).message || "Selected journals could not be posted.");
+      }
+
+      const postedCount = Number((data as any)?.entries_posted ?? entryIds.length);
+      if (postedCount !== entryIds.length) {
+        throw new Error(`The posting service reported ${postedCount} of ${entryIds.length} selected journals as posted. Refresh the list to verify their statuses.`);
+      }
+      setSuccess(`${postedCount} selected journal ${postedCount === 1 ? "entry was" : "entries were"} posted successfully.`);
+      await fetchEntries();
+      return true;
+    } catch (postError: any) {
+      setError(postError?.message || "Failed to post selected journal entries.");
+      return false;
+    } finally {
+      setPostingSelectedEntries(false);
+    }
+  }, [fetchEntries]);
 
   useEffect(() => {
     fetchEntries();
@@ -2798,6 +2842,8 @@ export default function JournalEntryList() {
             copyingId={copyingJournalId}
             onCopy={entry=>{void copyJournalAsDraft(entry)}}
             onPrint={entry=>{void printJournalVoucher(entry)}}
+            postingSelected={postingSelectedEntries}
+            onPostSelected={postSelectedEntries}
           />
         )}
 
