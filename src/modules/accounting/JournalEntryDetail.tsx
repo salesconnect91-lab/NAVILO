@@ -2679,7 +2679,7 @@ export default function JournalEntryDetail() {
               </div>
 
               <div className="min-w-0 px-2 py-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
-                <span>{postingAccounts.length} accounts available for manual posting{journalExcludedAccounts > 0 ? ` · ${journalExcludedAccounts} accounts cannot be posted here (including invoice-only and VAT accounts)` : ""}. Restricted active accounts appear disabled so you can still find them.</span>
+                <span>{postingAccounts.length} accounts available for manual posting{journalExcludedAccounts > 0 ? ` · ${journalExcludedAccounts} accounts cannot be posted here (including group, inactive, invoice-only and VAT accounts)` : ""}. Restricted accounts appear disabled so you can still find them.</span>
                 <div className="flex items-center gap-2"><QuickMasterAdd kind="account" compact disabled={saving||posting||importing} onRefresh={fetchAccounts}/><button type="button" className="rounded border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50" data-navilo-keep-local-action="true" onClick={() => { void fetchAccounts().catch((e:unknown) => setError(e instanceof Error ? e.message : "Unable to refresh Chart of Accounts.")); }}>
                   Refresh Accounts
                 </button></div>
