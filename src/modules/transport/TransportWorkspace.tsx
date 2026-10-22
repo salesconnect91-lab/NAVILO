@@ -1573,8 +1573,12 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
         if(error)throw error;
         if(data?.layout){
           const profile=normalizeTransportRegisterGridLayout(data.layout,available);
-          apply(profile);
-          localStorage.setItem(key,JSON.stringify(profile));
+          // Local direct header edits are intentionally browser-scoped until
+          // the user chooses Save Columns. Do not overwrite them on refresh.
+          if(!localProfile){
+            apply(profile);
+            localStorage.setItem(key,JSON.stringify(profile));
+          }
         }else if(localProfile){
           // No cloud profile exists yet: carry forward this device's saved default.
           const {error:saveError}=await supabase.from('transport_register_layout_preferences')
