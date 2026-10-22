@@ -1614,7 +1614,10 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
     setTripLayoutError('');
     setTripLayoutNotice('');
     try{
-      if(saveLocal)localStorage.setItem(key,JSON.stringify(safe));
+      if(saveLocal){
+        try{localStorage.setItem(key,JSON.stringify(safe));}
+        catch{/* Local storage failure must not block saving the logged-in cloud profile. */}
+      }
       if(!user?.id||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){
         setTripLayoutNotice('Saved in this browser only. Sign in to sync to other devices.');
         if(close)setShowTripColumnSetup(false);
