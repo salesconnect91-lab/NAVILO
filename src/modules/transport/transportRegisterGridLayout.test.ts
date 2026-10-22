@@ -21,6 +21,23 @@ describe("Transport Register cloud layout validation",()=>{
     expect(result.hidden).toEqual(["owner"]);
     expect(result.widths).toEqual({company:126});
   });
+  it("restores directly reordered headers and keyboard-resized widths from a saved layout",()=>{
+    const saved={order:["trip_no","company","driver","owner","profit","new_column"],hidden:[],widths:{company:224,driver:96}};
+    const restored=normalizeTransportRegisterGridLayout(JSON.parse(JSON.stringify(saved)),keys);
+    expect(restored).toEqual(saved);
+  });
+  it("retains explicit reset defaults instead of restoring previous widths",()=>{
+    const reset={order:[...keys],hidden:[],widths:{}};
+    expect(normalizeTransportRegisterGridLayout(reset,keys)).toEqual(reset);
+  });
+  it("caps persisted resize widths and removes stale or duplicate column IDs",()=>{
+    const restored=normalizeTransportRegisterGridLayout(
+      {order:["driver","driver","trip_no","obsolete"],hidden:["obsolete","owner"],widths:{driver:1000,company:52,owner:1001}},keys
+    );
+    expect(restored.order).toEqual(["driver","trip_no","owner","company","profit","new_column"]);
+    expect(restored.widths).toEqual({driver:1000,company:52});
+    expect(restored.hidden).toEqual(["owner"]);
+  });
   it("returns all columns visible with safe defaults for incomplete profiles",()=>{
     expect(normalizeTransportRegisterGridLayout(null,keys)).toEqual({order:[...keys],hidden:[],widths:{}});
     expect(normalizeTransportRegisterGridLayout({hidden:"all",widths:[]},keys))
