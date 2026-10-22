@@ -138,6 +138,8 @@ function InventoryPurchaseInvoiceDetail() {
   const canPostFullReversal = canPerformModule(role, "purchase", "post", permissions, isPlatformOwner)
     && canPerformModule(role, "inventory", "post", permissions, isPlatformOwner)
     && canPerformModule(role, "accounting", "post", permissions, isPlatformOwner);
+  const canReverseServiceInvoice = canPerformModule(role, "purchase", "post", permissions, isPlatformOwner)
+    && canPerformModule(role, "accounting", "post", permissions, isPlatformOwner);
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [items, setItems] = useState<Option[]>([]);
@@ -331,7 +333,7 @@ function InventoryPurchaseInvoiceDetail() {
 
   if (loading) return <div className="card p-12 text-center text-slate-400">Loading Purchase Invoice…</div>;
   if (!order) return <ErrorBanner message="Purchase Invoice not found." />;
-  if(order.document_kind==='service')return <TransportServiceDocument side="supplier" id={order.id} canPost />;
+  if(order.document_kind==='service')return <TransportServiceDocument side="supplier" id={order.id} canPost canReverse={canReverseServiceInvoice}/>;
 
   return <div className="navilo-purchase-neus navilo-invoice-detail space-y-5" data-navilo-commercial-standard="true" data-navilo-document-editor="true">
     <OwnerInvoiceCancellationReview side="purchase" documentId={order.id} posted={order.status === "posted"} />

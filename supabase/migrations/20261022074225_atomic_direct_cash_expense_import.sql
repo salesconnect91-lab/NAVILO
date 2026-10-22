@@ -1,4 +1,3 @@
--- PREPARED MIGRATION ONLY. Apply in production ONLY after explicit schema approval.
 -- Supplier-less Office/Yard/General direct-cash expense batches.
 -- Posting delegates to the existing, audited General Cash/Bank posting function.
 -- The batch is one PostgreSQL transaction: any error rolls back ALL vouchers.

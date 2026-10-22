@@ -408,7 +408,7 @@ export default function ImportCenter() {
    {section==="expense"&&<ImportGroup id="import-expense" title="Expense Invoices — With or Without VAT" detail="Non-inventory supplier bills. Use the existing expense invoice validation, draft and posting workflow.">
     <GeneralExpenseBillImport/>
    </ImportGroup>}
-   {section==="cash-expenses"&&<ImportGroup id="import-cash-expenses" title="Office / Yard / General Cash Expense Excel" detail="Supplier-less, no Accounts Payable. Validate Excel then post atomically after database rollout approval. Vehicle expenses use the separate vehicle uploader."><DirectCashExpenseImport/></ImportGroup>}
+   {section==="cash-expenses"&&<ImportGroup id="import-cash-expenses" title="Office / Yard / General Cash Expense Excel" detail="Supplier-less, no Accounts Payable. Validate Excel, then post the complete batch atomically. Vehicle expenses use the separate vehicle uploader."><DirectCashExpenseImport/></ImportGroup>}
    {section==="accounting"&&<ImportGroup id="import-accounting" title="Receipts, Payments & Journals" detail="Record actual money received or paid, or create draft general journal entries.">
     {isTransport&&canImport("transport")&&canImport("accounting")&&<TransportSettlementImports/>}
     {canImport("accounting")&&<ImportEntry title="Bulk Journal Entries" effect="Drafts first; post after review" detail="Same as General Journal: Account, Line Description, Related To, Debit and Credit. Two balanced lines per Entry No; Draft and review before posting." to="/accounting?import=journal" label="Open Journal Import" download={downloadSimpleJournalTemplate} downloadLabel="Download Simple Journal Excel (Dr / Cr)"/>}
