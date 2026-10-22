@@ -23,7 +23,7 @@ import { fetchAllPages } from "@/lib/fetchAllPages";
 import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
 import {journalRelatedToMode,vehicleOwnedOnDate,normalizedJournalVehicleNo,type OwnedPeriod} from "./journalRelatedTo";
 import {isManualJournalAccountEligible,isManualJournalAccountVisible,manualJournalAccountRestriction} from "./manualJournalAccountPolicy";
-import {accountForSelectedVehicle,journalVehicleAccountError,vehicleForIncomeAccount,isDedicatedVehicleIncomeAccount,vehicleIncomeDebitError} from './journalVehicleIncomePolicy';
+import {accountForSelectedVehicle,journalVehicleAccountError,vehicleForIncomeAccount,isDedicatedVehicleIncomeAccount} from './journalVehicleIncomePolicy';
 import {canReversePostedManualJournal} from "./journalPostedActionPolicy";
 
 import {
@@ -1665,8 +1665,6 @@ export default function JournalEntryDetail() {
         }
         const vehicleAccountError=journalVehicleAccountError(account.id,account.type,line.vehicleId??'',companyVehicles);
         if(vehicleAccountError){setError(`Row ${rowNumber}: ${vehicleAccountError}`);return;}
-        const vehicleDebitError=vehicleIncomeDebitError(account.id,debit,companyVehicles);
-        if(vehicleDebitError){setError(`Row ${rowNumber}: ${vehicleDebitError}`);return;}
         rowsToInsert.push({
           transport_vehicle_id: line.vehicleId || null,
           entry_id: id,

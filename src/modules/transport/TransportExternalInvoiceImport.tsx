@@ -14,17 +14,17 @@ export default function TransportExternalInvoiceImport(){
  const [source,setSource]=useState(''),[account,setAccount]=useState(''),[accounts,setAccounts]=useState<{id:string;name:string}[]>([]),[rows,setRows]=useState<Preview[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[file,setFile]=useState('');
  useEffect(()=>{const request=++generation.current;setRows([]);setFile('');setError('');setMessage('');setAccount('');setSource('');setAccounts([]);setBusy(false);
  if(!activeCompany?.company_id)return;
- void Promise.all([fetchAllPages<{id:string;name:string}>((from,to)=>supabase.from('chart_of_accounts').select('id,name').eq('company_id',activeCompany.company_id).eq('type','revenue').eq('is_active',true).eq('is_group',false).order('id').range(from,to)),supabase.from('account_mappings').select('account_id').eq('company_id',activeCompany.company_id).eq('mapping_key','service_revenue').maybeSingle()]).then(([list,mapping])=>{if(request!==generation.current)return;if(mapping.error)throw mapping.error;const service=list.filter(a=>a.id===mapping.data?.account_id);setAccounts(service);if(service[0])setAccount(service[0].id);else setError('Map an active Service Revenue account in Accounting settings before importing transport invoices.');}).catch(e=>{if(request===generation.current)setError(e.message)});
+ void Promise.all([fetchAllPages<{id:string;name:string}>((from,to)=>supabase.from('chart_of_accounts').select('id,name').eq('company_id',activeCompany.company_id).eq('type','revenue').eq('is_active',true).eq('is_group',false).order('id').range(from,to)),supabase.from('account_mappings').select('account_id').eq('company_id',activeCompany.company_id).eq('mapping_key','sales_revenue').maybeSingle()]).then(([list,mapping])=>{if(request!==generation.current)return;if(mapping.error)throw mapping.error;const sales=list.filter(a=>a.id===mapping.data?.account_id);setAccounts(sales);if(sales[0])setAccount(sales[0].id);else setError('Map an active Sales Revenue account in Accounting settings before importing transport invoices.');}).catch(e=>{if(request===generation.current)setError(e.message)});
  return()=>{generation.current++};
  },[scope]);
  function download(){
   const headers=['Source Reference','TRIP NO.','Reference Date','TRUCK TYPE','PO-DO-JOB NO.','Invoice No','Invoice / Bill Date','Customer','DRIVER NAME-MOBILE','OWNER','Vehicle No','FROM','TO','Amount','TAX (%)','TAX AMOUNT','BILL AMOUNT','Cash/Credit','Description'];
   const sample=['EXT-REF-0001','LEGACY-TRIP-001','2026-06-04','Small Dyna','PO007206','2026-03098','REPLACE_WITH_INVOICE_DATE','Replace with active Customer','Driver A','Owner','7979','Dammam','Haith',3000,15,450,3450,'Credit','Transport service'];
   downloadImportTemplate({
-   filename:'NAVILO-External-Transport-Invoices.xlsx',sheetName:'Invoices',title:'Transport external ready Service Invoices',
+   filename:'NAVILO-External-Transport-Invoices.xlsx',sheetName:'Invoices',title:'External ready Sale Invoices',
    headers,example:sample,
    notes:[
-    'Use this importer for ready external transport Service Invoices; it does NOT require or create NAVILO Trips.',
+    'Use this importer for ready external transport Sale Invoices; it does NOT require or create NAVILO Trips.',
     'Source Reference must identify EACH unique Excel invoice line. Invoice No identifies the invoice; multiple lines can share one Invoice No, Customer, Invoice Date, mode and VAT rate.',
     'Reference Date is the source Trip date (if known). Invoice / Bill Date is the actual invoice date used for the Sales draft.',
     'Cash/Credit must match the active Transport Customer Master billing mode. Credit needs an Invoice No and positive VAT. Cash permits blank Invoice No but requires VAT 0 under current import validation.',
@@ -53,9 +53,9 @@ export default function TransportExternalInvoiceImport(){
    <label className="text-xs font-semibold text-slate-700">Source company
     <input className="input mt-1 w-full" aria-label="External source company" placeholder="Company shown in source Excel" value={source} disabled={busy} onChange={e=>{setSource(e.target.value);setRows([]);setFile('');}}/>
    </label>
-   <label className="text-xs font-semibold text-slate-700">Service revenue account
-    <SearchableSelect nativeCompatibility preserveLabel aria-label="External service revenue account" className="input mt-1 w-full" value={account} disabled={busy} onChange={e=>setAccount(e.target.value)}>
-     <option value="">Mapped Service Revenue</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+   <label className="text-xs font-semibold text-slate-700">Sales revenue account
+    <SearchableSelect nativeCompatibility preserveLabel aria-label="External sales revenue account" className="input mt-1 w-full" value={account} disabled={busy} onChange={e=>setAccount(e.target.value)}>
+     <option value="">Mapped Sales Revenue</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
     </SearchableSelect>
    </label>
   </div>

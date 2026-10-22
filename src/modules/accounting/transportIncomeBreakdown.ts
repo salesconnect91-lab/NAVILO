@@ -1,6 +1,6 @@
 /** Posted general-ledger sales/service balances; presentation only, never a second posting. */
 export type LedgerMovement={account_id:string|null;debit:number|string|null;credit:number|string|null};
-export type VehicleIncome={vehicle_id:string;vehicle_no:string;amount:number};
+export type VehicleIncome={vehicle_id:string;vehicle_no:string;amount:number;invoiceAmount?:number;ledgerAmount?:number};
 const cents=(value:number)=>Math.round(value*100);
 const amount=(n:number)=>Number((n/100).toFixed(2));
 
@@ -35,6 +35,43 @@ export function reconcileNormalVehicleIncome(
  const vehicles=[...totals.values()].filter(x=>!hideZero||Math.abs(x.amount)>0.004).sort((a,b)=>a.vehicle_no.localeCompare(b.vehicle_no,undefined,{numeric:true}));
  const allocated=amount([...totals.values()].reduce((v,r)=>v+cents(r.amount),0));
  return {vehicles,allocated,residual:amount(cents(totalSales)-cents(allocated))};
+}
+
+/** Combine invoice attribution with the linked vehicle GL's signed movement.
+ * A dedicated vehicle account is the single ledger for that vehicle: credits
+ * add income and debits reduce its net contribution. Shared Sales/Service GLs
+ * are deliberately excluded because they cannot be assigned to one vehicle.
+ */
+export function mergeVehicleLedgerMovements(
+ attributed:VehicleIncome[],
+ linkedAccounts:Array<{vehicle_id:string;vehicle_no:string;amount:number|null;status:'dedicated'|'shared'|'missing'}>,
+ hideZero=true,
+):VehicleIncome[]{
+ const rows=new Map<string,VehicleIncome>();
+ for(const row of attributed){
+  const current=rows.get(row.vehicle_id);
+  const invoiceAmount=cents(current?.invoiceAmount??current?.amount??0)+cents(row.amount);
+  rows.set(row.vehicle_id,{vehicle_id:row.vehicle_id,vehicle_no:row.vehicle_no,
+   invoiceAmount:amount(invoiceAmount),ledgerAmount:current?.ledgerAmount??0,
+   amount:amount(invoiceAmount+cents(current?.ledgerAmount??0))});
+ }
+ for(const link of linkedAccounts){
+  if(link.status!=='dedicated'||link.amount===null||!Number.isFinite(link.amount))continue;
+  const current=rows.get(link.vehicle_id);
+  const invoiceAmount=cents(current?.invoiceAmount??current?.amount??0);
+  const ledgerAmount=cents(current?.ledgerAmount??0)+cents(link.amount);
+  rows.set(link.vehicle_id,{vehicle_id:link.vehicle_id,vehicle_no:link.vehicle_no,
+   invoiceAmount:amount(invoiceAmount),ledgerAmount:amount(ledgerAmount),amount:amount(invoiceAmount+ledgerAmount)});
+ }
+ return [...rows.values()].filter(row=>!hideZero||Math.abs(row.amount)>=0.005)
+  .sort((a,b)=>a.vehicle_no.localeCompare(b.vehicle_no,undefined,{numeric:true}));
+}
+
+export function totalVehicleLedgerMovement(
+ rows:Array<{vehicle_id:string;vehicle_no:string;amount:number|null;status:'dedicated'|'shared'|'missing'}>,
+):number{
+ return amount(rows.filter(row=>row.status==='dedicated'&&row.amount!==null)
+  .reduce((total,row)=>total+cents(row.amount!),0));
 }
 
 

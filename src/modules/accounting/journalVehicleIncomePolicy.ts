@@ -18,12 +18,6 @@ export function vehicleForIncomeAccount(accountId:string,links:readonly VehicleI
 export function isDedicatedVehicleIncomeAccount(accountId:string,links:readonly VehicleIncomeLink[]):boolean{
  return !!accountId&&links.filter(v=>v.revenue_account_id===accountId).length===1;
 }
-/** A vehicle Income GL identifies revenue; vehicle costs must use a real expense account. */
-export function vehicleIncomeDebitError(accountId:string,debit:number,links:readonly VehicleIncomeLink[]):string|null{
- return debit>0&&links.some(v=>v.revenue_account_id===accountId)
-  ? 'Vehicle Income accounts cannot be debited for expenses. Select the correct expense account.'
-  : null;
-}
 export function incomeVehicleAlreadyLinked(accountId:string,accountType:string|undefined,vehicleId:string,links:readonly VehicleIncomeLink[],eligibleVehicleIds:readonly string[]):boolean{
  if(!isRevenueType(accountType)||!accountId||!vehicleId)return false;
  const matches=links.filter(v=>v.revenue_account_id===accountId);

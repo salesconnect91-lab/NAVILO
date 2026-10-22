@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {externalVehicleIncome,splitTransportRevenue,reconcileNormalVehicleIncome} from './transportIncomeBreakdown';
+import {externalVehicleIncome,splitTransportRevenue,reconcileNormalVehicleIncome,mergeVehicleLedgerMovements,totalVehicleLedgerMovement} from './transportIncomeBreakdown';
 describe('Transport company P&L - separate Sale and Trip Service income',()=>{
  it('reads posted accounting by different mapped revenue accounts, respecting contra debits',()=>{
   expect(splitTransportRevenue([
@@ -70,5 +70,28 @@ describe('Transport company P&L - separate Sale and Trip Service income',()=>{
    {vehicle_id:'v1',vehicle_no:'1631',amount:50.01},
   ],false);
   expect(rows).toEqual({vehicles:[{vehicle_id:'v1',vehicle_no:'1631',amount:0}],allocated:0,residual:0});
+ });
+ it('keeps invoice income and vehicle-account debits together on one vehicle row',()=>{
+  const linked=[
+   {vehicle_id:'v7979',vehicle_no:'7979',amount:-2283.21,status:'dedicated' as const},
+   {vehicle_id:'v7494',vehicle_no:'7494',amount:-849.16,status:'dedicated' as const},
+   {vehicle_id:'v5731',vehicle_no:'5731',amount:-1783.21,status:'dedicated' as const},
+   {vehicle_id:'v2512',vehicle_no:'2512',amount:-1843.09,status:'dedicated' as const},
+   {vehicle_id:'shared',vehicle_no:'9999',amount:-100,status:'shared' as const},
+  ];
+  const net=mergeVehicleLedgerMovements([
+   {vehicle_id:'v7979',vehicle_no:'7979',amount:27395},
+   {vehicle_id:'v7494',vehicle_no:'7494',amount:29530},
+   {vehicle_id:'v5731',vehicle_no:'5731',amount:18200},
+   {vehicle_id:'v2512',vehicle_no:'2512',amount:26730},
+  ],linked);
+  expect(net).toEqual([
+   {vehicle_id:'v2512',vehicle_no:'2512',invoiceAmount:26730,ledgerAmount:-1843.09,amount:24886.91},
+   {vehicle_id:'v5731',vehicle_no:'5731',invoiceAmount:18200,ledgerAmount:-1783.21,amount:16416.79},
+   {vehicle_id:'v7494',vehicle_no:'7494',invoiceAmount:29530,ledgerAmount:-849.16,amount:28680.84},
+   {vehicle_id:'v7979',vehicle_no:'7979',invoiceAmount:27395,ledgerAmount:-2283.21,amount:25111.79},
+  ]);
+  expect(totalVehicleLedgerMovement(linked)).toBe(-6758.67);
+  expect(net.reduce((sum,row)=>sum+row.amount,0)).toBeCloseTo(95096.33,2);
  });
 });
