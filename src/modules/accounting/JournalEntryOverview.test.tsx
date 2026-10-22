@@ -50,7 +50,7 @@ describe('Journal Entry list detailed preview',()=>{
  });
  it('loads lines only for the current journal page and expands complete debit/credit',async()=>{
   render(<MemoryRouter><JournalEntryOverview entries={Array.from({length:31},(_,i)=>entry(i+1))}
-   currency="SAR" copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={vi.fn().mockResolvedValue(true)}/></MemoryRouter>);
+   currency="SAR" copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={vi.fn().mockResolvedValue(true)} deletingSelected={false} onDeleteSelected={vi.fn().mockResolvedValue(true)}/></MemoryRouter>);
   await waitFor(()=>expect(screen.getByText('1120 - Cash')).toBeTruthy());
   expect(state.fetched.filter(x=>x.table==='journal_lines')[0].ids).toHaveLength(25);
   expect(screen.getByText('SAR 150.00')).toBeTruthy();
@@ -66,14 +66,14 @@ describe('Journal Entry list detailed preview',()=>{
  it('does not present missing journal details as zero when read fails',async()=>{
   state.error=true;
   render(<MemoryRouter><JournalEntryOverview entries={[entry(1)]} currency="SAR"
-   copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={vi.fn().mockResolvedValue(true)}/></MemoryRouter>);
+   copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={vi.fn().mockResolvedValue(true)} deletingSelected={false} onDeleteSelected={vi.fn().mockResolvedValue(true)}/></MemoryRouter>);
   expect((await screen.findByRole('alert')).textContent).toContain('Database unavailable');
   expect(screen.queryByText('SAR 0.00')).toBeNull();
  });
  it('posts only selected draft entries and leaves posted entries unselectable',async()=>{
   const post=vi.fn().mockResolvedValue(true);
   render(<MemoryRouter><JournalEntryOverview entries={[entry(1,'draft'),entry(2,'draft'),entry(3,'posted')]}
-   currency="SAR" copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={post}/></MemoryRouter>);
+   currency="SAR" copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={post} deletingSelected={false} onDeleteSelected={vi.fn().mockResolvedValue(true)}/></MemoryRouter>);
   const first=screen.getByRole('checkbox',{name:'Select JE-00001'}) as HTMLInputElement;
   const second=screen.getByRole('checkbox',{name:'Select JE-00002'}) as HTMLInputElement;
   const posted=screen.getByRole('checkbox',{name:'Select JE-00003'}) as HTMLInputElement;
@@ -85,11 +85,23 @@ describe('Journal Entry list detailed preview',()=>{
  });
  it('selects and clears all visible draft rows from the header checkbox',()=>{
   render(<MemoryRouter><JournalEntryOverview entries={[entry(1,'draft'),entry(2,'draft'),entry(3,'posted')]}
-   currency="SAR" copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={vi.fn().mockResolvedValue(true)}/></MemoryRouter>);
+   currency="SAR" copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={vi.fn().mockResolvedValue(true)} deletingSelected={false} onDeleteSelected={vi.fn().mockResolvedValue(true)}/></MemoryRouter>);
   const selectAll=screen.getByRole('checkbox',{name:'Select all visible drafts'});
   fireEvent.click(selectAll);
   expect(screen.getByText('2 draft entries selected')).toBeTruthy();
   fireEvent.click(selectAll);
   expect(screen.queryByText('2 draft entries selected')).toBeNull();
+ });
+ it('deletes only the selected draft entries after confirmation',async()=>{
+  const confirm=vi.spyOn(window,'confirm').mockReturnValue(true);
+  const remove=vi.fn().mockResolvedValue(true);
+  render(<MemoryRouter><JournalEntryOverview entries={[entry(1,'draft'),entry(2,'draft'),entry(3,'posted')]}
+   currency="SAR" copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={vi.fn().mockResolvedValue(true)} deletingSelected={false} onDeleteSelected={remove}/></MemoryRouter>);
+  fireEvent.click(screen.getByRole('checkbox',{name:'Select JE-00001'}));
+  fireEvent.click(screen.getByRole('checkbox',{name:'Select JE-00002'}));
+  fireEvent.click(screen.getByRole('button',{name:'Delete Selected Drafts (2)'}));
+  await waitFor(()=>expect(remove).toHaveBeenCalledWith(['j-1','j-2']));
+  expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Delete 2 selected draft journal entries'));
+  confirm.mockRestore();
  });
 });

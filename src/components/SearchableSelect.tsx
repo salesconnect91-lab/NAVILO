@@ -234,7 +234,7 @@ export default function SearchableSelect({
           </div>
           <div role="listbox" className="max-h-60 overscroll-contain overflow-y-auto p-1" onWheel={event => event.stopPropagation()}>
             {filtered.length ? filtered.map(option => (
-              <button key={`${option.value}-${option.searchText}`} type="button" role="option" aria-selected={option.value === selectedValue} disabled={option.disabled} onMouseDown={event => event.preventDefault()} onClick={() => commit(option.value)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
+              <button key={`${option.value}-${option.searchText}`} type="button" role="option" aria-selected={option.value === selectedValue} disabled={option.disabled} onMouseDown={event => event.preventDefault()} onClick={() => commit(option.value)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-500 disabled:opacity-100">
                 <span className="min-w-0 flex-1 break-words">{option.label || "—"}</span>
                 {option.value === selectedValue && <Check className="h-4 w-4 shrink-0 text-blue-600" />}
               </button>
