@@ -11,6 +11,7 @@ import PrintLayout from "@/components/PrintLayout";
 import PurchaseDraftAddControls from "@/components/PurchaseDraftAddControls";
 import DocumentTraceability from "@/components/DocumentTraceability";
 import { useAuth } from "@/auth/AuthContext";
+import { canPerformModule } from "@/auth/permissions";
 
 type PurchaseOrder = {
   document_kind?: string;
@@ -131,8 +132,12 @@ const n = (value: unknown) => Number(value) || 0;
 function InventoryPurchaseInvoiceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { activeCompany, activeBusinessUnit } = useAuth();
-  const [ownerControlAllowed, setOwnerControlAllowed] = useState(false);
+  const { activeCompany, activeBusinessUnit, isPlatformOwner } = useAuth();
+  const role = activeBusinessUnit?.membership_role ?? activeCompany?.membership_role;
+  const permissions = activeBusinessUnit?.permissions ?? activeCompany?.permissions;
+  const canPostFullReversal = canPerformModule(role, "purchase", "post", permissions, isPlatformOwner)
+    && canPerformModule(role, "inventory", "post", permissions, isPlatformOwner)
+    && canPerformModule(role, "accounting", "post", permissions, isPlatformOwner);
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [items, setItems] = useState<Option[]>([]);
@@ -155,15 +160,6 @@ function InventoryPurchaseInvoiceDetail() {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    setOwnerControlAllowed(false);
-    void supabase.rpc("owner_posted_control_access").then(({ data, error: accessError }) => {
-      if (live && !accessError) setOwnerControlAllowed(data === true);
-    });
-    return () => { live = false; };
-  }, [activeCompany?.company_id, activeBusinessUnit?.business_unit_id]);
 
   const loadPrintSettings = useCallback(async () => {
     const [companyRes, visibilityRes] = await Promise.all([
@@ -351,7 +347,7 @@ function InventoryPurchaseInvoiceDetail() {
         {order.status === "posted" && <Link className="btn-secondary inline-flex items-center gap-1.5"
           to={`/accounting/returns?type=purchase_debit&invoice_id=${encodeURIComponent(order.id)}`}
           title="Correct this posted purchase through an audited debit note; original stock and journal history stay intact">Correct Posted Invoice</Link>}
-        {order.status === "posted" && ownerControlAllowed && order.document_kind !== "service" && <Link className="btn-danger inline-flex items-center gap-1.5"
+        {order.status === "posted" && canPostFullReversal && order.document_kind !== "service" && <Link className="btn-danger inline-flex items-center gap-1.5"
           to={`/accounting/returns?type=purchase_debit&invoice_id=${encodeURIComponent(order.id)}&full_reversal=1`}
           title="Post a full debit note for all remaining quantities; the original invoice stays in audit history">Delete Posted Invoice</Link>}
         {order.status !== "posted" && <button className="btn-danger" onClick={async () => { if (!window.confirm("Delete this draft Purchase Invoice?")) return; setError(null); const { data: deleted, error: delError } = await supabase.rpc("delete_draft_purchase_invoice", { p_order_id: order.id }); if (delError) { setError(delError.message); return; } if (!deleted) { setError("Draft Purchase Invoice could not be deleted. Refresh and try again."); return; } navigate("/purchase"); }}>Delete</button>}
