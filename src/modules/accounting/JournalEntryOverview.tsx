@@ -25,6 +25,12 @@ const num=(v:number|string|null)=>Number(v??0);
 const distinct=(a:string[])=>[...new Set(a.filter(Boolean))];
 const displayNames=(items:string[],limit=2)=>items.slice(0,limit).join(' · ')+(items.length>limit?` +${items.length-limit}`:'');
 const pageSizes=[25,50,100];
+const journalColumnDefaults=[12,16,13,13,12,10,8,16];
+const journalColumnLabels=['Entry # / Date','Description / Type','Debit Account (Dr)','Credit Account (Cr)','Party / Vehicle','Amount (Dr = Cr)','Status','Actions'];
+function journalSavedWidths():number[]{
+ try {const raw=JSON.parse(window.localStorage.getItem('navilo:journal:widths-v1')||'[]');return journalColumnDefaults.map((v,i)=>Number.isFinite(raw[i])&&raw[i]>=5&&raw[i]<=50?raw[i]:v);}catch{return [...journalColumnDefaults];}
+}
+
 
 export function buildJournalOverview(lines:JournalPreviewLine[],vehicleNames:Record<string,string>={}):Overview{
  const debit=lines.reduce((n,l)=>n+num(l.debit),0);
@@ -44,6 +50,13 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
  const [search,setSearch]=useState('');
  const [sort,setSort]=useState<{key:'entry_no'|'entry_date'|'description'|'status';dir:'asc'|'desc'}|null>(null);
  const [statusFilter,setStatusFilter]=useState('all');
+ const [columnWidths,setColumnWidths]=useState(journalSavedWidths);
+ const resizeJournalColumn=(idx:number,startX:number)=>{
+  const start=columnWidths[idx];
+  const move=(event:PointerEvent)=>setColumnWidths(prev=>{const next=[...prev];next[idx]=Math.max(5,Math.min(50,start+(event.clientX-startX)/14));try{window.localStorage.setItem('navilo:journal:widths-v1',JSON.stringify(next));}catch{}return next;});
+  const stop=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',stop);};
+  window.addEventListener('pointermove',move);window.addEventListener('pointerup',stop);
+ };
  const [pageSize,setPageSize]=useState(25);
  const [page,setPage]=useState(1);
  const [expanded,setExpanded]=useState<string[]>([]);
@@ -113,19 +126,18 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
   <div className="overflow-x-auto">
    <table className="w-full min-w-[1050px] table-fixed text-xs" data-report-content data-navilo-customizable="true">
     <colgroup>
-     <col style={{width:'12%'}}/><col style={{width:'16%'}}/><col style={{width:'13%'}}/><col style={{width:'13%'}}/>
-     <col style={{width:'12%'}}/><col style={{width:'10%'}}/><col style={{width:'8%'}}/><col style={{width:'16%'}}/>
+     {columnWidths.map((width,i)=><col key={i} style={{width:`${width}%`}}/> )}
     </colgroup>
     <thead className="bg-slate-50 text-slate-700">
      <tr className="border-b">
-      <th scope="col" className="px-2 py-1.5 text-left"><button type="button" aria-label="Sort journals by entry number" onClick={()=>setSort(old=>({key:"entry_no",dir:old?.key==="entry_no"&&old.dir==="asc"?"desc":"asc"}))}>Entry # / Date {sort?.key==="entry_no"?(sort.dir==="asc"?"↑":"↓"):"↕"}</button></th>
-      <th scope="col" className="px-2 py-1.5 text-left"><button type="button" aria-label="Sort journals by description" onClick={()=>setSort(old=>({key:"description",dir:old?.key==="description"&&old.dir==="asc"?"desc":"asc"}))}>Description / Type {sort?.key==="description"?(sort.dir==="asc"?"↑":"↓"):"↕"}</button></th>
-      <th scope="col" className="px-2 py-1.5 text-left">Debit Account (Dr)</th>
-      <th scope="col" className="px-2 py-1.5 text-left">Credit Account (Cr)</th>
-      <th scope="col" className="px-2 py-1.5 text-left">Party / Vehicle</th>
-      <th scope="col" className="px-2 py-1.5 text-right">Amount (Dr = Cr)</th>
-      <th scope="col" className="px-2 py-1.5 text-center"><button type="button" aria-label="Sort journals by status" onClick={()=>setSort(old=>({key:"status",dir:old?.key==="status"&&old.dir==="asc"?"desc":"asc"}))}>Status {sort?.key==="status"?(sort.dir==="asc"?"↑":"↓"):"↕"}</button></th>
-      <th scope="col" className="px-2 py-1.5 text-right">Actions</th>
+      <th style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-left"><button type="button" aria-label="Sort journals by entry number" onClick={()=>setSort(old=>({key:"entry_no",dir:old?.key==="entry_no"&&old.dir==="asc"?"desc":"asc"}))}>Entry # / Date {sort?.key==="entry_no"?(sort.dir==="asc"?"↑":"↓"):"↕"}</button><span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(0,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>
+      <th style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-left"><button type="button" aria-label="Sort journals by description" onClick={()=>setSort(old=>({key:"description",dir:old?.key==="description"&&old.dir==="asc"?"desc":"asc"}))}>Description / Type {sort?.key==="description"?(sort.dir==="asc"?"↑":"↓"):"↕"}</button><span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(1,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>
+      <th style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-left">Debit Account (Dr)<span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(2,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>
+      <th style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-left">Credit Account (Cr)<span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(3,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>
+      <th style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-left">Party / Vehicle<span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(4,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>
+      <th style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-right">Amount (Dr = Cr)<span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(5,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>
+      <th style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-center"><button type="button" aria-label="Sort journals by status" onClick={()=>setSort(old=>({key:"status",dir:old?.key==="status"&&old.dir==="asc"?"desc":"asc"}))}>Status {sort?.key==="status"?(sort.dir==="asc"?"↑":"↓"):"↕"}</button><span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(6,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>
+      <th style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-right">Actions<span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(7,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>
      </tr>
     </thead>
     <tbody className="divide-y divide-slate-100">
