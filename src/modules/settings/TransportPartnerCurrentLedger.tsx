@@ -1,3 +1,4 @@
+import DataTable from "@/components/DataTable";
 import {useEffect,useMemo,useState} from 'react';
 import SearchableSelect from '@/components/SearchableSelect';
 import {useAuth} from '@/auth/AuthContext';
@@ -42,10 +43,14 @@ export default function TransportPartnerCurrentLedger({month,accounts}:{month:st
     <div className="rounded bg-slate-50 p-2"><span className="text-xs text-slate-500">Net posted movement</span><p className="font-bold tabular-nums">{fmt(ledger.month_movement)}</p></div>
     <div className="rounded bg-slate-50 p-2"><span className="text-xs text-slate-500">Closing balance</span><p className="font-bold tabular-nums">{fmt(ledger.closing_balance)}</p></div>
    </div>
-   <div className="overflow-x-auto"><table className="w-full min-w-[670px] text-xs">
-    <thead className="bg-slate-50 text-slate-600"><tr><th className="p-2 text-left">Date</th><th className="p-2 text-left">Journal</th><th className="p-2 text-left">Description</th><th className="p-2 text-right">Debit</th><th className="p-2 text-right">Credit</th><th className="p-2 text-right">Running balance</th></tr></thead>
-    <tbody>{ledger.entries.length===0?<tr><td colSpan={6} className="p-3 text-center text-slate-500">No posted entries in this month.</td></tr>:ledger.entries.map((e,i)=><tr className="border-b" key={e.entry_no+'-'+e.entry_date+'-'+i}><td className="p-2">{e.entry_date}</td><td className="p-2">{e.entry_no}</td><td className="p-2">{e.description??'—'}</td><td className="p-2 text-right tabular-nums">{fmt(e.debit)}</td><td className="p-2 text-right tabular-nums">{fmt(e.credit)}</td><td className="p-2 text-right tabular-nums">{fmt(e.balance)}</td></tr>)}</tbody>
-   </table></div>
+   <div className="overflow-x-auto"><DataTable columns={[
+ {key:"entry_date",label:"Date"},
+ {key:"entry_no",label:"Journal"},
+ {key:"description",label:"Description",render:(r:any)=>r.description??"—"},
+ {key:"debit",label:"Debit",render:(r:any)=>fmt(r.debit),getFilterValue:(r:any)=>r.debit},
+ {key:"credit",label:"Credit",render:(r:any)=>fmt(r.credit),getFilterValue:(r:any)=>r.credit},
+ {key:"balance",label:"Running balance",render:(r:any)=>fmt(r.balance),getFilterValue:(r:any)=>r.balance}
+ ]} rows={ledger.entries.map((e,i)=>({...e,id:`${e.entry_no}-${e.entry_date}-${i}`}))} emptyMessage="No posted entries in this month."/></div>
    {ledger.truncated&&<p className="rounded bg-amber-50 p-2 text-xs text-amber-800">Displaying first 200 of {ledger.entry_count} journal lines. Opening and closing balances include all posted lines.</p>}
    <p className="text-xs text-slate-500">Profit-share allocation preview does not increase this ledger. Automatic posting, reversals and month lock are not enabled.</p>
   </>}
