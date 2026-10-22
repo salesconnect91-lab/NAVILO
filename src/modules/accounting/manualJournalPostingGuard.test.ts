@@ -46,7 +46,7 @@ describe('Isolated PostgreSQL manual Journal posting guard',()=>{
       `);
       const previousGuard=fs.readFileSync('supabase/migrations/20261018230500_guard_manual_journal_nonbilling_post.sql','utf8');
       const updatedGuard=fs.readFileSync('supabase/migrations/20261022121250_allow_all_enabled_manual_journal_accounts.sql','utf8');
-      const importTagGuard=fs.readFileSync('supabase/migrations/20261022175300_allow_accounting_import_source_tag.sql','utf8');
+      const importTagGuard=fs.readFileSync('supabase/migrations/20261022175747_allow_accounting_import_source_tag.sql','utf8');
       await db.exec(previousGuard);
       await db.exec(updatedGuard);
       await db.exec(importTagGuard);
