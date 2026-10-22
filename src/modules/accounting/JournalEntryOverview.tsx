@@ -117,6 +117,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
     <span className="whitespace-nowrap text-xs text-slate-500">{filtered.length} entries</span>
    </div>
    <label className="text-xs text-slate-600">Status <select aria-label="Filter journal status" className="input ml-1 !h-8 !w-24" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">All</option><option value="draft">Draft</option><option value="posted">Posted</option></select></label>
+   <button type="button" className="rounded border px-2 py-1 text-xs" onClick={()=>{setColumnWidths([...journalColumnDefaults]);setColumnOrder([0,1,2,3,4,5,6,7]);setSort(null);setStatusFilter("all");try{window.localStorage.removeItem("navilo:journal:widths-v1");window.localStorage.removeItem("navilo:journal:order-v1");}catch{}}}>Reset columns</button>
    <label className="text-xs text-slate-600">Rows
     <select aria-label="Journal rows per page" className="input ml-1 !h-8 !w-16" value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}>
      {pageSizes.map(n=><option key={n} value={n}>{n}</option>)}
