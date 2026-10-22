@@ -42,6 +42,8 @@ export function buildJournalOverview(lines:JournalPreviewLine[],vehicleNames:Rec
  * never treats an incomplete line result as a zero-value journal. */
 export default function JournalEntryOverview({entries,currency,copyingId,onCopy,onPrint}:Props){
  const [search,setSearch]=useState('');
+ const [sort,setSort]=useState<{key:'entry_no'|'entry_date'|'description'|'status';dir:'asc'|'desc'}|null>(null);
+ const [statusFilter,setStatusFilter]=useState('all');
  const [pageSize,setPageSize]=useState(25);
  const [page,setPage]=useState(1);
  const [expanded,setExpanded]=useState<string[]>([]);
@@ -51,9 +53,9 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
 
  const filtered=useMemo(()=>{
   const needle=search.trim().toLowerCase();
-  if(!needle)return entries;
-  return entries.filter(e=>[e.entry_no,e.description,e.status,e.entry_date].some(x=>String(x??'').toLowerCase().includes(needle)));
- },[entries,search]);
+  return entries.filter(e=>(statusFilter==='all'||e.status===statusFilter)&&(!needle||[e.entry_no,e.description,e.status,e.entry_date].some(x=>String(x??'').toLowerCase().includes(needle))))
+   .sort((a,b)=>sort?String(a[sort.key]??'').localeCompare(String(b[sort.key]??''),undefined,{numeric:true})*(sort.dir==='asc'?1:-1):0);
+ },[entries,search,statusFilter,sort]);
  const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));
  const safePage=Math.min(page,totalPages);
  const visible=useMemo(()=>filtered.slice((safePage-1)*pageSize,safePage*pageSize),[filtered,safePage,pageSize]);
@@ -98,6 +100,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
      placeholder="Find entry #, description, status or date…"/>
     <span className="whitespace-nowrap text-xs text-slate-500">{filtered.length} entries</span>
    </div>
+   <label className="text-xs text-slate-600">Status <select aria-label="Filter journal status" className="input ml-1 !h-8 !w-24" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">All</option><option value="draft">Draft</option><option value="posted">Posted</option></select></label>
    <label className="text-xs text-slate-600">Rows
     <select aria-label="Journal rows per page" className="input ml-1 !h-8 !w-16" value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}>
      {pageSizes.map(n=><option key={n} value={n}>{n}</option>)}
@@ -115,13 +118,13 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
     </colgroup>
     <thead className="bg-slate-50 text-slate-700">
      <tr className="border-b">
-      <th scope="col" className="px-2 py-1.5 text-left">Entry # / Date</th>
-      <th scope="col" className="px-2 py-1.5 text-left">Description / Type</th>
+      <th scope="col" className="px-2 py-1.5 text-left"><button type="button" aria-label="Sort journals by entry number" onClick={()=>setSort(old=>({key:"entry_no",dir:old?.key==="entry_no"&&old.dir==="asc"?"desc":"asc"}))}>Entry # / Date {sort?.key==="entry_no"?(sort.dir==="asc"?"↑":"↓"):"↕"}</button></th>
+      <th scope="col" className="px-2 py-1.5 text-left"><button type="button" aria-label="Sort journals by description" onClick={()=>setSort(old=>({key:"description",dir:old?.key==="description"&&old.dir==="asc"?"desc":"asc"}))}>Description / Type {sort?.key==="description"?(sort.dir==="asc"?"↑":"↓"):"↕"}</button></th>
       <th scope="col" className="px-2 py-1.5 text-left">Debit Account (Dr)</th>
       <th scope="col" className="px-2 py-1.5 text-left">Credit Account (Cr)</th>
       <th scope="col" className="px-2 py-1.5 text-left">Party / Vehicle</th>
       <th scope="col" className="px-2 py-1.5 text-right">Amount (Dr = Cr)</th>
-      <th scope="col" className="px-2 py-1.5 text-center">Status</th>
+      <th scope="col" className="px-2 py-1.5 text-center"><button type="button" aria-label="Sort journals by status" onClick={()=>setSort(old=>({key:"status",dir:old?.key==="status"&&old.dir==="asc"?"desc":"asc"}))}>Status {sort?.key==="status"?(sort.dir==="asc"?"↑":"↓"):"↕"}</button></th>
       <th scope="col" className="px-2 py-1.5 text-right">Actions</th>
      </tr>
     </thead>
