@@ -1652,6 +1652,14 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       const next=[...base];
       next.splice(from,1);
       next.splice(to,0,dragKey);
+      // Header drag/keyboard reordering must persist locally even when the
+      // Columns Setup dialog was never opened. Cloud sync remains explicit Save.
+      try{
+        const profile=normalizeTransportRegisterGridLayout({
+          order:next,hidden:hiddenTripColumns,widths:tripColumnWidths
+        },gridColumns.map(column=>column[0]));
+        localStorage.setItem(tripGridStorageKey,JSON.stringify(profile));
+      }catch{/* Browser storage can be disabled. */}
       return next;
     });
   };
