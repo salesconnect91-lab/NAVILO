@@ -74,6 +74,16 @@ export function totalVehicleLedgerMovement(
   .reduce((total,row)=>total+cents(row.amount!),0));
 }
 
+/** Normal vehicle invoices posted to a dedicated vehicle COA already appear in
+ * that account's net movement. Exclude their invoice snapshot from P&L detail
+ * so one ledger is counted exactly once.
+ */
+export function excludeDedicatedVehicleAttributions<T extends {vehicle_id:string}>(
+ rows:T[],dedicatedVehicleIds:ReadonlySet<string>,
+):T[]{
+ return rows.filter(row=>!dedicatedVehicleIds.has(row.vehicle_id));
+}
+
 
 export type ExternalVehicleLedgerRow={
  event_id:string;account_id:string|null;account_name:string|null;revenue:number|string|null;
