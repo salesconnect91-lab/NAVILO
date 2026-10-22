@@ -23,7 +23,7 @@ import { fetchAllPages } from "@/lib/fetchAllPages";
 import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
 import {journalRelatedToMode,vehicleOwnedOnDate,normalizedJournalVehicleNo,type OwnedPeriod} from "./journalRelatedTo";
 import {isManualJournalAccountEligible} from "./manualJournalAccountPolicy";
-import {accountForSelectedVehicle,journalVehicleAccountError,vehicleForIncomeAccount,incomeVehicleAlreadyLinked} from './journalVehicleIncomePolicy';
+import {accountForSelectedVehicle,journalVehicleAccountError,vehicleForIncomeAccount,isDedicatedVehicleIncomeAccount} from './journalVehicleIncomePolicy';
 import {canReversePostedManualJournal} from "./journalPostedActionPolicy";
 
 import {
@@ -1281,7 +1281,9 @@ export default function JournalEntryDetail() {
             const matches=eligibleVehicles.filter(v=>normalizedJournalVehicleNo(v.vehicle_no)===normalizedJournalVehicleNo(vehicleNo));
             if(matches.length!==1){importErrors.push(`Row ${rowNumber}: Vehicle ${vehicleNo} is not uniquely company-owned on this journal date.`);return;}
           }
-          const importVehicle=vehicleNo?eligibleVehicles.find(v=>normalizedJournalVehicleNo(v.vehicle_no)===normalizedJournalVehicleNo(vehicleNo))?.id??'':'';
+          const importVehicle=vehicleNo
+            ? eligibleVehicles.find(v=>normalizedJournalVehicleNo(v.vehicle_no)===normalizedJournalVehicleNo(vehicleNo))?.id??''
+            : vehicleForIncomeAccount(account.id,companyVehicles,eligibleVehicles.map(v=>v.id));
           const mismatch=journalVehicleAccountError(account.id,account.type,importVehicle,companyVehicles);
           if(mismatch){importErrors.push(`Row ${rowNumber}: ${mismatch}`);return;}
           importedRows.push({
@@ -1374,7 +1376,9 @@ export default function JournalEntryDetail() {
                 createTempId(),
               accountId:
                 account?.id || "",
-              vehicleId:row.vehicleNo?eligibleVehicles.find(v=>normalizedJournalVehicleNo(v.vehicle_no)===normalizedJournalVehicleNo(row.vehicleNo))?.id??'':'',
+              vehicleId:row.vehicleNo
+                ? eligibleVehicles.find(v=>normalizedJournalVehicleNo(v.vehicle_no)===normalizedJournalVehicleNo(row.vehicleNo))?.id??''
+                : vehicleForIncomeAccount(account?.id??'',companyVehicles,eligibleVehicles.map(v=>v.id)),
               partyType:
                 row.partyType,
               partyId,
@@ -2793,13 +2797,12 @@ export default function JournalEntryDetail() {
                                     {p.type==='customer'?'Customer':'Supplier'} · {p.name}
                                   </option>)}
                                 </SearchableSelect>
-                              ) : relatedMode==='vehicle' && incomeVehicleAlreadyLinked(
-                                line.accountId,selectedGL?.type,line.vehicleId??'',
-                                companyVehicles,eligibleVehicles.map(v=>v.id)
+                              ) : relatedMode==='vehicle' && isDedicatedVehicleIncomeAccount(
+                                line.accountId,companyVehicles
                               ) ? (
                                 <span className="block rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-600"
-                                  title="This Income account is already linked to its company vehicle in Vehicle Master. No second selection or posting is needed.">
-                                  Auto-linked from Account
+                                  title="This Account already identifies and links to the vehicle. No Related To selection is needed.">
+                                  Vehicle is included in Account
                                 </span>
                               ) : relatedMode==='vehicle' ? (
                                 <div>
