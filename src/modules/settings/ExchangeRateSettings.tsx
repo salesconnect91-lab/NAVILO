@@ -1,3 +1,4 @@
+import DataTable from "@/components/DataTable";
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { useCallback, useEffect, useState } from "react";
@@ -100,9 +101,13 @@ export default function ExchangeRateSettings() {
       <button className="btn btn-primary self-end" type="submit" disabled={saving || !base}>{saving ? "Saving…" : "Record rate"}</button>
     </form>
     <div className="mt-4 overflow-x-auto">
-      <table className="w-full text-left text-xs"><thead><tr className="border-b"><th className="py-2">Effective from</th><th>Currency</th><th>Base</th><th>Rate</th><th>Source</th></tr></thead>
-        <tbody>{rates.map(entry => <tr key={entry.id} className="border-b border-slate-100"><td className="py-2">{entry.effective_on}</td><td>{entry.foreign_currency_code}</td><td>{entry.base_currency_code}</td><td>{entry.rate}</td><td>{entry.source}</td></tr>)}</tbody>
-      </table>
+      <DataTable<Rate> columns={[
+ {key:"effective_on",label:"Effective from"},
+ {key:"foreign_currency_code",label:"Currency"},
+ {key:"base_currency_code",label:"Base"},
+ {key:"rate",label:"Rate"},
+ {key:"source",label:"Source"}
+ ]} rows={rates} emptyMessage="No exchange rates found."/>
       {!rates.length && <p className="py-3 text-sm text-slate-500">No exchange rates recorded for this company.</p>}
     </div>
   </section>;
