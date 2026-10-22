@@ -1,3 +1,4 @@
+import DataTable from "@/components/DataTable";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarRange, Lock, LockOpen } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -111,20 +112,13 @@ export default function AccountingPeriods() {
           ) : (
             <div className="navilo-workflow-panel overflow-hidden p-0">
               <div className="overflow-x-auto">
-                <table className="navilo-closing-table w-full text-sm">
-                  <thead><tr><th>Period</th><th>Start</th><th>End</th><th>Status</th><th className="text-right" data-no-print data-no-export>Action</th></tr></thead>
-                  <tbody>
-                    {periods.map((period) => (
-                      <tr key={period.id}>
-                        <td className="font-semibold text-slate-900">{period.period_name}</td>
-                        <td>{formatDate(period.period_start)}</td>
-                        <td>{formatDate(period.period_end)}</td>
-                        <td><span className={`navilo-status-pill ${period.status === "closed" ? "is-closed" : "is-open"}`}>{period.status === "closed" ? "Closed" : "Open"}</span></td>
-                        <td className="text-right" data-no-print data-no-export><button className={period.status === "closed" ? "btn-secondary" : "btn-primary"} disabled={savingId !== null} onClick={() => void changeStatus(period)}>{period.status === "closed" ? <LockOpen size={15} /> : <Lock size={15} />}{savingId === period.id ? "Saving…" : period.status === "closed" ? "Reopen" : "Close"}</button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <DataTable<AccountingPeriod> columns={[
+ {key:"period_name",label:"Period"},
+ {key:"period_start",label:"Start",render:period=>formatDate(period.period_start)},
+ {key:"period_end",label:"End",render:period=>formatDate(period.period_end)},
+ {key:"status",label:"Status",render:period=><span className={`navilo-status-pill ${period.status === "closed" ? "is-closed" : "is-open"}`}>{period.status === "closed" ? "Closed" : "Open"}</span>},
+ {key:"actions",label:"Action",sortable:false,filterable:false,render:period=><button className={period.status === "closed" ? "btn-secondary" : "btn-primary"} disabled={savingId !== null} onClick={() => void changeStatus(period)}>{period.status === "closed" ? <LockOpen size={15} /> : <Lock size={15} />}{savingId === period.id ? "Saving…" : period.status === "closed" ? "Reopen" : "Close"}</button>}
+ ]} rows={periods} emptyMessage="No accounting periods found."/>
               </div>
             </div>
           )}
