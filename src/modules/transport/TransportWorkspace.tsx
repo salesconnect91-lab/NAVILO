@@ -2095,7 +2095,17 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
 
                 return <th data-financial-group={visualGridGroup(key)} key={key} aria-sort={sorted?(sortDirection==="asc"?"ascending":"descending"):undefined}
                   draggable={key!=="trip_no"}
-                  title="Drag header to move within its group; drag right edge to resize"
+                  tabIndex={key==="trip_no"?-1:0}
+                  aria-label={`${label} column. Drag to reorder within its group, or use Alt plus left/right arrow keys.`}
+                  onKeyDown={event=>{
+                    if(!event.altKey||!["ArrowLeft","ArrowRight"].includes(event.key)||key==="trip_no")return;
+                    const sameGroup=orderedGridColumns.map(([item])=>item).filter(item=>visualGridGroup(item)===visualGridGroup(key));
+                    const index=sameGroup.indexOf(key);
+                    const target=sameGroup[index+(event.key==="ArrowLeft"?-1:1)];
+                    if(!target||target==="trip_no")return;
+                    event.preventDefault();moveTripColumn(key,target);
+                  }}
+                  title="Drag header or use Alt+Left/Right to reorder within its group; drag right edge to resize"
                   onDragStart={event=>{if(key==="trip_no"){event.preventDefault();return;}tripColumnDragKey.current=key;event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("text/plain",key);}}
                   onDragOver={event=>{const source=tripColumnDragKey.current;if(source&&visualGridGroup(source)===visualGridGroup(key)){event.preventDefault();event.dataTransfer.dropEffect="move";}}}
                   onDrop={event=>{event.preventDefault();const source=tripColumnDragKey.current;tripColumnDragKey.current=null;if(source)moveTripColumn(source,key);}}
