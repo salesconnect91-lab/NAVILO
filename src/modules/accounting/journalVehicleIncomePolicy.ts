@@ -14,6 +14,10 @@ export function vehicleForIncomeAccount(accountId:string,links:readonly VehicleI
  const matches=links.filter(v=>v.revenue_account_id===accountId&&validVehicleIds.includes(v.id));
  return matches.length===1?matches[0].id:'';
 }
+/** A dedicated vehicle Income account already identifies the vehicle; Related To must not ask for it again. */
+export function isDedicatedVehicleIncomeAccount(accountId:string,links:readonly VehicleIncomeLink[]):boolean{
+ return !!accountId&&links.filter(v=>v.revenue_account_id===accountId).length===1;
+}
 export function incomeVehicleAlreadyLinked(accountId:string,accountType:string|undefined,vehicleId:string,links:readonly VehicleIncomeLink[],eligibleVehicleIds:readonly string[]):boolean{
  if(!isRevenueType(accountType)||!accountId||!vehicleId)return false;
  const matches=links.filter(v=>v.revenue_account_id===accountId);
