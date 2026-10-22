@@ -171,6 +171,8 @@ export default function Ledgers() {
   const scope=accessContext as unknown as {current_operating_location?:{id?:string;operating_location_id?:string};operating_location_id?:string}|null;
   const branch=scope?.current_operating_location?.id??scope?.current_operating_location?.operating_location_id??scope?.operating_location_id;
   const [viewMode, setViewMode] = useState<ViewMode>("general");
+  const [generalColumnSearch,setGeneralColumnSearch]=useState("");
+  const [generalColumnFilter,setGeneralColumnFilter]=useState<"account"|"description">("description");
   const [generalColumnWidths,setGeneralColumnWidths]=useState<Record<number,number>>(()=>{try{return JSON.parse(localStorage.getItem("navilo:general-ledger:widths-v1")||"{}")}catch{return {}}});
   const beginGeneralResize=(index:number,event:React.PointerEvent<HTMLSpanElement>)=>{
     event.preventDefault();event.stopPropagation();
@@ -614,6 +616,12 @@ export default function Ledgers() {
     withOpeningBalances(ledgerRows,openingBalances,row=>'account:'+(row.account_id||'unassigned')),
     [ledgerRows,openingBalances]);
 
+  const generalVisibleRows=useMemo(()=>generalRowsWithBalance.filter(row=>{
+    const needle=generalColumnSearch.trim().toLowerCase();
+    if(!needle)return true;
+    return String(generalColumnFilter==="account"?row.account?.name??"":recordDisplayText(row.description)).toLowerCase().includes(needle);
+  }),[generalRowsWithBalance,generalColumnSearch,generalColumnFilter]);
+
   const detailedRows=useMemo(()=>detailedTransportLedger(partyRows,transportMovements,transportDetails),[partyRows,transportMovements,transportDetails]);
   const filteredLedgerRows=useMemo(()=>detailedRows.rows.filter(row=>selectedPartyKey||!partySearchKey(partySearch)||partySearchKey(`${row.party_name||getPartyName(row.party_type,row.party_id)} ${row.party_type}`).includes(partySearchKey(partySearch))),[detailedRows,selectedPartyKey,partySearch,getPartyName]);
   useEffect(()=>setPartyPage(0),[partySearch,selectedPartyKey,partyFilterType,partyRows,transportMovements]);
@@ -1054,6 +1062,13 @@ export default function Ledgers() {
 
         {viewMode === "general" ? (
           <div className="overflow-x-auto">
+            <div className="flex flex-wrap items-center gap-2 p-2 text-xs print:hidden">
+              <label htmlFor="navilo-general-ledger-column">Filter column</label>
+              <select id="navilo-general-ledger-column" className="input !h-8 !w-32" value={generalColumnFilter} onChange={event=>setGeneralColumnFilter(event.target.value as "account"|"description")}><option value="account">Account</option><option value="description">Description</option></select>
+              <input aria-label="Filter general ledger rows" className="input !h-8 !w-52" placeholder="Search matching rows" value={generalColumnSearch} onChange={event=>setGeneralColumnSearch(event.target.value)}/>
+              <button type="button" className="btn" onClick={()=>setGeneralColumnSearch("")}>Clear</button>
+              <span className="text-slate-500">{generalVisibleRows.length} / {generalRowsWithBalance.length} rows · Balances and totals remain based on all entries</span>
+            </div>
             <table className="w-full text-sm min-w-[900px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
@@ -1086,7 +1101,7 @@ export default function Ledgers() {
                     </td>
                   </tr>
                 ) : (
-                  generalRowsWithBalance.map((row) => (
+                  generalVisibleRows.map((row) => (
                     <tr
                       key={row.id}
                       className="border-b border-slate-100 hover:bg-slate-50/50"
