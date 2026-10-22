@@ -42,13 +42,13 @@ export default function GeneralExpenseBillCreate(){
  const invalid=lines.length<1||lines.length>100||lines.some(l=>!l.description.trim()||l.description.length>1000||!/^[0-9]{1,12}(\.[0-9]{1,2})?$/.test(l.amount)||Number(l.amount)<=0);
  const ready=!loading&&!busy&&!done&&!!supplier&&!!account&&!!date&&!!original.trim()&&(!vat||taxRate>0)&&!invalid;
  const setLine=(i:number,key:keyof Line,value:string)=>setLines(old=>old.map((l,n)=>n===i?{...l,[key]:value}:l));
- async function save(post:boolean){
+ async function saveDraft(){
   if(!ready)return;setBusy(true);setError('');
   try{
    const r=await supabase.rpc('general_expense_bill_create',{
     p_supplier:supplier,p_date:date,p_supplier_invoice_no:original.trim(),p_account:account,
     p_lines:lines.map(x=>({description:x.description.trim(),amount:x.amount.trim()})),
-    p_vat:vat,p_post:post,p_reference:null
+    p_vat:vat,p_post:false,p_reference:null
    });
    if(r.error)throw r.error;
    setDone(r.data);
@@ -81,7 +81,7 @@ export default function GeneralExpenseBillCreate(){
   </div>
   <div className="flex flex-wrap items-center justify-between gap-3 rounded border p-3">
    <div className="text-xs">Net: <strong>SAR {subtotal.toFixed(2)}</strong> · VAT: <strong>SAR {(total-subtotal).toFixed(2)}</strong> · Gross: <strong>SAR {total.toFixed(2)}</strong></div>
-   <div className="flex gap-2"><button className="btn" disabled={!ready} onClick={()=>void save(false)}>{busy?'Saving…':'Save Draft'}</button><button className="btn-primary" disabled={!ready} onClick={()=>void save(true)}>{busy?'Posting…':'Post Expense Invoice'}</button></div>
+  <div className="flex gap-2"><button className="btn-primary" disabled={!ready} onClick={()=>void saveDraft()}>{busy?'Saving…':'Save Draft Expense Invoice'}</button></div>
   </div>
   <p className="text-xs text-slate-500">Supplier payment is recorded separately against the payable. This form does not attach an expense to a vehicle. For Transport vehicle costs, use <Link to="/purchase/normal/new" className="text-blue-700 underline">Normal Purchase Invoice</Link> and select a company-owned vehicle for each applicable line. Do not enter the same supplier expense again through a manual Journal Entry.</p>
  </section>;

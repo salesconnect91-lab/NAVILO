@@ -25,13 +25,13 @@ export default function GeneralExpenseBillImport(){
  },[company,bu]);
  function template(){downloadImportTemplate({
   filename:'NAVILO-General-Expense-Invoices-Import.xlsx',sheetName:'Expense Invoices',
-  title:'Non-inventory supplier Expense Invoice import (all companies)',
+  title:'Non-inventory supplier Expense Invoice import (active company)',
   headers:['Invoice Group','Supplier Invoice No','Date','Supplier','Expense Account','Description','Amount','VAT Treatment'],
   example:['EXP-01','SUP-REF-101','2026-10-19','Exact Supplier Master','Exact Expense COA','Office repairs',100,'With VAT'],
   notes:['Each invoice group must share supplier, original invoice, date, expense account and VAT treatment.',
    'VAT Treatment: With VAT or Without VAT. The configured effective Purchase VAT rate applies.',
-   'Transport supplier Cash/Credit VAT Master Billing Rules are enforced server-side.',
-   'Post creates Expense, Input VAT and Accounts Payable ledgers; no inventory stock movements.',
+   'Import creates draft Expense Invoices only. Review each invoice and post manually from its detail page.',
+   'Transport supplier Cash/Credit VAT Master Billing Rules are currently enforced server-side.',
    'For Office vs Yard reporting use separate active Expense GL accounts. Description alone does not split the P&L. Set these up in Accounting > Chart of Accounts before posting.',
    'Do not import a Cash/Bank-paid voucher as a new credit bill if the same expense has already been recognized.',
    'Maximum 200 lines / 50 invoices. One failed invoice rolls back the entire batch.']
@@ -46,11 +46,11 @@ export default function GeneralExpenseBillImport(){
    const found=parseGeneralExpenseImport(data,suppliers,accounts);setRows(found);setName(f.name);
   }catch(e:any){setError(e?.message||'Invalid spreadsheet');}finally{setBusy(false);}
  }
- async function upload(post:boolean){
+ async function uploadDrafts(){
   if(lock.current||!rows.length)return;lock.current=true;setBusy(true);setError('');setMessage('');
-  try{const r=await supabase.rpc('general_expense_bill_import',{p_rows:rows,p_post:post});
+  try{const r=await supabase.rpc('general_expense_bill_import',{p_rows:rows,p_post:false});
    if(r.error)throw r.error;
-   setMessage(`${r.data.invoices} supplier expense invoices ${post?'posted':'saved as drafts'}; ${r.data.lines} lines. No stock movement.`);setRows([]);setName('');
+   setMessage(`${r.data.invoices} supplier expense invoices saved as drafts; ${r.data.lines} lines. Review and post each invoice from its detail page. No stock movement.`);setRows([]);setName('');
   }catch(e:any){setError(e?.message||'Expense import rejected. All rows rolled back.');}
   finally{lock.current=false;setBusy(false);}
  }
@@ -66,7 +66,7 @@ export default function GeneralExpenseBillImport(){
   {rows.length>0&&<div className="space-y-2">
    <p><strong>{groups} invoices • {rows.length} lines • Net SAR {amount.toFixed(2)}</strong></p>
    <div className="max-h-80 overflow-auto rounded border"><table className="w-full text-left text-xs"><thead><tr><th>Invoice Group</th><th>Supplier</th><th>Original No.</th><th>Net</th><th>VAT</th></tr></thead><tbody>{rows.map((r,i)=><tr key={i} className="border-t"><td>{r.batch_ref}</td><td>{suppliers.find(x=>x.id===r.supplier_id)?.name}</td><td>{r.supplier_invoice_no}</td><td>{r.amount}</td><td>{r.vat_choice==='with_vat'?'With VAT':'Without VAT'}</td></tr>)}</tbody></table></div>
-   <div className="flex gap-2"><button className="btn" disabled={busy} onClick={()=>void upload(false)}>Import Drafts</button><button className="btn-primary" disabled={busy} onClick={()=>void upload(true)}>Import & Post</button></div>
+   <div className="flex gap-2"><button className="btn-primary" disabled={busy} onClick={()=>void uploadDrafts()}>Import Expense Drafts</button></div>
   </div>}
  </section>;
 }

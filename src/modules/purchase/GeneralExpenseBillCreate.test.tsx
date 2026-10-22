@@ -32,9 +32,10 @@ async function fill(){
  fireEvent.change(screen.getByLabelText('Expense amount 1'),{target:{value:'100'}});
 }
 describe('General Expense Bill non-inventory workflow',()=>{
- it('creates a draft with no VAT and no posting action',async()=>{
+ it('creates only a draft with no VAT and leaves posting for invoice detail',async()=>{
   await fill();
-  fireEvent.click(screen.getByRole('button',{name:'Save Draft'}));
+  expect(screen.queryByRole('button',{name:'Post Expense Invoice'})).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Save Draft Expense Invoice'}));
   await screen.findByText(/Expense Invoice draft/);
   expect(mock.calls).toHaveLength(1);
   expect(mock.calls[0].name).toBe('general_expense_bill_create');
@@ -42,18 +43,18 @@ describe('General Expense Bill non-inventory workflow',()=>{
     p_vat:false,p_post:false,p_supplier:'supplier-1',p_account:'expense-1',p_supplier_invoice_no:'SUP-001'
   }));
  });
- it('posts with VAT only through the controlled supplier bill RPC',async()=>{
+ it('saves a VAT expense bill as draft and leaves manual posting to invoice detail',async()=>{
   await fill();
   fireEvent.change(screen.getByLabelText('Expense invoice VAT treatment'),{target:{value:'yes'}});
   await screen.findByText('SAR 15.00');
-  fireEvent.click(screen.getByRole('button',{name:'Post Expense Invoice'}));
-  await screen.findByText(/Expense Invoice posted/);
+  fireEvent.click(screen.getByRole('button',{name:'Save Draft Expense Invoice'}));
+  await screen.findByText(/Expense Invoice draft/);
   expect(mock.calls[0].args.p_vat).toBe(true);
-  expect(mock.calls[0].args.p_post).toBe(true);
+  expect(mock.calls[0].args.p_post).toBe(false);
  });
  it('never presents a false success on denied posting',async()=>{
   await fill();mock.error=true;
-  fireEvent.click(screen.getByRole('button',{name:'Post Expense Invoice'}));
+  fireEvent.click(screen.getByRole('button',{name:'Save Draft Expense Invoice'}));
   expect((await screen.findByRole('alert')).textContent).toContain('Permission denied');
   expect(screen.queryByText(/Expense Invoice posted/)).toBeNull();
  });
