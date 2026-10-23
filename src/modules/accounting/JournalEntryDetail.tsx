@@ -233,6 +233,28 @@ export default function JournalEntryDetail() {
   const [deleteEntryOpen, setDeleteEntryOpen] =
     useState(false);
 
+  const [permanentDeleteOpen, setPermanentDeleteOpen] = useState(false);
+  const [permanentDeleteReason, setPermanentDeleteReason] = useState("");
+  const [permanentDeleting, setPermanentDeleting] = useState(false);
+  const handlePermanentDelete = async () => {
+    if (!entry || permanentDeleteReason.trim().length < 10 || permanentDeleting) return;
+    setPermanentDeleting(true);
+    setError(null);
+    try {
+      const { data, error: deleteError } = await supabase.rpc("platform_admin_permanent_delete_manual_journal", {
+        p_entry_id: entry.id,
+        p_reason: permanentDeleteReason.trim(),
+      });
+      if (deleteError) throw new Error(deleteError.message);
+      if (!data?.success) throw new Error("Permanent deletion was not confirmed.");
+      setPermanentDeleteOpen(false);
+      navigate("/accounting");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Permanent deletion failed. No deletion confirmed.");
+    } finally {
+      setPermanentDeleting(false);
+    }
+  };
   const [ownerCanCancel, setOwnerCanCancel] = useState(false);
   const [ownerCancelOpen, setOwnerCancelOpen] = useState(false);
   const [ownerCancelling, setOwnerCancelling] = useState(false);
@@ -2295,7 +2317,18 @@ export default function JournalEntryDetail() {
             </button>
           )}
 
-          {(isOwnerCancellableJournal || isOwnerCancellablePayment || isOwnerCancellableOpeningPayment) && (
+          {isPosted && ownerCanCancel && !reversalEntry &&
+            sourceEntry.source_module === "accounting" &&
+            !sourceEntry.source_document_id && !sourceEntry.source_document_type &&
+            !entry.reversal_of_entry_id && !sourceEntry.fiscal_year_closure_id &&
+            !sourceEntry.monthly_profit_closure_id && (
+            <button type="button" onClick={() => { setPermanentDeleteReason(""); setPermanentDeleteOpen(true); }}
+              disabled={permanentDeleting}
+              className="px-3 py-2 text-sm font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200">
+              Permanent Delete
+            </button>
+          )}
+          {(isOwnerCancellablePayment || isOwnerCancellableOpeningPayment) && (
             <button
               onClick={() => setOwnerCancelOpen(true)}
               disabled={ownerCancelling}
@@ -3066,6 +3099,27 @@ export default function JournalEntryDetail() {
           setDeleteLineId(null)
         }
       />
+
+      <Modal open={permanentDeleteOpen} title={`Permanent Delete · ${entry.entry_no}`}
+        onClose={() => !permanentDeleting && setPermanentDeleteOpen(false)}>
+        <div className="space-y-4">
+          <p className="text-sm text-rose-700">
+            This permanently removes the posted journal and its ledger effects. No reversal journal is created.
+            An immutable audit snapshot is retained. Linked documents are blocked by the server.
+          </p>
+          <label className="block text-sm font-semibold">Reason (minimum 10 characters)</label>
+          <textarea className="input w-full" rows={3} value={permanentDeleteReason}
+            onChange={(event) => setPermanentDeleteReason(event.target.value)} />
+          <div className="flex gap-2 justify-end">
+            <button type="button" className="btn btn-secondary" disabled={permanentDeleting}
+              onClick={() => setPermanentDeleteOpen(false)}>Cancel</button>
+            <button type="button" className="btn btn-danger" disabled={permanentDeleting || permanentDeleteReason.trim().length < 10}
+              onClick={() => void handlePermanentDelete()}>
+              {permanentDeleting ? "Deleting..." : "Confirm Permanent Delete"}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={ownerCancelOpen} title={`Delete Posted Entry · ${entry.entry_no}`} onClose={() => !ownerCancelling && setOwnerCancelOpen(false)}>
         <div className="space-y-4">
