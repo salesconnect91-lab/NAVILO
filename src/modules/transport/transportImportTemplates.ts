@@ -70,16 +70,13 @@ export function createHistoricalTemplateWorkbook(){
    'Customer Gross - Customer Received = Customer Remaining; Supplier Gross - Supplier Paid = Supplier Remaining.',
    'For any nonzero amount received/paid, add matching actual dated allocations to the Payments sheet using existing Chart of Accounts cash/bank CODES.',
    'Each Payments row requires Source Record ID, customer/supplier Side, Date, positive Amount, Cash / Bank Account Code and Reference.',
+   'The Payments upload sheet is intentionally blank. Never import fabricated receipt or supplier payment rows.',
    'Do not duplicate balances in accounting openings; closed periods and ownership histories must be reviewed before confirmation.'
   ]
  });
- const payments=XLSX.utils.aoa_to_sheet([
-  [...PAYMENT_COLUMNS],
-  ['OLD-0001','customer','2026-10-02',600,'REPLACE-WITH-CASH-CODE','RCPT-1'],
-  ['OLD-0001','supplier','2026-10-02',1000,'REPLACE-WITH-BANK-CODE','PAY-1']
- ]);
+ const payments=XLSX.utils.aoa_to_sheet([[...PAYMENT_COLUMNS]]);
  payments['!cols']=PAYMENT_COLUMNS.map(h=>({wch:Math.min(34,Math.max(18,h.length+3))}));
- payments['!autofilter']={ref:'A1:F3'};
+ payments['!autofilter']={ref:`A1:${XLSX.utils.encode_col(PAYMENT_COLUMNS.length-1)}1`};
  XLSX.utils.book_append_sheet(wb,payments,'Payments');
  wb.SheetNames=['Trips','Payments','Instructions'];
  return wb;
