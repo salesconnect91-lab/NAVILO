@@ -96,7 +96,7 @@ export default function OpeningBalanceMigration() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, "Opening Balances");
     XLSX.utils.book_append_sheet(workbook, instructions, "Instructions");
-    XLSX.writeFile(workbook, "MetalForge-Opening-Party-Balances.xlsx");
+    XLSX.writeFile(workbook, "NAVILO-Opening-Party-Balances.xlsx");
   };
 
   const parseFile = async (file: File) => {
