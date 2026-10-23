@@ -15,7 +15,7 @@ describe('NAVILO Transport Excel template/parser contracts',()=>{
   expect(header).not.toContain('Driver Pay');
   expect(header).not.toContain('received from company');
   expect(XLSX.utils.sheet_to_json(wb.Sheets.Trips)).toEqual([]);
-  expect(parseTripWorkbook(bytes(wb))).toEqual([]);
+  expect(()=>parseTripWorkbook(bytes(wb))).toThrow('No Trip rows found.');
  });
  it('keeps explicit historical evidence and Payments worksheet parser-compatible',()=>{
   const wb=createHistoricalTemplateWorkbook();
@@ -28,7 +28,7 @@ describe('NAVILO Transport Excel template/parser contracts',()=>{
   for(const name of PAYMENT_COLUMNS)expect(XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets.Payments,{header:1})[0]).toContain(name);
   expect(XLSX.utils.sheet_to_json(wb.Sheets.Trips)).toEqual([]);
   expect(XLSX.utils.sheet_to_json(wb.Sheets.Payments)).toEqual([]);
-  expect(parseHistoricalWorkbook(bytes(wb))).toEqual([]);
+  expect(()=>parseHistoricalWorkbook(bytes(wb))).toThrow('No Trip rows found.');
   expect(header).toContain('INVOICE NUMBER');
  });
 });
