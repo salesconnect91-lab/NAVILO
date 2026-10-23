@@ -110,6 +110,8 @@ begin
   -- Owner Control intentionally requires an FX-specific correction workflow.
   -- A generic manual reversal must NOT mutate the posted foreign-currency GL,
   -- because the source/base-rate snapshot and party valuation must be preserved.
+  -- Reach the FX-specific guard with the authorized admin fixture.
+  update public.user_profiles set platform_role='super_admin' where id=v_user;
   v_failed:=false;v_error:=null;
   begin
     perform public.reverse_manual_journal_entry(v_entry,current_date,'FX reversal must be rejected pending specific correction');
@@ -117,6 +119,7 @@ begin
     v_failed:=true;
     get stacked diagnostics v_error=message_text;
   end;
+  update public.user_profiles set platform_role='user' where id=v_user;
   if not v_failed or v_error not like 'Foreign-currency journals require the FX-specific correction workflow%' then
     raise exception 'Generic reversal bypassed owner FX protection or returned an unexpected error: %',coalesce(v_error,'NO ERROR');
   end if;

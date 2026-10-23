@@ -255,13 +255,8 @@ begin
  select a.id into strict noncash_asset from public.chart_of_accounts a where a.company_id=c and a.code='1140' and a.type='asset' and not a.is_group limit 1;
  perform pg_temp.cash_flow_voucher(bank_account,cash_id,100);
  perform pg_temp.cash_flow_voucher(fixed_account,cash_id,200);
- -- An expense bill is required for ordinary costs; a manual expense JE must be rejected.
- begin
-   perform pg_temp.cash_flow_voucher(acct,fixed_account,50);
-   raise exception 'Expense journal unexpectedly posted';
- exception when others then
-   if sqlerrm not ilike '%Manual journals cannot post Income, Expense or VAT control accounts%' then raise;end if;
- end;
+ -- Manual expense JE is supported; a noncash expense must not change cash flow.
+ perform pg_temp.cash_flow_voucher(acct,fixed_account,50);
  -- Noncash Balance Sheet transfer remains a valid manual adjustment.
  perform pg_temp.cash_flow_voucher(noncash_asset,fixed_account,50);
  data:=public.accounting_cash_flow_report(current_date-1,current_date);
