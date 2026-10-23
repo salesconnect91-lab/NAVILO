@@ -79,6 +79,11 @@ begin
   -- later transport migrations. Keep the posted-only protection intact.
   if position('public.transport_customer_side_posted(old.id)' in v_definition)=0 then
     v_definition:=replace(v_definition,v_old,'public.transport_customer_side_posted(old.id)');
+    -- The original guard uses multiline EXISTS with arbitrary whitespace.
+    -- Match only the canonical unposted customer-document predicate.
+    v_definition:=regexp_replace(v_definition,
+      'exists[[:space:]]*\\([[:space:]]*select[[:space:]]+1[[:space:]]+from[[:space:]]+public\\.transport_customer_document_trips[[:space:]]+l[[:space:]]+where[[:space:]]+l\\.trip_id[[:space:]]*=[[:space:]]*old\\.id[[:space:]]+and[[:space:]]+not[[:space:]]+l\\.is_adjustment[[:space:]]*\\)',
+      'public.transport_customer_side_posted(old.id)', 'i');
     v_definition:=replace(v_definition,
       'exists(select 1 from public.transport_customer_document_trips where trip_id=old.id)',
       'public.transport_customer_side_posted(old.id)');
