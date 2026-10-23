@@ -42,7 +42,31 @@ describe('Historical import review boundary',()=>{
   expect(screen.getByText(/Saved job: 7 \/ 7 trips confirmed/)).toBeTruthy();
  });
 
- it('downloads a workbook whose Trips and dated partial Payments pass the actual historical parser',async()=>{mock.download.mockClear();render(<TransportHistoricalImport validateMasters={masters} onChanged={async()=>{}}/>);fireEvent.click(screen.getByRole('button',{name:'Download template'}));expect(mock.download).toHaveBeenCalledOnce();const [book,name]=mock.download.mock.calls[0];expect(name).toBe('Transport-One-time-Import-Template.xlsx');expect(book.SheetNames).toEqual(['Trips','Payments','Instructions']);const parsed=parseHistoricalWorkbook(XLSX.write(book,{type:'array',bookType:'xlsx'}));expect(parsed).toHaveLength(1);expect(parsed[0].errors).toEqual([]);expect(parsed[0]).toMatchObject({source_id:'OLD-0001',received:600,paid:1000,customer_remaining:1400,supplier_remaining:700});});
+ it('downloads blank upload sheets and parses user-entered Trips and dated partial Payments',async()=>{
+  mock.download.mockClear();render(<TransportHistoricalImport validateMasters={masters} onChanged={async()=>{}}/>);
+  fireEvent.click(screen.getByRole('button',{name:'Download template'}));expect(mock.download).toHaveBeenCalledOnce();
+  const [book,name]=mock.download.mock.calls[0];expect(name).toBe('Transport-One-time-Import-Template.xlsx');
+  expect(book.SheetNames).toEqual(['Trips','Payments','Instructions']);
+  expect(XLSX.utils.sheet_to_json(book.Sheets.Trips)).toEqual([]);
+  expect(XLSX.utils.sheet_to_json(book.Sheets.Payments)).toEqual([]);
+  // Synthetic entries belong in the test only; downloadable templates stay blank.
+  XLSX.utils.sheet_add_json(book.Sheets.Trips,[{
+   'DATE':'2026-10-01','COMPANY NAME':'Test Customer','FROM':'A','TO':'B',
+   'Customer Rate':2000,'Supplier Rent':1700,'Sale Type (Cash / Credit)':'Credit',
+   'INVOICE NUMBER':'TEST-001','Source Record ID':'OLD-0001',
+   'Customer Posted':'Yes','Customer Invoice Date':'2026-10-01','Customer VAT':'No',
+   'Customer Gross':2000,'Customer Received':600,'Customer Remaining':1400,
+   'Supplier Posted':'Yes','Supplier Invoice Date':'2026-10-01','Supplier VAT':'No',
+   'Supplier Gross':1700,'Supplier Paid':1000,'Supplier Remaining':700
+  }],{origin:'A2',skipHeader:true,header:XLSX.utils.sheet_to_json<string[]>(book.Sheets.Trips,{header:1})[0]});
+  XLSX.utils.sheet_add_aoa(book.Sheets.Payments,[
+   ['OLD-0001','customer','2026-10-02',600,'CASH','TEST-R-1'],
+   ['OLD-0001','supplier','2026-10-02',1000,'CASH','TEST-P-1']
+  ],{origin:'A2'});
+  const parsed=parseHistoricalWorkbook(XLSX.write(book,{type:'array',bookType:'xlsx'}));
+  expect(parsed).toHaveLength(1);expect(parsed[0].errors).toEqual([]);
+  expect(parsed[0]).toMatchObject({source_id:'OLD-0001',received:600,paid:1000,customer_remaining:1400,supplier_remaining:700});
+ });
  it('posts through the separate canonical history endpoint only after review, then reconciles server totals',async()=>{const changed=vi.fn(async()=>{});const {container}=render(<TransportHistoricalImport validateMasters={masters} onChanged={changed}/>);await upload(container);expect(mock.rpc.mock.calls.some(c=>c[0]==='transport_import_history_batch')).toBe(false);
   fireEvent.change(screen.getByPlaceholderText('dd-mmm-yy'),{target:{value:'03-Oct-26'}});fireEvent.change(screen.getByRole('combobox'),{target:{value:'cost'}});fireEvent.click(screen.getByRole('checkbox'));mock.status={file:'history.xlsx',completed:1,batches:1,totals,settings:{cutoff:'2026-10-03',cost_account:'cost',opening_reviewed:true},source_hash:'a'.repeat(64)};
   fireEvent.click(screen.getByRole('button',{name:'Confirm and import accounting'}));await waitFor(()=>expect(changed).toHaveBeenCalledOnce());expect(mock.rpc).toHaveBeenCalledWith('transport_import_history_batch',expect.objectContaining({p_job_id:'server-job',p_batch:0,p_rows:[expect.objectContaining({source_id:'OLD-1',received:600,customer_remaining:1400,payments:[expect.objectContaining({account_id:'cash',method:'cash',amount:600})]})]}));expect(mock.saved).toHaveBeenCalled();});

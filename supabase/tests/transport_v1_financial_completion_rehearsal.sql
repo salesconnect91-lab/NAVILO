@@ -227,7 +227,11 @@ end if;
  or (select posted_profit from public.transport_trip_financial_summary where id=trip)<>530 then raise exception 'Posted profit/commission reconciliation';end if;
  rejected:=false;begin perform public.transport_settle_documents('customer',customer,current_date,cash_id,'cash',jsonb_build_array(jsonb_build_object('document_id',sales_id,'amount',1)));exception when others then rejected:=true;end;
  if not rejected then raise exception 'Overreceipt accepted after correction';end if;
+ execute 'reset role';
+ update public.user_profiles set platform_role='super_admin' where id=u;
  perform public.reverse_payment_voucher(paid_j,current_date,'Reverse first receipt');
+ update public.user_profiles set platform_role='user' where id=u;
+
  if (select customer_outstanding_gross from public.transport_trip_financial_summary where id=trip)<>300 then raise exception 'Canonical receipt reversal not reflected';end if;
  -- Journal, GL and party subledger proof in base currency.
  if exists(select 1 from public.journal_entries je join public.journal_lines l on l.entry_id=je.id where je.company_id=c and je.status='posted' group by je.id having abs(sum(l.debit-l.credit))>0.005) then raise exception 'Unbalanced posted journal';end if;
@@ -365,7 +369,8 @@ end if;
  if normal_rev is null then raise exception 'Normal Sales revenue mapping missing';end if;
  result:=public.transport_normal_invoice_create('customer',customer,current_date,
   jsonb_build_array(jsonb_build_object('description','Standalone consulting','amount','150.00','vehicle_id',vehicle),jsonb_build_object('description','Standby work','amount','200.00','vehicle_id',vehicle)),
-  normal_rev,'NORMAL-S-'||code,'Reference 55',true);
+  normal_rev,'NORMAL-S-'||code,'Reference 55',false);
+ result:=result||public.post_sales_invoice((result->>'document_id')::uuid)||jsonb_build_object('status','posted');
  normal_doc:=(result->>'document_id')::uuid;
  if result->>'status'<>'posted' or (result->>'net')::numeric<>350 or
  (result->>'gross')::numeric<>(select total from public.sales_orders where id=normal_doc) or
@@ -382,7 +387,8 @@ end if;
  (select count(*) from public.stock_movements where source_id=normal_doc);end if;
  result:=public.transport_normal_invoice_create('supplier',supplier,current_date,
   '[{"description":"Supplier admin fee","amount":"75.00"}]'::jsonb,
-  acct,'NORMAL-P-'||code,'Supplier ref 5',true);
+  acct,'NORMAL-P-'||code,'Supplier ref 5',false);
+ result:=result||public.post_purchase_invoice((result->>'document_id')::uuid)||jsonb_build_object('status','posted');
  normal_doc:=(result->>'document_id')::uuid;
  if result->>'status'<>'posted' or (result->>'net')::numeric<>75 or
  (result->>'gross')::numeric<>(select total from public.purchase_orders where id=normal_doc) or
@@ -395,19 +401,21 @@ end if;
   jsonb_build_array(
    jsonb_build_object('batch_ref','BULK-1','party_id',customer,'account_id',normal_rev,'invoice_date',current_date,'invoice_no','BULK-S-'||code,'description','Line one','amount','10.00','vehicle_id',vehicle),
    jsonb_build_object('batch_ref','BULK-1','party_id',customer,'account_id',normal_rev,'invoice_date',current_date,'invoice_no','BULK-S-'||code,'description','Line two','amount','15.50','vehicle_id',vehicle)),
-  true);
+  false);
+ perform public.post_sales_invoice((result->'documents'->0->>'document_id')::uuid);
  if (result->>'invoices')::int<>1 or (result->>'lines')::int<>2
  or not exists(select 1 from public.sales_orders where id=(result->'documents'->0->>'document_id')::uuid and status='posted' and total=(result->'documents'->0->>'gross')::numeric)
  then raise exception 'Normal Sales bulk import not atomic or not posted to AR';end if;
  result:=public.transport_normal_invoice_import('supplier',
   jsonb_build_array(jsonb_build_object('batch_ref','P-BULK-1','party_id',supplier,'account_id',acct,'invoice_date',current_date,
-  'invoice_no','BULK-P-'||code,'description','Independent supplier work','amount','31.25')),true);
+  'invoice_no','BULK-P-'||code,'description','Independent supplier work','amount','31.25')),false);
+ perform public.post_purchase_invoice((result->'documents'->0->>'document_id')::uuid);
  if (result->>'invoices')::int<>1 or
  not exists(select 1 from public.purchase_orders where id=(result->'documents'->0->>'document_id')::uuid and status='posted' and total=(result->'documents'->0->>'gross')::numeric)
  then raise exception 'Normal Purchase bulk import not posted to AP';end if;
  rejected:=false;begin
  perform public.transport_normal_invoice_create('customer',customer,current_date,
- jsonb_build_array(jsonb_build_object('description','Duplicate number','amount','20','vehicle_id',vehicle)),normal_rev,'NORMAL-S-'||code,null,true);
+ jsonb_build_array(jsonb_build_object('description','Duplicate number','amount','20','vehicle_id',vehicle)),normal_rev,'NORMAL-S-'||code,null,false);
  exception when others then rejected:=true;end;
  if not rejected then raise exception 'Normal Sales duplicate invoice was accepted';end if;
  raise notice 'PASS standalone normal Sales/Purchase, multi-lines, atomic imports and original Trip independence';

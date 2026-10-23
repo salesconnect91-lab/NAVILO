@@ -82,7 +82,9 @@ begin
  or (select sum(amount) from public.transport_party_movements where side='supplier')<>500 then raise exception 'Credit statement mismatch: customer %, supplier %, notes %, events %', (select sum(amount) from public.transport_party_movements where side='customer'),(select sum(amount) from public.transport_party_movements where side='supplier'),(select count(*) from public.return_notes),(select count(*) from public.transport_party_movements where event_type='credit_note');end if;
  execute 'reset role';
  -- Reversal is a dated opposite movement, not deletion of historical payments.
+ update public.user_profiles set platform_role='super_admin' where id=u;
  perform public.reverse_payment_voucher(receipt_id,current_date+1,'Report dated reversal');
+ update public.user_profiles set platform_role='user' where id=u;
  if (select sum(amount) from public.transport_party_movements where side='customer' and event_date<=current_date)<>1400
  or (select sum(amount) from public.transport_party_movements where side='customer')<>1900 then raise exception 'Historical reversal mismatch today %, all %, status %, reversal %', (select sum(amount) from public.transport_party_movements where side='customer' and event_date<=current_date),(select sum(amount) from public.transport_party_movements where side='customer'),(select status from public.journal_entries where id=receipt_id),(select count(*) from public.journal_entries where reversal_of_entry_id=receipt_id and status='posted');end if;
  if (select sum(amount) from public.transport_canonical_party_movements where side='customer')<>1900 then raise exception 'Reversal canonical mismatch';end if;

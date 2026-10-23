@@ -36,6 +36,7 @@ vi.mock('./TransportCostUpload',()=>({default:()=>null}));vi.mock('./TransportAu
 vi.mock('./TransportPartyReports',()=>({default:()=>null}));vi.mock('./TransportAccountStatement',()=>({default:()=>null}));
 beforeEach(()=>{
  clearRegisterSessionCache();
+ localStorage.clear();
  Object.defineProperty(globalThis,'crypto',{value:webcrypto,configurable:true});
  mock.allow=true;mock.companyId='c';mock.businessUnitId='b';mock.layoutUserId=null;mock.remoteLayout=null;mock.savedLayout=null;mock.layoutReads=0;mock.layoutWriteError=false;mock.layoutReadError=false;mock.layoutQueries=[];
  mock.abortSignals={};
@@ -451,7 +452,7 @@ describe('Transport compact register and centered controls',()=>{
    const checkbox=dialog.querySelector('[data-trip-column-group="customer"] input[type="checkbox"]') as HTMLInputElement;
    await waitFor(()=>expect(checkbox.indeterminate).toBe(true));
    fireEvent.click(screen.getByRole('button',{name:'Reset Default'}));
-   expect(localStorage.getItem(legacy)).toBeNull();expect(localStorage.getItem(current)).toBeNull();
+   expect(localStorage.getItem(legacy)).toBeNull();expect(JSON.parse(localStorage.getItem(current)??'{}').hidden).toEqual([]);
    expect(checkbox.indeterminate).toBe(false);expect(checkbox.checked).toBe(true);
    fireEvent.click(screen.getByRole('button',{name:'Save as Default'}));
    expect(JSON.parse(localStorage.getItem(current)??'{}').hidden).toEqual([]);
@@ -461,7 +462,6 @@ describe('Transport compact register and centered controls',()=>{
   const id='10000000-0000-0000-0000-000000000001';
   const key=`navilo:transport:trip-grid:v2:${id}:c:b`;
   mock.layoutUserId=id;
-  localStorage.setItem(key,JSON.stringify({order:['trip_no'],hidden:[]}));
   mock.remoteLayout={order:['company','trip_no'],hidden:['owner'],widths:{driver:124}};
   try{
    render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);

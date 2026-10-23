@@ -47,22 +47,19 @@ begin
  if not bad then raise exception 'Invalid vehicle accepted';end if;
  bad:=false;begin update public.journal_entries set entry_date=current_date-2 where id=je;exception when others then if position('company-owned' in sqlerrm)>0 or position('Remove draft journal lines' in sqlerrm)>0 then bad:=true;else raise;end if;end;
  if not bad then raise exception 'Header date bypassed vehicle ownership';end if;
- -- New policy: vehicle expense/income is posted only from its source invoice,
- -- not through an ordinary manual journal. Preserve draft/link validation coverage.
+ -- Vehicle expenses may post through manual JE (the Amjad payable workflow).
+ -- Income still originates in invoices; attribution must reach both ledgers.
  set local role authenticated;
- bad:=false;
- begin
-   perform public.post_journal_entry(je);
- exception when others then
-   if position('Manual journals cannot post Income' in sqlerrm)>0 then bad:=true;
-   else raise;end if;
- end;
+ perform public.post_journal_entry(je);
+ r:=public.transport_vehicle_ledger(v1,current_date,current_date);
+ if (r->>'cost')::numeric<>100 then raise exception 'Vehicle one JE cost missing: %',r;end if;
+ r:=public.transport_vehicle_ledger(v2,current_date,current_date);
+ if (r->>'cost')::numeric<>100 then raise exception 'Vehicle two JE cost missing: %',r;end if;
  reset role;
- if not bad then raise exception 'Manual vehicle expense incorrectly posted as billing';end if;
- if exists(select 1 from public.journal_entries where id=je and status='posted')
-    or exists(select 1 from public.ledgers where journal_entry_id=je)
- then raise exception 'Rejected manual expense still created GL rows';end if;
- raise notice 'PASS manual vehicle journal: invalid vehicle attribution denied; income/expense billing rejected with no GL writes';
-
+ if not exists(select 1 from public.journal_entries where id=je and status='posted')
+    or (select sum(debit) from public.ledgers where journal_entry_id=je)<>200
+    or (select sum(debit-credit) from public.ledgers where journal_entry_id=je)<>0
+ then raise exception 'Manual vehicle expense failed balanced GL posting';end if;
+ raise notice 'PASS manual vehicle journal: invalid attribution denied; expense JE updates both vehicle ledgers and balanced GL';
 end $$;
 rollback;

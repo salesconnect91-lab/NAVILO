@@ -80,6 +80,14 @@ begin
  if (res->>'cost')::numeric<>315 then raise exception 'Vehicle 2 nonrecoverable VAT report %',res;end if;
  bad:=false;begin perform public.transport_vehicle_expense_save(payload,doc);exception when others then bad:=true;end;
  if not bad then raise exception 'Posted expense editable';end if;
+ -- A company owner is denied posted controls; only platform admin can reverse.
+ bad:=false;begin perform public.reverse_manual_journal_entry(je,'2026-10-18','Denied company owner');exception when others then bad:=position('Only the company owner or platform owner' in sqlerrm)>0;end;
+ if not bad then raise exception 'Company owner bypassed admin-only reversal';end if;
+ bad:=false;begin perform public.transport_vehicle_expense_reverse(doc,'2026-10-18','Denied company owner');exception when others then bad:=position('authorization is required' in sqlerrm)>0;end;
+ if not bad then raise exception 'Company owner bypassed admin-only expense reversal';end if;
+ reset role;
+ update public.user_profiles set platform_role='super_admin' where id=u;
+ set local role authenticated;
  bad:=false;begin perform public.reverse_manual_journal_entry(je,'2026-10-18','Wrong screen');exception when others then if position('Vehicle Expenses reversal' in sqlerrm)>0 or position('Only standalone manual journals are eligible' in sqlerrm)>0 then bad:=true;else raise;end if;end;if not bad then raise exception 'Source reversal bypass accepted';end if;
  res:=public.transport_vehicle_expense_reverse(doc,'2026-10-18','Isolated expense correction');rev:=(res->>'reversal_entry_id')::uuid;
  res:=public.transport_vehicle_ledger(v1,'2026-10-01','2026-10-31');if (res->>'cost')::numeric<>0 then raise exception 'Vehicle reversal omitted %',res;end if;
@@ -110,6 +118,7 @@ begin
  res:=public.transport_vehicle_expense_post(doc);je:=(res->>'journal_entry_id')::uuid;
  if (select sum(credit-debit) from public.party_ledgers where journal_entry_id=je and party_type='supplier' and party_id=supplier)<>50 then raise exception 'Supplier AP not updated';end if;
  perform public.transport_vehicle_expense_reverse(doc,'2026-10-18','AP correction');
+ update public.user_profiles set platform_role='user' where id=u;
  -- Bank expense must credit chosen Bank, never Cash or AP.
  payload:=jsonb_set(jsonb_set(jsonb_set(jsonb_set(payload,'{expense_group}','"BANK"'),'{payment_method}','"bank"'),'{payment_account_id}',to_jsonb(bank)),'{lines,0,source_reference}','"BANK-REF"');
  res:=public.transport_vehicle_expense_save(payload);res:=public.transport_vehicle_expense_post((res->>'document_id')::uuid);je:=(res->>'journal_entry_id')::uuid;
@@ -122,19 +131,25 @@ begin
  update public.suppliers set strn='VAT-TEST-SUPPLIER' where id=supplier2;
  set local role authenticated;
  res:=public.general_expense_bill_create(supplier,'2026-10-17','EXP-CASH-TEST',acct,
-  '[{"description":"General no VAT","amount":"100"}]'::jsonb,false,true,null);
+  '[{"description":"General no VAT","amount":"100"}]'::jsonb,false,false,null);
+ if res->>'status'<>'draft' then raise exception 'Expense creation skipped Draft';end if;
+ perform public.post_purchase_invoice((res->>'document_id')::uuid);
  if (res->>'vat')::numeric<>0 then raise exception 'Expense without VAT mismatch';end if;
  if (res->>'invoice_no') !~ '^EXP-[0-9]{4,}$' then raise exception 'Expected compact Expense invoice sequence';end if;
  res:=public.general_expense_bill_create(supplier2,'2026-10-17','EXP-CREDIT-TEST',acct,
-  '[{"description":"General with VAT","amount":"200"}]'::jsonb,true,true,null);
+  '[{"description":"General with VAT","amount":"200"}]'::jsonb,true,false,null);
+ if res->>'status'<>'draft' then raise exception 'VAT expense creation skipped Draft';end if;
+ perform public.post_purchase_invoice((res->>'document_id')::uuid);
  if (res->>'vat')::numeric<>30 then raise exception 'Expense VAT mismatch';end if;
  if (res->>'invoice_no') !~ '^EXP-[0-9]{4,}$' then raise exception 'Expected compact VAT Expense invoice sequence';end if;
  res:=public.general_expense_bill_import(jsonb_build_array(
   jsonb_build_object('batch_ref','EXCEL-TEST-1','supplier_id',supplier2,'account_id',acct,'invoice_date','2026-10-17','supplier_invoice_no','EXCEL-SUP-1','description','Invoice row 1','amount','50','vat_choice','with_vat'),
   jsonb_build_object('batch_ref','EXCEL-TEST-1','supplier_id',supplier2,'account_id',acct,'invoice_date','2026-10-17','supplier_invoice_no','EXCEL-SUP-1','description','Invoice row 2','amount','25','vat_choice','with_vat')
- ),true);
+ ),false);
  if (res->>'invoices')::integer<>1 or (res->>'lines')::integer<>2
  then raise exception 'Expense Excel import summary incorrect';end if;
+ if not exists(select 1 from public.purchase_orders where id=(res->'documents'->0->>'document_id')::uuid and status='draft') then raise exception 'Expense import skipped Draft';end if;
+ perform public.post_purchase_invoice((res->'documents'->0->>'document_id')::uuid);
  if not exists(select 1 from public.purchase_orders p where p.id=(res->'documents'->0->>'document_id')::uuid and p.status='posted')
  then raise exception 'Expense Excel import did not post invoice';end if;
 
@@ -182,19 +197,21 @@ begin
  then raise exception 'Posted Sale did not reconcile AR 115, Revenue 100, Output VAT 15, customer ledger and balanced GL';end if;
  raise notice 'PASS standalone Sale Credit: required original; draft no GL; posted AR 115, Revenue 100, Output VAT 15';
  res:=public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
-  jsonb_build_array(jsonb_build_object('description','VAT choice invoice','amount','100','vehicle_id',v1)),revenue,'VAT-CHOICE-GOOD',null,true,'with_vat');
+  jsonb_build_array(jsonb_build_object('description','VAT choice invoice','amount','100','vehicle_id',v1)),revenue,'VAT-CHOICE-GOOD',null,false,'with_vat');
  if (res->>'vat')::numeric<>15 then raise exception 'Normal VAT choice wrong total';end if;
+ perform public.post_sales_invoice((res->>'document_id')::uuid);
  bad:=false;
  begin
   perform public.transport_normal_invoice_create_vat('customer',customer,'2026-10-17',
-   jsonb_build_array(jsonb_build_object('description','Wrong VAT choice','amount','100','vehicle_id',v1)),revenue,'VAT-CHOICE-INVALID',null,true,'without_vat');
+   jsonb_build_array(jsonb_build_object('description','Wrong VAT choice','amount','100','vehicle_id',v1)),revenue,'VAT-CHOICE-INVALID',null,false,'without_vat');
  exception when others then bad:=true;end;
  if not bad then raise exception 'Normal VAT selection rule not enforced';end if;
  reset role;
  before_trips:=(select count(*) from public.transport_trips where company_id=c);
  set local role authenticated;
  res:=public.transport_normal_invoice_create('customer',customer,'2026-10-17',jsonb_build_array(
- jsonb_build_object('description','Vehicle one sale','amount','300','vehicle_id',v1),jsonb_build_object('description','Vehicle two sale','amount','200','vehicle_id',v2),jsonb_build_object('description','Third vehicle-one sale','amount','50','vehicle_id',v1)),revenue,'VEH-SALE-1',null,true);
+ jsonb_build_object('description','Vehicle one sale','amount','300','vehicle_id',v1),jsonb_build_object('description','Vehicle two sale','amount','200','vehicle_id',v2),jsonb_build_object('description','Third vehicle-one sale','amount','50','vehicle_id',v1)),revenue,'VEH-SALE-1',null,false);
+ res:=res||public.post_sales_invoice((res->>'document_id')::uuid);
  sale:=(res->>'document_id')::uuid;je:=(res->>'journal_entry_id')::uuid;
  if (select count(*) from public.transport_normal_vehicle_allocations where journal_entry_id=je)<>3 then raise exception 'Posted allocation snapshots incomplete';end if;
  if (res->>'net')::numeric<>550 or (res->>'vat')::numeric<>82.5 then raise exception 'Sale VAT %',res;end if;
