@@ -2,14 +2,16 @@ import {describe,expect,it} from 'vitest';
 import * as XLSX from 'xlsx';
 import {createImportTemplateWorkbook} from './importExcelTemplate';
 describe('NAVILO import workbook schema',()=>{
- it('preserves original headers and leading-zero reference as first-sheet input while isolating instructions',()=>{
+ it('keeps only real upload headers on the first sheet and isolates sample values in instructions',()=>{
   const w=createImportTemplateWorkbook({filename:'test.xlsx',sheetName:'Invoices',headers:['Source Reference','Invoice Date','Amount'],example:['0000123','2026-10-01',500],title:'Sales invoice',notes:['Only drafts']});
   expect(w.SheetNames).toEqual(['Invoices','Instructions']);
   expect(XLSX.utils.sheet_to_json<unknown[]>(w.Sheets.Invoices,{header:1})[0]).toEqual(['Source Reference','Invoice Date','Amount']);
   const roundtrip=XLSX.read(XLSX.write(w,{bookType:'xlsx',type:'array'}),{type:'array'});
   const rows=XLSX.utils.sheet_to_json<any>(roundtrip.Sheets.Invoices);
-  expect(rows[0]['Source Reference']).toBe('0000123');
-  expect(rows[0].Amount).toBe(500);
+  expect(rows).toEqual([]);
+  const instructions=XLSX.utils.sheet_to_json<unknown[]>(roundtrip.Sheets.Instructions,{header:1});
+  expect(instructions.some(row=>String(row[1]).includes('0000123'))).toBe(true);
+  expect(roundtrip.Sheets.Invoices['!autofilter']?.ref).toBe('A1:C1');
   expect(XLSX.utils.sheet_to_json<unknown[]>(roundtrip.Sheets.Instructions,{header:1}).length).toBeGreaterThan(5);
  });
  it('supports intentionally empty accounting templates with their actual upload headers only',()=>{
