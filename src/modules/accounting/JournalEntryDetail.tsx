@@ -264,7 +264,7 @@ export default function JournalEntryDetail() {
     let live = true;
     setOwnerCanCancel(false);
     if (!activeCompany?.company_id || !activeBusinessUnit?.business_unit_id) return;
-    void supabase.rpc("owner_posted_control_access").then(({ data, error }) => {
+    void supabase.rpc("company_can_permanently_delete").then(({ data, error }) => {
       if (live && !error) setOwnerCanCancel(data === true);
     });
     return () => { live = false; };
