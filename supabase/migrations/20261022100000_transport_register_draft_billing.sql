@@ -75,7 +75,14 @@ begin
 
   select pg_get_functiondef('public.transport_trip_customer_accounting_guard()'::regprocedure) into v_definition;
   v_old:='exists(select 1 from public.transport_customer_document_trips l where l.trip_id=old.id and not l.is_adjustment)';
-  v_definition:=replace(v_definition,v_old,'public.transport_customer_side_posted(old.id)');
+  -- Match both the legacy guard and the canonical guard introduced by
+  -- later transport migrations. Keep the posted-only protection intact.
+  if position('public.transport_customer_side_posted(old.id)' in v_definition)=0 then
+    v_definition:=replace(v_definition,v_old,'public.transport_customer_side_posted(old.id)');
+    v_definition:=replace(v_definition,
+      'exists(select 1 from public.transport_customer_document_trips where trip_id=old.id)',
+      'public.transport_customer_side_posted(old.id)');
+  end if;
   if position('public.transport_customer_side_posted(old.id)' in v_definition)=0 then
     raise exception 'Trip customer guard definition changed; review Draft guard update';
   end if;
