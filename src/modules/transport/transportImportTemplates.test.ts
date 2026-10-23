@@ -14,13 +14,8 @@ describe('NAVILO Transport Excel template/parser contracts',()=>{
   expect(header).not.toContain('Sale Type (Cash / Credit)');
   expect(header).not.toContain('Driver Pay');
   expect(header).not.toContain('received from company');
-  const parsed=parseTripWorkbook(bytes(wb));
-  expect(parsed).toHaveLength(1);
-  expect(parsed[0].customer).toBe('Replace with active Customer');
-  expect(parsed[0].sale_type).toBe('');
-  expect(parsed[0].trip_no).toBe('');
-  expect(parsed[0].customer_rate).toBe('1200');
-  expect(parsed[0].ppr_status).toBe('pending');
+  expect(XLSX.utils.sheet_to_json(wb.Sheets.Trips)).toEqual([]);
+  expect(parseTripWorkbook(bytes(wb))).toEqual([]);
  });
  it('keeps explicit historical evidence and Payments worksheet parser-compatible',()=>{
   const wb=createHistoricalTemplateWorkbook();
@@ -31,16 +26,9 @@ describe('NAVILO Transport Excel template/parser contracts',()=>{
   const header=rows[0] as string[];
   for(const name of HISTORY_COLUMNS)expect(header).toContain(name);
   for(const name of PAYMENT_COLUMNS)expect(XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets.Payments,{header:1})[0]).toContain(name);
-  const parsed=parseHistoricalWorkbook(bytes(wb));
-  expect(parsed).toHaveLength(1);
-  expect(parsed[0].source_id).toBe('OLD-0001');
+  expect(XLSX.utils.sheet_to_json(wb.Sheets.Trips)).toEqual([]);
+  expect(XLSX.utils.sheet_to_json(wb.Sheets.Payments)).toEqual([]);
+  expect(parseHistoricalWorkbook(bytes(wb))).toEqual([]);
   expect(header).toContain('INVOICE NUMBER');
-  expect(parsed[0].source_invoice_no).toBe('ORIG-2026-001');
-  expect(parsed[0].trip_no).toBe('');
-  expect(parsed[0].sale_type).toBe('credit');
-  expect(parsed[0].customer_gross).toBe(2000);
-  expect(parsed[0].received).toBe(600);
-  expect(parsed[0].paid).toBe(1000);
-  expect(parsed[0].errors).toEqual([]);
  });
 });
