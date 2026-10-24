@@ -55,7 +55,7 @@ export default function TransportVehicleAccountingReport(){
    let running=0;
    // Manual debits to a revenue account are contra-revenue in the General P&L.
    // Vehicle statement shows these journal debits separately; net profit is unchanged.
-   const revenueDebits=rows.reduce((sum,x)=>sum+(x.category==='Manual journal'&&Number(x.revenue)<0?-Number(x.revenue):0),0);
+   const revenueDebits=rows.reduce((sum,x)=>sum+((x.category==='Manual journal'||(x.category==='Posted Journal'&&x.event_type==='journal_adjustment'))&&Number(x.revenue)<0?-Number(x.revenue):0),0);
    const title=`Vehicle ${vehicles.find(v=>v.id===vehicle)?.vehicle_no??''} — ${mode==='monthly'?'Monthly Income, Expenses & Net Profit':mode==='profit'?'Profit & Loss':'Accounting Ledger'}`;
    const description=`${activeCompany?.company_name??''} / ${activeBusinessUnit?.business_unit_name??''} · Posting dates ${from?formatNaviloDate(from):'Beginning'} to ${to?formatNaviloDate(to):'All'} · Posted canonical accounting only. Recoverable VAT excluded from income/cost; non-recoverable VAT included in expense. Reversals use their posting dates. Manual debits to a revenue GL appear separately in the vehicle statement; the General P&L treats them as revenue reductions.`;
    const months=mode==='monthly'?groupPostedVehicleMonths(rows):[];
@@ -79,7 +79,7 @@ export default function TransportVehicleAccountingReport(){
     :{title,description,columns:['Date','Document','Trip No','Type','Income','Expense / Account Debit','Net','Running Net'],rows:[
       ...rows.map(x=>{
        const income=Number(x.revenue),expense=Number(x.cost);
-       const debit=x.category==='Manual journal'&&income<0?-income:0;
+       const debit=(x.category==='Manual journal'||(x.category==='Posted Journal'&&x.event_type==='journal_adjustment'))&&income<0?-income:0;
        running+=income-expense;
        return [formatNaviloDate(x.event_date),x.entry_no,x.trip_no||'',x.category,income+debit,expense+debit,income-expense,running];
       }),
