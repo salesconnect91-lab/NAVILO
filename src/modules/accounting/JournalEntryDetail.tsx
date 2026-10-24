@@ -265,7 +265,7 @@ export default function JournalEntryDetail() {
     setPostedEditDate(entry.entry_date);
     setPostedEditDescription(entry.description || "");
     setPostedEditReason("");
-    setPostedEditLines(lines.map(line=>({id:line.id,debit:String(line.debit||0),credit:String(line.credit||0),description:line.description||""})));
+    setPostedEditLines(lines.map(line=>({id:line.id,debit:String(line.debit||0),credit:String(line.credit||0),description:("description" in line ? String(line.description || "") : "")})));
     setPostedEditOpen(true);
   };
   const savePostedEdit = async () => {
