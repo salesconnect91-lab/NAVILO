@@ -30,10 +30,10 @@ const num=(v:number|string|null)=>Number(v??0);
 const distinct=(a:string[])=>[...new Set(a.filter(Boolean))];
 const displayNames=(items:string[],limit=2)=>items.slice(0,limit).join(' · ')+(items.length>limit?` +${items.length-limit}`:'');
 const pageSizes=[25,50,100];
-const journalColumnDefaults=[12,25,13,12,14,10,6,8];
-const journalColumnLabels=['Entry # / Date','Description / Type','Debit Account (Dr)','Credit Account (Cr)','Party / Vehicle','Amount (Dr = Cr)','Status','Actions'];
+const journalColumnDefaults=[13,26,15,14,10,11,6,9];
+const journalColumnLabels=['Entry # / Date','Description / Type','Debit Account (Dr)','Credit Account (Cr)','Party','Amount (Dr = Cr)','Status','Actions'];
 function journalSavedWidths():number[]{
- try {const raw=JSON.parse(window.localStorage.getItem('navilo:journal:widths-v2')||'[]');return journalColumnDefaults.map((v,i)=>Number.isFinite(raw[i])&&raw[i]>=5&&raw[i]<=50?raw[i]:v);}catch{return [...journalColumnDefaults];}
+ try {const raw=JSON.parse(window.localStorage.getItem('navilo:journal:widths-v3')||'[]');return journalColumnDefaults.map((v,i)=>Number.isFinite(raw[i])&&raw[i]>=5&&raw[i]<=50?raw[i]:v);}catch{return [...journalColumnDefaults];}
 }
 
 
@@ -172,7 +172,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
    Cannot display the financial details: {detailError}. Journal amounts are not assumed to be zero.
   </div>}
   <div className="overflow-x-auto">
-   <table className="w-full min-w-[1050px] table-fixed text-xs" data-report-content data-navilo-customizable="true">
+   <table className="w-full min-w-[1250px] table-fixed text-xs" data-report-content data-navilo-customizable="true">
     <colgroup>{columnOrder.map(i=><col key={i} style={{width:`${columnWidths[i]}%`}}/>)}</colgroup>
     <thead className="bg-slate-50 text-slate-700">
      <tr className="border-b">
@@ -181,7 +181,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
        <th key={1} draggable={true} onDragStart={()=>setDraggedColumn(1)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveColumn(1)} onDragEnd={()=>setDraggedColumn(null)} title="Drag header to move column; drag right edge to resize" style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-left"><button type="button" aria-label="Sort journals by description" onClick={()=>setSort(old=>({key:"description",dir:old?.key==="description"&&old.dir==="asc"?"desc":"asc"}))}>Description / Type {sort?.key==="description"?(sort.dir==="asc"?"↑":"↓"):"↕"}</button><span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(1,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>,
        <th key={2} draggable={true} onDragStart={()=>setDraggedColumn(2)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveColumn(2)} onDragEnd={()=>setDraggedColumn(null)} title="Drag header to move column; drag right edge to resize" style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-left">Debit Account (Dr)<span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(2,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>,
        <th key={3} draggable={true} onDragStart={()=>setDraggedColumn(3)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveColumn(3)} onDragEnd={()=>setDraggedColumn(null)} title="Drag header to move column; drag right edge to resize" style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-left">Credit Account (Cr)<span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(3,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>,
-       <th key={4} draggable={true} onDragStart={()=>setDraggedColumn(4)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveColumn(4)} onDragEnd={()=>setDraggedColumn(null)} title="Drag header to move column; drag right edge to resize" style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-left">Party / Vehicle<span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(4,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>,
+       <th key={4} draggable={true} onDragStart={()=>setDraggedColumn(4)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveColumn(4)} onDragEnd={()=>setDraggedColumn(null)} title="Drag header to move column; drag right edge to resize" style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-left">Party<span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(4,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>,
        <th key={5} draggable={true} onDragStart={()=>setDraggedColumn(5)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveColumn(5)} onDragEnd={()=>setDraggedColumn(null)} title="Drag header to move column; drag right edge to resize" style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-right">Amount (Dr = Cr)<span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(5,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>,
        <th key={6} draggable={true} onDragStart={()=>setDraggedColumn(6)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveColumn(6)} onDragEnd={()=>setDraggedColumn(null)} title="Drag header to move column; drag right edge to resize" style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-center"><button type="button" aria-label="Sort journals by status" onClick={()=>setSort(old=>({key:"status",dir:old?.key==="status"&&old.dir==="asc"?"desc":"asc"}))}>Status {sort?.key==="status"?(sort.dir==="asc"?"↑":"↓"):"↕"}</button><span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(6,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>,
        <th key={7} draggable={false} onDragStart={()=>setDraggedColumn(7)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveColumn(7)} onDragEnd={()=>setDraggedColumn(null)} title="Drag header to move column; drag right edge to resize" style={{position:'relative'}} scope="col" className="px-2 py-1.5 text-right"><span className="inline-flex items-center justify-end gap-1.5"><input type="checkbox" aria-label="Select all visible drafts" checked={allVisibleDraftsSelected} ref={element=>{if(element)element.indeterminate=someVisibleDraftsSelected&&!allVisibleDraftsSelected}} onChange={toggleVisibleDrafts} disabled={!visibleDraftIds.length||postingSelected||deletingSelected} className="h-3.5 w-3.5 accent-emerald-700"/>Actions</span><span aria-hidden="true" title="Drag to resize" onPointerDown={event=>{event.preventDefault();resizeJournalColumn(7,event.clientX)}} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',touchAction:'none'}}/></th>
@@ -194,7 +194,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
       const toggle=()=>setExpanded(current=>current.includes(entry.id)?current.filter(id=>id!==entry.id):[...current,entry.id]);
       const sourceType=String((entry as JournalEntry&{source_module?:string;trans_type?:string}).source_module||(entry as JournalEntry&{trans_type?:string}).trans_type||'Manual journal');
       return <tr key={entry.id}><td colSpan={8} className="p-0">
-       <table className="w-full table-fixed text-xs"><colgroup>{columnOrder.map(i=><col key={i} style={{width:`${columnWidths[i]}%`}}/>)}</colgroup><tbody>
+       <table className="w-full min-w-[1250px] table-fixed text-xs"><colgroup>{columnOrder.map(i=><col key={i} style={{width:`${columnWidths[i]}%`}}/>)}</colgroup><tbody>
         <tr className="hover:bg-slate-50">
          {columnOrder.map(i=>([
          <td key={0} style={{width:`${columnWidths[0]}%`}} className="w-[12%] px-2 py-0.5 align-middle">
@@ -207,8 +207,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
          <td key={3} style={{width:`${columnWidths[3]}%`}} className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsCr||undefined}>{info?info.accountsCr||'—':loading?'Loading…':'—'}</div></td>,
          <td key={4} style={{width:`${columnWidths[4]}%`}} className="w-[12%] px-2 py-0.5 align-middle">
           {info?.party&&<div className="truncate text-slate-800" title={`Party: ${info.party}`}>Party: {info.party}</div>}
-          {info?.vehicles&&<div className="min-w-0 break-words leading-tight text-blue-800" title={`Vehicle: ${info.vehicles}`}>Vehicle: {info.vehicles}</div>}
-          {!info&&!loading?'—':!info?'Loading…':!info.party&&!info.vehicles?'—':null}
+          {!info&&!loading?'—':!info?'Loading…':!info.party?'—':null}
          </td>,
          <td key={5} style={{width:`${columnWidths[5]}%`}} className="w-[10%] px-2 py-0.5 text-right align-middle font-semibold tabular-nums">
           {info?<><div>{money(info.debit,currency)}</div>
