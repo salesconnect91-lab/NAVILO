@@ -9,7 +9,7 @@ declare
   v_company uuid; v_unit uuid; v_loc uuid;
   v_cash uuid; v_offset uuid; v_journal uuid; v_reversal uuid; v_payment uuid; v_payment_reversal uuid;
   v_result jsonb; v_debit numeric; v_credit numeric; v_n int;
-  v_ctx text;
+  v_ctx text; v_lines jsonb; v_edit_result jsonb; v_denied boolean;
   v_code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
 begin
   insert into auth.users(id,role,email,created_at,updated_at)
@@ -75,6 +75,77 @@ begin
   v_result:=public.post_journal_entry(v_journal);
   if v_result->>'status'<>'posted' then raise exception 'FAIL: synthetic journal not posted'; end if;
   reset role;
+  -- Authorized owner and Admin correct the original posted journal in place.
+  -- Each save must preserve the journal ID, update its ledger, and create no reversal.
+  perform set_config('request.jwt.claim.sub',v_company_owner::text,true);
+  set local role authenticated;
+  select jsonb_agg(jsonb_build_object(
+    'id',l.id,
+    'debit',case when l.debit>0 then 126 else 0 end,
+    'credit',case when l.credit>0 then 126 else 0 end,
+    'description','Owner in-place correction'
+  ) order by l.debit desc)
+  into v_lines from public.journal_lines l where l.entry_id=v_journal;
+  v_edit_result:=public.owner_edit_posted_manual_journal(
+    v_journal,'Isolated company owner correction test',current_date,
+    'Owner in-place correction',v_lines
+  );
+  if coalesce((v_edit_result->>'success')::boolean,false) is not true
+     or (select count(*) from public.journal_entries where reversal_of_entry_id=v_journal)<>0
+     or (select sum(debit-credit) from public.ledgers where journal_entry_id=v_journal)<>0
+     or (select sum(debit) from public.ledgers where journal_entry_id=v_journal)<>126 then
+    raise exception 'Authorized owner edit did not update original journal and ledgers in place: %',v_edit_result;
+  end if;
+
+  reset role;
+  perform set_config('request.jwt.claim.sub',v_admin::text,true);
+  set local role authenticated;
+  select jsonb_agg(jsonb_build_object(
+    'id',l.id,
+    'debit',case when l.debit>0 then 127 else 0 end,
+    'credit',case when l.credit>0 then 127 else 0 end,
+    'description','Admin in-place correction'
+  ) order by l.debit desc)
+  into v_lines from public.journal_lines l where l.entry_id=v_journal;
+  v_edit_result:=public.owner_edit_posted_manual_journal(
+    v_journal,'Isolated company Admin correction test',current_date,
+    'Admin in-place correction',v_lines
+  );
+  if coalesce((v_edit_result->>'success')::boolean,false) is not true
+     or (select count(*) from public.journal_entries where reversal_of_entry_id=v_journal)<>0
+     or (select sum(debit) from public.ledgers where journal_entry_id=v_journal)<>127 then
+    raise exception 'Authorized Admin edit did not preserve the posted entry: %',v_edit_result;
+  end if;
+
+  -- A viewer calling the exposed RPC directly must still be rejected.
+  reset role;
+  update public.company_memberships set role='viewer'
+    where company_id=v_company and user_id=v_company_owner;
+  update public.business_unit_memberships set role='viewer'
+    where company_id=v_company and business_unit_id=v_unit and user_id=v_company_owner;
+  update public.operating_location_memberships set role='viewer'
+    where company_id=v_company and business_unit_id=v_unit
+      and operating_location_id=v_loc and user_id=v_company_owner;
+  perform set_config('request.jwt.claim.sub',v_company_owner::text,true);
+  set local role authenticated;
+  v_denied:=false;
+  begin
+    perform public.owner_edit_posted_manual_journal(
+      v_journal,'Viewer direct API denial test',current_date,
+      'Unauthorized edit attempt',v_lines
+    );
+  exception when others then v_denied:=true;
+  end;
+  if not v_denied then raise exception 'Viewer bypassed posted journal edit authorization';end if;
+  reset role;
+  update public.company_memberships set role='company_owner'
+    where company_id=v_company and user_id=v_company_owner;
+  update public.business_unit_memberships set role='company_owner'
+    where company_id=v_company and business_unit_id=v_unit and user_id=v_company_owner;
+  update public.operating_location_memberships set role='company_owner'
+    where company_id=v_company and business_unit_id=v_unit
+      and operating_location_id=v_loc and user_id=v_company_owner;
+
   perform set_config('request.jwt.claim.sub',v_platform::text,true);
   set local role authenticated;
   if public.owner_posted_control_access() then
@@ -121,8 +192,8 @@ begin
   select coalesce(sum(debit),0),coalesce(sum(credit),0)
   into v_debit,v_credit from public.ledgers
   where journal_entry_id in (v_journal,v_reversal) and company_id=v_company;
-  if v_debit<>250 or v_credit<>250 then
-    raise exception 'FAIL: expected original+reversal GL debit/credit 250, got %/%',v_debit,v_credit;
+  if v_debit<>254 or v_credit<>254 then
+    raise exception 'FAIL: expected original+reversal GL debit/credit 254, got %/%',v_debit,v_credit;
   end if;
   if exists(
     select 1 from public.ledgers where journal_entry_id in(v_journal,v_reversal)
