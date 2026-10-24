@@ -221,6 +221,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
            {!entry.entry_no.startsWith('COB-')&&<button className="min-w-0 rounded border px-1 py-0.5 text-[11px]" type="button"
              onClick={()=>onCopy(entry)} disabled={!!copyingId} aria-label={`Copy ${entry.entry_no} as draft`} title="Copy as an editable draft">
              {copyingId===entry.id?'…':<Copy size={13} aria-hidden="true"/>}</button>}
+           <button className="min-w-0 rounded border px-1 py-0.5 text-[11px]" type="button" onClick={toggle} aria-expanded={open} aria-label={`${open?'Hide':'Show'} lines for ${entry.entry_no}`}>{open?'Hide':'Lines'}</button>
            <button className="min-w-0 rounded border px-1 py-0.5 text-[11px]" type="button" onClick={()=>onPrint(entry)}>Print</button>
           </div>
          </td>
