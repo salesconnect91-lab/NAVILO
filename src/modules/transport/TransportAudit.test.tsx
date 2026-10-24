@@ -19,6 +19,12 @@ describe('exact Trip audit',()=>{
   fireEvent.click(screen.getByRole('button',{name:'Next'}));
   await waitFor(()=>expect(mock.rpc).toHaveBeenLastCalledWith('transport_trip_audit_report',{p_trip_no:'TRP-1',p_limit:500,p_offset:500}));
  });
+ it('shows scalar audit snapshots as one before/after value instead of one row per character',async()=>{
+  mock.rpc.mockResolvedValueOnce({data:{...report,rows:[{...report.rows[0],event_type:'job_change',old_data:'',new_data:'QA FIELD CHECK JOB A 20261024'}]},error:null});
+  render(<TransportAudit/>);fireEvent.change(screen.getByLabelText('Audit Trip No'),{target:{value:'TRP-1'}});fireEvent.click(screen.getByRole('button',{name:'Generate audit report'}));
+  await screen.findByText('Job Change');expect(screen.getByText('Value')).toBeTruthy();expect(screen.getByText('QA FIELD CHECK JOB A 20261024')).toBeTruthy();
+  expect(screen.queryByText('Q')).toBeNull();
+ });
  it('regenerates the same Trip and clears old evidence after a workspace change',async()=>{
   const {rerender}=render(<TransportAudit/>);
   fireEvent.change(screen.getByLabelText('Audit Trip No'),{target:{value:'TRP-1'}});fireEvent.click(screen.getByRole('button',{name:'Generate audit report'}));
