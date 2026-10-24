@@ -3,10 +3,18 @@ import {supabase} from '@/lib/supabase';
 import {useAuth} from '@/auth/AuthContext';
 import {formatNaviloDate} from '@/lib/naviloDate';
 import TransportPagination from './TransportPagination';
-type Audit={id:number;event_type:string;old_data:Record<string,unknown>|null;new_data:Record<string,unknown>|null;actor_name:string;event_at:string|null;event_reason:string|null;source:string};
+type Audit={id:number;event_type:string;old_data:unknown;new_data:unknown;actor_name:string;event_at:string|null;event_reason:string|null;source:string};
 type Report={trip_no:string;rows:Audit[];count:number;labels:Record<string,string>;snapshot:Record<string,unknown>;deleted:boolean};
 const label=(s:string)=>s.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
 const value=(v:unknown,labels:Record<string,string>):string=>v==null?'—':typeof v==='object'?JSON.stringify(v):labels[String(v)]??String(v);
+const asRecord=(v:unknown):Record<string,unknown>|null=>v!==null&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:null;
+const changes=(oldValue:unknown,newValue:unknown)=>{
+ const before=asRecord(oldValue),after=asRecord(newValue);
+ if((oldValue!=null&&!before)||(newValue!=null&&!after))return JSON.stringify(oldValue)===JSON.stringify(newValue)?[]:[{field:'value',before:oldValue,after:newValue}];
+ return [...new Set([...Object.keys(before??{}),...Object.keys(after??{})])]
+  .filter(k=>JSON.stringify(before?.[k])!==JSON.stringify(after?.[k]))
+  .map(k=>({field:k,before:before?.[k],after:after?.[k]}));
+};
 const eventTime=(timestamp:string)=>{
  const date=new Date(timestamp);
  const day=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
@@ -30,7 +38,7 @@ export default function TransportAudit(_props:{trips?:Array<{id:string;trip_no:s
  <dl className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">{['trip_date','status','job_status','customer_id','vehicle_id','driver_id','from_location_id','to_location_id'].filter(k=>report.snapshot[k]!=null).map(k=><div key={k}><dt className="text-slate-500">{label(k)}</dt><dd>{k==='trip_date'?formatNaviloDate(String(report.snapshot[k])):value(report.snapshot[k],report.labels)}</dd></div>)}</dl></div>
  {!report.count&&<p>No recorded audit for this exact Trip No in the active Business Unit.</p>}
  <ol className="space-y-2 border-l-2 border-slate-200 pl-3">{report.rows.map(r=><li key={r.id} className="rounded border p-2"><div className="flex flex-wrap justify-between gap-2"><strong>{eventTitle(r.event_type)}</strong><time>{r.event_at?eventTime(r.event_at):'Time not recorded'}</time></div><p className="mt-1 text-slate-600">By: {r.actor_name} · Source: {r.source}</p>{r.event_reason&&<p className="mt-1">Reason: {r.event_reason}</p>}
- <details className="mt-2" open={report.rows.length<=10}><summary className="cursor-pointer font-semibold">Recorded field changes</summary><div className="overflow-x-auto"><table className="mt-1 w-full text-left"><thead><tr><th className="pr-2">Field</th><th className="pr-2">Before</th><th>After</th></tr></thead><tbody>{[...new Set([...Object.keys(r.old_data??{}),...Object.keys(r.new_data??{})])].filter(k=>JSON.stringify(r.old_data?.[k])!==JSON.stringify(r.new_data?.[k])).map(k=><tr key={k} className="border-t"><td className="py-1 pr-2 align-top">{label(k)}</td><td className="max-w-sm break-words pr-2 align-top">{value(r.old_data?.[k],report.labels)}</td><td className="max-w-sm break-words align-top">{value(r.new_data?.[k],report.labels)}</td></tr>)}</tbody></table></div></details></li>)}</ol>
+ <details className="mt-2" open={report.rows.length<=10}><summary className="cursor-pointer font-semibold">Recorded field changes</summary><div className="overflow-x-auto"><table className="mt-1 w-full text-left"><thead><tr><th className="pr-2">Field</th><th className="pr-2">Before</th><th>After</th></tr></thead><tbody>{changes(r.old_data,r.new_data).map(change=><tr key={change.field} className="border-t"><td className="py-1 pr-2 align-top">{label(change.field)}</td><td className="max-w-sm break-words pr-2 align-top">{value(change.before,report.labels)}</td><td className="max-w-sm break-words align-top">{value(change.after,report.labels)}</td></tr>)}</tbody></table></div></details></li>)}</ol>
  <TransportPagination page={page} pageSize={500} count={report.count} busy={busy} onPage={setPage}/><p className="mt-2 text-slate-500">Timeline: oldest to newest. Only recorded evidence is shown; missing source/location details are not inferred.</p></>}
  </section>;
 }
