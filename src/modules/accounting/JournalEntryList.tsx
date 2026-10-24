@@ -74,8 +74,7 @@ type BulkRpcEntry = {
    HELPERS
 ========================================================= */
 
-const generateEntryNo = () =>
-  `JE-${Date.now().toString().slice(-8)}`;
+const AUTO_JOURNAL_ENTRY_NO = "JE-00000000";
 
 const normalize = (value: unknown) =>
   String(value ?? "").trim();
@@ -345,7 +344,7 @@ export default function JournalEntryList() {
 
   const [form, setForm] =
     useState({
-      entry_no: generateEntryNo(),
+      entry_no: "",
       entry_date:
         new Date()
           .toISOString()
@@ -594,13 +593,6 @@ export default function JournalEntryList() {
     setError(null);
     setSuccess(null);
 
-    if (!draft.entry_no.trim()) {
-      setError(
-        "Entry number is required."
-      );
-      return;
-    }
-
     if (!draft.entry_date) {
       setError(
         "Entry date is required."
@@ -625,8 +617,8 @@ export default function JournalEntryList() {
       } = await supabase
         .from("journal_entries")
         .insert({
-          entry_no:
-            draft.entry_no.trim(),
+          entry_no: AUTO_JOURNAL_ENTRY_NO,
+          trans_type: "",
 
           entry_date:
             draft.entry_date,
@@ -2719,7 +2711,7 @@ export default function JournalEntryList() {
         throw new Error("Original foreign-currency amounts are missing; journal cannot be copied safely.");
       const today = new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
       const {data: copy,error: createError} = await supabase.from("journal_entries").insert({
-        entry_no: generateEntryNo(),entry_date:today,status:"draft",
+        entry_no:AUTO_JOURNAL_ENTRY_NO,trans_type:"",entry_date:today,status:"draft",
         description:original.description||"",
         ...(isForeign ? {currency_code:currency}:{}),
       }).select("id").single();
@@ -2837,7 +2829,7 @@ export default function JournalEntryList() {
 
           <button
             type="button"
-            onClick={() => { void createAndOpen({entry_no:generateEntryNo(),entry_date:new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10),description:"",currency_code:""}); }}
+            onClick={() => { void createAndOpen({entry_no:"",entry_date:new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10),description:"",currency_code:""}); }}
             disabled={creating}
             className="px-4 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-60"
           >
@@ -2964,8 +2956,8 @@ export default function JournalEntryList() {
                   required
                   readOnly
                   tabIndex={-1}
-                  title="Entry number is generated automatically"
-                  value={form.entry_no}
+                  title="Entry number is assigned when the draft is saved"
+                  value={form.entry_no || "Assigned when saved"}
                 />
 
               </div>
