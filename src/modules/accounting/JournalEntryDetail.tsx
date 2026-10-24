@@ -150,6 +150,7 @@ export default function JournalEntryDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const {activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
+  const isCompanyOwner=["owner","company_owner"].includes(activeCompany?.membership_role || "");
   const isTransport=activeBusinessUnit?.business_unit_type==='transport';
   const [companyVehicles,setCompanyVehicles]=useState<{id:string;vehicle_no:string;label:string;revenue_account_id:string|null}[]>([]);
   const [vehicleOwnership,setVehicleOwnership]=useState<OwnedPeriod[]>([]);
@@ -2320,7 +2321,7 @@ export default function JournalEntryDetail() {
               title="Check whether this posted voucher qualifies for an audited payment reversal">Check Payment Reversal</Link>
           )}
 
-          {isPosted && (adminCanEditPosted || isPlatformOwner) && !reversalEntry &&
+          {isPosted && (adminCanEditPosted || isPlatformOwner || isCompanyOwner) && !reversalEntry &&
             sourceEntry.source_module === "accounting" &&
             !sourceEntry.source_document_id && !sourceEntry.source_document_type &&
             !entry.reversal_of_entry_id && !sourceEntry.fiscal_year_closure_id &&
