@@ -262,27 +262,35 @@ export default function JournalEntryDetail() {
   const [postedEditLines,setPostedEditLines] = useState<{id:string;debit:string;credit:string;description:string}[]>([]);
   const openPostedEdit = () => {
     if (!entry) return;
-    setPostedEditDate(entry.entry_date);
-    setPostedEditDescription(entry.description || "");
-    setPostedEditReason("");
-    setPostedEditLines(lines.map(line=>({id:line.id,debit:String(line.debit||0),credit:String(line.credit||0),description:("description" in line ? String(line.description || "") : "")})));
+    setPostedEditDate(entry.entry_date);setPostedEditDescription(entry.description || "");setPostedEditReason("");
+    setDraftLines(lines.map(line=>({tempId:line.id,accountId:line.account_id || "",
+      vehicleId:line.transport_vehicle_id || "",partyType:(line.party_type || "") as PartyType | "",
+      partyId:line.party_id || "",debit:String(line.debit || 0),credit:String(line.credit || 0),
+      description:("description" in line ? String(line.description || "") : "")})));
     setPostedEditOpen(true);
   };
   const savePostedEdit = async () => {
     if (!entry || postedEditSaving) return;
     setPostedEditSaving(true);setError(null);
     try {
+      if(draftLines.length!==lines.length)throw new Error("Posted correction must retain original line count.");
+      for(const line of draftLines){
+        const original=lines.find(v=>v.id===line.tempId);
+        if(!original || line.accountId!==original.account_id ||
+          (line.vehicleId||null)!==(original.transport_vehicle_id||null) ||
+          (line.partyId||null)!==(original.party_id||null))
+          throw new Error("Account/vehicle/party remapping is not enabled yet; original entry unchanged.");
+      }
       const {data,error:rpcError}=await supabase.rpc("owner_edit_posted_manual_journal",{
         p_entry_id:entry.id,p_reason:postedEditReason.trim(),p_entry_date:postedEditDate,
-        p_description:postedEditDescription,p_lines:postedEditLines.map(line=>({
-          ...line,debit:Number(line.debit),credit:Number(line.credit)
+        p_description:postedEditDescription,p_lines:draftLines.map(line=>({
+          id:line.tempId,description:line.description,debit:Number(line.debit),credit:Number(line.credit)
         }))
       });
       if(rpcError)throw new Error(rpcError.message);
-      if(!data?.success)throw new Error("Posted edit was not confirmed");
-      setPostedEditOpen(false);
-      await Promise.all([fetchEntry(),fetchLines()]);
-      setSuccess("Original posted journal and linked ledgers updated. No reversal created.");
+      if(!data?.success)throw new Error("Save not confirmed");
+      setPostedEditOpen(false);await Promise.all([fetchEntry(),fetchLines()]);
+      setSuccess("Original posted journal updated without reversal.");
     }catch(err:unknown){setError(err instanceof Error?err.message:"Posted edit failed");}
     finally{setPostedEditSaving(false);}
   };
@@ -2718,12 +2726,19 @@ export default function JournalEntryDetail() {
             </div>
           )}
 
-          {!isPosted && (
-            <div className="min-w-0 max-w-full border border-blue-200 rounded-xl overflow-hidden">
+          {(!isPosted || postedEditOpen) && (
+            <div id="navilo-posted-journal-editor" className="min-w-0 max-w-full border border-blue-200 rounded-xl overflow-hidden">
+              {postedEditOpen && <div className="bg-white border-b p-3 flex flex-wrap items-end gap-2">
+                <label className="text-xs">Posting Date<NaviloDateInput className="input block" type="date" value={postedEditDate} onChange={e=>setPostedEditDate(e.target.value)}/></label>
+                <label className="text-xs">Journal Description<input className="input block" value={postedEditDescription} onChange={e=>setPostedEditDescription(e.target.value)}/></label>
+                <label className="text-xs">Reason (10+ characters)<input className="input block" value={postedEditReason} onChange={e=>setPostedEditReason(e.target.value)}/></label>
+                <button className="btn-primary" disabled={postedEditSaving || postedEditReason.trim().length<10} onClick={()=>void savePostedEdit()}>{postedEditSaving?"Saving…":"Save Original Journal"}</button>
+                <button className="btn-secondary" disabled={postedEditSaving} onClick={()=>setPostedEditOpen(false)}>Cancel Edit</button>
+              </div>}
               <div className="bg-blue-50 border-b border-blue-200 px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <h4 className="font-bold text-slate-900">
-                    Fast Journal Entry
+                    {postedEditOpen ? "Edit Original Journal Entry" : "Fast Journal Entry"}
                   </h4>
 
                   <p className="text-xs text-slate-600 mt-0.5">
@@ -3177,36 +3192,6 @@ export default function JournalEntryDetail() {
         </div>
       </Modal>
 
-      <Modal open={postedEditOpen} title={`Edit Original Posted Journal — ${entry.entry_no}`}
-        onClose={()=>{if(!postedEditSaving)setPostedEditOpen(false);}}>
-        <div className="space-y-3 max-h-[75vh] overflow-y-auto">
-          <p className="text-xs text-slate-600">Owner Control only. Updates original journal and matching ledger rows, without reversal. Party-linked and FX entries are blocked.</p>
-          <label className="block text-xs font-semibold">Posting Date
-            <NaviloDateInput className="input w-full" type="date" value={postedEditDate} onChange={e=>setPostedEditDate(e.target.value)}/>
-          </label>
-          <label className="block text-xs font-semibold">Journal Description
-            <textarea className="input w-full" value={postedEditDescription} onChange={e=>setPostedEditDescription(e.target.value)}/>
-          </label>
-          {postedEditLines.map((line,index)=>(
-            <div key={line.id} className="border rounded-lg p-2 space-y-2">
-              <div className="text-xs font-semibold">{accounts.find(a=>a.id===lines.find(l=>l.id===line.id)?.account_id)?.name || lines.find(l=>l.id===line.id)?.account || `Line ${index+1}`}</div>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-xs">Debit<input className="input w-full" type="number" min="0" step="0.01" value={line.debit} onChange={e=>setPostedEditLines(prev=>prev.map((v,j)=>j===index?{...v,debit:e.target.value}:v))}/></label>
-                <label className="text-xs">Credit<input className="input w-full" type="number" min="0" step="0.01" value={line.credit} onChange={e=>setPostedEditLines(prev=>prev.map((v,j)=>j===index?{...v,credit:e.target.value}:v))}/></label>
-              </div>
-              <label className="text-xs block">Line Description<input className="input w-full" value={line.description} onChange={e=>setPostedEditLines(prev=>prev.map((v,j)=>j===index?{...v,description:e.target.value}:v))}/></label>
-            </div>
-          ))}
-          <label className="block text-xs font-semibold">Mandatory Reason (at least 10 characters)
-            <textarea className="input w-full" rows={2} value={postedEditReason} onChange={e=>setPostedEditReason(e.target.value)}/>
-          </label>
-          <div className="flex justify-end gap-2">
-            <button className="btn-secondary" disabled={postedEditSaving} onClick={()=>setPostedEditOpen(false)}>Cancel</button>
-            <button className="btn-primary" disabled={postedEditSaving||postedEditReason.trim().length<10||!postedEditDate}
-              onClick={()=>void savePostedEdit()}>{postedEditSaving?"Saving…":"Save Original Journal"}</button>
-          </div>
-        </div>
-      </Modal>
       <ConfirmModal
         open={
           deleteEntryOpen
