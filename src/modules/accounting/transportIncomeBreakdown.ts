@@ -27,7 +27,7 @@ export function dedicatedVehicleServiceIncomeTotal(
   accounts:Array<{id:string;code:string|null;type:string|null;detail_type:string|null;is_group?:boolean|null;is_active?:boolean|null}>,
   entries:LedgerMovement[],
   excludedAccountIds:ReadonlySet<string>=new Set(),
-  excludedJournalEntryIds:ReadonlySet<string>=new Set(),
+  excludedIncomeByAccount:ReadonlyMap<string,number>=new Map(),
 ):number{
  const accountById=new Map(accounts.map(account=>[account.id,account]));
  const linkCounts=new Map<string,number>();
@@ -45,38 +45,43 @@ export function dedicatedVehicleServiceIncomeTotal(
   eligible.add(id);
  }
  let total=0;
- for(const row of entries)if(row.account_id&&eligible.has(row.account_id)&&
-   !excludedJournalEntryIds.has(row.journal_entry_id??''))
+ for(const row of entries)if(row.account_id&&eligible.has(row.account_id))
   total+=cents(Number(row.credit??0))-cents(Number(row.debit??0));
+ for(const [accountId,excluded] of excludedIncomeByAccount)if(eligible.has(accountId))
+  total-=cents(excluded);
  return amount(total);
 }
 
-/** Normal Sales Invoice movements posted to a dedicated vehicle account remain Sales Income.
- * The account's generic service_income detail type must not override its source journal.
+/** Posted Sale Invoice attribution is normal Sales Income even when its vehicle GL has
+ * the generic service_income detail type. Shared vehicle accounts stay in their mapped GL class.
  */
-export function dedicatedVehicleNormalSalesIncomeTotal(
- vehicles:Array<{revenue_account_id:string|null}>,
+export function dedicatedVehicleNormalSalesIncomeBreakdown(
+ vehicles:Array<{id:string;revenue_account_id:string|null}>,
  accounts:Array<{id:string;code:string|null;type:string|null;is_group?:boolean|null;is_active?:boolean|null}>,
- entries:LedgerMovement[],
- normalSalesJournalIds:ReadonlySet<string>,
-):number{
+ normalSalesRows:Array<{vehicle_id:string;amount:number|string}>,
+):{total:number;byAccount:Map<string,number>}{
  const accountById=new Map(accounts.map(account=>[account.id,account]));
  const linkCounts=new Map<string,number>();
  for(const vehicle of vehicles)if(vehicle.revenue_account_id)
   linkCounts.set(vehicle.revenue_account_id,(linkCounts.get(vehicle.revenue_account_id)||0)+1);
- const eligible=new Set<string>();
+ const accountForVehicle=new Map<string,string>();
  for(const vehicle of vehicles){
   const id=vehicle.revenue_account_id;
   if(!id)continue;
   const account=accountById.get(id);
   if(!account||(account.type!=='revenue'&&account.type!=='income')||account.is_group===true||account.is_active===false)continue;
   if((linkCounts.get(id)||0)>1||account.code==='4100'||account.code==='4200')continue;
-  eligible.add(id);
+  accountForVehicle.set(vehicle.id,id);
  }
- let total=0;
- for(const row of entries)if(row.account_id&&row.journal_entry_id&&eligible.has(row.account_id)&&normalSalesJournalIds.has(row.journal_entry_id))
-  total+=cents(Number(row.credit??0))-cents(Number(row.debit??0));
- return amount(total);
+ const centsByAccount=new Map<string,number>();
+ for(const row of normalSalesRows){
+  const accountId=accountForVehicle.get(row.vehicle_id);
+  const value=Number(row.amount);
+  if(!accountId||!Number.isFinite(value))continue;
+  centsByAccount.set(accountId,(centsByAccount.get(accountId)||0)+cents(value));
+ }
+ const byAccount=new Map([...centsByAccount].map(([id,value])=>[id,amount(value)]));
+ return {total:amount([...centsByAccount.values()].reduce((sum,value)=>sum+value,0)),byAccount};
 }
 
 /** Per-vehicle values are an attribution OF Sales Revenue, not additional revenue.

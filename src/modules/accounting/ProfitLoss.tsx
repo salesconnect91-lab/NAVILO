@@ -2,7 +2,7 @@ import {useAuth} from '@/auth/AuthContext';
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
-import {externalVehicleIncome,reconcileNormalVehicleIncome,splitTransportRevenue,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleServiceIncomeTotal,dedicatedVehicleNormalSalesIncomeTotal,type VehicleIncome} from './transportIncomeBreakdown';
+import {externalVehicleIncome,reconcileNormalVehicleIncome,splitTransportRevenue,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleServiceIncomeTotal,dedicatedVehicleNormalSalesIncomeBreakdown,type VehicleIncome} from './transportIncomeBreakdown';
 import {readExternalVehicleIncomeFast,type ExternalAttributionRow} from './externalVehicleIncomeFast';
 import {companyVehicleIncomeRows} from './companyVehicleIncome';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
@@ -52,9 +52,6 @@ type JournalMeta = {
   trans_type: string | null;
   fiscal_year_closure_id: string | null;
   monthly_profit_closure_id?: string | null;
-  source_module?: string | null;
-  source_document_type?: string | null;
-  reversal_of_entry_id?: string | null;
 };
 
 const emptySection = (): PLSectionData => ({ total: 0, items: [] });
@@ -276,7 +273,6 @@ export default function ProfitLoss() {
     const journalIds = Array.from(new Set(rawLedger.map((line) => line.journal_entry_id).filter(Boolean))) as string[];
 
     let closingJournalIds = new Set<string>();
-    let normalSalesJournalIds = new Set<string>();
     if (journalIds.length) {
       let journalRows: JournalMeta[] = [];
       try {
@@ -285,7 +281,7 @@ export default function ProfitLoss() {
           (ids,fromRow,toRow) =>
             supabase
               .from("journal_entries")
-              .select("id,trans_type,fiscal_year_closure_id,monthly_profit_closure_id,source_module,source_document_type,reversal_of_entry_id")
+              .select("id,trans_type,fiscal_year_closure_id,monthly_profit_closure_id")
               .in("id",ids)
               .order("id",{ascending:true})
               .range(fromRow,toRow)
@@ -295,29 +291,6 @@ export default function ProfitLoss() {
         setLoading(false);
         return;
       }
-      const journalMetaById=new Map(journalRows.map(entry=>[entry.id,entry]));
-      const originalIds=Array.from(new Set(journalRows
-        .map(entry=>entry.reversal_of_entry_id)
-        .filter((id):id is string=>Boolean(id)&&!journalMetaById.has(id!))));
-      if(originalIds.length){
-        try{
-          const originalRows=await fetchByIdChunks<JournalMeta>(
-            originalIds,
-            (ids,fromRow,toRow)=>supabase.from("journal_entries")
-              .select("id,trans_type,fiscal_year_closure_id,monthly_profit_closure_id,source_module,source_document_type,reversal_of_entry_id")
-              .in("id",ids).order("id",{ascending:true}).range(fromRow,toRow)
-          );
-          originalRows.forEach(entry=>journalMetaById.set(entry.id,entry));
-        }catch(err){
-          setError(err instanceof Error?err.message:"Unable to load original journal metadata.");
-          setLoading(false);
-          return;
-        }
-      }
-      normalSalesJournalIds=new Set(journalRows.filter(entry=>{
-        const source=entry.reversal_of_entry_id?journalMetaById.get(entry.reversal_of_entry_id):entry;
-        return source?.source_module==='sales'&&source.source_document_type==='sales_invoice';
-      }).map(entry=>entry.id));
       closingJournalIds = new Set(
         journalRows
           .filter((entry) => entry.trans_type === "Year End Closing" || Boolean(entry.fiscal_year_closure_id) || Boolean(entry.monthly_profit_closure_id))
@@ -399,7 +372,12 @@ export default function ProfitLoss() {
         const salesAccountId=mappings.find(m=>m.mapping_key==='sales_revenue')?.account_id??'';
         const serviceAccountId=mappings.find(m=>m.mapping_key==='service_revenue')?.account_id??'';
         const {sales:mappedSales,service:mappedService}=splitTransportRevenue(ledgerLines,salesAccountId,serviceAccountId);
-        const dedicatedSales=dedicatedVehicleNormalSalesIncomeTotal(vehicleResult.vehicles,accounts.map(a=>({id:a.id,code:a.code,type:a.type,is_group:a.is_group,is_active:a.is_active})),ledgerLines,normalSalesJournalIds);
+        const dedicatedSalesBreakdown=dedicatedVehicleNormalSalesIncomeBreakdown(
+          vehicleResult.vehicles,
+          accounts.map(a=>({id:a.id,code:a.code,type:a.type,is_group:a.is_group,is_active:a.is_active})),
+          vehicleResult.rows,
+        );
+        const dedicatedSales=dedicatedSalesBreakdown.total;
         const sales=Number((mappedSales+dedicatedSales).toFixed(2));
         const linkedVehicleRows=companyVehicleIncomeRows(vehicleResult.vehicles,accounts.map(a=>({
           id:a.id,code:a.code,type:a.type,is_group:a.is_group,is_active:a.is_active,
@@ -411,7 +389,7 @@ export default function ProfitLoss() {
           accounts.map(a=>({id:a.id,code:a.code,type:a.type,detail_type:a.detail_type,is_group:a.is_group,is_active:a.is_active})),
           ledgerLines,
           new Set([serviceAccountId]),
-          normalSalesJournalIds,
+          dedicatedSalesBreakdown.byAccount,
         );
         const service=Number((mappedService+dedicatedServiceIncome).toFixed(2));
         const dedicatedVehicleIds=new Set(linkedVehicleRows
