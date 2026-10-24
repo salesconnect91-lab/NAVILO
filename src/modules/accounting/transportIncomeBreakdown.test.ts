@@ -117,7 +117,7 @@ describe('dedicated vehicle service-income classification',()=>{
   const vehicles=[{revenue_account_id:'vehicle-7979'}];
   const accounts=[{id:'vehicle-7979',code:'4001',type:'revenue',detail_type:'service_income',is_group:false,is_active:true}];
   const breakdown=dedicatedVehicleNormalSalesIncomeBreakdown(
-   [{id:'v7979',revenue_account_id:'vehicle-7979'}],
+   vehicles,
    accounts,
    [{account_id:'vehicle-7979',amount:27395}],
   );
