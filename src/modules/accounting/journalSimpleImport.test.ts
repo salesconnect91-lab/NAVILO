@@ -75,6 +75,15 @@ describe('Simple Debit/Credit Journal import matches General Journal Entry form'
   ]);
   expect(result[1].slice(5,8)).toEqual(['customer','ABC Trading','']);
  });
+ it('recognizes plain existing customer names on Accounts Receivable without treating them as vehicle numbers',()=>{
+  const result=normalizeSimpleJournalRows([headers,
+   ['JE-1050','2026-09-01','Accounts Receivable','Trip payment received','CASH-0593316767',600,0],
+   ['','','Amjad Payable','Amjad funded','','',600]
+  ]);
+  expect(result[1].slice(5,8)).toEqual(['customer','CASH-0593316767','']);
+  expect(result[2].slice(5,8)).toEqual(['','','']);
+  expect(result[1].slice(8)).toEqual(['600.00','0.00']);
+ });
  it('refuses unbalanced, single-sided, empty, negative, invalid, or two-sided journals before the RPC',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,pair[0]])).toThrow(/at least two/);
   expect(()=>normalizeSimpleJournalRows([headers,pair[0],['','','Amjad Payable','Paid','','',550]])).toThrow(/not balanced/);
