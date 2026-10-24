@@ -18,6 +18,37 @@ export function splitTransportRevenue(
  return {sales:amount(sales),service:amount(service)};
 }
 
+/** Service-classified income credited to a dedicated company vehicle account.
+ * It remains part of the vehicle ledger and overall GL totals; this helper only
+ * classifies the existing movement for the Transport P&L detail.
+ */
+export function dedicatedVehicleServiceIncomeTotal(
+  vehicles:Array<{revenue_account_id:string|null}>,
+  accounts:Array<{id:string;code:string|null;type:string|null;detail_type:string|null;is_group?:boolean|null;is_active?:boolean|null}>,
+  entries:LedgerMovement[],
+  excludedAccountIds:ReadonlySet<string>=new Set(),
+):number{
+ const accountById=new Map(accounts.map(account=>[account.id,account]));
+ const linkCounts=new Map<string,number>();
+ for(const vehicle of vehicles)if(vehicle.revenue_account_id)
+  linkCounts.set(vehicle.revenue_account_id,(linkCounts.get(vehicle.revenue_account_id)||0)+1);
+ const eligible=new Set<string>();
+ for(const vehicle of vehicles){
+  const id=vehicle.revenue_account_id;
+  if(!id||excludedAccountIds.has(id))continue;
+  const account=accountById.get(id);
+  if(!account||(account.type!=='revenue'&&account.type!=='income')||account.is_group===true||account.is_active===false)continue;
+  const detail=(account.detail_type??'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  if(!['service_income','service_revenue','service'].includes(detail))continue;
+  if((linkCounts.get(id)||0)>1||account.code==='4100'||account.code==='4200')continue;
+  eligible.add(id);
+ }
+ let total=0;
+ for(const row of entries)if(row.account_id&&eligible.has(row.account_id))
+  total+=cents(Number(row.credit??0))-cents(Number(row.debit??0));
+ return amount(total);
+}
+
 /** Per-vehicle values are an attribution OF Sales Revenue, not additional revenue.
  * A residual represents GL adjustments or old entries without allocation evidence.
  * Never fabricate a "No Vehicle" invoice or silently absorb discrepancies.
