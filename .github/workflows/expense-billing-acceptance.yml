@@ -7,6 +7,7 @@ on:
       - '.github/workflows/expense-billing-acceptance.yml'
       - 'supabase/migrations/**'
       - 'supabase/tests/transport_vehicle_accounting_expenses_rehearsal.sql'
+      - 'supabase/tests/shared_expense_claim_concurrency.mjs'
       - 'supabase/tests/replay_transport_isolated.mjs'
       - 'src/modules/purchase/**'
       - 'src/modules/transport/TransportNormalInvoiceCreate.tsx'
@@ -45,5 +46,6 @@ jobs:
         env:
           NAVILO_NATIVE_REHEARSAL: '1'
           NAVILO_VEHICLE_EXPENSE_SMOKE: '1'
+          NAVILO_EXPENSE_CLAIM_CONCURRENCY: '1'
           NAVILO_PG_DRIVER: ${{ runner.temp }}/navilo-rehearsal-driver/node_modules/pg/lib/index.js
         run: node supabase/tests/replay_transport_isolated.mjs
