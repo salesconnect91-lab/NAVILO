@@ -2,7 +2,7 @@ import {useAuth} from '@/auth/AuthContext';
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
-import {externalVehicleIncome,reconcileNormalVehicleIncome,splitTransportRevenue,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,type VehicleIncome} from './transportIncomeBreakdown';
+import {externalVehicleIncome,reconcileNormalVehicleIncome,splitTransportRevenue,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleServiceIncomeTotal,type VehicleIncome} from './transportIncomeBreakdown';
 import {readExternalVehicleIncomeFast,type ExternalAttributionRow} from './externalVehicleIncomeFast';
 import {companyVehicleIncomeRows} from './companyVehicleIncome';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
@@ -371,12 +371,19 @@ export default function ProfitLoss() {
       try{
         const salesAccountId=mappings.find(m=>m.mapping_key==='sales_revenue')?.account_id??'';
         const serviceAccountId=mappings.find(m=>m.mapping_key==='service_revenue')?.account_id??'';
-        const {sales,service}=splitTransportRevenue(ledgerLines,salesAccountId,serviceAccountId);
+        const {sales,service:mappedService}=splitTransportRevenue(ledgerLines,salesAccountId,serviceAccountId);
         const linkedVehicleRows=companyVehicleIncomeRows(vehicleResult.vehicles,accounts.map(a=>({
           id:a.id,code:a.code,type:a.type,is_group:a.is_group,is_active:a.is_active,
         })),ledgerLines).map(row=>({
           vehicle_id:row.id,vehicle_no:row.vehicle_no,amount:row.amount,status:row.status,
         }));
+        const dedicatedServiceIncome=dedicatedVehicleServiceIncomeTotal(
+          vehicleResult.vehicles,
+          accounts.map(a=>({id:a.id,code:a.code,type:a.type,detail_type:a.detail_type,is_group:a.is_group,is_active:a.is_active})),
+          ledgerLines,
+          new Set([serviceAccountId]),
+        );
+        const service=Number((mappedService+dedicatedServiceIncome).toFixed(2));
         const dedicatedVehicleIds=new Set(linkedVehicleRows
           .filter(row=>row.status==='dedicated').map(row=>row.vehicle_id));
         const dedicatedVehicleAccountIds=new Set(linkedVehicleRows
@@ -402,7 +409,9 @@ export default function ProfitLoss() {
           mergeVehicleLedgerMovements(breakdown.vehicles,vehicleLedgerRows,hideZeroBalances);
         setTransportIncome({
           sales,service,
-          other:Number((next.operatingRevenue.total-sales-service-vehicleLedgerTotal).toFixed(2)),
+          // Dedicated service income is already part of vehicleLedgerTotal; remove
+          // only the non-service part from the revenue-category residual.
+          other:Number((next.operatingRevenue.total-sales-service-(vehicleLedgerTotal-dedicatedServiceIncome)).toFixed(2)),
           vehicleLedgerTotal,
           vehicles:combinedVehicles,
           residual:breakdown.residual,
@@ -444,7 +453,7 @@ export default function ProfitLoss() {
   // Export uses identical attribution as the visible screen; never add vehicle
   // subtotals to GL Total Income a second time.
   const revenueExportRows:(string|number)[][]=isTransport&&transportIncome?[
-    ['Vehicle Net Profit / (Loss)','Vehicle-ledger net plus unlinked Sales Revenue',transportIncome.sales+transportIncome.vehicleLedgerTotal],
+    ['Vehicle Profitability Summary — memo','Non-additive vehicle GL attribution',transportIncome.sales+transportIncome.vehicleLedgerTotal],
     ...(transportIncome.vehicleError?[]:transportIncome.vehicles.map(v=>['Vehicle Net Profit / (Loss)','Vehicle '+v.vehicle_no+' — net profit / (loss)',v.amount] as (string|number)[])),
     ...(transportIncome.vehicleError?[]:Math.abs(transportIncome.residual)>=0.005?[['Sales Income — Normal Invoices','Sales Revenue GL adjustments / legacy attribution',transportIncome.residual]]:[]),
     ['Service Income — Trip Invoices','Service Revenue GL total',transportIncome.service],
@@ -518,11 +527,11 @@ export default function ProfitLoss() {
 
             <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               {isTransport&&transportIncome?<>
-                <StatementSection title="Vehicle Net Profit / (Loss)"
+                <StatementSection title="Vehicle Profitability Summary — Memo"
                   section={{total:transportIncome.sales+transportIncome.vehicleLedgerTotal,items:transportIncome.vehicleError?[]:[
                     ...transportIncome.vehicles.map(v=>({
                       name:'Vehicle '+v.vehicle_no,amount:v.amount,
-                      detailType:'Single vehicle ledger · income and debits combined',
+                      detailType:'Memo only · vehicle ledger movement is already included in GL totals',
                     })),
                     ...(Math.abs(transportIncome.residual)>=0.005?[{
                       name:'Sales Revenue GL adjustments / unallocated legacy postings',
@@ -534,8 +543,8 @@ export default function ProfitLoss() {
                 </p>}
                 <StatementSection title="Service Income — Trip Invoices"
                   section={{total:transportIncome.service,items:Math.abs(transportIncome.service)>=0.005||!hideZeroBalances?[{
-                    name:'Service Revenue — Posted Trip invoices',
-                    amount:transportIncome.service,detailType:'Trip service revenue GL',
+                    name:'Service Revenue — posted Trip and vehicle service income',
+                    amount:transportIncome.service,detailType:'Mapped service revenue plus dedicated vehicle service-income GL',
                   }]:[]}} tone="income" />
                 {(Math.abs(transportIncome.other)>=0.005||!hideZeroBalances)&&
                   <StatementSection title="Other Operating Revenue" section={{total:transportIncome.other,
