@@ -24,7 +24,6 @@ import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
 import {journalRelatedToMode,vehicleOwnedOnDate,normalizedJournalVehicleNo,type OwnedPeriod} from "./journalRelatedTo";
 import {isManualJournalAccountEligible,isManualJournalAccountVisible,manualJournalAccountRestriction} from "./manualJournalAccountPolicy";
 import {accountForSelectedVehicle,journalVehicleAccountError,vehicleForIncomeAccount,isDedicatedVehicleIncomeAccount} from './journalVehicleIncomePolicy';
-import {canReversePostedManualJournal} from "./journalPostedActionPolicy";
 
 import {
   JournalEntry,
@@ -2307,16 +2306,6 @@ export default function JournalEntryDetail() {
               title="Check whether this posted voucher qualifies for an audited payment reversal">Check Payment Reversal</Link>
           )}
 
-          {ownerCanCancel && canReversePostedManualJournal(sourceEntry) && !isOwnerCancellableJournal && !reversalEntry && (
-            <button
-              onClick={() => setReversalOpen(true)}
-              disabled={reversing}
-              className="px-3 py-2 text-sm font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-200"
-            >
-              Reverse Journal
-            </button>
-          )}
-
           {isPosted && ownerCanCancel && !reversalEntry &&
             sourceEntry.source_module === "accounting" &&
             !sourceEntry.source_document_id && !sourceEntry.source_document_type &&
@@ -3142,26 +3131,6 @@ export default function JournalEntryDetail() {
           <div className="flex justify-end gap-2">
             <button className="btn-secondary" disabled={ownerCancelling} onClick={() => setOwnerCancelOpen(false)}>Keep Posted</button>
             <button className="px-3 py-2 rounded-lg bg-rose-700 text-white disabled:opacity-50" disabled={ownerCancelling || ownerCancelReason.trim().length < 10 || !ownerCancelDate || ownerCancelDate < entry.entry_date} onClick={() => void handleOwnerCancel()}>{ownerCancelling ? "Deleting…" : "Confirm Delete with Reversal"}</button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal open={reversalOpen} title={`Reverse ${entry.entry_no}`} onClose={() => !reversing && setReversalOpen(false)}>
-        <div className="space-y-4">
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            A new posted journal will be created with Debit and Credit reversed. The original journal will remain locked for audit history.
-          </div>
-          <div>
-            <label className="label">Reversal Date</label>
-            <NaviloDateInput className="input" type="date" min={entry.entry_date} value={reversalDate} onChange={(event) => setReversalDate(event.target.value)} />
-          </div>
-          <div>
-            <label className="label">Mandatory Reason</label>
-            <textarea className="input" rows={3} value={reversalReason} onChange={(event) => setReversalReason(event.target.value)} placeholder="Explain why this posted journal must be reversed" />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button className="btn-secondary" disabled={reversing} onClick={() => setReversalOpen(false)}>Cancel</button>
-            <button className="btn-primary" disabled={reversing || !reversalDate || reversalDate < entry.entry_date || !reversalReason.trim()} onClick={() => void handleReverseEntry()}>{reversing ? "Reversing…" : "Create & Post Reversal"}</button>
           </div>
         </div>
       </Modal>
