@@ -5,8 +5,8 @@ describe('Fast Journal smart Related To selection',()=>{
   expect(journalRelatedToMode('liability',true,true)).toBe('party');
   expect(journalRelatedToMode('asset',true,true)).toBe('party');
  });
- it('selects a vehicle only for Transport income; expenses stay on their expense account',()=>{
-  expect(journalRelatedToMode('expense',false,true)).toBe('general');
+ it('selects a vehicle for Transport income and expenses without changing the GL',()=>{
+  expect(journalRelatedToMode('expense',false,true)).toBe('vehicle');
   expect(journalRelatedToMode('revenue',false,true)).toBe('vehicle');
   expect(journalRelatedToMode('income',false,true)).toBe('vehicle');
   expect(journalRelatedToMode('REVENUE',false,true)).toBe('vehicle');
@@ -15,7 +15,7 @@ describe('Fast Journal smart Related To selection',()=>{
   expect(journalRelatedToMode('liability',false,true)).toBe('general');
   expect(journalRelatedToMode('asset',false,true)).toBe('general');
   expect(journalRelatedToMode('revenue',true,true)).toBe('vehicle');
-  expect(journalRelatedToMode('expense',true,true)).toBe('general');
+  expect(journalRelatedToMode('expense',true,true)).toBe('vehicle');
   expect(journalRelatedToMode('expense',true,false)).toBe('general');
  });
  it('limits selectable company vehicles by journal date and ownership history',()=>{
