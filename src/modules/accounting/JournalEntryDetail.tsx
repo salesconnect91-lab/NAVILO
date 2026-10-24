@@ -2731,7 +2731,8 @@ export default function JournalEntryDetail() {
               {postedEditOpen && <div className="bg-white border-b p-3 flex flex-wrap items-end gap-2">
                 <label className="text-xs">Posting Date<NaviloDateInput className="input block" type="date" value={postedEditDate} onChange={e=>setPostedEditDate(e.target.value)}/></label>
                 <label className="text-xs">Journal Description<input className="input block" value={postedEditDescription} onChange={e=>setPostedEditDescription(e.target.value)}/></label>
-                <label className="text-xs">Reason (10+ characters)<input className="input block" value={postedEditReason} onChange={e=>setPostedEditReason(e.target.value)}/></label>
+                <label className="text-xs">Reason (minimum 10 characters) — required to save<input className="input block" value={postedEditReason} onChange={e=>setPostedEditReason(e.target.value)} placeholder="Explain what was corrected"/></label>
+                {postedEditReason.trim().length < 10 && <span className="text-xs text-amber-700">Enter at least 10 characters to enable Save Original Journal.</span>}
 
                 <button className="btn-secondary" disabled={postedEditSaving} onClick={()=>setPostedEditOpen(false)}>Cancel Edit</button>
               </div>}
