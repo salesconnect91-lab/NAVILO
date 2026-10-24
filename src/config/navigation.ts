@@ -25,7 +25,6 @@ export const navigation:NavNode[]=[
       {key:"transport-vehicle-ledger",to:"/transport?panel=vehicle-reports",label:"Vehicle Ledger & P&L",module:"transport"},
       {key:"transport-reports",to:"/reports/transport",label:"Transport Reports",module:"reports",requiresModule:"transport",businessType:"transport"},
       {key:"transport-trip-reports",to:"/reports/transport?mode=trips",label:"Trip-wise Reports",module:"reports",requiresModule:"transport"},
-      {key:"transport-profitability-reporting",to:"/reports/transport?mode=profit",label:"Posted Trip Profitability",module:"reports",requiresModule:"transport"}
     ]}
   ]},
   {key:"accounting",label:"Accounting / اکاؤنٹنگ",icon:Lucide.Calculator,module:"accounting",children:[
