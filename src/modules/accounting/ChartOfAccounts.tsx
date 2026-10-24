@@ -436,6 +436,9 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
     const [form, setForm] =
       useState<AccountForm>(emptyForm);
 
+    const [addingDetailType, setAddingDetailType] = useState(false);
+    const [newDetailType, setNewDetailType] = useState("");
+
     const [error, setError] =
       useState<string | null>(null);
 
@@ -493,12 +496,19 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
     /* ------------------------------------------------------------------------ */
 
     const detailTypes = useMemo(() => {
-      return (
-        ACCOUNT_DETAIL_TYPES[
-          form.type
-        ] as readonly DetailOption[]
-      ) ?? [];
-    }, [form.type]);
+      const builtIn = (ACCOUNT_DETAIL_TYPES[form.type] as readonly DetailOption[]) ?? [];
+      const known = new Set(builtIn.map((item) => item.value));
+      const custom = accounts
+        .filter((account) => account.type === form.type && !!account.detail_type)
+        .map((account) => String(account.detail_type))
+        .filter((value) => {
+          if (known.has(value)) return false;
+          known.add(value);
+          return true;
+        })
+        .map((value) => ({ value, label: value.replace(/_/g, " ") }));
+      return [...builtIn, ...custom];
+    }, [form.type, accounts]);
 
     const selectedDetail = useMemo(() => {
       return detailTypes.find(
@@ -1801,6 +1811,7 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
                             Select detail type
                           </option>
 
+                          {form.detail_type && !detailTypes.some((detail) => detail.value === form.detail_type) && <option value={form.detail_type}>{form.detail_type}</option>}
                           {detailTypes.map(
                             (
                               detail
@@ -1821,6 +1832,28 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
                           )}
                         </SearchableSelect>
                       </FormField>
+                      <div className="mt-2">
+                        <button type="button" className="text-xs font-semibold text-blue-700 hover:underline" onClick={() => setAddingDetailType((open) => !open)}>
+                          {addingDetailType ? "Cancel" : "+ Add new detail type"}
+                        </button>
+                        {addingDetailType && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <input className="form-input min-w-[200px] flex-1" value={newDetailType} maxLength={80} placeholder="New detail type name" onChange={(event) => setNewDetailType(event.target.value)} />
+                            <button type="button" className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white" onClick={() => {
+                              const label = newDetailType.trim().replace(/\\s+/g, " ");
+                              if (!label) { setError("Enter a detail type name."); return; }
+                              if (detailTypes.some((item) => item.value.toLowerCase() === label.toLowerCase() || item.label.toLowerCase() === label.toLowerCase())) { setError("This detail type already exists."); return; }
+                              setForm((previous) => ({ ...previous, detail_type: label, account_role: "general" }));
+                              setNewDetailType("");
+                              setAddingDetailType(false);
+                              setError(null);
+                            }}>Use detail type</button>
+                          </div>
+                        )}
+                        {form.detail_type && !detailTypes.some((item) => item.value === form.detail_type) && (
+                          <p className="mt-1 text-xs text-slate-600">New: {form.detail_type}. Save this account to retain the detail type for reuse.</p>
+                        )}
+                      </div>
                     </div>
                   </section>
 
