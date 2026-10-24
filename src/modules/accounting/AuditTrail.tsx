@@ -9,7 +9,8 @@ import { ErrorBanner } from "@/components/ui";
 import { ChevronDown, ChevronRight, RefreshCw, Search, Shield } from "lucide-react";
 
 type Json = Record<string, unknown> | null;
-interface DeletedJournal {event_id:string;entry_no:string;entry_date:string;deleted_at:string;reason:string;performed_by:string;lines:Array<{id:string;account:string;debit:number;credit:number;description?:string}>;entry_snapshot:Record<string,unknown>;}\ninterface AuditLog { id:string; action:string; module:string|null; table_name?:string|null; record_id?:string|null; record_name:string|null; performed_by:string|null; performed_email?:string|null; old_data?:Json; new_data?:Json; metadata?:Json; created_at:string; }
+interface DeletedJournal {event_id:string;entry_no:string;entry_date:string;deleted_at:string;reason:string;performed_by:string;lines:Array<{id:string;account:string;debit:number;credit:number;description?:string}>;entry_snapshot:Record<string,unknown>;}
+interface AuditLog { id:string; action:string; module:string|null; table_name?:string|null; record_id?:string|null; record_name:string|null; performed_by:string|null; performed_email?:string|null; old_data?:Json; new_data?:Json; metadata?:Json; created_at:string; }
 const text=(v:unknown)=>v===null||v===undefined||v===""?"—":typeof v==="object"?JSON.stringify(v):String(v);
 const PAGE_SIZE=40;
 const riyadhStart=(day:string)=>new Date(day+"T00:00:00+03:00").toISOString();
