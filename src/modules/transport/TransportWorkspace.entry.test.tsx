@@ -178,7 +178,6 @@ describe('Transport register interactions',()=>{
   fireEvent.click(open);
   expect(await screen.findByRole('heading',{name:'Bulk Supplier Rent'})).toBeTruthy();
  });
-
  it('deletes only after selecting a Draft Trip and confirming a reason',async()=>{
   let deleted=false;
   mock.rpc.mockImplementation(async(name:string)=>{
