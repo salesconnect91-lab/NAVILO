@@ -247,6 +247,28 @@ CREATE TRIGGER transport_vehicle_expense_release_source_claim
 AFTER DELETE OR UPDATE ON public.transport_vehicle_expense_document_lines
 FOR EACH ROW EXECUTE FUNCTION public.transport_release_draft_vehicle_expense_source();
 
+CREATE OR REPLACE FUNCTION public.transport_claim_legacy_trip_expense_source()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $function$
+BEGIN
+  IF nullif(btrim(NEW.source_reference),'') IS NOT NULL THEN
+    PERFORM public.accounting_claim_expense_source_reference(
+      NEW.company_id,NEW.business_unit_id,NEW.source_reference,
+      'legacy_transport_expense',NEW.id::text,coalesce(NEW.created_by,auth.uid())
+    );
+  END IF;
+  RETURN NEW;
+END
+$function$;
+REVOKE ALL ON FUNCTION public.transport_claim_legacy_trip_expense_source() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS transport_trip_expense_shared_source_claim ON public.transport_trip_expenses;
+CREATE TRIGGER transport_trip_expense_shared_source_claim
+BEFORE INSERT OR UPDATE ON public.transport_trip_expenses
+FOR EACH ROW EXECUTE FUNCTION public.transport_claim_legacy_trip_expense_source();
+
 CREATE OR REPLACE FUNCTION public.accounting_claim_supplier_invoice_source()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -267,7 +289,7 @@ $function$;
 REVOKE ALL ON FUNCTION public.accounting_claim_supplier_invoice_source() FROM PUBLIC, anon, authenticated;
 DROP TRIGGER IF EXISTS purchase_order_shared_expense_source_claim ON public.purchase_orders;
 CREATE TRIGGER purchase_order_shared_expense_source_claim
-AFTER INSERT OR UPDATE ON public.purchase_orders
+AFTER INSERT OR UPDATE OF status,supplier_invoice_no ON public.purchase_orders
 FOR EACH ROW EXECUTE FUNCTION public.accounting_claim_supplier_invoice_source();
 
 CREATE OR REPLACE FUNCTION public.accounting_claim_posted_manual_expense_source()
