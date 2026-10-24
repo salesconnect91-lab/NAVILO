@@ -498,7 +498,7 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
     const detailTypes = useMemo(() => {
       const builtIn = (ACCOUNT_DETAIL_TYPES[form.type] as readonly DetailOption[]) ?? [];
       const known = new Set(builtIn.map((item) => item.value));
-      const custom = accounts
+      const custom: DetailOption[] = accounts
         .filter((account) => account.type === form.type && !!account.detail_type)
         .map((account) => String(account.detail_type))
         .filter((value) => {
