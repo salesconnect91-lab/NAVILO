@@ -236,7 +236,7 @@ begin
    'expense_account_id',acct::text,'cash_bank_account_id',cash_id::text,
    'source_reference','EXP-REF-1','description','Duplicate source via direct cash','paid_to','Fixture'
   )));
- exception when unique_violation then bad:=true;
+ exception when others then bad:=position('Duplicate Source Reference' in sqlerrm)>0 or position('already imported expense' in sqlerrm)>0 or position('already claimed' in sqlerrm)>0;
  end;
  if not bad then raise exception 'Vehicle Expense source reference was accepted through Direct Cash';end if;
 
@@ -252,7 +252,7 @@ begin
  bad:=false;
  begin
   perform public.accounting_import_direct_cash_expenses(payload);
- exception when unique_violation then bad:=true;
+ exception when others then bad:=position('Duplicate Source Reference' in sqlerrm)>0 or position('already imported expense' in sqlerrm)>0 or position('already claimed' in sqlerrm)>0;
  end;
  if not bad then raise exception 'Repeated Direct Cash upload created a second journal';end if;
 
@@ -266,7 +266,7 @@ begin
     'expense_account_id',acct::text,'cash_bank_account_id',cash_id::text,
     'source_reference','CASH-SAME-DATE-AMOUNT','description','Duplicate second batch row','paid_to','Fixture')
   ));
- exception when unique_violation then bad:=true;
+ exception when others then bad:=position('Duplicate Source Reference' in sqlerrm)>0 or position('already imported expense' in sqlerrm)>0 or position('already claimed' in sqlerrm)>0;
  end;
  if not bad then raise exception 'Partial batch failure was not reported';end if;
  if exists(select 1 from public.accounting_direct_cash_expense_import_keys
