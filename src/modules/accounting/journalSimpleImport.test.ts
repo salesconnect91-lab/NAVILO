@@ -42,11 +42,21 @@ describe('Simple Debit/Credit Journal import matches General Journal Entry form'
   expect(rows[2][1]).toBe('2026-09-01');
  });
 
- it('keeps vehicle expense details in the description without a Related To allocation',()=>{
+ it('preserves blank Related To for general expense lines without inventing a vehicle',()=>{
   const result=normalizeSimpleJournalRows([headers,...pair]);
   expect(result[0]).toEqual(['entry_no','entry_date','description','account_name','line_description','party_type','party_name','vehicle_no','debit','credit']);
   expect(result[1]).toEqual(['ORB-SEP-001','2026-09-05','Vehicle 7979 repair','General Expenses','Vehicle 7979 repair','','','','600.00','0.00']);
   expect(result[2]).toEqual(['ORB-SEP-001','2026-09-05','Vehicle 7979 repair','Amjad Payable','Paid by Amjad','','','','0.00','600.00']);
+ });
+ it('maps explicit vehicle numbers on transport expense lines without creating another GL account',()=>{
+  const rows=normalizeSimpleJournalRows([headers,
+   ['FUEL-7979','2026-09-05','Fuel Expense','Fuel for vehicle 7979','7979',1500,0],
+   ['','','Amjad Payable','Paid by Amjad','',0,1500]
+  ]);
+  expect(rows[1][3]).toBe('Fuel Expense');
+  expect(rows[1][7]).toBe('7979');
+  expect(rows[2][3]).toBe('Amjad Payable');
+  expect(rows[2][7]).toBe('');
  });
  it('allows the same entry number/date on both lines and separates a second entry',()=>{
   const rows=normalizeSimpleJournalRows([headers,...pair,['ORB-SEP-002','2026-09-06','Asif Driver Salary Running Account','Old salary settled','','417',0],['ORB-SEP-002','2026-09-06','Amjad Payable','Amjad funded','','0','417']]);
