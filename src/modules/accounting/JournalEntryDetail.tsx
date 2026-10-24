@@ -254,6 +254,38 @@ export default function JournalEntryDetail() {
       setPermanentDeleting(false);
     }
   };
+  const [postedEditOpen,setPostedEditOpen] = useState(false);
+  const [postedEditSaving,setPostedEditSaving] = useState(false);
+  const [postedEditReason,setPostedEditReason] = useState("");
+  const [postedEditDate,setPostedEditDate] = useState("");
+  const [postedEditDescription,setPostedEditDescription] = useState("");
+  const [postedEditLines,setPostedEditLines] = useState<{id:string;debit:string;credit:string;description:string}[]>([]);
+  const openPostedEdit = () => {
+    if (!entry) return;
+    setPostedEditDate(entry.entry_date);
+    setPostedEditDescription(entry.description || "");
+    setPostedEditReason("");
+    setPostedEditLines(lines.map(line=>({id:line.id,debit:String(line.debit||0),credit:String(line.credit||0),description:line.description||""})));
+    setPostedEditOpen(true);
+  };
+  const savePostedEdit = async () => {
+    if (!entry || postedEditSaving) return;
+    setPostedEditSaving(true);setError(null);
+    try {
+      const {data,error:rpcError}=await supabase.rpc("owner_edit_posted_manual_journal",{
+        p_entry_id:entry.id,p_reason:postedEditReason.trim(),p_entry_date:postedEditDate,
+        p_description:postedEditDescription,p_lines:postedEditLines.map(line=>({
+          ...line,debit:Number(line.debit),credit:Number(line.credit)
+        }))
+      });
+      if(rpcError)throw new Error(rpcError.message);
+      if(!data?.success)throw new Error("Posted edit was not confirmed");
+      setPostedEditOpen(false);
+      await Promise.all([fetchEntry(),fetchLines()]);
+      setSuccess("Original posted journal and linked ledgers updated. No reversal created.");
+    }catch(err:unknown){setError(err instanceof Error?err.message:"Posted edit failed");}
+    finally{setPostedEditSaving(false);}
+  };
   const [ownerCanCancel, setOwnerCanCancel] = useState(false);
   const [ownerCancelOpen, setOwnerCancelOpen] = useState(false);
   const [ownerCancelling, setOwnerCancelling] = useState(false);
@@ -2310,6 +2342,16 @@ export default function JournalEntryDetail() {
             sourceEntry.source_module === "accounting" &&
             !sourceEntry.source_document_id && !sourceEntry.source_document_type &&
             !entry.reversal_of_entry_id && !sourceEntry.fiscal_year_closure_id &&
+            !sourceEntry.monthly_profit_closure_id && !isForeignJournal && (
+              <button type="button" onClick={openPostedEdit}
+                className="px-3 py-2 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200">
+                Edit Posted Journal
+              </button>
+          )}
+          {isPosted && ownerCanCancel && !reversalEntry &&
+            sourceEntry.source_module === "accounting" &&
+            !sourceEntry.source_document_id && !sourceEntry.source_document_type &&
+            !entry.reversal_of_entry_id && !sourceEntry.fiscal_year_closure_id &&
             !sourceEntry.monthly_profit_closure_id && (
             <button type="button" onClick={() => { setPermanentDeleteReason(""); setPermanentDeleteOpen(true); }}
               disabled={permanentDeleting}
@@ -3135,6 +3177,36 @@ export default function JournalEntryDetail() {
         </div>
       </Modal>
 
+      <Modal open={postedEditOpen} title={`Edit Original Posted Journal — ${entry.entry_no}`}
+        onClose={()=>{if(!postedEditSaving)setPostedEditOpen(false);}}>
+        <div className="space-y-3 max-h-[75vh] overflow-y-auto">
+          <p className="text-xs text-slate-600">Owner Control only. Updates original journal and matching ledger rows, without reversal. Party-linked and FX entries are blocked.</p>
+          <label className="block text-xs font-semibold">Posting Date
+            <NaviloDateInput className="input w-full" type="date" value={postedEditDate} onChange={e=>setPostedEditDate(e.target.value)}/>
+          </label>
+          <label className="block text-xs font-semibold">Journal Description
+            <textarea className="input w-full" value={postedEditDescription} onChange={e=>setPostedEditDescription(e.target.value)}/>
+          </label>
+          {postedEditLines.map((line,index)=>(
+            <div key={line.id} className="border rounded-lg p-2 space-y-2">
+              <div className="text-xs font-semibold">{accounts.find(a=>a.id===lines.find(l=>l.id===line.id)?.account_id)?.name || lines.find(l=>l.id===line.id)?.account || `Line ${index+1}`}</div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs">Debit<input className="input w-full" type="number" min="0" step="0.01" value={line.debit} onChange={e=>setPostedEditLines(prev=>prev.map((v,j)=>j===index?{...v,debit:e.target.value}:v))}/></label>
+                <label className="text-xs">Credit<input className="input w-full" type="number" min="0" step="0.01" value={line.credit} onChange={e=>setPostedEditLines(prev=>prev.map((v,j)=>j===index?{...v,credit:e.target.value}:v))}/></label>
+              </div>
+              <label className="text-xs block">Line Description<input className="input w-full" value={line.description} onChange={e=>setPostedEditLines(prev=>prev.map((v,j)=>j===index?{...v,description:e.target.value}:v))}/></label>
+            </div>
+          ))}
+          <label className="block text-xs font-semibold">Mandatory Reason (at least 10 characters)
+            <textarea className="input w-full" rows={2} value={postedEditReason} onChange={e=>setPostedEditReason(e.target.value)}/>
+          </label>
+          <div className="flex justify-end gap-2">
+            <button className="btn-secondary" disabled={postedEditSaving} onClick={()=>setPostedEditOpen(false)}>Cancel</button>
+            <button className="btn-primary" disabled={postedEditSaving||postedEditReason.trim().length<10||!postedEditDate}
+              onClick={()=>void savePostedEdit()}>{postedEditSaving?"Saving…":"Save Original Journal"}</button>
+          </div>
+        </div>
+      </Modal>
       <ConfirmModal
         open={
           deleteEntryOpen
