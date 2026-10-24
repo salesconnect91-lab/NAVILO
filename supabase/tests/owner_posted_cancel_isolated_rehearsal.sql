@@ -56,10 +56,10 @@ begin
     and allow_manual_entries limit 1;
   insert into public.journal_entries(
     user_id,company_id,business_unit_id,operating_location_id,
-    entry_no,entry_date,description,status,trans_type,currency_code,exchange_rate
+    entry_no,entry_date,description,status,trans_type,source_module,currency_code,exchange_rate
   ) values(
     v_admin,v_company,v_unit,v_loc,'OC-TEST-'||v_code,current_date,
-    'Synthetic cancellation verification','draft','General','SAR',1
+    'Synthetic cancellation verification','draft','General','accounting','SAR',1
   ) returning id into v_journal;
   insert into public.journal_lines(
     user_id,company_id,business_unit_id,operating_location_id,entry_id,
