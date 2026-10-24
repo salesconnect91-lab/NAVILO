@@ -296,7 +296,8 @@ begin
     raise exception 'FAIL: cross-tenant invoice review returned a document';
   exception when others then
     if sqlerrm like 'FAIL:%' then raise; end if;
-    if position('not found in active business unit' in sqlerrm)=0 then raise; end if;
+    if position('not found in active business unit' in sqlerrm)=0
+       and position('NAVILO software owner access required' in sqlerrm)=0 then raise; end if;
   end;
   raise notice 'PASS invoice review: tenant-scoped access, cross-tenant document inaccessible, no mutation';
   raise notice 'PASS posted edit: company Owner/Admin in-place save; cancellation policy remains platform-only with audited reversal guards';
