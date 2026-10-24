@@ -79,6 +79,12 @@ begin
   -- Each save must preserve the journal ID, update its ledger, and create no reversal.
   perform set_config('request.jwt.claim.sub',v_company_owner::text,true);
   set local role authenticated;
+  if not public.company_admin_posted_journal_edit_access() then
+    raise exception 'Owner edit fixture denied: uid %, company %, BU %, company roles %, BU roles %',
+      auth.uid(),public.current_company_id(),public.current_business_unit_id(),
+      (select string_agg(role||':'||is_active::text,',') from public.company_memberships where company_id=v_company and user_id=v_company_owner),
+      (select string_agg(role||':'||is_active::text,',') from public.business_unit_memberships where company_id=v_company and business_unit_id=v_unit and user_id=v_company_owner);
+  end if;
   select jsonb_agg(jsonb_build_object(
     'id',l.id,
     'debit',case when l.debit>0 then 126 else 0 end,
@@ -100,6 +106,12 @@ begin
   reset role;
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
   set local role authenticated;
+  if not public.company_admin_posted_journal_edit_access() then
+    raise exception 'Admin edit fixture denied: uid %, company %, BU %, company roles %, BU roles %',
+      auth.uid(),public.current_company_id(),public.current_business_unit_id(),
+      (select string_agg(role||':'||is_active::text,',') from public.company_memberships where company_id=v_company and user_id=v_admin),
+      (select string_agg(role||':'||is_active::text,',') from public.business_unit_memberships where company_id=v_company and business_unit_id=v_unit and user_id=v_admin);
+  end if;
   select jsonb_agg(jsonb_build_object(
     'id',l.id,
     'debit',case when l.debit>0 then 127 else 0 end,
