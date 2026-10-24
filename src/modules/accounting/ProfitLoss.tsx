@@ -444,8 +444,8 @@ export default function ProfitLoss() {
   // Export uses identical attribution as the visible screen; never add vehicle
   // subtotals to GL Total Income a second time.
   const revenueExportRows:(string|number)[][]=isTransport&&transportIncome?[
-    ['Vehicle Net Income / (Loss) — Normal Invoices','Vehicle-ledger net plus unlinked Sales Revenue',transportIncome.sales+transportIncome.vehicleLedgerTotal],
-    ...(transportIncome.vehicleError?[]:transportIncome.vehicles.map(v=>['Vehicle Net Income / (Loss) — Normal Invoices','Vehicle '+v.vehicle_no+' — net profit / (loss)',v.amount] as (string|number)[])),
+    ['Vehicle Net Profit / (Loss)','Vehicle-ledger net plus unlinked Sales Revenue',transportIncome.sales+transportIncome.vehicleLedgerTotal],
+    ...(transportIncome.vehicleError?[]:transportIncome.vehicles.map(v=>['Vehicle Net Profit / (Loss)','Vehicle '+v.vehicle_no+' — net profit / (loss)',v.amount] as (string|number)[])),
     ...(transportIncome.vehicleError?[]:Math.abs(transportIncome.residual)>=0.005?[['Sales Income — Normal Invoices','Sales Revenue GL adjustments / legacy attribution',transportIncome.residual]]:[]),
     ['Service Income — Trip Invoices','Service Revenue GL total',transportIncome.service],
     ...(Math.abs(transportIncome.other)>=0.005?[['Other Operating Revenue','Other revenue GL',transportIncome.other]]:[])
@@ -518,7 +518,7 @@ export default function ProfitLoss() {
 
             <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               {isTransport&&transportIncome?<>
-                <StatementSection title="Vehicle Net Income / (Loss) — Normal Invoices"
+                <StatementSection title="Vehicle Net Profit / (Loss)"
                   section={{total:transportIncome.sales+transportIncome.vehicleLedgerTotal,items:transportIncome.vehicleError?[]:[
                     ...transportIncome.vehicles.map(v=>({
                       name:'Vehicle '+v.vehicle_no,amount:v.amount,
