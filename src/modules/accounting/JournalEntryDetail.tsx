@@ -2732,7 +2732,7 @@ export default function JournalEntryDetail() {
                 <label className="text-xs">Posting Date<NaviloDateInput className="input block" type="date" value={postedEditDate} onChange={e=>setPostedEditDate(e.target.value)}/></label>
                 <label className="text-xs">Journal Description<input className="input block" value={postedEditDescription} onChange={e=>setPostedEditDescription(e.target.value)}/></label>
                 <label className="text-xs">Reason (10+ characters)<input className="input block" value={postedEditReason} onChange={e=>setPostedEditReason(e.target.value)}/></label>
-                <button className="btn-primary" disabled={postedEditSaving || postedEditReason.trim().length<10} onClick={()=>void savePostedEdit()}>{postedEditSaving?"Saving…":"Save Original Journal"}</button>
+
                 <button className="btn-secondary" disabled={postedEditSaving} onClick={()=>setPostedEditOpen(false)}>Cancel Edit</button>
               </div>}
               <div className="bg-blue-50 border-b border-blue-200 px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -3042,7 +3042,7 @@ export default function JournalEntryDetail() {
                   <span className="font-semibold">
                     {activeDraftCount}
                   </span>{" "}
-                  new line
+                  {postedEditOpen ? "existing" : "new"} line
                   {activeDraftCount ===
                   1
                     ? ""
@@ -3051,20 +3051,18 @@ export default function JournalEntryDetail() {
 
                 <button
                   type="button"
-                  onClick={
-                    handleSaveAllLines
-                  }
+                  onClick={postedEditOpen ? () => void savePostedEdit() : handleSaveAllLines}
                   disabled={
                     saving ||
                     posting ||
                     importing ||
-                    (activeDraftCount === 0 && !hasUnsavedDraftDate)
+                    (postedEditOpen ? (postedEditSaving || postedEditReason.trim().length < 10) : (activeDraftCount === 0 && !hasUnsavedDraftDate))
                   }
                   className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving
                     ? "Saving..."
-                    : "✓ Save Changes"}
+                    : postedEditOpen ? "Save Original Journal" : "✓ Save Changes"}
                 </button>
               </div>
             </div>
