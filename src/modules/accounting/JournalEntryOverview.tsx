@@ -1,6 +1,7 @@
 import './journalOverviewDensity.css';
 import {useEffect,useMemo,useState} from 'react';
 import {Link} from 'react-router-dom';
+import {Copy} from 'lucide-react';
 import {supabase} from '@/lib/supabase';
 import {formatDate,StatusBadge} from '@/components/ui';
 import type {JournalEntry} from '@/types';
@@ -54,6 +55,8 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
  const [search,setSearch]=useState('');
  const [sort,setSort]=useState<{key:'entry_no'|'entry_date'|'description'|'status';dir:'asc'|'desc'}|null>(null);
  const [statusFilter,setStatusFilter]=useState('all');
+ const [dateFrom,setDateFrom]=useState('');
+ const [dateTo,setDateTo]=useState('');
  const [columnWidths,setColumnWidths]=useState(journalSavedWidths);
  const [columnOrder,setColumnOrder]=useState<number[]>(()=>{try{const value=JSON.parse(window.localStorage.getItem('navilo:journal:order-v1')||'[]');return Array.isArray(value)&&value.length===8&&new Set(value).size===8&&value.every((x:number)=>Number.isInteger(x)&&x>=0&&x<8)?value:[0,1,2,3,4,5,6,7];}catch{return [0,1,2,3,4,5,6,7];}});
  const [draggedColumn,setDraggedColumn]=useState<number|null>(null);
@@ -74,9 +77,9 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
 
  const filtered=useMemo(()=>{
   const needle=search.trim().toLowerCase();
-  return entries.filter(e=>(statusFilter==='all'||e.status===statusFilter)&&(!needle||[e.entry_no,e.description,e.status,e.entry_date].some(x=>String(x??'').toLowerCase().includes(needle))))
+  return entries.filter(e=>(statusFilter==='all'||e.status===statusFilter)&&(!dateFrom||e.entry_date>=dateFrom)&&(!dateTo||e.entry_date<=dateTo)&&(!needle||[e.entry_no,e.description,e.status,e.entry_date].some(x=>String(x??'').toLowerCase().includes(needle))))
    .sort((a,b)=>sort?String(a[sort.key]??'').localeCompare(String(b[sort.key]??''),undefined,{numeric:true})*(sort.dir==='asc'?1:-1):0);
- },[entries,search,statusFilter,sort]);
+ },[entries,search,statusFilter,dateFrom,dateTo,sort]);
  const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));
  const safePage=Math.min(page,totalPages);
  const visible=useMemo(()=>filtered.slice((safePage-1)*pageSize,safePage*pageSize),[filtered,safePage,pageSize]);
@@ -85,7 +88,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
  const allVisibleDraftsSelected=visibleDraftIds.length>0&&visibleDraftIds.every(id=>selectedIds.includes(id));
  const someVisibleDraftsSelected=visibleDraftIds.some(id=>selectedIds.includes(id));
  const idsKey=visible.map(x=>x.id).join(',');
- useEffect(()=>{setPage(1);setExpanded([])},[search,pageSize]);
+ useEffect(()=>{setPage(1);setExpanded([])},[search,pageSize,statusFilter,dateFrom,dateTo]);
  useEffect(()=>{setExpanded([])},[idsKey]);
  useEffect(()=>{
   const draftIds=new Set(entries.filter(entry=>entry.status==='draft').map(entry=>entry.id));
@@ -143,8 +146,10 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
      placeholder="Find entry #, description, status or date…"/>
     <span className="whitespace-nowrap text-xs text-slate-500">{filtered.length} entries</span>
    </div>
+   <label className="text-xs text-slate-600">From <input type="date" aria-label="Journal date from" className="input ml-1 !h-8 !w-[132px]" value={dateFrom} max={dateTo||undefined} onChange={e=>setDateFrom(e.target.value)}/></label>
+   <label className="text-xs text-slate-600">To <input type="date" aria-label="Journal date to" className="input ml-1 !h-8 !w-[132px]" value={dateTo} min={dateFrom||undefined} onChange={e=>setDateTo(e.target.value)}/></label>
    <label className="text-xs text-slate-600">Status <select aria-label="Filter journal status" className="input ml-1 !h-8 !w-24" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">All</option><option value="draft">Draft</option><option value="posted">Posted</option></select></label>
-   <button type="button" className="rounded border px-2 py-1 text-xs" onClick={()=>{setColumnWidths([...journalColumnDefaults]);setColumnOrder([0,1,2,3,4,5,6,7]);setSort(null);setStatusFilter("all");try{window.localStorage.removeItem("navilo:journal:widths-v1");window.localStorage.removeItem("navilo:journal:order-v1");}catch{}}}>Reset columns</button>
+   <button type="button" className="rounded border px-2 py-1 text-xs" onClick={()=>{setColumnWidths([...journalColumnDefaults]);setColumnOrder([0,1,2,3,4,5,6,7]);setSort(null);setStatusFilter("all");setDateFrom("");setDateTo("");try{window.localStorage.removeItem("navilo:journal:widths-v1");window.localStorage.removeItem("navilo:journal:order-v1");}catch{}}}>Reset columns</button>
    <label className="text-xs text-slate-600">Rows
     <select aria-label="Journal rows per page" className="input ml-1 !h-8 !w-16" value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}>
      {pageSizes.map(n=><option key={n} value={n}>{n}</option>)}
@@ -213,12 +218,9 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
          <td key={7} style={{width:`${columnWidths[7]}%`}} className="w-[16%] px-1 py-0.5 align-middle whitespace-nowrap">
           <div className="navilo-journal-overview-actions flex flex-nowrap items-center gap-1">
            <input type="checkbox" aria-label={`Select ${entry.entry_no}`} checked={entry.status==='draft'&&selectedIds.includes(entry.id)} onChange={()=>setSelectedIds(current=>current.includes(entry.id)?current.filter(id=>id!==entry.id):[...current,entry.id])} disabled={entry.status!=='draft'||postingSelected||deletingSelected} className="h-3.5 w-3.5 shrink-0 accent-emerald-700"/>
-           <button aria-label={`Show lines for ${entry.entry_no}`} aria-expanded={open} type="button"
-            onClick={toggle} disabled={!info} className="min-w-0 rounded border px-1 py-0.5 text-[11px] text-blue-700 disabled:opacity-40">{open?'Hide':'Details'}</button>
-           <Link className="min-w-0 rounded border px-1 py-0.5 text-center text-[11px] text-blue-700" to={`/accounting/${entry.id}`}>Open</Link>
            {!entry.entry_no.startsWith('COB-')&&<button className="min-w-0 rounded border px-1 py-0.5 text-[11px]" type="button"
-             onClick={()=>onCopy(entry)} disabled={!!copyingId} title="Copy as an editable draft">
-             {copyingId===entry.id?'…':'Copy'}</button>}
+             onClick={()=>onCopy(entry)} disabled={!!copyingId} aria-label={`Copy ${entry.entry_no} as draft`} title="Copy as an editable draft">
+             {copyingId===entry.id?'…':<Copy size={13} aria-hidden="true"/>}</button>}
            <button className="min-w-0 rounded border px-1 py-0.5 text-[11px]" type="button" onClick={()=>onPrint(entry)}>Print</button>
           </div>
          </td>
