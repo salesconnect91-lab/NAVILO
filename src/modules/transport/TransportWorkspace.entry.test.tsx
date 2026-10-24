@@ -172,6 +172,12 @@ describe('Transport register server pagination',()=>{
 });
 
 describe('Transport register interactions',()=>{
+ it('opens the grouped supplier rent and invoice workflow from the Register',async()=>{
+  render(<MemoryRouter initialEntries={['/transport?view=trips']}><TransportWorkspace/></MemoryRouter>);
+  const open=await screen.findByRole('button',{name:'Supplier Rent / Invoice'});
+  fireEvent.click(open);
+  expect(await screen.findByRole('heading',{name:'Bulk Supplier Rent'})).toBeTruthy();
+ });
  it('deletes only after selecting a Draft Trip and confirming a reason',async()=>{
   let deleted=false;
   mock.rpc.mockImplementation(async(name:string)=>{
