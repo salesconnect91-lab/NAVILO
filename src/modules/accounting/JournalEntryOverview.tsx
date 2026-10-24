@@ -30,10 +30,10 @@ const num=(v:number|string|null)=>Number(v??0);
 const distinct=(a:string[])=>[...new Set(a.filter(Boolean))];
 const displayNames=(items:string[],limit=2)=>items.slice(0,limit).join(' · ')+(items.length>limit?` +${items.length-limit}`:'');
 const pageSizes=[25,50,100];
-const journalColumnDefaults=[12,16,13,13,12,10,8,16];
+const journalColumnDefaults=[12,25,13,12,14,10,6,8];
 const journalColumnLabels=['Entry # / Date','Description / Type','Debit Account (Dr)','Credit Account (Cr)','Party / Vehicle','Amount (Dr = Cr)','Status','Actions'];
 function journalSavedWidths():number[]{
- try {const raw=JSON.parse(window.localStorage.getItem('navilo:journal:widths-v1')||'[]');return journalColumnDefaults.map((v,i)=>Number.isFinite(raw[i])&&raw[i]>=5&&raw[i]<=50?raw[i]:v);}catch{return [...journalColumnDefaults];}
+ try {const raw=JSON.parse(window.localStorage.getItem('navilo:journal:widths-v2')||'[]');return journalColumnDefaults.map((v,i)=>Number.isFinite(raw[i])&&raw[i]>=5&&raw[i]<=50?raw[i]:v);}catch{return [...journalColumnDefaults];}
 }
 
 
@@ -194,20 +194,20 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
       const toggle=()=>setExpanded(current=>current.includes(entry.id)?current.filter(id=>id!==entry.id):[...current,entry.id]);
       const sourceType=String((entry as JournalEntry&{source_module?:string;trans_type?:string}).source_module||(entry as JournalEntry&{trans_type?:string}).trans_type||'Manual journal');
       return <tr key={entry.id}><td colSpan={8} className="p-0">
-       <table className="w-full table-fixed text-xs"><tbody>
+       <table className="w-full table-fixed text-xs"><colgroup>{columnOrder.map(i=><col key={i} style={{width:`${columnWidths[i]}%`}}/>)}</colgroup><tbody>
         <tr className="hover:bg-slate-50">
          {columnOrder.map(i=>([
          <td key={0} style={{width:`${columnWidths[0]}%`}} className="w-[12%] px-2 py-0.5 align-middle">
           <div className="navilo-je-cell-inline"><Link to={`/accounting/${entry.id}`} className="font-semibold text-blue-700 hover:underline truncate" title={entry.entry_no}>{entry.entry_no}</Link><span className="text-slate-500 whitespace-nowrap">{formatDate(entry.entry_date)}</span></div>
          </td>,
          <td key={1} style={{width:`${columnWidths[1]}%`}} className="w-[16%] px-2 py-0.5 align-middle">
-          <div className="navilo-je-cell-inline"><span className="truncate text-slate-800" title={entry.description||'—'}>{entry.description||'—'}</span><span className="text-[10px] text-slate-500 truncate" title={sourceType}>{sourceType}</span></div>
+          <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 flex-1 truncate text-slate-800" title={entry.description||'—'}>{entry.description||'—'}</span><span className="max-w-[68px] shrink-0 truncate text-[10px] text-slate-500" title={sourceType}>{sourceType}</span></div>
          </td>,
          <td key={2} style={{width:`${columnWidths[2]}%`}} className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsDr||undefined}>{info?info.accountsDr||'—':loading?'Loading…':'—'}</div></td>,
          <td key={3} style={{width:`${columnWidths[3]}%`}} className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsCr||undefined}>{info?info.accountsCr||'—':loading?'Loading…':'—'}</div></td>,
          <td key={4} style={{width:`${columnWidths[4]}%`}} className="w-[12%] px-2 py-0.5 align-middle">
           {info?.party&&<div className="truncate text-slate-800" title={`Party: ${info.party}`}>Party: {info.party}</div>}
-          {info?.vehicles&&<div className="truncate text-blue-800" title={`Vehicle: ${info.vehicles}`}>Vehicle: {info.vehicles}</div>}
+          {info?.vehicles&&<div className="min-w-0 break-words leading-tight text-blue-800" title={`Vehicle: ${info.vehicles}`}>Vehicle: {info.vehicles}</div>}
           {!info&&!loading?'—':!info?'Loading…':!info.party&&!info.vehicles?'—':null}
          </td>,
          <td key={5} style={{width:`${columnWidths[5]}%`}} className="w-[10%] px-2 py-0.5 text-right align-middle font-semibold tabular-nums">
