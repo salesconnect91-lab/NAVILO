@@ -224,6 +224,51 @@ begin
  if coalesce((select sum(credit) from public.journal_lines where entry_id=je and account_id=revenue),0)<>550
     or exists (select 1 from public.journal_lines l join public.transport_vehicles v on v.revenue_account_id=l.account_id where l.entry_id=je and v.id in (v1,v2))
  then raise exception 'Normal Sale must credit chosen common Revenue once; vehicle attribution stays in snapshots';end if;
+ -- Same stable reference cannot be claimed by Vehicle Expense and Direct Cash,
+ -- while a genuinely separate expense with the same date and amount remains valid.
+ bad:=false;
+ begin
+  perform public.accounting_import_direct_cash_expenses(jsonb_build_array(jsonb_build_object(
+   'transaction_date','2026-10-17','expense_area','general','amount','100.00',
+   'expense_account_id',acct::text,'cash_bank_account_id',cash_id::text,
+   'source_reference','EXP-REF-1','description','Duplicate source via direct cash','paid_to','Fixture'
+  )));
+ exception when unique_violation then bad:=true;
+ end;
+ if not bad then raise exception 'Vehicle Expense source reference was accepted through Direct Cash';end if;
+
+ payload:=jsonb_build_array(jsonb_build_object(
+  'transaction_date','2026-10-17','expense_area','general','amount','100.00',
+  'expense_account_id',acct::text,'cash_bank_account_id',cash_id::text,
+  'source_reference','CASH-SAME-DATE-AMOUNT','description','Separate legitimate expense','paid_to','Fixture'
+ ));
+ res:=public.accounting_import_direct_cash_expenses(payload);
+ if coalesce((res->>'success')::boolean,false) is not true or (res->>'posted_count')::integer<>1 then
+  raise exception 'Distinct source reference with same date and amount was rejected %',res;
+ end if;
+ bad:=false;
+ begin
+  perform public.accounting_import_direct_cash_expenses(payload);
+ exception when unique_violation then bad:=true;
+ end;
+ if not bad then raise exception 'Repeated Direct Cash upload created a second journal';end if;
+
+ bad:=false;
+ begin
+  perform public.accounting_import_direct_cash_expenses(jsonb_build_array(
+   jsonb_build_object('transaction_date','2026-10-17','expense_area','general','amount','40.00',
+    'expense_account_id',acct::text,'cash_bank_account_id',cash_id::text,
+    'source_reference','CASH-PARTIAL-FAIL','description','First batch row','paid_to','Fixture'),
+   jsonb_build_object('transaction_date','2026-10-17','expense_area','general','amount','100.00',
+    'expense_account_id',acct::text,'cash_bank_account_id',cash_id::text,
+    'source_reference','CASH-SAME-DATE-AMOUNT','description','Duplicate second batch row','paid_to','Fixture')
+  ));
+ exception when unique_violation then bad:=true;
+ end;
+ if not bad then raise exception 'Partial batch failure was not reported';end if;
+ if exists(select 1 from public.accounting_direct_cash_expense_import_keys
+           where company_id=c and business_unit_id=b and source_reference='cash-partial-fail')
+ then raise exception 'Failed batch left behind a partial source claim or journal';end if;
  raise notice 'PASS vehicle expense mixed VAT, Cash/Bank/AP, atomic imports, ownership, idempotency, reversal, normal Sales AR/VAT/GL and multi-vehicle reports';
 end $$;
 rollback;
