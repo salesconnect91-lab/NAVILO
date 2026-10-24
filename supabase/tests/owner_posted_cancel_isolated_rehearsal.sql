@@ -17,7 +17,7 @@ begin
         (v_company_owner,'authenticated','tenant-'||v_code||'@navilo.test',now(),now()),
         (v_admin,'authenticated','admin-'||v_code||'@navilo.test',now(),now());
   insert into public.user_profiles(id,user_id,email,role,platform_role,is_active)
-  values(v_platform,v_platform,'platform-'||v_code||'@navilo.test','admin','super_admin',true),
+  values(v_platform,v_platform,'platform-'||v_code||'@navilo.test','admin','user',true),
         (v_company_owner,v_company_owner,'tenant-'||v_code||'@navilo.test','admin','user',true),
         (v_admin,v_admin,'admin-'||v_code||'@navilo.test','admin','user',true);
   insert into public.companies(name,code,status,base_currency_code,created_by)
