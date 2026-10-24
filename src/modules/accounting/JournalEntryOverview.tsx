@@ -30,10 +30,10 @@ const num=(v:number|string|null)=>Number(v??0);
 const distinct=(a:string[])=>[...new Set(a.filter(Boolean))];
 const displayNames=(items:string[],limit=2)=>items.slice(0,limit).join(' · ')+(items.length>limit?` +${items.length-limit}`:'');
 const pageSizes=[25,50,100];
-const journalColumnDefaults=[13,25,14,13,9,10,6,10];
+const journalColumnDefaults=[12,25,13,12,9,11,7,11];
 const journalColumnLabels=['Entry # / Date','Description / Type','Debit Account (Dr)','Credit Account (Cr)','Party','Amount (Dr = Cr)','Status','Actions'];
 function journalSavedWidths():number[]{
- try {const raw=JSON.parse(window.localStorage.getItem('navilo:journal:widths-v4')||'[]');return journalColumnDefaults.map((v,i)=>Number.isFinite(raw[i])&&raw[i]>=5&&raw[i]<=50?raw[i]:v);}catch{return [...journalColumnDefaults];}
+ try {const raw=JSON.parse(window.localStorage.getItem('navilo:journal:widths-v5')||'[]');return journalColumnDefaults.map((v,i)=>Number.isFinite(raw[i])&&raw[i]>=5&&raw[i]<=50?raw[i]:v);}catch{return [...journalColumnDefaults];}
 }
 
 
@@ -172,7 +172,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
    Cannot display the financial details: {detailError}. Journal amounts are not assumed to be zero.
   </div>}
   <div className="overflow-x-auto">
-   <table className="w-full min-w-[1100px] table-fixed text-xs" data-report-content data-navilo-customizable="true">
+   <table className="w-full table-fixed text-xs" data-report-content data-navilo-customizable="true">
     <colgroup>{columnOrder.map(i=><col key={i} style={{width:`${columnWidths[i]}%`}}/>)}</colgroup>
     <thead className="bg-slate-50 text-slate-700">
      <tr className="border-b">
@@ -194,7 +194,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
       const toggle=()=>setExpanded(current=>current.includes(entry.id)?current.filter(id=>id!==entry.id):[...current,entry.id]);
       const sourceType=String((entry as JournalEntry&{source_module?:string;trans_type?:string}).source_module||(entry as JournalEntry&{trans_type?:string}).trans_type||'Manual journal');
       return <tr key={entry.id}><td colSpan={8} className="p-0">
-       <table className="w-full min-w-[1100px] table-fixed text-xs"><colgroup>{columnOrder.map(i=><col key={i} style={{width:`${columnWidths[i]}%`}}/>)}</colgroup><tbody>
+       <table className="w-full table-fixed text-xs"><colgroup>{columnOrder.map(i=><col key={i} style={{width:`${columnWidths[i]}%`}}/>)}</colgroup><tbody>
         <tr className="hover:bg-slate-50">
          {columnOrder.map(i=>([
          <td key={0} style={{width:`${columnWidths[0]}%`}} className="w-[12%] px-2 py-0.5 align-middle">
@@ -215,7 +215,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
          </td>,
          <td key={6} style={{width:`${columnWidths[6]}%`}} className="w-[8%] px-1 py-0.5 text-center align-middle"><StatusBadge status={entry.status}/></td>,
          <td key={7} style={{width:`${columnWidths[7]}%`}} className="px-1 py-0.5 align-middle whitespace-nowrap">
-          <div className="navilo-journal-overview-actions flex flex-nowrap items-center justify-end gap-1">
+          <div className="navilo-journal-overview-actions flex flex-nowrap items-center justify-end gap-0.5">
            <input type="checkbox" aria-label={`Select ${entry.entry_no}`} checked={entry.status==='draft'&&selectedIds.includes(entry.id)} onChange={()=>setSelectedIds(current=>current.includes(entry.id)?current.filter(id=>id!==entry.id):[...current,entry.id])} disabled={entry.status!=='draft'||postingSelected||deletingSelected} className="h-3.5 w-3.5 shrink-0 accent-emerald-700"/>
            {!entry.entry_no.startsWith('COB-')&&<button className="min-w-0 rounded border px-1 py-0.5 text-[11px]" type="button"
              onClick={()=>onCopy(entry)} disabled={!!copyingId} aria-label={`Copy ${entry.entry_no} as draft`} title="Copy as an editable draft">
