@@ -102,5 +102,6 @@ export default function AuditTrail(){
  {key:"performed_by",label:"Performed By",render:log=><>{log.performed_by||"—"}<div className="text-xs text-slate-400">{log.performed_email||""}</div></>},
  {key:"created_at",label:"Date & Time",render:log=>new Date(log.created_at).toLocaleString()}
  ]} rows={filtered} loading={loading} emptyMessage={error?"Unable to load audit records.":logs.length===0?"No matching audit records. Clear search or expand the date range.":"No records on this page."}/></div><div className="flex items-center justify-between gap-3 border-t border-slate-200 p-2 text-xs"><span>Page {page+1} · {PAGE_SIZE} per page</span><div className="flex gap-2"><button className="btn" disabled={loading||page===0} onClick={()=>setPage(p=>Math.max(0,p-1))}>Previous</button><button className="btn" disabled={loading||!hasMore} onClick={()=>setPage(p=>p+1)}>Next</button></div></div></div>
+   </>}
  </div>
 }
