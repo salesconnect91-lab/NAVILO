@@ -52,6 +52,7 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
     | "system";
 
   type AccountRow = ChartOfAccount & {
+    company_id?: string | null;
     parent_id?: string | null;
     is_group?: boolean;
     allow_manual_entries?: boolean;
