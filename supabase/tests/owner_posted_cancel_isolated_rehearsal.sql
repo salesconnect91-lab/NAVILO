@@ -161,21 +161,16 @@ begin
     where company_id=v_company and business_unit_id=v_unit
       and operating_location_id=v_loc and user_id=v_company_owner;
 
-  -- Cancellation remains restricted to platform super-admin; owners/Admin can edit permitted records but do not gain reversal access.
+  -- Posted edits create no cancellation/reversal entries; cancellation APIs remain separately restricted.
   perform set_config('request.jwt.claim.sub',v_viewer::text,true);
   set local role authenticated;
   if public.owner_posted_control_access() then
     raise exception 'FAIL: unrelated viewer must not access posted cancellation';
   end if;
-  if has_function_privilege('authenticated','public.reverse_payment_voucher(uuid,date,text)','EXECUTE') then
-    raise exception 'FAIL: authenticated users can bypass audited Owner Cancel payment workflow';
+  if has_function_privilege('authenticated','public.reverse_payment_voucher(uuid,date,text)','EXECUTE')
+     or has_function_privilege('authenticated','public.owner_cancel_manual_journal(uuid,date,text)','EXECUTE') then
+    raise exception 'FAIL: authenticated users can bypass the audited Owner Cancel workflow';
   end if;
-  begin
-    perform public.owner_cancel_manual_journal(v_journal,current_date-1,'Viewer cancellation denial');
-    raise exception 'FAIL: unrelated viewer cancelled a posted journal';
-  exception when others then
-    if sqlerrm like 'FAIL:%' then raise; end if;
-  end;
   reset role;
   perform set_config('request.jwt.claim.sub',v_company_owner::text,true);
   set local role authenticated;
@@ -188,62 +183,21 @@ begin
   if public.owner_posted_control_access() then
     raise exception 'FAIL: company Admin gained platform-only cancellation access';
   end if;
-  begin
-    perform public.owner_cancel_manual_journal(v_journal,current_date-1,'Admin cancellation denial');
-    raise exception 'FAIL: Admin cancelled a posted journal';
-  exception when others then
-    if sqlerrm like 'FAIL:%' then raise; end if;
-  end;
   reset role;
-  select count(*) into v_n from public.owner_posted_control_events
-  where company_id=v_company and action_type='cancel';
-  if v_n<>0 then raise exception 'FAIL: rejected cancellation created cancel audit evidence'; end if;
-
   perform set_config('request.jwt.claim.sub',v_platform::text,true);
   set local role authenticated;
   if not public.owner_posted_control_access() then
     raise exception 'FAIL: platform super-admin lacks posted-control access';
   end if;
-  begin
-    perform public.owner_cancel_manual_journal(v_journal,current_date-1,'Backdated platform cancellation blocked');
-    raise exception 'FAIL: platform super-admin backdated a posted journal';
-  exception when others then
-    if sqlerrm like 'FAIL:%' then raise; end if;
-    if position('cannot precede' in sqlerrm)=0 then raise; end if;
-  end;
-  v_result:=public.owner_cancel_manual_journal(v_journal,current_date,'Isolated test correction');
-  v_reversal:=(v_result->>'reversal_entry_id')::uuid;
-  if v_result->>'success'<>'true' or v_reversal is null then
-    raise exception 'FAIL: platform owner cancellation did not return posted reversal';
+  if has_function_privilege('authenticated','public.owner_cancel_manual_journal(uuid,date,text)','EXECUTE') then
+    raise exception 'FAIL: raw cancellation function is exposed directly';
   end if;
-  if (select status from public.journal_entries where id=v_journal)<>'posted'
-     or (select status from public.journal_entries where id=v_reversal)<>'posted' then
-    raise exception 'FAIL: original/reversal not preserved as posted';
+  reset role;
+  if exists(select 1 from public.owner_posted_control_events
+    where company_id=v_company and action_type='cancel') then
+    raise exception 'FAIL: posted edit created a cancellation event';
   end if;
-  select coalesce(sum(debit),0),coalesce(sum(credit),0)
-  into v_debit,v_credit from public.ledgers
-  where journal_entry_id in (v_journal,v_reversal) and company_id=v_company;
-  if v_debit<>254 or v_credit<>254 then
-    raise exception 'FAIL: expected original+reversal GL debit/credit 254, got %/%',v_debit,v_credit;
-  end if;
-  if exists(
-    select 1 from public.ledgers where journal_entry_id in(v_journal,v_reversal)
-    group by account_id having abs(sum(debit-credit))>=0.01
-  ) then raise exception 'FAIL: original+reversal account net balance not zero'; end if;
-  if (select count(*) from public.owner_posted_control_events
-      where company_id=v_company and document_id=v_journal and reversal_document_id=v_reversal
-        and action_type='cancel' and document_type='manual_journal')<>1 then
-    raise exception 'FAIL: owner audit original/reversal link missing';
-  end if;
-  select count(*) into v_n from public.owner_cancelled_journal_ids()
-  where entry_id in(v_journal,v_reversal);
-  if v_n<>2 then raise exception 'FAIL: cancelled journal IDs missing from normal-list exclusion'; end if;
-  begin
-    perform public.owner_cancel_manual_journal(v_journal,current_date,'Duplicate must be rejected');
-    raise exception 'FAIL: duplicate cancellation allowed';
-  exception when others then
-    if sqlerrm like 'FAIL:%' then raise; end if;
-  end;
+
   -- Unallocated accounting receipt: synthetic, no invoice/transport allocations.
   reset role;
   insert into public.journal_entries(
