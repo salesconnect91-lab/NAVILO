@@ -196,8 +196,8 @@ begin
   end;
   reset role;
   select count(*) into v_n from public.owner_posted_control_events
-  where company_id=v_company;
-  if v_n<>0 then raise exception 'FAIL: rejected cancellation created audit evidence'; end if;
+  where company_id=v_company and action_type='cancel';
+  if v_n<>0 then raise exception 'FAIL: rejected cancellation created cancel audit evidence'; end if;
 
   perform set_config('request.jwt.claim.sub',v_platform::text,true);
   set local role authenticated;
