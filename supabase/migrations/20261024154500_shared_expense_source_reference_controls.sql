@@ -98,7 +98,8 @@ BEGIN
     UNION ALL
     SELECT company_id,business_unit_id,lower(btrim(supplier_invoice_no))
       FROM public.purchase_orders
-     WHERE lower(status)='posted' AND nullif(btrim(supplier_invoice_no),'') IS NOT NULL
+     WHERE lower(status)='posted' AND document_kind IS DISTINCT FROM 'service'
+       AND nullif(btrim(supplier_invoice_no),'') IS NOT NULL
     UNION ALL
     SELECT company_id,business_unit_id,lower(btrim(entry_no))
       FROM public.journal_entries
@@ -147,7 +148,8 @@ UNION ALL
 SELECT company_id,business_unit_id,lower(btrim(supplier_invoice_no)),
        'supplier_invoice',id::text,created_by,created_at
 FROM public.purchase_orders
-WHERE lower(status)='posted' AND nullif(btrim(supplier_invoice_no),'') IS NOT NULL
+WHERE lower(status)='posted' AND document_kind IS DISTINCT FROM 'service'
+  AND nullif(btrim(supplier_invoice_no),'') IS NOT NULL
 UNION ALL
 SELECT j.company_id,j.business_unit_id,lower(btrim(j.entry_no)),
        'manual_journal',j.id::text,coalesce(j.posted_by,j.created_by),j.created_at
@@ -277,6 +279,7 @@ SET search_path = public, pg_temp
 AS $function$
 BEGIN
   IF lower(coalesce(NEW.status,''))='posted'
+     AND NEW.document_kind IS DISTINCT FROM 'service'
      AND nullif(btrim(NEW.supplier_invoice_no),'') IS NOT NULL THEN
     PERFORM public.accounting_claim_expense_source_reference(
       NEW.company_id,NEW.business_unit_id,NEW.supplier_invoice_no,
