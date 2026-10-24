@@ -2494,6 +2494,11 @@ export default function JournalEntryDetail() {
         </div>
 
         <div className="p-6 space-y-6">
+          {lines.some(line => Number(line.debit ?? 0) > 0 && lines.some(other => other.account_id === line.account_id && Number(other.credit ?? 0) > 0)) && (
+            <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Same account appears on both Debit and Credit sides. Review the original account selection; the journal may have no net effect on that account.
+            </div>
+          )}
           {lines.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[900px]">
