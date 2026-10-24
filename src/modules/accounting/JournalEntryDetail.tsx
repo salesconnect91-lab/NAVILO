@@ -2320,7 +2320,7 @@ export default function JournalEntryDetail() {
               title="Check whether this posted voucher qualifies for an audited payment reversal">Check Payment Reversal</Link>
           )}
 
-          {isPosted && adminCanEditPosted && !reversalEntry &&
+          {isPosted && (adminCanEditPosted || isPlatformOwner) && !reversalEntry &&
             sourceEntry.source_module === "accounting" &&
             !sourceEntry.source_document_id && !sourceEntry.source_document_type &&
             !entry.reversal_of_entry_id && !sourceEntry.fiscal_year_closure_id &&
