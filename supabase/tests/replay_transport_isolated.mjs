@@ -51,6 +51,7 @@ for(const file of fs.readdirSync(root+'/supabase/migrations').filter(f=>f.endsWi
  catch(e){console.log('FAIL',file,e.message,e.position||'',e.where||'',e.internalQuery||'');await db.close();throw new Error(file+': '+e.message)}
 }
 console.log('REPLAY PASS',count);
+if(process.env.NAVILO_EXPENSE_CLAIM_CONCURRENCY==='1')await import('./shared_expense_claim_concurrency.mjs');
 if(process.env.NAVILO_BULK_JOURNAL_AUTOLINK_SMOKE==='1'){
  try{await db.exec(fs.readFileSync(root+'/supabase/tests/bulk_journal_income_autolink_rehearsal.sql','utf8'));
      console.log('PASS isolated Bulk Journal vehicle Income auto-link and optional Expense allocation');}
