@@ -27,7 +27,7 @@ begin
   values(v_company,v_platform,'viewer',true),(v_company,v_company_owner,'company_owner',true),(v_company,v_admin,'admin',true);
   insert into public.business_unit_memberships(company_id,business_unit_id,user_id,role,is_active)
   values(v_company,v_unit,v_company_owner,'company_owner',true),(v_company,v_unit,v_admin,'admin',true)
-  on conflict(business_unit_id,user_id) do update set is_active=true;
+  on conflict(business_unit_id,user_id) do update set is_active=true,role=excluded.role,company_id=excluded.company_id;
   insert into public.business_unit_modules(business_unit_id,company_id,module_key,enabled)
   values(v_unit,v_company,'accounting',true)
   on conflict(business_unit_id,module_key) do update set enabled=true;
