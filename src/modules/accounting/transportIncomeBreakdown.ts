@@ -1,5 +1,5 @@
 /** Posted general-ledger sales/service balances; presentation only, never a second posting. */
-export type LedgerMovement={account_id:string|null;debit:number|string|null;credit:number|string|null};
+export type LedgerMovement={account_id:string|null;journal_entry_id?:string|null;debit:number|string|null;credit:number|string|null};
 export type VehicleIncome={vehicle_id:string;vehicle_no:string;amount:number;invoiceAmount?:number;ledgerAmount?:number};
 const cents=(value:number)=>Math.round(value*100);
 const amount=(n:number)=>Number((n/100).toFixed(2));
@@ -27,6 +27,7 @@ export function dedicatedVehicleServiceIncomeTotal(
   accounts:Array<{id:string;code:string|null;type:string|null;detail_type:string|null;is_group?:boolean|null;is_active?:boolean|null}>,
   entries:LedgerMovement[],
   excludedAccountIds:ReadonlySet<string>=new Set(),
+  excludedJournalEntryIds:ReadonlySet<string>=new Set(),
 ):number{
  const accountById=new Map(accounts.map(account=>[account.id,account]));
  const linkCounts=new Map<string,number>();
@@ -44,7 +45,36 @@ export function dedicatedVehicleServiceIncomeTotal(
   eligible.add(id);
  }
  let total=0;
- for(const row of entries)if(row.account_id&&eligible.has(row.account_id))
+ for(const row of entries)if(row.account_id&&eligible.has(row.account_id)&&
+   !excludedJournalEntryIds.has(row.journal_entry_id??''))
+  total+=cents(Number(row.credit??0))-cents(Number(row.debit??0));
+ return amount(total);
+}
+
+/** Normal Sales Invoice movements posted to a dedicated vehicle account remain Sales Income.
+ * The account's generic service_income detail type must not override its source journal.
+ */
+export function dedicatedVehicleNormalSalesIncomeTotal(
+ vehicles:Array<{revenue_account_id:string|null}>,
+ accounts:Array<{id:string;code:string|null;type:string|null;is_group?:boolean|null;is_active?:boolean|null}>,
+ entries:LedgerMovement[],
+ normalSalesJournalIds:ReadonlySet<string>,
+):number{
+ const accountById=new Map(accounts.map(account=>[account.id,account]));
+ const linkCounts=new Map<string,number>();
+ for(const vehicle of vehicles)if(vehicle.revenue_account_id)
+  linkCounts.set(vehicle.revenue_account_id,(linkCounts.get(vehicle.revenue_account_id)||0)+1);
+ const eligible=new Set<string>();
+ for(const vehicle of vehicles){
+  const id=vehicle.revenue_account_id;
+  if(!id)continue;
+  const account=accountById.get(id);
+  if(!account||(account.type!=='revenue'&&account.type!=='income')||account.is_group===true||account.is_active===false)continue;
+  if((linkCounts.get(id)||0)>1||account.code==='4100'||account.code==='4200')continue;
+  eligible.add(id);
+ }
+ let total=0;
+ for(const row of entries)if(row.account_id&&row.journal_entry_id&&eligible.has(row.account_id)&&normalSalesJournalIds.has(row.journal_entry_id))
   total+=cents(Number(row.credit??0))-cents(Number(row.debit??0));
  return amount(total);
 }

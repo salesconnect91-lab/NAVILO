@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {externalVehicleIncome,splitTransportRevenue,reconcileNormalVehicleIncome,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleServiceIncomeTotal} from './transportIncomeBreakdown';
+import {externalVehicleIncome,splitTransportRevenue,reconcileNormalVehicleIncome,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleServiceIncomeTotal,dedicatedVehicleNormalSalesIncomeTotal} from './transportIncomeBreakdown';
 describe('Transport company P&L - separate Sale and Trip Service income',()=>{
  it('reads posted accounting by different mapped revenue accounts, respecting contra debits',()=>{
   expect(splitTransportRevenue([
@@ -112,6 +112,17 @@ describe('dedicated vehicle service-income classification',()=>{
    [{id:'vehicle-7979',code:'4001',type:'revenue',detail_type:'service_income',is_group:false,is_active:true}],
    [{account_id:'vehicle-7979',credit:27395,debit:2283.21}],
   )).toBe(25111.79);
+ });
+ it('reclassifies dedicated vehicle Normal Sales Invoice journals as Sales Income even when the COA detail is service_income',()=>{
+  const vehicles=[{revenue_account_id:'vehicle-7979'}];
+  const accounts=[{id:'vehicle-7979',code:'4001',type:'revenue',detail_type:'service_income',is_group:false,is_active:true}];
+  const entries=[
+   {account_id:'vehicle-7979',journal_entry_id:'normal-sale',credit:27395,debit:0},
+   {account_id:'vehicle-7979',journal_entry_id:'trip-service',credit:0,debit:250},
+  ];
+  const normalSales=new Set(['normal-sale']);
+  expect(dedicatedVehicleNormalSalesIncomeTotal(vehicles,accounts,entries,normalSales)).toBe(27395);
+  expect(dedicatedVehicleServiceIncomeTotal(vehicles,accounts,entries,new Set(),normalSales)).toBe(-250);
  });
  it('does not reclassify shared canonical service accounts or non-service vehicle revenue',()=>{
   expect(dedicatedVehicleServiceIncomeTotal(

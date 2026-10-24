@@ -2,7 +2,7 @@ import {useAuth} from '@/auth/AuthContext';
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
-import {externalVehicleIncome,reconcileNormalVehicleIncome,splitTransportRevenue,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleServiceIncomeTotal,type VehicleIncome} from './transportIncomeBreakdown';
+import {externalVehicleIncome,reconcileNormalVehicleIncome,splitTransportRevenue,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleServiceIncomeTotal,dedicatedVehicleNormalSalesIncomeTotal,type VehicleIncome} from './transportIncomeBreakdown';
 import {readExternalVehicleIncomeFast,type ExternalAttributionRow} from './externalVehicleIncomeFast';
 import {companyVehicleIncomeRows} from './companyVehicleIncome';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
@@ -52,6 +52,9 @@ type JournalMeta = {
   trans_type: string | null;
   fiscal_year_closure_id: string | null;
   monthly_profit_closure_id?: string | null;
+  source_module?: string | null;
+  source_document_type?: string | null;
+  reversal_of_entry_id?: string | null;
 };
 
 const emptySection = (): PLSectionData => ({ total: 0, items: [] });
@@ -273,6 +276,7 @@ export default function ProfitLoss() {
     const journalIds = Array.from(new Set(rawLedger.map((line) => line.journal_entry_id).filter(Boolean))) as string[];
 
     let closingJournalIds = new Set<string>();
+    let normalSalesJournalIds = new Set<string>();
     if (journalIds.length) {
       let journalRows: JournalMeta[] = [];
       try {
@@ -281,7 +285,7 @@ export default function ProfitLoss() {
           (ids,fromRow,toRow) =>
             supabase
               .from("journal_entries")
-              .select("id,trans_type,fiscal_year_closure_id,monthly_profit_closure_id")
+              .select("id,trans_type,fiscal_year_closure_id,monthly_profit_closure_id,source_module,source_document_type,reversal_of_entry_id")
               .in("id",ids)
               .order("id",{ascending:true})
               .range(fromRow,toRow)
@@ -291,6 +295,29 @@ export default function ProfitLoss() {
         setLoading(false);
         return;
       }
+      const journalMetaById=new Map(journalRows.map(entry=>[entry.id,entry]));
+      const originalIds=Array.from(new Set(journalRows
+        .map(entry=>entry.reversal_of_entry_id)
+        .filter((id):id is string=>Boolean(id)&&!journalMetaById.has(id!))));
+      if(originalIds.length){
+        try{
+          const originalRows=await fetchByIdChunks<JournalMeta>(
+            originalIds,
+            (ids,fromRow,toRow)=>supabase.from("journal_entries")
+              .select("id,trans_type,fiscal_year_closure_id,monthly_profit_closure_id,source_module,source_document_type,reversal_of_entry_id")
+              .in("id",ids).order("id",{ascending:true}).range(fromRow,toRow)
+          );
+          originalRows.forEach(entry=>journalMetaById.set(entry.id,entry));
+        }catch(err){
+          setError(err instanceof Error?err.message:"Unable to load original journal metadata.");
+          setLoading(false);
+          return;
+        }
+      }
+      normalSalesJournalIds=new Set(journalRows.filter(entry=>{
+        const source=entry.reversal_of_entry_id?journalMetaById.get(entry.reversal_of_entry_id):entry;
+        return source?.source_module==='sales'&&source.source_document_type==='sales_invoice';
+      }).map(entry=>entry.id));
       closingJournalIds = new Set(
         journalRows
           .filter((entry) => entry.trans_type === "Year End Closing" || Boolean(entry.fiscal_year_closure_id) || Boolean(entry.monthly_profit_closure_id))
@@ -371,7 +398,9 @@ export default function ProfitLoss() {
       try{
         const salesAccountId=mappings.find(m=>m.mapping_key==='sales_revenue')?.account_id??'';
         const serviceAccountId=mappings.find(m=>m.mapping_key==='service_revenue')?.account_id??'';
-        const {sales,service:mappedService}=splitTransportRevenue(ledgerLines,salesAccountId,serviceAccountId);
+        const {sales:mappedSales,service:mappedService}=splitTransportRevenue(ledgerLines,salesAccountId,serviceAccountId);
+        const dedicatedSales=dedicatedVehicleNormalSalesIncomeTotal(vehicleResult.vehicles,accounts.map(a=>({id:a.id,code:a.code,type:a.type,is_group:a.is_group,is_active:a.is_active})),ledgerLines,normalSalesJournalIds);
+        const sales=Number((mappedSales+dedicatedSales).toFixed(2));
         const linkedVehicleRows=companyVehicleIncomeRows(vehicleResult.vehicles,accounts.map(a=>({
           id:a.id,code:a.code,type:a.type,is_group:a.is_group,is_active:a.is_active,
         })),ledgerLines).map(row=>({
@@ -382,6 +411,7 @@ export default function ProfitLoss() {
           accounts.map(a=>({id:a.id,code:a.code,type:a.type,detail_type:a.detail_type,is_group:a.is_group,is_active:a.is_active})),
           ledgerLines,
           new Set([serviceAccountId]),
+          normalSalesJournalIds,
         );
         const service=Number((mappedService+dedicatedServiceIncome).toFixed(2));
         const dedicatedVehicleIds=new Set(linkedVehicleRows
@@ -402,17 +432,16 @@ export default function ProfitLoss() {
         }));
         const breakdown=vehicleResult.error
           ? {vehicles:[] as VehicleIncome[],allocated:0,residual:0}
-          : reconcileNormalVehicleIncome(sales,vehicleData,hideZeroBalances);
+          : reconcileNormalVehicleIncome(mappedSales,vehicleData,hideZeroBalances);
         const vehicleLedgerRows=vehicleResult.error?[]:linkedVehicleRows;
         const vehicleLedgerTotal=totalVehicleLedgerMovement(vehicleLedgerRows);
         const combinedVehicles=vehicleResult.error?breakdown.vehicles:
           mergeVehicleLedgerMovements(breakdown.vehicles,vehicleLedgerRows,hideZeroBalances);
         setTransportIncome({
           sales,service,
-          // Dedicated service income is already part of vehicleLedgerTotal; remove
-          // only the non-service part from the revenue-category residual.
-          other:Number((next.operatingRevenue.total-sales-service-(vehicleLedgerTotal-dedicatedServiceIncome)).toFixed(2)),
-          vehicleLedgerTotal,
+          // Revenue classifications must add back to the posted GL total exactly once.
+          other:Number((next.operatingRevenue.total-sales-service).toFixed(2)),
+          vehicleLedgerTotal,dedicatedSales,
           vehicles:combinedVehicles,
           residual:breakdown.residual,
           vehicleError:vehicleResult.error,
@@ -453,9 +482,10 @@ export default function ProfitLoss() {
   // Export uses identical attribution as the visible screen; never add vehicle
   // subtotals to GL Total Income a second time.
   const revenueExportRows:(string|number)[][]=isTransport&&transportIncome?[
-    ['Vehicle Profitability Summary — memo','Non-additive vehicle GL attribution',transportIncome.sales+transportIncome.vehicleLedgerTotal],
+    ['Vehicle Profitability Summary — memo','Non-additive vehicle GL attribution',transportIncome.sales+transportIncome.vehicleLedgerTotal-transportIncome.dedicatedSales],
     ...(transportIncome.vehicleError?[]:transportIncome.vehicles.map(v=>['Vehicle Net Profit / (Loss)','Vehicle '+v.vehicle_no+' — net profit / (loss)',v.amount] as (string|number)[])),
     ...(transportIncome.vehicleError?[]:Math.abs(transportIncome.residual)>=0.005?[['Sales Income — Normal Invoices','Sales Revenue GL adjustments / legacy attribution',transportIncome.residual]]:[]),
+    ['Sales Income — Normal Invoices','Sales Revenue GL plus dedicated vehicle accounts linked to Normal Sales Invoice journals',transportIncome.sales],
     ['Service Income — Trip Invoices','Service Revenue GL total',transportIncome.service],
     ...(Math.abs(transportIncome.other)>=0.005?[['Other Operating Revenue','Other revenue GL',transportIncome.other]]:[])
   ]:printSectionRows('Operating Revenue',data.operatingRevenue);
@@ -528,7 +558,7 @@ export default function ProfitLoss() {
             <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               {isTransport&&transportIncome?<>
                 <StatementSection title="Vehicle Profitability Summary — Memo"
-                  section={{total:transportIncome.sales+transportIncome.vehicleLedgerTotal,items:transportIncome.vehicleError?[]:[
+                  section={{total:transportIncome.sales+transportIncome.vehicleLedgerTotal-transportIncome.dedicatedSales,items:transportIncome.vehicleError?[]:[
                     ...transportIncome.vehicles.map(v=>({
                       name:'Vehicle '+v.vehicle_no,amount:v.amount,
                       detailType:'Memo only · vehicle ledger movement is already included in GL totals',
@@ -541,6 +571,11 @@ export default function ProfitLoss() {
                 {transportIncome.vehicleError&&<p role="alert" className="rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
                   Vehicle breakdown unavailable: {transportIncome.vehicleError}. Sales Revenue GL balance remains authoritative; do not assume zero vehicle income.
                 </p>}
+                <StatementSection title="Sales Income — Normal Invoices"
+                  section={{total:transportIncome.sales,items:Math.abs(transportIncome.sales)>=0.005||!hideZeroBalances?[{
+                    name:'Sales Revenue — posted Normal Sales invoices',
+                    amount:transportIncome.sales,detailType:'Mapped Sales Revenue plus dedicated vehicle accounts linked to Normal Sales Invoice journals',
+                  }]:[]}} tone="income" />
                 <StatementSection title="Service Income — Trip Invoices"
                   section={{total:transportIncome.service,items:Math.abs(transportIncome.service)>=0.005||!hideZeroBalances?[{
                     name:'Service Revenue — posted Trip and vehicle service income',
