@@ -1,3 +1,4 @@
+import { supabase } from "@/lib/supabase";
 import SearchableSelect from "@/components/SearchableSelect";
 import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
   import {
@@ -438,6 +439,9 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
 
     const [addingDetailType, setAddingDetailType] = useState(false);
     const [newDetailType, setNewDetailType] = useState("");
+    const [manageDetails, setManageDetails] = useState(false);
+    const [customDetails, setCustomDetails] = useState<Array<{id:string;account_type:AccountType;value:string;label:string;is_active:boolean}>>([]);
+    const [detailBusy, setDetailBusy] = useState(false);
 
     const [error, setError] =
       useState<string | null>(null);
@@ -491,6 +495,55 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
       loadAccounts();
     }, []);
 
+    async function loadCustomDetails() {
+      const { data, error } = await supabase.from("account_detail_types").select("id,account_type,value,label,is_active").order("label");
+      if (error) { setError(error.message); return; }
+      setCustomDetails((data ?? []) as typeof customDetails);
+    }
+
+    async function createCustomDetail(labelInput: string) {
+      const label = labelInput.trim().replace(/\\s+/g, " ");
+      if (!label) { setError("Enter a detail type name."); return; }
+      if (detailTypes.some((item) => item.value.toLowerCase() === label.toLowerCase() || item.label.toLowerCase() === label.toLowerCase())) {
+        setError("This detail type already exists."); return;
+      }
+      const companyId = accounts.find((account) => !!account.company_id)?.company_id;
+      if (!companyId) { setError("Select a company with an existing Chart of Accounts first."); return; }
+      setDetailBusy(true);
+      try {
+        const { error } = await supabase.from("account_detail_types").insert({ company_id: companyId, account_type: form.type, value: label, label });
+        if (error) throw error;
+        await loadCustomDetails();
+        setForm((previous) => ({ ...previous, detail_type: label, account_role: "general" }));
+        setNewDetailType(""); setAddingDetailType(false); setError(null);
+      } catch (error) { setError(error instanceof Error ? error.message : "Unable to add detail type."); }
+      finally { setDetailBusy(false); }
+    }
+
+    async function changeCustomDetail(item: typeof customDetails[number], action: "rename" | "toggle" | "delete") {
+      const usage = accounts.filter((account) => account.type === item.account_type && account.detail_type === item.value).length;
+      if (action === "delete" && usage > 0) { setError("This detail type is in use. Deactivate it instead."); return; }
+      let patch: Record<string, unknown> = {};
+      if (action === "rename") {
+        if (usage > 0) { setError("This detail type is in use. Deactivate it and create a new type instead."); return; }
+        const name = window.prompt("New detail type name", item.label)?.trim();
+        if (!name) return;
+        if (name.length > 80) { setError("Maximum 80 characters."); return; }
+        patch = {value:name,label:name};
+      } else if (action === "toggle") patch = {is_active:!item.is_active};
+      else if (!window.confirm("Delete this unused custom detail type?")) return;
+      setDetailBusy(true);
+      try {
+        const query = supabase.from("account_detail_types");
+        const { error } = action === "delete" ? await query.delete().eq("id",item.id) : await query.update(patch).eq("id",item.id);
+        if (error) throw error;
+        await loadCustomDetails(); setError(null);
+      } catch (error) { setError(error instanceof Error ? error.message : "Unable to update detail type."); }
+      finally { setDetailBusy(false); }
+    }
+
+    useEffect(() => { void loadCustomDetails(); }, []);
+
     /* ------------------------------------------------------------------------ */
     /* Detail types                                                             */
     /* ------------------------------------------------------------------------ */
@@ -507,8 +560,10 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
           return true;
         })
         .map((value) => ({ value, label: value.replace(/_/g, " ") }));
+      const stored = customDetails.filter((item) => item.account_type === form.type && (item.is_active || item.value === form.detail_type)).map((item) => ({ value:item.value, label:item.label, role:"general" }));
+      for (const item of stored) { if (!known.has(item.value)) { custom.push(item); known.add(item.value); } }
       return [...builtIn, ...custom];
-    }, [form.type, accounts]);
+    }, [form.type, accounts, customDetails, form.detail_type]);
 
     const selectedDetail = useMemo(() => {
       return detailTypes.find(
@@ -1310,6 +1365,7 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
                 </div>
               </div>
 
+              <button type="button" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" onClick={() => setManageDetails(true)}>Manage Detail Types</button>
               <button
                 type="button"
                 onClick={() =>
@@ -1327,6 +1383,23 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
           </div>
         </div>
 
+        {manageDetails && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="max-h-[85vh] w-full max-w-3xl overflow-auto rounded-xl bg-white p-5 shadow-xl">
+            <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-bold">Manage Detail Types</h2><button type="button" onClick={() => setManageDetails(false)}>Close ×</button></div>
+            <p className="mb-3 text-sm text-slate-600">Built-in detail types are protected. Custom types can be renamed or deleted only when unused.</p>
+            <div className="space-y-2">
+              {customDetails.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
+                <div><strong>{item.label}</strong><span className="ml-2 text-xs text-slate-500">{item.account_type} · {item.is_active ? "Active" : "Inactive"} · {accounts.filter((a) => a.type === item.account_type && a.detail_type === item.value).length} accounts</span></div>
+                <div className="flex gap-2">
+                  <button disabled={detailBusy} type="button" onClick={() => void changeCustomDetail(item,"rename")}>Edit</button>
+                  <button disabled={detailBusy} type="button" onClick={() => void changeCustomDetail(item,"toggle")}>{item.is_active ? "Deactivate" : "Reactivate"}</button>
+                  <button disabled={detailBusy} type="button" className="text-red-600" onClick={() => void changeCustomDetail(item,"delete")}>Delete</button>
+                </div>
+              </div>)}
+              {customDetails.length === 0 && <p className="text-sm text-slate-500">No custom detail types yet. Add one from the New Account form.</p>}
+            </div>
+          </div>
+        </div>}
         {/* Main */}
 
         <main className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
@@ -1839,15 +1912,7 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
                         {addingDetailType && (
                           <div className="mt-2 flex flex-wrap gap-2">
                             <input className="form-input min-w-[200px] flex-1" value={newDetailType} maxLength={80} placeholder="New detail type name" onChange={(event) => setNewDetailType(event.target.value)} />
-                            <button type="button" className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white" onClick={() => {
-                              const label = newDetailType.trim().replace(/\\s+/g, " ");
-                              if (!label) { setError("Enter a detail type name."); return; }
-                              if (detailTypes.some((item) => item.value.toLowerCase() === label.toLowerCase() || item.label.toLowerCase() === label.toLowerCase())) { setError("This detail type already exists."); return; }
-                              setForm((previous) => ({ ...previous, detail_type: label, account_role: "general" }));
-                              setNewDetailType("");
-                              setAddingDetailType(false);
-                              setError(null);
-                            }}>Use detail type</button>
+                            <button type="button" className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white" disabled={detailBusy} onClick={() => void createCustomDetail(newDetailType)}>Use detail type</button>
                           </div>
                         )}
                         {form.detail_type && !detailTypes.some((item) => item.value === form.detail_type) && (
