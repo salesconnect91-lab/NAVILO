@@ -240,7 +240,17 @@ begin
   reset role;
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
   set local role authenticated;
-  if not public.owner_posted_control_access() then raise exception 'FAIL: active Admin lacks payment cancellation access'; end if;
+  if public.owner_posted_control_access() then raise exception 'FAIL: company Admin gained platform-only payment cancellation access'; end if;
+  begin
+    perform public.owner_cancel_unallocated_payment(v_payment,current_date,'Admin cancellation denied');
+    raise exception 'FAIL: company Admin cancelled an unallocated payment';
+  exception when others then
+    if sqlerrm like 'FAIL:%' then raise; end if;
+  end;
+  reset role;
+  perform set_config('request.jwt.claim.sub',v_platform::text,true);
+  set local role authenticated;
+  if not public.owner_posted_control_access() then raise exception 'FAIL: platform super-admin lacks payment cancellation access'; end if;
   v_result:=public.owner_cancel_unallocated_payment(v_payment,current_date,'Isolated unallocated payment correction');
   v_payment_reversal:=(v_result->>'reversal_entry_id')::uuid;
   if v_result->>'success'<>'true' or v_payment_reversal is null then
@@ -265,7 +275,7 @@ begin
   exception when others then
     if sqlerrm like 'FAIL:%' then raise; end if;
   end;
-  raise notice 'PASS admin unallocated receipt: Admin-only access, no backdating, zero net GL, linked audit, duplicate blocked';
+  raise notice 'PASS unallocated receipt: platform-only cancellation, no backdating, zero net GL, linked audit, duplicate blocked';
   -- Sales/Purchase/Transport cancellation review must not reveal other tenants
   -- or expose a mutation endpoint to a non-platform owner.
   reset role;
@@ -289,7 +299,7 @@ begin
     if position('not found in active business unit' in sqlerrm)=0 then raise; end if;
   end;
   raise notice 'PASS invoice review: tenant-scoped access, cross-tenant document inaccessible, no mutation';
-  raise notice 'PASS posted cancellation: active Admin/Owner access, backdate denied, posted originals preserved, GL net zero, audit and duplicate guards';
+  raise notice 'PASS posted edit: company Owner/Admin in-place save; cancellation policy remains platform-only with audited reversal guards';
 exception when others then
   get stacked diagnostics v_ctx=PG_EXCEPTION_CONTEXT;
   raise exception 'OWNER TEST FAILURE: % | CONTEXT: %',SQLERRM,v_ctx;
