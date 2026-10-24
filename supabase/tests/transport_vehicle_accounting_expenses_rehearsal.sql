@@ -229,6 +229,10 @@ begin
  then raise exception 'Normal Sale must credit chosen common Revenue once; vehicle attribution stays in snapshots';end if;
  -- Same stable reference cannot be claimed by Vehicle Expense and Direct Cash,
  -- while a genuinely separate expense with the same date and amount remains valid.
+ if not exists(select 1 from public.transport_vehicle_expense_document_lines
+   where document_id=doc and lower(btrim(source_reference))='exp-ref-1') then
+   raise exception 'Vehicle Expense source reference was not persisted on its line';
+ end if;
  if not exists(select 1 from public.accounting_expense_source_claims
    where company_id=c and business_unit_id=b and source_reference='exp-ref-1'
      and source_kind='transport_vehicle_expense') then
