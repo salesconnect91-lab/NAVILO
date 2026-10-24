@@ -80,11 +80,14 @@ begin
  if (res->>'cost')::numeric<>315 then raise exception 'Vehicle 2 nonrecoverable VAT report %',res;end if;
  bad:=false;begin perform public.transport_vehicle_expense_save(payload,doc);exception when others then bad:=true;end;
  if not bad then raise exception 'Posted expense editable';end if;
- -- A company owner is denied posted controls; only platform admin can reverse.
- bad:=false;begin perform public.reverse_manual_journal_entry(je,'2026-10-18','Denied company owner');exception when others then bad:=position('Only the company owner or platform owner' in sqlerrm)>0;end;
- if not bad then raise exception 'Company owner bypassed admin-only reversal';end if;
- bad:=false;begin perform public.transport_vehicle_expense_reverse(doc,'2026-10-18','Denied company owner');exception when others then bad:=position('authorization is required' in sqlerrm)>0;end;
- if not bad then raise exception 'Company owner bypassed admin-only expense reversal';end if;
+ -- A read-only company user cannot call posted-reversal APIs directly.
+ update public.company_memberships set role='viewer' where company_id=c and user_id=u;
+ update public.business_unit_memberships set role='viewer' where business_unit_id=b and user_id=u;
+ update public.operating_location_memberships set role='viewer' where operating_location_id=loc and user_id=u;
+ bad:=false;begin perform public.reverse_manual_journal_entry(je,'2026-10-18','Denied read-only user');exception when others then bad:=true;end;
+ if not bad then raise exception 'Read-only user bypassed posted journal reversal authorization';end if;
+ bad:=false;begin perform public.transport_vehicle_expense_reverse(doc,'2026-10-18','Denied read-only user');exception when others then bad:=true;end;
+ if not bad then raise exception 'Read-only user bypassed posted expense reversal authorization';end if;
  reset role;
  update public.user_profiles set platform_role='super_admin' where id=u;
  set local role authenticated;
