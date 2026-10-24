@@ -2245,7 +2245,7 @@ export default function JournalEntryDetail() {
     isPosted && ownerCanCancel && !reversalEntry &&
     !entry.reversal_of_entry_id && !sourceEntry.fiscal_year_closure_id &&
     !sourceEntry.monthly_profit_closure_id &&
-    sourceEntry.source_module === "accounting" &&
+    (sourceEntry.source_module === "accounting" || (!sourceEntry.source_module && isManualJournal)) &&
     ["customer_receipt", "supplier_payment"].includes(sourceEntry.source_document_type || "") &&
     ["Customer Receipt", "Supplier Payment"].includes(entry.trans_type || "");
 
