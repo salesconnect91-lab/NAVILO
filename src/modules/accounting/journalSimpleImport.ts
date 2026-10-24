@@ -115,6 +115,16 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   const debit=money(row[idx('debit')],line,'Debit'),credit=money(row[idx('credit')],line,'Credit');
   if((debit>0)===(credit>0))throw Error(`Row ${line}: enter a positive Debit OR Credit, not both or neither.`);
   const related=relatedTo(row[idx('related_to')],line);
+  // Plain names on AR/AP controls are parties, not vehicle numbers.
+  // Keep explicit Customer:/Supplier: syntax supported for other controls.
+  const normalizedAccount=account.toLowerCase().replace(/\s+/g,' ').trim();
+  if(!related.partyType && related.vehicle){
+   if(normalizedAccount==='accounts receivable'){
+    related.partyType='customer';related.partyName=related.vehicle;related.vehicle='';
+   }else if(normalizedAccount==='accounts payable'){
+    related.partyType='supplier';related.partyName=related.vehicle;related.vehicle='';
+   }
+  }
   const groupKey=entry.toLowerCase();
   const prior=groups.get(groupKey);
   if(prior&&prior.date!==date)throw Error(`Row ${line}: Entry No ${entry} has conflicting dates.`);
