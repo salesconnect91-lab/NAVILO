@@ -75,7 +75,7 @@ begin
   v_result:=public.post_journal_entry(v_journal);
   if v_result->>'status'<>'posted' then raise exception 'FAIL: synthetic journal not posted'; end if;
   reset role;
-  -- Authorized owner and Admin correct the original posted journal in place.
+  -- Regression: active company owner and BU Admin can correct the original posted journal in place.
   -- Each save must preserve the journal ID, update its ledger, and create no reversal.
   perform set_config('request.jwt.claim.sub',v_company_owner::text,true);
   set local role authenticated;
