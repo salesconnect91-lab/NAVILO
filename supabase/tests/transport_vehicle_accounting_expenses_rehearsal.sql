@@ -3,7 +3,7 @@ begin;
 do $$
 declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;customer uuid;supplier uuid;supplier2 uuid;
  cash_id uuid;acct uuid;cost uuid;ar uuid;ap uuid;revenue uuid;code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
- tt uuid;v1 uuid;v2 uuid;doc uuid;je uuid;rev uuid;bank uuid;res jsonb;payload jsonb;bad boolean;v numeric;n bigint;before_trips bigint;sale uuid;acceptance_sale uuid;acceptance_je uuid;output_vat_account uuid;
+ tt uuid;v1 uuid;v2 uuid;doc uuid;je uuid;rev uuid;bank uuid;res jsonb;payload jsonb;bad boolean;error_text text;v numeric;n bigint;before_trips bigint;sale uuid;acceptance_sale uuid;acceptance_je uuid;output_vat_account uuid;
 begin
  insert into auth.users(id,role,email,created_at,updated_at)
  values(u,'authenticated','service-'||code||'@navilo.test',now(),now());
@@ -229,6 +229,11 @@ begin
  then raise exception 'Normal Sale must credit chosen common Revenue once; vehicle attribution stays in snapshots';end if;
  -- Same stable reference cannot be claimed by Vehicle Expense and Direct Cash,
  -- while a genuinely separate expense with the same date and amount remains valid.
+ if not exists(select 1 from public.accounting_expense_source_claims
+   where company_id=c and business_unit_id=b and source_reference='exp-ref-1'
+     and source_kind='transport_vehicle_expense') then
+   raise exception 'Vehicle Expense source reference claim missing before cross-workflow retry';
+ end if;
  bad:=false;
  begin
   perform public.accounting_import_direct_cash_expenses(jsonb_build_array(jsonb_build_object(
@@ -236,7 +241,7 @@ begin
    'expense_account_id',acct::text,'cash_bank_account_id',cash_id::text,
    'source_reference','EXP-REF-1','description','Duplicate source via direct cash','paid_to','Fixture'
   )));
- exception when others then bad:=position('Duplicate Source Reference' in sqlerrm)>0 or position('already imported expense' in sqlerrm)>0 or position('already claimed' in sqlerrm)>0;
+ exception when others then error_text:=sqlerrm; bad:=position('Duplicate Source Reference' in error_text)>0 or position('already imported expense' in error_text)>0 or position('already claimed' in error_text)>0; if not bad then raise exception 'Unexpected cross-workflow duplicate error: %',error_text;end if;
  end;
  if not bad then raise exception 'Vehicle Expense source reference was accepted through Direct Cash';end if;
 
@@ -252,7 +257,7 @@ begin
  bad:=false;
  begin
   perform public.accounting_import_direct_cash_expenses(payload);
- exception when others then bad:=position('Duplicate Source Reference' in sqlerrm)>0 or position('already imported expense' in sqlerrm)>0 or position('already claimed' in sqlerrm)>0;
+ exception when others then error_text:=sqlerrm; bad:=position('Duplicate Source Reference' in error_text)>0 or position('already imported expense' in error_text)>0 or position('already claimed' in error_text)>0; if not bad then raise exception 'Unexpected cross-workflow duplicate error: %',error_text;end if;
  end;
  if not bad then raise exception 'Repeated Direct Cash upload created a second journal';end if;
 
@@ -266,7 +271,7 @@ begin
     'expense_account_id',acct::text,'cash_bank_account_id',cash_id::text,
     'source_reference','CASH-SAME-DATE-AMOUNT','description','Duplicate second batch row','paid_to','Fixture')
   ));
- exception when others then bad:=position('Duplicate Source Reference' in sqlerrm)>0 or position('already imported expense' in sqlerrm)>0 or position('already claimed' in sqlerrm)>0;
+ exception when others then error_text:=sqlerrm; bad:=position('Duplicate Source Reference' in error_text)>0 or position('already imported expense' in error_text)>0 or position('already claimed' in error_text)>0; if not bad then raise exception 'Unexpected cross-workflow duplicate error: %',error_text;end if;
  end;
  if not bad then raise exception 'Partial batch failure was not reported';end if;
  if exists(select 1 from public.accounting_direct_cash_expense_import_keys
