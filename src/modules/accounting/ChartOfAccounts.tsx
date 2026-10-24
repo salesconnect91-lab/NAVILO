@@ -424,7 +424,7 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
       >("active");
 
     const [summaryFilter, setSummaryFilter] =
-      useState<SummaryFilter>("active");
+      useState<SummaryFilter>("all");
 
     const [expanded, setExpanded] =
       useState<Set<string>>(new Set());
@@ -563,7 +563,16 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
         .map((value) => ({ value, label: value.replace(/_/g, " ") }));
       const stored = customDetails.filter((item) => item.account_type === form.type && (item.is_active || item.value === form.detail_type)).map((item) => ({ value:item.value, label:item.label, role:"general" }));
       for (const item of stored) { if (!known.has(item.value)) { custom.push(item); known.add(item.value); } }
-      return [...builtIn, ...custom];
+      // Legacy records contain labels ("Fixed Assets") while system options use
+      // keys ("fixed_assets"). Show one option per human-readable label.
+      const options = [...builtIn, ...custom];
+      const labels = new Set<string>();
+      return options.filter((item) => {
+        const normalized = item.label.replace(/[_\\s]+/g, " ").trim().toLowerCase();
+        if (labels.has(normalized) && item.value !== form.detail_type) return false;
+        labels.add(normalized);
+        return true;
+      });
     }, [form.type, accounts, customDetails, form.detail_type]);
 
     const selectedDetail = useMemo(() => {
