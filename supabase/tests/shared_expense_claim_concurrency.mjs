@@ -41,8 +41,8 @@ try{
   await b.query('begin');
   await b.query(claimSql,[company,unit,reference,'direct_cash_expense','direct_cash:first']);
   await b.query('commit');
-  const count=await a.query('select count(*)::int as n from public.accounting_expense_source_claims where company_id=$1 and business_unit_id=$2 and source_reference=$3',[company,unit,reference]);
-  if(count.rows[0].n!==1)throw new Error('Concurrent retry left more than one source claim');
+  const count=await a.query('select count(*)::int as n from public.accounting_expense_source_claims where company_id=$1 and business_unit_id=$2 and source_reference=lower($3)',[company,unit,reference]);
+  if(count.rows[0].n!==1)throw new Error('Concurrent retry did not leave exactly one normalized source claim');
   console.log('PASS concurrent expense identity claim: one winner, duplicate blocked, same-source retry idempotent');
 }catch(error){
   try{await a.query('rollback')}catch{}
