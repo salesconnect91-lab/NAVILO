@@ -38,83 +38,10 @@ for(const file of fs.readdirSync(root+'/supabase/migrations').filter(f=>f.endsWi
    console.log('SKIP isolated-only Orbit production data correction',file);continue;
  }
  let migration=fs.readFileSync(root+'/supabase/migrations/'+file,'utf8').replace(/^\uFEFF/,'');
- // Keep the function DDL, but skip this already-applied one-off renumbering of
- // real historical journals when replaying against an empty isolated database.
+ // Keep the function DDL, but skip the one-off historical renumbering data block
+ // when replaying against the empty isolated CI database.
  if(file==='20261024105438_shorten_legacy_journal_numbers.sql'){
-   const start=migration.indexOf('DO $renumber}
-console.log('REPLAY PASS',count);
-if(process.env.NAVILO_BULK_JOURNAL_AUTOLINK_SMOKE==='1'){
- try{await db.exec(fs.readFileSync(root+'/supabase/tests/bulk_journal_income_autolink_rehearsal.sql','utf8'));
-     console.log('PASS isolated Bulk Journal vehicle Income auto-link and optional Expense allocation');}
- catch(e){console.log('FAIL isolated Bulk Journal vehicle autolink',e.message,e.where||'');await db.close();process.exit(1);}
- await db.close();process.exit(0);
-}
-if(process.env.NAVILO_VEHICLE_EXPENSE_SMOKE==='1'){await db.exec(fs.readFileSync(root+'/supabase/tests/transport_vehicle_accounting_expenses_rehearsal.sql','utf8'));console.log('PASS vehicle accounting and expense rehearsal');await db.close();process.exit(0);}
-if(process.env.NAVILO_SUPPLIER_PAID_SMOKE==='1'){
- try{await db.exec(fs.readFileSync(root+'/supabase/tests/transport_supplier_paid_projection_rehearsal.sql','utf8'));console.log('PASS supplier paid source projection')}catch(e){console.log('FAIL PAID',e.message,e.where||'');await db.close();process.exit(1)}
- await db.close();process.exit(0);
-}
-if(process.env.NAVILO_PARTNER_CLEANUP_SMOKE==='1'){
- try{await db.exec(fs.readFileSync(root+'/supabase/tests/transport_partner_purchase_cleanup_rehearsal.sql','utf8'));console.log('PASS partner Purchase cleanup')}catch(e){console.log('FAIL CLEANUP',e.message,e.where||'');await db.close();process.exit(1)}
- await db.close();process.exit(0);
-}
-if(process.env.NAVILO_NATIVE_CONVERSION_SMOKE==='1'){
- try{for(const file of ['transport_register_native_conversion_cash_rehearsal.sql','transport_register_native_conversion_tax_rehearsal.sql']){await db.exec(fs.readFileSync(root+'/supabase/tests/'+file,'utf8'));console.log('PASS',file)}}catch(e){console.log('FAIL CONVERSION',e.message,e.where||'');await db.close();process.exit(1)}
- await db.close();process.exit(0);
-}
-if(process.env.NAVILO_OPENING_BRIDGE_SMOKE==='1'){
- try{for(const file of ['transport_opening_invoice_bridge_rehearsal.sql','transport_imported_primary_assignment_rehearsal.sql']){await db.exec(fs.readFileSync(root+'/supabase/tests/'+file,'utf8'));console.log('PASS',file)}}catch(e){console.log('FAIL OPENING',e.message,e.where||'');await db.close();process.exit(1)}
- await db.close();process.exit(0);
-}
-if(process.env.NAVILO_BULK_INVOICE_SMOKE==='1'){
- try{
-  await db.exec(fs.readFileSync(root+'/supabase/tests/transport_bulk_settlement_import_rehearsal.sql','utf8'));
-  console.log('PASS isolated New Sales Invoice unposted-only and posted corrections pagination');
- }catch(e){
-  console.log('FAIL isolated bulk customer invoice paging',e.message,e.where||'');
-  await db.close();process.exit(1);
- }
- await db.close();process.exit(0);
-}
-if(process.env.NAVILO_VEHICLE_REPORT_SMOKE==='1'){
- try{
-  await db.exec(fs.readFileSync(root+'/supabase/tests/transport_trip_service_vehicle_revenue_split_rehearsal.sql','utf8'));
-  console.log('PASS isolated mixed company/supplier Trip revenue allocation');
-  await db.exec(fs.readFileSync(root+'/supabase/tests/transport_v1_financial_completion_rehearsal.sql','utf8'));
-  console.log('PASS isolated vehicle report and canonical invoice/payment reconciliation');
- }catch(e){
-  console.log('FAIL isolated vehicle report reconciliation',e.message,e.where||'');
-  await db.close();process.exit(1);
- }
- await db.close();process.exit(0);
-}
-if(process.env.NAVILO_PROFILE_REHEARSAL==='1'){if(process.env.NAVILO_NATIVE_REHEARSAL!=='1')throw new Error('Profile only the isolated native CI service');await db.exec("CREATE EXTENSION pg_stat_statements; SET pg_stat_statements.track='all'; SET pg_stat_statements.track_planning=on; SELECT pg_stat_statements_reset();");}
-
-const notice=notice=>{if(/Trips|50,000|20,000/.test(notice.message))console.log('SCALE',notice.message)};
-if(process.env.NAVILO_HISTORY_SCALE){
- const total=Number(process.env.NAVILO_HISTORY_SCALE);if(!Number.isInteger(total)||total<25||total>20000||total%25)throw new Error('History scale count requires a multiple of 25, at most 20,000');
- const sql=fs.readFileSync(root+'/supabase/tests/transport_historical_scale_rehearsal.sql','utf8').replaceAll('NAVILO_HISTORY_COUNT',String(total));const parts=sql.split('-- NAVILO_HISTORY_BATCHES');await db.exec(parts[0]);await db.exec('analyze');const started=Date.now();
- for(let batch=0;batch<total/25;batch++){const batchStart=Date.now();await db.query('select pg_temp.history_scale_batch($1)',[batch]);if(batch%4===3){await db.exec('analyze journal_entries;analyze journal_lines;analyze ledgers;analyze invoice_payment_allocations;analyze purchase_payment_allocations;analyze sales_orders;analyze purchase_orders;analyze transport_trips;analyze transport_trip_assignments;analyze transport_customer_documents;analyze transport_supplier_documents;analyze transport_history_import_rows;analyze transport_history_import_jobs;');await db.exec('checkpoint');if(globalThis.gc)globalThis.gc();console.log('HISTORY MEMORY MB',Math.round(process.memoryUsage().rss/1048576));console.log('HISTORY SCALE', (batch+1)*25, 'trips; last batch ms',Date.now()-batchStart,'elapsed ms',Date.now()-started);}}
- await db.exec(parts[1]);console.log('PASS historical canonical accounting scale',total,'trips ms',Date.now()-started);
-}else if(process.env.NAVILO_SCALE_TEST==='1'){
- const sql=fs.readFileSync(root+'/supabase/tests/transport_scale_import_rehearsal.sql','utf8');
- const parts=sql.split('-- NAVILO_SCALE_BATCHES: runner executes 200 independently committed calls here.');
- await db.exec(parts[0]);const started=Date.now();
- for(let batch=0;batch<200;batch++){await db.query('select pg_temp.navilo_scale_batch($1)',[batch]);if(batch%20===19)console.log('SCALE Trips imported:',(batch+1)*100);}
- console.log('SCALE 20,000 independently committed import ms:',Date.now()-started);
- await db.exec(parts[1],{onNotice:notice});console.log('PASS transport_scale_import_rehearsal.sql');
-}else{
- for(const file of (process.env.NAVILO_OPERATIONAL_MAPPING_SMOKE==='1'?['transport_unposted_register_page_reference.sql','transport_historical_operational_mapping_rehearsal.sql','transport_historical_identity_rehearsal.sql','transport_billing_policy_rehearsal.sql']:process.env.NAVILO_IDENTITY_SMOKE==='1'?['transport_historical_identity_rehearsal.sql']:process.env.NAVILO_DELETE_TRIP_SMOKE==='1'?['transport_draft_trip_delete_rehearsal.sql','transport_billing_policy_rehearsal.sql']:process.env.NAVILO_BILLING_POLICY_SMOKE==='1'?['transport_billing_policy_rehearsal.sql']:process.env.NAVILO_HISTORY_SMOKE==='1'?['transport_historical_import_rehearsal.sql']:process.env.NAVILO_BENCHMARK_ONLY==='1'?['transport_register_benchmark.sql']:process.env.NAVILO_READER_SMOKE==='1'?['transport_scale_reader_rehearsal.sql']:process.env.NAVILO_OWNER_CANCEL_SMOKE==='1'?['owner_posted_cancel_isolated_rehearsal.sql']:[ 'bulk_journal_income_autolink_rehearsal.sql','transport_vehicle_accounting_expenses_rehearsal.sql','transport_bulk_settlement_import_rehearsal.sql','transport_vehicle_manual_journal_rehearsal.sql','transport_monthly_profit_closing_rehearsal.sql','journal_feature_authorization_rehearsal.sql','service_item_classification_rehearsal.sql','transport_canonical_customer_charge_guard_rehearsal.sql','company_history_protection_rehearsal.sql','transport_release_controls_rehearsal.sql','scope_plan_cache_rehearsal.sql','transport_historical_import_rehearsal.sql','transport_party_reporting_rehearsal.sql','transport_v1_financial_completion_rehearsal.sql','tax_posting_reconciliation_rehearsal.sql','transport_ppr_account_rehearsal.sql','transport_initial_rate_vehicle_rehearsal.sql','transport_large_expense_rehearsal.sql','transport_cash_receive_rehearsal.sql','transport_advance_rehearsal.sql','transport_master_data_rehearsal.sql','transport_new_trip_entry_rehearsal.sql','transport_scale_reader_rehearsal.sql','authenticated_tenant_isolation_rehearsal.sql','authenticated_customer_rls_rehearsal.sql','authenticated_accounting_rpc_rehearsal.sql','fx_account_mapping_rehearsal.sql','fx_commercial_closeout_rehearsal.sql','fx_invoice_posting_bridge_rehearsal.sql','fx_invoice_settlement_components_rehearsal.sql','fx_per_line_rate_rehearsal.sql','invoice_base_currency_guard_rehearsal.sql','invoice_currency_snapshot_rehearsal.sql','multi_currency_journal_rehearsal.sql','multi_currency_manual_post_rehearsal.sql'])){
-  if(!fs.existsSync(root+'/supabase/tests/'+file))throw new Error('Missing required rehearsal: '+file);
-  if(file==='transport_scale_reader_rehearsal.sql')await db.exec(fs.readFileSync(root+'/supabase/tests/transport_register_incremental_snapshot_assertions.sql','utf8'));
-  try{await db.exec(fs.readFileSync(root+'/supabase/tests/'+file,'utf8').replace(/^\uFEFF/,''),{onNotice:notice});console.log('PASS',file)}catch(e){console.log('FAIL TEST',file,e.message,e.where||'');await db.close();throw new Error(file+': '+e.message)}
- }
-}
-if(process.env.NAVILO_CONCURRENCY_FIXTURE_SMOKE==='1'){await db.exec(fs.readFileSync(root+'/supabase/tests/transport_release_concurrency_fixture.sql','utf8'));console.log('PASS concurrent native fixture setup');}
-if(process.env.NAVILO_PROFILE_REHEARSAL==='1'){const stats=await db.query("select query,calls,plans,total_plan_time,total_exec_time,rows from pg_stat_statements order by total_plan_time+total_exec_time desc limit 100");console.log('PROFILE STATISTICS',JSON.stringify(stats.rows));}
-if(process.env.NAVILO_NATIVE_REHEARSAL==='1'&&!process.env.NAVILO_HISTORY_SCALE&&!process.env.NAVILO_SCALE_TEST&&!process.env.NAVILO_HISTORY_SMOKE&&!process.env.NAVILO_BENCHMARK_ONLY&&!process.env.NAVILO_READER_SMOKE){const {runTransportConcurrency}=await import('./transport_release_concurrency.mjs');const driver=await import(pathToFileURL(process.env.NAVILO_PG_DRIVER).href);await runTransportConcurrency(db,driver.Client??driver.default.Client);}
-await db.close();
-);
+   const start=migration.indexOf('DO $renumber$');
    const end=migration.indexOf('$renumber$;',start);
    if(start<0||end<0)throw new Error('Expected isolated-only renumber block is missing');
    migration=migration.slice(0,start)+migration.slice(end+'$renumber$;'.length);
