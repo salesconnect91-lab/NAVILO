@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {externalVehicleIncome,splitTransportRevenue,reconcileNormalVehicleIncome,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions} from './transportIncomeBreakdown';
+import {externalVehicleIncome,splitTransportRevenue,reconcileNormalVehicleIncome,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleServiceIncomeTotal} from './transportIncomeBreakdown';
 describe('Transport company P&L - separate Sale and Trip Service income',()=>{
  it('reads posted accounting by different mapped revenue accounts, respecting contra debits',()=>{
   expect(splitTransportRevenue([
@@ -102,5 +102,36 @@ describe('Transport company P&L - separate Sale and Trip Service income',()=>{
   expect(excludeDedicatedVehicleAttributions(invoiceRows,new Set(['dedicated-7979']))).toEqual([
    {vehicle_id:'shared-7494',vehicle_no:'7494',amount:18200},
   ]);
+ });
+});
+
+describe('dedicated vehicle service-income classification',()=>{
+ it('classifies the signed posted movement without changing its net contribution',()=>{
+  expect(dedicatedVehicleServiceIncomeTotal(
+   [{revenue_account_id:'vehicle-7979'}],
+   [{id:'vehicle-7979',code:'4001',type:'revenue',detail_type:'service_income',is_group:false,is_active:true}],
+   [{account_id:'vehicle-7979',credit:27395,debit:2283.21}],
+  )).toBe(25111.79);
+ });
+ it('does not reclassify shared canonical service accounts or non-service vehicle revenue',()=>{
+  expect(dedicatedVehicleServiceIncomeTotal(
+   [{revenue_account_id:'canonical-service'},{revenue_account_id:'sales-vehicle'}],
+   [
+    {id:'canonical-service',code:'4200',type:'revenue',detail_type:'service_income',is_group:false,is_active:true},
+    {id:'sales-vehicle',code:'4002',type:'revenue',detail_type:'product_sales',is_group:false,is_active:true},
+   ],
+   [
+    {account_id:'canonical-service',credit:1200,debit:0},
+    {account_id:'sales-vehicle',credit:800,debit:0},
+   ],
+  )).toBe(0);
+ });
+ it('excludes the mapped service GL to prevent counting it twice',()=>{
+  expect(dedicatedVehicleServiceIncomeTotal(
+   [{revenue_account_id:'mapped-service'}],
+   [{id:'mapped-service',code:'4301',type:'revenue',detail_type:'service_income',is_group:false,is_active:true}],
+   [{account_id:'mapped-service',credit:500,debit:0}],
+   new Set(['mapped-service']),
+  )).toBe(0);
  });
 });
