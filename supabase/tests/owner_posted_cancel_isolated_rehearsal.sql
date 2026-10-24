@@ -6,6 +6,7 @@ declare
   v_platform uuid:=gen_random_uuid();
   v_company_owner uuid:=gen_random_uuid();
   v_admin uuid:=gen_random_uuid();
+  v_viewer uuid:=gen_random_uuid();
   v_company uuid; v_unit uuid; v_loc uuid;
   v_cash uuid; v_offset uuid; v_journal uuid; v_reversal uuid; v_payment uuid; v_payment_reversal uuid;
   v_result jsonb; v_debit numeric; v_credit numeric; v_n int;
@@ -15,18 +16,20 @@ begin
   insert into auth.users(id,role,email,created_at,updated_at)
   values(v_platform,'authenticated','platform-'||v_code||'@navilo.test',now(),now()),
         (v_company_owner,'authenticated','tenant-'||v_code||'@navilo.test',now(),now()),
-        (v_admin,'authenticated','admin-'||v_code||'@navilo.test',now(),now());
+        (v_admin,'authenticated','admin-'||v_code||'@navilo.test',now(),now()),
+        (v_viewer,'authenticated','viewer-'||v_code||'@navilo.test',now(),now());
   insert into public.user_profiles(id,user_id,email,role,platform_role,is_active)
-  values(v_platform,v_platform,'platform-'||v_code||'@navilo.test','admin','user',true),
+  values(v_platform,v_platform,'platform-'||v_code||'@navilo.test','admin','super_admin',true),
         (v_company_owner,v_company_owner,'tenant-'||v_code||'@navilo.test','admin','user',true),
-        (v_admin,v_admin,'admin-'||v_code||'@navilo.test','admin','user',true);
+        (v_admin,v_admin,'admin-'||v_code||'@navilo.test','admin','user',true),
+        (v_viewer,v_viewer,'viewer-'||v_code||'@navilo.test','viewer','user',true);
   insert into public.companies(name,code,status,base_currency_code,created_by)
   values('Owner cancellation isolated rehearsal','OC'||v_code,'active','SAR',v_platform) returning id into v_company;
   select id into strict v_unit from public.business_units where company_id=v_company and is_default;
   insert into public.company_memberships(company_id,user_id,role,is_active)
-  values(v_company,v_platform,'viewer',true),(v_company,v_company_owner,'company_owner',true),(v_company,v_admin,'admin',true);
+  values(v_company,v_platform,'viewer',true),(v_company,v_company_owner,'company_owner',true),(v_company,v_admin,'admin',true),(v_company,v_viewer,'viewer',true);
   insert into public.business_unit_memberships(company_id,business_unit_id,user_id,role,is_active)
-  values(v_company,v_unit,v_company_owner,'company_owner',true),(v_company,v_unit,v_admin,'admin',true)
+  values(v_company,v_unit,v_company_owner,'company_owner',true),(v_company,v_unit,v_admin,'admin',true),(v_company,v_unit,v_viewer,'viewer',true)
   on conflict(business_unit_id,user_id) do update set is_active=true,role=excluded.role,company_id=excluded.company_id;
   insert into public.business_unit_modules(business_unit_id,company_id,module_key,enabled)
   values(v_unit,v_company,'accounting',true)
@@ -46,7 +49,7 @@ begin
   values(v_company,v_unit,v_loc,v_company_owner,'company_owner',true),
         (v_company,v_unit,v_loc,v_admin,'admin',true);
   update public.user_profiles set last_company_id=v_company,last_business_unit_id=v_unit
-  where id in (v_platform,v_company_owner,v_admin);
+  where id in (v_platform,v_company_owner,v_admin,v_viewer);
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
   perform public.initialize_default_coa();
   select account_id into strict v_cash from public.account_mappings
@@ -158,36 +161,52 @@ begin
     where company_id=v_company and business_unit_id=v_unit
       and operating_location_id=v_loc and user_id=v_company_owner;
 
-  perform set_config('request.jwt.claim.sub',v_platform::text,true);
+  -- Cancellation remains restricted to platform super-admin; owners/Admin can edit permitted records but do not gain reversal access.
+  perform set_config('request.jwt.claim.sub',v_viewer::text,true);
   set local role authenticated;
   if public.owner_posted_control_access() then
-    raise exception 'FAIL: unrelated platform user must not access posted cancellation';
+    raise exception 'FAIL: unrelated viewer must not access posted cancellation';
   end if;
   if has_function_privilege('authenticated','public.reverse_payment_voucher(uuid,date,text)','EXECUTE') then
     raise exception 'FAIL: authenticated users can bypass audited Owner Cancel payment workflow';
   end if;
   begin
-    perform public.owner_cancel_manual_journal(v_journal,current_date-1,'Old date must be rejected');
-    raise exception 'FAIL: cancellation accepted date before original journal';
+    perform public.owner_cancel_manual_journal(v_journal,current_date-1,'Viewer cancellation denial');
+    raise exception 'FAIL: unrelated viewer cancelled a posted journal';
   exception when others then
     if sqlerrm like 'FAIL:%' then raise; end if;
   end;
   reset role;
   perform set_config('request.jwt.claim.sub',v_company_owner::text,true);
   set local role authenticated;
-  if not public.owner_posted_control_access() then
-    raise exception 'FAIL: active company Owner lacks posted-control access';
+  if public.owner_posted_control_access() then
+    raise exception 'FAIL: company Owner gained platform-only cancellation access';
   end if;
-  select count(*) into v_n from public.owner_posted_control_events
-  where company_id=v_company;
-  if v_n<>0 then raise exception 'FAIL: rejected cancellation created audit evidence'; end if;
   reset role;
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
   set local role authenticated;
-  if not public.owner_posted_control_access() then raise exception 'FAIL: active Admin lacks posted-control permission'; end if;
+  if public.owner_posted_control_access() then
+    raise exception 'FAIL: company Admin gained platform-only cancellation access';
+  end if;
   begin
-    perform public.owner_cancel_manual_journal(v_journal,current_date-1,'Admin backdated cancellation blocked');
-    raise exception 'FAIL: Admin backdated a posted journal';
+    perform public.owner_cancel_manual_journal(v_journal,current_date-1,'Admin cancellation denial');
+    raise exception 'FAIL: Admin cancelled a posted journal';
+  exception when others then
+    if sqlerrm like 'FAIL:%' then raise; end if;
+  end;
+  reset role;
+  select count(*) into v_n from public.owner_posted_control_events
+  where company_id=v_company;
+  if v_n<>0 then raise exception 'FAIL: rejected cancellation created audit evidence'; end if;
+
+  perform set_config('request.jwt.claim.sub',v_platform::text,true);
+  set local role authenticated;
+  if not public.owner_posted_control_access() then
+    raise exception 'FAIL: platform super-admin lacks posted-control access';
+  end if;
+  begin
+    perform public.owner_cancel_manual_journal(v_journal,current_date-1,'Backdated platform cancellation blocked');
+    raise exception 'FAIL: platform super-admin backdated a posted journal';
   exception when others then
     if sqlerrm like 'FAIL:%' then raise; end if;
     if position('cannot precede' in sqlerrm)=0 then raise; end if;
@@ -195,7 +214,7 @@ begin
   v_result:=public.owner_cancel_manual_journal(v_journal,current_date,'Isolated test correction');
   v_reversal:=(v_result->>'reversal_entry_id')::uuid;
   if v_result->>'success'<>'true' or v_reversal is null then
-    raise exception 'FAIL: owner cancellation did not return posted reversal';
+    raise exception 'FAIL: platform owner cancellation did not return posted reversal';
   end if;
   if (select status from public.journal_entries where id=v_journal)<>'posted'
      or (select status from public.journal_entries where id=v_reversal)<>'posted' then
