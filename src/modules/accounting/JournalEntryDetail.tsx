@@ -149,7 +149,7 @@ const normalizePartyType = (
 export default function JournalEntryDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const {activeCompany,activeBusinessUnit}=useAuth();
+  const {activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
   const isTransport=activeBusinessUnit?.business_unit_type==='transport';
   const [companyVehicles,setCompanyVehicles]=useState<{id:string;vehicle_no:string;label:string;revenue_account_id:string|null}[]>([]);
   const [vehicleOwnership,setVehicleOwnership]=useState<OwnedPeriod[]>([]);
@@ -313,12 +313,12 @@ export default function JournalEntryDetail() {
   useEffect(() => {
     let live = true;
     setAdminCanEditPosted(false);
-    if (!activeCompany?.company_id || !activeBusinessUnit?.business_unit_id) return;
+    if (!activeCompany?.company_id || (!activeBusinessUnit?.business_unit_id && !isPlatformOwner)) return;
     void supabase.rpc("company_admin_posted_journal_edit_access").then(({ data, error }) => {
       if (live && !error) setAdminCanEditPosted(data === true);
     });
     return () => { live = false; };
-  }, [activeCompany?.company_id, activeBusinessUnit?.business_unit_id]);
+  }, [activeCompany?.company_id, activeBusinessUnit?.business_unit_id, isPlatformOwner]);
 
   const [reversalEntry, setReversalEntry] = useState<{ id: string; entry_no: string } | null>(null);
 
