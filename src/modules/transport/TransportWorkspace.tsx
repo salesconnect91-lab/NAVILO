@@ -381,7 +381,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       if(result.error)throw result.error;
       setDeleteTripTarget(null);setDeleteTripReason("");setSelectedTripIds(current=>{const next=new Set(current);next.delete(target.id);return next;});
       if(editingTripId===target.id){setEditingTripId(null);setTab("trips");}
-      await load();
+      await refreshRegisterAfterChange();
     }catch(e:any){if(scopeRef.current===scope)setDeleteTripError(e?.message||"Unable to delete Trip.");}
     finally{deleteTripRequest.current=false;if(scopeRef.current===scope)setDeletingTrip(false);}
   };
@@ -1039,7 +1039,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       },saveImport,current=>{if(importScopeRef.current===startedScope)setImportJob({...current})},()=>importStop.current||importScopeRef.current!==startedScope);
       if(importScopeRef.current!==startedScope)return;
       setImportJob({...job});
-      if(job.completed===job.batches.length){setBulkRows(current=>current.filter(r=>r.errors.length));await load();window.alert(`${job.total} Trips imported. Rejected rows remain available for review.`);}
+      if(job.completed===job.batches.length){setBulkRows(current=>current.filter(r=>r.errors.length));await refreshRegisterAfterChange();window.alert(`${job.total} Trips imported. Rejected rows remain available for review.`);}
     }catch(e:any){if(importScopeRef.current===startedScope)setError(`${e.message||'Import stopped.'} Resume uses the same batch IDs; completed batches are preserved.`);}
     finally{submissionRef.current=false;setBulkImporting(false);}
   };
@@ -1170,7 +1170,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       const {error:uploadError}=await supabase.storage.from('transport-ppr').upload(path,file,{upsert:false});if(uploadError)throw uploadError;
       const {data,error}=await supabase.rpc('transport_update_operational_trip',{p_trip_id:editingTripId,p_changes:{ppr_attachment_path:path}});
       if(error||!data){await supabase.storage.from('transport-ppr').remove([path]);throw error||new Error('Save the Received employee and date before attaching PPR.');}
-      setForm(previous=>({...previous,ppr_attachment_path:path}));await load();
+      setForm(previous=>({...previous,ppr_attachment_path:path}));await refreshRegisterAfterChange();
     }catch(e:any){setError(e?.message||'Unable to attach PPR.')}finally{setLoading(false)}
   }
   async function openPpr(){
@@ -1277,7 +1277,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       setEditingSupplierRentId("");setEditingSupplierRentCount(0);
       const returnTo=entryReturnTab.current;
       setTab(returnTo);
-      if(returnTo==="mobile")await loadMobileTrips(mobileSearch);else await load();
+      if(returnTo==="mobile")await loadMobileTrips(mobileSearch);else await refreshRegisterAfterChange();
     }catch(e:any){
       setError(e?.message||"Unable to update Trip.");
     }finally{
@@ -1378,7 +1378,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       if(currentVoiceDraftId){removeVoiceDraft(currentVoiceDraftId);setVoiceStatus("Voice Trip created successfully.");}
       const returnTo=entryReturnTab.current;
       setTab(returnTo);
-      if(returnTo==="mobile")await loadMobileTrips(mobileSearch);else await load();
+      if(returnTo==="mobile")await loadMobileTrips(mobileSearch);else await refreshRegisterAfterChange();
     }catch(e:any){setError(e.message||'Unable to create Trip.')}
     finally{submissionRef.current=false;setLoading(false)}
   }
