@@ -8,6 +8,7 @@ type OwnerEvent = {
   document_id: string;
   reason: string;
   created_at: string;
+  action_type: string;
   metadata: Record<string, unknown> | null;
 };
 
@@ -26,9 +27,9 @@ export default function OwnerJournalAuditHistory() {
       if (!alive || permissionError || owner !== true) return;
       const { data, error: fetchError } = await supabase
         .from("owner_posted_control_events")
-        .select("id,document_id,reason,created_at,metadata")
+        .select("id,document_id,reason,created_at,action_type,metadata")
         .in("document_type", ["manual_journal", "payment_voucher"])
-        .eq("action_type", "cancel")
+        .in("action_type", ["cancel", "owner_edit_posted", "admin_edit_posted"])
         .order("created_at", { ascending: false })
         .limit(100);
       if (!alive) return;
@@ -42,7 +43,7 @@ export default function OwnerJournalAuditHistory() {
     <section className="rounded-lg border border-slate-200 bg-white px-3 py-2">
       <button type="button" className="text-sm font-semibold text-slate-700"
         onClick={() => setOpen((previous) => !previous)}>
-        Owner/Admin Audit History · {events.length} cancelled financial voucher(s) {open ? "▲" : "▼"}
+        Owner/Admin Audit History · {events.length} posted journal action(s) {open ? "▲" : "▼"}
       </button>
       {open && (
         <div className="mt-2 space-y-2 text-xs">
@@ -50,8 +51,9 @@ export default function OwnerJournalAuditHistory() {
           {events.map((event) => (
             <div key={event.id} className="border-t border-slate-100 pt-2">
               <span className="font-semibold">
-                {String(event.metadata?.original_entry_no ?? event.document_id)}
+                {String(event.metadata?.original_entry_no ?? ((event.metadata?.before as {header?:{entry_no?:string}} | undefined)?.header?.entry_no) ?? event.document_id)}
               </span>
+              {" · "}{(event.action_type === "admin_edit_posted" || event.action_type === "owner_edit_posted") ? "Edited in place" : "Cancelled"}
               {" · "}{new Date(event.created_at).toLocaleString()}
               {" · "}{event.reason}
               <Link className="ml-2 text-blue-700 underline"
