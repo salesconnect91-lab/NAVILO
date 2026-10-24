@@ -3,7 +3,7 @@ begin;
 do $$
 declare u uuid:=gen_random_uuid();c uuid;b uuid;loc uuid;customer uuid;supplier uuid;supplier2 uuid;
  cash_id uuid;acct uuid;cost uuid;ar uuid;ap uuid;revenue uuid;code text:=substr(replace(gen_random_uuid()::text,'-',''),1,12);
- tt uuid;v1 uuid;v2 uuid;doc uuid;je uuid;rev uuid;bank uuid;res jsonb;payload jsonb;bad boolean;error_text text;v numeric;n bigint;before_trips bigint;sale uuid;acceptance_sale uuid;acceptance_je uuid;output_vat_account uuid;
+ tt uuid;v1 uuid;v2 uuid;doc uuid;expense_doc uuid;je uuid;rev uuid;bank uuid;res jsonb;payload jsonb;bad boolean;error_text text;v numeric;n bigint;before_trips bigint;sale uuid;acceptance_sale uuid;acceptance_je uuid;output_vat_account uuid;
 begin
  insert into auth.users(id,role,email,created_at,updated_at)
  values(u,'authenticated','service-'||code||'@navilo.test',now(),now());
@@ -67,7 +67,7 @@ begin
   jsonb_build_object('vehicle_id',v2,'expense_type','Fuel','description','No VAT','expense_account_id',acct,'net_amount','200','vat_rate',0,'source_reference','EXP-REF-2'),
   jsonb_build_object('vehicle_id',v2,'expense_type','Fuel','description','Non-recoverable VAT','expense_account_id',acct,'net_amount','100','vat_rate',15,'source_reference','EXP-REF-3','vat_recoverable',false)));
  set local role authenticated;
- res:=public.transport_vehicle_expense_save(payload);doc:=(res->>'document_id')::uuid;
+ res:=public.transport_vehicle_expense_save(payload);doc:=(res->>'document_id')::uuid;expense_doc:=doc;
  if (select status from public.transport_vehicle_expense_documents where id=doc)<>'draft' then raise exception 'Draft save failed';end if;
  res:=public.transport_vehicle_expense_save(payload,doc);
  res:=public.transport_vehicle_expense_post(doc);je:=(res->>'journal_entry_id')::uuid;
@@ -230,7 +230,7 @@ begin
  -- Same stable reference cannot be claimed by Vehicle Expense and Direct Cash,
  -- while a genuinely separate expense with the same date and amount remains valid.
  if not exists(select 1 from public.transport_vehicle_expense_document_lines
-   where document_id=doc and lower(btrim(source_reference))='exp-ref-1') then
+   where document_id=expense_doc and lower(btrim(source_reference))='exp-ref-1') then
    raise exception 'Vehicle Expense source reference was not persisted on its line';
  end if;
  if not exists(select 1 from public.accounting_expense_source_claims
