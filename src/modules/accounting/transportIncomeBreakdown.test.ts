@@ -119,7 +119,7 @@ describe('dedicated vehicle service-income classification',()=>{
   const breakdown=dedicatedVehicleNormalSalesIncomeBreakdown(
    [{id:'v7979',revenue_account_id:'vehicle-7979'}],
    accounts,
-   [{vehicle_id:'v7979',amount:27395}],
+   [{account_id:'vehicle-7979',amount:27395}],
   );
   expect(breakdown.total).toBe(27395);
   expect(breakdown.byAccount.get('vehicle-7979')).toBe(27395);

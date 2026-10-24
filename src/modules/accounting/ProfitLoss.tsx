@@ -372,10 +372,15 @@ export default function ProfitLoss() {
         const salesAccountId=mappings.find(m=>m.mapping_key==='sales_revenue')?.account_id??'';
         const serviceAccountId=mappings.find(m=>m.mapping_key==='service_revenue')?.account_id??'';
         const {sales:mappedSales,service:mappedService}=splitTransportRevenue(ledgerLines,salesAccountId,serviceAccountId);
+        const dedicatedSalesResult=await supabase.rpc('transport_pl_dedicated_vehicle_sales_income_scoped',{
+          p_from:fromDate,p_to:toDate,p_scope:scope,
+        });
+        if(dedicatedSalesResult.error)throw dedicatedSalesResult.error;
+        if(!Array.isArray(dedicatedSalesResult.data?.rows))throw new Error('Incomplete posted vehicle Sales Income source breakdown');
         const dedicatedSalesBreakdown=dedicatedVehicleNormalSalesIncomeBreakdown(
           vehicleResult.vehicles,
           accounts.map(a=>({id:a.id,code:a.code,type:a.type,is_group:a.is_group,is_active:a.is_active})),
-          vehicleResult.rows,
+          dedicatedSalesResult.data.rows,
         );
         const dedicatedSales=dedicatedSalesBreakdown.total;
         const sales=Number((mappedSales+dedicatedSales).toFixed(2));

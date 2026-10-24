@@ -56,28 +56,28 @@ export function dedicatedVehicleServiceIncomeTotal(
  * the generic service_income detail type. Shared vehicle accounts stay in their mapped GL class.
  */
 export function dedicatedVehicleNormalSalesIncomeBreakdown(
- vehicles:Array<{id:string;revenue_account_id:string|null}>,
+ vehicles:Array<{revenue_account_id:string|null}>,
  accounts:Array<{id:string;code:string|null;type:string|null;is_group?:boolean|null;is_active?:boolean|null}>,
- normalSalesRows:Array<{vehicle_id:string;amount:number|string}>,
+ normalSalesRows:Array<{account_id:string;amount:number|string}>,
 ):{total:number;byAccount:Map<string,number>}{
  const accountById=new Map(accounts.map(account=>[account.id,account]));
  const linkCounts=new Map<string,number>();
  for(const vehicle of vehicles)if(vehicle.revenue_account_id)
   linkCounts.set(vehicle.revenue_account_id,(linkCounts.get(vehicle.revenue_account_id)||0)+1);
- const accountForVehicle=new Map<string,string>();
+ const eligible=new Set<string>();
  for(const vehicle of vehicles){
   const id=vehicle.revenue_account_id;
   if(!id)continue;
   const account=accountById.get(id);
   if(!account||(account.type!=='revenue'&&account.type!=='income')||account.is_group===true||account.is_active===false)continue;
   if((linkCounts.get(id)||0)>1||account.code==='4100'||account.code==='4200')continue;
-  accountForVehicle.set(vehicle.id,id);
+  eligible.add(id);
  }
  const centsByAccount=new Map<string,number>();
  for(const row of normalSalesRows){
-  const accountId=accountForVehicle.get(row.vehicle_id);
+  const accountId=row.account_id;
   const value=Number(row.amount);
-  if(!accountId||!Number.isFinite(value))continue;
+  if(!eligible.has(accountId)||!Number.isFinite(value))continue;
   centsByAccount.set(accountId,(centsByAccount.get(accountId)||0)+cents(value));
  }
  const byAccount=new Map([...centsByAccount].map(([id,value])=>[id,amount(value)]));
