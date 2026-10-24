@@ -1,4 +1,5 @@
 import path from 'node:path';
+import {randomUUID} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 
 if(process.env.NAVILO_NATIVE_REHEARSAL!=='1'||process.env.GITHUB_ACTIONS!=='true')
@@ -10,8 +11,8 @@ const Client=pg.Client??pg.default.Client;
 const make=()=>new Client({host:'127.0.0.1',port:6543,user:'postgres',password:'navilo-rehearsal-only',database:'navilo_transport_rehearsal'});
 const a=make(),b=make();
 await Promise.all([a.connect(),b.connect()]);
-const tag=crypto.randomUUID().replaceAll('-','').slice(0,12);
-const user=crypto.randomUUID();
+const tag=randomUUID().replaceAll('-','').slice(0,12);
+const user=randomUUID();
 let company,unit;
 try{
   await a.query('begin');
