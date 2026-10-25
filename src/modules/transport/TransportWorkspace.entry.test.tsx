@@ -84,6 +84,21 @@ describe('New Trip master integration',()=>{
   await waitFor(()=>expect(screen.getByLabelText('Customer billing mode').textContent).toContain('Credit Only'));
   expect((screen.getByLabelText('Estimated Operational Margin') as HTMLInputElement).readOnly).toBe(true);
  });
+ it('clears prior Trip values when cancelling and starting a fresh Trip',async()=>{
+  await fill();
+  const jobInput=()=>screen.getByText('PO/DO/Job No.').closest('.transport-trip-field')!.querySelector('input')!;
+  fireEvent.change(jobInput(),{target:{value:'ZZ-TEST-STALE-JOB'}});
+  fireEvent.change(screen.getByLabelText('Remarks'),{target:{value:'ZZ-TEST-STALE-REMARK'}});
+  fireEvent.change(screen.getByLabelText('Customer Rate'),{target:{value:'1110'}});
+  fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
+  fireEvent.click(await screen.findByRole('button',{name:'Add Trip'}));
+  expect((screen.getByPlaceholderText('Search Customer') as HTMLInputElement).value).toBe('');
+  expect((screen.getByPlaceholderText('Search From') as HTMLInputElement).value).toBe('');
+  expect((screen.getByPlaceholderText('Search To') as HTMLInputElement).value).toBe('');
+  expect((jobInput() as HTMLInputElement).value).toBe('');
+  expect((screen.getByLabelText('Customer Rate') as HTMLInputElement).value).toBe('');
+  expect((screen.getByLabelText('Remarks') as HTMLInputElement).value).toBe('');
+ });
  it('saves Pending PPR through canonical entry RPC with scope and no caller owner snapshot',async()=>{
   await fill();fireEvent.click(screen.getByRole('button',{name:'Create Trip'}));await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_create_trips',expect.objectContaining({p_company_id:'c',p_business_unit_id:'b',p_rows:[expect.objectContaining({from_location_id:'f',to_location_id:'t',sale_type:'credit',ppr_status:'pending',ppr_received_by_employee_id:null})]})));
   const payload=mock.rpc.mock.calls.find(c=>c[0]==='transport_create_trips')![1].p_rows[0];expect(payload).not.toHaveProperty('owner_name_snapshot');expect(payload).not.toHaveProperty('trip_no');
