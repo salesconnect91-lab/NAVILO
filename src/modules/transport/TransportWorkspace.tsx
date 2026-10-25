@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 54173)
-Total output lines: 3148
-
 import {TRANSPORT_TRIP_HEADERS,downloadDailyTripTemplate} from './transportImportTemplates';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import {Link,useLocation,useNavigate,useSearchParams} from 'react-router-dom';
@@ -1565,7 +1562,332 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       setTripLayoutLoading(false);
       return ()=>{active=false;};
     }
-    const actor=user.id,company=activeC…4173 tokens truncated…portant;
+    const actor=user.id,company=activeCompany.company_id,unit=activeBusinessUnit.business_unit_id;
+    setTripLayoutLoading(true);
+    void (async()=>{
+      try{
+        const {data,error}=await supabase.from('transport_register_layout_preferences')
+          .select('layout').eq('user_id',actor).eq('company_id',company)
+          .eq('business_unit_id',unit).maybeSingle();
+        if(!active||tripLayoutScopeRef.current!==key)return;
+        if(error)throw error;
+        if(data?.layout){
+          const profile=normalizeTransportRegisterGridLayout(data.layout,available);
+          // Local direct header edits are intentionally browser-scoped until
+          // the user chooses Save Columns. Do not overwrite them on refresh.
+          if(!localProfile){
+            apply(profile);
+            try{localStorage.setItem(key,JSON.stringify(profile));}
+            catch{/* Cloud preferences still apply when browser storage is disabled. */}
+          }
+        }else if(localProfile){
+          // No cloud profile exists yet: carry forward this device's saved default.
+          const {error:saveError}=await supabase.from('transport_register_layout_preferences')
+            .upsert({user_id:actor,company_id:company,business_unit_id:unit,layout:localProfile,updated_at:new Date().toISOString()},
+              {onConflict:'user_id,company_id,business_unit_id'});
+          if(saveError)throw saveError;
+          if(active&&tripLayoutScopeRef.current===key){
+            try{localStorage.setItem(key,JSON.stringify(localProfile));}catch{}
+            setTripLayoutNotice('Your existing column layout is now synced to your login.');
+          }
+        }
+      }catch(error:any){
+        if(active&&tripLayoutScopeRef.current===key)
+          setTripLayoutError('Column settings could not sync. Current browser layout is still available. '+String(error?.message??''));
+      }finally{
+        if(active&&tripLayoutScopeRef.current===key)setTripLayoutLoading(false);
+      }
+    })();
+    return ()=>{active=false;};
+  },[tripGridStorageKey,user?.id,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
+
+  const setGridGroupVisible=(keys:readonly string[],show:boolean)=>{
+    const allowedKeys=keys.filter(columnAuthorized);
+    setHiddenTripColumns(current=>show
+      ?current.filter(key=>!allowedKeys.includes(key))
+      :Array.from(new Set([...current,...allowedKeys])));
+  };
+
+  const persistTripGridLayout=async (profile:TransportRegisterGridLayout,close:boolean,saveLocal:boolean)=>{
+    if(tripLayoutLoading||tripLayoutSaving)return;
+    const key=tripGridStorageKey;
+    const safe=normalizeTransportRegisterGridLayout(profile,gridColumns.map(column=>column[0]));
+    setTripLayoutError('');
+    setTripLayoutNotice('');
+    try{
+      if(saveLocal){
+        try{localStorage.setItem(key,JSON.stringify(safe));}
+        catch{/* Local storage failure must not block saving the logged-in cloud profile. */}
+      }
+      if(!user?.id||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id){
+        setTripLayoutNotice('Saved in this browser only. Sign in to sync to other devices.');
+        if(close)setShowTripColumnSetup(false);
+        return;
+      }
+      setTripLayoutSaving(true);
+      const {error}=await supabase.from('transport_register_layout_preferences')
+        .upsert({
+          user_id:user.id,company_id:activeCompany.company_id,
+          business_unit_id:activeBusinessUnit.business_unit_id,
+          layout:safe,updated_at:new Date().toISOString()
+        },{onConflict:'user_id,company_id,business_unit_id'});
+      if(error)throw error;
+      if(tripLayoutScopeRef.current!==key)return;
+      setTripLayoutNotice(close?'Default columns saved for your login on all devices.':'Default columns reset for your login on all devices.');
+      if(close)setShowTripColumnSetup(false);
+    }catch(error:any){
+      if(tripLayoutScopeRef.current===key)
+        setTripLayoutError('Could not save columns to your account. Try again. '+String(error?.message??''));
+    }finally{
+      if(tripLayoutScopeRef.current===key)setTripLayoutSaving(false);
+    }
+  };
+
+  const saveTripGridLayout=()=>{
+    void persistTripGridLayout({
+      order:tripColumnOrder.length?tripColumnOrder:defaultTripColumnOrder,
+      hidden:hiddenTripColumns,widths:tripColumnWidths
+    },true,true);
+  };
+
+  const resetTripGridLayout=()=>{
+    if(tripLayoutLoading||tripLayoutSaving)return;
+    try{localStorage.removeItem(legacyTripGridStorageKey);}catch{}
+    setTripColumnOrder([...defaultTripColumnOrder]);
+    setHiddenTripColumns([]);
+    setTripColumnWidths({});
+    // Reset is immediately persistent, just like the previous browser-only Reset.
+    void persistTripGridLayout({order:[...defaultTripColumnOrder],hidden:[],widths:{}},false,true);
+  };
+
+  const moveTripColumn=(dragKey:string,targetKey:string)=>{
+    if(dragKey===targetKey||visualGridGroup(dragKey)!==visualGridGroup(targetKey))return;
+    setTripColumnOrder(current=>{
+      const base=current.length?current:[...defaultTripColumnOrder];
+      const from=base.indexOf(dragKey),to=base.indexOf(targetKey);
+      if(from<0||to<0)return current;
+      const next=[...base];
+      next.splice(from,1);
+      next.splice(to,0,dragKey);
+      // Header drag/keyboard reordering must persist locally even when the
+      // Columns Setup dialog was never opened. Cloud sync remains explicit Save.
+      try{
+        const profile=normalizeTransportRegisterGridLayout({
+          order:next,hidden:hiddenTripColumns,widths:tripColumnWidths
+        },gridColumns.map(column=>column[0]));
+        localStorage.setItem(tripGridStorageKey,JSON.stringify(profile));
+      }catch{/* Browser storage can be disabled. */}
+      return next;
+    });
+  };
+
+  const [columnValues,setColumnValues]=useState<string[]>([]);
+  const [columnSearch,setColumnSearch]=useState('');
+  const [columnValuesLoading,setColumnValuesLoading]=useState(false);
+  const [columnValuesError,setColumnValuesError]=useState('');
+  const [columnOptionsRetry,setColumnOptionsRetry]=useState(0);
+  // A column's own selection and header sorting do not change its available
+  // options. Refetching on either action made the dropdown disappear/flash.
+  const optionFilters=registerOptionFilters(registerFilters,openColumnFilter);
+  const optionContextKey=cacheScopePrefix+JSON.stringify({filters:optionFilters,option:openColumnFilter});
+  const previousOptionsRetry=useRef(0);
+  useEffect(()=>{setColumnSearch('');},[openColumnFilter]);
+  useEffect(()=>{
+    let live=true;
+    columnOptionsRequest.current?.abort();
+    columnOptionsRequest.current=null;
+    setColumnValuesError('');
+    if(!openColumnFilter){setColumnValuesLoading(false);return;}
+    // Fetch the complete distinct-value set once per cascading filter context.
+    // Searching within the dropdown is local, like Excel, never a per-keystroke RPC.
+    const filterCacheKey=optionContextKey;
+    const cachedOptions=registerCacheEnabled()?registerFilterCache.get(filterCacheKey):undefined;
+    const retryRequested=previousOptionsRetry.current!==columnOptionsRetry;previousOptionsRetry.current=columnOptionsRetry;
+    if(cachedOptions){
+      setColumnValues(cachedOptions.values);setColumnValuesLoading(false);
+      if(cachedOptions.valid&&!retryRequested)return;
+    }else{
+      setColumnValues([]);setColumnValuesLoading(true);
+    }
+    const timer=window.setTimeout(()=>{
+      const controller=new AbortController();
+      columnOptionsRequest.current=controller;
+      void (async()=>{
+        try{
+          const r=await supabase.rpc('transport_register_query',{p_filters:{...optionFilters,use_cache:true},p_option_key:openColumnFilter,p_option_search:''}).abortSignal(controller.signal);
+          if(!live||controller.signal.aborted)return;
+          if(r.error)throw r.error;
+          const values=r.data.options??[];
+          setColumnValues(values);
+          if(registerCacheEnabled())boundedCacheSet(registerFilterCache,filterCacheKey,{values,at:Date.now(),valid:true},128);
+          setColumnValuesError('');
+        }catch(e:any){
+          if(live&&!controller.signal.aborted)setColumnValuesError(String(e?.message||'Unable to load filter values.'));
+        }finally{
+          if(columnOptionsRequest.current===controller)columnOptionsRequest.current=null;
+          if(live&&!controller.signal.aborted)setColumnValuesLoading(false);
+        }
+      })();
+    },0);
+    return()=>{
+      live=false;
+      window.clearTimeout(timer);
+      columnOptionsRequest.current?.abort();
+      columnOptionsRequest.current=null;
+    };
+  },[optionContextKey,columnOptionsRetry]);
+  const columnOptions=(_key:string)=>{
+    const query=columnSearch.trim().toLocaleLowerCase();
+    return query?columnValues.filter(value=>String(value).toLocaleLowerCase().includes(query)):columnValues;
+  };
+  // Recovery must not disable the existing per-Trip popups. Resolve the latest
+  // authorized Trip before opening one so an operational-only row cannot become
+  // an incomplete financial edit payload.
+  const openRecoveredPopup=async(row:Trip,key:string)=>{
+    try{
+      const result=await supabase.rpc('transport_edit_trip_read',{p_trip_id:row.id});
+      if(result.error)throw result.error;
+      if(!result.data||result.data.id!==row.id)throw new Error('Trip details could not be verified.');
+      const trip:Trip={...row,...result.data,trip_no:row.trip_no,
+        customer_name:row.customer_name,driver_name:row.driver_name,vehicle_no:row.vehicle_no};
+      if(key==='charge')setChargeTrip(trip);
+      else if(key==='supplier_charges')await openSupplierCharges(trip);
+      else if(key==='company_rate')setInitialRateTrip(trip);
+      else if(key==='invoice_no')setInvoiceTrip(trip);
+      else if(key==='rent_driver'||key==='supplier_invoice_no'){setBulkSupplierRentTrip(trip);setShowBulkSupplierRent(true);}
+      else if(key==='paper_received_by')await openQuickPpr(trip);
+    }catch(e:any){setError(e?.message||'Unable to open saved Trip details.');}
+  };
+  const operationalRecoveryActive=registerLoadError&&operationalRecovery?.key===registerPageKey;
+  // Keep the original register/grid visible even when the financial RPC fails.
+  // The operational fallback contains only saved Trip identity (no money).
+  const gridRows:Trip[]=operationalRecoveryActive&&operationalRecovery
+    ?operationalRecovery.rows.map((r:any)=>({...r,trip_no:r.display_trip_no??r.trip_no,truck_type:r.truck_type??'',status:r.status??''} as Trip))
+    :rows;
+  const recoveryPageFinancialReady=operationalRecoveryActive&&gridRows.length>0
+    &&gridRows.every(r=>(r as any).recovery_financial_verified===true);
+  // Totals and status counts are meaningful only for the currently confirmed filter/page.
+  const registerDataCurrent=!registerLoadError&&lastSuccessfulTotalsKey.current===registerTotalsKey;
+  const [selectedTripIds,setSelectedTripIds]=useState<Set<string>>(()=>new Set());
+  const selectedTripCount=selectedTripIds.size;
+  const visibleTripIds=gridRows.map(row=>String(row.id));
+  const allVisibleTripsSelected=visibleTripIds.length>0&&visibleTripIds.every(id=>selectedTripIds.has(id));
+  const toggleTripSelection=(tripId:string)=>{
+    setSelectedTripIds(current=>{
+      const next=new Set(current);
+      if(next.has(tripId))next.delete(tripId);else next.add(tripId);
+      return next;
+    });
+  };
+  const toggleVisibleTripSelection=()=>{
+    setSelectedTripIds(current=>{
+      const next=new Set(current);
+      if(allVisibleTripsSelected)visibleTripIds.forEach(id=>next.delete(id));
+      else visibleTripIds.forEach(id=>next.add(id));
+      return next;
+    });
+  };
+  useEffect(()=>{setSelectedTripIds(new Set());},[scopeKey]);
+  const amountGridKeys=new Set(['charge','rent_driver','supplier_charges','supplier_paid','supplier_balance','supplier_credit','driver_pay','driver_paid','driver_balance','amount','company_rate','received_company','remaining_company','customer_credit','profit','commission']);
+  const gridTotal=(key:string)=>Number(registerMeta.totals?.[key]??0);
+  const registerColumnWidth=(key:string)=>Math.max(tripColumnWidths[key]??compactTripColumnWidths[key]??80,amountGridKeys.has(key)?financialNumber(gridTotal(key)).length*7+18:0,amountGridKeys.has(key)?96:60);
+  useEffect(()=>{
+    if(tab!=="trips"||showPartyReports)return;
+    const element=tripsGridRef.current;
+    if(!element)return;
+    const measure=()=>{
+      const next=Math.max(0,Math.floor(element.clientWidth));
+      setTripGridViewportWidth(current=>current===next?current:next);
+    };
+    measure();
+    if(typeof ResizeObserver!=="undefined"){
+      const observer=new ResizeObserver(measure);
+      observer.observe(element);
+      return ()=>observer.disconnect();
+    }
+    window.addEventListener("resize",measure);
+    return ()=>window.removeEventListener("resize",measure);
+  },[tab,showPartyReports]);
+  const fittedTripColumnWidths=fitTransportRegisterColumnWidths(
+    orderedGridColumns.map(([key])=>key),registerColumnWidth,tripColumnWidths,tripGridViewportWidth
+  );
+  const displayRegisterColumnWidth=(key:string)=>fittedTripColumnWidths[key]??registerColumnWidth(key);
+
+
+  const toggleColumnValue=(key:string,value:string)=>{
+    setColumnFilters(current=>{
+      const selected=current[key]??[];
+      const next=selected.includes(value)
+        ? selected.filter(v=>v!==value)
+        : [...selected,value];
+
+      return {...current,[key]:next};
+    });
+  };
+
+  const clearColumnFilter=(key:string)=>{
+    setColumnFilters(current=>({...current,[key]:[]}));
+  };
+
+  const resetGrid=()=>{
+    try{sessionStorage.removeItem(registerViewStorageKey);}catch{/* Storage disabled */}
+    resetFilters();
+    setColumnFilters({});
+    setSortColumn("");
+    setSortDirection("asc");
+    setOpenColumnFilter(null);
+    if(tripsGridRef.current)tripsGridRef.current.scrollLeft=0;
+  };
+
+  return <div className={standaloneMobile?"relative min-h-dvh w-full max-w-none bg-slate-100":"relative w-full max-w-none space-y-1"} style={{width:"100%",maxWidth:"none",marginInline:0}}>
+
+
+      {chargeTrip&&<TransportTripCharges tripId={chargeTrip.id} onClose={()=>setChargeTrip(null)} onChanged={refreshRegisterAfterChange}/>}
+    {supplierChargeTarget&&<TransportSupplierCharges rentId={supplierChargeTarget.rentId} tripNo={supplierChargeTarget.tripNo} onClose={()=>setSupplierChargeTarget(null)} onChanged={refreshRegisterAfterChange}/>} 
+
+    {showPartyReports&&(reportPanel==='vehicle-reports'
+       ? <TransportVehicleReports key={scopeKey}/>
+       : <TransportPartyReports key={`${scopeKey}:${reportPanel}`} initialSide={reportPanel==='supplier-reports'?'supplier':'customer'} allocationEntry={reportPanel==='bulk-allocation'} onClose={()=>setTab('trips')} onChanged={refreshRegisterAfterChange}/>)}
+
+    {error&&<div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+
+    {!showPartyReports&&tab==="trips"&&<section ref={tripsSectionRef} data-navilo-transport-register="true" className="relative isolate flex h-[calc(100dvh-100px)] min-h-[360px] flex-col overflow-hidden bg-white rounded-lg border border-slate-700 shadow-sm shadow-slate-300" data-navilo-theme={tripTheme} data-navilo-customizable="true">
+      <style>{`
+        /* Mobile containment: keep the register full viewport width and scroll the data grid instead of squeezing it. */
+        @media (max-width: 767px) {
+          [data-navilo-transport-register] {
+            width: 100% !important;
+            max-width: 100vw !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            border-left-width: 0 !important;
+            border-right-width: 0 !important;
+            border-radius: 0 !important;
+            overflow: hidden !important;
+          }
+          [data-navilo-transport-register] .navilo-transport-topbar {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+          }
+          [data-navilo-transport-register] .navilo-transport-topbar > div {
+            flex-shrink: 0 !important;
+          }
+          [data-navilo-transport-register] .navilo-transport-register-toolbar {
+            display: flex !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            flex-wrap: nowrap !important;
+            justify-content: flex-start !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            margin: 0 !important;
+            padding: 6px 8px !important;
             gap: 6px !important;
             border-radius: 0 !important;
           }
