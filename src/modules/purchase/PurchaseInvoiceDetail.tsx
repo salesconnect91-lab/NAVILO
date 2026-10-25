@@ -446,6 +446,10 @@ function InventoryPurchaseInvoiceDetail() {
  */
 export default function PurchaseInvoiceDetail() {
   const {id}=useParams<{id:string}>();
+  const {activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
+  const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role;
+  const permissions=activeBusinessUnit?.permissions??activeCompany?.permissions;
+  const canDeleteService=canPerformModule(role,"purchase","delete",permissions,isPlatformOwner);
   const [resolved,setResolved]=useState<{id:string;kind:string|null;error:string|null}|null>(null);
   useEffect(()=>{
     let cancelled=false;
@@ -465,6 +469,6 @@ export default function PurchaseInvoiceDetail() {
   if(!resolved||resolved.id!==id)return <p role="status" className="card p-8">Loading Purchase Invoice…</p>;
   if(resolved.error)return <div className="p-4"><ErrorBanner message={resolved.error}/><Link to="/purchase" className="text-sm text-blue-700 underline">Back to Purchase Invoices</Link></div>;
   return resolved.kind==='service'
-    ? <TransportServiceDocument side="supplier" id={id!} canPost />
+    ? <TransportServiceDocument side="supplier" id={id!} canPost canDelete={canDeleteService} />
     : <InventoryPurchaseInvoiceDetail/>;
 }

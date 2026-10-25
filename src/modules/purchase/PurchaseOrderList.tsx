@@ -8,6 +8,7 @@ import { PurchaseOrder } from "@/types";
 import DataTable, { Column } from "@/components/DataTable";
 import BulkInvoicePostAction from "@/components/BulkInvoicePostAction";
 import {isSelectableDraft} from "@/lib/bulkInvoicePosting";
+import {deleteDraftCommercialInvoice} from "@/lib/deleteDraftCommercialInvoice";
 import { PageHeader, ErrorBanner, StatusBadge, formatCurrency, formatDate } from "@/components/ui";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
@@ -112,9 +113,12 @@ export default function PurchaseOrderList() {
     if (String(row.status).toLowerCase() !== "draft") return;
     if (!window.confirm(`Delete draft Purchase Invoice ${row.order_no}?`)) return;
     setError(null);
-    const { data: deleted, error: deleteError } = await supabase.rpc("delete_draft_purchase_invoice", { p_order_id: row.id });
-    if (deleteError) { setError(deleteError.message); return; }
-    if (!deleted) { setError("Draft Purchase Invoice could not be deleted. Refresh and try again."); return; }
+    try {
+      await deleteDraftCommercialInvoice(supabase, "supplier", row.id);
+    } catch (deleteError: any) {
+      setError(deleteError?.message ?? "Draft Purchase Invoice could not be deleted. Refresh and try again.");
+      return;
+    }
     await fetchRows();
   };
 

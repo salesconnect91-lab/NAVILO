@@ -15,10 +15,10 @@ vi.mock('@/lib/supabase',()=>({supabase:{
   from:(table:string)=>{
   const q:any={select:(columns:string)=>{mock.selectCalls.push({table,columns});return q;},eq:()=>q,order:()=>q,range:async()=>({data:table==='purchase_service_lines'?[{id:'line-1',description:'Office repair',amount:100,tax_percent:15,source_module:mock.sourceModule}]:[],error:null}),
    single:async()=>({data:{id:'expense-1',status:mock.status,order_no:'EXP-1',order_date:'2026-10-21',supplier_invoice_no:'SUP-1',supplier_invoice_date:'2026-10-21',invoice_type:'Tax Invoice',total:115,outstanding_amount:115,party:{name:'Supplier One'}},error:null}),
-   maybeSingle:async()=>({data:table==='transport_service_document_balances'?{billed_gross:115,outstanding_gross:115,credit_gross:0,paid_gross:0}:table==='transport_supplier_documents'?{document_kind:'service',journal_entry_id:mock.sourceModule==='transport'?'journal-1':null}:null,error:null})};
+   maybeSingle:async()=>({data:table==='transport_service_document_balances'?{billed_gross:115,outstanding_gross:115,credit_gross:0,paid_gross:0}:table==='transport_supplier_documents'?{id:'supplier-doc-1',document_kind:'service',journal_entry_id:mock.sourceModule==='transport'?'journal-1':null}:null,error:null})};
   return q;
  },
- rpc:async(name:string,args:any)=>{mock.rpcCalls.push({name,args});return {data:name==='transport_document_trip_details'?[]:name==='transport_reverse_service_invoice'?{success:true,note_no:'TR-SVC-DN-1',total:115}:{success:true},error:null};}
+ rpc:async(name:string,args:any)=>{mock.rpcCalls.push({name,args});return {data:name==='transport_document_trip_details'?[]:name==='transport_reverse_service_invoice'?{success:true,note_no:'TR-SVC-DN-1',total:115}:name==='transport_delete_register_draft_invoice'?{deleted:true}:{success:true},error:null};}
 }}));
 afterEach(()=>{cleanup();vi.unstubAllGlobals();mock.rpcCalls=[];mock.selectCalls=[];mock.status='draft';mock.sourceModule='general_expense_bill';});
 
@@ -44,6 +44,12 @@ describe('supplier Expense Bill service document',()=>{
   fireEvent.click(screen.getByRole('button',{name:'Post Full Debit Note'}));
   await waitFor(()=>expect(mock.rpcCalls).toContainEqual({name:'transport_reverse_service_invoice',args:{p_side:'supplier',p_order_id:'expense-1',p_note_date:'2026-10-22',p_reason:'Invoice entered in error'}}));
   expect(await screen.findByText(/Original invoice remains in history/)).toBeTruthy();
+ });
+ it('deletes a supplier transport draft through the guarded Register cascade',async()=>{
+  vi.stubGlobal('confirm',()=>true);
+  render(<MemoryRouter><TransportServiceDocument side="supplier" id="expense-1" canDelete/></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button',{name:'Delete Draft'}));
+  await waitFor(()=>expect(mock.rpcCalls).toContainEqual({name:'transport_delete_register_draft_invoice',args:{p_side:'supplier',p_document_id:'supplier-doc-1'}}));
  });
 });
 
