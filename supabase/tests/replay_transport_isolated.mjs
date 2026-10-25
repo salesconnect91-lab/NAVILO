@@ -26,6 +26,7 @@ create function auth.uid() returns uuid language sql stable as $$select nullif(c
 create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb,'{}')||jsonb_build_object('sub',auth.uid())$$;
 create function auth.role() returns text language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claim.role',true),''),'authenticated')$$;
 create function auth.email() returns text language sql stable as $$select auth.jwt()->>'email'$$;
+create function public.navilo_request_role() returns text language sql stable as $$select coalesce(nullif(current_setting('role',true),''),'authenticated')$$;
 grant usage on schema auth to anon,authenticated,service_role;grant execute on all functions in schema auth to anon,authenticated,service_role;
 create table storage.buckets(id text primary key,name text,public boolean default false,file_size_limit bigint,allowed_mime_types text[]);
 create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,owner uuid,owner_id text,metadata jsonb,created_at timestamptz default now(),updated_at timestamptz default now());alter table storage.objects enable row level security;
