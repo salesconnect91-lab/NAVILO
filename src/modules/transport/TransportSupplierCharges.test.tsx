@@ -3,14 +3,14 @@ import {beforeEach,afterEach,it,expect,vi} from 'vitest';
 import {render,screen,fireEvent,waitFor,cleanup} from '@testing-library/react';
 import TransportSupplierCharges from './TransportSupplierCharges';
 import TransportTripCharges from './TransportTripCharges';
-const mock=vi.hoisted(()=>({rpc:vi.fn(),posted:false,base:null as number|null,amount:1500,charges:[] as any[]}));
+const mock=vi.hoisted(()=>({rpc:vi.fn(),posted:false,linkedDraft:false,base:null as number|null,amount:1500,charges:[] as any[]}));
 const customerTripRead=()=>({id:'trip',company_id:'company',business_unit_id:'unit',trip_no:'19255',internal_trip_no:'OIC-000240',trip_date:'2026-10-11',customer_id:'customer',customer_name_snapshot:'Customer A',from_location:'DAMMAM',to_location:'RIYADH',customer_rate:mock.amount,customer_base_rate:mock.base,customer_rate_state:'finalized'});
 vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{
  const q:any={};for(const method of ['select','eq','in','order','limit'])q[method]=()=>q;
  q.single=async()=>({data:table==='transport_trips'?{id:'trip',company_id:'company',business_unit_id:'unit',trip_no:'TRP-1',trip_date:'2026-10-11',customer_id:'customer',customer_name_snapshot:'Customer A',from_location:'DAMMAM',to_location:'RIYADH',customer_rate:mock.amount,customer_base_rate:mock.base,customer_rate_state:'finalized'}:{id:'rent',company_id:'company',trip_id:'trip',state:'finalized',base_amount:mock.base,amount:mock.amount,supplier_name_snapshot:'Supplier A'},error:null});
- q.then=(resolve:any)=>Promise.resolve({data:table==='charge_master'?[{id:'waiting',charge_key:'W',charge_name:'Waiting',default_rate:400}]:table==='transport_trip_supplier_charges'?mock.charges:table==='transport_trip_customer_charges'?mock.charges.map(x=>({...x,code_snapshot:x.charge_key_snapshot})):mock.posted?[{id:'posted'}]:[],error:null}).then(resolve);return q;
+ q.then=(resolve:any)=>Promise.resolve({data:table==='charge_master'?[{id:'waiting',charge_key:'W',charge_name:'Waiting',default_rate:400}]:table==='transport_trip_supplier_charges'?mock.charges:table==='transport_trip_customer_charges'?mock.charges.map(x=>({...x,code_snapshot:x.charge_key_snapshot})):table==='transport_supplier_document_rents'&&(mock.posted||mock.linkedDraft)?[{id:'link',document_id:'document'}]:table==='transport_supplier_documents'&&(mock.posted||mock.linkedDraft)?[{purchase_order_id:'purchase'}]:table==='purchase_orders'&&mock.posted?[{status:'posted'}]:table==='purchase_orders'&&mock.linkedDraft?[{status:'draft'}]:[],error:null}).then(resolve);return q;
 }}}));
-beforeEach(()=>{mock.posted=false;mock.base=null;mock.amount=1500;mock.charges=[];mock.rpc.mockReset().mockResolvedValue({data:{},error:null});});
+beforeEach(()=>{mock.posted=false;mock.linkedDraft=false;mock.base=null;mock.amount=1500;mock.charges=[];mock.rpc.mockReset().mockResolvedValue({data:{},error:null});});
 afterEach(cleanup);
 const show=(props:Partial<Parameters<typeof TransportSupplierCharges>[0]>={})=>render(<TransportSupplierCharges rentId="rent" tripNo="TRP-1" editRate rateAllowed onClose={vi.fn()} onChanged={async()=>{}} {...props}/>);
 async function addWaiting(){
@@ -39,6 +39,12 @@ it('locks posted rent and charges',async()=>{
  mock.posted=true;show();await screen.findByText(/Supplier invoice posted/);
  expect((screen.getByLabelText(/Supplier rate excluding VAT/) as HTMLInputElement).disabled).toBe(true);
  expect(screen.queryByRole('button',{name:/Save Rate/})).toBeNull();expect(mock.rpc).not.toHaveBeenCalled();
+});
+it('keeps a supplier rent editable when its linked invoice is still a draft',async()=>{
+ mock.linkedDraft=true;show();await screen.findByLabelText(/Supplier rate excluding VAT/);
+ expect(screen.queryByText(/Supplier invoice posted/)).toBeNull();
+ expect((screen.getByLabelText(/Supplier rate excluding VAT/) as HTMLInputElement).disabled).toBe(false);
+ expect(screen.getByRole('button',{name:/Save Rate/})).toBeTruthy();
 });
 it('keeps the popup open and explains a partial save so charges can be retried',async()=>{
  mock.rpc.mockImplementation(async(name:string)=>({data:{},error:name==='transport_finalize_supplier_rent'?{message:'Rent confirmation failed'}:null}));
