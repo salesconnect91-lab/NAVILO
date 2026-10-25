@@ -4,12 +4,12 @@ import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {MemoryRouter} from 'react-router-dom';
 import TransportServiceDocument from './TransportServiceDocument';
 
-const mock=vi.hoisted(()=>({rpcCalls:[] as any[],selectCalls:[] as any[],status:'draft',sourceModule:'general_expense_bill',serviceLines:[] as any[],customerDocument:null as any,canEditPosted:false}));
+const mock=vi.hoisted(()=>({rpcCalls:[] as any[],selectCalls:[] as any[],printProps:[] as any[],status:'draft',sourceModule:'general_expense_bill',serviceLines:[] as any[],customerDocument:null as any,canEditPosted:false}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'company-1'},activeBusinessUnit:{business_unit_id:'bu-1'}})}));
 vi.mock('@/modules/accounting/OwnerInvoiceCancellationReview',()=>({default:()=>null}));
 vi.mock('@/modules/transport/ExternalInvoiceDetails',()=>({default:()=>null}));
 vi.mock('@/modules/transport/ConfigurableReport',()=>({default:()=>null}));
-vi.mock('@/components/PrintLayout',()=>({default:()=>null}));
+vi.mock('@/components/PrintLayout',()=>({default:(props:any)=>{mock.printProps.push(props);return null;}}));
 vi.mock('@/lib/fetchAllPages',()=>({fetchAllPages:async(fetcher:any)=>{const result=await fetcher(0,499);return result.data??[];}}));
 vi.mock('@/lib/supabase',()=>({supabase:{
   from:(table:string)=>{
@@ -20,7 +20,7 @@ vi.mock('@/lib/supabase',()=>({supabase:{
  },
  rpc:async(name:string,args:any)=>{mock.rpcCalls.push({name,args});return {data:name==='company_admin_posted_journal_edit_access'?mock.canEditPosted:name==='transport_document_trip_details'?[]:name==='transport_reverse_service_invoice'?{success:true,note_no:'TR-SVC-DN-1',total:115}:name==='transport_delete_register_draft_invoice'?{deleted:true}:{success:true,journal_entry_id:'journal-1'},error:null};}
 }}));
-afterEach(()=>{cleanup();vi.unstubAllGlobals();mock.rpcCalls=[];mock.selectCalls=[];mock.status='draft';mock.sourceModule='general_expense_bill';mock.serviceLines=[];mock.customerDocument=null;mock.canEditPosted=false;});
+afterEach(()=>{cleanup();vi.unstubAllGlobals();mock.rpcCalls=[];mock.selectCalls=[];mock.printProps=[];mock.status='draft';mock.sourceModule='general_expense_bill';mock.serviceLines=[];mock.customerDocument=null;mock.canEditPosted=false;});
 
 describe('supplier Expense Bill service document',()=>{
  it('lets users manually post a saved draft and routes payment to supplier payments',async()=>{
@@ -51,6 +51,15 @@ describe('supplier Expense Bill service document',()=>{
   fireEvent.click(await screen.findByRole('button',{name:'Delete Draft'}));
   await waitFor(()=>expect(mock.rpcCalls).toContainEqual({name:'transport_delete_register_draft_invoice',args:{p_side:'supplier',p_document_id:'supplier-doc-1'}}));
  });
+});
+
+it('prints the NAVILO purchase invoice number separately from the supplier reference',async()=>{
+ mock.sourceModule='transport';
+ render(<MemoryRouter><TransportServiceDocument side="supplier" id="expense-1"/></MemoryRouter>);
+ await screen.findByRole('heading',{name:'Purchase Service Invoice'});
+ await waitFor(()=>expect(mock.printProps[mock.printProps.length-1]?.voucherNo).toBe('EXP-1'));
+ expect(mock.printProps[mock.printProps.length-1]?.extraFields).toContainEqual({label:'Supplier Invoice',value:'SUP-1'});
+ expect(screen.getByText('NAVILO invoice #: EXP-1')).toBeTruthy();
 });
 
 it('loads the customer transport document classification when it is available',async()=>{

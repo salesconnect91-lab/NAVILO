@@ -5,6 +5,7 @@ import {MemoryRouter,Route,Routes} from 'react-router-dom';
 import PurchaseInvoiceDetail from './PurchaseInvoiceDetail';
 
 const mock=vi.hoisted(()=>({calls:[] as string[],kind:'service' as string|null,error:null as string|null}));
+vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{membership_role:'admin',permissions:{}},activeBusinessUnit:null,isPlatformOwner:false})}));
 vi.mock('@/lib/supabase',()=>({supabase:{
  from:(table:string)=>{
   mock.calls.push(table);
