@@ -581,7 +581,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
   const registerKey=JSON.stringify({scopeKey,registerFilters,sortColumn,sortDirection});
   // A page has its own cached identity even when filters and sorting match.
   const registerPageKey=`${cacheScopePrefix}${registerKey}:page=${page}`;
-  async function load(silent=false,refresh=false){
+  async function load(silent=false,refresh=false,quiet=false){
     // A timer/focus refresh must never abort an unfinished register request.
     if(silent&&!refresh&&registerRequest.current)return;
     // A successful rent save must refresh the register immediately. A previous
@@ -680,7 +680,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
     // is still running. Parallel reads competed for the same database resources.
     // Recovery remains available in catch after an actual timeout/failure.
     const deadlineTimer=window.setTimeout(()=>{deadlineHit=true;controller.abort();},58000);
-    if(!silent||refresh){setRegisterLoading(true);setError('');if(lastSuccessfulRegisterKey.current===null)setOperationalRecovery(null);}
+    if((!silent||refresh)&&!quiet){setRegisterLoading(true);setError('');if(lastSuccessfulRegisterKey.current===null)setOperationalRecovery(null);}
     try {
       const result=await supabase.rpc('transport_register_query',{p_limit:REGISTER_PAGE_SIZE,p_offset:page*REGISTER_PAGE_SIZE,p_filters:{...registerFilters,use_cache:true,...(refresh?{refresh:true,...(lastSuccessfulRegisterKey.current===registerPageKey&&registerMeta.row_versions?{known_rows:registerMeta.row_versions}:{})}:{})},p_sort:sortColumn,p_direction:sortDirection}).abortSignal(controller.signal);
       if(result.error)throw result.error;
@@ -728,11 +728,13 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       if(generation===readGeneration.current)setRegisterLoading(false);
     }
   }
-  function refreshRegisterAfterChange():Promise<void>{
+  function refreshRegisterAfterChange(quiet=true):Promise<void>{
     invalidateRegisterScope(cacheScopePrefix);
-    return load(true,true).then(success=>{if(success)setColumnOptionsRetry(current=>current+1);});
+    // Keep the confirmed grid visible while a successful save quietly reconciles
+    // its server-backed financial rows. Explicit Refresh still shows its status.
+    return load(true,true,quiet).then(success=>{if(success)setColumnOptionsRetry(current=>current+1);});
   }
-  function refreshRegister(){void refreshRegisterAfterChange();}
+  function refreshRegister(){void refreshRegisterAfterChange(false);}
   useEffect(()=>{
     const state:RegisterViewState={fromDate,toDate,customerFilter,driverFilter,vehicleFilter,fromFilter,toFilter,pprFilter,statusFilters,columnFilters,sortColumn,sortDirection,registerSearch,registerSearchMode,page};
     if(import.meta.env.MODE!=="test")try{sessionStorage.setItem(registerViewStorageKey,JSON.stringify(state));}catch{/* Private browsing or storage disabled */}
