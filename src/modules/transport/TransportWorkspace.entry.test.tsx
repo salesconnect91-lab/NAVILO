@@ -215,6 +215,23 @@ describe('Transport register interactions',()=>{
    await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_delete_draft_trip',{p_trip_id:'finalized-only-trip',p_reason:'Finalized wrong rate, remove mistaken trip'}));
    await screen.findByText('No trips yet.');
   });
+ it('allows an unposted Complete Trip to be deleted with an audit reason',async()=>{
+   let deleted=false;
+   mock.rpc.mockImplementation(async(name:string)=>{
+     if(name==='transport_delete_draft_trip'){deleted=true;return {data:{deleted:true,trip_no:'COMPLETE-UNPOSTED'},error:null};}
+     return {data:name==='transport_register_query'?{rows:deleted?[]:[{id:'complete-unposted-trip',trip_no:'COMPLETE-UNPOSTED',status:'complete'}],count:deleted?0:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:true,error:null};
+   });
+   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
+   await screen.findByText('COMPLETE-UNPOSTED');
+   fireEvent.click(screen.getByLabelText('Select trip COMPLETE-UNPOSTED'));
+   const remove=screen.getByRole('button',{name:'Delete selected Trip'}) as HTMLButtonElement;
+   expect(remove.disabled).toBe(false);fireEvent.click(remove);
+   expect(screen.getByText(/Draft, Incomplete or Complete Trip/)).toBeTruthy();
+   fireEvent.change(screen.getByLabelText('Trip deletion reason'),{target:{value:'ZZ-TEST cleanup'} });
+   fireEvent.click(screen.getByRole('button',{name:'Delete Unposted Trip'}));
+   await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_delete_draft_trip',{p_trip_id:'complete-unposted-trip',p_reason:'ZZ-TEST cleanup'}));
+   await screen.findByText('No trips yet.');
+ });
  it('keeps the Trip and confirmation open when the server blocks financial deletion',async()=>{
   mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_register_query'?{rows:[{id:'blocked-trip',trip_no:'BLOCKED-TRIP',status:'draft'}],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:true,error:name==='transport_delete_draft_trip'?{message:'Trip has financial entries or documents.'}:null}));
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
