@@ -47,7 +47,25 @@ export function paginatePrintDocument(doc: Document, footerLabel: string) {
       if (!fits()) throw new Error('A document section is taller than one page. Choose a larger paper size or reduce the section before printing.');
     }
   };
-  for (const block of blocks) {
+  const closingBlock = (block: Element) => block.matches('.print-signatures,.print-footer,.print-page-number,.page-number,.navilo-page-number,[data-platform-print-branding]');
+  for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
+    const block = blocks[blockIndex];
+    // Keep the signature/footer group together. If only the footer spills to a
+    // new page, it becomes a nearly empty page with just the repeated header.
+    const closingBlocks = blocks.slice(blockIndex);
+    if (closingBlock(block) && closingBlocks.every(closingBlock)) {
+      let copies = closingBlocks.map(item=>item.cloneNode(true) as HTMLElement);
+      copies.forEach(copy=>container.appendChild(copy));
+      if (!fits()) {
+        copies.forEach(copy=>copy.remove());
+        const occupied = Array.from(container.children).some(n=>!header || n.outerHTML!==header.outerHTML);
+        if (occupied) newPage(true);
+        copies = closingBlocks.map(item=>item.cloneNode(true) as HTMLElement);
+        copies.forEach(copy=>container.appendChild(copy));
+        if (!fits()) throw new Error('The document closing section is taller than one page. Choose a larger paper size or reduce the section before printing.');
+      }
+      break;
+    }
     const table = block.matches('table') ? block as HTMLTableElement : block.querySelector<HTMLTableElement>('table');
     const grid = block.matches('.invoice-items-wrap') ? block : null;
     if ((!table?.tBodies.length || block.querySelectorAll('table').length > 1) && !grid) {addBlock(block);continue;}

@@ -188,6 +188,21 @@ describe('measured page layout',()=>{
   const doc=layoutDoc(9),table=doc.querySelector('table')!,section=doc.createElement('section');table.replaceWith(section);section.append(table);const payment=doc.createElement('div');payment.textContent='PAYMENT 700';section.append(payment);
   paginatePrintDocument(doc,'Orbit');expect(doc.body.textContent?.match(/PAYMENT 700/g)).toHaveLength(1);expect(doc.querySelectorAll('tbody tr')).toHaveLength(9);
  });
+ it('keeps signatures and the document footer together when the footer would orphan',()=>{
+  vi.spyOn(HTMLElement.prototype,'clientHeight','get').mockImplementation(function(this:HTMLElement){return this.classList.contains('navilo-page-body')?100:0;});
+  vi.spyOn(HTMLElement.prototype,'scrollHeight','get').mockImplementation(function(this:HTMLElement){
+   if(!this.classList.contains('navilo-page-body'))return 0;
+   return (this.querySelector('.print-header')?10:0)+(this.querySelector('.content')?75:0)+(this.querySelector('.print-signatures')?15:0)+(this.querySelector('.print-footer')?20:0);
+  });
+  const doc=document.implementation.createHTMLDocument('Invoice');
+  doc.body.innerHTML='<div class="navilo-print-output"><article><header class="print-header">Orbit</header><div class="content">Invoice items and totals</div><div class="print-signatures">Signatures</div><div class="print-footer">Computer generated document</div></article></div>';
+  expect(paginatePrintDocument(doc,'Invoice')).toBe(2);
+  const pages=doc.querySelectorAll('.navilo-paper');
+  expect(pages[0].textContent).toContain('Invoice items and totals');
+  expect(pages[0].textContent).not.toContain('Computer generated document');
+  expect(pages[1].textContent).toContain('Signatures');
+  expect(pages[1].textContent).toContain('Computer generated document');
+ });
  it('blocks an oversized row instead of silently clipping it',()=>{
   vi.spyOn(HTMLElement.prototype,'clientHeight','get').mockReturnValue(100);vi.spyOn(HTMLElement.prototype,'scrollHeight','get').mockImplementation(function(this:HTMLElement){return this.querySelector('tbody tr')?200:0;});
   expect(()=>paginatePrintDocument(layoutDoc(1),'Orbit')).toThrow('row is taller');
