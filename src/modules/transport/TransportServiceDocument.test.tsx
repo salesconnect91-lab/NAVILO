@@ -4,7 +4,7 @@ import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {MemoryRouter} from 'react-router-dom';
 import TransportServiceDocument from './TransportServiceDocument';
 
-const mock=vi.hoisted(()=>({rpcCalls:[] as any[],selectCalls:[] as any[],printProps:[] as any[],status:'draft',sourceModule:'general_expense_bill',serviceLines:[] as any[],customerDocument:null as any,canEditPosted:false}));
+const mock=vi.hoisted(()=>({rpcCalls:[] as any[],selectCalls:[] as any[],printProps:[] as any[],status:'draft',sourceModule:'general_expense_bill',serviceLines:[] as any[],customerDocument:null as any,canEditPosted:false,orderNo:'EXP-1'}));
 vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({activeCompany:{company_id:'company-1'},activeBusinessUnit:{business_unit_id:'bu-1'}})}));
 vi.mock('@/modules/accounting/OwnerInvoiceCancellationReview',()=>({default:()=>null}));
 vi.mock('@/modules/transport/ExternalInvoiceDetails',()=>({default:()=>null}));
@@ -14,13 +14,13 @@ vi.mock('@/lib/fetchAllPages',()=>({fetchAllPages:async(fetcher:any)=>{const res
 vi.mock('@/lib/supabase',()=>({supabase:{
   from:(table:string)=>{
   const q:any={select:(columns:string)=>{mock.selectCalls.push({table,columns});return q;},eq:()=>q,order:()=>q,range:async()=>({data:table==='purchase_service_lines'?[{id:'line-1',description:'Office repair',amount:100,tax_percent:15,source_module:mock.sourceModule}]:table==='sales_service_lines'?mock.serviceLines:[],error:null}),
-   single:async()=>({data:{id:'expense-1',status:mock.status,order_no:'EXP-1',order_date:'2026-10-21',supplier_invoice_no:'SUP-1',supplier_invoice_date:'2026-10-21',invoice_type:'Tax Invoice',total:115,outstanding_amount:115,party:{name:'Supplier One'}},error:null}),
+   single:async()=>({data:{id:'expense-1',status:mock.status,order_no:mock.orderNo,order_date:'2026-10-21',supplier_invoice_no:'SUP-1',supplier_invoice_date:'2026-10-21',invoice_type:'Tax Invoice',total:115,outstanding_amount:115,party:{name:'Supplier One'}},error:null}),
    maybeSingle:async()=>({data:table==='transport_service_document_balances'?{billed_gross:115,outstanding_gross:115,credit_gross:0,paid_gross:0}:table==='transport_supplier_documents'?{id:'supplier-doc-1',document_kind:'service',journal_entry_id:mock.sourceModule==='transport'?'journal-1':null}:table==='transport_customer_documents'?mock.customerDocument:null,error:null})};
   return q;
  },
  rpc:async(name:string,args:any)=>{mock.rpcCalls.push({name,args});return {data:name==='company_admin_posted_journal_edit_access'?mock.canEditPosted:name==='transport_document_trip_details'?[]:name==='transport_reverse_service_invoice'?{success:true,note_no:'TR-SVC-DN-1',total:115}:name==='transport_delete_register_draft_invoice'?{deleted:true}:{success:true,journal_entry_id:'journal-1'},error:null};}
 }}));
-afterEach(()=>{cleanup();vi.unstubAllGlobals();mock.rpcCalls=[];mock.selectCalls=[];mock.printProps=[];mock.status='draft';mock.sourceModule='general_expense_bill';mock.serviceLines=[];mock.customerDocument=null;mock.canEditPosted=false;});
+afterEach(()=>{cleanup();vi.unstubAllGlobals();mock.rpcCalls=[];mock.selectCalls=[];mock.printProps=[];mock.status='draft';mock.sourceModule='general_expense_bill';mock.serviceLines=[];mock.customerDocument=null;mock.canEditPosted=false;mock.orderNo='EXP-1';});
 
 describe('supplier Expense Bill service document',()=>{
  it('lets users manually post a saved draft and routes payment to supplier payments',async()=>{
@@ -38,7 +38,7 @@ describe('supplier Expense Bill service document',()=>{
   mock.sourceModule='transport';
   vi.stubGlobal('confirm',()=>true);
   render(<MemoryRouter><TransportServiceDocument side="supplier" id="expense-1" canReverse/></MemoryRouter>);
-  fireEvent.click(await screen.findByRole('button',{name:'Delete Posted Invoice'}));
+  fireEvent.click(await screen.findByRole('button',{name:'Issue Debit Note'}));
   fireEvent.change(screen.getByLabelText('Reversal note date'),{target:{value:'2026-10-22'}});
   fireEvent.change(screen.getByLabelText('Reversal reason'),{target:{value:'Invoice entered in error'}});
   fireEvent.click(screen.getByRole('button',{name:'Post Full Debit Note'}));
@@ -89,4 +89,28 @@ it('hides the posted in-place edit from non-admin users',async()=>{
  await screen.findByRole('heading',{name:'Tax Invoice'});
  await waitFor(()=>expect(mock.rpcCalls).toContainEqual({name:'company_admin_posted_journal_edit_access',args:undefined}));
  expect(screen.queryByRole('button',{name:'Edit Posted Invoice'})).toBeNull();
+});
+
+
+it('shows the saved manual customer invoice number on screen and print',async()=>{
+ mock.orderNo='ZZ-TEST-CUST-B-20261025';
+ render(<MemoryRouter><TransportServiceDocument side="customer" id="sale-1"/></MemoryRouter>);
+ expect(await screen.findByText('Register invoice: ZZ-TEST-CUST-B-20261025')).toBeTruthy();
+ await waitFor(()=>expect(mock.printProps[mock.printProps.length-1]?.voucherNo).toBe('ZZ-TEST-CUST-B-20261025'));
+});
+
+it('keeps an internal historical number out of the customer invoice header and print',async()=>{
+ mock.orderNo='H-S-123';
+ render(<MemoryRouter><TransportServiceDocument side="customer" id="sale-1"/></MemoryRouter>);
+ expect(await screen.findByText('Register invoice: not entered')).toBeTruthy();
+ await waitFor(()=>expect(mock.printProps[mock.printProps.length-1]?.voucherNo).toBe('—'));
+});
+
+it('labels the customer credit-note action without presenting it as permanent deletion',async()=>{
+ mock.status='posted';mock.sourceModule='transport';
+ mock.customerDocument={document_kind:'credit',journal_entry_id:'journal-1'};
+ mock.serviceLines=[{id:'line-1',description:'Trip 47',amount:2400,tax_percent:15,source_module:'transport'}];
+ render(<MemoryRouter><TransportServiceDocument side="customer" id="sale-1" canReverse/></MemoryRouter>);
+ expect(await screen.findByRole('button',{name:'Issue Credit Note'})).toBeTruthy();
+ expect(screen.queryByRole('button',{name:'Delete Posted Invoice'})).toBeNull();
 });
