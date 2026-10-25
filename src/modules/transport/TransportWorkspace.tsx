@@ -336,6 +336,25 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
     sale_type:"",
     notes:""
   });
+  const createNewTripForm=()=>({
+    trip_date:new Date().toISOString().slice(0,10),
+    customer_id:"",customer_name_snapshot:"",truck_type_id:"",vehicle_id:"",driver_id:"",
+    from_location:"",to_location:"",po_do_job_no:"",ppr_status:"pending",ppr_received_date:"",
+    ppr_received_by_employee_id:"",ppr_attachment_path:"",customer_rate:"",supplier_rent:"",
+    driver_pay:"",sale_type:"",notes:""
+  });
+  const resetTripEntry=()=>{
+    setError("");
+    setEditingTripId(null);setEditingTripNo("");
+    setEditingOriginalAssignment({vehicle_id:"",driver_id:""});
+    setEditingOriginalTruckTypeId("");setEditingOriginalRateState("");
+    setEditingSupplierRentId("");setEditingSupplierRentCount(0);
+    setEditingChargeTotals({customer:0,supplier:0});
+    setEditingBaseline({trip_date:"",customer_id:"",truck_type_id:"",from_location:"",to_location:"",customer_rate:"",supplier_rent:"",driver_pay:""});
+    setEditingRateLocks({customer:false,supplier:false});
+    setQuickSupplierId("");setRateTouched(false);
+    setForm(createNewTripForm());
+  };
   const [voiceDrafts,setVoiceDrafts]=useState<MobileVoiceDraft[]>([]);
   const [voiceListening,setVoiceListening]=useState(false);
   const [voiceStatus,setVoiceStatus]=useState("");
@@ -771,8 +790,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
 
   useEffect(()=>{
     let active=true;
-    setQuickAdd(null);setQuickSupplierId('');setBulkRows([]);setEditingTripId(null);setRateTouched(false);
-    setForm(previous=>({...previous,customer_id:'',vehicle_id:'',driver_id:'',truck_type_id:'',from_location:'',to_location:'',customer_rate:'',supplier_rent:'',driver_pay:''}));
+    setQuickAdd(null);setBulkRows([]);resetTripEntry();
     setTripMasters({customers:[],truckTypes:[],locations:[],vehicles:[],drivers:[],suppliers:[],employees:[],ownership:[],rates:[],billingModes:{}});
     setEntryPermissions({master:false,owner:false,rate:false,rent:false,driver:false});
     setCanDeleteTrip(false);setDeleteTripTarget(null);setDeleteTripReason("");setDeleteTripError("");setDeletingTrip(false);
@@ -1996,7 +2014,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
         </div>
         <div className="navilo-transport-register-actions flex items-center gap-1">
           <div className="navilo-register-add-trip flex shrink-0 items-center gap-1.5">
-          <button type="button" onClick={()=>{entryReturnTab.current="trips";setEditingTripId(null);setTab("new")}} className="flex h-9 items-center gap-1 rounded-lg border border-blue-500 bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
+          <button type="button" onClick={()=>{entryReturnTab.current="trips";setNewTripMode("single");resetTripEntry();setTab("new")}} className="flex h-9 items-center gap-1 rounded-lg border border-blue-500 bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700"><Plus className="h-3.5 w-3.5"/>Add Trip</button>
           <button type="button" onClick={()=>{const chosen=gridRows.filter(row=>selectedTripIds.has(String(row.id)));if(selectedTripCount&&chosen.length!==selectedTripCount){setError('Selected Trips span multiple register pages. Open Rates / Invoice from one page at a time.');return;}setBulkRateInitialTrips(chosen);setShowBulkCustomerRate(true);}} className="flex h-9 items-center gap-1 rounded-lg border border-emerald-600 bg-emerald-700 px-2.5 text-[11px] font-semibold text-white shadow-sm hover:bg-emerald-800">Rates / Invoice{selectedTripCount>0?` · ${selectedTripCount}`:''}</button>
           {readSupplier&&<button type="button" aria-label="Supplier Rent / Invoice" title="Finalize supplier rent and create or review trip-linked supplier invoice drafts" onClick={()=>{setBulkSupplierRentTrip(null);setShowBulkSupplierRent(true)}} className="flex h-9 items-center gap-1 rounded-lg border border-rose-600 bg-rose-700 px-2.5 text-[11px] font-semibold text-white shadow-sm hover:bg-rose-800">Supplier Rent / Invoice</button>}
           <button type="button" onClick={()=>setShowRegisterDraftInvoices(true)} className="flex h-9 items-center gap-1 rounded-lg border border-amber-500 bg-amber-500 px-2.5 text-[11px] font-semibold text-white shadow-sm hover:bg-amber-600">Draft Invoices</button>
@@ -2240,7 +2258,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
           </thead>
 
           <tbody>
-            {!gridRows.length&&<tr><td colSpan={Math.max(1,orderedGridColumns.length)}><div className="navilo-transport-empty-state">{registerLoading?"Loading trips…":registerLoadError?<><strong>Register query failed; existing Trips are safe.</strong><button type="button" className="btn h-7" onClick={refreshRegister}>Retry</button></>:<><strong>{registerSearch||Object.values(columnFilters).some(v=>v.length)||statusFilters.length?"No trips match your filters.":"No trips yet."}</strong><button type="button" className="btn h-7" onClick={()=>{setEditingTripId(null);setTab("new")}}>Add Trip</button></>}</div></td></tr>}
+            {!gridRows.length&&<tr><td colSpan={Math.max(1,orderedGridColumns.length)}><div className="navilo-transport-empty-state">{registerLoading?"Loading trips…":registerLoadError?<><strong>Register query failed; existing Trips are safe.</strong><button type="button" className="btn h-7" onClick={refreshRegister}>Retry</button></>:<><strong>{registerSearch||Object.values(columnFilters).some(v=>v.length)||statusFilters.length?"No trips match your filters.":"No trips yet."}</strong><button type="button" className="btn h-7" onClick={()=>{entryReturnTab.current="trips";setNewTripMode("single");resetTripEntry();setTab("new")}}>Add Trip</button></>}</div></td></tr>}
             {gridRows.map(r=>{
               const tripSelected=selectedTripIds.has(String(r.id));
               return <tr key={r.id} data-trip-selected={tripSelected?"true":"false"} className={`align-middle transition-colors ${tripSelected?'outline outline-1 -outline-offset-1 outline-amber-400':''} h-[26px] odd:bg-white even:bg-slate-50/45 hover:bg-blue-50/45`}>
@@ -2530,7 +2548,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       </label>
 
       <div className="flex items-end justify-end gap-2">
-        <button className="btn" onClick={()=>{setError("");setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setTab(entryReturnTab.current)}}>Cancel</button>
+        <button className="btn" onClick={()=>{const returnTo=entryReturnTab.current;resetTripEntry();setTab(returnTo)}}>Cancel</button>
         <button className="btn-primary" onClick={()=>void (editingTripId?updateTrip():createTrip())} disabled={loading||(entryReturnTab.current==="mobile"&&(editingTripId?!mobileCanEdit:!mobileCanCreate))}>
           {loading?(editingTripId?"Saving...":"Creating..."):(editingTripId?"Save Changes":"Create Trip")}
         </button>
