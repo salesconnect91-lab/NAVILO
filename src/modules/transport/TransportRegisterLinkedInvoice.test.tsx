@@ -37,3 +37,10 @@ it('allows draft editing without exposing posting or deletion to a draft clerk',
  show();await screen.findByRole('button',{name:'Edit Draft'});
  expect(screen.queryByRole('button',{name:'Post Invoice'})).toBeNull();expect(screen.queryByRole('button',{name:'Delete Draft'})).toBeNull();
 });
+
+it('keeps an unlinked supplier invoice cell on the invoice dialog instead of opening rate setup',async()=>{
+ mock.exists=false;show('supplier');
+ expect(await screen.findByText(/No supplier invoice is linked to this Trip/)).toBeTruthy();
+ expect(screen.getByRole('heading',{name:'Supplier Invoice · Trip 46'})).toBeTruthy();
+ expect(screen.queryByText('New supplier invoice form')).toBeNull();
+});

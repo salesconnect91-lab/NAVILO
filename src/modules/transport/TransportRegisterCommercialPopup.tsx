@@ -17,7 +17,8 @@ export default function TransportRegisterCommercialPopup({trip,kind,onClose,onCh
  const {activeCompany,activeBusinessUnit}=useAuth();
  const side=kind==='rent_driver'||kind==='supplier_charges'||kind==='supplier_invoice_no'?'supplier':'customer';
  const [context,setContext]=useState<any>(null),[error,setError]=useState(''),[revision,setRevision]=useState(0),[view,setView]=useState<RegisterPopupKind>(kind),[rentKey,setRentKey]=useState('');
- const [previewReason,setPreviewReason]=useState(defaultTransportReason(side==='customer'?'customer_rate':'supplier_rate'));
+ const reasonKind=kind==='charge'?'customer_charges':kind==='supplier_charges'?'supplier_charges':side==='customer'?'customer_rate':'supplier_rate';
+ const [previewReason,setPreviewReason]=useState(defaultTransportReason(reasonKind));
  useEffect(()=>{let active=true;const controller=new AbortController();const timer=window.setTimeout(()=>controller.abort(),12000);setContext(null);setError('');
   void (async()=>{try{
    const {data,error}=await supabase.rpc('transport_register_popup_context',{p_trip_id:trip.id,p_side:side}).abortSignal(controller.signal);
@@ -32,7 +33,7 @@ export default function TransportRegisterCommercialPopup({trip,kind,onClose,onCh
  if(!context)return <TransportDialog onClose={onClose}><section role="dialog" aria-modal="true" aria-label={`${side} ${view} Trip ${trip.trip_no}`} className="w-full max-h-[90vh] overflow-y-auto max-w-lg rounded-lg bg-white p-3 text-xs shadow-2xl">
   <TransportCommercialHeader side={side} title={view.includes('invoice')?'Linked Invoice':view==='charge'||view==='supplier_charges'?'Charges':`${side==='customer'?'Customer':'Supplier'} Rate & Charges`} tripNo={trip.trip_no} party={side==='customer'?trip.customer_name:(trip as any).owner_name} from={trip.from_location} to={trip.to_location} vehicle={trip.vehicle_no}/>
   {error?<p role="alert" className="my-2 text-red-700">{error}</p>:<p role="status" className="my-2">Loading this Trip only…</p>}
-  {!view.includes('invoice')&&<TransportReasonSelect kind={side==='customer'?'customer_rate':'supplier_rate'} value={previewReason} onChange={setPreviewReason} disabled/>}
+  {!view.includes('invoice')&&<TransportReasonSelect kind={reasonKind} value={previewReason} onChange={setPreviewReason} disabled/>}
   <div className="mt-3 flex justify-end gap-2">{error&&<button className="btn" onClick={()=>setRevision(n=>n+1)}>Retry</button>}<button className="btn" onClick={onClose}>Cancel</button></div>
  </section></TransportDialog>;
  if(view==='invoice_no'||view==='supplier_invoice_no')return <TransportRegisterLinkedInvoice side={side} trip={current} context={context} onClose={onClose} onChanged={changed}/>;

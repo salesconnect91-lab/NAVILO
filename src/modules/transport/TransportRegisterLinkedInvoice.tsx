@@ -4,7 +4,6 @@ import type {FinancialTrip} from './transportFinancialTypes';
 import {financialNumber} from './transportFinancialTypes';
 import TransportDialog from './TransportDialog';
 import TransportInvoiceNumber from './TransportInvoiceNumber';
-import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportRegisterDraftInvoiceEditor from './TransportRegisterDraftInvoiceEditor';
 import TransportPostedInvoiceControls from './TransportPostedInvoiceControls';
 type Invoice={id:string;document_id:string;order_no:string;order_date:string;status:string;total:number};
@@ -44,12 +43,13 @@ export default function TransportRegisterLinkedInvoice({side,trip,onClose,onChan
   setBusy(true);setError('');try{const result=await supabase.rpc('transport_delete_register_draft_invoice',{p_side:side,p_document_id:invoice.document_id});if(result.error)throw result.error;await onChanged();onClose();}
   catch(e:unknown){setError(String((e as {message?:string})?.message||'Could not delete this draft.'));}finally{setBusy(false)}
  }
- if(!loading&&!error&&!invoices.length)return side==='customer'?<TransportInvoiceNumber trip={trip} onClose={onClose} onChanged={onChanged}/>:<TransportBulkSupplierRent compact initialTripId={trip.id} initialSupplierName={trip.owner_name??undefined} onClose={onClose} onChanged={onChanged}/>;
+ if(!loading&&!error&&!invoices.length&&side==='customer')return <TransportInvoiceNumber trip={trip} onClose={onClose} onChanged={onChanged}/>;
  return <>
  <TransportDialog onClose={()=>{if(!busy)onClose()}}><section role="dialog" aria-modal="true" aria-label={`${side==='customer'?'Customer':'Supplier'} linked invoice Trip ${trip.trip_no}`} className="w-full max-w-2xl rounded-lg border bg-white p-3 text-xs shadow-xl">
   <h2 className="text-sm font-bold">{side==='customer'?'Customer':'Supplier'} Invoice · Trip {trip.trip_no}</h2>
   {loading&&<p role="status" className="my-3">Loading linked invoice…</p>}
   {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}
+  {!loading&&!error&&!invoices.length&&<p className="my-3">No supplier invoice is linked to this Trip. Use Supplier Rent / Invoice in the Register toolbar to prepare an invoice.</p>}
   {!loading&&invoice&&<>
    {invoices.length>1&&<label className="mt-2 block">Invoice<select aria-label="Linked invoice" className="input ml-2" value={selected} onChange={e=>setSelected(e.target.value)}>{invoices.map(row=><option key={row.id} value={row.id}>{row.order_no} · {row.status}</option>)}</select></label>}
    <p className="my-3"><strong>{invoice.order_no}</strong> · {invoice.status} · Total {financialNumber(invoice.total)}</p>
