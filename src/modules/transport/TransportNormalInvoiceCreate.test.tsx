@@ -15,7 +15,9 @@ vi.mock('@/lib/supabase',()=>({supabase:{
  rpc:async(name:string,args:any)=>{
   if(name==='transport_billing_modes')return {data:{enabled:true,rows:[{id:mock.company+'-party',mode:mock.modeMissing?null:mock.billingMode}]},error:null};
   if(name==='fixed_tax_rate_on')return {data:mock.taxError?null:mock.taxRate,error:mock.taxError?{message:'Effective VAT rate unavailable'}:null};
-  if(name!=='transport_normal_invoice_create_vat')throw new Error('Unexpected RPC '+name);
+  if(name==='transport_invoice_duplicate_override_allowed')return {data:false,error:null};
+  if(name==='transport_invoice_number_conflicts')return {data:{matches:[]},error:null};
+  if(name!=='transport_normal_invoice_create_vat_with_override')throw new Error('Unexpected RPC '+name);
   mock.posts.push(args);
   if(mock.reject)return {data:null,error:{message:'Finance posting permission required'}};
   return {data:{document_id:'doc-1',invoice_no:args.p_invoice_no||'AUTO-1',gross:325,status:args.p_post?'posted':'draft'},error:null};
