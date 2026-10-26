@@ -103,9 +103,10 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
   number,date,account:currentAccount,vatReady,withTax,validSaleType:saleType==='cash'||saleType==='credit'});
  const canPost=!busy&&!completed&&blockers.length===0&&!error&&!conflictLoading&&(!duplicateConflicts.length||(duplicateAllowed&&duplicateConfirmed));
  useEffect(()=>{
-  let active=true;const value=invoiceNo.trim();setDuplicateConfirmed(false);setDuplicateConflicts([]);
+  let active=true;const value=invoiceNo.trim();setDuplicateConfirmed(false);setDuplicateConflicts([]);setConflictLoading(false);
   if(numberMode!=='manual'||!value||loadedScope!==scope)return;
-  const timer=window.setTimeout(async()=>{setConflictLoading(true);try{const r=await supabase.rpc('transport_invoice_number_conflicts',{p_side:'customer',p_number:value});if(r.error)throw r.error;if(active)setDuplicateConflicts((r.data?.matches??[]) as DuplicateMatch[])}catch(e:any){if(active)setError(e?.message||'Could not check this invoice number.')}finally{if(active)setConflictLoading(false)}},300);
+  setError('');setConflictLoading(true);
+  const timer=window.setTimeout(async()=>{try{const r=await supabase.rpc('transport_invoice_number_conflicts',{p_side:'customer',p_number:value});if(r.error)throw r.error;if(active)setDuplicateConflicts((r.data?.matches??[]) as DuplicateMatch[])}catch(e:any){if(active)setError(e?.message||'Could not check this invoice number.')}finally{if(active)setConflictLoading(false)}},300);
   return()=>{active=false;window.clearTimeout(timer)};
  },[invoiceNo,numberMode,loadedScope,scope]);
 
