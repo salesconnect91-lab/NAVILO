@@ -16,7 +16,7 @@ export type FinancialTrip = {
 export type ServiceBalance = {
  side: 'customer'|'supplier'; order_id: string; order_no: string; party_id: string;
  billed_net: number; billed_gross: number; paid_gross: number; refunded_gross: number;
- outstanding_gross: number; credit_gross: number; tax_percent: number;
+ outstanding_gross: number; credit_gross: number; tax_percent: number; original_gross?: number; credited_gross?: number;
 };
 export function financialNumber(value: unknown) {
  return value == null ? '' : Number(value).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
