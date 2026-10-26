@@ -22,13 +22,13 @@ export default function TransportCreditedTripInvoiceRelease({side,order,trips,li
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
 
- const fullyCredited=balance!==null
+ const fullyAdjusted=balance!==null
   &&Number(balance.credited_gross??0)+0.01>=Number(balance.original_gross??0)
   &&Number(balance.outstanding_gross)<=0.01
   &&Number(balance.paid_gross)<=0.01
   &&Number(balance.refunded_gross)<=0.01;
- const eligible=side==='customer'&&order.status==='posted'&&transportAttributed
-  &&trips.length===1&&lineCount===1&&chargesCount===0&&!cash&&fullyCredited;
+ const eligible=order.status==='posted'&&transportAttributed
+  &&trips.length===1&&lineCount===1&&chargesCount===0&&!(side==='customer'&&cash)&&fullyAdjusted;
 
  useEffect(()=>{
   let live=true;
@@ -44,10 +44,11 @@ export default function TransportCreditedTripInvoiceRelease({side,order,trips,li
  async function release(){
   if(!allowed||busy||reason.trim().length<10)return;
   const tripNo=String(trips[0]?.trip_no??'');
-  if(!window.confirm(`Release Trip ${tripNo} from invoice ${order.order_no}? The invoice, journal and credit note remain in history.`))return;
+  const note=side==='customer'?'credit':'debit';
+  if(!window.confirm(`Release Trip ${tripNo} from invoice ${order.order_no}? The invoice, journal and ${note} note remain in history.`))return;
   setBusy(true);setError('');
   try{
-   const {data,error:rpcError}=await supabase.rpc('transport_admin_release_credited_trip_invoice',{
+   const {data,error:rpcError}=await supabase.rpc(side==='customer'?'transport_admin_release_credited_trip_invoice':'transport_admin_release_debited_supplier_trip_invoice',{
     p_order_id:order.id,p_reason:reason.trim()
    } as any);
    if(rpcError)throw rpcError;
@@ -64,9 +65,9 @@ export default function TransportCreditedTripInvoiceRelease({side,order,trips,li
   {open&&<TransportDialog onClose={()=>{if(!busy)setOpen(false)}}>
    <section role="dialog" aria-modal="true" aria-label={`Release Trip from invoice ${order.order_no}`} className="w-full max-w-lg rounded-lg border bg-white p-4 shadow-xl">
     <h2 className="text-base font-semibold">Release Trip {trips[0]?.trip_no} from invoice</h2>
-    <p className="my-2 text-sm">This fully credited invoice will stay in its audit history. Releasing only the Trip Register link makes the Trip available for a future invoice.</p>
+    <p className="my-2 text-sm">This fully {side==='customer'?'credited':'debited'} invoice and its note will stay in audit history. Releasing only the Trip Register link makes the Trip available for a new invoice number.</p>
     {error&&<p role="alert" className="my-2 text-sm text-red-700">{error}</p>}
-    <label className="block text-xs">Audit reason<input aria-label="Trip link release reason" className="input mt-1 w-full" value={reason} onChange={e=>setReason(e.target.value)} maxLength={500} placeholder="Why should this credited invoice be released?"/></label>
+    <label className="block text-xs">Audit reason<input aria-label="Trip link release reason" className="input mt-1 w-full" value={reason} onChange={e=>setReason(e.target.value)} maxLength={500} placeholder={`Why should this fully ${side==='customer'?'credited':'debited'} invoice be released?`}/></label>
     <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={()=>setOpen(false)}>Cancel</button><button className="btn-primary" disabled={busy||reason.trim().length<10} onClick={()=>void release()}>{busy?'Releasing…':'Confirm Trip Link Release'}</button></div>
    </section>
   </TransportDialog>}
