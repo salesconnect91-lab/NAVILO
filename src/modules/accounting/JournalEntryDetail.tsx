@@ -1,3 +1,6 @@
+import "./journalEntryDetail.css";
+import {GripVertical,ChevronUp,ChevronDown,Copy,Trash2} from "lucide-react";
+import JournalDescription from "./JournalDescription";
 import {moveJournalRow,compareJournalLineOrder} from "./journalLinePresentation";
 import {recordDisplayText} from '@/lib/recordDisplayText';
 import {useAuth} from '@/auth/AuthContext';
@@ -2509,8 +2512,8 @@ export default function JournalEntryDetail() {
 
             <p className="text-xs text-slate-500 mt-0.5">
               {isPosted
-                ? "This journal entry has been posted and is locked."
-                : "Enter multiple journal lines manually or import Excel/CSV. Related To is for customer/supplier controls and eligible income lines; expenses post directly to their expense account."}
+                ? "Posted journal lines."
+                : "Add lines below or import Excel / CSV. Save the draft, then post when balanced."}
             </p>
           </div>
         </div>
@@ -2527,6 +2530,7 @@ export default function JournalEntryDetail() {
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
                     <th className="text-left py-3 px-4 font-semibold">Account</th>
+                    <th className="text-left py-3 px-4 font-semibold">Description</th>
 
                     <th className="text-left py-3 px-4 font-semibold">
                       Related To
@@ -2573,7 +2577,6 @@ export default function JournalEntryDetail() {
 
 
 
-                            {line.description && <div className="mt-1 whitespace-pre-wrap break-words text-xs text-slate-600" style={{tabSize:4}}>{line.description}</div>}
                             {coa && (
                               <div className="text-xs text-slate-400 mt-0.5">
                                 {coa.type}
@@ -2581,6 +2584,9 @@ export default function JournalEntryDetail() {
                             )}
                           </td>
 
+                          <td className="py-3.5 px-4 align-top min-w-[260px] max-w-[520px]">
+                            <JournalDescription text={line.description || entry.description} />
+                          </td>
                           <td className="py-3.5 px-4">
                             {partyName&&<div className="font-medium text-slate-800">
                               {partyName} <span className="text-xs text-slate-500">({line.party_type})</span>
@@ -2647,16 +2653,17 @@ export default function JournalEntryDetail() {
           )}
 
           {!isPosted && (
-            <div className="border border-emerald-200 rounded-xl overflow-hidden">
+            <details className="navilo-je-import">
+              <summary>Import lines <span>Excel / CSV · templates and column guide</span></summary>
               <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-4">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   <div>
                     <h4 className="font-bold text-slate-900">
-                      📥 Import Lines Into This Journal
+                      Import Excel / CSV
                     </h4>
 
                     <p className="text-xs text-slate-600 mt-1">
-                      Load Excel/CSV lines into this draft only. No extra journal, invoice or payment is created.
+                      Import into this draft. Review before posting.
                     </p>
                   </div>
 
@@ -2707,14 +2714,14 @@ export default function JournalEntryDetail() {
                   </span>
                 </div>
               </div>
-            </div>
+            </details>
           )}
 
           {(!isPosted || postedEditOpen) && (
-            <div id="navilo-posted-journal-editor" className="min-w-0 max-w-full border border-blue-200 rounded-xl overflow-hidden">
+            <div id="navilo-posted-journal-editor" className="navilo-je-editor min-w-0 max-w-full border border-slate-200 rounded-lg overflow-hidden">
               {postedEditOpen && <div className="bg-white border-b p-3 flex flex-wrap items-end gap-2">
                 <label className="text-xs">Posting Date<NaviloDateInput className="input block" type="date" value={postedEditDate} onChange={e=>setPostedEditDate(e.target.value)}/></label>
-                <label className="text-xs">Journal Description<textarea className="input block" value={postedEditDescription} onChange={e=>setPostedEditDescription(e.target.value)} rows={2} style={{minHeight:36,height:52,resize:"vertical",whiteSpace:"pre-wrap",tabSize:4}} /></label>
+                <label className="text-xs">Journal Description<textarea className="input block" value={postedEditDescription} onChange={e=>setPostedEditDescription(e.target.value)} rows={2} style={{minHeight:32,height:40,resize:"vertical",whiteSpace:"pre-wrap",tabSize:4}} /></label>
                 <label className="text-xs">Reason (minimum 10 characters) — required to save<input className="input block" value={postedEditReason} onChange={e=>setPostedEditReason(e.target.value)} placeholder="Explain what was corrected"/></label>
                 {postedEditReason.trim().length < 10 && <span className="text-xs text-amber-700">Enter at least 10 characters to enable Save Original Journal.</span>}
 
@@ -2726,9 +2733,7 @@ export default function JournalEntryDetail() {
                     {postedEditOpen ? "Edit Original Journal Entry" : "Fast Journal Entry"}
                   </h4>
 
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    Choose the account, add a description, then enter Debit or Credit. Select a vehicle on eligible income/expense lines. Drag the row handle or use the arrows to reorder unsaved lines.
-                  </p>
+                  <span className="navilo-je-subtitle">Account · description · debit / credit</span>
                 </div>
 
                 <button
@@ -2748,20 +2753,20 @@ export default function JournalEntryDetail() {
               </div>
 
               <div className="min-w-0 px-2 py-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
-                <span>{postingAccounts.length} accounts available for manual posting{journalExcludedAccounts > 0 ? ` · ${journalExcludedAccounts} accounts cannot be posted here (group or inactive accounts, or accounts with manual entries disabled)` : ""}. Restricted accounts appear disabled so you can still find them.</span>
+                <span title="Inactive, group and manual-disabled accounts remain visible but cannot be selected.">{postingAccounts.length} posting accounts · {journalExcludedAccounts} unavailable</span>
                 <div className="flex items-center gap-2"><QuickMasterAdd kind="account" compact disabled={saving||posting||importing} onRefresh={fetchAccounts}/><button type="button" className="rounded border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50" data-navilo-keep-local-action="true" onClick={() => { void fetchAccounts().catch((e:unknown) => setError(e instanceof Error ? e.message : "Unable to refresh Chart of Accounts.")); }}>
                   Refresh Accounts
                 </button></div>
               </div>
               <div className="w-full max-w-full min-w-0 overflow-x-auto" aria-label="Journal line editor">
-                <table className="w-full table-fixed min-w-[900px] text-[12px]">
+                <table className="navilo-je-grid w-full table-fixed min-w-[850px] text-[12px]">
                   <colgroup>
-                    <col style={{width:'23%'}} />
-                    <col style={{width:'29%'}} />
-                    <col style={{width:'16%'}} />
+                    <col style={{width:'25%'}} />
+                    <col style={{width:'31%'}} />
+                    <col style={{width:'15%'}} />
                     <col style={{width:'9%'}} />
                     <col style={{width:'9%'}} />
-                    <col style={{width:'14%'}} />
+                    <col style={{width:'11%'}} />
                   </colgroup>
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
@@ -2851,7 +2856,7 @@ export default function JournalEntryDetail() {
                               </SearchableSelect>
                             </td>
 
-                            <td className="min-w-0 px-2 py-1.5"><textarea className="input w-full text-xs" aria-label={`Description row ${draftLines.indexOf(line)+1}`} placeholder="Line description..." value={line.description} onChange={e=>updateDraftLine(line.tempId,"description",e.target.value)} maxLength={1000} rows={2} style={{minHeight:36,height:52,resize:"vertical",whiteSpace:"pre-wrap",tabSize:4}} /></td>
+                            <td className="min-w-0 px-2 py-1.5"><textarea className="input w-full text-xs" aria-label={`Description row ${draftLines.indexOf(line)+1}`} placeholder="Line description..." value={line.description} onChange={e=>updateDraftLine(line.tempId,"description",e.target.value)} maxLength={1000} rows={2} style={{minHeight:32,height:40,resize:"vertical",whiteSpace:"pre-wrap",tabSize:4}} /></td>
                             <td className="min-w-0 px-2 py-1.5">
                               {!line.accountId ? (
                                 <span className="text-xs text-slate-500">Select account first</span>
@@ -2951,14 +2956,14 @@ export default function JournalEntryDetail() {
                             </td>
 
                             <td className="min-w-0 px-1 py-1.5">
-                              <div className="flex flex-wrap items-center justify-center gap-1">
+                              <div className="navilo-je-row-actions">
                                 <button type="button" draggable={!saving && !posting && !importing}
                                   onDragStart={() => setDraggedDraftRow(line.tempId)} onDragEnd={() => setDraggedDraftRow(null)}
-                                  aria-label={`Drag row ${rowIndex + 1}`} title="Drag to move row" className="cursor-grab rounded border px-1 py-1">⠿</button>
+                                  aria-label={`Drag row ${rowIndex + 1}`} title="Drag to move row" className="navilo-je-row-icon cursor-grab"><GripVertical size={13}/></button>
                                 <button type="button" aria-label={`Move row ${rowIndex + 1} up`} title="Move up"
-                                  disabled={rowIndex === 0 || saving || posting || importing} onClick={() => moveDraftRow(line.tempId, rowIndex - 1)} className="rounded border px-1 py-1 disabled:opacity-30">↑</button>
+                                  disabled={rowIndex === 0 || saving || posting || importing} onClick={() => moveDraftRow(line.tempId, rowIndex - 1)} className="navilo-je-row-icon disabled:opacity-30"><ChevronUp size={13}/></button>
                                 <button type="button" aria-label={`Move row ${rowIndex + 1} down`} title="Move down"
-                                  disabled={rowIndex === draftLines.length - 1 || saving || posting || importing} onClick={() => moveDraftRow(line.tempId, rowIndex + 1)} className="rounded border px-1 py-1 disabled:opacity-30">↓</button>
+                                  disabled={rowIndex === draftLines.length - 1 || saving || posting || importing} onClick={() => moveDraftRow(line.tempId, rowIndex + 1)} className="navilo-je-row-icon disabled:opacity-30"><ChevronDown size={13}/></button>
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -2975,7 +2980,7 @@ export default function JournalEntryDetail() {
                                   aria-label={relatedMode==='vehicle'?'Split vehicle journal row':'Duplicate journal row'}
                                   title={relatedMode==='vehicle'?'Split amount across vehicles using another journal line':'Duplicate row'}
                                 >
-                                  {relatedMode==='vehicle'?'Split':'Copy'}
+                                  <Copy size={13}/>
                                 </button>
 
                                 <button
@@ -2994,7 +2999,7 @@ export default function JournalEntryDetail() {
                                   aria-label="Remove journal row"
                                   title="Remove row"
                                 >
-                                  ✕
+                                  <Trash2 size={13}/>
                                 </button>
                               </div>
                             </td>
