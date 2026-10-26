@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, ClipboardCheck, FileClock, ReceiptText, Route, Truck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 import TransportTripComparisonChart from "./TransportTripComparisonChart";
 
 type TransportSummary = {
@@ -19,6 +20,7 @@ type TransportSummary = {
   customer_billed: number;
 };
 type Contribution = { ownership: string; trips: number; revenue: number; cost: number; profit: number };
+type PrepostBalance = { side: 'customer'|'supplier'; remaining: number };
 const number = (value: number) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(Number(value) || 0);
 
 export default function TransportDashboardPanel({
@@ -37,6 +39,8 @@ export default function TransportDashboardPanel({
     navigate(`/transport?${query.toString()}`);
   };
   const [summary, setSummary] = useState<TransportSummary | null>(null);
+  const [prepostBalance,setPrepostBalance]=useState<{customer:number;supplier:number}|null>(null);
+  const [prepostError,setPrepostError]=useState('');
   const [contributions, setContributions] = useState<Contribution[] | null>(null);
   const [error, setError] = useState("");
   const [financialError, setFinancialError] = useState("");
@@ -63,6 +67,7 @@ export default function TransportDashboardPanel({
   useEffect(() => {
     const controller = new AbortController();
     setSummary(null);
+    setPrepostBalance(null);setPrepostError('');
     setContributions(null);
     setFinancialError("");
     financialRequest.current?.abort();
@@ -79,6 +84,16 @@ export default function TransportDashboardPanel({
           return;
         }
         setSummary(operational.data as TransportSummary);
+        try {
+          const provisional=await fetchAllPages<PrepostBalance>((from,to)=>supabase.from('transport_prepost_trip_balances').select('side,remaining')
+            .gte('trip_date',startDate).lte('trip_date',endDate).range(from,to));
+          if(controller.signal.aborted)return;
+          setPrepostBalance(provisional.reduce((totals,row)=>{
+            totals[row.side]+=Math.max(0,Number(row.remaining)||0);return totals;
+          },{customer:0,supplier:0}));
+        } catch(err) {
+          if(!controller.signal.aborted)setPrepostError(err instanceof Error?err.message:'Finalized Trip balances unavailable');
+        }
         // Financial attribution is deliberately on demand. It can perform a
         // large historical contribution aggregation and must not block or
         // compete with the initial Dashboard and Trip Register requests.
@@ -133,6 +148,11 @@ export default function TransportDashboardPanel({
         <span>Supplier rents pending: <strong>{summary ? number(summary.supplier_rent_pending) : "—"}</strong></span>
         <span>Trips without direct sales invoice link: <strong>{summary ? number(summary.trips_without_linked_sales_invoice) : "—"}</strong></span>
         <span>Trips with direct sales invoice link: <strong>{summary ? number(summary.customer_billed) : "—"}</strong></span>
+      </div>
+      <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[11px]">
+        <strong>Finalized, unposted Trip balances (operational estimate):</strong>{' '}
+        {prepostError?<span className="text-amber-800">Unavailable: {prepostError}</span>:prepostBalance?
+          <span>Customer receivable {summary?.currency||'SAR'} {number(prepostBalance.customer)} · Supplier payable {summary?.currency||'SAR'} {number(prepostBalance.supplier)}. These amounts follow Register rate edits and do not update Profit & Loss, Balance Sheet or VAT until invoice posting.</span>:'Loading…'}
       </div>
       {summary && <div className="flex flex-wrap items-center gap-2" data-no-print>
         <button type="button" disabled={financialLoading}

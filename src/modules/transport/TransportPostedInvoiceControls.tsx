@@ -3,13 +3,12 @@ import {useEffect,useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {supabase} from '@/lib/supabase';
 import TransportDialog from './TransportDialog';
-import TransportRegisterDraftInvoiceEditor from './TransportRegisterDraftInvoiceEditor';
 
-type Props={side:'customer'|'supplier';order:{id:string;order_no:string;order_date:string};onSaved:()=>void;onDeleted?:()=>void|Promise<void>};
-export default function TransportPostedInvoiceControls({side,order,onSaved,onDeleted}:Props){
+type Props={side:'customer'|'supplier';order:{id:string;order_no:string;order_date:string};onSaved?:()=>void;onDeleted?:()=>void|Promise<void>};
+export default function TransportPostedInvoiceControls({side,order,onDeleted}:Props){
  const navigate=useNavigate();
  const [documentId,setDocumentId]=useState<string|null>(null),[allowed,setAllowed]=useState(false);
- const [editing,setEditing]=useState(false),[deleting,setDeleting]=useState(false),[busy,setBusy]=useState(false);
+ const [deleting,setDeleting]=useState(false),[busy,setBusy]=useState(false);
  const [reason,setReason]=useState(''),[error,setError]=useState('');
  useEffect(()=>{let live=true;setAllowed(false);setDocumentId(null);
   void Promise.all([
@@ -34,9 +33,7 @@ export default function TransportPostedInvoiceControls({side,order,onSaved,onDel
  }
  if(!allowed||!documentId)return null;
  return <>
-  <button type="button" className="btn-secondary" onClick={()=>setEditing(true)}>Edit Posted Invoice</button>
   <button type="button" className="btn-danger" onClick={()=>setDeleting(true)}>Delete Posted Invoice</button>
-  {editing&&<TransportRegisterDraftInvoiceEditor mode="posted" row={{side,document_id:documentId,order_id:order.id,invoice_no:order.order_no,invoice_date:order.order_date,party_name:'',trip_count:0}} onClose={()=>setEditing(false)} onSaved={async()=>{onSaved()}}/>}
   {deleting&&<TransportDialog onClose={()=>{if(!busy)setDeleting(false)}}><section role="dialog" aria-modal="true" aria-label={`Delete Posted Invoice ${order.order_no}`} className="w-full max-w-lg rounded-lg border bg-white p-4 shadow-xl">
    <h2 className="text-base font-semibold">Permanently delete {order.order_no}</h2>
    <p className="my-2 text-sm">This removes the invoice and its original accounting journal. Trip records remain available for invoicing. An audit snapshot is retained. This cannot be undone.</p>

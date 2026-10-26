@@ -5,6 +5,8 @@ import {useCallback,useEffect,useRef,useState} from 'react';
 import TransportPartySettlement from '@/modules/transport/TransportPartySettlement';
 import type {PartyDocument,PartySide} from '@/modules/transport/transportPartyReporting';
 import {linkedPartyRows} from '@/modules/transport/transportOpeningInvoices';
+import TransportAdvanceOperations from '@/modules/transport/TransportAdvanceOperations';
+import TransportPrepostTripSettlement from './TransportPrepostTripSettlement';
 
 type Account={id:string;name:string;detail_type:string};
 export default function TransportCashSettlement({side,party,onPosted,onBusyChange}:{side:PartySide;party:string;onPosted:()=>Promise<void>;onBusyChange:(busy:boolean)=>void}){
@@ -37,6 +39,8 @@ export default function TransportCashSettlement({side,party,onPosted,onBusyChang
   {!error&&(!loading||documents.length>0)&&<>
    {!documents.some(d=>Number(d.current_outstanding_gross)>0)&&<p className="my-2 text-sm text-amber-800">No outstanding linked Transport invoices for this party in the active branch. Imported opening invoices are included; new finalized rates require invoice posting.</p>}
    <TransportPartySettlement key={scope} side={side} party={party} documents={documents} accounts={accounts} onBusyChange={onBusyChange} onPosted={async()=>{await load();await onPosted()}}/>
+   <TransportAdvanceOperations onChanged={async()=>{await load();await onPosted()}}/>
+   <TransportPrepostTripSettlement side={side} party={party} onChanged={onPosted}/>
   </>}
  </div>;
 }
