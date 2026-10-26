@@ -23,7 +23,8 @@ vi.mock('@/components/NaviloDateInput',()=>({default:({value,onChange,...rest}:a
  <input {...rest} value={value} onChange={onChange}/>}));
 vi.mock('@/lib/supabase',()=>({supabase:{
  rpc:async(name:string,args:any)=>{
-  if(name==='transport_finance_allowed')return {data:mock.permission,error:null};
+  if(name==='transport_draft_invoice_permissions')return {data:{customer:{post:mock.permission}},error:null};
+  if(name==='transport_draft_invoice_allowed')return {data:mock.permission,error:null};
   if(name==='fixed_tax_rate_on')return {data:mock.rates[args.p_company]??null,error:null};
   if(name==='transport_create_customer_draft_grouped'){
    mock.posts.push(args);
@@ -143,7 +144,7 @@ describe('Transport invoice posting in all company contexts',()=>{
   mock.permission=false;mount('cash');
   await readyAccount('tw');
   fireEvent.change(screen.getByRole('combobox',{name:'Invoice number method'}),{target:{value:'auto'}});
-  expect(screen.getByRole('status',{name:'Invoice posting requirements'}).textContent).toContain('Billing/post permission');
+  expect(screen.getByRole('status',{name:'Invoice posting requirements'}).textContent).toContain('Draft invoice creation permission');
   expect((screen.getByRole('button',{name:'Save Draft'}) as HTMLButtonElement).disabled).toBe(true);
  });
  it('drops the old company account on a workspace switch',async()=>{

@@ -11,7 +11,7 @@ vi.mock('./TransportPostedInvoiceControls',()=>({default:(props:any)=>{mock.cont
 vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{
  const q:any={select:()=>q,eq:()=>q,in:()=>q,then:(resolve:any)=>Promise.resolve({data:table.endsWith('_document_trips')||table.endsWith('_document_rents')?(mock.exists?[{document_id:'doc-1'}]:[]):table==='transport_customer_documents'?[{id:'doc-1',sales_order_id:'order-1'}]:table==='transport_supplier_documents'?[{id:'doc-1',purchase_order_id:'order-1'}]:[{id:'order-1',order_no:'ORIGINAL-1',order_date:'2026-10-25',status:mock.status,total:2760}],error:mock.fail?{message:'Invoice read denied'}:null}).then(resolve)};return q;
 }}}));
-beforeEach(()=>{mock.exists=true;mock.fail=false;mock.status='draft';mock.editor.mockClear();mock.controls.mockClear();mock.rpc.mockReset();mock.rpc.mockResolvedValue({data:true,error:null})});
+beforeEach(()=>{mock.exists=true;mock.fail=false;mock.status='draft';mock.editor.mockClear();mock.controls.mockClear();mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_draft_invoice_permissions'?{customer:{edit:true,delete:true,post:true},supplier:{edit:true,delete:true,post:true}}:true,error:null}))});
 afterEach(cleanup);
 const show=(side:'customer'|'supplier'='customer')=>render(<TransportRegisterLinkedInvoice side={side} trip={{id:'trip-1',trip_no:'46'} as any} onClose={vi.fn()} onChanged={async()=>{}}/>);
 it('opens the existing customer draft instead of offering duplicate creation',async()=>{
@@ -30,4 +30,10 @@ it('uses the existing creation form only for a verified unlinked Trip',async()=>
 });
 it('fails closed on an invoice read error rather than creating a duplicate',async()=>{
  mock.fail=true;show();expect((await screen.findByRole('alert')).textContent).toContain('Invoice read denied');expect(screen.queryByText('New customer invoice form')).toBeNull();
+});
+
+it('allows draft editing without exposing posting or deletion to a draft clerk',async()=>{
+ mock.rpc.mockResolvedValue({data:{customer:{edit:true,post:false,delete:false}},error:null});
+ show();await screen.findByRole('button',{name:'Edit Draft'});
+ expect(screen.queryByRole('button',{name:'Post Invoice'})).toBeNull();expect(screen.queryByRole('button',{name:'Delete Draft'})).toBeNull();
 });

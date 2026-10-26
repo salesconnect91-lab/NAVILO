@@ -11,6 +11,7 @@ vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc}}));
 beforeEach(()=>{
  mock.rpc.mockReset();mock.onChanged.mockClear();
  mock.rpc.mockImplementation(async(name:string,args?:any)=>{
+  if(name==='transport_draft_invoice_permissions')return {data:{customer:{edit:true,delete:true,post:true},supplier:{edit:true,delete:true,post:true}},error:null};
   if(name==='transport_register_draft_invoice_list')return {data:{rows:[{side:'customer',document_id:'doc-1',order_id:'sale-1',invoice_no:'S-DRAFT-1',invoice_date:'2026-10-22',party_name:'Customer One',trip_count:10,net_amount:1000,vat_amount:150}]},error:null};
   if(name==='transport_register_draft_invoice_edit_context')return {data:{side:'customer',document_id:'doc-1',order_id:'sale-1',invoice_no:'S-DRAFT-1',invoice_date:'2026-10-22',party_id:'customer-1',party_name:'Customer One',account_id:'revenue-1',line_ids:['trip-10'],trip_ids:['trip-10']},error:null};
   if(name==='transport_bulk_rate_page'){

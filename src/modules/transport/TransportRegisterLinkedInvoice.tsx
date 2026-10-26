@@ -10,7 +10,7 @@ import TransportPostedInvoiceControls from './TransportPostedInvoiceControls';
 type Invoice={id:string;document_id:string;order_no:string;order_date:string;status:string;total:number};
 export default function TransportRegisterLinkedInvoice({side,trip,onClose,onChanged}:{side:'customer'|'supplier';trip:FinancialTrip&{invoice_no?:string|null;owner_name?:string|null};onClose:()=>void;onChanged:()=>Promise<void>}){
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[invoices,setInvoices]=useState<Invoice[]>([]);
- const [selected,setSelected]=useState(''),[revision,setRevision]=useState(0),[editing,setEditing]=useState(false),[busy,setBusy]=useState(false),[draftAllowed,setDraftAllowed]=useState(false);
+ const [selected,setSelected]=useState(''),[revision,setRevision]=useState(0),[editing,setEditing]=useState(false),[busy,setBusy]=useState(false),[draftPermissions,setDraftPermissions]=useState({edit:false,delete:false,post:false});
  useEffect(()=>{let live=true;setLoading(true);setError('');void(async()=>{try{
   const links=await supabase.from(side==='customer'?'transport_customer_document_trips':'transport_supplier_document_rents').select('document_id').eq('trip_id',trip.id).eq('is_adjustment',false);
   if(links.error)throw links.error;
@@ -23,12 +23,12 @@ export default function TransportRegisterLinkedInvoice({side,trip,onClose,onChan
   const orderIds=(docs.data as unknown as Record<string,string>[]).map(x=>x[orderKey]);
   const [orders,permission]=await Promise.all([
    supabase.from(side==='customer'?'sales_orders':'purchase_orders').select('id,order_no,order_date,status,total').in('id',orderIds),
-   supabase.rpc('transport_finance_allowed',{p_action:side==='customer'?'billing':'rent'}),
+   supabase.rpc('transport_draft_invoice_permissions'),
   ]);
   if(orders.error)throw orders.error;if(permission.error)throw permission.error;
   if(orders.data?.length!==orderIds.length)throw new Error('The original invoice records could not be verified.');
   const rows=(orders.data||[]).map(order=>({...order,document_id:(docs.data as unknown as Record<string,string>[]).find(doc=>doc[orderKey]===order.id)!.id})) as Invoice[];
-  if(live){setInvoices(rows);setDraftAllowed(permission.data===true);setSelected(current=>rows.some(row=>row.id===current)?current:rows[0].id);}
+  if(live){setInvoices(rows);setDraftPermissions(permission.data?.[side]??{edit:false,delete:false,post:false});setSelected(current=>rows.some(row=>row.id===current)?current:rows[0].id);}
  }catch(e:unknown){if(live)setError(String((e as {message?:string})?.message||'Could not load the linked invoice.'));}finally{if(live)setLoading(false)}})();return()=>{live=false};},[side,trip.id,revision]);
  async function changed(){await onChanged();setRevision(value=>value+1)}
  const invoice=invoices.find(row=>row.id===selected);
@@ -51,7 +51,7 @@ export default function TransportRegisterLinkedInvoice({side,trip,onClose,onChan
    <p className="my-3"><strong>{invoice.order_no}</strong> · {invoice.status} · Total {financialNumber(invoice.total)}</p>
    <div className="flex flex-wrap items-center gap-2">
     <a className="btn" href={`/${side==='customer'?'sales':'purchase'}/${invoice.id}`} target="_blank" rel="noreferrer">Review Invoice</a>
-    {invoice.status==='draft'&&draftAllowed&&<><button className="btn" disabled={busy} onClick={()=>setEditing(true)}>Edit Draft</button><button className="btn-primary" disabled={busy} onClick={()=>void post()}>Post Invoice</button><button className="btn-danger" disabled={busy} onClick={()=>void remove()}>Delete Draft</button></>}
+    {invoice.status==='draft'&&<>{draftPermissions.edit&&<button className="btn" disabled={busy} onClick={()=>setEditing(true)}>Edit Draft</button>}{draftPermissions.post&&<button className="btn-primary" disabled={busy} onClick={()=>void post()}>Post Invoice</button>}{draftPermissions.delete&&<button className="btn-danger" disabled={busy} onClick={()=>void remove()}>Delete Draft</button>}</>}
     {invoice.status==='posted'&&<TransportPostedInvoiceControls side={side} order={invoice} onSaved={()=>void changed()} onDeleted={async()=>{await onChanged();onClose()}}/>}
    </div>
   </>}

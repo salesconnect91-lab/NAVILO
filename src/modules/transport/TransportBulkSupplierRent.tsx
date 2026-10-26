@@ -56,7 +56,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
    fetchAllPages<Supplier>((from,to)=>supabase.from('suppliers').select('id,name,is_active').eq('company_id',company).order('id').range(from,to)),
    fetchAllPages<Account>((from,to)=>supabase.from('chart_of_accounts').select('id,name,type').eq('company_id',company).eq('is_active',true).eq('is_group',false).eq('type','expense').order('id').range(from,to)),
    fetchAllPages<{mapping_key:string;account_id:string}>((from,to)=>supabase.from('account_mappings').select('mapping_key,account_id').eq('company_id',company).eq('mapping_key','transport_expense').range(from,to)),
-   Promise.all([...['rent','adjustment'].map(async action=>{const r=await supabase.rpc('transport_finance_allowed',{p_action:action});if(r.error)throw r.error;return [action,r.data===true] as const}),...['rent_finalize','rent_correct'].map(async action=>{const r=await supabase.rpc('has_transport_action_permission',{p_company_id:company,p_action:action});if(r.error)throw r.error;return [action,r.data===true] as const})]),
+   Promise.all([supabase.rpc('transport_draft_invoice_permissions').then(r=>{if(r.error)throw r.error;return ['post_allowed',r.data?.supplier?.post===true] as const}),...['rent','adjustment'].map(async action=>{const r=action==='rent'?await supabase.rpc('transport_draft_invoice_allowed',{p_side:'supplier',p_action:'create'}):await supabase.rpc('transport_finance_allowed',{p_action:action});if(r.error)throw r.error;return [action,r.data===true] as const}),...['rent_finalize','rent_correct'].map(async action=>{const r=await supabase.rpc('has_transport_action_permission',{p_company_id:company,p_action:action});if(r.error)throw r.error;return [action,r.data===true] as const})]),
   ]).then(data=>{masterCache.current={scope:scopeKey,expires:Date.now()+30000,data};return data;});
   const [result,refs]=await Promise.all([resultPromise,metadata]);
   const [ss,aa,mappings,grants]=refs;
@@ -155,7 +155,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
   if(compact&&kind==='finalize'&&!failure&&completed.size===1)onClose();
  }
  async function postDraft(){
-  if(!createdDraft||busy||loading||submitting.current)return;
+  if(!createdDraft||busy||loading||submitting.current||!permissions.post_allowed)return;
   submitting.current=true;setBusy(true);setError('');setMessage('');
   try{const result=await supabase.rpc('transport_post_supplier_draft',{p_document_id:createdDraft.id});if(result.error)throw result.error;setMessage(`Invoice ${createdDraft.number} posted.`);setCreatedDraft(null);await load();await onChanged();}
   catch(e:any){setError(e?.message||'Could not post this draft invoice.');}
@@ -213,7 +213,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
  return <TransportDialog ><section data-navilo-bulk-rates="true" className="flex max-h-[88vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-lg bg-white p-2 text-[10px] leading-tight shadow-xl">
   <div className="flex shrink-0 items-center justify-between"><div><h2 className="text-sm font-bold leading-tight">Bulk Supplier Rent</h2><p className="text-[9px] leading-tight text-slate-500">Select supplier rents → finalize → save one Draft invoice for one supplier. Review the Draft before using the separate Post action. Cash bills are without VAT; Credit bills use the configured VAT rate.</p></div><button className="btn" disabled={busy||loading} onClick={onClose}>Close</button></div>
   {loading&&<p role="status">Loading page…</p>}
-  {createdDraft&&<div className="flex shrink-0 items-center justify-between gap-2 rounded border border-amber-300 bg-amber-50 p-2 text-xs"><span>Draft {createdDraft.number} · {createdDraft.count} rent line(s) · not posted</span><div className="flex gap-2"><a className="btn" href={`/purchase/${encodeURIComponent(createdDraft.orderId)}`} target="_blank" rel="noreferrer">Review Draft</a><button className="btn-primary" disabled={busy||loading} onClick={()=>void postDraft()}>Post Invoice</button></div></div>}
+  {createdDraft&&<div className="flex shrink-0 items-center justify-between gap-2 rounded border border-amber-300 bg-amber-50 p-2 text-xs"><span>Draft {createdDraft.number} · {createdDraft.count} rent line(s) · not posted</span><div className="flex gap-2"><a className="btn" href={`/purchase/${encodeURIComponent(createdDraft.orderId)}`} target="_blank" rel="noreferrer">Review Draft</a><button className="btn-primary" disabled={busy||loading||!permissions.post_allowed} onClick={()=>void postDraft()}>Post Invoice</button></div></div>}
   {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}{message&&<p role="status" className="my-2 text-emerald-700">{message}</p>}
   <fieldset disabled={busy} className="my-2 grid shrink-0 grid-cols-12 items-end gap-1 rounded border bg-slate-50 p-1 text-[9px] leading-tight">
    <label className="col-span-2">Supplier<NaviloSearchableSelect nativeCompatibility preserveLabel className="input h-7 px-1 text-[10px]" value={supplier} onChange={e=>{setSupplier(e.target.value);setSelected([]);setAmounts({})}}><option value="">All Suppliers</option>{suppliers.map(s=><option key={s.id} value={s.id}>{s.name}{s.is_active?'':' (inactive)'}</option>)}</NaviloSearchableSelect></label>

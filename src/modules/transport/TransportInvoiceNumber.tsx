@@ -23,7 +23,7 @@ export function invoicePostingBlockers(input:{
  if(input.posted)return [];
  const reasons:string[]=[];
  if(input.loading)reasons.push('Checking Transport billing permission and company Revenue Accounts…');
- else if(!input.allowed)reasons.push('Billing/post permission is not enabled for this Transport workspace.');
+ else if(!input.allowed)reasons.push('Draft invoice creation permission is not enabled for this Transport workspace.');
  if(!input.validSaleType)reasons.push('Customer Cash/Credit billing mode is missing. Configure the Customer Master.');
  if(!input.rateReady)reasons.push('Finalize a positive Company Rate before posting.');
  if(input.mode==='choose')reasons.push('Choose how to number this invoice.');
@@ -47,7 +47,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
  const saleType=String(trip.sale_type??'').toLowerCase();
  const withTax=saleType==='credit';const [vatReady,setVatReady]=useState(!withTax);
- const [allowed,setAllowed]=useState(false);const [accounts,setAccounts]=useState<{id:string;name:string}[]>([]);
+ const [allowed,setAllowed]=useState(false);const [postAllowed,setPostAllowed]=useState(false);const [accounts,setAccounts]=useState<{id:string;name:string}[]>([]);
  const [account,setAccount]=useState('');const [loadedScope,setLoadedScope]=useState('');
  const [setupLoading,setSetupLoading]=useState(true);
  const [busy,setBusy]=useState(false);const [completed,setCompleted]=useState(false);const [error,setError]=useState('');
@@ -56,7 +56,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
 
  useEffect(()=>{
   let active=true;
-  setAllowed(false);setAccounts([]);setAccount('');setLoadedScope('');
+  setAllowed(false);setPostAllowed(false);setAccounts([]);setAccount('');setLoadedScope('');
   setError('');setSetupLoading(!posted);
   if(posted)return()=>{active=false};
   if(!companyId||!businessUnitId){
@@ -65,15 +65,16 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
    return()=>{active=false};
   }
   void Promise.all([
-   supabase.rpc('transport_finance_allowed',{p_action:'billing'}),
+   supabase.rpc('transport_draft_invoice_allowed',{p_side:'customer',p_action:'create'}),
    supabase.from('chart_of_accounts').select('id,name')
     .eq('company_id',companyId).eq('is_active',true).eq('is_group',false)
     .eq('type','revenue').order('name'),
    supabase.from('account_mappings').select('account_id')
-    .eq('company_id',companyId).eq('mapping_key','service_revenue').limit(1).maybeSingle()
-  ]).then(([permission,accountsResult,mapping])=>{
+    .eq('company_id',companyId).eq('mapping_key','service_revenue').limit(1).maybeSingle(),
+   supabase.rpc('transport_draft_invoice_permissions')
+  ]).then(([permission,accountsResult,mapping,postPermission])=>{
    if(!active)return;
-   if(permission.error)throw permission.error;
+   if(permission.error)throw permission.error;if(postPermission.error)throw postPermission.error;setPostAllowed(postPermission.data?.customer?.post===true);
    if(accountsResult.error)throw accountsResult.error;
    if(mapping.error)throw mapping.error;
    const currentAccounts=(accountsResult.data??[]) as {id:string;name:string}[];
@@ -111,7 +112,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
   }catch(e:any){setError(e?.message||'Unable to save customer invoice Draft. Refresh the Trip before retrying.')}finally{setBusy(false)}
  }
  async function postDraft(){
-  if(!draft?.id||busy)return;setBusy(true);setError('');
+  if(!draft?.id||busy||!postAllowed||loadedScope!==scope)return;setBusy(true);setError('');
   try{const result=await supabase.rpc('transport_post_customer_draft',{p_document_id:draft.id});if(result.error)throw result.error;setDraftPosted(true);await onChanged();}
   catch(e:any){setError(e?.message||'Unable to post customer Draft. Refresh the Register before retrying.')}
   finally{setBusy(false)}
@@ -148,7 +149,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
       <p className="mt-2 text-xs text-slate-600">Save Draft creates the canonical Sales/service invoice without posting. {withTax?'Credit invoices require the original invoice number you provide.':'Choose automatic numbering or enter your own invoice number.'}</p>
     </>}
    {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}
-   <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={onClose}>Close</button>{!posted&&!completed&&<button className="btn-primary" disabled={!canPost} onClick={()=>void saveDraft()}>{busy?'Saving…':'Save Draft'}</button>}{completed&&!draftPosted&&<button className="btn-primary" disabled={busy||!draft?.id} onClick={()=>void postDraft()}>{busy?'Posting…':'Post Invoice'}</button>}</div>
+   <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={onClose}>Close</button>{!posted&&!completed&&<button className="btn-primary" disabled={!canPost} onClick={()=>void saveDraft()}>{busy?'Saving…':'Save Draft'}</button>}{completed&&!draftPosted&&<button className="btn-primary" disabled={busy||!draft?.id||!postAllowed||loadedScope!==scope} onClick={()=>void postDraft()}>{busy?'Posting…':'Post Invoice'}</button>}</div>
   </section>
  </TransportDialog>;
 }

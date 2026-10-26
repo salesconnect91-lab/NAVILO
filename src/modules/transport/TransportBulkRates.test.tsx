@@ -36,7 +36,8 @@ beforeEach(()=>{
    return {data:{rows:rows.slice(args.p_offset,args.p_offset+args.p_limit),count:rows.length,statuses,amount:rows.reduce((s,r)=>s+Number(r.supplier_rent??r.customer_rate??0),0)},error:null};
   }
   if(name==='transport_financial_register_page')return {data:mock.trips.slice(args.p_offset,args.p_offset+args.p_limit),error:null};
-  if(['transport_finance_allowed','has_transport_action_permission'].includes(name))return {data:mock.allowed,error:null};
+  if(name==='transport_draft_invoice_permissions')return {data:{customer:{post:mock.allowed},supplier:{post:mock.allowed}},error:null};
+  if(['transport_finance_allowed','transport_draft_invoice_allowed','has_transport_action_permission'].includes(name))return {data:mock.allowed,error:null};
   if(name==='transport_create_customer_draft_grouped'||name==='transport_create_supplier_draft_grouped')return {data:{transport_document_id:`draft-${name.includes('customer')?'customer':'supplier'}`,order_id:'draft-order',invoice_no:'DRAFT-001',status:'draft'},error:null};
   if(name==='transport_post_customer_draft'||name==='transport_post_supplier_draft')return {data:{status:'posted'},error:null};
   return {data:{success:true},error:(['transport_post_cash_bill_receive','transport_post_cash_bill_receive_numbered'].includes(name)&&mock.failCash)||(name==='transport_adjust_rate'&&mock.failCorrection)?{message:'Network interrupted'}:null};

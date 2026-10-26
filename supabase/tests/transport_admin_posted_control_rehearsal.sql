@@ -246,6 +246,45 @@ begin
  EXCEPTION WHEN OTHERS THEN rejected:=true;END;
  IF NOT rejected THEN RAISE EXCEPTION 'Direct posted mutation bypassed the private gate';END IF;
  RESET ROLE;
+ -- A draft clerk can work without Transport posting; module post stays denied.
+ RESET ROLE;
+ INSERT INTO public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
+ VALUES(c,b,'999991',current_date+2,customer,'A','B',125,0,'credit') RETURNING id INTO auth_trip;
+ PERFORM public.transport_finalize_customer_rate(auth_trip,125,'manual');
+ rent2:=public.transport_add_supplier_rent(auth_trip,supplier,40,'Draft clerk rent');
+ PERFORM public.transport_finalize_supplier_rent(rent2,40);
+
+ UPDATE public.company_memberships SET role='sales' WHERE company_id=c AND user_id=u;
+ UPDATE public.business_unit_memberships SET role='sales',permissions='{"transport":{"view":true,"post":false},"accounting":{"view":true,"post":false},"purchase":{"view":true,"create":true,"edit":true,"delete":false,"post":false}}' WHERE business_unit_id=b AND user_id=u;
+ UPDATE public.user_profiles SET role='sales' WHERE id=u;
+ SET LOCAL ROLE authenticated;
+ IF NOT public.transport_draft_invoice_allowed('customer','create') OR NOT public.transport_draft_invoice_allowed('customer','edit')
+ OR NOT public.transport_draft_invoice_allowed('supplier','edit') OR public.transport_finance_allowed('billing')
+ OR public.transport_finance_allowed('rent') OR public.transport_draft_invoice_allowed('customer','delete')
+ OR public.transport_posted_invoice_admin_access() THEN RAISE EXCEPTION 'Draft clerk permission separation failed';END IF;
+ result:=public.transport_create_customer_draft_grouped(array[auth_trip],current_date+2,normal_rev,true,'CLERK-S-'||code,'{}');
+ bill2:=(result->>'transport_document_id')::uuid;
+ result:=public.transport_register_draft_invoice_edit_context('customer',bill2);
+ result:=public.transport_edit_register_draft_invoice('customer',bill2,array[auth_trip],current_date+2,'CLERK-S-'||code,(result->>'account_id')::uuid);
+ result:=public.transport_refresh_draft_invoice('customer',bill2);
+ result:=public.transport_create_supplier_draft_grouped(array[rent2],current_date+2,acct,true,'Clerk supplier reference','CLERK-P-'||code,'{}');
+ normal_doc:=(result->>'transport_document_id')::uuid;
+ result:=public.transport_register_draft_invoice_edit_context('supplier',normal_doc);
+ result:=public.transport_edit_register_draft_invoice('supplier',normal_doc,array[rent2],current_date+2,'CLERK-P-'||code,acct);
+ result:=public.transport_refresh_draft_invoice('supplier',normal_doc);
+ result:=public.transport_register_draft_invoice_list();
+ IF jsonb_array_length(result->'rows')<2 THEN RAISE EXCEPTION 'Clerk cannot read own drafts';END IF;
+ rejected:=false;BEGIN PERFORM public.transport_post_customer_draft(bill2);EXCEPTION WHEN OTHERS THEN rejected:=true;END;
+ IF NOT rejected THEN RAISE EXCEPTION 'Draft clerk posted customer invoice';END IF;
+ rejected:=false;BEGIN PERFORM public.transport_post_supplier_draft(normal_doc);EXCEPTION WHEN OTHERS THEN rejected:=true;END;
+ IF NOT rejected THEN RAISE EXCEPTION 'Draft clerk posted supplier invoice';END IF;
+ rejected:=false;BEGIN PERFORM public.transport_delete_register_draft_invoice('customer',bill2);EXCEPTION WHEN OTHERS THEN rejected:=true;END;
+ IF NOT rejected THEN RAISE EXCEPTION 'Draft clerk deleted invoice without permission';END IF;
+ rejected:=false;BEGIN
+  PERFORM public.transport_admin_edit_posted_invoice('customer',vat_bill,array[vat_trip],current_date,'Synthetic draft clerk cannot alter posted invoice','{}');
+ EXCEPTION WHEN OTHERS THEN rejected:=true;END;
+ IF NOT rejected THEN RAISE EXCEPTION 'Draft clerk posted edit accepted';END IF;
+ RESET ROLE;
  raise notice 'PASS Admin-only posted multi-trip edit, split, rate corrections, supplier parity, permanent delete, GL identity, no reversal, owner denial and rollback';
 END $$;
 ROLLBACK;
