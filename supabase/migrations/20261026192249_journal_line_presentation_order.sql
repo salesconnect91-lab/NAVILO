@@ -1,0 +1,2 @@
+ALTER TABLE public.journal_lines ADD COLUMN IF NOT EXISTS line_position integer;
+COMMENT ON COLUMN public.journal_lines.line_position IS 'Optional presentation order for manually arranged journal lines; does not affect accounting amounts.';

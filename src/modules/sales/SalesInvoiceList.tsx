@@ -977,13 +977,12 @@ export default function SalesInvoiceList() {
 
               <div>
                 <label className="label">Description</label>
-                <input
+                <textarea
                   className="input"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Payment description"
-                  disabled={paymentSaving}
-                />
+                  disabled={paymentSaving} rows={2} style={{minHeight:36,height:52,resize:"vertical",whiteSpace:"pre-wrap",tabSize:4}} />
               </div>
 
               <div className="md:col-span-2">

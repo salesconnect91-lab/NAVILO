@@ -2143,7 +2143,7 @@ export default function CashCounter() {
 
               <div>
                 <label className="mb-1.5 block text-xs font-semibold text-slate-600">Description</label>
-                <input
+                <textarea
                   value={description}
                   onChange={(e) =>
                     setDescription(
@@ -2151,8 +2151,7 @@ export default function CashCounter() {
                     )
                   }
                   placeholder="Optional"
-                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
-                />
+                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500" rows={2} style={{minHeight:36,height:52,resize:"vertical",whiteSpace:"pre-wrap",tabSize:4}} />
               </div>
 
               <div>

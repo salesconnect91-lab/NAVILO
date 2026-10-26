@@ -236,7 +236,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
           </tr></thead>
           <tbody>{info.lines.map(line=><tr key={line.id} className="border-t border-slate-200">
            <td className="p-2">{line.account||line.account_id||'—'}</td>
-           <td className="p-2">{line.description||entry.description||'—'}</td>
+           <td className="p-2 whitespace-pre-wrap break-words">{line.description||entry.description||'—'}</td>
            <td className="p-2">{line.party_name||'—'}</td>
            <td className="p-2">{line.transport_vehicle_no||'—'}</td>
            <td className="p-2 text-right tabular-nums">{num(line.debit)?money(num(line.debit),currency):'—'}</td>

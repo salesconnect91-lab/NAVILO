@@ -1,3 +1,4 @@
+import {moveJournalRow,compareJournalLineOrder} from "./journalLinePresentation";
 import {recordDisplayText} from '@/lib/recordDisplayText';
 import {useAuth} from '@/auth/AuthContext';
 import NaviloDateInput from '@/components/NaviloDateInput';
@@ -413,7 +414,7 @@ export default function JournalEntryDetail() {
           })
         ) as JournalLine[];
 
-      setLines(mappedLines.sort((a,b)=>Number(Number(b.debit)>0)-Number(Number(a.debit)>0)||a.id.localeCompare(b.id)));
+      setLines(mappedLines.sort(compareJournalLineOrder));
     },
     [id]
   );
@@ -875,6 +876,11 @@ export default function JournalEntryDetail() {
   /* =========================================================
      ADD / DUPLICATE / REMOVE ROW
   ========================================================= */
+
+  const [draggedDraftRow, setDraggedDraftRow] = useState<string | null>(null);
+  const moveDraftRow = (sourceId: string, targetIndex: number) => {
+    setDraftLines(current => moveJournalRow(current,sourceId,targetIndex));
+  };
 
   const handleAddRow = () => {
     setDraftLines((current) => [
@@ -1530,6 +1536,7 @@ export default function JournalEntryDetail() {
       }
 
       const rowsToInsert: {
+        line_position: number;
         entry_id: string;
         transport_vehicle_id?: string|null;
         account_id: string;
@@ -1735,6 +1742,7 @@ export default function JournalEntryDetail() {
         const vehicleAccountError=journalVehicleAccountError(account.id,account.type,line.vehicleId??'',companyVehicles);
         if(vehicleAccountError){setError(`Row ${rowNumber}: ${vehicleAccountError}`);return;}
         rowsToInsert.push({
+          line_position: Math.max(lines.length, ...lines.map(saved => saved.line_position ?? 0)) + i + 1,
           transport_vehicle_id: line.vehicleId || null,
           entry_id: id,
           account_id:
@@ -2271,7 +2279,7 @@ export default function JournalEntryDetail() {
             />
           </div>
 
-          {entry.description && <p className="text-sm text-slate-500 mt-1">{recordDisplayText(entry.description)}</p>}
+          {entry.description && <p className="text-sm text-slate-500 mt-1 whitespace-pre-wrap break-words">{recordDisplayText(entry.description)}</p>}
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
@@ -2565,6 +2573,7 @@ export default function JournalEntryDetail() {
 
 
 
+                            {line.description && <div className="mt-1 whitespace-pre-wrap break-words text-xs text-slate-600" style={{tabSize:4}}>{line.description}</div>}
                             {coa && (
                               <div className="text-xs text-slate-400 mt-0.5">
                                 {coa.type}
@@ -2705,7 +2714,7 @@ export default function JournalEntryDetail() {
             <div id="navilo-posted-journal-editor" className="min-w-0 max-w-full border border-blue-200 rounded-xl overflow-hidden">
               {postedEditOpen && <div className="bg-white border-b p-3 flex flex-wrap items-end gap-2">
                 <label className="text-xs">Posting Date<NaviloDateInput className="input block" type="date" value={postedEditDate} onChange={e=>setPostedEditDate(e.target.value)}/></label>
-                <label className="text-xs">Journal Description<input className="input block" value={postedEditDescription} onChange={e=>setPostedEditDescription(e.target.value)}/></label>
+                <label className="text-xs">Journal Description<textarea className="input block" value={postedEditDescription} onChange={e=>setPostedEditDescription(e.target.value)} rows={2} style={{minHeight:36,height:52,resize:"vertical",whiteSpace:"pre-wrap",tabSize:4}} /></label>
                 <label className="text-xs">Reason (minimum 10 characters) — required to save<input className="input block" value={postedEditReason} onChange={e=>setPostedEditReason(e.target.value)} placeholder="Explain what was corrected"/></label>
                 {postedEditReason.trim().length < 10 && <span className="text-xs text-amber-700">Enter at least 10 characters to enable Save Original Journal.</span>}
 
@@ -2718,7 +2727,7 @@ export default function JournalEntryDetail() {
                   </h4>
 
                   <p className="text-xs text-slate-600 mt-0.5">
-                    One Journal, one posting: select the GL Account. Related To is for genuine customer/supplier controls; vehicle selection is used only for eligible income lines. Expenses post directly to their expense account without a vehicle allocation.
+                    Choose the account, add a description, then enter Debit or Credit. Select a vehicle on eligible income/expense lines. Drag the row handle or use the arrows to reorder unsaved lines.
                   </p>
                 </div>
 
@@ -2739,20 +2748,20 @@ export default function JournalEntryDetail() {
               </div>
 
               <div className="min-w-0 px-2 py-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
-                <span>{postingAccounts.length} accounts available for manual posting{journalExcludedAccounts > 0 ? ` · ${journalExcludedAccounts} accounts cannot be posted here (including group, inactive, invoice-only and VAT accounts)` : ""}. Restricted accounts appear disabled so you can still find them.</span>
+                <span>{postingAccounts.length} accounts available for manual posting{journalExcludedAccounts > 0 ? ` · ${journalExcludedAccounts} accounts cannot be posted here (group or inactive accounts, or accounts with manual entries disabled)` : ""}. Restricted accounts appear disabled so you can still find them.</span>
                 <div className="flex items-center gap-2"><QuickMasterAdd kind="account" compact disabled={saving||posting||importing} onRefresh={fetchAccounts}/><button type="button" className="rounded border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50" data-navilo-keep-local-action="true" onClick={() => { void fetchAccounts().catch((e:unknown) => setError(e instanceof Error ? e.message : "Unable to refresh Chart of Accounts.")); }}>
                   Refresh Accounts
                 </button></div>
               </div>
               <div className="w-full max-w-full min-w-0 overflow-x-auto" aria-label="Journal line editor">
-                <table className="w-full table-fixed min-w-[690px] text-[12px]">
+                <table className="w-full table-fixed min-w-[900px] text-[12px]">
                   <colgroup>
-                    <col style={{width:'26%'}} />
-                     <col style={{width:'23%'}} />
                     <col style={{width:'23%'}} />
-                    <col style={{width:'11%'}} />
-                    <col style={{width:'11%'}} />
-                    <col style={{width:'6%'}} />
+                    <col style={{width:'29%'}} />
+                    <col style={{width:'16%'}} />
+                    <col style={{width:'9%'}} />
+                    <col style={{width:'9%'}} />
+                    <col style={{width:'14%'}} />
                   </colgroup>
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
@@ -2775,7 +2784,7 @@ export default function JournalEntryDetail() {
 
                   <tbody>
                     {draftLines.map(
-                      (line) => {
+                      (line, rowIndex) => {
                         const partyOptions =
                           getPartyOptionsForAccount(
                             line.accountId
@@ -2794,7 +2803,9 @@ export default function JournalEntryDetail() {
                             key={
                               line.tempId
                             }
-                            className="border-b border-slate-100"
+                            className="border-b border-slate-100 align-top"
+                            onDragOver={event => { if (draggedDraftRow) event.preventDefault(); }}
+                            onDrop={event => { event.preventDefault(); if (draggedDraftRow && !saving && !posting && !importing) moveDraftRow(draggedDraftRow, rowIndex); setDraggedDraftRow(null); }}
                           >
                             <td className="min-w-0 px-2 py-1.5">
                               <SearchableSelect
@@ -2840,7 +2851,7 @@ export default function JournalEntryDetail() {
                               </SearchableSelect>
                             </td>
 
-                            <td className="min-w-0 px-2 py-1.5"><input className="input w-full text-xs" aria-label={`Description row ${draftLines.indexOf(line)+1}`} placeholder="Line description..." value={line.description} onChange={e=>updateDraftLine(line.tempId,"description",e.target.value)} maxLength={1000} /></td>
+                            <td className="min-w-0 px-2 py-1.5"><textarea className="input w-full text-xs" aria-label={`Description row ${draftLines.indexOf(line)+1}`} placeholder="Line description..." value={line.description} onChange={e=>updateDraftLine(line.tempId,"description",e.target.value)} maxLength={1000} rows={2} style={{minHeight:36,height:52,resize:"vertical",whiteSpace:"pre-wrap",tabSize:4}} /></td>
                             <td className="min-w-0 px-2 py-1.5">
                               {!line.accountId ? (
                                 <span className="text-xs text-slate-500">Select account first</span>
@@ -2940,7 +2951,14 @@ export default function JournalEntryDetail() {
                             </td>
 
                             <td className="min-w-0 px-1 py-1.5">
-                              <div className="flex items-center justify-center gap-1">
+                              <div className="flex flex-wrap items-center justify-center gap-1">
+                                <button type="button" draggable={!saving && !posting && !importing}
+                                  onDragStart={() => setDraggedDraftRow(line.tempId)} onDragEnd={() => setDraggedDraftRow(null)}
+                                  aria-label={`Drag row ${rowIndex + 1}`} title="Drag to move row" className="cursor-grab rounded border px-1 py-1">⠿</button>
+                                <button type="button" aria-label={`Move row ${rowIndex + 1} up`} title="Move up"
+                                  disabled={rowIndex === 0 || saving || posting || importing} onClick={() => moveDraftRow(line.tempId, rowIndex - 1)} className="rounded border px-1 py-1 disabled:opacity-30">↑</button>
+                                <button type="button" aria-label={`Move row ${rowIndex + 1} down`} title="Move down"
+                                  disabled={rowIndex === draftLines.length - 1 || saving || posting || importing} onClick={() => moveDraftRow(line.tempId, rowIndex + 1)} className="rounded border px-1 py-1 disabled:opacity-30">↓</button>
                                 <button
                                   type="button"
                                   onClick={() =>

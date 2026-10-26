@@ -224,7 +224,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    <div className="navilo-invoice-lines-wrap">
     {lines.map((line,i)=><div key={i} className="navilo-invoice-line-grid navilo-invoice-line-row">
      <label className="navilo-invoice-line-field"><span className="navilo-invoice-line-label">Description {i+1}</span>
-      <input aria-label={`Description ${i+1}`} className="input" placeholder="Enter goods or service description" value={line.description} maxLength={1000} disabled={saving||!!done} onChange={e=>update(i,'description',e.target.value)}/>
+      <textarea aria-label={`Description ${i+1}`} className="input" placeholder="Enter goods or service description" value={line.description} maxLength={1000} disabled={saving||!!done} onChange={e=>update(i,'description',e.target.value)} rows={2} style={{minHeight:36,height:52,resize:"vertical",whiteSpace:"pre-wrap",tabSize:4}} />
      </label>
      <div className="navilo-invoice-line-field"><label className="block"><span className="navilo-invoice-line-label">Vehicle {side==='customer'?'*':'(optional)'}</span>
       <NaviloSearchableSelect nativeCompatibility aria-label={`Vehicle ${i+1}`} className="input" value={line.vehicle_id??''} required={side==='customer'} disabled={saving||!!done} onChange={e=>update(i,'vehicle_id',e.target.value)}><option value="">{side==='customer'?'Select company vehicle':'No vehicle'}</option>{eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</NaviloSearchableSelect>

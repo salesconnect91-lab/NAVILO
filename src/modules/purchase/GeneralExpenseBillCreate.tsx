@@ -74,7 +74,7 @@ export default function GeneralExpenseBillCreate(){
   <div className="rounded border bg-white p-3 space-y-2">
    <div className="flex justify-between"><h2 className="font-semibold">Expense descriptions</h2><button className="btn" type="button" disabled={loading||busy||!!done||lines.length>=100} onClick={()=>setLines(v=>[...v,blank()])}>+ Add Row</button></div>
    {lines.map((l,i)=><div className="grid grid-cols-[minmax(0,1fr)_140px_35px] gap-2" key={i}>
-    <input className="input" aria-label={`Expense description ${i+1}`} placeholder="Fuel, repairs, rent, utilities..." maxLength={1000} disabled={busy||!!done} value={l.description} onChange={e=>setLine(i,'description',e.target.value)}/>
+    <textarea className="input" aria-label={`Expense description ${i+1}`} placeholder="Fuel, repairs, rent, utilities..." maxLength={1000} disabled={busy||!!done} value={l.description} onChange={e=>setLine(i,'description',e.target.value)} rows={2} style={{minHeight:36,height:52,resize:"vertical",whiteSpace:"pre-wrap",tabSize:4}} />
     <input className="input text-right" aria-label={`Expense amount ${i+1}`} placeholder="Net SAR" inputMode="decimal" disabled={busy||!!done} value={l.amount} onChange={e=>setLine(i,'amount',e.target.value)}/>
     <button className="btn" type="button" aria-label={`Remove expense ${i+1}`} disabled={busy||!!done||lines.length===1} onClick={()=>setLines(v=>v.filter((_,j)=>j!==i))}>×</button>
    </div>)}
