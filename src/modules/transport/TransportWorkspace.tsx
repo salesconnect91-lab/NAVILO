@@ -1437,7 +1437,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       case "remaining_us": return financialNumber(r.remaining_with_us??0);
       case "payment_date": return r.payment_date?formatNaviloDate(r.payment_date):"";
       case "amount": return financialNumber(r.payment_amount??0);
-      case "company_rate": return financialNumber(r.billed_customer_net??r.customer_rate);
+      case "company_rate": return financialNumber(Number(r.billed_customer_net??0)>0?r.billed_customer_net:r.customer_rate);
       case "received_company": return financialNumber(r.customer_received_gross??r.received_from_company??0);
       case "remaining_company": return financialNumber(Math.max(0,Number(r.customer_outstanding_gross??r.remaining_with_company??0)));
       case "profit": return financialNumber(r.trip_profit);
