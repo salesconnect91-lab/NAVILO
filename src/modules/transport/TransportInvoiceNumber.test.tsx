@@ -25,8 +25,10 @@ vi.mock('@/lib/supabase',()=>({supabase:{
  rpc:async(name:string,args:any)=>{
   if(name==='transport_draft_invoice_permissions')return {data:{customer:{post:mock.permission}},error:null};
   if(name==='transport_draft_invoice_allowed')return {data:mock.permission,error:null};
+  if(name==='transport_invoice_duplicate_override_allowed')return {data:false,error:null};
+  if(name==='transport_invoice_number_conflicts')return {data:{matches:[]},error:null};
   if(name==='fixed_tax_rate_on')return {data:mock.rates[args.p_company]??null,error:null};
-  if(name==='transport_create_customer_draft_grouped'){
+  if(name==='transport_create_customer_draft_grouped_with_override'){
    mock.posts.push(args);
    return {data:{transport_document_id:'draft-customer',order_id:'sales-draft',invoice_no:args.p_invoice_no||'S-AUTO-1',status:'draft'},error:null};
   }
