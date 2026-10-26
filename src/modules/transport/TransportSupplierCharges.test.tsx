@@ -8,7 +8,7 @@ const customerTripRead=()=>({id:'trip',company_id:'company',business_unit_id:'un
 vi.mock('@/lib/supabase',()=>({supabase:{rpc:mock.rpc,from:(table:string)=>{
  const q:any={};for(const method of ['select','eq','in','order','limit'])q[method]=()=>q;
  q.single=async()=>({data:table==='transport_trips'?{id:'trip',company_id:'company',business_unit_id:'unit',trip_no:'TRP-1',trip_date:'2026-10-11',customer_id:'customer',customer_name_snapshot:'Customer A',from_location:'DAMMAM',to_location:'RIYADH',customer_rate:mock.amount,customer_base_rate:mock.base,customer_rate_state:'finalized'}:{id:'rent',company_id:'company',trip_id:'trip',state:'finalized',base_amount:mock.base,amount:mock.amount,supplier_name_snapshot:'Supplier A'},error:null});
- q.then=(resolve:any)=>Promise.resolve({data:table==='charge_master'?[{id:'waiting',charge_key:'W',charge_name:'Waiting',default_rate:400}]:table==='transport_trip_supplier_charges'?mock.charges:table==='transport_trip_customer_charges'?mock.charges.map(x=>({...x,code_snapshot:x.charge_key_snapshot})):table==='transport_supplier_document_rents'&&(mock.posted||mock.linkedDraft)?[{id:'link',document_id:'document'}]:table==='transport_supplier_documents'&&(mock.posted||mock.linkedDraft)?[{purchase_order_id:'purchase'}]:table==='purchase_orders'&&mock.posted?[{status:'posted'}]:table==='purchase_orders'&&mock.linkedDraft?[{status:'draft'}]:[],error:null}).then(resolve);return q;
+ q.then=(resolve:any)=>Promise.resolve({data:table==='charge_master'?[{id:'waiting',charge_key:'W',charge_name:'Waiting',default_rate:400}]:table==='transport_trip_supplier_charges'?mock.charges:table==='transport_trip_customer_charges'?mock.charges.map(x=>({...x,code_snapshot:x.charge_key_snapshot})):table==='transport_supplier_document_rents'&&(mock.posted||mock.linkedDraft)?[{id:'link',document_id:'document'}]:table==='transport_supplier_documents'&&(mock.posted||mock.linkedDraft)?[{id:'document',purchase_order_id:'purchase'}]:table==='purchase_orders'&&mock.posted?[{id:'purchase',status:'posted'}]:table==='purchase_orders'&&mock.linkedDraft?[{id:'purchase',status:'draft'}]:[],error:null}).then(resolve);return q;
 }}}));
 beforeEach(()=>{mock.posted=false;mock.linkedDraft=false;mock.base=null;mock.amount=1500;mock.charges=[];mock.rpc.mockReset().mockResolvedValue({data:{},error:null});});
 afterEach(cleanup);
@@ -40,11 +40,11 @@ it('locks posted rent and charges',async()=>{
  expect((screen.getByLabelText(/Supplier rate excluding VAT/) as HTMLInputElement).disabled).toBe(true);
  expect(screen.queryByRole('button',{name:/Save Rate/})).toBeNull();expect(mock.rpc).not.toHaveBeenCalled();
 });
-it('keeps a supplier rent editable when its linked invoice is still a draft',async()=>{
- mock.linkedDraft=true;show();await screen.findByLabelText(/Supplier rate excluding VAT/);
+it('locks a supplier rent linked to a draft invoice and labels it as a draft',async()=>{
+ show({preloaded:{rent:{id:'rent',trip_id:'trip',state:'finalized',base_amount:1500,amount:1500,supplier_name_snapshot:'Supplier A',posted:true,draft_linked:true},types:[],lines:[]}});await screen.findByText(/Supplier draft invoice exists/);
  expect(screen.queryByText(/Supplier invoice posted/)).toBeNull();
- expect((screen.getByLabelText(/Supplier rate excluding VAT/) as HTMLInputElement).disabled).toBe(false);
- expect(screen.getByRole('button',{name:/Save Rate/})).toBeTruthy();
+ expect((screen.getByLabelText(/Supplier rate excluding VAT/) as HTMLInputElement).disabled).toBe(true);
+ expect(screen.queryByRole('button',{name:/Save Rate/})).toBeNull();expect(mock.rpc).not.toHaveBeenCalled();
 });
 it('keeps the popup open and explains a partial save so charges can be retried',async()=>{
  mock.rpc.mockImplementation(async(name:string)=>({data:{},error:name==='transport_finalize_supplier_rent'?{message:'Rent confirmation failed'}:null}));
