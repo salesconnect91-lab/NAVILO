@@ -12,12 +12,12 @@ import {MemoryRouter} from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {webcrypto} from 'node:crypto';
 vi.mock('./transportTripImport',async original=>({...await original<any>(),saveImport:async()=>{},storedImport:async()=>null}));
-const mock=vi.hoisted(()=>({rpc:vi.fn(),tables:{} as Record<string,any[]>,allow:true,
+const mock=vi.hoisted(()=>({rpc:vi.fn(),tables:{} as Record<string,any[]>,allow:true,role:'company_owner',
  abortSignals:{} as Record<string,AbortSignal>,
  layoutUserId:null as string|null,remoteLayout:null as any,
  savedLayout:null as any,layoutReads:0,layoutWriteError:false,layoutReadError:false,
  layoutQueries:[] as Array<Record<string,string>>,companyId:'c',businessUnitId:'b'}));
-vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({user:mock.layoutUserId?{id:mock.layoutUserId}:null,activeCompany:{company_id:mock.companyId,membership_role:'company_owner',enabled_modules:['transport','sales','purchase']},activeBusinessUnit:{business_unit_id:mock.businessUnitId,membership_role:'company_owner',business_unit_type:'transport',enabled_modules:['transport','sales','purchase']}})}));
+vi.mock('@/auth/AuthContext',()=>({useAuth:()=>({user:mock.layoutUserId?{id:mock.layoutUserId}:null,activeCompany:{company_id:mock.companyId,membership_role:mock.role,enabled_modules:['transport','sales','purchase']},activeBusinessUnit:{business_unit_id:mock.businessUnitId,membership_role:mock.role,business_unit_type:'transport',enabled_modules:['transport','sales','purchase']}})}));
 vi.mock('@/lib/supabase',()=>({supabase:{auth:{getUser:async()=>({data:{user:null}}),getSession:async()=>({data:{session:null}})},rpc:(...args:any[])=>{const request=mock.rpc(...args);request.abortSignal=(signal:AbortSignal)=>{mock.abortSignals[args[0]]=signal;return request;};return request;},from:(table:string)=>{
  if(table==='transport_register_layout_preferences'){
   const filters:Record<string,string>={};
@@ -39,6 +39,7 @@ beforeEach(()=>{
  localStorage.clear();
  Object.defineProperty(globalThis,'crypto',{value:webcrypto,configurable:true});
  mock.allow=true;mock.companyId='c';mock.businessUnitId='b';mock.layoutUserId=null;mock.remoteLayout=null;mock.savedLayout=null;mock.layoutReads=0;mock.layoutWriteError=false;mock.layoutReadError=false;mock.layoutQueries=[];
+ mock.role='company_owner';
  mock.abortSignals={};
  mock.rpc.mockReset();mock.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='transport_register_query'?{rows:[],count:0,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:name==='transport_prepare_trip_import'?{id:'job',completed:0}:name==='transport_trip_customer_modes'?[{id:'c1',mode:'Credit'}]:name==='transport_import_trip_batch'?args.p_rows.map(()=>({id:'trip',trip_no:'OIC-1'})):name==='transport_create_trips'?[{id:'trip',trip_no:'OIC-1'}]:mock.allow,error:null}));
  mock.tables={customers:[{id:'c1',name:'Customer',is_active:true}],suppliers:[{id:'s',name:'Supplier',is_active:true}],employees:[{id:'e',name:'Employee',is_active:true}],
@@ -194,6 +195,7 @@ describe('Transport register interactions',()=>{
   expect(await screen.findByRole('heading',{name:'Bulk Supplier Rent'})).toBeTruthy();
  });
  it('deletes only after selecting a Draft Trip and confirming a reason',async()=>{
+  mock.role='member';
   let deleted=false;
   mock.rpc.mockImplementation(async(name:string)=>{
    if(name==='transport_delete_draft_trip'){deleted=true;return {data:{deleted:true,trip_no:'DEL-TRIP'},error:null};}
@@ -204,16 +206,18 @@ describe('Transport register interactions',()=>{
   const remove=screen.getByRole('button',{name:'Delete selected Trip'}) as HTMLButtonElement;
   expect(remove.disabled).toBe(true);
   fireEvent.click(screen.getByLabelText('Select trip DEL-TRIP'));expect(remove.disabled).toBe(false);fireEvent.click(remove);
-  expect(screen.getByRole('dialog',{name:'Delete Unposted Trip'})).toBeTruthy();
-  expect((screen.getByLabelText('Trip deletion reason') as HTMLTextAreaElement).value).toBe('Unposted Trip removed');
+  expect(screen.getByRole('dialog',{name:'Permanently delete Trip'})).toBeTruthy();
+  expect((screen.getByLabelText('Reason details') as HTMLTextAreaElement).value).toBe('Unposted Trip removed');
    expect((screen.getByRole('button',{name:'Delete Unposted Trip'}) as HTMLButtonElement).disabled).toBe(false);
   expect(mock.rpc.mock.calls.filter(c=>c[0]==='transport_delete_draft_trip')).toHaveLength(0);
-  fireEvent.change(screen.getByLabelText('Trip deletion reason'),{target:{value:'Duplicate entry'}});
+  fireEvent.change(screen.getByLabelText('Deletion reason'),{target:{value:'Duplicate entry'}});
+  fireEvent.change(screen.getByLabelText('Reason details'),{target:{value:'Duplicate entry'}});
   fireEvent.click(screen.getByRole('button',{name:'Delete Unposted Trip'}));
   await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_delete_draft_trip',{p_trip_id:'delete-trip',p_reason:'Duplicate entry'}));
-  await screen.findByText('No trips yet.');expect(screen.queryByRole('dialog',{name:'Delete Unposted Trip'})).toBeNull();
+  await screen.findByText('No trips yet.');expect(screen.queryByRole('dialog',{name:'Permanently delete Trip'})).toBeNull();
  });
  it('allows finalized-only Incomplete Trip deletion with a reason',async()=>{
+   mock.role='member';
    let deleted=false;
    mock.rpc.mockImplementation(async(name:string)=>{
      if(name==='transport_delete_draft_trip'){deleted=true;return {data:{deleted:true,trip_no:'OIC-000001'},error:null};}
@@ -225,14 +229,16 @@ describe('Transport register interactions',()=>{
    const remove=screen.getByRole('button',{name:'Delete selected Trip'}) as HTMLButtonElement;
    expect(remove.disabled).toBe(false);fireEvent.click(remove);
    expect(screen.getByText(/finalized-only rate/)).toBeTruthy();
-   expect((screen.getByLabelText('Trip deletion reason') as HTMLTextAreaElement).value).toBe('Unposted Trip removed');
+   expect((screen.getByLabelText('Reason details') as HTMLTextAreaElement).value).toBe('Unposted Trip removed');
    expect((screen.getByRole('button',{name:'Delete Unposted Trip'}) as HTMLButtonElement).disabled).toBe(false);
-   fireEvent.change(screen.getByLabelText('Trip deletion reason'),{target:{value:'Finalized wrong rate, remove mistaken trip'}});
+   fireEvent.change(screen.getByLabelText('Deletion reason'),{target:{value:'Finalized wrong rate, remove mistaken trip'}});
+   fireEvent.change(screen.getByLabelText('Reason details'),{target:{value:'Finalized wrong rate, remove mistaken trip'}});
    fireEvent.click(screen.getByRole('button',{name:'Delete Unposted Trip'}));
    await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_delete_draft_trip',{p_trip_id:'finalized-only-trip',p_reason:'Finalized wrong rate, remove mistaken trip'}));
    await screen.findByText('No trips yet.');
   });
  it('allows an unposted Complete Trip to be deleted with an audit reason',async()=>{
+   mock.role='member';
    let deleted=false;
    mock.rpc.mockImplementation(async(name:string)=>{
      if(name==='transport_delete_draft_trip'){deleted=true;return {data:{deleted:true,trip_no:'COMPLETE-UNPOSTED'},error:null};}
@@ -244,17 +250,19 @@ describe('Transport register interactions',()=>{
    const remove=screen.getByRole('button',{name:'Delete selected Trip'}) as HTMLButtonElement;
    expect(remove.disabled).toBe(false);fireEvent.click(remove);
    expect(screen.getByText(/Draft, Incomplete or Complete Trip/)).toBeTruthy();
-   fireEvent.change(screen.getByLabelText('Trip deletion reason'),{target:{value:'ZZ-TEST cleanup'} });
+   fireEvent.change(screen.getByLabelText('Deletion reason'),{target:{value:'ZZ-TEST cleanup'} });
+   fireEvent.change(screen.getByLabelText('Reason details'),{target:{value:'ZZ-TEST cleanup'} });
    fireEvent.click(screen.getByRole('button',{name:'Delete Unposted Trip'}));
    await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_delete_draft_trip',{p_trip_id:'complete-unposted-trip',p_reason:'ZZ-TEST cleanup'}));
    await screen.findByText('No trips yet.');
  });
  it('keeps the Trip and confirmation open when the server blocks financial deletion',async()=>{
+  mock.role='member';
   mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_register_query'?{rows:[{id:'blocked-trip',trip_no:'BLOCKED-TRIP',status:'draft'}],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:true,error:name==='transport_delete_draft_trip'?{message:'Trip has financial entries or documents.'}:null}));
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
   await screen.findByText('BLOCKED-TRIP');fireEvent.click(screen.getByLabelText('Select trip BLOCKED-TRIP'));fireEvent.click(screen.getByRole('button',{name:'Delete selected Trip'}));
-  fireEvent.change(screen.getByLabelText('Trip deletion reason'),{target:{value:'Mistake'}});fireEvent.click(screen.getByRole('button',{name:'Delete Unposted Trip'}));
-  await screen.findByText('Trip has financial entries or documents.');expect(screen.getByRole('dialog',{name:'Delete Unposted Trip'})).toBeTruthy();expect(screen.getByText('BLOCKED-TRIP')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Deletion reason'),{target:{value:'Trip entered by mistake'}});fireEvent.change(screen.getByLabelText('Reason details'),{target:{value:'Trip entered by mistake'}});fireEvent.click(screen.getByRole('button',{name:'Delete Unposted Trip'}));
+  await screen.findByText('Trip has financial entries or documents.');expect(screen.getByRole('dialog',{name:'Permanently delete Trip'})).toBeTruthy();expect(screen.getByText('BLOCKED-TRIP')).toBeTruthy();
  });
  it('blocks selection of a non Draft Trip for deletion and honors denied delete permission',async()=>{
   mock.rpc.mockImplementation(async(name:string)=>({data:name==='transport_register_query'?{rows:[{id:'locked-trip',trip_no:'LOCKED-TRIP',status:'locked'}],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}}:true,error:null}));
