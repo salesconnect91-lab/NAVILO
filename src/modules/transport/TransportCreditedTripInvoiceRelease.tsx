@@ -35,8 +35,8 @@ export default function TransportCreditedTripInvoiceRelease({side,order,trips,li
   setAllowed(false);
   if(!eligible)return()=>{live=false};
   void supabase.rpc('transport_admin_invoice_trip_release_access').then(({data,error:permissionError})=>{
-   if(live&&!permissionError)setAllowed(data===true);
-  }).catch(()=>{if(live)setAllowed(false)});
+   if(live)setAllowed(!permissionError&&data===true);
+  },()=>{if(live)setAllowed(false)});
   return()=>{live=false};
  },[eligible,side,order.id,order.status,transportAttributed,trips.length,lineCount,chargesCount,cash,
   balance?.credited_gross,balance?.original_gross,balance?.outstanding_gross,balance?.paid_gross,balance?.refunded_gross]);
