@@ -7,7 +7,7 @@ import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
 import {type FinancialTrip} from './transportFinancialTypes';
 
-type InvoiceTrip=FinancialTrip & {invoice_no?:string|null;sales_order_id?:string|null};
+type InvoiceTrip=FinancialTrip & {invoice_no?:string|null;sales_order_id?:string|null;posted?:boolean};
 type DuplicateMatch={company:string;trips:string[];date:string;status:string};
 
 export function isValidTransportOriginalInvoice(value:string):boolean {
@@ -42,7 +42,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
  const companyId=activeCompany?.company_id;
  const businessUnitId=activeBusinessUnit?.business_unit_id;
  const scope=`${companyId??''}/${businessUnitId??''}`;
- const posted=Boolean(trip.invoiced||trip.sales_order_id||Number(trip.billed_customer_net??0)>0);
+ const posted=typeof trip.posted==='boolean'?trip.posted:Boolean(trip.invoiced||trip.sales_order_id||Number(trip.billed_customer_net??0)>0);
  const [invoiceNo,setInvoiceNo]=useState(trip.invoice_no??'');
  const [numberMode,setNumberMode]=useState<'choose'|'auto'|'manual'>(()=>String(trip.sale_type??'').toLowerCase()==='credit'?'manual':'auto');
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
