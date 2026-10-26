@@ -170,7 +170,7 @@ BEGIN
        ) q),
     'audit_retained',true);
 END
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.transport_preview_admin_delete_trip(p_trip_id uuid)
@@ -234,7 +234,7 @@ BEGIN
     'confirmation','DELETE '||t.trip_no
   );
 END
-$function$
+$function$;
 
 
 REVOKE ALL ON FUNCTION public.transport_preview_admin_delete_trip(uuid) FROM PUBLIC, anon;
