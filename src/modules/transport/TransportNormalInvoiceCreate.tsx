@@ -100,10 +100,10 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   return()=>{cancelled=true};
  },[company,bu,scope,side]);
  useEffect(()=>{
-  let live=true;const value=number.trim();setDuplicateConfirmed(false);setDuplicateConflicts([]);setConflictError('');
+  let live=true;const value=number.trim();setDuplicateConfirmed(false);setDuplicateConflicts([]);setConflictError('');setConflictLoading(false);
   if(!value||loadedScope!==scope)return;
+  setConflictLoading(true);
   const timer=window.setTimeout(async()=>{
-   setConflictLoading(true);
    try{const r=await supabase.rpc('transport_invoice_number_conflicts',{p_side:side,p_number:value});if(r.error)throw r.error;
     if(live)setDuplicateConflicts((r.data?.matches??[]) as DuplicateMatch[]);
    }catch(e:any){if(live)setConflictError(e?.message||'Could not check whether this invoice number is already used.');}
