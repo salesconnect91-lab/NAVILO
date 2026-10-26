@@ -617,8 +617,8 @@ export default function JournalEntryList() {
       } = await supabase
         .from("journal_entries")
         .insert({
-          entry_no: AUTO_JOURNAL_ENTRY_NO,
-          trans_type: "",
+          entry_no: draft.entry_no.trim() || AUTO_JOURNAL_ENTRY_NO,
+          trans_type: draft.entry_no.trim() ? "Manual Journal" : "",
 
           entry_date:
             draft.entry_date,
@@ -2835,6 +2835,11 @@ export default function JournalEntryList() {
           >
             {creating ? "Creating..." : "+ New Journal Entry"}
           </button>
+          <button type="button" className="btn-secondary" disabled={creating}
+            onClick={() => {
+              setForm({entry_no:"",entry_date:new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10),description:"",currency_code:""});
+              setModalOpen(true);
+            }}>Manual Number…</button>
 
         </div>
       </div>
@@ -2952,13 +2957,14 @@ export default function JournalEntryList() {
                 </label>
 
                 <input
-                  className="mt-1 w-full border rounded p-2 font-mono bg-slate-50 cursor-not-allowed"
-                  required
-                  readOnly
-                  tabIndex={-1}
-                  title="Entry number is assigned when the draft is saved"
-                  value={form.entry_no || "Assigned when saved"}
+                  className="mt-1 w-full border rounded p-2 font-mono"
+                  aria-label="Journal entry number (optional)"
+                  maxLength={80}
+                  placeholder="Leave blank for automatic number"
+                  value={form.entry_no}
+                  onChange={event => setForm({...form,entry_no:event.target.value})}
                 />
+                <p className="mt-1 text-xs text-slate-500">Optional. Your number is preserved; duplicate numbers are rejected.</p>
 
               </div>
 
