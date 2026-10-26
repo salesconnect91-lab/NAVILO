@@ -8,6 +8,7 @@ import QuickMasterAdd from '@/components/QuickMasterAdd';
 import {useNormalInvoiceVatQuote} from './useNormalInvoiceVatQuote';
 
 type Side='customer'|'supplier';
+type DuplicateMatch={company:string;trips:string[];date:string;status:string};
 type Party={id:string;name:string};
 type Account={id:string;name:string;code?:string};
 type Line={description:string;amount:string;vehicle_id?:string};
@@ -33,6 +34,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  const [number,setNumber]=useState(''),[reference,setReference]=useState(''),[vatChoice,setVatChoice]=useState<'master'|'with_vat'|'without_vat'>('master'),[lines,setLines]=useState<Line[]>([empty()]);
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[done,setDone]=useState<{document_id:string;invoice_no:string;status:string;gross:number;net?:number;vat?:number}|null>(null);
  const [loadedScope,setLoadedScope]=useState('');
+ const [duplicateAllowed,setDuplicateAllowed]=useState(false),[duplicateConflicts,setDuplicateConflicts]=useState<DuplicateMatch[]>([]),[duplicateConfirmed,setDuplicateConfirmed]=useState(false),[conflictLoading,setConflictLoading]=useState(false),[conflictError,setConflictError]=useState('');
  const [vehicles,setVehicles]=useState<{id:string;vehicle_no:string;ownership_type:string|null;revenue_account_id:string|null}[]>([]);
  const [ownership,setOwnership]=useState<{vehicle_id:string;owner_type:string;effective_from:string;effective_to:string|null}[]>([]);
  useEffect(()=>{
@@ -77,10 +79,13 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    supabase.from('chart_of_accounts').select('id,code,name').eq('company_id',company).eq('type',accountType).eq('is_active',true).eq('is_group',false).order('name'),
    supabase.from('account_mappings').select('account_id').eq('company_id',company).eq('mapping_key',mapping).limit(1).maybeSingle(),
    ...(side==='customer'?[supabase.from('account_mappings').select('account_id').eq('company_id',company).eq('mapping_key','service_revenue').limit(1).maybeSingle()]:[]),
-  ]).then(([people,coa,m,service])=>{
+   supabase.rpc('transport_invoice_duplicate_override_allowed',{p_side:side}),
+  ]).then(([people,coa,m,service,duplicatePermission])=>{
    if(cancelled)return;
    if(people.error)throw people.error;if(coa.error)throw coa.error;if(m.error)throw m.error;
    if(service?.error)throw service.error;
+   if(duplicatePermission.error)throw duplicatePermission.error;
+   setDuplicateAllowed(duplicatePermission.data===true);
    const serviceAccount=side==='customer'?service?.data?.account_id??'':'';
    const mapped=m.data?.account_id??'';
    if(side==='customer'&&(!mapped||mapped===serviceAccount||!(coa.data??[]).some(a=>a.id===mapped)))
@@ -94,6 +99,18 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
     .finally(()=>{if(!cancelled)setLoading(false)});
   return()=>{cancelled=true};
  },[company,bu,scope,side]);
+ useEffect(()=>{
+  let live=true;const value=number.trim();setDuplicateConfirmed(false);setDuplicateConflicts([]);setConflictError('');
+  if(!value||loadedScope!==scope)return;
+  const timer=window.setTimeout(async()=>{
+   setConflictLoading(true);
+   try{const r=await supabase.rpc('transport_invoice_number_conflicts',{p_side:side,p_number:value});if(r.error)throw r.error;
+    if(live)setDuplicateConflicts((r.data?.matches??[]) as DuplicateMatch[]);
+   }catch(e:any){if(live)setConflictError(e?.message||'Could not check whether this invoice number is already used.');}
+   finally{if(live)setConflictLoading(false);}
+  },300);
+  return()=>{live=false;window.clearTimeout(timer)};
+ },[number,side,loadedScope,scope]);
  const amount=useMemo(()=>lines.reduce((total,l)=>total+(Number(l.amount)||0),0),[lines]);
  const amounts=useMemo(()=>lines.map(l=>Number(l.amount)||0),[lines]);
  const vatQuote=useNormalInvoiceVatQuote({company,bu,side,party,date,choice:vatChoice,amounts});
@@ -105,14 +122,15 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
   ||(side==='customer'&&lines.some(l=>!l.vehicle_id)?'Select a company-owned vehicle for every Normal Sale invoice line.':null)
   ||(lines.some(l=>l.vehicle_id&&!eligibleVehicles.some(v=>v.id===l.vehicle_id))?'Select a company-owned vehicle valid on invoice date.':null);
  const available=loadedScope===scope&&!loading&&!saving&&!done&&Boolean(party&&account&&date)&&!lineError&&vatQuote.ready
-  &&(side!=='customer'||account!==serviceRevenueId)&&!originalNumberError;
+  &&(side!=='customer'||account!==serviceRevenueId)&&!originalNumberError&&!conflictLoading&&!conflictError
+  &&(!duplicateConflicts.length||(duplicateAllowed&&duplicateConfirmed));
  // Supplier original references are required even for new drafts: the backend must never
  // substitute a generated internal number for the actual supplier invoice number.
  const update=(index:number,k:keyof Line,value:string)=>setLines(old=>old.map((line,i)=>i===index?{...line,[k]:value}:line));
  async function saveDraft(){
   if(!available)return;setSaving(true);setError('');
   try{
-   const result=await supabase.rpc('transport_normal_invoice_create_vat',{ 
+   const result=await supabase.rpc('transport_normal_invoice_create_vat_with_override',{ 
     p_side:side,p_party:party,p_date:date,
     p_lines:lines.map(l=>({description:l.description.trim(),amount:l.amount.trim(),...(l.vehicle_id?{vehicle_id:l.vehicle_id}:{})})),
     p_account:account,p_invoice_no:number.trim()||null,
@@ -120,6 +138,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
     // not just NAVILO's purchase order_no. Never overwrite trip-linked supplier invoices.
     p_reference:side==='supplier'?number.trim()||null:reference.trim()||null,
     p_post:false,p_vat_choice:vatChoice,
+    p_allow_duplicate_invoice:duplicateConflicts.length>0&&duplicateAllowed&&duplicateConfirmed,
    });
    if(result.error)throw result.error;
    setDone(result.data as {document_id:string;invoice_no:string;status:string;gross:number;net?:number;vat?:number});
@@ -170,6 +189,13 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
     <label className="navilo-invoice-field">Invoice Date *<NaviloDateInput type="date" className="input" value={date} onChange={e=>setDate(e.target.value)}/></label>
     <label className="navilo-invoice-field">{side==='supplier'?'Original Supplier Invoice Number': 'Original Invoice Number'}{needsOriginalInvoice?" *":""}
      <input className="input" maxLength={80} aria-label="Normal invoice number" required={needsOriginalInvoice} aria-invalid={Boolean(originalNumberError)} value={number} onChange={e=>setNumber(e.target.value)} placeholder={side==='customer'?'Customer invoice number':'Supplier invoice number'}/>
+     {conflictLoading&&<span className="navilo-invoice-small-note">Checking invoice number…</span>}
+     {conflictError&&<span role="alert" className="navilo-invoice-small-note text-red-700">{conflictError}</span>}
+     {duplicateConflicts.length>0&&<div role="status" className="mt-2 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+      <strong>This number is already used in an accessible company:</strong>
+      <ul className="mt-1 list-inside list-disc">{duplicateConflicts.map((hit,i)=><li key={hit.company+'-'+hit.date+'-'+i}>{hit.company} · {hit.date} · {hit.status} · {hit.trips?.length?'Trip '+hit.trips.join(', '):'no linked trip'}</li>)}</ul>
+      {duplicateAllowed?<label className="mt-2 flex items-start gap-2"><input type="checkbox" checked={duplicateConfirmed} onChange={e=>setDuplicateConfirmed(e.target.checked)}/><span>I have permission to save this duplicate invoice number.</span></label>:<p className="mt-2 font-semibold">Only a company owner, admin, or user with duplicate-invoice permission can continue.</p>}
+     </div>}
     </label>
     {side==='customer'&&<label className="navilo-invoice-field">Reference / PO Number
      <input className="input" value={reference} maxLength={120} onChange={e=>setReference(e.target.value)} placeholder="Optional reference"/>
