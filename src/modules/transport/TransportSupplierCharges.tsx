@@ -27,14 +27,22 @@ export default function TransportSupplierCharges({rentId,tripNo,onClose,onChange
   const rr=newRent&&!rentId?{data:{id:null,trip_id:newRent.tripId,company_id:newRent.companyId,business_unit_id:newRent.businessUnitId,supplier_name_snapshot:newRent.supplierName,amount:newRent.amount,base_amount:newRent.amount,state:'pending'},error:null}:await supabase.from('transport_trip_supplier_rents').select('id,trip_id,company_id,business_unit_id,supplier_name_snapshot,amount,base_amount,state,finalized_amount_snapshot').eq('id',rentId).single();
   if(rr.error)throw rr.error;
   if(!rr.data)throw new Error('Supplier rent is unavailable. Refresh the Trip.');
-  const [cm,ln,posted,tr]=await Promise.all([
+  const [cm,ln,links,tr]=await Promise.all([
    supabase.from('charge_master').select('id,charge_key,charge_name,default_rate').eq('company_id',rr.data.company_id).eq('is_active',true).in('applies_to',['purchase','both']).order('charge_key'),
    rr.data.id?supabase.from('transport_trip_supplier_charges').select('id,charge_master_id,charge_key_snapshot,name_snapshot,amount').eq('rent_id',rr.data.id).order('sort_order').order('id'):Promise.resolve({data:[],error:null}),
-   rr.data.id?supabase.from('transport_supplier_document_rents').select('id').eq('rent_id',rr.data.id).eq('is_adjustment',false).limit(1):Promise.resolve({data:[],error:null}),
+   rr.data.id?supabase.from('transport_supplier_document_rents').select('id,document_id').eq('rent_id',rr.data.id).eq('is_adjustment',false):Promise.resolve({data:[],error:null}),
    tripContext?Promise.resolve({data:null,error:null}):supabase.from('transport_trips').select('customer_name_snapshot,from_location,to_location').eq('id',rr.data.trip_id).single()
-  ]);for(const x of [cm,ln,posted,tr])if(x.error)throw x.error;
+  ]);for(const x of [cm,ln,links,tr])if(x.error)throw x.error;
+  const documents=links.data?.length?await supabase.from('transport_supplier_documents').select('id,purchase_order_id').in('id',links.data.map((link:any)=>link.document_id)): {data:[],error:null};
+  if(documents.error)throw documents.error;
+  const purchaseOrderIds=(documents.data??[]).map((doc:any)=>doc.purchase_order_id).filter(Boolean);
+  const purchaseOrders=purchaseOrderIds.length?await supabase.from('purchase_orders').select('id,status').in('id',purchaseOrderIds):{data:[],error:null};
+  if(purchaseOrders.error)throw purchaseOrders.error;
+  const orderStatus=new Map((purchaseOrders.data??[]).map((order:any)=>[order.id,order.status]));
+  const draftLinked=(documents.data??[]).some((doc:any)=>orderStatus.get(doc.purchase_order_id)==='draft');
+  const posted=(documents.data??[]).some((doc:any)=>orderStatus.get(doc.purchase_order_id)==='posted');
   if(tr.data)setContext({customer:tr.data.customer_name_snapshot,from:tr.data.from_location,to:tr.data.to_location});
-  setRent({...rr.data,posted:(posted.data??[]).length>0});
+  setRent({...rr.data,posted:posted||(!draftLinked&&(links.data??[]).length>0),draft_linked:draftLinked});
   const savedCharges=(ln.data??[]).reduce((sum:number,x:any)=>sum+Number(x.amount),0);
   setBaseInput(String(rr.data.base_amount??Math.max(0,Number(rr.data.amount)-savedCharges)));
   setTypes((cm.data??[]).map((x:any)=>({id:x.id,code:x.charge_key,name:x.charge_name,default_rate:x.default_rate})));
