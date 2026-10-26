@@ -8,6 +8,7 @@ import {supabase} from '@/lib/supabase';
 import {type FinancialTrip} from './transportFinancialTypes';
 
 type InvoiceTrip=FinancialTrip & {invoice_no?:string|null;sales_order_id?:string|null};
+type DuplicateMatch={company:string;trips:string[];date:string;status:string};
 
 export function isValidTransportOriginalInvoice(value:string):boolean {
  const trimmed=value.trim();
@@ -50,6 +51,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
  const [allowed,setAllowed]=useState(false);const [postAllowed,setPostAllowed]=useState(false);const [accounts,setAccounts]=useState<{id:string;name:string}[]>([]);
  const [account,setAccount]=useState('');const [loadedScope,setLoadedScope]=useState('');
  const [setupLoading,setSetupLoading]=useState(true);
+ const [duplicateAllowed,setDuplicateAllowed]=useState(false),[duplicateConflicts,setDuplicateConflicts]=useState<DuplicateMatch[]>([]),[duplicateConfirmed,setDuplicateConfirmed]=useState(false),[conflictLoading,setConflictLoading]=useState(false);
  const [busy,setBusy]=useState(false);const [completed,setCompleted]=useState(false);const [error,setError]=useState('');
  const [draft,setDraft]=useState<{id:string;orderId:string;number:string}|null>(null);const [draftPosted,setDraftPosted]=useState(false);
  const dialog=useRef<HTMLElement>(null);const input=useRef<HTMLInputElement>(null);
@@ -71,10 +73,11 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
     .eq('type','revenue').order('name'),
    supabase.from('account_mappings').select('account_id')
     .eq('company_id',companyId).eq('mapping_key','service_revenue').limit(1).maybeSingle(),
-   supabase.rpc('transport_draft_invoice_permissions')
-  ]).then(([permission,accountsResult,mapping,postPermission])=>{
+   supabase.rpc('transport_draft_invoice_permissions'),
+   supabase.rpc('transport_invoice_duplicate_override_allowed',{p_side:'customer'})
+  ]).then(([permission,accountsResult,mapping,postPermission,duplicatePermission])=>{
    if(!active)return;
-   if(permission.error)throw permission.error;if(postPermission.error)throw postPermission.error;setPostAllowed(postPermission.data?.customer?.post===true);
+   if(permission.error)throw permission.error;if(postPermission.error)throw postPermission.error;if(duplicatePermission.error)throw duplicatePermission.error;setDuplicateAllowed(duplicatePermission.data===true);setPostAllowed(postPermission.data?.customer?.post===true);
    if(accountsResult.error)throw accountsResult.error;
    if(mapping.error)throw mapping.error;
    const currentAccounts=(accountsResult.data??[]) as {id:string;name:string}[];
@@ -98,12 +101,18 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
  const rateReady=trip.customer_rate_state==='finalized'&&Number(trip.customer_rate??0)>0;
  const blockers=invoicePostingBlockers({posted,loading,allowed:currentAllowed,rateReady,mode:numberMode,
   number,date,account:currentAccount,vatReady,withTax,validSaleType:saleType==='cash'||saleType==='credit'});
- const canPost=!busy&&!completed&&blockers.length===0&&!error;
+ const canPost=!busy&&!completed&&blockers.length===0&&!error&&!conflictLoading&&(!duplicateConflicts.length||(duplicateAllowed&&duplicateConfirmed));
+ useEffect(()=>{
+  let active=true;const value=invoiceNo.trim();setDuplicateConfirmed(false);setDuplicateConflicts([]);
+  if(numberMode!=='manual'||!value||loadedScope!==scope)return;
+  const timer=window.setTimeout(async()=>{setConflictLoading(true);try{const r=await supabase.rpc('transport_invoice_number_conflicts',{p_side:'customer',p_number:value});if(r.error)throw r.error;if(active)setDuplicateConflicts((r.data?.matches??[]) as DuplicateMatch[])}catch(e:any){if(active)setError(e?.message||'Could not check this invoice number.')}finally{if(active)setConflictLoading(false)}},300);
+  return()=>{active=false;window.clearTimeout(timer)};
+ },[invoiceNo,numberMode,loadedScope,scope]);
 
  async function saveDraft(){
   if(!canPost)return;setBusy(true);setError('');
   try{
-   const result=await supabase.rpc('transport_create_customer_draft_grouped',{p_trip_ids:[trip.id],p_date:date,p_revenue_account_id:currentAccount,p_with_tax:withTax,p_invoice_no:numberMode==='manual'?number:null,p_descriptions:{}});
+   const result=await supabase.rpc('transport_create_customer_draft_grouped_with_override',{p_trip_ids:[trip.id],p_date:date,p_revenue_account_id:currentAccount,p_with_tax:withTax,p_invoice_no:numberMode==='manual'?number:null,p_descriptions:{},p_allow_duplicate_invoice:duplicateConflicts.length>0&&duplicateAllowed&&duplicateConfirmed});
    if(result.error)throw result.error;
    setCompleted(true);
    setInvoiceNo(String(result.data?.invoice_no||number));
@@ -128,7 +137,10 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
       <option value="choose">Choose method…</option>{!withTax&&<option value="auto">Generate NAVILO number</option>}<option value="manual">Enter own invoice number</option>
      </NaviloSearchableSelect>
     </label>
-    {numberMode==='manual'&&<label className="mt-2 block text-xs font-semibold">Your Invoice Number<input ref={input} className="input mt-1 w-full" value={invoiceNo} disabled={busy} onChange={e=>setInvoiceNo(e.target.value)} placeholder="Enter invoice number" /></label>}
+    {numberMode==='manual'&&<label className="mt-2 block text-xs font-semibold">Your Invoice Number<input ref={input} className="input mt-1 w-full" value={invoiceNo} disabled={busy} onChange={e=>setInvoiceNo(e.target.value)} placeholder="Enter invoice number" />
+     {conflictLoading&&<span className="mt-1 block text-slate-600">Checking invoice number…</span>}
+     {duplicateConflicts.length>0&&<div role="status" className="mt-2 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900"><strong>This number is already used:</strong><ul className="mt-1 list-inside list-disc">{duplicateConflicts.map((hit,i)=><li key={hit.company+'-'+hit.date+'-'+i}>{hit.company} · {hit.date} · {hit.status} · {hit.trips?.length?'Trip '+hit.trips.join(', '):'no linked trip'}</li>)}</ul>{duplicateAllowed?<label className="mt-2 flex items-start gap-2"><input type="checkbox" checked={duplicateConfirmed} onChange={e=>setDuplicateConfirmed(e.target.checked)}/><span>I have permission to save this duplicate invoice number.</span></label>:<p className="mt-2 font-semibold">Only a company owner, admin, or user with duplicate-invoice permission can continue.</p>}</div>}
+    </label>}
     {numberMode==='auto'&&<p className="mt-2 text-xs text-slate-600">NAVILO will assign its next available number when you save the Draft.</p>}
    </>}
    {posted||completed
