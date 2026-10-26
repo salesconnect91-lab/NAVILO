@@ -405,9 +405,15 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
   useEffect(()=>{
     if(!deleteTripTarget||!isTransportAdmin){setDeleteTripPreview(null);setDeleteTripPreviewLoading(false);return;}
     let active=true;setDeleteTripPreview(null);setDeleteTripPreviewLoading(true);
-    void supabase.rpc("transport_preview_admin_delete_trip",{p_trip_id:deleteTripTarget.id})
-      .then(({data,error})=>{if(!active)return;if(error)setDeleteTripPreview({error:error.message});else setDeleteTripPreview(data);})
-      .finally(()=>{if(active)setDeleteTripPreviewLoading(false);});
+    void (async()=>{
+      try{
+        const {data,error}=await supabase.rpc("transport_preview_admin_delete_trip",{p_trip_id:deleteTripTarget.id});
+        if(!active)return;
+        if(error)setDeleteTripPreview({error:error.message});else setDeleteTripPreview(data);
+      }catch(e:any){
+        if(active)setDeleteTripPreview({error:e?.message||"Unable to load linked-document preview."});
+      }finally{if(active)setDeleteTripPreviewLoading(false);}
+    })();
     return()=>{active=false;};
   },[deleteTripTarget?.id,isTransportAdmin,scopeKey]);
   const [editReasonOpen,setEditReasonOpen]=useState(false);
