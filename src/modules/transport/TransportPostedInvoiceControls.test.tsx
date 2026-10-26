@@ -22,7 +22,7 @@ it('does not show posted edit or deletion to an owner/non-admin',async()=>{
 it('requires a reason and final confirmation before the permanent-delete RPC',async()=>{
  const confirm=vi.fn(()=>false);vi.stubGlobal('confirm',confirm);show();
  fireEvent.click(await screen.findByRole('button',{name:'Delete Posted Invoice'}));
- const remove=screen.getByRole('button',{name:'Permanently Delete'});expect((remove as HTMLButtonElement).disabled).toBe(true);
+ const remove=screen.getByRole('button',{name:'Permanently Delete'});expect((screen.getByRole('textbox',{name:'Posted invoice permanent deletion reason'}) as HTMLInputElement).value).toBe('Invoice removed');expect(mock.rpc).not.toHaveBeenCalledWith('transport_admin_delete_posted_invoice',expect.anything());
  fireEvent.change(screen.getByRole('textbox',{name:'Posted invoice permanent deletion reason'}),{target:{value:'Duplicate synthetic invoice correction'}});
  fireEvent.click(remove);expect(confirm).toHaveBeenCalled();expect(mock.rpc).not.toHaveBeenCalledWith('transport_admin_delete_posted_invoice',expect.anything());
  confirm.mockReturnValue(true);fireEvent.click(remove);

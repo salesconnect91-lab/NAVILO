@@ -1,12 +1,12 @@
 import TransportCommercialHeader,{TransportCommercialSummary} from './TransportCommercialHeader';
 import TransportDialog from './TransportDialog';
-import NaviloSearchableSelect from "@/components/SearchableSelect";
+import TransportReasonSelect from './TransportReasonSelect';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import {useEffect,useRef,useState} from 'react';
 import {useAuth} from '@/auth/AuthContext';
 import {supabase} from '@/lib/supabase';
 import {type FinancialTrip} from './transportFinancialTypes';
-import {CUSTOMER_RATE_REASON_OPTIONS} from './transportRateReasons';
+
 
 export default function TransportInitialRate({trip,onClose,onChanged}:{trip:FinancialTrip;onClose:()=>void;onChanged:()=>Promise<void>}){
  const {activeCompany,activeBusinessUnit}=useAuth();
@@ -15,7 +15,6 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
  const initialBase=Number(trip.customer_base_rate??Math.max(0,Number(trip.customer_rate??0)-Number(trip.customer_charges??0)-Number(trip.customer_manual_adjustment??0)));
  const [amount,setAmount]=useState(posted?String(trip.billed_customer_net??trip.customer_rate??''):String(initialBase));
  const [reason,setReason]=useState('');
- const [reasonPreset,setReasonPreset]=useState('');
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
  const [allowed,setAllowed]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');
  const [saved,setSaved]=useState(false);const [correctionMode,setCorrectionMode]=useState(false);const [confirmFinancialPost,setConfirmFinancialPost]=useState(false);const input=useRef<HTMLInputElement>(null);const dialog=useRef<HTMLElement>(null);
@@ -59,18 +58,7 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
   {posted&&correctionMode&&<label className="mt-2 block text-xs font-semibold">Correction Date
    <NaviloDateInput className="input mt-1 w-full" type="date" value={date} disabled={busy||saved} onChange={e=>setDate(e.target.value)}/>
   </label>}
-  {(finalized||(posted&&correctionMode))&&<>
-   <label className="mt-2 block text-xs font-semibold">Reason
-    <NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 w-full" value={reasonPreset} disabled={busy||saved} onChange={e=>{const value=e.target.value;setReasonPreset(value);setReason(value==="__other__"?"":value)}}>
-     <option value="">Select reason</option>
-     {CUSTOMER_RATE_REASON_OPTIONS.map(option=><option key={option} value={option}>{option}</option>)}
-     <option value="__other__">Other</option>
-    </NaviloSearchableSelect>
-   </label>
-   {reasonPreset==="__other__"&&<label className="mt-2 block text-xs font-semibold">Other reason
-    <input className="input mt-1 w-full" value={reason} disabled={busy||saved} onChange={e=>setReason(e.target.value)} placeholder={posted?'Enter posted correction reason':'Enter rate override reason'}/>
-   </label>}
-  </>}
+  {(finalized||(posted&&correctionMode))&&<TransportReasonSelect className="mt-2" kind="customer_rate" value={reason} onChange={setReason} disabled={busy||saved}/>}
   <p className="my-2 text-xs text-slate-600">{posted?(correctionMode?'This is a financial correction. Posting creates a separate canonical debit/credit adjustment; the original invoice stays unchanged.':'This Trip already has posted billing. Direct rate editing is locked here and will never post an invoice silently. Use the explicit financial correction action only when accounting must change.'):finalized?'This changes the base rate. Saved charges stay separate; NAVILO recalculates the total and records the override reason.':'Finalizing the initial rate records it in the Trip audit.'}</p>
   {posted&&correctionMode&&<label className="my-2 flex items-start gap-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
    <input aria-label="Confirm financial correction posting" className="mt-0.5" type="checkbox" checked={confirmFinancialPost} disabled={busy||saved} onChange={e=>setConfirmFinancialPost(e.target.checked)}/>
@@ -79,7 +67,7 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
   {error&&<p role="alert" className="my-2 text-red-700">{error}</p>}
   <div className="mt-3 flex justify-end gap-2">
    {posted&&!correctionMode?<><button className="btn" disabled={busy} onClick={onClose}>Close</button><button className="btn-primary" disabled={!allowed||busy} onClick={()=>{setCorrectionMode(true);setConfirmFinancialPost(false);window.setTimeout(()=>input.current?.focus(),0)}}>Create Debit/Credit Note</button></>:<>
-    <button className="btn" disabled={busy} onClick={()=>{if(posted){setCorrectionMode(false);setConfirmFinancialPost(false);setReason('');setReasonPreset('');setAmount(String(trip.billed_customer_net??trip.customer_rate??''))}else onClose()}}>{posted?'Back':'Cancel'}</button>
+    <button className="btn" disabled={busy} onClick={()=>{if(posted){setCorrectionMode(false);setConfirmFinancialPost(false);setReason('');setAmount(String(trip.billed_customer_net??trip.customer_rate??''))}else onClose()}}>{posted?'Back':'Cancel'}</button>
     <button className="btn-primary" disabled={!allowed||!valid||!changed||busy||saved||(reasonRequired&&!reason.trim())||(posted&&(!date||!confirmFinancialPost))} onClick={()=>void save()}>{saved?'Saved':posted?'Post Debit/Credit Note':'Save Rate'}</button>
    </>}
   </div>

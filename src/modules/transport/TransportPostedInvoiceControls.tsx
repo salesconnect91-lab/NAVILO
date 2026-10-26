@@ -1,3 +1,4 @@
+import TransportReasonSelect from './TransportReasonSelect';
 import {useEffect,useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {supabase} from '@/lib/supabase';
@@ -41,7 +42,7 @@ export default function TransportPostedInvoiceControls({side,order,onSaved,onDel
    <p className="my-2 text-sm">This removes the invoice and its original accounting journal. Trip records remain available for invoicing. An audit snapshot is retained. This cannot be undone.</p>
    <p className="my-2 text-xs text-slate-600">Payment, credit-note, stock and other dependent records must be resolved first. The database checks these before deleting anything.</p>
    {error&&<p role="alert" className="my-2 text-sm text-red-700">{error}</p>}
-   <label className="block text-xs">Audit reason<input aria-label="Posted invoice permanent deletion reason" className="input mt-1 w-full" maxLength={500} value={reason} disabled={busy} onChange={e=>setReason(e.target.value)}/></label>
+   <TransportReasonSelect kind="invoice_delete" label="Posted invoice permanent deletion reason" value={reason} onChange={setReason} disabled={busy}/>
    <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={()=>setDeleting(false)}>Cancel</button><button className="btn-danger" disabled={busy||reason.trim().length<10} onClick={()=>void remove()}>{busy?'Deleting…':'Permanently Delete'}</button></div>
   </section></TransportDialog>}
  </>;

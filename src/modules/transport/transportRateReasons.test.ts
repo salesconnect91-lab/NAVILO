@@ -8,7 +8,7 @@ describe('Transport register reason choices',()=>{
   }
  });
  it('does not invent a reason for Other and supports custom audits',()=>{
-  expect(reasonPresetValue('trip_edit','')).toBe('');
+  expect(reasonPresetValue('trip_edit','')).toBe('Trip details updated');
   expect(reasonPresetValue('trip_delete','Duplicate Trip entry')).toBe('Duplicate Trip entry');
   expect(reasonPresetValue('finance','Client-specific reason')).toBe('__other__');
   expect(reasonPresetValue('supplier_rate','',true)).toBe('__other__');

@@ -1,3 +1,4 @@
+import TransportReasonSelect from './TransportReasonSelect';
 import {useEffect,useMemo,useState} from 'react';
 import TransportDialog from './TransportDialog';
 import {supabase} from '@/lib/supabase';
@@ -79,7 +80,7 @@ export default function TransportRegisterDraftInvoiceEditor({row,onClose,onSaved
  <select aria-label={`Add charge Trip ${trip.trip_no}`} className="input h-7 max-w-56" value="" disabled={saving||!selected.includes(lineId)} onChange={e=>{const master=chargeMasters.find(item=>item.id===e.target.value);if(master)changeLine(lineId,{charges:[...(edits[lineId]?.charges||[]),{charge_master_id:master.id,amount:String(master.default_rate||0)}],chargesDirty:true})}}><option value="">+ Add Charge</option>{chargeMasters.filter(master=>!edits[lineId]?.charges.some(charge=>charge.charge_master_id===master.id)).map(master=><option key={master.id} value={master.id}>{master.charge_name}</option>)}</select>
  </details></td>}</tr>})}{!loading&&visible.length===0&&<tr><td colSpan={posted?8:7} className="p-4 text-center text-slate-500">No eligible Trips found for this party and search.</td></tr>}</tbody></table>{loading&&<p role="status" className="p-4 text-center">Loading Trips…</p>}</div>
   {selectedRows.length>0&&<p className="mt-2 text-right text-[11px]">Selected net amount: <strong>{financialNumber(selectedRows.reduce((sum,t)=>sum+amountFor(t),0))}</strong></p>}
-  {posted&&<label className="mt-2 text-xs">Audit reason<input aria-label="Posted invoice edit reason" className="input mt-1 w-full" maxLength={500} value={reason} disabled={saving} onChange={e=>setReason(e.target.value)}/></label>}
+  {posted&&<TransportReasonSelect className="mt-2" kind="finance" label="Posted invoice edit reason" value={reason} onChange={setReason} disabled={saving}/> }
   <footer className="mt-2 flex items-center justify-between"><span className="text-[10px] text-slate-500">{posted?'Save updates the posted invoice and original journal atomically. Existing payments stay linked; credit notes, stock and other dependent records must be resolved first.':'Editing changes trip links and draft totals together. Posting remains a separate action.'}</span><div className="flex gap-2"><button className="btn" disabled={saving} onClick={onClose}>Cancel</button><button className="btn-primary" disabled={loading||saving||!context?.account_id||!invoiceDate||!invoiceNo.trim()||selected.length===0||invalidEdits||(posted&&reason.trim().length<10)} onClick={()=>void save()}>{saving?'Saving…':posted?'Save Posted Changes':'Save Draft Changes'}</button></div></footer>
  </section></TransportDialog>
 }

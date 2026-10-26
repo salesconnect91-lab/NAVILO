@@ -205,7 +205,8 @@ describe('Transport register interactions',()=>{
   expect(remove.disabled).toBe(true);
   fireEvent.click(screen.getByLabelText('Select trip DEL-TRIP'));expect(remove.disabled).toBe(false);fireEvent.click(remove);
   expect(screen.getByRole('dialog',{name:'Delete Unposted Trip'})).toBeTruthy();
-  expect((screen.getByRole('button',{name:'Delete Unposted Trip'}) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByLabelText('Trip deletion reason') as HTMLTextAreaElement).value).toBe('Unposted Trip removed');
+   expect((screen.getByRole('button',{name:'Delete Unposted Trip'}) as HTMLButtonElement).disabled).toBe(false);
   expect(mock.rpc.mock.calls.filter(c=>c[0]==='transport_delete_draft_trip')).toHaveLength(0);
   fireEvent.change(screen.getByLabelText('Trip deletion reason'),{target:{value:'Duplicate entry'}});
   fireEvent.click(screen.getByRole('button',{name:'Delete Unposted Trip'}));
@@ -224,7 +225,8 @@ describe('Transport register interactions',()=>{
    const remove=screen.getByRole('button',{name:'Delete selected Trip'}) as HTMLButtonElement;
    expect(remove.disabled).toBe(false);fireEvent.click(remove);
    expect(screen.getByText(/finalized-only rate/)).toBeTruthy();
-   expect((screen.getByRole('button',{name:'Delete Unposted Trip'}) as HTMLButtonElement).disabled).toBe(true);
+   expect((screen.getByLabelText('Trip deletion reason') as HTMLTextAreaElement).value).toBe('Unposted Trip removed');
+   expect((screen.getByRole('button',{name:'Delete Unposted Trip'}) as HTMLButtonElement).disabled).toBe(false);
    fireEvent.change(screen.getByLabelText('Trip deletion reason'),{target:{value:'Finalized wrong rate, remove mistaken trip'}});
    fireEvent.click(screen.getByRole('button',{name:'Delete Unposted Trip'}));
    await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_delete_draft_trip',{p_trip_id:'finalized-only-trip',p_reason:'Finalized wrong rate, remove mistaken trip'}));
