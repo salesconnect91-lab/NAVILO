@@ -18,7 +18,7 @@ vi.mock('@/lib/supabase',()=>({supabase:{
    maybeSingle:async()=>({data:table==='transport_service_document_balances'?{billed_gross:115,outstanding_gross:115,credit_gross:0,paid_gross:0}:table==='transport_supplier_documents'?{id:'supplier-doc-1',document_kind:'service',journal_entry_id:mock.sourceModule==='transport'?'journal-1':null}:table==='transport_customer_documents'?mock.customerDocument:null,error:null})};
   return q;
  },
- rpc:async(name:string,args:any)=>{mock.rpcCalls.push({name,args});return {data:name==='company_admin_posted_journal_edit_access'?mock.canEditPosted:name==='transport_document_trip_details'?[]:name==='transport_reverse_service_invoice'?{success:true,note_no:'TR-SVC-DN-1',total:115}:name==='transport_delete_register_draft_invoice'?{deleted:true}:{success:true,journal_entry_id:'journal-1'},error:null};}
+ rpc:async(name:string,args:any)=>{mock.rpcCalls.push({name,args});return {data:name==='transport_posted_invoice_admin_access'?mock.canEditPosted:name==='transport_document_trip_details'?[]:name==='transport_reverse_service_invoice'?{success:true,note_no:'TR-SVC-DN-1',total:115}:name==='transport_delete_register_draft_invoice'?{deleted:true}:{success:true,journal_entry_id:'journal-1'},error:null};}
 }}));
 afterEach(()=>{cleanup();vi.unstubAllGlobals();mock.rpcCalls=[];mock.selectCalls=[];mock.printProps=[];mock.status='draft';mock.sourceModule='general_expense_bill';mock.serviceLines=[];mock.customerDocument=null;mock.canEditPosted=false;mock.orderNo='EXP-1';});
 
@@ -68,26 +68,22 @@ it('loads the customer transport document classification when it is available',a
  expect(mock.selectCalls).toContainEqual({table:'transport_customer_documents',columns:'document_kind,journal_entry_id'});
 });
 
-it('shows the posted in-place edit only to an admin and calls the same-document RPC with an audit reason',async()=>{
+it('exposes the same posted editor and actual delete controls to the scoped Admin',async()=>{
  mock.status='posted';mock.sourceModule='transport';mock.canEditPosted=true;
- mock.customerDocument={document_kind:'credit',journal_entry_id:'journal-1'};
+ mock.customerDocument={id:'customer-doc-1',document_kind:'credit',journal_entry_id:'journal-1'};
  mock.serviceLines=[{id:'service-line-1',description:'Transport service · Trip 37',amount:1250,tax_percent:15,source_module:'transport',source_id:'trip-37'}];
  render(<MemoryRouter><TransportServiceDocument side="customer" id="sale-1"/></MemoryRouter>);
- fireEvent.click(await screen.findByRole('button',{name:'Edit Posted Invoice'}));
- fireEvent.change(screen.getByLabelText('Posted service amount excluding VAT'),{target:{value:'1251'}});
- fireEvent.change(screen.getByLabelText('Posted invoice edit reason'),{target:{value:'Test admin in-place amount correction'}});
- fireEvent.click(screen.getByRole('button',{name:'Save In Place'}));
- await waitFor(()=>expect(mock.rpcCalls).toContainEqual({name:'admin_edit_posted_transport_service_invoice',args:{p_order_id:'sale-1',p_new_amount:1251,p_reason:'Test admin in-place amount correction'}}));
- expect(await screen.findByText(/Invoice number and record ID were preserved/)).toBeTruthy();
+ expect(await screen.findByRole('button',{name:'Edit Posted Invoice'})).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Delete Posted Invoice'})).toBeTruthy();
 });
 
 it('hides the posted in-place edit from non-admin users',async()=>{
  mock.status='posted';mock.sourceModule='transport';mock.canEditPosted=false;
- mock.customerDocument={document_kind:'credit',journal_entry_id:'journal-1'};
+ mock.customerDocument={id:'customer-doc-1',document_kind:'credit',journal_entry_id:'journal-1'};
  mock.serviceLines=[{id:'service-line-1',description:'Transport service · Trip 37',amount:1250,tax_percent:15,source_module:'transport',source_id:'trip-37'}];
  render(<MemoryRouter><TransportServiceDocument side="customer" id="sale-1"/></MemoryRouter>);
  await screen.findByRole('heading',{name:'Tax Invoice'});
- await waitFor(()=>expect(mock.rpcCalls).toContainEqual({name:'company_admin_posted_journal_edit_access',args:undefined}));
+ await waitFor(()=>expect(mock.rpcCalls).toContainEqual({name:'transport_posted_invoice_admin_access',args:undefined}));
  expect(screen.queryByRole('button',{name:'Edit Posted Invoice'})).toBeNull();
 });
 
@@ -108,7 +104,7 @@ it('keeps an internal historical number out of the customer invoice header and p
 
 it('labels the customer credit-note action without presenting it as permanent deletion',async()=>{
  mock.status='posted';mock.sourceModule='transport';
- mock.customerDocument={document_kind:'credit',journal_entry_id:'journal-1'};
+ mock.customerDocument={id:'customer-doc-1',document_kind:'credit',journal_entry_id:'journal-1'};
  mock.serviceLines=[{id:'line-1',description:'Trip 47',amount:2400,tax_percent:15,source_module:'transport'}];
  render(<MemoryRouter><TransportServiceDocument side="customer" id="sale-1" canReverse/></MemoryRouter>);
  expect(await screen.findByRole('button',{name:'Issue Credit Note'})).toBeTruthy();

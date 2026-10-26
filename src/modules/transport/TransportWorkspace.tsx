@@ -20,7 +20,7 @@ import TransportRegisterDraftInvoices from './TransportRegisterDraftInvoices';
 import TransportInitialRate from './TransportInitialRate';
 import TransportTripCharges from './TransportTripCharges';
 import TransportSupplierCharges from './TransportSupplierCharges';
-import TransportInvoiceNumber from './TransportInvoiceNumber';
+import TransportRegisterLinkedInvoice from './TransportRegisterLinkedInvoice';
 import TransportHistoricalImport from './TransportHistoricalImport';
 import TransportAudit from './TransportAudit';
 import TransportPartyReports from './TransportPartyReports';
@@ -405,6 +405,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
     finally{deleteTripRequest.current=false;if(scopeRef.current===scope)setDeletingTrip(false);}
   };
   const [invoiceTrip,setInvoiceTrip]=useState<Trip|null>(null);
+  const [supplierInvoiceTrip,setSupplierInvoiceTrip]=useState<Trip|null>(null);
   const [editingRateLocks,setEditingRateLocks]=useState({customer:false,supplier:false});
   const [editingTripId,setEditingTripId]=useState<string|null>(null);
   const editingTripLocked=Boolean(editingTripId&&(editingRateLocks.customer||editingRateLocks.supplier));
@@ -1774,7 +1775,8 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       else if(key==='supplier_charges')await openSupplierCharges(trip);
       else if(key==='company_rate')setInitialRateTrip(trip);
       else if(key==='invoice_no')setInvoiceTrip(trip);
-      else if(key==='rent_driver'||key==='supplier_invoice_no'){setBulkSupplierRentTrip(trip);setShowBulkSupplierRent(true);}
+      else if(key==='supplier_invoice_no')setSupplierInvoiceTrip(trip);
+      else if(key==='rent_driver'){setBulkSupplierRentTrip(trip);setShowBulkSupplierRent(true);}
       else if(key==='paper_received_by')await openQuickPpr(trip);
     }catch(e:any){setError(e?.message||'Unable to open saved Trip details.');}
   };
@@ -2336,7 +2338,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
                         className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-rose-800 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500"
                         aria-label={`Open Supplier Invoice ${r.trip_no}`}
                         title={r.historical_supplier_invoice_ref?'Open Supplier Invoice / original reference':'Open Supplier Invoice'}
-                        onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'supplier_invoice_no');else {setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true);}}}>
+                        onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'supplier_invoice_no');else setSupplierInvoiceTrip(r)}}>
                         {value||'0'}
                       </button>
                       :value||""}
@@ -2930,7 +2932,8 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       </div>
     </TransportDialog>}
     {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={refreshRegisterAfterChange}/>}
-    {invoiceTrip&&<TransportInvoiceNumber trip={invoiceTrip} onClose={()=>setInvoiceTrip(null)} onChanged={refreshRegisterAfterChange}/>}
+    {invoiceTrip&&<TransportRegisterLinkedInvoice side="customer" trip={invoiceTrip} onClose={()=>setInvoiceTrip(null)} onChanged={refreshRegisterAfterChange}/>}
+    {supplierInvoiceTrip&&<TransportRegisterLinkedInvoice side="supplier" trip={supplierInvoiceTrip} onClose={()=>setSupplierInvoiceTrip(null)} onChanged={refreshRegisterAfterChange}/>}
     {showBulkSupplierRent&&<TransportBulkSupplierRent compact={Boolean(bulkSupplierRentTrip)} initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={refreshRegisterAfterChange}/>}
       {showBulkCustomerRate&&<TransportBulkCustomerRate initialTrips={bulkRateInitialTrips} onClose={()=>{setShowBulkCustomerRate(false);setBulkRateInitialTrips([])}} onChanged={refreshRegisterAfterChange}/>}
       {showRegisterDraftInvoices&&<TransportRegisterDraftInvoices onClose={()=>setShowRegisterDraftInvoices(false)} onChanged={refreshRegisterAfterChange}/>}
