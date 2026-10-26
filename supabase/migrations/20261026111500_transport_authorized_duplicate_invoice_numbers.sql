@@ -44,7 +44,7 @@ BEGIN
    WHERE p_side='supplier' AND (lower(btrim(po.order_no))=lower(btrim(p_number)) OR lower(btrim(po.supplier_invoice_no))=lower(btrim(p_number)))
  ), rows AS (
   SELECT m.side,m.company_id,m.document_id,m.number,m.document_date,m.status,co.name company,
-    coalesce(array_agg(DISTINCT trip.trip_no) FILTER(WHERE trip.trip_no IS NOT NULL),'{}'::text[]) trips
+    coalesce(array_agg(DISTINCT trip.trip_no) FILTER(WHERE trip.trip_no IS NOT NULL),'{}'::text[]) || coalesce(array_agg(DISTINCT strip.trip_no) FILTER(WHERE strip.trip_no IS NOT NULL),'{}'::text[]) trips
   FROM matches m JOIN public.companies co ON co.id=m.company_id
   LEFT JOIN public.transport_customer_documents cd ON m.side='customer' AND cd.sales_order_id=m.document_id
   LEFT JOIN public.transport_customer_document_trips ctl ON m.side='customer' AND ctl.document_id=cd.id AND NOT ctl.is_adjustment
@@ -202,3 +202,44 @@ BEGIN
 END $function$;
 REVOKE ALL ON FUNCTION public.transport_normal_invoice_create_vat_with_override(text,uuid,date,jsonb,uuid,text,text,boolean,text,boolean) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.transport_normal_invoice_create_vat_with_override(text,uuid,date,jsonb,uuid,text,text,boolean,text,boolean) TO authenticated;
+
+
+-- Match customer Register behavior: a fully credited/released supplier
+-- adjustment no longer appears as an active billed link; open posted links remain.
+CREATE OR REPLACE FUNCTION public.transport_register_supplier_invoice_scope(p_trip_ids uuid[])
+RETURNS TABLE(trip_id uuid,purchase_order_id uuid,document_id uuid,rent_id uuid)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public','pg_temp'
+SET statement_timeout TO '12s'
+AS $function$
+DECLARE c uuid:=public.current_company_id(); b uuid:=public.current_business_unit_id(); loc uuid:=public.current_operating_location_id();
+BEGIN
+ IF auth.uid() IS NULL OR c IS NULL OR b IS NULL OR loc IS NULL
+    OR NOT public.has_module_permission(c,'transport','view') OR NOT public.transport_financial_read_allowed('supplier')
+ THEN RAISE EXCEPTION 'Supplier financial permission and active workspace required'; END IF;
+ IF p_trip_ids IS NULL OR cardinality(p_trip_ids) NOT BETWEEN 1 AND 100
+   OR (SELECT count(DISTINCT x.id) FROM unnest(p_trip_ids) x(id))<>cardinality(p_trip_ids)
+   OR (SELECT count(*) FROM public.transport_trips t WHERE t.id=ANY(p_trip_ids) AND t.company_id=c AND t.business_unit_id=b AND t.operating_location_id=loc)<>cardinality(p_trip_ids)
+ THEN RAISE EXCEPTION 'Invalid or out-of-scope Trip page'; END IF;
+ RETURN QUERY
+ WITH orders AS MATERIALIZED (
+  SELECT DISTINCT d.purchase_order_id
+  FROM public.transport_supplier_document_rents l
+  JOIN public.transport_supplier_documents d ON d.id=l.document_id
+  JOIN public.purchase_orders po ON po.id=d.purchase_order_id
+  LEFT JOIN public.transport_supplier_trip_document_balances bal
+   ON bal.purchase_order_id=po.id AND bal.trip_id=l.trip_id AND bal.rent_id=l.rent_id
+  WHERE l.trip_id=ANY(p_trip_ids) AND l.company_id=c AND l.business_unit_id=b AND l.operating_location_id=loc
+    AND (NOT l.is_adjustment OR (po.status='posted' AND coalesce(bal.outstanding_gross,0)>0.01))
+ ), all_lines AS (
+  SELECT l.trip_id,d.purchase_order_id,l.document_id,l.rent_id
+  FROM orders o
+  JOIN public.transport_supplier_documents d ON d.purchase_order_id=o.purchase_order_id
+  JOIN public.transport_supplier_document_rents l ON l.document_id=d.id
+  JOIN public.purchase_orders po ON po.id=d.purchase_order_id
+  LEFT JOIN public.transport_supplier_trip_document_balances bal
+   ON bal.purchase_order_id=po.id AND bal.trip_id=l.trip_id AND bal.rent_id=l.rent_id
+  WHERE l.company_id=c AND l.business_unit_id=b AND l.operating_location_id=loc
+    AND (NOT l.is_adjustment OR (po.status='posted' AND coalesce(bal.outstanding_gross,0)>0.01))
+ )
+ SELECT x.trip_id,x.purchase_order_id,x.document_id,x.rent_id FROM all_lines x;
+END $function$;
