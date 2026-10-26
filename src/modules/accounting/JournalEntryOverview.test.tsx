@@ -45,6 +45,17 @@ describe('Journal Entry list detailed preview',()=>{
    party:'CASH Customer',vehicles:'7979',balanced:true
   });
  });
+ it('shows saved line description in the list when the journal header is blank',async()=>{
+  const narration='Al Rajhi Bank-PAID TO PAK FOR CHARITY / USMAN';
+  state.lines=rows.map(row=>({...row,description:narration}));
+  const journal={...entry(1),description:''};
+  render(<MemoryRouter><JournalEntryOverview entries={[journal]} currency="SAR" copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={vi.fn().mockResolvedValue(true)} deletingSelected={false} onDeleteSelected={vi.fn().mockResolvedValue(true)}/></MemoryRouter>);
+  expect(await screen.findByText(narration)).toBeTruthy();
+  expect(buildJournalOverview(state.lines as any).description).toBe(narration);
+ });
+ it('retains separate unique multiline narrations without duplicating both sides',()=>{
+  expect(buildJournalOverview(rows.map((row,i)=>({...row,description:i===0?'First\nExcel row':'Second'}))).description).toBe('First\nExcel row\nSecond');
+ });
  it('flags unbalanced entries instead of assuming the voucher is correct',()=>{
   expect(buildJournalOverview(rows.slice(0,1)).balanced).toBe(false);
  });

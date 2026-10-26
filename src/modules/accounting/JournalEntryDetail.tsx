@@ -2266,7 +2266,7 @@ export default function JournalEntryDetail() {
   ========================================================= */
 
   return (
-    <div className="navilo-journal-detail space-y-2 w-full min-w-0 pb-2">
+    <div id="navilo-journal-detail" className="navilo-journal-detail space-y-2 w-full min-w-0 pb-2">
       <div className="navilo-detail-header flex flex-col md:flex-row md:items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -2766,7 +2766,7 @@ export default function JournalEntryDetail() {
                     <col style={{width:'15%'}} />
                     <col style={{width:'9%'}} />
                     <col style={{width:'9%'}} />
-                    <col style={{width:'11%'}} />
+                    <col style={{width:'136px'}} />
                   </colgroup>
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">

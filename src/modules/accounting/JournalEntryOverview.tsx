@@ -12,7 +12,7 @@ type JournalPreviewLine={
  party_name:string|null;transport_vehicle_no:string|null;
  transport_vehicle_id:string|null;description:string|null;
 };
-type Overview={lines:JournalPreviewLine[];debit:number;credit:number;accountsDr:string;accountsCr:string;party:string;vehicles:string;balanced:boolean};
+type Overview={lines:JournalPreviewLine[];debit:number;credit:number;accountsDr:string;accountsCr:string;party:string;vehicles:string;description:string;balanced:boolean};
 type Props={
  entries:JournalEntry[];
  currency:string;
@@ -46,6 +46,7 @@ export function buildJournalOverview(lines:JournalPreviewLine[],vehicleNames:Rec
  const vehicles=distinct(lines.map(l=>l.transport_vehicle_no?.trim()||(l.transport_vehicle_id?vehicleNames[l.transport_vehicle_id]||'Vehicle mapping unavailable':'')));
  return {lines,debit,credit,accountsDr:displayNames(dr),accountsCr:displayNames(cr),
   party:displayNames(parties,3),vehicles:displayNames(vehicles,3),
+  description:distinct(lines.map(line=>line.description?.trim()||'')).join('\n'),
   balanced:Math.abs(debit-credit)<0.005};
 }
 
@@ -191,6 +192,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
     <tbody className="divide-y divide-slate-100">
      {visible.map(entry=>{
       const info=details[entry.id],open=expanded.includes(entry.id);
+      const description=entry.description?.trim()||info?.description||'';
       const toggle=()=>setExpanded(current=>current.includes(entry.id)?current.filter(id=>id!==entry.id):[...current,entry.id]);
       const sourceType=String((entry as JournalEntry&{source_module?:string;trans_type?:string}).source_module||(entry as JournalEntry&{trans_type?:string}).trans_type||'Manual journal');
       return <tr key={entry.id}><td colSpan={8} className="p-0">
@@ -201,7 +203,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
           <div className="navilo-je-cell-inline"><Link to={`/accounting/${entry.id}`} className="font-semibold text-blue-700 hover:underline truncate" title={entry.entry_no}>{entry.entry_no}</Link><span className="text-slate-500 whitespace-nowrap">{formatDate(entry.entry_date)}</span></div>
          </td>,
          <td key={1} style={{width:`${columnWidths[1]}%`}} className="w-[16%] px-2 py-0.5 align-middle">
-          <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 flex-1 truncate text-slate-800" title={entry.description||'—'}>{entry.description||'—'}</span><span className="max-w-[68px] shrink-0 truncate text-[10px] text-slate-500" title={sourceType}>{sourceType}</span></div>
+          <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-slate-800" title={description||'—'}>{description||(!info&&loading?'Loading…':'—')}</span><span className="max-w-[68px] shrink-0 truncate text-[10px] text-slate-500" title={sourceType}>{sourceType}</span></div>
          </td>,
          <td key={2} style={{width:`${columnWidths[2]}%`}} className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsDr||undefined}>{info?info.accountsDr||'—':loading?'Loading…':'—'}</div></td>,
          <td key={3} style={{width:`${columnWidths[3]}%`}} className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsCr||undefined}>{info?info.accountsCr||'—':loading?'Loading…':'—'}</div></td>,
