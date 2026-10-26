@@ -1,3 +1,4 @@
+import TransportRegisterCommercialPopup,{type RegisterPopupKind} from './TransportRegisterCommercialPopup';
 import {TRANSPORT_TRIP_HEADERS,downloadDailyTripTemplate} from './transportImportTemplates';
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import {Link,useLocation,useNavigate,useSearchParams} from 'react-router-dom';
@@ -17,10 +18,6 @@ import { supabase } from "@/lib/supabase";
 import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportBulkCustomerRate from './TransportBulkCustomerRate';
 import TransportRegisterDraftInvoices from './TransportRegisterDraftInvoices';
-import TransportInitialRate from './TransportInitialRate';
-import TransportTripCharges from './TransportTripCharges';
-import TransportSupplierCharges from './TransportSupplierCharges';
-import TransportRegisterLinkedInvoice from './TransportRegisterLinkedInvoice';
 import TransportHistoricalImport from './TransportHistoricalImport';
 import TransportAudit from './TransportAudit';
 import TransportPartyReports from './TransportPartyReports';
@@ -375,9 +372,11 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
   const [quickPprReceiverName,setQuickPprReceiverName]=useState("");
   const [quickPprDate,setQuickPprDate]=useState(new Date().toISOString().slice(0,10));
   const [quickPprFile,setQuickPprFile]=useState<File|null>(null);
-  const [initialRateTrip,setInitialRateTrip]=useState<Trip|null>(null);
-  const [chargeTrip,setChargeTrip]=useState<Trip|null>(null);
-  const [supplierChargeTarget,setSupplierChargeTarget]=useState<{rentId:string;tripNo:string}|null>(null);
+  const [commercialPopup,setCommercialPopup]=useState<{trip:Trip;kind:RegisterPopupKind}|null>(null);
+  const commercialPopupGeneration=useRef(0);
+  function closeCommercialPopup(){commercialPopupGeneration.current++;setCommercialPopup(null);}
+  function openCommercialPopup(trip:Trip,kind:RegisterPopupKind){commercialPopupGeneration.current++;setCommercialPopup({trip,kind});}
+  useEffect(()=>{closeCommercialPopup();},[scopeKey]);
   const [showRateList,setShowRateList]=useState(false);
   
   const [canDeleteTrip,setCanDeleteTrip]=useState(false);
@@ -404,8 +403,6 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
     }catch(e:any){if(scopeRef.current===scope)setDeleteTripError(e?.message||"Unable to delete Trip.");}
     finally{deleteTripRequest.current=false;if(scopeRef.current===scope)setDeletingTrip(false);}
   };
-  const [invoiceTrip,setInvoiceTrip]=useState<Trip|null>(null);
-  const [supplierInvoiceTrip,setSupplierInvoiceTrip]=useState<Trip|null>(null);
   const [editingRateLocks,setEditingRateLocks]=useState({customer:false,supplier:false});
   const [editingTripId,setEditingTripId]=useState<string|null>(null);
   const editingTripLocked=Boolean(editingTripId&&(editingRateLocks.customer||editingRateLocks.supplier));
@@ -419,14 +416,6 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
   const [quickAdd,setQuickAdd]=useState<QuickAddKind|null>(null);
   const [bulkFixRowNo,setBulkFixRowNo]=useState<number|null>(null);
   const [quickSupplierId,setQuickSupplierId]=useState('');
-  const openSupplierCharges=async(r:Trip)=>{
-    setError("");
-    const q=await supabase.from('transport_trip_supplier_rents').select('id,state,amount,created_at').eq('trip_id',r.id).order('created_at',{ascending:true});
-    if(q.error){setError(q.error.message);return;}
-    const rents=q.data??[];
-    if(rents.length!==1){setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true);return;}
-    setSupplierChargeTarget({rentId:rents[0].id,tripNo:r.trip_no});
-  };
 
   const selectedCustomerMode=tripMasters.billingModes[form.customer_id]??'';
   const selectedVehicle=tripMasters.vehicles.find(v=>v.id===form.vehicle_id);
@@ -807,10 +796,10 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
 
   useEffect(()=>{
     if(standaloneMobile&&featureAccess?.loading)return;
-    if(activeCompany?.company_id&&activeBusinessUnit?.business_unit_id){
+    if(activeCompany?.company_id&&activeBusinessUnit?.business_unit_id&&(tab!=="trips"||quickAdd!==null)){
       void loadTripMasters().catch((e:any)=>setError(e?.message||"Unable to load Transport masters."));
     }
-  },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,standaloneMobile,featureAccess?.loading,mobileCanCreate]);
+  },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,standaloneMobile,featureAccess?.loading,mobileCanCreate,tab,quickAdd]);
 
   // Refresh is explicit. Successful local saves use refreshRegisterAfterChange.
   useEffect(()=>{
@@ -1765,19 +1754,17 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
   // authorized Trip before opening one so an operational-only row cannot become
   // an incomplete financial edit payload.
   const openRecoveredPopup=async(row:Trip,key:string)=>{
+    if(['charge','supplier_charges','company_rate','invoice_no','supplier_invoice_no','rent_driver'].includes(key)){openCommercialPopup(row,key as RegisterPopupKind);return;}
+    const request=++commercialPopupGeneration.current;
+
     try{
       const result=await supabase.rpc('transport_edit_trip_read',{p_trip_id:row.id});
+      if(request!==commercialPopupGeneration.current)return;
       if(result.error)throw result.error;
       if(!result.data||result.data.id!==row.id)throw new Error('Trip details could not be verified.');
       const trip:Trip={...row,...result.data,trip_no:row.trip_no,
         customer_name:row.customer_name,driver_name:row.driver_name,vehicle_no:row.vehicle_no};
-      if(key==='charge')setChargeTrip(trip);
-      else if(key==='supplier_charges')await openSupplierCharges(trip);
-      else if(key==='company_rate')setInitialRateTrip(trip);
-      else if(key==='invoice_no')setInvoiceTrip(trip);
-      else if(key==='supplier_invoice_no')setSupplierInvoiceTrip(trip);
-      else if(key==='rent_driver'){setBulkSupplierRentTrip(trip);setShowBulkSupplierRent(true);}
-      else if(key==='paper_received_by')await openQuickPpr(trip);
+      if(key==='paper_received_by')await openQuickPpr(trip);
     }catch(e:any){setError(e?.message||'Unable to open saved Trip details.');}
   };
   const operationalRecoveryActive=registerLoadError&&operationalRecovery?.key===registerPageKey;
@@ -1864,8 +1851,6 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
   return <div className={standaloneMobile?"relative min-h-dvh w-full max-w-none bg-slate-100":"relative w-full max-w-none space-y-1"} style={{width:"100%",maxWidth:"none",marginInline:0}}>
 
 
-      {chargeTrip&&<TransportTripCharges tripId={chargeTrip.id} onClose={()=>setChargeTrip(null)} onChanged={refreshRegisterAfterChange}/>}
-    {supplierChargeTarget&&<TransportSupplierCharges rentId={supplierChargeTarget.rentId} tripNo={supplierChargeTarget.tripNo} onClose={()=>setSupplierChargeTarget(null)} onChanged={refreshRegisterAfterChange}/>} 
 
     {showPartyReports&&(reportPanel==='vehicle-reports'
        ? <TransportVehicleReports key={scopeKey}/>
@@ -2308,27 +2293,27 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
                   style={columnWidth?{width:columnWidth,minWidth:columnWidth,maxWidth:columnWidth}:undefined}
                   className={`overflow-hidden text-ellipsis whitespace-nowrap border-b border-r px-1.5 !py-0 leading-tight ${(isSupplierGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-rose-50/55":isCustomerGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-blue-50/45":isPprGridKey(key)?"h-[26px] max-h-[26px] border-slate-200 bg-emerald-50/50":"h-[26px] max-h-[26px] border-slate-200")} ${tripSelected?"!border-amber-300 !bg-amber-100":""} ${numeric?"text-right font-medium":""}`}>
                   {key==='charge'
-                    ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'charge');else setChargeTrip(r)}}>{value||''}</button>
+                    ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100" aria-label={`Open Customer Charges ${r.trip_no}`} onClick={()=>{openCommercialPopup(r,'charge')}}>{value||''}</button>
                     :key==='supplier_charges'
-                    ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-semibold leading-tight text-rose-700 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500" aria-label={`Open Supplier Charges ${r.trip_no}`} onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'supplier_charges');else void openSupplierCharges(r)}}>{value||''}</button>
+                    ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-semibold leading-tight text-rose-700 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500" aria-label={`Open Supplier Charges ${r.trip_no}`} onClick={()=>{openCommercialPopup(r,'supplier_charges')}}>{value||''}</button>
                     :key==='company_rate'
                     ?<button data-register-editable="true" type="button"
                       className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
                       aria-label={`${r.customer_rate_state==='pending'?'Add':'Open'} Company Rate ${r.trip_no}`}
-                      onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'company_rate');else setInitialRateTrip(r)}}>
+                      onClick={()=>{openCommercialPopup(r,'company_rate')}}>
                       {r.customer_rate_state==='pending'&&!r.customer_rate_locked?'':value||'0.00'}
                     </button>
                     :key==='invoice_no'
                       ?<button data-register-editable="true" type="button"
                         className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-blue-500"
                         aria-label={`${r.invoice_no?'Open':'Add'} Invoice Number ${r.trip_no}`}
-                        onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'invoice_no');else setInvoiceTrip(r)}}>
+                        onClick={()=>{openCommercialPopup(r,'invoice_no')}}>
                         {r.invoice_no||''}
                       </button>
                     :key==='rent_driver'&&r.historical_company_owned
                       ?<span title="Original total Company Trip cost — not a Supplier payable or Driver salary">{value}<span className="ml-1 text-[8px] text-slate-500">Company</span></span>
                     :key==='rent_driver'&&r.customer_rate_state!==undefined
-                      ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-medium leading-tight text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'rent_driver');else {setBulkSupplierRentTrip(r);setShowBulkSupplierRent(true)}}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
+                      ?<button data-register-editable="true" type="button" className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-right text-[10px] font-medium leading-tight text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-amber-500" aria-label={`${Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?'Open':'Add'} Rent ${r.trip_no}`} onClick={()=>{openCommercialPopup(r,'rent_driver')}}>{Number(r.billed_supplier_net??r.supplier_rent??r.owner_rent??0)>0?value:''}</button>
                     :key==='paper_received_by'
                       ?r.ppr_status==='received'
                         ?<span title={r.historical_paper_status==='received'?'Original paper receipt evidence':undefined} className="inline-flex flex-col items-start leading-tight"><span>{r.ppr_received_by_name||"—"}</span>{r.ppr_received_date&&<span className="text-[8px] text-slate-500">{formatNaviloDate(r.ppr_received_date)}</span>}</span>
@@ -2338,7 +2323,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
                         className="h-[22px] w-full cursor-pointer rounded px-1 py-0 text-left text-[10px] font-semibold leading-tight text-rose-800 hover:bg-rose-100 focus-visible:outline focus-visible:outline-rose-500"
                         aria-label={`Open Supplier Invoice ${r.trip_no}`}
                         title={r.historical_supplier_invoice_ref?'Open Supplier Invoice / original reference':'Open Supplier Invoice'}
-                        onClick={()=>{if(operationalRecoveryActive)void openRecoveredPopup(r,'supplier_invoice_no');else setSupplierInvoiceTrip(r)}}>
+                        onClick={()=>{openCommercialPopup(r,'supplier_invoice_no')}}>
                         {value||'0'}
                       </button>
                       :value||""}
@@ -2931,9 +2916,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
         </div>
       </div>
     </TransportDialog>}
-    {initialRateTrip&&<TransportInitialRate trip={initialRateTrip} onClose={()=>setInitialRateTrip(null)} onChanged={refreshRegisterAfterChange}/>}
-    {invoiceTrip&&<TransportRegisterLinkedInvoice side="customer" trip={invoiceTrip} onClose={()=>setInvoiceTrip(null)} onChanged={refreshRegisterAfterChange}/>}
-    {supplierInvoiceTrip&&<TransportRegisterLinkedInvoice side="supplier" trip={supplierInvoiceTrip} onClose={()=>setSupplierInvoiceTrip(null)} onChanged={refreshRegisterAfterChange}/>}
+    {commercialPopup&&<TransportRegisterCommercialPopup key={`${scopeKey}/${commercialPopup.trip.id}/${commercialPopup.kind}`} trip={commercialPopup.trip} kind={commercialPopup.kind} onClose={closeCommercialPopup} onChanged={async()=>{void refreshRegisterAfterChange();}}/>}
     {showBulkSupplierRent&&<TransportBulkSupplierRent compact={Boolean(bulkSupplierRentTrip)} initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={refreshRegisterAfterChange}/>}
       {showBulkCustomerRate&&<TransportBulkCustomerRate initialTrips={bulkRateInitialTrips} onClose={()=>{setShowBulkCustomerRate(false);setBulkRateInitialTrips([])}} onChanged={refreshRegisterAfterChange}/>}
       {showRegisterDraftInvoices&&<TransportRegisterDraftInvoices onClose={()=>setShowRegisterDraftInvoices(false)} onChanged={refreshRegisterAfterChange}/>}

@@ -8,10 +8,14 @@ import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportRegisterDraftInvoiceEditor from './TransportRegisterDraftInvoiceEditor';
 import TransportPostedInvoiceControls from './TransportPostedInvoiceControls';
 type Invoice={id:string;document_id:string;order_no:string;order_date:string;status:string;total:number};
-export default function TransportRegisterLinkedInvoice({side,trip,onClose,onChanged}:{side:'customer'|'supplier';trip:FinancialTrip&{invoice_no?:string|null;owner_name?:string|null};onClose:()=>void;onChanged:()=>Promise<void>}){
+export default function TransportRegisterLinkedInvoice({side,trip,onClose,onChanged,context}:{side:'customer'|'supplier';trip:FinancialTrip&{invoice_no?:string|null;owner_name?:string|null};onClose:()=>void;onChanged:()=>Promise<void>;context?:any}){
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[invoices,setInvoices]=useState<Invoice[]>([]);
  const [selected,setSelected]=useState(''),[revision,setRevision]=useState(0),[editing,setEditing]=useState(false),[busy,setBusy]=useState(false),[draftPermissions,setDraftPermissions]=useState({edit:false,delete:false,post:false});
  useEffect(()=>{let live=true;setLoading(true);setError('');void(async()=>{try{
+  if(context){
+   const rows=[...(context.invoices as Invoice[])].sort((a,b)=>b.order_date.localeCompare(a.order_date)||a.order_no.localeCompare(b.order_no)||a.id.localeCompare(b.id));
+   if(live){setInvoices(rows);setDraftPermissions(context.draft_permissions?.[side]??{edit:false,delete:false,post:false});setSelected(current=>rows.some(row=>row.id===current)?current:rows[0]?.id??'');}return;
+  }
   const links=await supabase.from(side==='customer'?'transport_customer_document_trips':'transport_supplier_document_rents').select('document_id').eq('trip_id',trip.id).eq('is_adjustment',false);
   if(links.error)throw links.error;
   const ids=[...new Set((links.data||[]).map(x=>x.document_id))];
@@ -29,7 +33,7 @@ export default function TransportRegisterLinkedInvoice({side,trip,onClose,onChan
   if(orders.data?.length!==orderIds.length)throw new Error('The original invoice records could not be verified.');
   const rows=(orders.data||[]).map(order=>({...order,document_id:(docs.data as unknown as Record<string,string>[]).find(doc=>doc[orderKey]===order.id)!.id})) as Invoice[];
   if(live){setInvoices(rows);setDraftPermissions(permission.data?.[side]??{edit:false,delete:false,post:false});setSelected(current=>rows.some(row=>row.id===current)?current:rows[0].id);}
- }catch(e:unknown){if(live)setError(String((e as {message?:string})?.message||'Could not load the linked invoice.'));}finally{if(live)setLoading(false)}})();return()=>{live=false};},[side,trip.id,revision]);
+ }catch(e:unknown){if(live)setError(String((e as {message?:string})?.message||'Could not load the linked invoice.'));}finally{if(live)setLoading(false)}})();return()=>{live=false};},[side,trip.id,revision,context]);
  async function changed(){await onChanged();setRevision(value=>value+1)}
  const invoice=invoices.find(row=>row.id===selected);
  async function post(){if(!invoice||busy)return;setBusy(true);setError('');try{

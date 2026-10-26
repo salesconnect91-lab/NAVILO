@@ -1,5 +1,4 @@
 import {useEffect,useRef,useState} from 'react';
-import NaviloSearchableSelect from '@/components/SearchableSelect';
 import {TRANSPORT_REASON_OPTIONS,reasonPresetValue,defaultTransportReason,type TransportReasonKind} from './transportRateReasons';
 
 type Props={kind:TransportReasonKind;value:string;onChange:(value:string)=>void;label?:string;disabled?:boolean;compact?:boolean;className?:string;};
@@ -17,7 +16,7 @@ export default function TransportReasonSelect({kind,value,onChange,label='Reason
  return <div className={`min-w-0 ${className}`}>
   <label className={`block font-semibold ${compact?'text-[10px]':'text-xs'}`}>
    Select reason
-   <NaviloSearchableSelect nativeCompatibility preserveLabel
+   <select
     aria-label={`${label} selection`} disabled={disabled}
     className={`input mt-1 w-full ${compact?'h-7 px-1 text-[10px]':'h-8 text-xs'}`}
     value={preset}
@@ -25,12 +24,12 @@ export default function TransportReasonSelect({kind,value,onChange,label='Reason
     
     {TRANSPORT_REASON_OPTIONS[kind].map(option=><option key={option} value={option}>{option}</option>)}
     <option value="__other__">Other / Custom Reason</option>
-   </NaviloSearchableSelect>
+   </select>
   </label>
   <label className={`mt-1 block font-semibold ${compact?'text-[10px]':'text-xs'}`}>
    {label}
    <input aria-label={label} className={`input mt-1 w-full ${compact?'h-7 text-[10px]':'h-8 text-xs'}`}
-    value={value} disabled={disabled} maxLength={1000}
+    value={value||(!otherSelected?defaultTransportReason(kind):'')} disabled={disabled} maxLength={1000}
     onChange={e=>onChange(e.target.value)} placeholder="Selected reason (editable) / type your own"/>
   </label>
  </div>;

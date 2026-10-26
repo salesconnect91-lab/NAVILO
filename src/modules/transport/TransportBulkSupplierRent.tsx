@@ -26,13 +26,13 @@ type Rent={id:string;trip_id:string;supplier_id:string;amount:number;base_amount
 type Account={id:string;name:string;type:string};
 const formatTripDate=(value:string)=>{if(!value)return '—';const [y,m,d]=value.slice(0,10).split('-').map(Number);if(!y||!m||!d)return value;return `${String(d).padStart(2,'0')}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]}-${String(y).slice(-2)}`};
 
-export default function TransportBulkSupplierRent({onClose,onChanged,initialTripId,initialSupplierName,compact=false}:{onClose:()=>void;onChanged:()=>Promise<void>;initialTripId?:string;initialSupplierName?:string;compact?:boolean}){
+export default function TransportBulkSupplierRent({onClose,onChanged,initialTripId,initialSupplierName,compact=false,popupContext}:{onClose:()=>void;onChanged:()=>Promise<void>;initialTripId?:string;initialSupplierName?:string;compact?:boolean;popupContext?:any}){
  const {activeCompany,activeBusinessUnit}=useAuth();
  const [rows,setRows]=useState<Row[]>([]),[legacyRents,setLegacyRents]=useState<LegacyRent[]>([]),[suppliers,setSuppliers]=useState<Supplier[]>([]),[rents,setRents]=useState<Rent[]>([]),[accounts,setAccounts]=useState<Account[]>([]);
  const [supplier,setSupplier]=useState(''),[tripStatus,setTripStatus]=useState(''),[search,setSearch]=useState(''),[columnFilters,setColumnFilters]=useState<Record<string,string>>({}),[selected,setSelected]=useState<string[]>([]),[amounts,setAmounts]=useState<Record<string,string>>({});
  const [account,setAccount]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[reason,setReason]=useState('Supplier rent finalized');const [vatReady,setVatReady]=useState(true),[vatRate,setVatRate]=useState<number|null>(0);
  const selectedParties=[...new Set(rows.filter(r=>selected.includes(r.id)&&!r.posted).map(r=>r.party_id).filter(Boolean))];
- const billing=useTransportBillingMode('supplier',supplier||(selectedParties.length===1?selectedParties[0]:''));const withTax=billing.withTax;
+ const billing=useTransportBillingMode('supplier',supplier||(selectedParties.length===1?selectedParties[0]:''),!(compact&&popupContext));const withTax=billing.withTax;
  const [permissions,setPermissions]=useState<Record<string,boolean>>({}),[loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  const [correctionTrip,setCorrectionTrip]=useState<Row|null>(null),[correctionRent,setCorrectionRent]=useState<Rent|null>(null),[correctionAmount,setCorrectionAmount]=useState('');
@@ -47,6 +47,14 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
  const masterCache=useRef<{scope:string;expires:number;data:any[]}|null>(null);
  async function load(){
   const request=++generation.current;setLoading(true);
+  if(compact&&popupContext){
+   const data=popupContext.supplier_page;const lines=popupContext.charge_lines??[];
+   const rr=(data?.rows??[]).map((r:any)=>({...r,supplier_charges:lines.filter((l:any)=>l.rent_id===r.rent?.id).reduce((n:number,l:any)=>n+Number(l.amount),0)}));
+   setRows(rr);setRents(rr.filter((r:any)=>r.rent).map((r:any)=>r.rent));setLegacyRents(rr.filter((r:any)=>r.legacyBlocked).map((r:any)=>({id:r.id,rent_state:'finalized'})));
+   setSuppliers([...new Map<string,Supplier>(rr.filter((r:any)=>r.party_id).map((r:any)=>[r.party_id,{id:r.party_id,name:r.owner_name,is_active:true}] as [string,Supplier])).values()]);
+   setPermissions(popupContext.permissions);setPageMeta(data);setLoading(false);return;
+  }
+
   try{
   const company=activeCompany?.company_id,unit=activeBusinessUnit?.business_unit_id;
   if(!company||!unit)throw new Error('Select an active company and business unit.');
@@ -90,7 +98,7 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
   if(changed&&page!==0){setPage(0);return;}
   const timer=window.setTimeout(()=>void load().catch(e=>{if(active)setError(e.message)}),200);
   return()=>{active=false;window.clearTimeout(timer);generation.current++;};
- },[filterKey,page]);
+ },[filterKey,page,popupContext]);
  const existing=useMemo(()=>new Map(rents.map(r=>[r.id,r])),[rents]);
  const supplierBase=(rent?:Rent,amount?:number|null,charges=0)=>rent?.base_amount??Math.max(0,Number(rent?.amount??amount??0)-charges);
  const canFinalize=(id:string)=>!unavailableTripIds.has(id)&&Boolean(permissions[existing.get(id)?.state==='finalized'?'rent_correct':'rent_finalize'])&&Boolean(existing.has(id)||permissions.rent);
@@ -184,8 +192,9 @@ export default function TransportBulkSupplierRent({onClose,onChanged,initialTrip
  }
  if(compact&&!loading&&singleRow&&singleDraft)return <TransportDialog><section role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg bg-white p-3 text-xs shadow-2xl"><TransportCommercialHeader title="Supplier Rate · Draft Invoice" titleId="supplier-rate-title" side="supplier" tripNo={singleRow.trip_no} party={singleRow.owner_name} customer={singleRow.customer_name} from={singleRow.from_location} to={singleRow.to_location} vehicle={vehicleDisplayLabel(singleRow.vehicle_no,singleRow.truck_type_name??singleRow.truck_type)}/><p className="my-3">Rent {financialNumber(Number(singleAmount)||0)} is linked to draft invoice {singleRow.invoice_no||'in Draft Invoices'}. Review or delete that draft before changing the rent.</p><div className="flex justify-end"><button className="btn" onClick={onClose}>Close</button></div></section></TransportDialog>;
  if(compact&&!loading&&singleRow&&!singlePosted&&!singleDraft&&!singleBlocked)return <TransportSupplierCharges
-  key={`${scopeKey}/${singleRow.id}`} rentId={singleRent?.id} tripNo={singleRow.trip_no} editRate rateAllowed={canFinalize(singleRow.id)} onClose={onClose} onChanged={onChanged}
+  atomicSave={Boolean(popupContext)} key={`${scopeKey}/${singleRow.id}`} rentId={singleRent?.id} tripNo={singleRow.trip_no} editRate rateAllowed={canFinalize(singleRow.id)} onClose={onClose} onChanged={onChanged}
   newRent={singleRent?undefined:{tripId:singleRow.trip_id!,supplierId:singleRow.party_id||supplier,companyId:activeCompany!.company_id,businessUnitId:activeBusinessUnit!.business_unit_id,amount:Number(singleAmount)||0,supplierName:singleRow.owner_name||suppliers.find(s=>s.id===supplier)?.name||''}}
+  preloaded={popupContext?{rent:singleRent?{...singleRent,supplier_name_snapshot:singleRow.owner_name,posted:false}:{id:null,trip_id:singleRow.trip_id,company_id:activeCompany!.company_id,business_unit_id:activeBusinessUnit!.business_unit_id,supplier_name_snapshot:singleRow.owner_name,amount:Number(singleAmount)||0,base_amount:Number(singleAmount)||0,state:'pending',posted:false},types:popupContext.charge_types,lines:popupContext.charge_lines.filter((l:any)=>l.rent_id===singleRent?.id)}:undefined}
   tripContext={{supplier:singleRow.owner_name,customer:singleRow.customer_name,from:singleRow.from_location,to:singleRow.to_location,vehicle:vehicleDisplayLabel(singleRow.vehicle_no,singleRow.truck_type_name??singleRow.truck_type)}}
   headerExtra={<>
    {singleRows.length>1&&<label className="mt-2 block font-semibold">Supplier rent<NaviloSearchableSelect nativeCompatibility preserveLabel className="input mt-1 h-8 w-full" value={singleRow.id} onChange={e=>setSingleRowKey(e.target.value)}>{singleRows.map(r=><option key={r.id} value={r.id}>{r.owner_name} · {financialNumber(r.billed_supplier_net??r.supplier_rent)}</option>)}</NaviloSearchableSelect></label>}</>}

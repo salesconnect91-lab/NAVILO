@@ -112,7 +112,8 @@ export default function SearchableSelect({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
-  const centeredPopup=typeof window!=="undefined"&&/^\/(?:transport(?:\/|$)|reports\/transport(?:\/|$))/.test(window.location.pathname);
+  const insideDialog=Boolean(rootRef.current?.closest('[role="dialog"]'));
+  const centeredPopup=!insideDialog&&typeof window!=="undefined"&&/^\/(?:transport(?:\/|$)|reports\/transport(?:\/|$))/.test(window.location.pathname);
   const positionDropdown = () => {
     const rect = rootRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -247,7 +248,8 @@ export default function SearchableSelect({
         {...props}
         className="sr-only" tabIndex={nativeCompatibility ? 0 : -1} aria-hidden={nativeCompatibility ? open : true}
         id={nativeCompatibility ? id : undefined} aria-label={nativeCompatibility ? props["aria-label"] : undefined}
-        onFocus={event => { props.onFocus?.(event); openDropdown(); }}
+        onFocus={event => { props.onFocus?.(event); }}
+        onKeyDown={event=>{props.onKeyDown?.(event);if(!event.defaultPrevented&&['ArrowDown','ArrowUp','Enter',' '].includes(event.key)){event.preventDefault();openDropdown();}}}
         name={name} value={selectedValue} disabled={disabled} required={props.required} form={props.form}
         onChange={event => { if (!controlled) setInternalValue(event.target.value); onChange?.(event); closeDropdown(); }}
         onInvalid={event => { event.preventDefault(); triggerRef.current?.focus(); openDropdown(); }}

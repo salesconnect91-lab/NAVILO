@@ -107,3 +107,12 @@ describe("search keyboard selection",()=>{
   expect(screen.getByRole("listbox")).toBeTruthy();
  });
 });
+
+it('does not open a second popup merely because a dialog focuses its select',()=>{
+ const {container}=render(<section role="dialog"><SearchableSelect nativeCompatibility value="a" aria-label="Reason" onChange={vi.fn()}><option value="a">Default reason</option><option value="b">Another reason</option></SearchableSelect></section>);
+ const select=container.querySelector('select')!;
+ fireEvent.focus(select);expect(screen.queryByRole('listbox')).toBeNull();
+ fireEvent.keyDown(select,{key:'ArrowDown'});
+ expect(screen.getByRole('listbox')).toBeTruthy();
+ expect(document.querySelector<HTMLElement>('[data-navilo-searchable-dropdown]')!.style.left).not.toBe('50%');
+});

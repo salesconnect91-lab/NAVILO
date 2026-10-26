@@ -285,6 +285,30 @@ begin
  EXCEPTION WHEN OTHERS THEN rejected:=true;END;
  IF NOT rejected THEN RAISE EXCEPTION 'Draft clerk posted edit accepted';END IF;
  RESET ROLE;
+ -- Fast popup context reads only the requested Trip, side and active branch.
+ RESET ROLE;
+ UPDATE public.company_memberships SET role='admin' WHERE company_id=c AND user_id=u;
+ UPDATE public.business_unit_memberships SET role='admin',permissions='{}' WHERE business_unit_id=b AND user_id=u;
+ UPDATE public.user_profiles SET role='admin' WHERE id=u;
+ INSERT INTO public.transport_trips(company_id,business_unit_id,trip_no,trip_date,customer_id,from_location,to_location,customer_rate,owner_rent,sale_type)
+ VALUES(c,b,'999992',current_date+2,customer,'A','B',0,0,'credit') RETURNING id INTO auth_trip;
+ SET LOCAL ROLE authenticated;
+ SELECT to_jsonb(t) INTO original FROM public.transport_trips t WHERE id=auth_trip;
+ rejected:=false;BEGIN
+  PERFORM public.transport_save_customer_rate_and_charges(auth_trip,200,jsonb_build_array(jsonb_build_object('charge_type_id',gen_random_uuid(),'amount',5)),'Synthetic atomic failure');
+ EXCEPTION WHEN OTHERS THEN rejected:=true;END;
+ IF NOT rejected OR original IS DISTINCT FROM (SELECT to_jsonb(t) FROM public.transport_trips t WHERE id=auth_trip) THEN RAISE EXCEPTION 'Combined rate and charges left a partial save';END IF;
+ result:=public.transport_save_customer_rate_and_charges(auth_trip,200,jsonb_build_array(jsonb_build_object('charge_type_id',charge_id,'amount',5)),'Synthetic combined rate and charges');
+ IF (SELECT customer_rate FROM public.transport_trips WHERE id=auth_trip)<>205 THEN RAISE EXCEPTION 'Combined rate and charges counted incorrectly';END IF;
+ result:=public.transport_register_popup_context(auth_trip,'customer');
+ IF result->'trip'->>'id'<>auth_trip::text OR result->>'side'<>'customer' OR jsonb_array_length(result->'charge_lines')<>1 OR result->'supplier_page'<>'null'::jsonb THEN RAISE EXCEPTION 'Customer popup context scope failed';END IF;
+ result:=public.transport_save_supplier_rate_and_charges(auth_trip,NULL,supplier,50,jsonb_build_array(jsonb_build_object('charge_type_id',charge_id,'amount',5)),'Synthetic popup rent');rent2:=(result->>'rent_id')::uuid;
+ IF (SELECT amount FROM public.transport_trip_supplier_rents WHERE id=rent2)<>55 THEN RAISE EXCEPTION 'Combined supplier rent and charges counted incorrectly';END IF;
+ result:=public.transport_register_popup_context(auth_trip,'supplier');
+ IF result->'supplier_page'->>'count'<>'1' OR result->'supplier_page'->'rows'->0->>'trip_id'<>auth_trip::text THEN RAISE EXCEPTION 'Supplier popup scanned or exposed another Trip';END IF;
+ rejected:=false;BEGIN PERFORM public.transport_register_popup_context(gen_random_uuid(),'customer');EXCEPTION WHEN OTHERS THEN rejected:=true;END;
+ IF NOT rejected OR has_function_privilege('anon','public.transport_register_popup_context(uuid,text)','EXECUTE') THEN RAISE EXCEPTION 'Popup namespace scope or ACL failed';END IF;
+ RESET ROLE;
  raise notice 'PASS Admin-only posted multi-trip edit, split, rate corrections, supplier parity, permanent delete, GL identity, no reversal, owner denial and rollback';
 END $$;
 ROLLBACK;

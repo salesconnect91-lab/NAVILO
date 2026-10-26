@@ -427,21 +427,25 @@ describe('Transport report isolation',()=>{
 });
 
 describe('Transport compact register and centered controls',()=>{
- it('opens the selected trip supplier rate setup when charges have no rent yet',async()=>{
+ it('opens supplier charges first and explicitly switches to rate setup when no rent exists',async()=>{
   const trip={id:'no-rent',trip_no:'OIC-NO-RENT',status:'draft',owner_name:'Supplier'};
   const normal=mock.rpc.getMockImplementation()!;
   mock.rpc.mockImplementation(async(name:string,args:any)=>{
    if(name==='transport_register_query')return {data:{rows:[trip],count:1,statuses:[],permissions:{customer:true,supplier:true},totals:{}},error:null};
-   if(name==='transport_bulk_rate_page')return {data:{rows:[{...trip,id:'pending-rent',trip_id:trip.id,party_id:'s',rent:null}],count:1,amount:0},error:null};
+   if(name==='transport_register_popup_context')return {data:{side:'supplier',trip:{...trip,company_id:'c',business_unit_id:'b'},charge_types:[],charge_lines:[],permissions:{rent:true,rent_finalize:true,rent_correct:true},supplier_page:{rows:[{...trip,id:'pending-rent',trip_id:trip.id,party_id:'s',rent:null}],count:1,amount:0}},error:null};
    return normal(name,args);
   });
   render(<MemoryRouter initialEntries={['/transport']}><TransportWorkspace/></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button',{name:'Open Supplier Charges OIC-NO-RENT'}));
+  await screen.findByText('Add a supplier rate before saving supplier charges.');
+  expect(screen.queryByRole('dialog',{name:'Supplier Rate & Charges'})).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Open Supplier Rate'}));
   await screen.findByRole('dialog',{name:'Supplier Rate & Charges'});
   expect(screen.getByText('Trip · OIC-NO-RENT')).toBeTruthy();
   expect(await screen.findByLabelText('Supplier charge')).toBeTruthy();
   expect(screen.queryByText(/No supplier rent exists/)).toBeNull();
-  expect(mock.rpc).toHaveBeenCalledWith('transport_bulk_rate_page',expect.objectContaining({p_filters:expect.objectContaining({initialTrip:'no-rent'})}));
+  expect(mock.rpc).toHaveBeenCalledWith('transport_register_popup_context',{p_trip_id:'no-rent',p_side:'supplier'});
+  expect(mock.rpc.mock.calls.some(([name])=>name==='transport_bulk_rate_page')).toBe(false);
   expect(mock.rpc.mock.calls.some(([name])=>name==='transport_supplier_rent_save'||name==='transport_post_supplier_rent')).toBe(false);
  });
  it('keeps saved visible columns compact and each financial group contiguous',async()=>{
@@ -633,7 +637,7 @@ describe('Transport compact register and centered controls',()=>{
     rows:[{id:'saved-trip-1',trip_no:'19535',display_trip_no:'19535',trip_date:'2026-10-10',
      customer_name:'Restored customer',driver_name:'Driver',vehicle_no:'FLAT-1',
      from_location:'Dammam',to_location:'Riyadh',ppr_status:'pending'}]},error:null};
-   if(name==='transport_edit_trip_read')return {data:{id:'saved-trip-1',customer_rate:1600,customer_rate_state:'finalized'},error:null};
+   if(name==='transport_register_popup_context')return {data:{side:'customer',trip:{id:'saved-trip-1',customer_rate:1600,customer_rate_state:'finalized'},charge_types:[],charge_lines:[],charge_rates:[],permissions:{}},error:null};
    if(name==='transport_register_financial_recovery_page'){
      expect(args.p_trip_ids).toEqual(['saved-trip-1']);
      return {data:{rows:[{
@@ -655,7 +659,7 @@ describe('Transport compact register and centered controls',()=>{
   expect(table.textContent).toContain('Restored customer');
   expect(screen.getByRole('button',{name:'Open Customer Charges 19535'})).toBeTruthy();
   fireEvent.click(screen.getByRole('button',{name:'Open Customer Charges 19535'}));
-  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_edit_trip_read',{p_trip_id:'saved-trip-1'}));
+  await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('transport_register_popup_context',{p_trip_id:'saved-trip-1',p_side:'customer'}));
   expect(screen.getAllByText(/Visible Trip amounts verified/).length).toBeGreaterThan(0);
  });
  it('never assigns financial amounts from a different Trip ID',async()=>{

@@ -8,7 +8,7 @@ import {supabase} from '@/lib/supabase';
 import {type FinancialTrip} from './transportFinancialTypes';
 
 
-export default function TransportInitialRate({trip,onClose,onChanged}:{trip:FinancialTrip;onClose:()=>void;onChanged:()=>Promise<void>}){
+export default function TransportInitialRate({trip,onClose,onChanged,permission}:{trip:FinancialTrip;onClose:()=>void;onChanged:()=>Promise<void>;permission?:boolean}){
  const {activeCompany,activeBusinessUnit}=useAuth();
  const posted=Boolean(trip.customer_rate_locked||trip.invoiced||Number(trip.billed_customer_net??0)>0);
  const finalized=trip.customer_rate_state==='finalized';
@@ -21,12 +21,13 @@ export default function TransportInitialRate({trip,onClose,onChanged}:{trip:Fina
 
  useEffect(()=>{
   let active=true;setAllowed(false);input.current?.focus();
-  const permission=posted
+  if(permission!==undefined){setAllowed(permission);return()=>{active=false};}
+  const permissionRequest=posted
    ?supabase.rpc('transport_finance_allowed',{p_action:'adjustment'})
    :supabase.rpc('has_transport_action_permission',{p_company_id:activeCompany?.company_id,p_action:finalized?'customer_rate_override':'customer_rate_finalize'});
-  void permission.then(({data,error}:any)=>{if(active){setAllowed(data===true);if(error)setError(error.message)}});
+  void permissionRequest.then(({data,error}:any)=>{if(active){setAllowed(data===true);if(error)setError(error.message)}});
   return()=>{active=false};
- },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,posted,finalized]);
+ },[activeCompany?.company_id,activeBusinessUnit?.business_unit_id,posted,finalized,permission]);
 
  const valid=amount.trim()!==''&&Number.isFinite(Number(amount))&&Number(amount)>=0&&/^\d+(\.\d{1,2})?$/.test(amount);
  const changed=valid&&Number(amount)!==Number(posted?(trip.billed_customer_net??trip.customer_rate??0):initialBase);

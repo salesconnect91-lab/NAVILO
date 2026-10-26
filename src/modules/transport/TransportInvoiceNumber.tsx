@@ -43,7 +43,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
  const scope=`${companyId??''}/${businessUnitId??''}`;
  const posted=Boolean(trip.invoiced||trip.sales_order_id||Number(trip.billed_customer_net??0)>0);
  const [invoiceNo,setInvoiceNo]=useState(trip.invoice_no??'');
- const [numberMode,setNumberMode]=useState<'choose'|'auto'|'manual'>('choose');
+ const [numberMode,setNumberMode]=useState<'choose'|'auto'|'manual'>(()=>String(trip.sale_type??'').toLowerCase()==='credit'?'manual':'auto');
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
  const saleType=String(trip.sale_type??'').toLowerCase();
  const withTax=saleType==='credit';const [vatReady,setVatReady]=useState(!withTax);
