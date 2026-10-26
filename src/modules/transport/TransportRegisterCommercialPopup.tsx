@@ -13,13 +13,13 @@ import TransportBulkSupplierRent from './TransportBulkSupplierRent';
 import TransportRegisterLinkedInvoice from './TransportRegisterLinkedInvoice';
 
 export type RegisterPopupKind='company_rate'|'charge'|'rent_driver'|'supplier_charges'|'invoice_no'|'supplier_invoice_no';
-export default function TransportRegisterCommercialPopup({trip,kind,onClose,onChanged}:{trip:FinancialTrip;kind:RegisterPopupKind;onClose:()=>void;onChanged:()=>Promise<void>}){
+export default function TransportRegisterCommercialPopup({trip,kind,preloadedContext,onClose,onChanged}:{trip:FinancialTrip;kind:RegisterPopupKind;preloadedContext?:any;onClose:()=>void;onChanged:()=>Promise<void>}){
  const {activeCompany,activeBusinessUnit}=useAuth();
  const side=kind==='rent_driver'||kind==='supplier_charges'||kind==='supplier_invoice_no'?'supplier':'customer';
- const [context,setContext]=useState<any>(null),[error,setError]=useState(''),[revision,setRevision]=useState(0),[view,setView]=useState<RegisterPopupKind>(kind),[rentKey,setRentKey]=useState('');
+ const [context,setContext]=useState<any>(preloadedContext??null),[error,setError]=useState(''),[revision,setRevision]=useState(0),[view,setView]=useState<RegisterPopupKind>(kind),[rentKey,setRentKey]=useState('');
  const reasonKind=kind==='charge'?'customer_charges':kind==='supplier_charges'?'supplier_charges':side==='customer'?'customer_rate':'supplier_rate';
  const [previewReason,setPreviewReason]=useState(defaultTransportReason(reasonKind));
- useEffect(()=>{let active=true;const controller=new AbortController();const timer=window.setTimeout(()=>controller.abort(),12000);setContext(null);setError('');
+ useEffect(()=>{if(preloadedContext&&revision===0)return;let active=true;const controller=new AbortController();const timer=window.setTimeout(()=>controller.abort(),12000);setContext(null);setError('');
   void (async()=>{try{
    const {data,error}=await supabase.rpc('transport_register_popup_context',{p_trip_id:trip.id,p_side:side}).abortSignal(controller.signal);
    if(!active)return;if(error)throw error;
@@ -27,7 +27,7 @@ export default function TransportRegisterCommercialPopup({trip,kind,onClose,onCh
    setContext(data);
   }catch(e:any){if(active)setError(controller.signal.aborted?'This Trip took too long to load. Retry.':e?.message||'Could not load this Trip.');}finally{window.clearTimeout(timer);}})();
   return()=>{active=false;window.clearTimeout(timer);controller.abort();};
- },[trip.id,side,revision,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
+ },[trip.id,side,revision,activeCompany?.company_id,activeBusinessUnit?.business_unit_id,preloadedContext]);
  async function changed(){await onChanged();setRevision(n=>n+1)}
  const current={...trip,...context?.trip} as any;
  if(!context)return <TransportDialog onClose={onClose}><section role="dialog" aria-modal="true" aria-label={`${side} ${view} Trip ${trip.trip_no}`} className="w-full max-h-[90vh] overflow-y-auto max-w-lg rounded-lg bg-white p-3 text-xs shadow-2xl">

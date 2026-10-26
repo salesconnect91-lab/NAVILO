@@ -40,3 +40,10 @@ it('fails closed if a response has the wrong Trip ID',async()=>{
  expect((await screen.findByRole('alert')).textContent).toContain('could not be verified');
  expect(screen.queryByText('Customer combined rate wrong')).toBeNull();
 });
+
+it('renders the requested popup immediately from Register context without a second fetch',async()=>{
+ mock.rpc.mockReset();
+ render(<TransportRegisterCommercialPopup trip={trip('A')} kind="company_rate" preloadedContext={context('A')} onClose={vi.fn()} onChanged={async()=>{}}/>);
+ expect(screen.getByText('Customer combined rate A')).toBeTruthy();
+ expect(mock.rpc).not.toHaveBeenCalled();
+});

@@ -372,10 +372,26 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
   const [quickPprReceiverName,setQuickPprReceiverName]=useState("");
   const [quickPprDate,setQuickPprDate]=useState(new Date().toISOString().slice(0,10));
   const [quickPprFile,setQuickPprFile]=useState<File|null>(null);
-  const [commercialPopup,setCommercialPopup]=useState<{trip:Trip;kind:RegisterPopupKind}|null>(null);
+  const [commercialPopup,setCommercialPopup]=useState<{trip:Trip;kind:RegisterPopupKind;context:any}|null>(null);
+  const [commercialPopupLoading,setCommercialPopupLoading]=useState('');
   const commercialPopupGeneration=useRef(0);
-  function closeCommercialPopup(){commercialPopupGeneration.current++;setCommercialPopup(null);}
-  function openCommercialPopup(trip:Trip,kind:RegisterPopupKind){commercialPopupGeneration.current++;setCommercialPopup({trip,kind});}
+  function closeCommercialPopup(){commercialPopupGeneration.current++;setCommercialPopup(null);setCommercialPopupLoading('');}
+  async function openCommercialPopup(trip:Trip,kind:RegisterPopupKind){
+    const request=++commercialPopupGeneration.current;
+    setCommercialPopup(null);
+    const side=kind==='rent_driver'||kind==='supplier_charges'||kind==='supplier_invoice_no'?'supplier':'customer';
+    const label=kind.includes('invoice')?'invoice':kind==='charge'||kind==='supplier_charges'?'charges':side==='supplier'?'supplier rent':'customer rate';
+    setCommercialPopupLoading(`Opening ${label} for Trip ${trip.trip_no}…`);
+    try{
+      const result=await supabase.rpc('transport_register_popup_context',{p_trip_id:trip.id,p_side:side});
+      if(request!==commercialPopupGeneration.current)return;
+      if(result.error)throw result.error;
+      if(result.data?.trip?.id!==trip.id||result.data?.side!==side)throw new Error('The selected Trip could not be verified.');
+      setCommercialPopup({trip,kind,context:result.data});
+      setError('');
+    }catch(e:any){if(request===commercialPopupGeneration.current)setError(e?.message||'Could not load this Trip.');}
+    finally{if(request===commercialPopupGeneration.current)setCommercialPopupLoading('');}
+  }
   useEffect(()=>{closeCommercialPopup();},[scopeKey]);
   const [showRateList,setShowRateList]=useState(false);
   
@@ -2094,6 +2110,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
           {registerLoadError&&!registerLoading&&<button type="button" className="shrink-0 font-semibold text-blue-700 underline" onClick={refreshRegister}>Retry</button>}
         </div>
       )}
+      {commercialPopupLoading&&<div role="status" className="flex shrink-0 items-center gap-2 border-b border-blue-100 bg-blue-50 px-2 py-1 text-[10px] font-medium text-blue-800">{commercialPopupLoading}</div>}
       {operationalRecoveryActive&&operationalRecovery&&(
         <div role="status" className="shrink-0 flex items-center justify-between gap-2 border-t border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
           <span><strong>Original Trip Register · {operationalRecovery.count.toLocaleString()} saved Trips</strong>
@@ -2916,7 +2933,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
         </div>
       </div>
     </TransportDialog>}
-    {commercialPopup&&<TransportRegisterCommercialPopup key={`${scopeKey}/${commercialPopup.trip.id}/${commercialPopup.kind}`} trip={commercialPopup.trip} kind={commercialPopup.kind} onClose={closeCommercialPopup} onChanged={async()=>{void refreshRegisterAfterChange();}}/>}
+    {commercialPopup&&<TransportRegisterCommercialPopup key={`${scopeKey}/${commercialPopup.trip.id}/${commercialPopup.kind}`} trip={commercialPopup.trip} kind={commercialPopup.kind} preloadedContext={commercialPopup.context} onClose={closeCommercialPopup} onChanged={async()=>{void refreshRegisterAfterChange();}}/>}
     {showBulkSupplierRent&&<TransportBulkSupplierRent compact={Boolean(bulkSupplierRentTrip)} initialTripId={bulkSupplierRentTrip?.id} initialSupplierName={bulkSupplierRentTrip?.owner_name??undefined} onClose={()=>{setShowBulkSupplierRent(false);setBulkSupplierRentTrip(null)}} onChanged={refreshRegisterAfterChange}/>}
       {showBulkCustomerRate&&<TransportBulkCustomerRate initialTrips={bulkRateInitialTrips} onClose={()=>{setShowBulkCustomerRate(false);setBulkRateInitialTrips([])}} onChanged={refreshRegisterAfterChange}/>}
       {showRegisterDraftInvoices&&<TransportRegisterDraftInvoices onClose={()=>setShowRegisterDraftInvoices(false)} onChanged={refreshRegisterAfterChange}/>}
