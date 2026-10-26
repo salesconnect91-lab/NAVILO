@@ -130,6 +130,8 @@ begin
  OR (SELECT order_no FROM public.sales_orders WHERE id=sales_id)<>'CUSTOM-S-'||code THEN RAISE EXCEPTION 'Three-Trip expansion changed invoice identity or totals';END IF;
  result:=public.transport_admin_edit_posted_invoice('customer',sales_id,array[trip],current_date,'Synthetic restore single original Trip',jsonb_build_object(trip::text,jsonb_build_object('base_amount',1000)));
  IF (result->>'journal_entry_id')::uuid<>j OR (select total from public.sales_orders where id=sales_id)<>1000 THEN RAISE EXCEPTION 'Split restore failed';END IF;
+ IF EXISTS(SELECT 1 FROM public.ledgers WHERE journal_entry_id=j AND operating_location_id IS DISTINCT FROM loc)
+ OR EXISTS(SELECT 1 FROM public.party_ledgers WHERE journal_entry_id=j AND operating_location_id IS DISTINCT FROM loc) THEN RAISE EXCEPTION 'In-place edit lost canonical GL/party branch attribution';END IF;
  -- Bad target must roll back every interim ledger/document change.
  select to_jsonb(z) into original from public.sales_orders z where id=sales_id;
  rejected:=false;BEGIN
