@@ -34,11 +34,12 @@ function NativeTransportFinancialPanel({trip,onClose,onChanged}:{trip:FinancialT
  const [adjustments,setAdjustments]=useState<Adjustment[]>([]);const [allowed,setAllowed]=useState<Partial<Record<TransportFinanceAction,boolean>>>({});
  const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [message,setMessage]=useState('');
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));const [vatReady,setVatReady]=useState(true);const [rentVatReady,setRentVatReady]=useState<Record<string,boolean>>({});
+ const [reference,setReference]=useState('');
  const [supplierDuplicateAllowed,setSupplierDuplicateAllowed]=useState(false),[supplierDuplicates,setSupplierDuplicates]=useState<DuplicateMatch[]>([]),[supplierDuplicateConfirmed,setSupplierDuplicateConfirmed]=useState(false),[supplierConflictLoading,setSupplierConflictLoading]=useState(false);
  useEffect(()=>{let live=true;if(!company||!unit){setSupplierDuplicateAllowed(false);return}void supabase.rpc('transport_invoice_duplicate_override_allowed',{p_side:'supplier'}).then(r=>{if(live)setSupplierDuplicateAllowed(!r.error&&r.data===true)});return()=>{live=false}},[company,unit]);
  useEffect(()=>{let live=true;const value=reference.trim();setSupplierDuplicateConfirmed(false);setSupplierDuplicates([]);if(mode!=='supplier'||!value||!company||!unit)return;const timer=window.setTimeout(async()=>{setSupplierConflictLoading(true);try{const r=await supabase.rpc('transport_invoice_number_conflicts',{p_side:'supplier',p_number:value});if(r.error)throw r.error;if(live)setSupplierDuplicates((r.data?.matches??[]) as DuplicateMatch[])}catch(e:any){if(live)setError(e?.message||'Could not check supplier invoice number.')}finally{if(live)setSupplierConflictLoading(false)}},300);return()=>{live=false;window.clearTimeout(timer)}},[reference,mode,company,unit]);
  const [supplier,setSupplier]=useState('');const [amount,setAmount]=useState('');const [costAccount,setCostAccount]=useState('');const [cashAccount,setCashAccount]=useState('');
- const [reason,setReason]=useState('');const [reference,setReference]=useState('');const [side,setSide]=useState<'customer'|'supplier'>('customer');
+ const [reason,setReason]=useState('');const [side,setSide]=useState<'customer'|'supplier'>('customer');
  const [rentId,setRentId]=useState('');const [revised,setRevised]=useState('');const [costKind,setCostKind]=useState('commission');
  const [allocationAmounts,setAllocationAmounts]=useState<Record<string,string>>({});const [fifo,setFifo]=useState('');const [party,setParty]=useState('');
  const [settlements,setSettlements]=useState<Array<{id:string;entry_no:string;entry_date:string;trans_type:string;payment_amount:number;payment_mode:string;cash_account_id:string|null}>>([]);
