@@ -8,7 +8,7 @@ import {supabase} from '@/lib/supabase';
 import {type FinancialTrip} from './transportFinancialTypes';
 
 type InvoiceTrip=FinancialTrip & {invoice_no?:string|null;sales_order_id?:string|null;posted?:boolean};
-type DuplicateMatch={company:string;trips:string[];date:string;status:string};
+type DuplicateMatch={company?:string|null;trips?:string[];date?:string|null;status?:string|null;restricted?:boolean};
 
 export function isValidTransportOriginalInvoice(value:string):boolean {
  const trimmed=value.trim();
@@ -140,7 +140,7 @@ export default function TransportInvoiceNumber({trip,onClose,onChanged}:{trip:In
     </label>
     {numberMode==='manual'&&<label className="mt-2 block text-xs font-semibold">Your Invoice Number<input ref={input} className="input mt-1 w-full" value={invoiceNo} disabled={busy} onChange={e=>setInvoiceNo(e.target.value)} placeholder="Enter invoice number" />
      {conflictLoading&&<span className="mt-1 block text-slate-600">Checking invoice number…</span>}
-     {duplicateConflicts.length>0&&<div role="status" className="mt-2 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900"><strong>This number is already used:</strong><ul className="mt-1 list-inside list-disc">{duplicateConflicts.map((hit,i)=><li key={hit.company+'-'+hit.date+'-'+i}>{hit.company} · {hit.date} · {hit.status} · {hit.trips?.length?'Trip '+hit.trips.join(', '):'no linked trip'}</li>)}</ul>{duplicateAllowed?<label className="mt-2 flex items-start gap-2"><input type="checkbox" checked={duplicateConfirmed} onChange={e=>setDuplicateConfirmed(e.target.checked)}/><span>I have permission to save this duplicate invoice number.</span></label>:<p className="mt-2 font-semibold">Only a company owner, admin, or user with duplicate-invoice permission can continue.</p>}</div>}
+     {duplicateConflicts.length>0&&<div role="status" className="mt-2 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900"><strong>This number is already used:</strong><ul className="mt-1 list-inside list-disc">{duplicateConflicts.map((hit,i)=><li key={hit.restricted?'restricted-'+i:(hit.company||'same-company')+'-'+hit.date+'-'+i}>{hit.restricted?'Already used in another company; company, date and Trip details are hidden.':`${hit.company} · ${hit.date} · ${hit.status} · ${hit.trips?.length?'Trip '+hit.trips.join(', '):'no linked trip'}`}</li>)}</ul>{duplicateAllowed?<label className="mt-2 flex items-start gap-2"><input type="checkbox" checked={duplicateConfirmed} onChange={e=>setDuplicateConfirmed(e.target.checked)}/><span>I have permission to save this duplicate invoice number.</span></label>:<p className="mt-2 font-semibold">Only a company owner, admin, or user with duplicate-invoice permission can continue.</p>}</div>}
     </label>}
     {numberMode==='auto'&&<p className="mt-2 text-xs text-slate-600">NAVILO will assign its next available number when you save the Draft.</p>}
    </>}
