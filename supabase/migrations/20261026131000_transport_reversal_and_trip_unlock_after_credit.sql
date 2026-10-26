@@ -11,7 +11,7 @@ begin
  or exists(select 1 from public.transport_service_note_lines n join public.return_notes r on r.id=n.note_id where r.journal_entry_id=new.reversal_of_entry_id)
  or exists(select 1 from public.transport_service_refunds where journal_entry_id=new.reversal_of_entry_id))
  then raise exception 'Transport posted billing/credit/refund history is immutable; use controlled rate correction';end if;return new;
-end $function$
+end $function$;
 
 
 CREATE OR REPLACE FUNCTION public.transport_reverse_service_invoice(p_side text, p_order_id uuid, p_note_date date, p_reason text)
@@ -166,7 +166,7 @@ BEGIN
     'note_id',v_note,'note_no',v_no,'journal_entry_id',v_journal,'source_journal_id',v_source_id,
     'net',v_net,'vat',v_tax,'total',v_total,'post_result',v_post);
 END
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.transport_admin_release_credited_trip_invoice(p_order_id uuid, p_reason text)
@@ -276,7 +276,7 @@ BEGIN
   RETURN jsonb_build_object('success',true,'order_id',v_order.id,'invoice_no',v_order.order_no,
     'trip_id',v_link.trip_id,'trip_no',v_trip_no,'released',true);
 END
-$function$
+$function$;
 
 
 CREATE OR REPLACE VIEW public.transport_trip_financial_summary AS
