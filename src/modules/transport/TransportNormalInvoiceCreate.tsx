@@ -78,7 +78,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
    supabase.from(table).select('id,name').eq('company_id',company).eq('is_active',true).order('name'),
    supabase.from('chart_of_accounts').select('id,code,name').eq('company_id',company).eq('type',accountType).eq('is_active',true).eq('is_group',false).order('name'),
    supabase.from('account_mappings').select('account_id').eq('company_id',company).eq('mapping_key',mapping).limit(1).maybeSingle(),
-   ...(side==='customer'?[supabase.from('account_mappings').select('account_id').eq('company_id',company).eq('mapping_key','service_revenue').limit(1).maybeSingle()]:[]),
+   ...(side==='customer'?[supabase.from('account_mappings').select('account_id').eq('company_id',company).eq('mapping_key','service_revenue').limit(1).maybeSingle()]:[Promise.resolve({data:null,error:null})]),
    supabase.rpc('transport_invoice_duplicate_override_allowed',{p_side:side}),
   ]).then(([people,coa,m,service,duplicatePermission])=>{
    if(cancelled)return;
