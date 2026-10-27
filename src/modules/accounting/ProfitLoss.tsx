@@ -3,10 +3,9 @@ import { Link } from "react-router-dom";
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
-import {externalVehicleIncome,reconcileNormalVehicleIncome,splitTransportRevenue,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleNormalSalesIncomeBreakdown,separateManualVehicleLedgerMovements,type VehicleIncome} from './transportIncomeBreakdown';
+import {externalVehicleIncome,reconcileNormalVehicleIncome,splitTransportRevenue,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleNormalSalesIncomeBreakdown,reconcileTransportProfitLossSources,type VehicleIncome} from './transportIncomeBreakdown';
 import {readExternalVehicleIncomeFast,type ExternalAttributionRow} from './externalVehicleIncomeFast';
 import {companyVehicleIncomeRows} from './companyVehicleIncome';
-import {excludeUnattributedManualJournalMovements} from './transportIncomeBreakdown';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -202,7 +201,7 @@ export default function ProfitLoss() {
   const [error, setError] = useState<string | null>(null);
   const [reportPrintSettings, setReportPrintSettings] = useState<any>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [transportIncome,setTransportIncome]=useState<{sales:number;service:number;other:number;vehicleLedgerTotal:number;dedicatedSales:number;vehicles:VehicleIncome[];residual:number;vehicleError:string;salesAccountIds:string[];serviceAccountIds:string[];serviceVehicleAccountIds:string[];serviceSalesAdjustments:{accountId:string;amount:number}[];manualJournalIds:string[]}|null>(null);
+  const [transportIncome,setTransportIncome]=useState<{sales:number;service:number;other:number;vehicleLedgerTotal:number;vehicleLedgerAdjustment:number;dedicatedSales:number;vehicles:VehicleIncome[];residual:number;vehicleError:string;salesAccountIds:string[];serviceAccountIds:string[];serviceVehicleAccountIds:string[];serviceSalesAdjustments:{accountId:string;amount:number}[]}|null>(null);
   const [verifiedTransportUnit,setVerifiedTransportUnit]=useState<{companyId:string;businessUnitId:string;isTransport:boolean}|null>(null);
   const companyId=activeCompany?.company_id??'';
   const businessUnitId=activeBusinessUnit?.business_unit_id??'';
@@ -346,22 +345,8 @@ export default function ProfitLoss() {
     // They belong in the General Ledger and Balance Sheet, but NOT in the historical
     // P&L itself, otherwise a closed year would incorrectly show zero profit/loss.
     const ledgerLines = rawLedger.filter((line) => !line.journal_entry_id || !closingJournalIds.has(line.journal_entry_id));
-    const vehicleLedgerLines = excludeUnattributedManualJournalMovements(ledgerLines,journalRows);
-    const manualJournalIds=new Set(journalRows.filter(entry=>!entry.source_document_type
-      &&['','General','Journal Entry','Manual Journal','Journal Reversal'].includes(entry.trans_type??'')).map(entry=>entry.id));
-    const vehicleAccountLinks=new Map<string,number>();
-    for(const vehicle of vehicleResult.vehicles)if(vehicle.revenue_account_id)
-      vehicleAccountLinks.set(vehicle.revenue_account_id,(vehicleAccountLinks.get(vehicle.revenue_account_id)??0)+1);
-    const companyVehicleRevenueAccountIds=new Set(vehicleResult.vehicles.flatMap(vehicle=>{
-      const id=vehicle.revenue_account_id;
-      const account=accounts.find(row=>row.id===id);
-      return id&&account&&account.is_active!==false&&account.is_group!==true
-        &&(account.type==='revenue'||account.type==='income')
-        &&(vehicleAccountLinks.get(id)??0)===1&&account.code!=='4100'&&account.code!=='4200'?[id]:[];
-    }));
-    const {invoiceLedgerRows:presentationLedgerLines,manualNetDebitByAccount:manualVehicleExpenseByAccount,manualJournalIdsByAccount:manualVehicleExpenseJournalIds}=isTransport
-      ?separateManualVehicleLedgerMovements(ledgerLines,journalRows,companyVehicleRevenueAccountIds)
-      :{invoiceLedgerRows:ledgerLines,manualNetDebitByAccount:new Map<string,number>(),manualJournalIdsByAccount:new Map<string,string[]>()};
+    const vehicleLedgerLines = ledgerLines;
+    const presentationLedgerLines=ledgerLines;
 
     const accountMap = new Map<string, {
       id: string;
@@ -432,21 +417,6 @@ export default function ProfitLoss() {
 
     if(isTransport){
       try{
-        for(const vehicle of vehicleResult.vehicles){
-          const accountId=vehicle.revenue_account_id;
-          if(!accountId||!companyVehicleRevenueAccountIds.has(accountId))continue;
-          const movement=manualVehicleExpenseByAccount.get(accountId)??0;
-          if(Math.abs(movement)<0.005)continue;
-          next.operatingExpenses.items.push({
-            name:`Vehicle Ledger Movement — ${vehicle.vehicle_no}`,
-            amount:movement,
-            detailType:'Manual journals posted to the company vehicle income ledger',
-            accountIds:[accountId],
-            journalIds:manualVehicleExpenseJournalIds.get(accountId)??[],
-          });
-          next.operatingExpenses.total+=movement;
-        }
-        next.operatingExpenses.items.sort((a,b)=>a.name.localeCompare(b.name));
         const salesAccountId=mappings.find(m=>m.mapping_key==='sales_revenue')?.account_id??'';
         const serviceAccountId=mappings.find(m=>m.mapping_key==='service_revenue')?.account_id??'';
         const {sales:mappedSales,service:mappedService}=splitTransportRevenue(presentationLedgerLines,salesAccountId,serviceAccountId);
@@ -489,22 +459,24 @@ export default function ProfitLoss() {
           : reconcileNormalVehicleIncome(mappedSales,vehicleData,hideZeroBalances);
         const vehicleLedgerRows=vehicleResult.error?[]:linkedVehicleRows;
         const vehicleLedgerTotal=totalVehicleLedgerMovement(vehicleLedgerRows);
+        const incomeSources=reconcileTransportProfitLossSources(
+          next.operatingRevenue.total+next.otherIncome.total,sales,service,vehicleLedgerTotal,dedicatedSales,
+        );
+        const vehicleLedgerAdjustment=incomeSources.vehicleLedgerAdjustment;
         const combinedVehicles=vehicleResult.error?breakdown.vehicles:
           mergeVehicleLedgerMovements(breakdown.vehicles,vehicleLedgerRows,false);
         const vehicleAmounts=new Map(combinedVehicles.map(row=>[row.vehicle_id,row]));
         const allCompanyVehicleRows=vehicleResult.vehicles.map(vehicle=>{
           const income=vehicleAmounts.get(vehicle.id);
-          const manualCost=vehicle.revenue_account_id?manualVehicleExpenseByAccount.get(vehicle.revenue_account_id)??0:0;
-          return {vehicle_id:vehicle.id,vehicle_no:vehicle.vehicle_no,amount:Number(((income?.amount??0)-manualCost).toFixed(2))};
+          return {vehicle_id:vehicle.id,vehicle_no:vehicle.vehicle_no,amount:Number((income?.amount??0).toFixed(2))};
         }).sort((a,b)=>a.vehicle_no.localeCompare(b.vehicle_no,undefined,{numeric:true}));
-        const vehicleExpenseTotal=Number([...manualVehicleExpenseByAccount.values()].reduce((sum,value)=>sum+value,0).toFixed(2));
         const serviceAccountIds=new Set<string>();
         if(serviceAccountId)serviceAccountIds.add(serviceAccountId);
         setTransportIncome({
           sales,service,
           // Revenue classifications must add back to the posted GL total exactly once.
-          other:Number((next.operatingRevenue.total-sales-service+next.otherIncome.total).toFixed(2)),
-          vehicleLedgerTotal:Number((vehicleLedgerTotal-vehicleExpenseTotal).toFixed(2)),dedicatedSales,
+          other:incomeSources.otherIncome,
+          vehicleLedgerTotal,vehicleLedgerAdjustment,dedicatedSales,
           vehicles:allCompanyVehicleRows,
           residual:breakdown.residual,
           vehicleError:vehicleResult.error,
@@ -512,7 +484,6 @@ export default function ProfitLoss() {
           serviceAccountIds:[...serviceAccountIds],
           serviceVehicleAccountIds:[...serviceAccountIds].filter(id=>id!==serviceAccountId),
           serviceSalesAdjustments:[...dedicatedSalesBreakdown.byAccount].filter(([accountId])=>serviceAccountIds.has(accountId)).map(([accountId,amount])=>({accountId,amount})),
-          manualJournalIds:[...new Set([...manualVehicleExpenseJournalIds.values()].flat())],
         });
       }catch(err){
         setError(err instanceof Error?err.message:'Transport Revenue classification unavailable');
@@ -556,6 +527,7 @@ export default function ProfitLoss() {
     ['Sales Income — Normal Invoices','Sales Revenue GL plus invoice-linked revenue accounts',transportIncome.sales],
     ['Trip Service Income — Trip Register Invoices','Mapped service revenue',transportIncome.service],
     ['Other Income','Other income GL',transportIncome.other],
+    ['Vehicle Ledger Dr/Cr Reconciliation','Net vehicle-account movement after invoice income; not an expense',transportIncome.vehicleLedgerAdjustment],
     ...(Math.abs(transportIncome.residual)>=0.005?[['Vehicle Sales Not Allocated','Needs vehicle allocation review',transportIncome.residual]]:[])
   ]:printSectionRows('Operating Revenue',data.operatingRevenue);
 
@@ -643,18 +615,25 @@ export default function ProfitLoss() {
                     name:'Sales Revenue — posted Normal Sales invoices',
                     amount:transportIncome.sales,detailType:'Mapped Sales Revenue plus invoice-linked revenue accounts',
                     accountIds:transportIncome.salesAccountIds,
-                  }]}} tone="income" onDrilldown={(ids,title)=>openDrilldown(ids,title,undefined,transportIncome.manualJournalIds)} />
+                  }]}} tone="income" onDrilldown={openDrilldown} />
                 <StatementSection title="Trip Service Income — Trip Register Invoices"
                   section={{total:transportIncome.service,items:[{
                     name:'Service Revenue — posted Trip Register invoices',
                     amount:transportIncome.service,detailType:'Mapped Service Revenue account',
                     accountIds:transportIncome.serviceAccountIds,
-                  }]}} tone="income" onDrilldown={(ids,title)=>openDrilldown(ids,title,undefined,transportIncome.manualJournalIds)} />
+                  }]}} tone="income" onDrilldown={openDrilldown} />
                 <StatementSection title="Other Income" section={{total:transportIncome.other,
                   items:[{name:'Other income accounts / manual adjustments',amount:transportIncome.other,detailType:'Posted GL — outside Normal Sales and Trip Service Revenue',accountIds:otherTransportRevenueIds()}]}} tone="income" onDrilldown={openDrilldown}/>
-                <StatementSection title="Company-owned Vehicle Profitability — memo (not added again)"
+                <StatementSection title="Vehicle Ledger Dr/Cr Reconciliation"
+                  section={{total:transportIncome.vehicleLedgerAdjustment,items:[{
+                    name:'Net movement on company-owned vehicle ledgers',amount:transportIncome.vehicleLedgerAdjustment,
+                    detailType:transportIncome.vehicleLedgerAdjustment< -0.005
+                      ?`Vehicle ledger net debit ${formatCurrency(Math.abs(transportIncome.vehicleLedgerAdjustment))}; not an expense`
+                      :`Vehicle ledger net credit ${formatCurrency(transportIncome.vehicleLedgerAdjustment)}; not separate income`,
+                  }]}} tone="income" />
+                <StatementSection title="Company-owned Vehicle Ledger Net — memo (not added again)"
                   section={{total:transportIncome.vehicles.reduce((sum,vehicle)=>sum+vehicle.amount,0),items:transportIncome.vehicles.map(vehicle=>({
-                    name:vehicle.vehicle_no,amount:vehicle.amount,detailType:'Company-owned vehicle income less allocated ledger debits',
+                    name:vehicle.vehicle_no,amount:vehicle.amount,detailType:'Net company-owned vehicle ledger movement (credit less debit)',
                   }))}} tone="income" />
               </>:<StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" onDrilldown={openDrilldown} />}
               <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} />

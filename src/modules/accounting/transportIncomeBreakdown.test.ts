@@ -1,6 +1,11 @@
 import {describe,it,expect} from 'vitest';
-import {externalVehicleIncome,splitTransportRevenue,reconcileNormalVehicleIncome,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleServiceIncomeTotal,dedicatedVehicleNormalSalesIncomeBreakdown,excludeUnattributedManualJournalMovements,separateManualVehicleLedgerMovements} from './transportIncomeBreakdown';
+import {externalVehicleIncome,splitTransportRevenue,reconcileNormalVehicleIncome,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleServiceIncomeTotal,dedicatedVehicleNormalSalesIncomeBreakdown,excludeUnattributedManualJournalMovements,reconcileTransportProfitLossSources} from './transportIncomeBreakdown';
 describe('Transport company P&L - separate Sale and Trip Service income',()=>{
+ it('keeps vehicle debit/credit out of Other Income and expense classification',()=>{
+  expect(reconcileTransportProfitLossSources(70285.66,101855,0,70285.66,101855)).toEqual({
+   vehicleLedgerAdjustment:-31569.34,otherIncome:0,
+  });
+ });
  it('keeps general journals in GL but excludes them from vehicle reports',()=>{
   const rows=[
    {journal_entry_id:'manual-je',account_id:'vehicle-income',debit:0,credit:75},
@@ -14,19 +19,6 @@ describe('Transport company P&L - separate Sale and Trip Service income',()=>{
    {id:'vehicle-expense',trans_type:'Manual Journal',source_document_type:'transport_vehicle_expense'},
    {id:'invoice',trans_type:'Sales Invoice',source_document_type:'sales_invoice'},
   ])).toEqual(rows.slice(2));
- });
- it('moves manual vehicle-ledger debits out of invoice income and nets reversals',()=>{
-  const result=separateManualVehicleLedgerMovements([
-   {journal_entry_id:'je-debit',account_id:'v1',debit:400,credit:0},
-   {journal_entry_id:'je-reversal',account_id:'v1',debit:0,credit:100},
-   {journal_entry_id:'sale',account_id:'v1',debit:0,credit:1000},
-  ],[
-   {id:'je-debit',trans_type:'Journal Entry',source_document_type:null},
-   {id:'je-reversal',trans_type:'Journal Reversal',source_document_type:null},
-   {id:'sale',trans_type:'Sales Invoice',source_document_type:'sales_invoice'},
-  ],new Set(['v1']));
-  expect(result.invoiceLedgerRows).toEqual([{journal_entry_id:'sale',account_id:'v1',debit:0,credit:1000}]);
-  expect(result.manualNetDebitByAccount.get('v1')).toBe(300);
  });
  it('reads posted accounting by different mapped revenue accounts, respecting contra debits',()=>{
   expect(splitTransportRevenue([
