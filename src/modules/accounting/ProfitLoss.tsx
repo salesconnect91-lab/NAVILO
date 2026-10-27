@@ -530,7 +530,7 @@ export default function ProfitLoss() {
 
   // Revenue export rows preserve posted GL attribution without adding memo subtotals.
   const revenueExportRows:(string|number)[][]=isTransport&&transportIncome?[
-    ['Sales Income — Normal Invoices','Sales Revenue GL plus dedicated vehicle accounts linked to Normal Sales Invoice journals',transportIncome.sales],
+    ['Sales Income — Normal Invoices','Sales Revenue GL plus invoice-linked revenue accounts',transportIncome.sales],
     ['Service Income — Trip Invoices','Service Revenue GL total',transportIncome.service],
     ...(Math.abs(transportIncome.other)>=0.005?[['Other Operating Revenue','Other revenue GL',transportIncome.other]]:[])
   ]:printSectionRows('Operating Revenue',data.operatingRevenue);
@@ -613,13 +613,13 @@ export default function ProfitLoss() {
                 <StatementSection title="Sales Income — Normal Invoices"
                   section={{total:transportIncome.sales,items:Math.abs(transportIncome.sales)>=0.005||!hideZeroBalances?[{
                     name:'Sales Revenue — posted Normal Sales invoices',
-                    amount:transportIncome.sales,detailType:'Mapped Sales Revenue plus dedicated vehicle accounts linked to Normal Sales Invoice journals',
+                    amount:transportIncome.sales,detailType:'Mapped Sales Revenue plus invoice-linked revenue accounts',
                     accountIds:transportIncome.salesAccountIds,
                   }]:[]}} tone="income" onDrilldown={openDrilldown} />
                 <StatementSection title="Service Income — Trip Invoices"
                   section={{total:transportIncome.service,items:Math.abs(transportIncome.service)>=0.005||!hideZeroBalances?[{
                     name:'Service Revenue — posted Trip and vehicle service income',
-                    amount:transportIncome.service,detailType:'Mapped service revenue plus dedicated vehicle service-income GL',
+                    amount:transportIncome.service,detailType:'Mapped service revenue plus invoice-linked service accounts',
                     accountIds:transportIncome.serviceAccountIds,
                   }]:[]}} tone="income" onDrilldown={openDrilldown} />
                 {(Math.abs(transportIncome.other)>=0.005||!hideZeroBalances)&&
