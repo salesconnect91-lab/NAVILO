@@ -47,7 +47,7 @@ export function WorkspaceCatalogProvider({children}:{children:ReactNode}) {
     if(entries.some(e=>e.to===feature.route))continue;
     entries.push({key:feature.key,label:feature.label,to:feature.route,module:feature.module,group:feature.module==="reports"?"Reports":feature.module,report:["report","statement"].includes(feature.category)||reportKeys.has(feature.key)});
   }
-  const add=(entry:CatalogEntry,modules:ModuleKey[])=>{const feature=matchFeatureForPath(entry.to.split('?')[0]);if(modules.every(m=>moduleAllowed(m))&&feature&&access.isFeatureEnabled(feature.key,"view"))entries.push(entry)};
+  const add=(entry:CatalogEntry,modules:ModuleKey[])=>{const feature=matchFeatureForPath(entry.to.split('?')[0]);if(!entries.some(existing=>existing.key===entry.key||existing.to===entry.to)&&modules.every(m=>moduleAllowed(m))&&feature&&access.isFeatureEnabled(feature.key,"view"))entries.push(entry)};
   if(moduleAllowed("purchase","create")&&access.isFeatureEnabled("purchase-invoices","create")){
     add({key:"expense-invoice-create",label:"Expense Invoice",to:"/purchase/expense/new",module:"purchase",group:"Purchase",report:false},["purchase"]);
     add({key:"expense-invoice-import",label:"Import Expense Invoices",to:"/purchase/expense/import",module:"purchase",group:"Purchase",report:false},["purchase"]);

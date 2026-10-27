@@ -9,6 +9,11 @@ vi.mock("@/components/ConsolidatedInvoiceTools", () => ({ default: () => null })
 afterEach(cleanup);
 
 describe("contextual output actions", () => {
+  it("does not offer generic output actions on the new trip form", () => {
+    render(<MemoryRouter initialEntries={["/transport?view=new"]}><main id="navilo-main-content"><header><span data-navilo-standard-tools-host /><button type="button">Create Trip</button></header></main><UniversalDataTools /></MemoryRouter>);
+    expect(screen.getByRole("button", { name: "Create Trip" })).toBeTruthy();
+    expect(document.querySelector("[data-navilo-global-data-tools]")).toBeNull();
+  });
   it("keeps only Export in the Transport register toolbar instead of a blank invoice cell", () => {
     render(<MemoryRouter initialEntries={["/transport"]}><main id="navilo-main-content"><section data-navilo-transport-register data-navilo-customizable="true"><header><button>Columns</button><span data-navilo-standard-tools-host /></header><table><tbody><tr><td><button aria-label="Add Invoice Number OIC-1" /></td></tr></tbody></table></section></main><UniversalDataTools /></MemoryRouter>);
     const toolbar=document.querySelector("[data-navilo-global-data-tools]");

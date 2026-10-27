@@ -24,6 +24,12 @@ beforeEach(() => localStorage.setItem("navilo-sidebar-collapsed", "true"));
 afterEach(() => { cleanup(); localStorage.clear(); });
 
 describe("collapsed navigation", () => {
+  it("returns from the new Trip form to the register", async () => {
+    function RouteView() { const route=useLocation(); return <output data-testid="trip-path">{route.pathname+route.search}</output>; }
+    render(<MemoryRouter initialEntries={["/transport?view=new"]}><Layout><RouteView/></Layout></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button", {name:"Back"}));
+    await waitFor(()=>expect(screen.getByTestId("trip-path").textContent).toBe("/transport?view=trips"));
+  });
   it("places Transport destinations and reports in the sidebar with only one active query link", () => {
     render(<MemoryRouter initialEntries={["/transport?view=audit"]}><Layout><div>Audit workspace</div></Layout></MemoryRouter>);
     fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));

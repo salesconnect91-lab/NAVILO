@@ -170,6 +170,8 @@ export default function UniversalDataTools(){
     {!transportRegister&&!invoiceEditor&&canPrint&&!hasLocalDocumentOutput&&<button type="button" data-print-selector={reportSelector()} onClick={print} className={base}><Printer className="h-4 w-4"/><span className="hidden xl:inline">Print / PDF</span></button>}
     {masterMode&&<button type="button" onClick={()=>window.location.reload()} className={base} title="Refresh master data"><RefreshCw className="h-4 w-4"/><span className="hidden xl:inline">Refresh</span></button>}
   </div>;
-  if(!standardPath)return null;
+  // A blank trip entry form is not a report or document. Keep its own entry
+  // and import actions, but do not offer generic exports of the empty form.
+  if(!standardPath||(pathname==="/transport"&&new URLSearchParams(search).get("view")==="new"))return null;
   return standardHost?createPortal(toolbar,standardHost):null;
 }
