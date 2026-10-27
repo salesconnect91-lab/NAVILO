@@ -32,7 +32,7 @@ export function expandFundedJournalRows(rows:readonly (readonly unknown[])[]):st
  }
  const idx=(key:string)=>headers.indexOf(compact(key));
  const oldRelatedToIndex=idx('related_to');
- const out:string[][]=[['entry_no','entry_date','description','account_name','line_description','vehicle_no','debit','credit']];
+ const out:string[][]=[['entry_no','entry_date','description','account_name','line_description','party_type','party_name','debit','credit']];
  const references=new Set<string>();
  let count=0;
  for(let i=1;i<rows.length;i++){
@@ -48,11 +48,11 @@ export function expandFundedJournalRows(rows:readonly (readonly unknown[])[]):st
   if(!account)throw Error(`Row ${line}: Debit Account is required.`);
   if(!desc)throw Error(`Row ${line}: Line Description is required.`);
   if(!funding)throw Error(`Row ${line}: Funding Account required (for Orbit, Amjad Payable).`);
-  if(oldRelatedToIndex>=0&&normal(r[oldRelatedToIndex]))throw Error(`Row ${line}: Vehicle expenses are not allocated separately. Put vehicle and expense details in Line Description.`);
+  if(oldRelatedToIndex>=0&&normal(r[oldRelatedToIndex]))throw Error(`Row ${line}: Vehicle allocation is not part of General Journal. Put receipt details in Line Description; use Transport Vehicle Expenses for vehicle-specific costs.`);
   if(account.toLowerCase()===funding.toLowerCase())throw Error(`Row ${line}: Debit Account cannot equal Funding Account.`);
   const amount=amt(r[idx('amount')],line);
-  out.push([id,date,desc,account,desc,'',amount,'0']);
-  out.push([id,date,desc,funding,`Funded by ${funding}: ${desc}`,'','0',amount]);
+  out.push([id,date,desc,account,desc,'','',amount,'0']);
+  out.push([id,date,desc,funding,`Funded by ${funding}: ${desc}`,'','','0',amount]);
   count++;
  }
  if(!count)throw Error('No funded transactions were found.');

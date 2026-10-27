@@ -9,10 +9,9 @@ import type {JournalEntry} from '@/types';
 type JournalPreviewLine={
  id:string;entry_id:string;account:string|null;account_id:string|null;
  debit:number|string|null;credit:number|string|null;
- party_name:string|null;transport_vehicle_no:string|null;
- transport_vehicle_id:string|null;description:string|null;
+ party_name:string|null;description:string|null;
 };
-type Overview={lines:JournalPreviewLine[];debit:number;credit:number;accountsDr:string;accountsCr:string;party:string;vehicles:string;description:string;balanced:boolean};
+type Overview={lines:JournalPreviewLine[];debit:number;credit:number;accountsDr:string;accountsCr:string;party:string;description:string;balanced:boolean};
 type Props={
  entries:JournalEntry[];
  currency:string;
@@ -37,15 +36,14 @@ function journalSavedWidths():number[]{
 }
 
 
-export function buildJournalOverview(lines:JournalPreviewLine[],vehicleNames:Record<string,string>={}):Overview{
+export function buildJournalOverview(lines:JournalPreviewLine[]):Overview{
  const debit=lines.reduce((n,l)=>n+num(l.debit),0);
  const credit=lines.reduce((n,l)=>n+num(l.credit),0);
  const dr=distinct(lines.filter(l=>num(l.debit)>0).map(l=>l.account?.trim()||l.account_id||'Unassigned account'));
  const cr=distinct(lines.filter(l=>num(l.credit)>0).map(l=>l.account?.trim()||l.account_id||'Unassigned account'));
  const parties=distinct(lines.map(l=>l.party_name?.trim()||''));
- const vehicles=distinct(lines.map(l=>l.transport_vehicle_no?.trim()||(l.transport_vehicle_id?vehicleNames[l.transport_vehicle_id]||'Vehicle mapping unavailable':'')));
  return {lines,debit,credit,accountsDr:displayNames(dr),accountsCr:displayNames(cr),
-  party:displayNames(parties,3),vehicles:displayNames(vehicles,3),
+  party:displayNames(parties,3),
   description:distinct(lines.map(line=>line.description?.trim()||'')).join('\n'),
   balanced:Math.abs(debit-credit)<0.005};
 }
@@ -102,22 +100,16 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
   setLoading(true);setDetailError('');setDetails({});
   (async()=>{
    const {data,error}=await supabase.from('journal_lines')
-    .select('id,entry_id,account,account_id,debit,credit,party_name,transport_vehicle_no,transport_vehicle_id,description')
+    .select('id,entry_id,account,account_id,debit,credit,party_name,description')
     .in('entry_id',ids).order('id').limit(1501);
    if(error)throw new Error(error.message||'Unable to load journal lines');
    if((data??[]).length>=1501)throw new Error('More than 1,500 journal lines on this page. Choose a smaller page size.');
    const lines=(data??[]) as JournalPreviewLine[];
-   const vehicleIds=distinct(lines.filter(x=>x.transport_vehicle_id&&!x.transport_vehicle_no).map(x=>x.transport_vehicle_id!));
-   let names:Record<string,string>={};
-   if(vehicleIds.length){
-    const result=await supabase.from('transport_vehicles').select('id,vehicle_no').in('id',vehicleIds);
-    if(!result.error)names=Object.fromEntries((result.data||[]).map(v=>[v.id,v.vehicle_no]));
-   }
    if(cancelled)return;
    const grouped:Record<string,JournalPreviewLine[]>={};
    for(const line of lines)(grouped[line.entry_id]??=[]).push(line);
    const next:Record<string,Overview>={};
-   for(const e of visible)if(grouped[e.id]?.length)next[e.id]=buildJournalOverview(grouped[e.id],names);
+   for(const e of visible)if(grouped[e.id]?.length)next[e.id]=buildJournalOverview(grouped[e.id]);
    setDetails(next);
   })().catch(e=>{if(!cancelled){setDetails({});setDetailError(e instanceof Error?e.message:'Unable to read journal lines.')}})
     .finally(()=>{if(!cancelled)setLoading(false)});
@@ -209,7 +201,6 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
          <td key={3} style={{width:`${columnWidths[3]}%`}} className="w-[13%] px-2 py-0.5 align-middle text-slate-700"><div className="truncate" title={info?.accountsCr||undefined}>{info?info.accountsCr||'—':loading?'Loading…':'—'}</div></td>,
          <td key={4} style={{width:`${columnWidths[4]}%`}} className="w-[12%] px-2 py-0.5 align-middle">
           {info?.party&&<div className="truncate text-slate-800" title={`Party: ${info.party}`}>Party: {info.party}</div>}
-          {info?.vehicles&&<div className="truncate text-slate-700" title={`Vehicle: ${info.vehicles}`}>Vehicle: {info.vehicles}</div>}
           {!info&&!loading?'—':!info?'Loading…':!info.party?'—':null}
          </td>,
          <td key={5} style={{width:`${columnWidths[5]}%`}} className="w-[10%] px-2 py-0.5 text-right align-middle font-semibold tabular-nums">
@@ -234,17 +225,16 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
          <table className="w-full border-collapse border border-slate-200 text-xs">
           <thead><tr className="bg-slate-100 text-left">
            <th className="p-2">Account</th><th className="p-2">Line description</th><th className="p-2">Party</th>
-           <th className="p-2">Vehicle</th><th className="p-2 text-right">Debit</th><th className="p-2 text-right">Credit</th>
+           <th className="p-2 text-right">Debit</th><th className="p-2 text-right">Credit</th>
           </tr></thead>
           <tbody>{info.lines.map(line=><tr key={line.id} className="border-t border-slate-200">
            <td className="p-2">{line.account||line.account_id||'—'}</td>
            <td className="p-2 whitespace-pre-wrap break-words">{line.description||entry.description||'—'}</td>
            <td className="p-2">{line.party_name||'—'}</td>
-           <td className="p-2">{line.transport_vehicle_no||'—'}</td>
            <td className="p-2 text-right tabular-nums">{num(line.debit)?money(num(line.debit),currency):'—'}</td>
            <td className="p-2 text-right tabular-nums">{num(line.credit)?money(num(line.credit),currency):'—'}</td>
           </tr>)}</tbody>
-          <tfoot><tr className="border-t bg-white font-bold"><td className="p-2" colSpan={4}>TOTAL · {info.lines.length} lines</td>
+          <tfoot><tr className="border-t bg-white font-bold"><td className="p-2" colSpan={3}>TOTAL · {info.lines.length} lines</td>
            <td className="p-2 text-right">{money(info.debit,currency)}</td>
            <td className="p-2 text-right">{money(info.credit,currency)}</td>
           </tr></tfoot>

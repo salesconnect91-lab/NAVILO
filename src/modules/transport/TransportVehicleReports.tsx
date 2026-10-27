@@ -30,7 +30,7 @@ const contribution = (trip: FinancialTrip) =>
  */
 export default function TransportVehicleReports(){
  const [basis,setBasis]=useState<'accounting'|'trips'>('accounting');
- return <div className="space-y-2"><div className="flex gap-2"><button className={basis==='accounting'?'btn-primary':'btn'} onClick={()=>setBasis('accounting')}>Posted Vehicle Ledger &amp; P&amp;L</button><button className={basis==='trips'?'btn-primary':'btn'} onClick={()=>setBasis('trips')}>Trip Operations</button></div>{basis==='accounting'?<TransportVehicleAccountingReport/>:<TransportVehicleOperationalReport/>}</div>;
+ return <div className="space-y-2"><div className="flex gap-2"><button className={basis==='accounting'?'btn-primary':'btn'} onClick={()=>setBasis('accounting')}>Posted Vehicle Ledger</button><button className={basis==='trips'?'btn-primary':'btn'} onClick={()=>setBasis('trips')}>Trip Operations</button></div>{basis==='accounting'?<TransportVehicleAccountingReport/>:<TransportVehicleOperationalReport/>}</div>;
 }
 export function TransportVehicleOperationalReport() {
   const {activeCompany, activeBusinessUnit} = useAuth();
@@ -300,7 +300,7 @@ export function TransportVehicleOperationalReport() {
   }), [selectedVehicle?.vehicle_no, reportDescription, totals, cost, profit, margin]);
 
   return <section className="space-y-3">
-    <h2 className="text-lg font-semibold">Vehicle Ledger &amp; P&amp;L</h2>
+    <h2 className="text-lg font-semibold">Trip Operations &amp; Contribution</h2>
     {financialAccess === 'checking' && <p role="status">Checking Customer and Supplier financial permissions…</p>}
     {financialAccess === 'denied' && <p role="alert">Vehicle P&amp;L requires both Customer and Supplier financial view permissions. Incomplete cost or revenue is not shown as profit.</p>}
     {financialAccess !== 'allowed' ? null : <>

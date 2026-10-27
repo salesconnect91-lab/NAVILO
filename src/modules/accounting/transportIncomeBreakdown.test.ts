@@ -1,6 +1,20 @@
 import {describe,it,expect} from 'vitest';
-import {externalVehicleIncome,splitTransportRevenue,reconcileNormalVehicleIncome,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleServiceIncomeTotal,dedicatedVehicleNormalSalesIncomeBreakdown} from './transportIncomeBreakdown';
+import {externalVehicleIncome,splitTransportRevenue,reconcileNormalVehicleIncome,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleServiceIncomeTotal,dedicatedVehicleNormalSalesIncomeBreakdown,excludeUnattributedManualJournalMovements} from './transportIncomeBreakdown';
 describe('Transport company P&L - separate Sale and Trip Service income',()=>{
+ it('keeps general journals in GL but excludes them from vehicle reports',()=>{
+  const rows=[
+   {journal_entry_id:'manual-je',account_id:'vehicle-income',debit:0,credit:75},
+   {journal_entry_id:'manual-reversal',account_id:'vehicle-income',debit:75,credit:0},
+   {journal_entry_id:'vehicle-expense',account_id:'fuel',debit:50,credit:0},
+   {journal_entry_id:'invoice',account_id:'vehicle-income',debit:0,credit:300},
+  ];
+  expect(excludeUnattributedManualJournalMovements(rows,[
+   {id:'manual-je',trans_type:'Manual Journal',source_document_type:null},
+   {id:'manual-reversal',trans_type:'Journal Reversal',source_document_type:null},
+   {id:'vehicle-expense',trans_type:'Manual Journal',source_document_type:'transport_vehicle_expense'},
+   {id:'invoice',trans_type:'Sales Invoice',source_document_type:'sales_invoice'},
+  ])).toEqual(rows.slice(2));
+ });
  it('reads posted accounting by different mapped revenue accounts, respecting contra debits',()=>{
   expect(splitTransportRevenue([
    {account_id:'sales',debit:0,credit:25000},

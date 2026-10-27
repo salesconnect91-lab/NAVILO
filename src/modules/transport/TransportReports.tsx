@@ -29,7 +29,7 @@ export default function TransportReports(){
   <button className={mode==='party'&&requestedSide==='supplier'?'btn-primary':'btn'} onClick={()=>choose('party','supplier')}>Supplier reports</button>
   <button className={mode==='trips'?'btn-primary':'btn'} onClick={()=>choose('trips')}>Trip-wise reports</button>
   <button className={mode==='profit'?'btn-primary':'btn'} onClick={()=>choose('profit')}>Posted profitability</button>
-   <button className={mode==='vehicle'?'btn-primary':'btn'} onClick={()=>choose('vehicle')}>Vehicle Ledger &amp; P&amp;L</button>
+   <button className={mode==='vehicle'?'btn-primary':'btn'} onClick={()=>choose('vehicle')}>Vehicle Ledger &amp; Trip Operations</button>
    <button className={mode==='credit-review'?'btn-primary':'btn'} onClick={()=>choose('credit-review')}>Credit invoice review</button>
    <button className={mode==='vat-review'?'btn-primary':'btn'} onClick={()=>choose('vat-review')}>Billing Mode &amp; VAT Review</button>
  </div>

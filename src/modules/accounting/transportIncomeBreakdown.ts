@@ -1,6 +1,17 @@
 /** Posted general-ledger sales/service balances; presentation only, never a second posting. */
 export type LedgerMovement={account_id:string|null;journal_entry_id?:string|null;debit:number|string|null;credit:number|string|null};
 export type VehicleIncome={vehicle_id:string;vehicle_no:string;amount:number;invoiceAmount?:number;ledgerAmount?:number};
+export type VehicleJournalSource={id:string;trans_type:string|null;source_document_type?:string|null};
+
+/** General Journal lines remain in GL/P&L, but are not attributed to vehicle reports. */
+export function excludeUnattributedManualJournalMovements<T extends {journal_entry_id?:string|null}>(
+ rows:T[],journals:VehicleJournalSource[],
+):T[]{
+ const manualTypes=new Set(['','General','Journal Entry','Manual Journal','Journal Reversal']);
+ const manualIds=new Set(journals.filter(j=>!j.source_document_type&&manualTypes.has(j.trans_type??'')).map(j=>j.id));
+ return rows.filter(row=>!row.journal_entry_id||!manualIds.has(row.journal_entry_id));
+}
+
 const cents=(value:number)=>Math.round(value*100);
 const amount=(n:number)=>Number((n/100).toFixed(2));
 

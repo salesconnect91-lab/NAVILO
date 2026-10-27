@@ -8,12 +8,11 @@ export const TEMPLATE_HEADERS = [
   "line_description",
   "party_type",
   "party_name",
-  "vehicle_no",
   "debit",
   "credit",
 ];
 
-// Template is blank by design: real GL, parties, and vehicle numbers must
+// Template is blank by design: real GL and parties must
 // be selected from the active company's masters, never copied from fake samples.
 export const TEMPLATE_ROWS: string[][] = [];
 
@@ -77,8 +76,8 @@ export const downloadExcelTemplate = () => {
   notes:[
    'Upload creates DRAFT journals only. Review and post each journal in Accounting; no entries are posted automatically.',
    'All rows with the same entry_no must have the same entry_date and description. Debit and credit totals for each entry MUST balance.',
-   'Account Name is the only required GL selection. For a uniquely linked company-owned vehicle Income account, leave Vehicle No blank: NAVILO links it automatically.',
-   'Related To: AR requires Customer, AP requires Supplier. Leave Vehicle No blank on expense lines; vehicle allocation is used only on eligible Transport income lines.',
+   'Account Name is the GL account receiving the debit or credit. General Journal lines do not carry a vehicle selection.',
+   'Party Type/Party Name are for genuine AR/AP control accounts only. For vehicle-specific costs, use the Transport Vehicle Expenses module; for vehicle income, use the relevant transport invoice/import workflow.',
    'Do not invent missing accounts or use group accounts. If an account name is ambiguous, use the optional legacy account_head column to disambiguate.',
    'Supplier payment examples: DEBIT Accounts Payable with the correct Supplier Party and CREDIT Cash/Bank. Review direction and any existing allocations before posting.',
    'line_description is optional per line; description is the overall journal narration. Debit/Credit must balance per Entry No, with only one nonzero side per line.',
@@ -87,9 +86,9 @@ export const downloadExcelTemplate = () => {
  });
  const sheet=XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS,...TEMPLATE_ROWS]);
  sheet['!cols']=[
-  {wch:18},{wch:15},{wch:35},{wch:34},{wch:38},{wch:16},{wch:36},{wch:16},{wch:17},{wch:17}
+  {wch:18},{wch:15},{wch:35},{wch:34},{wch:38},{wch:16},{wch:36},{wch:17},{wch:17}
  ];
- sheet['!autofilter']={ref:`A1:J${TEMPLATE_ROWS.length+1}`};
+ sheet['!autofilter']={ref:`A1:I${TEMPLATE_ROWS.length+1}`};
  workbook.Sheets['Journal Import']=sheet;
  XLSX.writeFile(workbook,'journal-import-template.xlsx');
 };

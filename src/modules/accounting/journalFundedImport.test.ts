@@ -6,24 +6,24 @@ const h=[...FUNDED_HEADERS];
 const item=(entry_no:string,account_name:string,amount:unknown,funding_account='Amjad Payable')=>
  [entry_no,'2026-09-05',account_name,'Orbit funded expense',amount,funding_account];
 describe('Funded journal imports use canonical 2-line Draft JEs',()=>{
- it('converts one vehicle expense to balanced General Journal lines without a Related To vehicle field',()=>{
+ it('converts a funded expense to balanced General Journal lines without vehicle attribution',()=>{
   const result=expandFundedJournalRows([h,item('ORB-001','General Expenses',600)]);
   expect(result).toHaveLength(3);
-  expect(result[1]).toEqual(['ORB-001','2026-09-05','Orbit funded expense','General Expenses','Orbit funded expense','','600.00','0']);
+  expect(result[1]).toEqual(['ORB-001','2026-09-05','Orbit funded expense','General Expenses','Orbit funded expense','','','600.00','0']);
   expect(result[2][3]).toBe('Amjad Payable');
-  expect(result[2][5]).toBe('');
+  expect(result[2][6]).toBe('');
   expect(result[2].slice(-2)).toEqual(['0','600.00']);
  });
  it('clears an EXISTING driver running balance rather than introducing new salary expense',()=>{
   const result=expandFundedJournalRows([h,item('ORB-002','Asif Driver Salary Running Account',1500)]);
   expect(result[1][3]).toBe('Asif Driver Salary Running Account');
-  expect(result[1][5]).toBe('');
+  expect(result[1][6]).toBe('');
   expect(result[2][3]).toBe('Amjad Payable');
  });
  it('supports Syarah CURRENT ASSET recharge without claiming fuel cost',()=>{
   const result=expandFundedJournalRows([h,item('ORB-003','Syarah Fuel Payable',1000)]);
   expect(result[1][3]).toBe('Syarah Fuel Payable');
-  expect(result[1][5]).toBe('');
+  expect(result[1][6]).toBe('');
  });
  it('will not mask zeros, negative amounts, imprecise amounts, duplicate numbers, or missing creditor',()=>{
   for(const amount of ['-2','0','1.234','abc',''])expect(()=>expandFundedJournalRows([h,item('A','General Expenses',amount)])).toThrow();
@@ -51,6 +51,6 @@ describe('Funded journal imports use canonical 2-line Draft JEs',()=>{
  it('rejects vehicle allocation in legacy funded templates',()=>{
   const legacy=['entry_no','entry_date','account_name','line_description','related_to','amount','funding_account'];
   expect(isFundedJournalTemplate(legacy)).toBe(true);
-  expect(()=>expandFundedJournalRows([legacy,['A','2026-09-05','General Expenses','repair 7979','7979',600,'Amjad Payable']])).toThrow(/not allocated separately/);
+  expect(()=>expandFundedJournalRows([legacy,['A','2026-09-05','General Expenses','repair 7979','7979',600,'Amjad Payable']])).toThrow(/not part of General Journal/);
  });
 });

@@ -5,6 +5,7 @@ import AccountingReportScopeSelect,{type AccountingReportScope} from './Accounti
 import {externalVehicleIncome,reconcileNormalVehicleIncome,splitTransportRevenue,mergeVehicleLedgerMovements,totalVehicleLedgerMovement,excludeDedicatedVehicleAttributions,dedicatedVehicleServiceIncomeTotal,dedicatedVehicleNormalSalesIncomeBreakdown,type VehicleIncome} from './transportIncomeBreakdown';
 import {readExternalVehicleIncomeFast,type ExternalAttributionRow} from './externalVehicleIncomeFast';
 import {companyVehicleIncomeRows} from './companyVehicleIncome';
+import {excludeUnattributedManualJournalMovements} from './transportIncomeBreakdown';
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -50,6 +51,7 @@ type LedgerRow = {
 type JournalMeta = {
   id: string;
   trans_type: string | null;
+  source_document_type?: string | null;
   fiscal_year_closure_id: string | null;
   monthly_profit_closure_id?: string | null;
 };
@@ -273,15 +275,15 @@ export default function ProfitLoss() {
     const journalIds = Array.from(new Set(rawLedger.map((line) => line.journal_entry_id).filter(Boolean))) as string[];
 
     let closingJournalIds = new Set<string>();
+    let journalRows: JournalMeta[] = [];
     if (journalIds.length) {
-      let journalRows: JournalMeta[] = [];
       try {
         journalRows = await fetchByIdChunks<JournalMeta>(
           journalIds,
           (ids,fromRow,toRow) =>
             supabase
               .from("journal_entries")
-              .select("id,trans_type,fiscal_year_closure_id,monthly_profit_closure_id")
+              .select("id,trans_type,source_document_type,fiscal_year_closure_id,monthly_profit_closure_id")
               .in("id",ids)
               .order("id",{ascending:true})
               .range(fromRow,toRow)
@@ -302,6 +304,7 @@ export default function ProfitLoss() {
     // They belong in the General Ledger and Balance Sheet, but NOT in the historical
     // P&L itself, otherwise a closed year would incorrectly show zero profit/loss.
     const ledgerLines = rawLedger.filter((line) => !line.journal_entry_id || !closingJournalIds.has(line.journal_entry_id));
+    const vehicleLedgerLines = excludeUnattributedManualJournalMovements(ledgerLines,journalRows);
 
     const accountMap = new Map<string, {
       name: string;
@@ -386,13 +389,13 @@ export default function ProfitLoss() {
         const sales=Number((mappedSales+dedicatedSales).toFixed(2));
         const linkedVehicleRows=companyVehicleIncomeRows(vehicleResult.vehicles,accounts.map(a=>({
           id:a.id,code:a.code,type:a.type,is_group:a.is_group,is_active:a.is_active,
-        })),ledgerLines).map(row=>({
+        })),vehicleLedgerLines).map(row=>({
           vehicle_id:row.id,vehicle_no:row.vehicle_no,amount:row.amount,status:row.status,
         }));
         const dedicatedServiceIncome=dedicatedVehicleServiceIncomeTotal(
           vehicleResult.vehicles,
           accounts.map(a=>({id:a.id,code:a.code,type:a.type,detail_type:a.detail_type,is_group:a.is_group,is_active:a.is_active})),
-          ledgerLines,
+          vehicleLedgerLines,
           new Set([serviceAccountId]),
           dedicatedSalesBreakdown.byAccount,
         );

@@ -42,7 +42,6 @@ type ImportRow = {
   accountHead: string;
   accountName: string;
   lineDescription: string;
-  vehicleNo: string;
   partyType: string;
   partyName: string;
 
@@ -788,9 +787,7 @@ export default function JournalEntryList() {
         missingHeaders.length > 0
       ) {
         throw new Error(
-          `Missing required columns: ${missingHeaders.join(
-            ", "
-          )}. Use one Account Name; Vehicle No can be left blank when a dedicated Income account already identifies the vehicle.`
+          `Missing required columns: ${missingHeaders.join(", ")}. General Journal imports use GL accounts and genuine AR/AP parties only.`
         );
       }
 
@@ -866,6 +863,7 @@ export default function JournalEntryList() {
         const lineDescription=lineDescriptionIndex>=0?normalize(row[lineDescriptionIndex]):'';
         const vehicleNoIndex=columnIndex('vehicleno');
         const vehicleNo=vehicleNoIndex>=0?normalize(row[vehicleNoIndex]):'';
+        if(vehicleNo)throw new Error(`Row ${i+1}: Vehicle allocation is not part of General Journal. Use Transport Vehicle Expenses for vehicle-specific costs.`);
         const partyTypeIndex = columnIndex('partytype');
         const partyNameIndex = columnIndex("partyname");
         const partyType = partyTypeIndex >= 0 ? normalize(row[partyTypeIndex]).toLowerCase() : "";
@@ -897,7 +895,6 @@ export default function JournalEntryList() {
           !accountHead &&
           !accountName &&
           !lineDescription &&
-          !vehicleNo &&
           !partyType &&
           !partyName &&
           debit === 0 &&
@@ -916,7 +913,6 @@ export default function JournalEntryList() {
           accountHead,
           accountName,
           lineDescription,
-          vehicleNo,
           partyType,
           partyName,
           debit,
@@ -1819,17 +1815,6 @@ export default function JournalEntryList() {
               );
             }
 
-            /* TRANSPORT VEHICLE */
-            if(row.vehicleNo){
-              if(partyType||partyName){
-                errors.push(`Row ${row.rowNumber}: Vehicle No and Customer/Supplier cannot be selected together.`);
-              }
-              if(!['revenue','income','expense'].includes(String(account.type??'').toLowerCase())){
-                errors.push(`Row ${row.rowNumber}: Vehicle No is only allowed on Transport income or expense accounts.`);
-              }
-              // Ownership/date/branch are rechecked atomically by the import RPC.
-            }
-
             /* DEBIT / CREDIT */
 
             if (
@@ -1932,7 +1917,6 @@ export default function JournalEntryList() {
                 row.accountName ||
                 null,
               line_description: row.lineDescription||null,
-              vehicle_no: row.vehicleNo||null,
 
               party_type: row.partyType || null,
               party_name: row.partyName || null,
@@ -2693,7 +2677,7 @@ export default function JournalEntryList() {
         !["General","Journal Entry","Manual Journal",null].includes(original.trans_type))
         throw new Error("Only original manual journals can be copied. Generated and reversal journals must not be duplicated.");
       const {data: originalLines,error: linesError} = await supabase.from("journal_lines")
-        .select("id,account_id,account,party_type,party_id,party_name,transport_vehicle_id,debit,credit,source_debit,source_credit")
+        .select("id,account_id,account,party_type,party_id,party_name,debit,credit,source_debit,source_credit")
         .eq("entry_id",source.id).order("id");
       if(linesError) throw linesError;
       if(!originalLines?.length) throw new Error("This journal has no lines to copy.");
@@ -2720,7 +2704,6 @@ export default function JournalEntryList() {
       const rows=originalLines.map(line=>({
         entry_id:copy.id,account_id:line.account_id,account:line.account,
         party_type:line.party_type,party_id:line.party_id,party_name:line.party_name,
-        transport_vehicle_id:line.transport_vehicle_id,
         ...(descriptions.has(line.id) ? {description:descriptions.get(line.id)} : {}),
         debit:isForeign&&original.status==="posted"?Number(line.source_debit||0):Number(line.debit||0),
         credit:isForeign&&original.status==="posted"?Number(line.source_credit||0):Number(line.credit||0),
@@ -3187,15 +3170,15 @@ export default function JournalEntryList() {
                     </h3>
 
                     <p className="text-xs text-slate-600 mt-1">
-                      <strong>Simple Journal Excel:</strong> same Account, Line Description, Related To, Debit and Credit columns as a normal Journal Entry.
-                      Use one row for Debit and another for Credit with the same Entry No. Example: Expense Dr with Vehicle 7979, Amjad Payable Cr.
+                      <strong>Simple Journal Excel:</strong> Account, Line Description, Party, Debit and Credit. Vehicle is not selected on General Journal lines; use Transport Vehicle Expenses for vehicle-specific costs and transport invoice workflows for vehicle income.
+                      Use one row for Debit and another for Credit with the same Entry No.
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
                       Both Simple and Advanced Excel keep explicit Debit/Credit. Posted ledgers change only after Draft review and Post.
                     </p>
 
                     <p className="text-xs text-slate-500 mt-1">
-                      Customer/Supplier fields are required only for AR/AP. Income GLs with a unique vehicle mapping need no extra Vehicle No.
+                      Customer/Supplier fields are required only for AR/AP. General Journal lines do not carry vehicle details.
                     </p>
 
                   </div>
@@ -3462,7 +3445,7 @@ export default function JournalEntryList() {
                           </th>
 
                           <th className="px-3 py-3 text-left">Line Description</th>
-                          <th className="px-3 py-3 text-left">Related To</th>
+                          <th className="px-3 py-3 text-left">Party</th>
                           <th className="px-3 py-3 text-right">Debit</th>
 
                           <th className="px-3 py-3 text-right">Credit</th>
@@ -3504,8 +3487,7 @@ export default function JournalEntryList() {
                               </td>
 
                               <td className="px-3 py-2 text-slate-600">{row.lineDescription || "—"}</td>
-                              <td className="px-3 py-2">{row.vehicleNo ? `Vehicle ${row.vehicleNo}` :
-                                row.partyType && row.partyName ? `${row.partyType}: ${row.partyName}` : "From account (auto if dedicated)"}</td>
+                              <td className="px-3 py-2">{row.partyType && row.partyName ? `${row.partyType}: ${row.partyName}` : "—"}</td>
                               <td className="px-3 py-2 text-right font-mono">
 
                                 {row.debit > 0

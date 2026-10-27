@@ -402,7 +402,7 @@ export default function ImportCenter() {
      {canImport("purchase")&&<TransportNormalInvoiceImport side="supplier"/>}
     </div>
    </ImportGroup>}
-   {section==="vehicle-expenses"&&<ImportGroup id="import-vehicle-expenses" title="Vehicle Expense Excel Import" detail="Dedicated vehicle-expense workflow. Choose either this workflow or Bulk Journal Entries for each expense, never both. Review the existing vehicle ledger before posting to prevent duplicate costs.">
+   {section==="vehicle-expenses"&&<ImportGroup id="import-vehicle-expenses" title="Vehicle Expense Excel Import" detail="Dedicated workflow for vehicle-specific costs. Use it when a bill or payment belongs to a vehicle so the expense reaches that vehicle’s report and the correct GL. Review the existing vehicle ledger before posting to prevent duplicate costs.">
     <TransportVehicleExpenseImportPreview/>
    </ImportGroup>}
    {section==="expense"&&<ImportGroup id="import-expense" title="Expense Invoices — With or Without VAT" detail="Non-inventory supplier bills. Use the existing expense invoice validation, draft and posting workflow.">
@@ -411,7 +411,7 @@ export default function ImportCenter() {
    {section==="cash-expenses"&&<ImportGroup id="import-cash-expenses" title="Office / Yard / General Cash Expense Excel" detail="Supplier-less, no Accounts Payable. Validate Excel, then post the complete batch atomically. Vehicle expenses use the separate vehicle uploader."><DirectCashExpenseImport/></ImportGroup>}
    {section==="accounting"&&<ImportGroup id="import-accounting" title="Receipts, Payments & Journals" detail="Record actual money received or paid, or create draft general journal entries.">
     {isTransport&&canImport("transport")&&canImport("accounting")&&<TransportSettlementImports/>}
-    {canImport("accounting")&&<ImportEntry title="Bulk Journal Entries" effect="Drafts first; post after review" detail="Same as General Journal: Account, Line Description, Related To, Debit and Credit. Two balanced lines per Entry No; draft and review before posting. For vehicle costs already imported through Vehicle Expense Excel, do not post a second expense journal." to="/accounting?import=journal" label="Open Journal Import" download={downloadSimpleJournalTemplate} downloadLabel="Download Simple Journal Excel (Dr / Cr)"/>}
+    {canImport("accounting")&&<ImportEntry title="Bulk Journal Entries" effect="Drafts first; post after review" detail="Account, Line Description, Party, Debit and Credit. Vehicle is not selected on General Journal lines. Use Vehicle Expense Excel for vehicle-specific costs and transport invoice workflows for vehicle income. Two balanced lines per Entry No." to="/accounting?import=journal" label="Open Journal Import" download={downloadSimpleJournalTemplate} downloadLabel="Download Simple Journal Excel (Dr / Cr)"/>}
    </ImportGroup>}
    {section==="history"&&<ImportGroup id="import-history" title="One-time Import & Transfer" detail="Bring in one-time records or transfer trips between NAVILO companies with review.">
     <ImportEntry title="One-time Import" effect="One-time accounting import" detail="Review cutoff, opening balances and accounts before posting." to="/settings/imports?transportUpload=historical" label="Open One-time Import" download={downloadHistoricalTemplate}/>

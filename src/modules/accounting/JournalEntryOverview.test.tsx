@@ -30,19 +30,19 @@ const entry=(i:number,status:'draft'|'posted'='posted'):JournalEntry=>({
 }) as JournalEntry;
 const rows=[
  {id:'l1',entry_id:'j-1',account:'1120 - Cash',account_id:'cash',debit:150,credit:0,
-  party_name:'CASH Customer',transport_vehicle_no:null,transport_vehicle_id:null,description:'Opening'},
+  party_name:'CASH Customer',description:'Opening'},
  {id:'l2',entry_id:'j-1',account:'4100 - Sales Revenue',account_id:'income',debit:0,credit:150,
-  party_name:null,transport_vehicle_no:'7979',transport_vehicle_id:null,description:null},
+  party_name:null,description:null},
 ];
 beforeEach(()=>{state.fetched=[];state.lines=rows;state.error=false});
 afterEach(cleanup);
 
 describe('Journal Entry list detailed preview',()=>{
- it('shows balanced account, amount, party, and vehicle without opening each journal',()=>{
+ it('shows balanced account, amount and party without any vehicle field',()=>{
   const result=buildJournalOverview(rows);
   expect(result).toMatchObject({
    debit:150,credit:150,accountsDr:'1120 - Cash',accountsCr:'4100 - Sales Revenue',
-   party:'CASH Customer',vehicles:'7979',balanced:true
+   party:'CASH Customer',balanced:true
   });
  });
  it('shows saved line description in the list when the journal header is blank',async()=>{
@@ -66,7 +66,7 @@ describe('Journal Entry list detailed preview',()=>{
   expect(state.fetched.filter(x=>x.table==='journal_lines')[0].ids).toHaveLength(25);
   expect(screen.getByText('SAR 150.00')).toBeTruthy();
   expect(screen.getByText('Party: CASH Customer')).toBeTruthy();
-  expect(screen.getByText('Vehicle: 7979')).toBeTruthy();
+  expect(screen.queryByText(/Vehicle:/)).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'Show lines for JE-00001'}));
   expect(screen.getByText('Journal voucher lines · JE-00001')).toBeTruthy();
   expect(screen.getByText('TOTAL · 2 lines')).toBeTruthy();

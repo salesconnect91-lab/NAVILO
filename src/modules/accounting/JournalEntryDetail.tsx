@@ -24,10 +24,7 @@ import * as XLSX from "xlsx";
 
 import { supabase } from "@/lib/supabase";
 import { fetchAllPages } from "@/lib/fetchAllPages";
-import {vehicleDisplayLabel} from "@/lib/transportVehicleLabel";
-import {journalRelatedToMode,vehicleOwnedOnDate,normalizedJournalVehicleNo,type OwnedPeriod} from "./journalRelatedTo";
 import {isManualJournalAccountEligible,isManualJournalAccountVisible,manualJournalAccountRestriction} from "./manualJournalAccountPolicy";
-import {accountForSelectedVehicle,journalVehicleAccountError,vehicleForIncomeAccount,isDedicatedVehicleIncomeAccount} from './journalVehicleIncomePolicy';
 
 import {
   JournalEntry,
@@ -54,7 +51,6 @@ import {
 type DraftLine = {
   tempId: string;
   accountId: string;
-  vehicleId?: string;
   partyType: PartyType | "";
   partyId: string;
   debit: string;
@@ -68,7 +64,6 @@ type ImportRow = {
   accountName: string;
   partyType: PartyType | "";
   partyName: string;
-  vehicleNo: string;
   debit: string;
   credit: string;
   rowNumber: number;
@@ -84,7 +79,6 @@ const createTempId = () =>
 const createDraftLine = (): DraftLine => ({
   tempId: createTempId(),
   accountId: "",
-  vehicleId: "",
   partyType: "",
   partyId: "",
   debit: "",
@@ -155,36 +149,6 @@ export default function JournalEntryDetail() {
   const navigate = useNavigate();
   const {activeCompany,activeBusinessUnit,isPlatformOwner}=useAuth();
   const isCompanyOwner=["owner","company_owner"].includes(activeCompany?.membership_role || "");
-  const isTransport=activeBusinessUnit?.business_unit_type==='transport';
-  const [companyVehicles,setCompanyVehicles]=useState<{id:string;vehicle_no:string;label:string;revenue_account_id:string|null}[]>([]);
-  const [vehicleOwnership,setVehicleOwnership]=useState<OwnedPeriod[]>([]);
-  const [vehicleLoadError,setVehicleLoadError]=useState('');
-  useEffect(()=>{
-    let live=true;setCompanyVehicles([]);setVehicleOwnership([]);setVehicleLoadError('');
-    if(!isTransport||!activeCompany?.company_id||!activeBusinessUnit?.business_unit_id)return;
-    const cid=activeCompany.company_id,bid=activeBusinessUnit.business_unit_id;
-    async function loadVehicles(){
-      try{
-        const [vehicles,ownership,types]=await Promise.all([
-          fetchAllPages<{id:string;vehicle_no:string;revenue_account_id:string|null;truck_type_id:string|null;truck_type:string|null}>((start,end)=>
-            supabase.from('transport_vehicles').select('id,vehicle_no,revenue_account_id,truck_type_id,truck_type')
-              .eq('company_id',cid).eq('business_unit_id',bid).eq('is_active',true).order('id').range(start,end)),
-          fetchAllPages<OwnedPeriod>((start,end)=>
-            supabase.from('transport_vehicle_ownership').select('vehicle_id,owner_type,effective_from,effective_to')
-              .eq('company_id',cid).eq('business_unit_id',bid).order('id').range(start,end)),
-          fetchAllPages<{id:string;name:string}>((start,end)=>
-            supabase.from('transport_truck_types').select('id,name')
-              .eq('company_id',cid).eq('business_unit_id',bid).order('id').range(start,end)),
-        ]);
-        const names=new Map(types.map(t=>[t.id,t.name]));
-        if(live){setVehicleOwnership(ownership);setCompanyVehicles(vehicles.map(v=>({
-          id:v.id,vehicle_no:v.vehicle_no,revenue_account_id:v.revenue_account_id,label:vehicleDisplayLabel(v.vehicle_no,names.get(v.truck_type_id??'')??v.truck_type),
-        })));}
-      }catch(e:unknown){if(live)setVehicleLoadError(e instanceof Error?e.message:'Unable to load vehicle ownership history');}
-    }
-    void loadVehicles();
-    return()=>{live=false};
-  },[isTransport,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
 
   /* -------------------------------------------------------
      STATE
@@ -270,7 +234,7 @@ export default function JournalEntryDetail() {
     if (!entry) return;
     setPostedEditDate(entry.entry_date);setPostedEditDescription(entry.description || "");setPostedEditReason("");
     setDraftLines(lines.map(line=>({tempId:line.id,accountId:line.account_id || "",
-      vehicleId:line.transport_vehicle_id || "",partyType:(line.party_type || "") as PartyType | "",
+      partyType:(line.party_type || "") as PartyType | "",
       partyId:line.party_id || "",debit:String(line.debit || 0),credit:String(line.credit || 0),
       description:("description" in line ? String(line.description || "") : "")})));
     setPostedEditOpen(true);
@@ -283,9 +247,8 @@ export default function JournalEntryDetail() {
       for(const line of draftLines){
         const original=lines.find(v=>v.id===line.tempId);
         if(!original || line.accountId!==original.account_id ||
-          (line.vehicleId||null)!==(original.transport_vehicle_id||null) ||
           (line.partyId||null)!==(original.party_id||null))
-          throw new Error("Account/vehicle/party remapping is not enabled yet; original entry unchanged.");
+          throw new Error("Account/party remapping is not enabled yet; original entry unchanged.");
       }
       const {data,error:rpcError}=await supabase.rpc("owner_edit_posted_manual_journal",{
         p_entry_id:entry.id,p_reason:postedEditReason.trim(),p_entry_date:postedEditDate,
@@ -520,7 +483,6 @@ export default function JournalEntryDetail() {
   const postingAccounts = accounts.filter(manualAccountEligible);
   const journalExcludedAccounts = accounts.length - postingAccounts.length;
   const visibleManualAccounts = accounts.filter(isManualJournalAccountVisible);
-  const eligibleVehicles=companyVehicles.filter(v=>vehicleOwnedOnDate(v.id,entry?.status==='draft' ? draftEntryDate : entry?.entry_date,vehicleOwnership));
 
   const customerAccountIds =
     new Set(
@@ -742,7 +704,6 @@ export default function JournalEntryDetail() {
             return {
               ...line,
               accountId: "",
-              vehicleId: "",
               partyType: "",
               partyId: "",
             };
@@ -769,7 +730,6 @@ export default function JournalEntryDetail() {
           return {
             ...line,
             accountId,
-            vehicleId: vehicleForIncomeAccount(accountId,companyVehicles,eligibleVehicles.map(v=>v.id)),
             partyType:
               partyStillMatches
                 ? line.partyType
@@ -781,14 +741,6 @@ export default function JournalEntryDetail() {
           };
         }
 
-        if(field==='vehicleId'){
-          const account=accounts.find(a=>a.id===line.accountId);
-          return {
-            ...line,
-            vehicleId:value,
-            accountId:accountForSelectedVehicle(line.accountId,account?.type,value,companyVehicles,postingAccounts),
-          };
-        }
         return {
           ...line,
           [field]: value,
@@ -843,7 +795,6 @@ export default function JournalEntryDetail() {
             ...line,
             accountId:
               (line.accountId===partyControlAccounts.ar?line.accountId:customer.account_id??partyControlAccounts.ar),
-            vehicleId: "",
             partyType: "customer",
             partyId:
               customer.id,
@@ -867,7 +818,6 @@ export default function JournalEntryDetail() {
           ...line,
           accountId:
             (line.accountId===partyControlAccounts.ap?line.accountId:supplier.account_id??partyControlAccounts.ap),
-          vehicleId: "",
           partyType: "supplier",
           partyId:
             supplier.id,
@@ -890,18 +840,6 @@ export default function JournalEntryDetail() {
       ...current,
       createDraftLine(),
     ]);
-  };
-
-  // Copying a vehicle cost never duplicates its monetary value.
-  // Fill the split amount on each line explicitly so the final journal balances.
-  const handleSplitVehicleRow=(line:DraftLine)=>{
-    setDraftLines(current=>{
-      const at=current.findIndex(r=>r.tempId===line.tempId);
-      if(at<0)return current;
-      const copy=[...current];
-      copy.splice(at+1,0,{...line,tempId:createTempId(),vehicleId:'',debit:'',credit:''});
-      return copy;
-    });
   };
 
   const handleDuplicateRow = (
@@ -970,13 +908,12 @@ export default function JournalEntryDetail() {
     () => {
       try {
         // Same columns and mapping rules as the visible Fast Journal grid.
-        // No invented account names, customers, or vehicle numbers in examples.
+        // No invented account names or customers in examples.
         const worksheet = XLSX.utils.aoa_to_sheet([
-          ["Account Name","Description","Party Type","Party Name","Vehicle No","Debit","Credit"],
+          ["Account Name","Description","Party Type","Party Name","Debit","Credit"],
         ]);
         worksheet["!cols"] = [
-          { wch: 35 },{ wch: 42 },{ wch: 18 },{ wch: 35 },
-          { wch: 16 },{ wch: 18 },{ wch: 18 },
+          { wch: 35 },{ wch: 42 },{ wch: 18 },{ wch: 35 },{ wch: 18 },{ wch: 18 },
         ];
 
         const workbook =
@@ -1189,6 +1126,11 @@ export default function JournalEntryDetail() {
             return;
           }
 
+          if(vehicleNo){
+            importErrors.push(`Row ${rowNumber}: Vehicle allocation is not part of General Journal. Use Transport Vehicle Expenses for vehicle-specific costs.`);
+            return;
+          }
+
           if (!accountCode && !accountName) {
             importErrors.push(
               `Row ${rowNumber}: Account Name is required.`
@@ -1353,21 +1295,8 @@ export default function JournalEntryDetail() {
             }
           }
 
-          if(vehicleNo){
-            if(journalRelatedToMode(account.type,accountRequiresParty(account.id),isTransport)!=='vehicle'){
-              importErrors.push(`Row ${rowNumber}: Related To vehicle is not used on expense lines. Leave it blank and post the expense to its expense account.`);return;
-            }
-            const matches=eligibleVehicles.filter(v=>normalizedJournalVehicleNo(v.vehicle_no)===normalizedJournalVehicleNo(vehicleNo));
-            if(matches.length!==1){importErrors.push(`Row ${rowNumber}: Vehicle ${vehicleNo} is not uniquely company-owned on this journal date.`);return;}
-          }
-          const importVehicle=vehicleNo
-            ? eligibleVehicles.find(v=>normalizedJournalVehicleNo(v.vehicle_no)===normalizedJournalVehicleNo(vehicleNo))?.id??''
-            : vehicleForIncomeAccount(account.id,companyVehicles,eligibleVehicles.map(v=>v.id));
-          const mismatch=journalVehicleAccountError(account.id,account.type,importVehicle,companyVehicles);
-          if(mismatch){importErrors.push(`Row ${rowNumber}: ${mismatch}`);return;}
           importedRows.push({
             description: lineDescription,
-            vehicleNo,
             accountCode: account.code,
             accountName:
               account.name,
@@ -1455,9 +1384,6 @@ export default function JournalEntryDetail() {
                 createTempId(),
               accountId:
                 account?.id || "",
-              vehicleId:row.vehicleNo
-                ? eligibleVehicles.find(v=>normalizedJournalVehicleNo(v.vehicle_no)===normalizedJournalVehicleNo(row.vehicleNo))?.id??''
-                : vehicleForIncomeAccount(account?.id??'',companyVehicles,eligibleVehicles.map(v=>v.id)),
               partyType:
                 row.partyType,
               partyId,
@@ -1541,7 +1467,6 @@ export default function JournalEntryDetail() {
       const rowsToInsert: {
         line_position: number;
         entry_id: string;
-        transport_vehicle_id?: string|null;
         account_id: string;
         account: string;
         party_type: PartyType | null;
@@ -1615,7 +1540,7 @@ export default function JournalEntryDetail() {
           (!line.partyType || !line.partyId)
         ) {
           setError(
-            `Row ${rowNumber}: "${account.name}" requires a customer or supplier in Related To.`
+            `Row ${rowNumber}: "${account.name}" requires a Customer or Supplier Party.`
           );
 
           return;
@@ -1739,14 +1664,8 @@ export default function JournalEntryDetail() {
           return;
         }
 
-        if(line.vehicleId && (journalRelatedToMode(account.type,accountRequiresParty(account.id),isTransport)!=='vehicle' || !eligibleVehicles.some(v=>v.id===line.vehicleId))){
-          setError(`Row ${rowNumber}: Select a company-owned vehicle valid on this journal date.`);return;
-        }
-        const vehicleAccountError=journalVehicleAccountError(account.id,account.type,line.vehicleId??'',companyVehicles);
-        if(vehicleAccountError){setError(`Row ${rowNumber}: ${vehicleAccountError}`);return;}
         rowsToInsert.push({
           line_position: Math.max(lines.length, ...lines.map(saved => saved.line_position ?? 0)) + i + 1,
-          transport_vehicle_id: line.vehicleId || null,
           entry_id: id,
           account_id:
             account.id,
@@ -2512,8 +2431,8 @@ export default function JournalEntryDetail() {
 
             <p className="text-xs text-slate-500 mt-0.5">
               {isPosted
-                ? "Posted journal lines."
-                : "Add lines below or import Excel / CSV. Save the draft, then post when balanced."}
+                ? "This journal entry has been posted and is locked."
+                : "Add lines below or import Excel / CSV. Party is only for genuine customer/supplier control accounts; the selected GL Account receives the debit or credit. Save the draft, then post when balanced."}
             </p>
           </div>
         </div>
@@ -2532,9 +2451,7 @@ export default function JournalEntryDetail() {
                     <th className="text-left py-3 px-4 font-semibold">Account</th>
                     <th className="text-left py-3 px-4 font-semibold">Description</th>
 
-                    <th className="text-left py-3 px-4 font-semibold">
-                      Related To
-                    </th>
+                    <th className="text-left py-3 px-4 font-semibold">Party</th>
 
                     <th className="text-right py-3 px-4 font-semibold">Debit</th>
 
@@ -2591,11 +2508,7 @@ export default function JournalEntryDetail() {
                             {partyName&&<div className="font-medium text-slate-800">
                               {partyName} <span className="text-xs text-slate-500">({line.party_type})</span>
                             </div>}
-                            {line.transport_vehicle_id&&<div className="font-medium text-blue-800">
-                              {companyVehicles.find(v=>v.id===line.transport_vehicle_id)?.label
-                                ??line.transport_vehicle_no??'Company Vehicle'}
-                            </div>}
-                            {!partyName&&!line.transport_vehicle_id&&<span className="text-slate-400">General / Shared</span>}
+                            {!partyName&&<span className="text-slate-400">—</span>}
                           </td>
 
                           <td className="py-3.5 px-4 text-right text-slate-700 font-mono">
@@ -2708,7 +2621,7 @@ export default function JournalEntryDetail() {
                   <strong>
                     File columns:
                   </strong>{" "}
-                  Account Name, Line Description, Party Type, Party Name, Vehicle No (optional for company-owned Transport income/expense), Debit, Credit
+                  Account Name, Line Description, Party Type, Party Name, Debit, Credit
                   <span className="ml-2">
                     • Party Type + Party Name required for customer/supplier control accounts
                   </span>
@@ -2733,7 +2646,8 @@ export default function JournalEntryDetail() {
                     {postedEditOpen ? "Edit Original Journal Entry" : "Fast Journal Entry"}
                   </h4>
 
-                  <span className="navilo-je-subtitle">Account · description · debit / credit</span>
+                  <span className="navilo-je-subtitle">Account · description · party · debit / credit</span>
+                  <p className="text-xs text-slate-600 mt-0.5">General Journal does not select a vehicle or update vehicle reports; enter vehicle costs and income through their Transport source workflows.</p>
                 </div>
 
                 <button
@@ -2773,9 +2687,7 @@ export default function JournalEntryDetail() {
                       <th className="text-left px-2 py-2 font-semibold text-slate-600">Account</th>
                        <th className="text-left px-2 py-2 font-semibold text-slate-600">Line Description</th>
 
-                      <th className="text-left px-2 py-2 font-semibold text-slate-600">
-                        Related To (Party / Vehicle)
-                      </th>
+                      <th className="text-left px-2 py-2 font-semibold text-slate-600">Party</th>
 
                       <th className="text-right px-2 py-2 font-semibold text-slate-600">Debit</th>
 
@@ -2800,8 +2712,6 @@ export default function JournalEntryDetail() {
                           accountRequiresParty(
                             line.accountId
                           );
-                        const selectedGL=accounts.find(a=>a.id===line.accountId);
-                        const relatedMode=journalRelatedToMode(selectedGL?.type,partyRequired,isTransport);
 
                         return (
                           <tr
@@ -2860,10 +2770,10 @@ export default function JournalEntryDetail() {
                             <td className="min-w-0 px-2 py-1.5">
                               {!line.accountId ? (
                                 <span className="text-xs text-slate-500">Select account first</span>
-                              ) : relatedMode==='party' ? (
+                              ) : partyRequired ? (
                                 <SearchableSelect
                                   preserveLabel
-                                  aria-label={`Related To row ${draftLines.indexOf(line)+1}`}
+                                  aria-label={`Party row ${draftLines.indexOf(line)+1}`}
                                   className="input min-w-0 max-w-full bg-white w-full text-xs"
                                   searchPlaceholder="Search customer or supplier..."
                                   emptyText="No linked customer / supplier found"
@@ -2875,38 +2785,8 @@ export default function JournalEntryDetail() {
                                     {p.type==='customer'?'Customer':'Supplier'} · {p.name}
                                   </option>)}
                                 </SearchableSelect>
-                              ) : relatedMode==='vehicle' && isDedicatedVehicleIncomeAccount(
-                                line.accountId,companyVehicles
-                              ) ? (
-                                <span className="block rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-600"
-                                  title="This Account already identifies and links to the vehicle. No Related To selection is needed.">
-                                  Vehicle is included in Account
-                                </span>
-                              ) : relatedMode==='vehicle' ? (
-                                <div>
-                                  <SearchableSelect
-                                    preserveLabel
-                                    aria-label={`Related To row ${draftLines.indexOf(line)+1}`}
-                                    className="input min-w-0 max-w-full bg-white w-full text-xs"
-                                    searchPlaceholder="Search company vehicle number or type..."
-                                    value={line.vehicleId??""}
-                                    onChange={e=>updateDraftLine(line.tempId,'vehicleId',e.target.value)}
-                                  >
-                                    <option value="">General / Shared (no vehicle)</option>
-                                    {eligibleVehicles.map(v=><option key={v.id} value={v.id}>{v.label}</option>)}
-                                  </SearchableSelect>
-                                  {vehicleLoadError&&<span role="alert" className="mt-1 block text-xs text-red-700">{vehicleLoadError}</span>}
-                                  {!vehicleLoadError&&eligibleVehicles.length===0&&<span className="mt-1 block text-xs text-amber-700">No company-owned vehicle valid on this journal date</span>}
-                                </div>
-                              ) : (
-                                <span
-                                  className="block truncate text-xs text-slate-600"
-                                  title={`Posts directly to ${selectedGL?.name ?? 'the selected account'}. No customer, supplier or vehicle allocation is required for this account.`}
-                                >
-                                  Direct to selected account
-                                </span>
-                              )}
-                              {relatedMode==='party'&&partyRequired&&partyOptions.length===0&&(
+                              ) : <span className="text-xs text-slate-400">—</span>}
+                              {partyRequired&&partyOptions.length===0&&(
                                 <span className="mt-1 block text-xs text-amber-700">Set up a linked customer/supplier before posting.</span>
                               )}
                             </td>
@@ -2967,9 +2847,7 @@ export default function JournalEntryDetail() {
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    relatedMode==='vehicle'
-                                      ? handleSplitVehicleRow(line)
-                                      : handleDuplicateRow(line)
+                                    handleDuplicateRow(line)
                                   }
                                   disabled={
                                     saving ||
@@ -2977,8 +2855,8 @@ export default function JournalEntryDetail() {
                                     importing
                                   }
                                   className="shrink-0 rounded bg-blue-50 px-1.5 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100"
-                                  aria-label={relatedMode==='vehicle'?'Split vehicle journal row':'Duplicate journal row'}
-                                  title={relatedMode==='vehicle'?'Split amount across vehicles using another journal line':'Duplicate row'}
+                                  aria-label="Duplicate journal row"
+                                  title="Duplicate row"
                                 >
                                   <Copy size={13}/>
                                 </button>
