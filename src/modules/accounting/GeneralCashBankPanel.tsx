@@ -93,7 +93,7 @@ export default function GeneralCashBankPanel(){
  // voucher without waiting on six master queries or an optional history read.
  void refreshVoucherHistory();
  if(transactionType==="expense_payment")payeeInputRef.current?.focus();
- if(transactionType==="salary_payment"&&employeeId)await loadSalarySummary(employeeId,salaryMonth);
+ if(transactionType==="salary_payment"&&employeeId)void loadSalarySummary(employeeId,salaryMonth).catch(() => { /* Posting succeeded; summary refresh is optional. */ });
  }catch(e:any){
   setError((e?.message||"Failed to post transaction.")+
    " If the request timed out, check Posted Vouchers before retrying. Do not double-pay.");
