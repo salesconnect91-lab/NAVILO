@@ -86,7 +86,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
     setSupplierId(record.id);setOrderId("");setAmount("");setSuccess(null);
   };
   useEffect(() => { void loadData(); }, []);
-  const supplierOrders = useMemo(() => orders.filter((order) => order.supplier_id === supplierId && order.outstanding_amount > 0), [orders, supplierId]);
+  const supplierOrders = useMemo(() => orders.filter((order) => order.supplier_id === supplierId && order.outstanding_amount > 0).sort((a,b)=>(a.payment_status==="partial"?0:1)-(b.payment_status==="partial"?0:1)), [orders, supplierId]);
   const selectedOrder = supplierOrders.find((order) => order.id === orderId) ?? null;
   const amountNumber = Number(amount || 0);
   const selectedInvoices = supplierOrders.filter(o => Object.prototype.hasOwnProperty.call(invoiceAllocations,o.id));
@@ -94,13 +94,14 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
   const multi = selectedInvoices.length > 1;
   const allocationValid = selectedInvoices.every(o => Number(invoiceAllocations[o.id])>0 && Number(invoiceAllocations[o.id])<=o.outstanding_amount+0.005);
   const selectOrder = (id: string) => {
-    setOrderId(id);
+    setOrderId("");
+    if (!id || Object.prototype.hasOwnProperty.call(invoiceAllocations,id)) return;
     const order = supplierOrders.find(item=>item.id===id);
     if (!order) return;
-    const remaining = Number(amount || 0)-allocatedTotal;
-    const value = remaining>0?Math.min(order.outstanding_amount,remaining):order.outstanding_amount;
-    setInvoiceAllocations(prev=>({...prev,[id]:String(value)}));
-    if(!amount) setAmount(String(value));
+    const remaining = Math.max(0, amountNumber-allocatedTotal);
+    if (remaining < 0.005) { setError("Amount Paid is fully allocated. Increase it or edit/remove an allocation."); return; }
+    const value = Math.min(order.outstanding_amount,remaining);
+    setInvoiceAllocations(prev=>({...prev,[id]:String(Number(value.toFixed(2)))}));
   };
 
   const printPaymentReceipt = async (receipt: SupplierPaymentReceipt) => {
@@ -187,10 +188,28 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
         <div><label className="mb-1.5 block text-xs font-semibold">Payment Method</label><SearchableSelect value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="Cash">Cash</option><option value="Bank">Bank</option><option value="Cheque">Cheque</option><option value="Online">Online</option><option value="Other">Other</option></SearchableSelect></div>
         <div><label className="mb-1.5 block text-xs font-semibold">Payment Account</label><SearchableSelect value={accountId} onChange={(e) => setAccountId(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select payment account</option>{accounts.map((account) => <option key={account.id} value={account.id} data-search={account.code}>{account.name}</option>)}</SearchableSelect><QuickMasterAdd kind="account" compact disabled={saving} onRefresh={refreshPaymentAccounts}/></div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2"><div><label className="mb-1.5 block text-xs font-semibold">Supplier</label><SearchableSelect value={supplierId} onChange={(e) => { setSupplierId(e.target.value); setOrderId(""); setInvoiceAllocations({}); setAmount(""); setSuccess(null); }} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</SearchableSelect><QuickMasterAdd kind="supplier" compact disabled={saving} onCreated={createdSupplier}/></div><div><label className="mb-1.5 block text-xs font-semibold">Open Purchase Invoice</label><SearchableSelect nativeCompatibility preserveLabel value={orderId} disabled={!supplierId} onChange={(e) => selectOrder(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3 disabled:bg-slate-50"><option value="">Select open invoice</option>{supplierOrders.map((order) => <option key={order.id} value={order.id}>{order.order_no} — Outstanding {currentCurrency()} {money(order.outstanding_amount)}</option>)}</SearchableSelect></div></div>
-      {selectedInvoices.length>0 && <div className="space-y-2 rounded-lg border border-slate-200 p-3"><div className="text-xs font-bold">Selected invoices — one payment voucher</div>{selectedInvoices.map(o=><div key={o.id} className="grid grid-cols-[1fr_130px_65px] items-center gap-2 text-xs"><span className="truncate">{o.order_no} · Due {currentCurrency()} {money(o.outstanding_amount)}</span><input aria-label={`Allocation for ${o.order_no}`} type="number" min="0" max={o.outstanding_amount} step="0.01" value={invoiceAllocations[o.id]} onChange={e=>setInvoiceAllocations(prev=>({...prev,[o.id]:e.target.value}))} className="h-9 rounded border border-slate-300 px-2 text-right"/><button type="button" onClick={()=>setInvoiceAllocations(prev=>{const next={...prev};delete next[o.id];return next;})} className="text-rose-700">Remove</button></div>)}<div className="text-right text-xs font-bold">Allocated {currentCurrency()} {money(allocatedTotal)} / Paid {currentCurrency()} {money(amountNumber)}</div></div>}
+      <div className="grid gap-4 md:grid-cols-2"><div><label className="mb-1.5 block text-xs font-semibold">Supplier</label><SearchableSelect value={supplierId} onChange={(e) => { setSupplierId(e.target.value); setOrderId(""); setInvoiceAllocations({}); setAmount(""); setSuccess(null); }} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</SearchableSelect><QuickMasterAdd kind="supplier" compact disabled={saving} onCreated={createdSupplier}/></div><div><label className="mb-1.5 block text-xs font-semibold">Open Purchase Invoice</label><SearchableSelect nativeCompatibility preserveLabel value={orderId} disabled={!supplierId} onChange={(e) => selectOrder(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3 disabled:bg-slate-50"><option value="">— Add open invoice (partial allowed) —</option>{supplierOrders.filter(order=>!Object.prototype.hasOwnProperty.call(invoiceAllocations,order.id)).map((order) => <option key={order.id} value={order.id}>{order.payment_status==="partial"?"[PARTIAL] ":""}{order.order_no} — Outstanding {currentCurrency()} {money(order.outstanding_amount)}</option>)}</SearchableSelect></div></div>
+      {selectedInvoices.length>0 && <div className="space-y-2 rounded-lg border border-slate-200 p-3"><div className="text-xs font-bold">Selected invoices — one payment voucher</div>{selectedInvoices.map(o=><div key={o.id} className="grid grid-cols-[1fr_130px_65px] items-center gap-2 text-xs"><span className="truncate">{o.order_no} · Due {currentCurrency()} {money(o.outstanding_amount)}</span><input aria-label={`Allocation for ${o.order_no}`} type="number" min="0" max={o.outstanding_amount} step="0.01" value={invoiceAllocations[o.id]} onChange={e=>setInvoiceAllocations(prev=>{
+      const others=Object.entries(prev).reduce((sum,[id,val])=>id===o.id?sum:sum+Number(val||0),0);
+      const max=Math.max(0,Math.min(o.outstanding_amount,amountNumber-others));
+      const requested=Number(e.target.value||0);
+      return {...prev,[o.id]:e.target.value===""?"":String(Number(Math.max(0,Math.min(requested,max)).toFixed(2)))};
+    })} className="h-9 rounded border border-slate-300 px-2 text-right"/><button type="button" onClick={()=>setInvoiceAllocations(prev=>{const next={...prev};delete next[o.id];return next;})} className="text-rose-700">Remove</button></div>)}<div className="text-right text-xs font-bold">Allocated {currentCurrency()} {money(allocatedTotal)} / Paid {currentCurrency()} {money(amountNumber)}</div></div>}
       {selectedOrder && <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3"><div><div className="text-xs text-slate-500">Invoice Total</div><div className="font-bold">{currentCurrency()} {money(selectedOrder.total)}</div></div><div><div className="text-xs text-slate-500">Paid</div><div className="font-bold">{currentCurrency()} {money(selectedOrder.paid_amount)}</div></div><div><div className="text-xs text-slate-500">Outstanding</div><div className="font-bold text-amber-700">{currentCurrency()} {money(selectedOrder.outstanding_amount)}</div></div></div>}
-      <div className="grid gap-4 md:grid-cols-3"><div><label className="mb-1.5 block text-xs font-semibold">Amount Paid</label><input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3" placeholder="0.00"/></div><div><label className="mb-1.5 block text-xs font-semibold">Reference</label><input value={reference} onChange={(e) => setReference(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3" placeholder="Optional"/></div><div><label className="mb-1.5 block text-xs font-semibold">Notes</label><input value={notes} onChange={(e) => setNotes(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3" placeholder="Optional"/></div></div>
+      <div className="grid gap-4 md:grid-cols-3"><div><label className="mb-1.5 block text-xs font-semibold">Amount Paid</label><input type="number" min="0" step="0.01" value={amount} onChange={(e) => {
+        const value=e.target.value;
+        setAmount(value);
+        let remaining=Math.max(0,Number(value)||0);
+        setInvoiceAllocations(prev=>{
+          const next:Record<string,string>={};
+          for(const [id,raw] of Object.entries(prev)){
+            const due=supplierOrders.find(o=>o.id===id)?.outstanding_amount??0;
+            const applied=Math.min(Math.max(0,Number(raw)||0),due,remaining);
+            if(applied>=0.005){next[id]=String(Number(applied.toFixed(2)));remaining=Math.max(0,Number((remaining-applied).toFixed(2)));}
+          }
+          return next;
+        });
+      } className="h-10 w-full rounded-lg border border-slate-200 px-3" placeholder="0.00"/></div><div><label className="mb-1.5 block text-xs font-semibold">Reference</label><input value={reference} onChange={(e) => setReference(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3" placeholder="Optional"/></div><div><label className="mb-1.5 block text-xs font-semibold">Notes</label><input value={notes} onChange={(e) => setNotes(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3" placeholder="Optional"/></div></div>
       <div className="flex justify-end border-t border-slate-200 pt-4"><button type="button" disabled={saving || !supplierId || !selectedInvoices.length || !accountId || amountNumber <= 0 || !allocationValid || Math.abs(allocatedTotal-amountNumber)>0.005} onClick={() => void handlePost()} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50">{saving ? <><Loader2 className="h-4 w-4 animate-spin"/>Posting...</> : <><CheckCircle2 className="h-4 w-4"/>Pay & Post</>}</button></div>
     </div>}
   </section>;
