@@ -175,7 +175,7 @@ function StatementSection({ title, section, tone, onDrilldown }: {
   );
 }
 
-function ResultRow({ label, amount, prominent = false, onClick }: {
+function ResultRow({ label, amount, onClick }: {
   label: string;
   amount: number;
   prominent?: boolean;
@@ -247,7 +247,7 @@ export default function ProfitLoss() {
     let accounts: AccountRow[] = [];
     let rawLedger: LedgerRow[] = [];
     let mappings: Array<{mapping_key:string;account_id:string}> = [];
-    let vehicleResult: {rows:Array<{vehicle_id:string;vehicle_no:string;amount:number|string}>;externalRows:ExternalAttributionRow[];vehicles:Array<{id:string;vehicle_no:string;revenue_account_id:string|null}>;error:string} = {rows:[],externalRows:[],vehicles:[],error:''};
+    let vehicleResult: {rows:Array<{vehicle_id:string;vehicle_no:string;amount:number|string}>;externalRows:ExternalAttributionRow[];vehicles:Array<{id:string;vehicle_no:string;revenue_account_id:string|null;truck_type:string|null}>;error:string} = {rows:[],externalRows:[],vehicles:[],error:''};
     setTransportIncome(null);
 
     try {
