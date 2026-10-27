@@ -146,10 +146,10 @@ function StatementSection({ title, section, tone, onDrilldown }: {
             const row = (
               <>
                 <div className="min-w-0 text-left">
-                  <span className="block truncate font-medium text-slate-800">{item.name}</span>
-                  <span className="block text-[12px] text-slate-400">{item.detailType}</span>
+                  <span className="block whitespace-normal break-words font-medium text-slate-800">{item.name}</span>
+                  <span className="block whitespace-normal break-words text-[12px] text-slate-500">{item.detailType}</span>
                 </div>
-                <span className={`shrink-0 font-mono font-semibold ${item.amount < 0 ? "text-rose-600" : "text-slate-900"}`}>
+                <span className={`shrink-0 whitespace-nowrap font-mono font-semibold ${item.amount < 0 ? "text-rose-600" : "text-slate-900"}`}>
                   {formatCurrency(item.amount)}
                 </span>
               </>
@@ -157,11 +157,11 @@ function StatementSection({ title, section, tone, onDrilldown }: {
             return onDrilldown && item.accountIds?.length ? (
               <button type="button" key={item.name} onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)}
                 title="Open the posted ledger entries behind this account"
-                className="flex w-full cursor-pointer items-center justify-between gap-4 py-2.5 text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500">
+                className="flex w-full cursor-pointer flex-col items-start justify-between gap-1 py-2.5 text-left text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:flex-row sm:items-center sm:gap-4">
                 {row}
               </button>
             ) : (
-              <div key={item.name} className="flex items-center justify-between gap-4 py-2.5 text-sm">{row}</div>
+              <div key={item.name} className="flex flex-col items-start justify-between gap-1 py-2.5 text-left text-sm sm:flex-row sm:items-center sm:gap-4">{row}</div>
             );
           })}
         </div>
@@ -201,7 +201,7 @@ export default function ProfitLoss() {
   const [error, setError] = useState<string | null>(null);
   const [reportPrintSettings, setReportPrintSettings] = useState<any>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [transportIncome,setTransportIncome]=useState<{sales:number;service:number;other:number;vehicleLedgerTotal:number;vehicleLedgerAdjustment:number;dedicatedSales:number;vehicles:VehicleIncome[];residual:number;vehicleError:string;salesAccountIds:string[];serviceAccountIds:string[];serviceVehicleAccountIds:string[];serviceSalesAdjustments:{accountId:string;amount:number}[]}|null>(null);
+  const [transportIncome,setTransportIncome]=useState<{sales:number;service:number;other:number;vehicleLedgerTotal:number;vehicleLedgerAdjustment:number;vehicleLedgerAccounts:{vehicle_no:string;debit:number;credit:number;net:number}[];dedicatedSales:number;vehicles:VehicleIncome[];residual:number;vehicleError:string;salesAccountIds:string[];serviceAccountIds:string[];serviceVehicleAccountIds:string[];serviceSalesAdjustments:{accountId:string;amount:number}[]}|null>(null);
   const [verifiedTransportUnit,setVerifiedTransportUnit]=useState<{companyId:string;businessUnitId:string;isTransport:boolean}|null>(null);
   const companyId=activeCompany?.company_id??'';
   const businessUnitId=activeBusinessUnit?.business_unit_id??'';
@@ -459,6 +459,15 @@ export default function ProfitLoss() {
           : reconcileNormalVehicleIncome(mappedSales,vehicleData,hideZeroBalances);
         const vehicleLedgerRows=vehicleResult.error?[]:linkedVehicleRows;
         const vehicleLedgerTotal=totalVehicleLedgerMovement(vehicleLedgerRows);
+        const vehicleLedgerAccounts=vehicleResult.error?[]:linkedVehicleRows
+          .filter(row=>row.status==='dedicated')
+          .map(row=>{
+            const accountId=vehicleResult.vehicles.find(vehicle=>vehicle.id===row.vehicle_id)?.revenue_account_id;
+            const movements=vehicleLedgerLines.filter(line=>line.account_id===accountId);
+            const debit=Number(movements.reduce((sum,line)=>sum+Number(line.debit??0),0).toFixed(2));
+            const credit=Number(movements.reduce((sum,line)=>sum+Number(line.credit??0),0).toFixed(2));
+            return {vehicle_no:row.vehicle_no,debit,credit,net:Number((credit-debit).toFixed(2))};
+          }).sort((a,b)=>a.vehicle_no.localeCompare(b.vehicle_no,undefined,{numeric:true}));
         const incomeSources=reconcileTransportProfitLossSources(
           next.operatingRevenue.total+next.otherIncome.total,sales,service,vehicleLedgerTotal,dedicatedSales,
         );
@@ -476,7 +485,7 @@ export default function ProfitLoss() {
           sales,service,
           // Revenue classifications must add back to the posted GL total exactly once.
           other:incomeSources.otherIncome,
-          vehicleLedgerTotal,vehicleLedgerAdjustment,dedicatedSales,
+          vehicleLedgerTotal,vehicleLedgerAdjustment,vehicleLedgerAccounts,dedicatedSales,
           vehicles:allCompanyVehicleRows,
           residual:breakdown.residual,
           vehicleError:vehicleResult.error,
@@ -521,13 +530,12 @@ export default function ProfitLoss() {
     };
   }, [data]);
 
-  // Revenue export rows preserve posted GL attribution without adding memo subtotals.
+  // P&L exports keep vehicle debit/credit activity in its own ledger schedule.
   const revenueExportRows:(string|number)[][]=isTransport&&transportIncome?[
-    ...transportIncome.vehicles.map(vehicle=>['Company-owned vehicle profitability — memo',vehicle.vehicle_no,vehicle.amount]),
     ['Sales Income — Normal Invoices','Sales Revenue GL plus invoice-linked revenue accounts',transportIncome.sales],
     ['Trip Service Income — Trip Register Invoices','Mapped service revenue',transportIncome.service],
     ['Other Income','Other income GL',transportIncome.other],
-    ['Vehicle Ledger Dr/Cr Reconciliation','Net vehicle-account movement after invoice income; not an expense',transportIncome.vehicleLedgerAdjustment],
+    ...transportIncome.vehicleLedgerAccounts.map(vehicle=>['Company Vehicle Ledger — Dr / Cr',vehicle.vehicle_no,`Dr ${formatCurrency(vehicle.debit)} · Cr ${formatCurrency(vehicle.credit)} · Net ${formatCurrency(vehicle.net)}`]),
     ...(Math.abs(transportIncome.residual)>=0.005?[['Vehicle Sales Not Allocated','Needs vehicle allocation review',transportIncome.residual]]:[])
   ]:printSectionRows('Operating Revenue',data.operatingRevenue);
 
@@ -556,7 +564,7 @@ export default function ProfitLoss() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-12"><AccountingReportScopeSelect value={scope} onChange={setScope}/>
-      <style>{`@media print{body *{visibility:hidden}#printable-profit-loss,#printable-profit-loss *{visibility:visible}#printable-profit-loss{position:absolute;left:0;top:0;width:100%}.no-print{display:none!important}}`}</style>
+      <style>{`@page{size:A4 portrait;margin:12mm}@media(max-width:640px){#printable-profit-loss section>div:first-child{align-items:flex-start;flex-wrap:wrap}#printable-profit-loss section>div:first-child h3{max-width:100%;white-space:normal;overflow-wrap:anywhere}#printable-profit-loss section .divide-y>div,#printable-profit-loss section .divide-y>button{align-items:flex-start}#printable-profit-loss .vehicle-ledger-drcr table{min-width:500px}}@media print{html,body{background:#fff!important;margin:0!important;padding:0!important}body *{visibility:hidden}#printable-profit-loss,#printable-profit-loss *{visibility:visible}#printable-profit-loss{position:absolute!important;left:0!important;top:0!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;gap:10px!important;color:#111827!important}.no-print{display:none!important}#printable-profit-loss header{break-inside:avoid;page-break-inside:avoid;box-shadow:none!important}#printable-profit-loss section{break-inside:avoid;page-break-inside:avoid;box-shadow:none!important}#printable-profit-loss .vehicle-ledger-drcr{break-inside:auto;page-break-inside:auto}#printable-profit-loss .vehicle-ledger-drcr table{width:100%!important;min-width:0!important;table-layout:fixed;border-collapse:collapse!important;font-size:9pt!important}#printable-profit-loss .vehicle-ledger-drcr th,#printable-profit-loss .vehicle-ledger-drcr td{padding:5px 7px!important;border-bottom:1px solid #d1d5db!important;white-space:normal!important}#printable-profit-loss .vehicle-ledger-drcr thead{display:table-header-group}#printable-profit-loss .vehicle-ledger-drcr tr{break-inside:avoid;page-break-inside:avoid}#printable-profit-loss .vehicle-ledger-drcr .overflow-x-auto{overflow:visible!important}.no-print{display:none!important}}`}</style>
 
       <div id="printable-profit-loss" className="space-y-6" aria-busy={loading}>
         {reportPrintSettings && (
@@ -624,17 +632,33 @@ export default function ProfitLoss() {
                   }]}} tone="income" onDrilldown={openDrilldown} />
                 <StatementSection title="Other Income" section={{total:transportIncome.other,
                   items:[{name:'Other income accounts / manual adjustments',amount:transportIncome.other,detailType:'Posted GL — outside Normal Sales and Trip Service Revenue',accountIds:otherTransportRevenueIds()}]}} tone="income" onDrilldown={openDrilldown}/>
-                <StatementSection title="Vehicle Ledger Dr/Cr Reconciliation"
-                  section={{total:transportIncome.vehicleLedgerAdjustment,items:[{
-                    name:'Net movement on company-owned vehicle ledgers',amount:transportIncome.vehicleLedgerAdjustment,
-                    detailType:transportIncome.vehicleLedgerAdjustment< -0.005
-                      ?`Vehicle ledger net debit ${formatCurrency(Math.abs(transportIncome.vehicleLedgerAdjustment))}; not an expense`
-                      :`Vehicle ledger net credit ${formatCurrency(transportIncome.vehicleLedgerAdjustment)}; not separate income`,
-                  }]}} tone="income" />
-                <StatementSection title="Company-owned Vehicle Ledger Net — memo (not added again)"
-                  section={{total:transportIncome.vehicles.reduce((sum,vehicle)=>sum+vehicle.amount,0),items:transportIncome.vehicles.map(vehicle=>({
-                    name:vehicle.vehicle_no,amount:vehicle.amount,detailType:'Net company-owned vehicle ledger movement (credit less debit)',
-                  }))}} tone="income" />
+                <section className="vehicle-ledger-drcr overflow-hidden rounded-xl border border-slate-200 bg-white" aria-label="Company vehicle ledger debit and credit">
+                  <div className="flex flex-col gap-1 border-b border-slate-200 bg-slate-50 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                    <h3 className="text-sm font-bold text-slate-700">Company Vehicle Ledger — Debit / Credit</h3>
+                    <span className="text-xs text-slate-500">Ledger movement only · not an expense category</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[540px] border-collapse text-sm">
+                      <thead><tr className="border-b border-slate-200 text-left text-xs font-bold text-slate-500">
+                        <th className="px-4 py-2">Vehicle</th><th className="px-4 py-2 text-right">Debit</th><th className="px-4 py-2 text-right">Credit</th><th className="px-4 py-2 text-right">Net (Cr − Dr)</th>
+                      </tr></thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {transportIncome.vehicleLedgerAccounts.map(vehicle=><tr key={vehicle.vehicle_no}>
+                          <td className="px-4 py-2 font-semibold text-slate-800">{vehicle.vehicle_no}</td>
+                          <td className="px-4 py-2 text-right font-mono">{formatCurrency(vehicle.debit)}</td>
+                          <td className="px-4 py-2 text-right font-mono">{formatCurrency(vehicle.credit)}</td>
+                          <td className="px-4 py-2 text-right font-mono font-semibold">{formatCurrency(vehicle.net)}</td>
+                        </tr>)}
+                        <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold">
+                          <td className="px-4 py-2">Total</td>
+                          <td className="px-4 py-2 text-right font-mono">{formatCurrency(transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.debit,0))}</td>
+                          <td className="px-4 py-2 text-right font-mono">{formatCurrency(transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.credit,0))}</td>
+                          <td className="px-4 py-2 text-right font-mono">{formatCurrency(transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.net,0))}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
               </>:<StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" onDrilldown={openDrilldown} />}
               <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} />
               <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales),"Gross Profit / (Loss)")} />
@@ -650,6 +674,13 @@ export default function ProfitLoss() {
               </div>
             </div>
           </>
+        )}
+        {reportPrintSettings && (
+          <div className="mt-8 hidden border-t border-slate-300 pt-3 text-xs text-slate-500 print:block">
+            {reportPrintSettings.visibility.show_footer && reportPrintSettings.company.document_footer && <div className="text-center">{reportPrintSettings.company.document_footer}</div>}
+            {reportPrintSettings.visibility.show_signatures && <div className="mt-10 flex justify-between text-slate-700"><span>{reportPrintSettings.company.prepared_by_label || "Prepared By"}</span><span>{reportPrintSettings.company.checked_by_label || "Checked By"}</span><span>{reportPrintSettings.company.approved_by_label || "Approved By"}</span></div>}
+            {reportPrintSettings.visibility.show_print_datetime && <div className="mt-4">Printed: {new Date().toLocaleString("en-PK")}</div>}
+          </div>
         )}
       </div>
 
@@ -700,13 +731,6 @@ export default function ProfitLoss() {
         </div>
       )}
 
-      {reportPrintSettings && (
-        <div className="mt-8 hidden border-t border-slate-300 pt-3 text-xs text-slate-500 print:block">
-          {reportPrintSettings.visibility.show_footer && reportPrintSettings.company.document_footer && <div className="text-center">{reportPrintSettings.company.document_footer}</div>}
-          {reportPrintSettings.visibility.show_signatures && <div className="mt-10 flex justify-between text-slate-700"><span>{reportPrintSettings.company.prepared_by_label || "Prepared By"}</span><span>{reportPrintSettings.company.checked_by_label || "Checked By"}</span><span>{reportPrintSettings.company.approved_by_label || "Approved By"}</span></div>}
-          {reportPrintSettings.visibility.show_print_datetime && <div className="mt-4">Printed: {new Date().toLocaleString("en-PK")}</div>}
-        </div>
-      )}
     </div>
   );
 }
