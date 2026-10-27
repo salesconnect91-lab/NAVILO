@@ -152,7 +152,9 @@ function StatementSection({ title, section, onDrilldown }: {
               <>
                 <div className="min-w-0 text-left">
                   <span className="block whitespace-normal break-words font-medium text-slate-800">{item.name}</span>
-                  <span className="block whitespace-normal break-words text-[12px] text-slate-500">{item.detailType}</span>
+                  {item.detailType && normalized(item.detailType) !== normalized(item.name) && (
+                    <span className="block whitespace-normal break-words text-[12px] text-slate-500">{item.detailType}</span>
+                  )}
                 </div>
                 <span className="shrink-0 whitespace-nowrap font-mono font-semibold text-slate-900">
                   {formatCurrency(item.amount)}
