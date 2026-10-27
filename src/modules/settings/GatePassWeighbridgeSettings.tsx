@@ -102,7 +102,7 @@ export default function GatePassWeighbridgeSettings() {
               <p className="mt-1 text-xs text-slate-500">Example: 1 means ±1 kg is allowed.: 1 ±1 </p>
             </div>
             <div>
-              <label className="label">Percentage Tolerance (%)%)</label>
+              <label className="label">Percentage Tolerance (%)</label>
               <input type="number" min="0" max="10" step="0.01" className="input" value={config.percentage_tolerance} onChange={e => setConfig(v => ({ ...v, percentage_tolerance: Number(e.target.value) }))} />
               <p className="mt-1 text-xs text-slate-500">Example: 0.5 means ±0.5% is allowed.: 0.5 ±0.5</p>
             </div>
