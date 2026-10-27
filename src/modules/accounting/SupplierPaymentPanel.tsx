@@ -41,6 +41,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [supplierId, setSupplierId] = useState("");
   const [orderId, setOrderId] = useState("");
+  const [invoiceAllocations, setInvoiceAllocations] = useState<Record<string,string>>({});
   const [accountId, setAccountId] = useState("");
   const [paymentDate, setPaymentDate] = useState(today());
   const [paymentMethod, setPaymentMethod] = useState("Cash");
@@ -88,7 +89,19 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
   const supplierOrders = useMemo(() => orders.filter((order) => order.supplier_id === supplierId && order.outstanding_amount > 0), [orders, supplierId]);
   const selectedOrder = supplierOrders.find((order) => order.id === orderId) ?? null;
   const amountNumber = Number(amount || 0);
-  const selectOrder = (id: string) => { setOrderId(id); const order = supplierOrders.find((item) => item.id === id); setAmount(order ? order.outstanding_amount.toFixed(2) : ""); };
+  const selectedInvoices = supplierOrders.filter(o => Object.prototype.hasOwnProperty.call(invoiceAllocations,o.id));
+  const allocatedTotal = selectedInvoices.reduce((sum,o)=>sum+Number(invoiceAllocations[o.id]||0),0);
+  const multi = selectedInvoices.length > 1;
+  const allocationValid = selectedInvoices.every(o => Number(invoiceAllocations[o.id])>0 && Number(invoiceAllocations[o.id])<=o.outstanding_amount+0.005);
+  const selectOrder = (id: string) => {
+    setOrderId(id);
+    const order = supplierOrders.find(item=>item.id===id);
+    if (!order) return;
+    const remaining = Number(amount || 0)-allocatedTotal;
+    const value = remaining>0?Math.min(order.outstanding_amount,remaining):order.outstanding_amount;
+    setInvoiceAllocations(prev=>({...prev,[id]:String(value)}));
+    if(!amount) setAmount(String(value));
+  };
 
   const printPaymentReceipt = async (receipt: SupplierPaymentReceipt) => {
     try {
@@ -133,19 +146,21 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
     if (postingRef.current) return;
     setError(null); setSuccess(null);
     if (!supplierId) return setError("Select supplier");
-    if (!selectedOrder) return setError("Select open purchase invoice");
+    if (!selectedInvoices.length) return setError("Select open purchase invoices");
     if (!Number.isFinite(amountNumber) || amountNumber <= 0) return setError("Enter valid payment amount");
-    if (amountNumber > selectedOrder.outstanding_amount + 0.005) return setError("Payment cannot exceed outstanding balance.");
+    if (!allocationValid || Math.abs(allocatedTotal-amountNumber)>0.005) return setError("Each invoice allocation must be valid and total allocations must equal Amount Paid.");
     if (!accountId) return setError("Select Payment Account.");
     postingRef.current = true;
     setSaving(true);
     try {
-      const paymentPayload = { p_supplier_id: supplierId, p_payment_date: paymentDate, p_payment_account_id: accountId, p_payment_method: paymentMethod, p_reference: reference.trim() || null, p_description: `Payment against ${selectedOrder.order_no}`, p_notes: notes.trim() || null, p_purchase_order_id: selectedOrder.id, p_amount: amountNumber };
+      const paymentPayload = multi
+        ? {p_supplier_id:supplierId,p_payment_date:paymentDate,p_payment_account_id:accountId,p_payment_method:paymentMethod,p_reference:reference.trim()||null,p_notes:notes.trim()||null,p_allocations:selectedInvoices.map(o=>({purchase_order_id:o.id,amount:Number(invoiceAllocations[o.id])}))}
+        : { p_supplier_id: supplierId, p_payment_date: paymentDate, p_payment_account_id: accountId, p_payment_method: paymentMethod, p_reference: reference.trim() || null, p_description: `Payment against ${selectedInvoices[0].order_no}`, p_notes: notes.trim() || null, p_purchase_order_id: selectedInvoices[0].id, p_amount: amountNumber };
       const payloadSignature = JSON.stringify(paymentPayload);
       if (paymentRequestRef.current?.payload !== payloadSignature) {
         paymentRequestRef.current = { id: crypto.randomUUID(), payload: payloadSignature };
       }
-      const { data, error: rpcError } = await supabase.rpc("cash_counter_post_once", { p_request_id: paymentRequestRef.current.id, p_kind: "supplier", p_payload: paymentPayload } as any);
+      const { data, error: rpcError } = await supabase.rpc("cash_counter_post_once", { p_request_id: paymentRequestRef.current.id, p_kind: multi ? "supplier_multi" : "supplier", p_payload: paymentPayload } as any);
       if (rpcError) throw rpcError;
       paymentRequestRef.current = null;
       const result = (data ?? {}) as { entry_no?: string; journal_entry_id?: string; payment_amount?: number };
@@ -154,14 +169,14 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
       let supplierBalanceSnapshot: { balance_before: number | null; payment_amount: number | null; balance_after: number | null } | null = null;
       if (result.journal_entry_id) { const { data: snapshotData, error: snapshotError } = await supabase.from("journal_entries").select("balance_before,payment_amount,balance_after").eq("id", result.journal_entry_id).maybeSingle(); if (!snapshotError) supplierBalanceSnapshot = snapshotData; }
       setLastPaymentReceipt({ entry_no: result.entry_no || "Supplier Payment", supplier_name: selectedSupplier?.name || "Supplier", invoice_no: selectedOrder.order_no, date: paymentDate, payment_method: paymentMethod, account: selectedAccount?.name || "—", amount: result.payment_amount ?? amountNumber, balance_before: supplierBalanceSnapshot?.balance_before ?? null, balance_after: supplierBalanceSnapshot?.balance_after ?? null });
-      setOrderId(""); setAmount(""); setReference(""); setNotes(""); void loadData(true).catch(() => {});
+      setOrderId(""); setInvoiceAllocations({}); setAmount(""); setReference(""); setNotes(""); void loadData(true).catch(() => {});
     } catch (err: any) { setError((err?.message || err?.details || err?.hint || "Failed to post supplier payment.") + " If the request timed out, check Posted Payments before retrying to avoid a duplicate payment."); } finally { postingRef.current = false; setSaving(false); }
   };
 
   if (loading) return <div className="flex min-h-[250px] items-center justify-center rounded-xl border border-slate-200 bg-white text-sm text-slate-500"><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Loading supplier payments...</div>;
 
   return <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-    <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="font-bold text-slate-900">New Supplier Payment</h2><p className="mt-0.5 text-xs text-slate-500">Supplier → Purchase Invoice → Payment Account → Pay & Post</p></div><button type="button" onClick={() => void loadData()} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold"><RefreshCw className="h-4 w-4"/>Refresh</button></div>
+    <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="font-bold text-slate-900">New Supplier Payment</h2><p className="mt-0.5 text-xs text-slate-500">Supplier → Select invoices → Allocate → One payment voucher</p></div><button type="button" onClick={() => void loadData()} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold"><RefreshCw className="h-4 w-4"/>Refresh</button></div>
     {activeBusinessUnit?.business_unit_type==="transport"&&<div className="flex gap-2 px-5 pt-3"><button type="button" className={transportMode?"btn-secondary":"btn-primary"} disabled={saving} onClick={()=>setTransportMode(false)}>Single invoice</button><button type="button" className={transportMode?"btn-primary":"btn-secondary"} disabled={saving} onClick={()=>setTransportMode(true)}>Transport invoices / Trips</button></div>}
     {transportMode?<div className="space-y-3 p-5"><label className="block text-xs font-semibold">Supplier<SearchableSelect value={supplierId} disabled={saving} onChange={e=>setSupplierId(e.target.value)} className="input w-full"><option value="">Select supplier</option>{suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</SearchableSelect><QuickMasterAdd kind="supplier" compact disabled={saving} onCreated={createdSupplier}/></label><TransportCashSettlement side="supplier" party={supplierId} onBusyChange={setSaving} onPosted={()=>loadData(true)}/></div>:<div className="space-y-5 p-5">
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -172,10 +187,11 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
         <div><label className="mb-1.5 block text-xs font-semibold">Payment Method</label><SearchableSelect value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="Cash">Cash</option><option value="Bank">Bank</option><option value="Cheque">Cheque</option><option value="Online">Online</option><option value="Other">Other</option></SearchableSelect></div>
         <div><label className="mb-1.5 block text-xs font-semibold">Payment Account</label><SearchableSelect value={accountId} onChange={(e) => setAccountId(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select payment account</option>{accounts.map((account) => <option key={account.id} value={account.id} data-search={account.code}>{account.name}</option>)}</SearchableSelect><QuickMasterAdd kind="account" compact disabled={saving} onRefresh={refreshPaymentAccounts}/></div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2"><div><label className="mb-1.5 block text-xs font-semibold">Supplier</label><SearchableSelect value={supplierId} onChange={(e) => { setSupplierId(e.target.value); setOrderId(""); setAmount(""); setSuccess(null); }} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</SearchableSelect><QuickMasterAdd kind="supplier" compact disabled={saving} onCreated={createdSupplier}/></div><div><label className="mb-1.5 block text-xs font-semibold">Open Purchase Invoice</label><SearchableSelect nativeCompatibility preserveLabel value={orderId} disabled={!supplierId} onChange={(e) => selectOrder(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3 disabled:bg-slate-50"><option value="">Select open invoice</option>{supplierOrders.map((order) => <option key={order.id} value={order.id}>{order.order_no} — Outstanding {currentCurrency()} {money(order.outstanding_amount)}</option>)}</SearchableSelect></div></div>
+      <div className="grid gap-4 md:grid-cols-2"><div><label className="mb-1.5 block text-xs font-semibold">Supplier</label><SearchableSelect value={supplierId} onChange={(e) => { setSupplierId(e.target.value); setOrderId(""); setInvoiceAllocations({}); setAmount(""); setSuccess(null); }} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</SearchableSelect><QuickMasterAdd kind="supplier" compact disabled={saving} onCreated={createdSupplier}/></div><div><label className="mb-1.5 block text-xs font-semibold">Open Purchase Invoice</label><SearchableSelect nativeCompatibility preserveLabel value={orderId} disabled={!supplierId} onChange={(e) => selectOrder(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3 disabled:bg-slate-50"><option value="">Select open invoice</option>{supplierOrders.map((order) => <option key={order.id} value={order.id}>{order.order_no} — Outstanding {currentCurrency()} {money(order.outstanding_amount)}</option>)}</SearchableSelect></div></div>
+      {selectedInvoices.length>0 && <div className="space-y-2 rounded-lg border border-slate-200 p-3"><div className="text-xs font-bold">Selected invoices — one payment voucher</div>{selectedInvoices.map(o=><div key={o.id} className="grid grid-cols-[1fr_130px_65px] items-center gap-2 text-xs"><span className="truncate">{o.order_no} · Due {currentCurrency()} {money(o.outstanding_amount)}</span><input aria-label={`Allocation for ${o.order_no}`} type="number" min="0" max={o.outstanding_amount} step="0.01" value={invoiceAllocations[o.id]} onChange={e=>setInvoiceAllocations(prev=>({...prev,[o.id]:e.target.value}))} className="h-9 rounded border border-slate-300 px-2 text-right"/><button type="button" onClick={()=>setInvoiceAllocations(prev=>{const next={...prev};delete next[o.id];return next;})} className="text-rose-700">Remove</button></div>)}<div className="text-right text-xs font-bold">Allocated {currentCurrency()} {money(allocatedTotal)} / Paid {currentCurrency()} {money(amountNumber)}</div></div>}
       {selectedOrder && <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3"><div><div className="text-xs text-slate-500">Invoice Total</div><div className="font-bold">{currentCurrency()} {money(selectedOrder.total)}</div></div><div><div className="text-xs text-slate-500">Paid</div><div className="font-bold">{currentCurrency()} {money(selectedOrder.paid_amount)}</div></div><div><div className="text-xs text-slate-500">Outstanding</div><div className="font-bold text-amber-700">{currentCurrency()} {money(selectedOrder.outstanding_amount)}</div></div></div>}
       <div className="grid gap-4 md:grid-cols-3"><div><label className="mb-1.5 block text-xs font-semibold">Amount Paid</label><input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3" placeholder="0.00"/></div><div><label className="mb-1.5 block text-xs font-semibold">Reference</label><input value={reference} onChange={(e) => setReference(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3" placeholder="Optional"/></div><div><label className="mb-1.5 block text-xs font-semibold">Notes</label><input value={notes} onChange={(e) => setNotes(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3" placeholder="Optional"/></div></div>
-      <div className="flex justify-end border-t border-slate-200 pt-4"><button type="button" disabled={saving || !supplierId || !selectedOrder || !accountId || amountNumber <= 0} onClick={() => void handlePost()} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50">{saving ? <><Loader2 className="h-4 w-4 animate-spin"/>Posting...</> : <><CheckCircle2 className="h-4 w-4"/>Pay & Post</>}</button></div>
+      <div className="flex justify-end border-t border-slate-200 pt-4"><button type="button" disabled={saving || !supplierId || !selectedInvoices.length || !accountId || amountNumber <= 0 || !allocationValid || Math.abs(allocatedTotal-amountNumber)>0.005} onClick={() => void handlePost()} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50">{saving ? <><Loader2 className="h-4 w-4 animate-spin"/>Posting...</> : <><CheckCircle2 className="h-4 w-4"/>Pay & Post</>}</button></div>
     </div>}
   </section>;
 }
