@@ -618,7 +618,7 @@ export default function ProfitLoss() {
                   }]:[]}} tone="income" onDrilldown={openDrilldown} />
                 <StatementSection title="Service Income — Trip Invoices"
                   section={{total:transportIncome.service,items:Math.abs(transportIncome.service)>=0.005||!hideZeroBalances?[{
-                    name:'Service Revenue — posted Trip and vehicle service income',
+                    name:'Service Revenue — posted Trip invoices',
                     amount:transportIncome.service,detailType:'Mapped service revenue plus invoice-linked service accounts',
                     accountIds:transportIncome.serviceAccountIds,
                   }]:[]}} tone="income" onDrilldown={openDrilldown} />
