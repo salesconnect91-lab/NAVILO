@@ -156,6 +156,8 @@ export default function JournalEntryDetail() {
 
   const [entry, setEntry] =
     useState<JournalEntry | null>(null);
+  const [editingEntryNumber, setEditingEntryNumber] = useState(false);
+  const [entryNumberDraft, setEntryNumberDraft] = useState("");
   const [draftEntryDate, setDraftEntryDate] = useState("");
   const [companyBaseCurrency, setCompanyBaseCurrency] = useState("");
 
@@ -315,6 +317,8 @@ export default function JournalEntryDetail() {
       setEntry(
         data as JournalEntry | null
       );
+      setEditingEntryNumber(false);
+      setEntryNumberDraft(data?.entry_no ?? "");
       setDraftEntryDate(data?.entry_date ?? "");
       if (data?.company_id) {
         const { data: company } = await supabase.from("companies")
@@ -2170,6 +2174,46 @@ export default function JournalEntryDetail() {
     !sourceEntry.monthly_profit_closure_id;
   const hasUnsavedDraftDate = canEditDraftDate && draftEntryDate !== entry.entry_date;
 
+  const saveDraftEntryNumber = async () => {
+    if (!entry || !canEditDraftDate || saving || posting || importing) return;
+    const nextEntryNo = entryNumberDraft.trim();
+    if (!nextEntryNo) {
+      setError("Enter a journal entry number before saving.");
+      return;
+    }
+    if (nextEntryNo === entry.entry_no) {
+      setEditingEntryNumber(false);
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const { data, error: updateError } = await supabase
+        .from("journal_entries")
+        .update({ entry_no: nextEntryNo, trans_type: "Manual Journal" })
+        .eq("id", entry.id)
+        .eq("status", "draft")
+        .select("id,entry_no,trans_type")
+        .maybeSingle();
+      if (updateError) {
+        if ((updateError as any).code === "23505") throw new Error(`Entry number “${nextEntryNo}” is already in use.`);
+        throw new Error(updateError.message);
+      }
+      if (!data) throw new Error("This journal is no longer a draft. Refresh the page and try again.");
+      setEntry(previous => previous && previous.id === data.id
+        ? { ...previous, entry_no: data.entry_no, trans_type: data.trans_type }
+        : previous);
+      setEntryNumberDraft(data.entry_no);
+      setEditingEntryNumber(false);
+      setSuccess("Journal entry number saved.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not update the journal entry number.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const isOwnerCancellableOpeningPayment = isPosted && ownerCanCancel && !reversalEntry && !entry.reversal_of_entry_id && sourceEntry.source_module === "transport" && ["transport_opening_receipt", "transport_opening_payment"].includes(sourceEntry.source_document_type || "");
 
   const isOwnerCancellablePayment =
@@ -2193,7 +2237,38 @@ export default function JournalEntryDetail() {
               ← Back to Journal Entries
             </Link>
             <h1 className="text-2xl font-bold text-slate-900">
-              {entry.entry_no}
+              {canEditDraftDate && editingEntryNumber ? (
+                <span className="inline-flex flex-wrap items-center gap-2 align-middle">
+                  <input
+                    autoFocus
+                    aria-label="Journal entry number"
+                    className="input w-52 font-mono text-lg font-bold"
+                    maxLength={80}
+                    value={entryNumberDraft}
+                    onChange={event => setEntryNumberDraft(event.target.value)}
+                    onKeyDown={event => {
+                      if (event.key === "Enter") { event.preventDefault(); void saveDraftEntryNumber(); }
+                      if (event.key === "Escape") { setEntryNumberDraft(entry.entry_no); setEditingEntryNumber(false); }
+                    }}
+                    disabled={saving || posting || importing}
+                  />
+                  <button type="button" className="btn-primary text-xs" onClick={() => void saveDraftEntryNumber()} disabled={saving || posting || importing || !entryNumberDraft.trim()}>
+                    {saving ? "Saving…" : "Save"}
+                  </button>
+                  <button type="button" className="btn-secondary text-xs" onClick={() => { setEntryNumberDraft(entry.entry_no); setEditingEntryNumber(false); }} disabled={saving}>
+                    Cancel
+                  </button>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  {entry.entry_no}
+                  {canEditDraftDate && (
+                    <button type="button" className="btn-secondary text-xs" onClick={() => { setEntryNumberDraft(entry.entry_no); setEditingEntryNumber(true); }} disabled={saving || posting || importing} aria-label="Edit journal entry number">
+                      Edit number
+                    </button>
+                  )}
+                </span>
+              )}
             </h1>
 
             <StatusBadge
