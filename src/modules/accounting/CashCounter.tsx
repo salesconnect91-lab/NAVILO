@@ -1487,16 +1487,17 @@ export default function CashCounter() {
       } | null = null;
 
       if (result.journal_entry_id) {
-        const { data: snapshotData, error: snapshotError } =
-          await supabase
-            .from("journal_entries")
-            .select("balance_before,payment_amount,balance_after")
-            .eq("id", result.journal_entry_id)
-            .maybeSingle();
-
-        // The RPC has already posted successfully. A failed optional balance
-        // lookup must not report a posting failure or invite a second payment.
-        if (!snapshotError) customerBalanceSnapshot = snapshotData;
+        try {
+          const { data: snapshotData, error: snapshotError } =
+            await supabase
+              .from("journal_entries")
+              .select("balance_before,payment_amount,balance_after")
+              .eq("id", result.journal_entry_id)
+              .maybeSingle();
+          if (!snapshotError) customerBalanceSnapshot = snapshotData;
+        } catch {
+          // Receipt is already posted. Optional snapshot failures must not suggest a retry.
+        }
       }
 
       const receipt: Receipt = {
