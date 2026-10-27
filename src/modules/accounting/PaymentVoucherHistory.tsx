@@ -328,9 +328,16 @@ ${
         popup.print();
       }, 250);
     } catch (err: any) {
-      setError(
-        err?.message || "Failed to print voucher."
-      );
+      const message = err?.message || "Failed to print voucher.";
+      setError(message);
+      // A popup opened before the asynchronous lookup must never stay blank.
+      try {
+        if (!popup.closed) {
+          popup.document.body.textContent = "Unable to prepare voucher: " + message;
+        }
+      } catch {
+        // Ignore a window that was closed by the cashier.
+      }
     } finally {
       setWorkingId(null);
     }
