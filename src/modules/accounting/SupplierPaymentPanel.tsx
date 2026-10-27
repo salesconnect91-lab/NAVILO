@@ -148,7 +148,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
       if (result.journal_entry_id) { const { data: snapshotData, error: snapshotError } = await supabase.from("journal_entries").select("balance_before,payment_amount,balance_after").eq("id", result.journal_entry_id).maybeSingle(); if (!snapshotError) supplierBalanceSnapshot = snapshotData; }
       setLastPaymentReceipt({ entry_no: result.entry_no || "Supplier Payment", supplier_name: selectedSupplier?.name || "Supplier", invoice_no: selectedOrder.order_no, date: paymentDate, payment_method: paymentMethod, account: selectedAccount?.name || "—", amount: result.payment_amount ?? amountNumber, balance_before: supplierBalanceSnapshot?.balance_before ?? null, balance_after: supplierBalanceSnapshot?.balance_after ?? null });
       setOrderId(""); setAmount(""); setReference(""); setNotes(""); void loadData(true).catch(() => {});
-    } catch (err: any) { setError(err?.message || err?.details || err?.hint || "Failed to post supplier payment."); } finally { postingRef.current = false; setSaving(false); }
+    } catch (err: any) { setError((err?.message || err?.details || err?.hint || "Failed to post supplier payment.") + " If the request timed out, check Posted Payments before retrying to avoid a duplicate payment."); } finally { postingRef.current = false; setSaving(false); }
   };
 
   if (loading) return <div className="flex min-h-[250px] items-center justify-center rounded-xl border border-slate-200 bg-white text-sm text-slate-500"><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Loading supplier payments...</div>;
