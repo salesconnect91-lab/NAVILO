@@ -76,8 +76,8 @@ type Receipt = {
   payment_method: string;
   account: string;
   amount: number;
-  invoice_no?: string;  balance_before?: number;
-  balance_after?: number;
+  invoice_no?: string;  balance_before?: number | null;
+  balance_after?: number | null;
 };
 
 
@@ -94,6 +94,8 @@ const toNumber = (value: unknown) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
 };
+
+const balanceDisplay = (value: number | null | undefined) => value == null ? "Not available" : `${currentCurrency()} ${money(value)}`;
 
 const money = (value: number) =>
   new Intl.NumberFormat("en-PK", {
@@ -850,7 +852,7 @@ export default function CashCounter() {
                 visibility.show_previous_balance
                   ? `<div class="amount">
                        <span>Previous Balance</span>
-                       <strong>${currentCurrency()} ${money(receipt.balance_before ?? 0)}</strong>
+                       <strong>${balanceDisplay(receipt.balance_before)}</strong>
                      </div>`
                   : ""
               }
@@ -869,7 +871,7 @@ export default function CashCounter() {
                 visibility.show_closing_balance
                   ? `<div class="amount">
                        <span>Closing Balance</span>
-                       <strong>${currentCurrency()} ${money(receipt.balance_after ?? 0)}</strong>
+                       <strong>${balanceDisplay(receipt.balance_after)}</strong>
                      </div>`
                   : ""
               }
@@ -1228,7 +1230,7 @@ export default function CashCounter() {
         pdf.setFontSize(10);
         pdf.text("Previous Balance", margin, y);
         pdf.text(
-          `${currentCurrency()} ${money(receipt.balance_before ?? 0)}`,
+          `${balanceDisplay(receipt.balance_before)}`,
           pageWidth - margin,
           y,
           { align: "right" }
@@ -1257,7 +1259,7 @@ export default function CashCounter() {
         pdf.setFontSize(10);
         pdf.text("Closing Balance", margin, y);
         pdf.text(
-          `${currentCurrency()} ${money(receipt.balance_after ?? 0)}`,
+          `${balanceDisplay(receipt.balance_after)}`,
           pageWidth - margin,
           y,
           { align: "right" }
@@ -1534,12 +1536,8 @@ export default function CashCounter() {
           "invoice"
             ? selectedInvoice?.order_no
             : undefined,
-        balance_before: toNumber(
-          customerBalanceSnapshot?.balance_before ?? 0
-        ),
-        balance_after: toNumber(
-          customerBalanceSnapshot?.balance_after ?? 0
-        ),
+        balance_before: customerBalanceSnapshot?.balance_before ?? null,
+        balance_after: customerBalanceSnapshot?.balance_after ?? null,
       };
 
       setLastReceipt(receipt);
