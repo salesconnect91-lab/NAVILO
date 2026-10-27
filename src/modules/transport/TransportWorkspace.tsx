@@ -2528,8 +2528,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
           </NaviloSearchableSelect>
         </TripField>
         <TripField label="PPR Attachment (optional)">
-          <input aria-label="PPR Attachment" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={loading||!editingTripId||form.ppr_status!=="received"} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void attachPpr(file)}}/>
-          <small>Save the Trip receipt first, then edit to attach a PDF or image (up to 10 MB).</small>
+          <input aria-label="PPR Attachment" aria-describedby="ppr-attachment-help" className="block w-full min-w-0 text-xs" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={loading||!editingTripId||form.ppr_status!=="received"} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void attachPpr(file)}}/>
           {form.ppr_attachment_path&&<button type="button" className="text-blue-700 underline" onClick={()=>void openPpr()}>View saved PPR</button>}
         </TripField>
         <TripField label="PPR Date">
@@ -2560,10 +2559,11 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       </div>
     </div>
 
+    <p id="ppr-attachment-help" className="mt-1 text-[10px] text-slate-600">Save the Trip receipt first, then edit to attach a PDF or image (up to 10 MB).</p>
     <p className="mt-1 text-[10px] text-slate-600">{agreedRate?`Suggested Customer Rate: ${agreedRate.amount} (effective agreement). `:''}Entered Customer Rate and Supplier Rent finalize on creation with permission; blank means pending. Estimated margin excludes later expenses, fuel and charges. {editingTripId?`Unposted base + charges: Customer ${(Number(form.customer_rate||0)+editingChargeTotals.customer).toFixed(2)}; Supplier ${(Number(form.supplier_rent||0)+editingChargeTotals.supplier).toFixed(2)}. ${editingSupplierRentCount>1?'Multiple supplier rents: edit each supplier in Bulk Supplier Rent.':''}`:''}</p>
     <div className="mt-3 grid gap-3 xl:grid-cols-[180px_1fr_auto]">
       <label className="text-[11px] font-semibold text-slate-700">
-        Billing Mode · Customer Master
+        <span className="block">Billing Mode · Customer Master</span>
         <div aria-label="Customer billing mode" className={`mt-1 flex h-9 items-center rounded-md border px-3 text-xs font-semibold ${selectedCustomerMode?'border-emerald-200 bg-emerald-50 text-emerald-800':'border-amber-200 bg-amber-50 text-amber-800'}`}>
           {editingTripLocked?(form.sale_type==='cash'?'Cash Only (Locked)':'Credit Only (Locked)'):selectedCustomerMode?(selectedCustomerMode==='cash'?'Cash Only':'Credit Only'):'Not Configured'}
         </div>
@@ -2571,7 +2571,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
       </label>
 
       <label className="text-[11px] font-semibold text-slate-700">
-        Remarks
+        <span className="block">Remarks</span>
         <input value={form.notes}
           onChange={e=>{setError("");setForm({...form,notes:e.target.value})}}
           className="mt-1 h-9 w-full rounded-md border border-slate-300 px-3 text-xs outline-none focus:border-blue-400"/>
