@@ -1,6 +1,6 @@
 import NaviloDateInput from '@/components/NaviloDateInput';
 import { useCallback,useEffect,useMemo,useRef,useState } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { BarChart3,Download,Mail,Printer,RefreshCw,RotateCcw,Save,Settings2,Sparkles,Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPages } from "@/lib/fetchAllPages";
@@ -191,14 +191,22 @@ export default function Reports(){
    "/reports/customer-item-history","/reports/supplier-item-history",
    "/reports/returns-register"].includes(loc.pathname) && !groupBy && !inventoryCategoryMode;
  const smartTableRows = useMemo(()=>smartTableEnabled
-   ? rows.map((record,index)=>({...record,id:`report-row-${index}`}))
+   ? rows.map((record,index)=>({...record,sourceId:record.sales_order_id??record.purchase_order_id??record.id,id:`report-row-${index}`}))
    : [],[rows,smartTableEnabled]);
  const smartTableColumns = useMemo<Column<any>[]>(()=>def.cols.map(col=>({
    key:col.key,label:col.label,sortable:true,
    className:col.kind&&col.kind!=="date"?"text-right tabular-nums":"",
-   render:(record:any)=>show(record[col.key],col.kind),
+   render:(record:any)=>{
+     const sourceId=String(record.sourceId??"");
+     const isInvoiceColumn=["order_no","invoice_no"].includes(col.key);
+     const isInvoiceValue=col.kind==="money";
+     const side=loc.pathname.includes("purchase")||loc.pathname.includes("supplier")?"purchase":"sales";
+     return sourceId&&(isInvoiceColumn||isInvoiceValue)
+       ? <Link to={`/${side}/${encodeURIComponent(sourceId)}`} title="Open the source invoice" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{show(record[col.key],col.kind)}</Link>
+       : show(record[col.key],col.kind);
+   },
    getFilterValue:(record:any)=>show(record[col.key],col.kind),
- })),[def]);
+ })),[def,loc.pathname]);
  const smartTableScope=`${user?.id??"anonymous"}:${activeCompany?.company_id??"none"}:${activeBusinessUnit?.business_unit_id??"none"}`;
  const exportReport=(kind:"excel"|"csv")=>{const root=document.querySelector<HTMLElement>(".navilo-report-source");if(!root)return;const filename=loc.pathname.replace(/^\//,"").replace(/\W+/g,"-")||"report";if(kind==="excel")exportDomReportToExcel(filename,root,def.title);else exportDomReportToCSV(filename,root,def.title);setExportOpen(false)};
  return <div className="min-w-0 space-y-3 pb-3" data-generic-report>
