@@ -5,8 +5,6 @@ import JournalImportFilePicker from './JournalImportFilePicker';
 import { createPrintDocument } from "@/lib/printDocument";
 import OwnerJournalAuditHistory from "./OwnerJournalAuditHistory";
 import JournalEntryOverview from "./JournalEntryOverview";
-import NaviloSearchableSelect from "@/components/SearchableSelect";
-import NaviloDateInput from '@/components/NaviloDateInput';
 import {
   useState,
   useEffect,
@@ -338,46 +336,23 @@ export default function JournalEntryList() {
      SINGLE ENTRY
   ======================================================= */
 
-  const [modalOpen, setModalOpen] =
-    useState(false);
-
-  const [form, setForm] =
-    useState({
-      entry_no: "",
-      entry_date:
-        new Date()
-          .toISOString()
-          .split("T")[0],
-      description: "",
-      currency_code: "",
-    });
   const [baseCurrency, setBaseCurrency] = useState("");
-  const [activeCompanyId, setActiveCompanyId] = useState("");
-  const [availableCurrencies, setAvailableCurrencies] = useState<{ code: string; name: string }[]>([]);
 
   useEffect(() => {
-    const loadCurrency = async () => {
+    const loadBaseCurrency = async () => {
       const { data: companyId, error: contextError } = await supabase.rpc("current_company_id");
       if (contextError || !companyId) return;
-      const [company, currencies] = await Promise.all([
-        supabase.from("companies").select("base_currency_code").eq("id", String(companyId)).single(),
-        supabase.from("currency_master").select("code,name").eq("is_active", true).order("code"),
-      ]);
-      if (company.error || currencies.error) return;
-      setActiveCompanyId(String(companyId));
-      setBaseCurrency(company.data.base_currency_code);
-      setAvailableCurrencies(currencies.data || []);
+      const { data, error } = await supabase.from("companies")
+        .select("base_currency_code").eq("id", String(companyId)).single();
+      if (!error) setBaseCurrency(data?.base_currency_code || "");
     };
-    void loadCurrency();
-    const reload = () => {
-      setAvailableCurrencies([]);
-      setBaseCurrency("");
-      setForm(current => ({ ...current, currency_code: "" }));
-      void loadCurrency();
-    };
+    void loadBaseCurrency();
+    const reload = () => { setBaseCurrency(""); void loadBaseCurrency(); };
     window.addEventListener("navilo-workspace-changed", reload);
     return () => window.removeEventListener("navilo-workspace-changed", reload);
   }, []);
+
+  const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
   const [creating, setCreating] =
     useState(false);
@@ -587,46 +562,24 @@ export default function JournalEntryList() {
      SINGLE ENTRY
   ======================================================= */
 
-  const createAndOpen = async (draft: typeof form) => {
+  const createAndOpen = async () => {
 
     setError(null);
     setSuccess(null);
 
-    if (!draft.entry_date) {
-      setError(
-        "Entry date is required."
-      );
-      return;
-    }
-
     try {
       setCreating(true);
-      const selectedCurrency = draft.currency_code || baseCurrency;
-      if (baseCurrency && selectedCurrency !== baseCurrency) {
-        const { data: effectiveRate, error: rateError } = await supabase.rpc("company_exchange_rate_on", {
-          p_company_id: activeCompanyId, p_currency_code: selectedCurrency, p_on: draft.entry_date,
-        });
-        if (rateError) throw rateError;
-        if (effectiveRate == null) throw new Error(`No ${selectedCurrency} exchange rate exists for ${draft.entry_date}. Record it in Company Settings first.`);
-      }
-
       const {
         data,
         error: insertError,
       } = await supabase
         .from("journal_entries")
         .insert({
-          entry_no: draft.entry_no.trim() || AUTO_JOURNAL_ENTRY_NO,
-          trans_type: draft.entry_no.trim() ? "Manual Journal" : "",
-
-          entry_date:
-            draft.entry_date,
-
-          description:
-            draft.description.trim(),
-
+          entry_no: AUTO_JOURNAL_ENTRY_NO,
+          trans_type: "",
+          entry_date: today(),
+          description: "",
           status: "draft",
-          ...(baseCurrency && selectedCurrency !== baseCurrency ? { currency_code: selectedCurrency } : {}),
         })
         .select()
         .single();
@@ -643,8 +596,6 @@ export default function JournalEntryList() {
         );
       }
 
-      setModalOpen(false);
-
       navigate(
         `/accounting/${data.id}`
       );
@@ -656,11 +607,6 @@ export default function JournalEntryList() {
     } finally {
       setCreating(false);
     }
-  };
-
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    void createAndOpen(form);
   };
 
   /* =======================================================
@@ -2812,12 +2758,7 @@ export default function JournalEntryList() {
 
           <button
             type="button"
-            onClick={() => {
-              setError(null);
-              setSuccess(null);
-              setForm({entry_no:"",entry_date:new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10),description:"",currency_code:""});
-              setModalOpen(true);
-            }}
+            onClick={() => { void createAndOpen(); }}
             disabled={creating}
             className="px-4 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-60"
           >
@@ -2886,158 +2827,6 @@ export default function JournalEntryList() {
         )}
 
       </div>
-
-      {/* ===================================================
-          SINGLE ENTRY MODAL
-      =================================================== */}
-
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-
-            <div className="flex justify-between items-center border-b pb-3">
-
-              <h3 className="font-bold text-lg">
-                New Journal Entry
-              </h3>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setModalOpen(false)
-                }
-                className="text-slate-400 text-xl"
-              >
-                ×
-              </button>
-
-            </div>
-
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-4 mt-4"
-            >
-
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
-
-                <p className="font-semibold">
-                  How to create:
-                </p>
-
-                <p>
-                  Create the header,
-                  then add debit/credit
-                  lines on the next screen.
-                </p>
-
-              </div>
-
-              <div>
-
-                <label className="text-xs font-semibold">
-                  Entry Number
-                </label>
-
-                <input
-                  className="mt-1 w-full border rounded p-2 font-mono"
-                  aria-label="Journal entry number (optional)"
-                  maxLength={80}
-                  placeholder="Leave blank for automatic number"
-                  value={form.entry_no}
-                  onChange={event => setForm({...form,entry_no:event.target.value})}
-                />
-                <p className="mt-1 text-xs text-slate-500">Optional. Your number is preserved; duplicate numbers are rejected.</p>
-
-              </div>
-
-              <div>
-
-                <label className="text-xs font-semibold">Entry Date</label>
-
-                <NaviloDateInput
-                  className="mt-1 w-full border rounded p-2"
-                  type="date"
-                  required
-                  value={
-                    form.entry_date
-                  }
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      entry_date:
-                        event.target.value,
-                    })
-                  }
-                />
-
-              </div>
-
-              <div>
-
-                {baseCurrency && availableCurrencies.length > 0 && (
-                  <label className="block text-xs font-semibold">
-                    Journal currency (company base: {baseCurrency})
-                    <NaviloSearchableSelect nativeCompatibility preserveLabel className="mt-1 w-full border rounded p-2" value={form.currency_code || baseCurrency}
-                      onChange={event => setForm(current => ({ ...current, currency_code: event.target.value }))}>
-                      {availableCurrencies.map(currency => <option key={currency.code} value={currency.code}>{currency.code} · {currency.name}</option>)}
-                    </NaviloSearchableSelect>
-                    <span className="mt-1 block font-normal text-slate-500">Foreign entries use the rate effective on the entry date. Enter line amounts in the selected currency.</span>
-                  </label>
-                )}
-
-              </div>
-
-              <div>
-
-                <label className="text-xs font-semibold">Description</label>
-
-                <textarea
-                  className="mt-1 w-full border rounded p-2"
-                  rows={3}
-                  value={
-                    form.description
-                  }
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      description:
-                        event.target.value,
-                    })
-                  }
-                />
-
-              </div>
-
-              <div className="flex justify-end gap-3 border-t pt-4">
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setModalOpen(false)
-                  }
-                  disabled={creating}
-                  className="px-4 py-2 border rounded"
-                >Cancel</button>
-
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="px-4 py-2 bg-blue-600 text-white rounded"
-                >
-                  {creating
-                    ? "Creating..."
-                    : "Create & Open"}
-                </button>
-
-              </div>
-
-            </form>
-
-          </div>
-
-        </div>
-      )}
 
       {/* ===================================================
           BULK IMPORT MODAL
