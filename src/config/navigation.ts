@@ -22,7 +22,6 @@ export const navigation:NavNode[]=[
       {key:"transport-customer-reports",to:"/transport?panel=customer-reports",label:"Customer Reports",module:"transport"},
       {key:"transport-supplier-reports",to:"/transport?panel=supplier-reports",label:"Supplier Reports",module:"transport"},
       {key:"transport-allocation",to:"/transport?panel=bulk-allocation",label:"Bulk Allocation",module:"transport"},
-      {key:"transport-vehicle-ledger",to:"/transport?panel=vehicle-reports",label:"Vehicle Ledger & P&L",module:"transport"},
       {key:"transport-reports",to:"/reports/transport",label:"Transport Reports",module:"reports",requiresModule:"transport",businessType:"transport"},
       {key:"transport-trip-reports",to:"/reports/transport?mode=trips",label:"Trip-wise Reports",module:"reports",requiresModule:"transport"},
     ]}
