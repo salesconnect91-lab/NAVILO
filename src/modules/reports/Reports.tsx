@@ -194,8 +194,8 @@ export default function Reports(){
  // The flat operational report registers use the same Smart Table as NAVILO
  // master screens. Financial/grouped reports keep their own reconciled totals.
  const smartTableEnabled = ["/reports/sales-register","/reports/purchase-register",
-   "/reports/customer-item-history","/reports/supplier-item-history",
-   "/reports/returns-register"].includes(loc.pathname) && !groupBy && !inventoryCategoryMode;
+   "/reports/customer-aging","/reports/supplier-aging","/reports/customer-item-history",
+   "/reports/supplier-item-history","/reports/returns-register"].includes(loc.pathname) && !groupBy && !inventoryCategoryMode;
  const smartTableRows = useMemo(()=>smartTableEnabled
    ? rows.map((record,index)=>({...record,sourceId:record.sales_order_id??record.purchase_order_id??record.id,id:`report-row-${index}`}))
    : [],[rows,smartTableEnabled]);
@@ -206,12 +206,13 @@ export default function Reports(){
      const sourceId=String(record.sourceId??"");
      const isInvoiceColumn=["order_no","invoice_no"].includes(col.key);
      const isInvoiceValue=col.kind==="money";
+     const supportsInvoiceLinks=["/reports/sales-register","/reports/purchase-register","/reports/customer-aging","/reports/supplier-aging","/reports/customer-item-history","/reports/supplier-item-history"].includes(loc.pathname);
      const side=loc.pathname.includes("purchase")||loc.pathname.includes("supplier")?"purchase":"sales";
      if(col.key==="item_name"&&record.item_name){
        const query=new URLSearchParams({item:String(record.item_name),...(from?{from}:{}),...(to?{to}:{})});
        return <Link to={`/reports/customer-item-history?${query.toString()}`} title="Open this item's transaction history" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{show(record[col.key],col.kind)}</Link>;
      }
-     return sourceId&&(isInvoiceColumn||isInvoiceValue)
+     return supportsInvoiceLinks&&sourceId&&(isInvoiceColumn||isInvoiceValue)
        ? <Link to={`/${side}/${encodeURIComponent(sourceId)}`} title="Open the source invoice" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{show(record[col.key],col.kind)}</Link>
        : show(record[col.key],col.kind);
    },
