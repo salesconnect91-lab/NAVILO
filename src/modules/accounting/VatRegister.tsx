@@ -82,7 +82,7 @@ try{
  {key:"description",label:"Description",render:(r:any)=>r.e?.description||"—",getFilterValue:(r:any)=>r.e?.description||""},
  {key:"debit",label:"Debit",render:(r:any)=>money(r.debit),getFilterValue:(r:any)=>r.debit},
  {key:"credit",label:"Credit",render:(r:any)=>money(r.credit),getFilterValue:(r:any)=>r.credit},
- {key:"amount",label:`${jurisdiction.taxLabel} Net`,render:(r:any)=>r.e?.id?<Link to={`/accounting/${r.e.id}`} title="Open the posted journal behind this tax amount" className="font-mono text-blue-700 underline decoration-dotted underline-offset-2">{amount(r.amount)}</Link>:amount(r.amount),getFilterValue:(r:any)=>r.amount}
+ {key:"amount",label:`${jurisdiction.taxLabel} Net`,render:(r:any)=>r.e?.id?<Link to={`/accounting/${r.e.id}`} title="Open the posted journal behind this tax amount" className="font-mono text-blue-700 underline decoration-dotted underline-offset-2">{money(r.amount)}</Link>:money(r.amount),getFilterValue:(r:any)=>r.amount}
  ]} rows={rows} emptyMessage={`No ${jurisdiction.taxLabel} postings for selected period/filter.`}/>
  <div className="border-t bg-slate-50 px-4 py-3 text-right text-sm font-bold">FILTERED TOTAL — Output {money(totals.output)} · Input {money(totals.input)}</div></div></div>
 }
