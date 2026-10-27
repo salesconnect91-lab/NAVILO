@@ -1,3 +1,4 @@
+import { createPrintDocument } from "@/lib/printDocument";
 import NaviloSearchableSelect from "@/components/SearchableSelect";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import {useEffect,useMemo,useRef,useState} from 'react';
@@ -16,7 +17,7 @@ export default function TransportPartySettlement({side,party,documents,accounts,
  const [reference,setReference]=useState('');const [fifo,setFifo]=useState('');const [search,setSearch]=useState('');
  const [autoScope,setAutoScope]=useState<'all'|'selected'>('all');
  const [review,setReview]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');
- const [result,setResult]=useState<{message:string;journals:string[]}|null>(null);const [viewDocumentId,setViewDocumentId]=useState<string|null>(null);const request=useRef<string|null>(null);const submitting=useRef(false);
+ const [result,setResult]=useState<{message:string;journals:string[];date:string;reference:string;amount:number;account:string;items:Array<{invoice:string;amount:number}>}|null>(null);const [viewDocumentId,setViewDocumentId]=useState<string|null>(null);const request=useRef<string|null>(null);const submitting=useRef(false);
  useEffect(()=>{let live=true;void supabase.rpc('transport_finance_allowed',{p_action:'settlement'}).then(({data,error})=>{if(live){setAllowed(!error&&data===true);if(error)setError(error.message)}});return()=>{live=false}},[]);
  useEffect(()=>{
   // A new authoritative snapshot arrives only after the parent completes a
@@ -45,7 +46,7 @@ export default function TransportPartySettlement({side,party,documents,accounts,
  if(r.error)throw r.error;
  if(r.data?.success===false)throw new Error(r.data.message||'Settlement failed');
  const values=r.data?.payments??[r.data];const journals=values.map((v:{journal_entry_id?:string})=>v?.journal_entry_id).filter(Boolean) as string[];
- setResult({message:`Posted ${financialNumber(checked.total)} through canonical ${side==='customer'?'customer receipts':'supplier payments'}.`,journals});
+ setResult({message:`Posted ${financialNumber(checked.total)} through canonical ${side==='customer'?'customer receipts':'supplier payments'}.`,journals,date,reference,amount:checked.total,account:accountRow?.name||'Cash / Bank',items:checked.allocations.map(a=>({invoice:settlementDocuments.find(d=>d.order_id===a.document_id)?.order_no||a.document_id,amount:a.amount}))});
  setAmounts({});setReview(false);request.current=null;
  try{
   // Only the parent refreshes both native and imported invoices, once.
@@ -59,12 +60,21 @@ export default function TransportPartySettlement({side,party,documents,accounts,
  }catch(e){setError(`${e&&typeof e==='object'&&'message' in e?String(e.message):'Settlement failed'}. If the connection failed, retry the unchanged reviewed request safely.`)}
  finally{submitting.current=false;setBusy(false);onBusyChange(false)}
  }
+ function printSettlementSlip(){
+  if(!result)return;
+  const popup=createPrintDocument();
+  if(!popup){setError('Allow pop-ups to print payment slip.');return;}
+  const esc=(v:unknown)=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const heading=side==='customer'?'CUSTOMER RECEIPT':'SUPPLIER PAYMENT';
+  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${heading}</title><style>body{font:13px Arial,sans-serif;margin:35px;color:#162333}h1{font-size:19px;border-bottom:2px solid #23364b;padding-bottom:12px}table{width:100%;border-collapse:collapse;margin-top:20px}td,th{padding:9px;border-bottom:1px solid #ddd;text-align:left}td:last-child,th:last-child{text-align:right}.total{font-size:16px;font-weight:bold;text-align:right;margin-top:16px}.sign{display:flex;justify-content:space-between;margin-top:65px}</style></head><body><h1>${heading}</h1><p>Date: ${esc(result.date)} | Cash / Bank: ${esc(result.account)}</p><p>Reference: ${esc(result.reference||'—')}</p><p>Voucher: ${esc(result.journals.join(', ')||'Posted')}</p><table><thead><tr><th>Invoice</th><th>Allocated amount</th></tr></thead><tbody>${result.items.map(i=>`<tr><td>${esc(i.invoice)}</td><td>${esc(financialNumber(i.amount))}</td></tr>`).join('')}</tbody></table><p class="total">Total: ${esc(financialNumber(result.amount))}</p><div class="sign"><span>Prepared by __________</span><span>${side==='customer'?'Received by':'Paid by'} __________</span><span>Authorized __________</span></div></body></html>`);
+  popup.document.close();popup.focus();popup.print();
+ }
  return <fieldset className="my-3 min-w-0 max-w-full overflow-hidden rounded border p-3" disabled={busy||loadingDocuments}><legend className="font-semibold">Cross-Trip {side==='customer'?'Receipt':'Supplier Payment'} — Bill allocation</legend>
  <p className="mb-2">One selected party in the active branch. Auto Allocate prepares oldest invoices first for review; no payment is posted until confirmation. Report date/search filters do not limit this payment list.</p>
  {loadingDocuments&&<p role="status">Loading current invoice balances…</p>}
  {settlementDocuments.some(d=>d.kind==='opening_balance')&&<p className="mb-2 text-slate-600">Imported invoices retain original references and settled amounts. Their displayed date is the opening balance date; original issue dates were not supplied. New receipts/payments reduce the posted receivable/payable only.</p>}
  {settlementDocuments.some(d=>d.kind==='opening_balance')&&settlementDocuments.some(d=>d.kind!=='opening_balance')&&<label>Invoice set<NaviloSearchableSelect nativeCompatibility preserveLabel className="input" value={invoiceSet} onChange={e=>{setInvoiceSet(e.target.value as typeof invoiceSet);changeAmounts({})}}><option value="all">All invoices</option><option value="opening">Imported opening invoices</option><option value="native">Newly issued invoices</option></NaviloSearchableSelect></label>}
- {error&&<p role="alert" className="text-red-700">{error}</p>}{result&&<p role="status" className="text-emerald-700">{result.message} {result.journals.map(id=><a key={id} className="ml-2 underline" href={`/accounting/${id}`}>Voucher</a>)}</p>}
+ {error&&<p role="alert" className="text-red-700">{error}</p>}{result&&<div role="status" className="flex flex-wrap items-center gap-2 text-emerald-700"><span>{result.message}</span><button type="button" className="btn-secondary" onClick={printSettlementSlip}>Print payment slip</button>{result.journals.map(id=><a key={id} className="underline" href={`/accounting/${id}`}>Voucher</a>)}</div>}
  <div className="my-2 flex min-w-0 flex-wrap items-end gap-2 [&>label]:min-w-0 [&>label]:max-w-full [&>label]:flex-1 [&>label]:basis-[180px] [&>label>input]:max-w-full"><label>Payment date<NaviloDateInput className="input" type="date" value={date} onChange={e=>{setDate(e.target.value);changed()}}/></label>
  <label>Cash / Bank<NaviloSearchableSelect nativeCompatibility preserveLabel className="input" value={account} onChange={e=>{setAccount(e.target.value);changed()}}><option value="">Select account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</NaviloSearchableSelect></label>
  <label>Payment reference<input className="input" value={reference} onChange={e=>{setReference(e.target.value);changed()}}/></label>
