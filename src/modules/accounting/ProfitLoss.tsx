@@ -120,7 +120,7 @@ function classifyAccount(type: string, name: string, parentHead?: string, detail
   return null;
 }
 
-function StatementSection({ title, section, tone, onDrilldown }: {
+function StatementSection({ title, section, onDrilldown }: {
   title: string;
   section: PLSectionData;
   tone: "income" | "expense";
