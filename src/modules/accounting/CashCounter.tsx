@@ -458,6 +458,22 @@ export default function CashCounter() {
     }, 50);
   };
 
+  const autoAllocateCustomer = () => {
+    if (!(amountNumber > 0)) { setError("Enter Amount Received first."); return; }
+    let remaining = amountNumber;
+    const next: Record<string,string> = {};
+    for (const invoice of [...customerInvoices].sort((a,b)=>a.order_date.localeCompare(b.order_date))) {
+      if (remaining < 0.005) break;
+      const applied = Math.min(toNumber(invoice.outstanding_amount), remaining);
+      if (applied >= 0.005) {
+        next[invoice.id] = String(Number(applied.toFixed(2)));
+        remaining = Number((remaining-applied).toFixed(2));
+      }
+    }
+    setInvoiceAllocations(next);
+    setError(remaining >= 0.005 ? "Open invoices do not cover the entered receipt amount." : null);
+  };
+
   const changePaymentType = (
     type: PaymentType
   ) => {
@@ -1949,9 +1965,10 @@ export default function CashCounter() {
             {paymentType ===
               "invoice" && (
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-                  Open Invoice
-                </label>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <label className="text-xs font-semibold text-slate-600">Open Invoice</label>
+                  <button type="button" disabled={!selectedCustomerId || invoiceLoading || !(amountNumber > 0)} onClick={autoAllocateCustomer} className="btn-secondary text-xs">Auto Allocate</button>
+                </div>
 
                 <SearchableSelect
                   preserveLabel
