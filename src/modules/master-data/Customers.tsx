@@ -367,7 +367,7 @@ export default function Customers({ quickCreate, transportEnglishOnly = false }:
               <div><label className="label">NTN</label><input aria-label="NTN" className="input" value={form.ntn} onChange={(e) => setForm({ ...form, ntn: e.target.value })} placeholder="National Tax Number" /></div>
             </> : <div><label className="label">CNIC (if applicable)</label><input aria-label="CNIC (if applicable)" className="input" value={form.cnic} onChange={(e) => setForm({ ...form, cnic: e.target.value })} placeholder="CNIC for unregistered party" /></div>}
           </div>
-          <div className="mt-2 text-xs text-slate-500">{form.tax_registration_status === "registered" ? "Registered customer ke Tax Invoice ke liye STRN/NTN posting validation mein use hoga." : "Unregistered customer ke liye STRN/NTN required nahi; CNIC optional hai."}</div>
+          <div className="mt-2 text-xs text-slate-500">{form.tax_registration_status === "registered" ? "Tax registration details are validated when posting a tax invoice." : "Tax registration numbers are not required for an unregistered customer. CNIC is optional."}</div>
         </div>
 
         {!editing && canSetOpeningBalance && !mobilePartyQuickCreate && <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
