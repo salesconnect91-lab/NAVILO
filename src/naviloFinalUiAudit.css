@@ -165,3 +165,58 @@
     }
   }
 }
+
+/* Full-width business screens. The workspace already has a fixed sidebar, so
+   centered max-width containers create a second unnecessary gutter. Dialogs,
+   popovers, print sheets and compact message content remain constrained. */
+@media screen {
+  .erp-shell.navilo-modern #navilo-main-content[data-neus-route] {
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content :is(
+    .navilo-page-root,
+    [data-navilo-workspace-width="full"],
+    [data-navilo-commercial-standard="true"],
+    [data-navilo-document-editor="true"],
+    [data-navilo-master-standard="true"],
+    [data-navilo-screen-type="report"],
+    .professional-report,
+    .navilo-report-source,
+    .navilo-closing-workflow,
+    .navilo-invoice-editor,
+    .navilo-invoice-pro,
+    .navilo-sales-neus,
+    .navilo-purchase-neus,
+    .navilo-invoice-detail,
+    .navilo-journal-list
+  ) {
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content .navilo-report-source > div,
+  .erp-shell.navilo-modern #navilo-main-content [data-navilo-standard="true"] > div,
+  .erp-shell.navilo-modern #navilo-main-content .mx-auto[class*="max-w-"].pb-12,
+  .erp-shell.navilo-modern #navilo-main-content .min-h-screen > .border-b > .mx-auto[class*="max-w-"],
+  .erp-shell.navilo-modern #navilo-main-content .min-h-screen > main.mx-auto[class*="max-w-"] {
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
+
+  .erp-shell.navilo-modern #navilo-main-content form:has(table tbody input[type="number"]):has(table tbody select),
+  .erp-shell.navilo-modern #navilo-main-content .navilo-consolidated-purchase-editor,
+  .erp-shell.navilo-modern #navilo-main-content .navilo-consolidated-sales-editor {
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
+}
