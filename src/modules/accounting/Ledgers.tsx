@@ -8,7 +8,7 @@ import type {PartyMovement} from '@/modules/transport/transportPartyReporting';
 import {linkedPartyRows} from '@/modules/transport/transportOpeningInvoices';
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { fetchAllPages, fetchByIdChunks } from "@/lib/fetchAllPages";
 import { supabase } from "@/lib/supabase";
 import {
@@ -1137,7 +1137,7 @@ export default function Ledgers() {
                         {row.account?.name || ""}
                       </td>,
 <td key={2} className="py-2.5 px-3 text-slate-700">
-                        {recordDisplayText(row.description)}
+                        {row.journal_entry_id?<Link to={`/accounting/${row.journal_entry_id}`} title="Open source journal entry" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{recordDisplayText(row.description)||"Open journal entry"}</Link>:recordDisplayText(row.description)}
                       </td>,
 <td key={3} className="py-2.5 px-3 text-right text-slate-700">
                         {Number(row.debit) > 0
