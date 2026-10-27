@@ -1,4 +1,5 @@
 import {useAuth} from '@/auth/AuthContext';
+import { Link } from "react-router-dom";
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
@@ -24,7 +25,7 @@ type PLBucket =
   | "operatingExpenses"
   | "otherExpenses";
 
-type PLItem = { name: string; amount: number; detailType: string };
+type PLItem = { name: string; amount: number; detailType: string; accountIds?: string[] };
 type PLSectionData = { total: number; items: PLItem[] };
 type PLData = Record<PLBucket, PLSectionData>;
 
@@ -55,6 +56,8 @@ type JournalMeta = {
   fiscal_year_closure_id: string | null;
   monthly_profit_closure_id?: string | null;
 };
+
+type PLDrilldown = { title: string; accountIds: string[] };
 
 const emptySection = (): PLSectionData => ({ total: 0, items: [] });
 const emptyPLData = (): PLData => ({
@@ -110,41 +113,73 @@ function classifyAccount(type: string, name: string, parentHead?: string, detail
   return null;
 }
 
-function StatementSection({ title, section, tone }: { title: string; section: PLSectionData; tone: "income" | "expense" }) {
+function StatementSection({ title, section, tone, onDrilldown }: {
+  title: string;
+  section: PLSectionData;
+  tone: "income" | "expense";
+  onDrilldown?: (accountIds: string[], title: string) => void;
+}) {
+  const sectionAccountIds = [...new Set(section.items.flatMap(item => item.accountIds ?? []))];
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
       <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2.5">
         <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-700">{title}</h3>
-        <span className={`font-mono text-sm font-bold ${tone === "income" ? "text-emerald-700" : "text-rose-700"}`}>
-          {formatCurrency(section.total)}
-        </span>
+        {onDrilldown && sectionAccountIds.length ? (
+          <button type="button" onClick={() => onDrilldown(sectionAccountIds, title)}
+            title="Open the posted ledger entries behind this total"
+            className={`cursor-pointer rounded px-1 font-mono text-sm font-bold underline decoration-dotted underline-offset-2 hover:bg-white ${tone === "income" ? "text-emerald-700" : "text-rose-700"}`}>
+            {formatCurrency(section.total)}
+          </button>
+        ) : (
+          <span className={`font-mono text-sm font-bold ${tone === "income" ? "text-emerald-700" : "text-rose-700"}`}>
+            {formatCurrency(section.total)}
+          </span>
+        )}
       </div>
       {section.items.length === 0 ? (
         <div className="px-4 py-6 text-center text-sm text-slate-400">No balances for this period.</div>
       ) : (
         <div className="divide-y divide-slate-100 px-4">
-          {section.items.map((item) => (
-            <div key={item.name} className="flex items-center justify-between gap-4 py-2.5 text-sm">
-              <div className="min-w-0">
-                <span className="block truncate font-medium text-slate-800">{item.name}</span>
-                <span className="block text-[12px] text-slate-400">{item.detailType}</span>
-              </div>
-              <span className={`shrink-0 font-mono font-semibold ${item.amount < 0 ? "text-rose-600" : "text-slate-900"}`}>
-                {formatCurrency(item.amount)}
-              </span>
-            </div>
-          ))}
+          {section.items.map((item) => {
+            const row = (
+              <>
+                <div className="min-w-0 text-left">
+                  <span className="block truncate font-medium text-slate-800">{item.name}</span>
+                  <span className="block text-[12px] text-slate-400">{item.detailType}</span>
+                </div>
+                <span className={`shrink-0 font-mono font-semibold ${item.amount < 0 ? "text-rose-600" : "text-slate-900"}`}>
+                  {formatCurrency(item.amount)}
+                </span>
+              </>
+            );
+            return onDrilldown && item.accountIds?.length ? (
+              <button type="button" key={item.name} onClick={() => onDrilldown(item.accountIds ?? [], item.name)}
+                title="Open the posted ledger entries behind this account"
+                className="flex w-full cursor-pointer items-center justify-between gap-4 py-2.5 text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500">
+                {row}
+              </button>
+            ) : (
+              <div key={item.name} className="flex items-center justify-between gap-4 py-2.5 text-sm">{row}</div>
+            );
+          })}
         </div>
       )}
     </section>
   );
 }
 
-function ResultRow({ label, amount, prominent = false }: { label: string; amount: number; prominent?: boolean }) {
+function ResultRow({ label, amount, prominent = false, onClick }: {
+  label: string;
+  amount: number;
+  prominent?: boolean;
+  onClick?: () => void;
+}) {
   return (
     <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${prominent ? (amount >= 0 ? "border-emerald-400 bg-slate-900 text-white" : "border-rose-400 bg-rose-950 text-white") : "border-slate-300 bg-slate-100 text-slate-900"}`}>
       <span className="text-sm font-bold uppercase tracking-wide">{label}</span>
-      <span className="font-mono text-lg font-bold">{formatCurrency(amount)}</span>
+      {onClick ? <button type="button" onClick={onClick} title="Open contributing posted ledger entries"
+        className="cursor-pointer rounded font-mono text-lg font-bold underline decoration-dotted underline-offset-2 hover:opacity-80">{formatCurrency(amount)}</button>
+        : <span className="font-mono text-lg font-bold">{formatCurrency(amount)}</span>}
     </div>
   );
 }
@@ -152,6 +187,10 @@ function ResultRow({ label, amount, prominent = false }: { label: string; amount
 export default function ProfitLoss() {
   const {activeBusinessUnit,activeCompany}=useAuth();
   const [data, setData] = useState<PLData>(emptyPLData);
+  const [drilldown, setDrilldown] = useState<PLDrilldown | null>(null);
+  const [drilldownRows, setDrilldownRows] = useState<LedgerRow[]>([]);
+  const [drilldownAccountNames, setDrilldownAccountNames] = useState<Record<string,string>>({});
+  const [drilldownJournals, setDrilldownJournals] = useState<Record<string,JournalMeta>>({});
   const [fromDate, setFromDate] = useState(getYearStart);
   const [toDate, setToDate] = useState(getLocalToday);
   const [hideZeroBalances, setHideZeroBalances] = useState(true);
@@ -160,7 +199,7 @@ export default function ProfitLoss() {
   const [error, setError] = useState<string | null>(null);
   const [reportPrintSettings, setReportPrintSettings] = useState<any>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [transportIncome,setTransportIncome]=useState<{sales:number;service:number;other:number;vehicleLedgerTotal:number;dedicatedSales:number;vehicles:VehicleIncome[];residual:number;vehicleError:string}|null>(null);
+  const [transportIncome,setTransportIncome]=useState<{sales:number;service:number;other:number;vehicleLedgerTotal:number;dedicatedSales:number;vehicles:VehicleIncome[];residual:number;vehicleError:string;salesAccountIds:string[];serviceAccountIds:string[]}|null>(null);
   const [verifiedTransportUnit,setVerifiedTransportUnit]=useState<{companyId:string;businessUnitId:string;isTransport:boolean}|null>(null);
   const companyId=activeCompany?.company_id??'';
   const businessUnitId=activeBusinessUnit?.business_unit_id??'';
@@ -342,7 +381,7 @@ export default function ProfitLoss() {
     if (!hideZeroBalances) {
       accountMap.forEach((account) => {
         if (account.bucket && !account.isGroup && account.allowManualEntries && account.isActive) {
-          bucketMaps[account.bucket].set(account.name, { name: account.name, amount: 0, detailType: account.detailType });
+          bucketMaps[account.bucket].set(account.name, { name: account.name, amount: 0, detailType: account.detailType, accountIds: [account.id] });
         }
       });
     }
@@ -359,6 +398,7 @@ export default function ProfitLoss() {
         name: account.name,
         amount: (current?.amount ?? 0) + movement,
         detailType: account.detailType,
+        accountIds: [...new Set([...(current?.accountIds ?? []), line.account_id])],
       });
     });
 
@@ -423,6 +463,19 @@ export default function ProfitLoss() {
         const vehicleLedgerTotal=totalVehicleLedgerMovement(vehicleLedgerRows);
         const combinedVehicles=vehicleResult.error?breakdown.vehicles:
           mergeVehicleLedgerMovements(breakdown.vehicles,vehicleLedgerRows,hideZeroBalances);
+        const serviceAccountIds=new Set<string>();
+        if(serviceAccountId)serviceAccountIds.add(serviceAccountId);
+        const linkCounts=new Map<string,number>();
+        for(const vehicle of vehicleResult.vehicles)if(vehicle.revenue_account_id)
+          linkCounts.set(vehicle.revenue_account_id,(linkCounts.get(vehicle.revenue_account_id)||0)+1);
+        for(const vehicle of vehicleResult.vehicles){
+          const id=vehicle.revenue_account_id;
+          if(!id||id===serviceAccountId||(linkCounts.get(id)||0)>1)continue;
+          const account=accounts.find(candidate=>candidate.id===id);
+          if(!account||(account.type!=='revenue'&&account.type!=='income')||account.is_group===true||account.is_active===false)continue;
+          const detail=(account.detail_type??'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+          if(['service_income','service_revenue','service'].includes(detail)&&account.code!=='4100'&&account.code!=='4200')serviceAccountIds.add(id);
+        }
         setTransportIncome({
           sales,service,
           // Revenue classifications must add back to the posted GL total exactly once.
@@ -431,12 +484,17 @@ export default function ProfitLoss() {
           vehicles:combinedVehicles,
           residual:breakdown.residual,
           vehicleError:vehicleResult.error,
+          salesAccountIds:[...new Set([salesAccountId,...dedicatedSalesBreakdown.byAccount.keys()].filter((id):id is string=>Boolean(id)))],
+          serviceAccountIds:[...serviceAccountIds],
         });
       }catch(err){
         setError(err instanceof Error?err.message:'Transport Revenue classification unavailable');
         setTransportIncome(null);
       }
     }
+    setDrilldownRows(ledgerLines);
+    setDrilldownAccountNames(Object.fromEntries(accounts.map(account=>[account.id,account.name??"Unnamed account"])));
+    setDrilldownJournals(Object.fromEntries(journalRows.map(journal=>[journal.id,journal])));
     setData(next);
     setLastUpdated(new Date());
     setLoading(false);
@@ -475,6 +533,12 @@ export default function ProfitLoss() {
     ['Service Income — Trip Invoices','Service Revenue GL total',transportIncome.service],
     ...(Math.abs(transportIncome.other)>=0.005?[['Other Operating Revenue','Other revenue GL',transportIncome.other]]:[])
   ]:printSectionRows('Operating Revenue',data.operatingRevenue);
+
+  const openDrilldown=(accountIds:string[],title:string)=>{
+    const uniqueIds=[...new Set(accountIds.filter(Boolean))];
+    if(uniqueIds.length)setDrilldown({title,accountIds:uniqueIds});
+  };
+  const pAndLAccountIds=(...sections:PLSectionData[])=>[...new Set(sections.flatMap(section=>section.items.flatMap(item=>item.accountIds??[])))];
 
   const setThisMonth = () => {
     const today = new Date();
@@ -561,23 +625,25 @@ export default function ProfitLoss() {
                   section={{total:transportIncome.sales,items:Math.abs(transportIncome.sales)>=0.005||!hideZeroBalances?[{
                     name:'Sales Revenue — posted Normal Sales invoices',
                     amount:transportIncome.sales,detailType:'Mapped Sales Revenue plus dedicated vehicle accounts linked to Normal Sales Invoice journals',
-                  }]:[]}} tone="income" />
+                    accountIds:transportIncome.salesAccountIds,
+                  }]:[]}} tone="income" onDrilldown={openDrilldown} />
                 <StatementSection title="Service Income — Trip Invoices"
                   section={{total:transportIncome.service,items:Math.abs(transportIncome.service)>=0.005||!hideZeroBalances?[{
                     name:'Service Revenue — posted Trip and vehicle service income',
                     amount:transportIncome.service,detailType:'Mapped service revenue plus dedicated vehicle service-income GL',
-                  }]:[]}} tone="income" />
+                    accountIds:transportIncome.serviceAccountIds,
+                  }]:[]}} tone="income" onDrilldown={openDrilldown} />
                 {(Math.abs(transportIncome.other)>=0.005||!hideZeroBalances)&&
                   <StatementSection title="Other Operating Revenue" section={{total:transportIncome.other,
-                    items:[{name:'Other revenue accounts / manual adjustments',amount:transportIncome.other,detailType:'Posted GL — outside Sales and Service Revenue'}]}} tone="income"/>}
-              </>:<StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" />}
-              <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" />
-              <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} />
-              <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" />
-              <ResultRow label="Operating Profit / (Loss)" amount={metrics.operatingProfit} />
-              {(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income" section={data.otherIncome} tone="income" />}
-              {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses" section={data.otherExpenses} tone="expense" />}
-              <ResultRow label="Net Profit / (Loss)" amount={metrics.netProfit} prominent />
+                    items:[{name:'Other revenue accounts / manual adjustments',amount:transportIncome.other,detailType:'Posted GL — outside Sales and Service Revenue',accountIds:pAndLAccountIds(data.operatingRevenue)}]}} tone="income" onDrilldown={openDrilldown}/>}
+              </>:<StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" onDrilldown={openDrilldown} />}
+              <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} />
+              <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales),"Gross Profit / (Loss)")} />
+              <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" onDrilldown={openDrilldown} />
+              <ResultRow label="Operating Profit / (Loss)" amount={metrics.operatingProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses),"Operating Profit / (Loss)")} />
+              {(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income" section={data.otherIncome} tone="income" onDrilldown={openDrilldown} />}
+              {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses" section={data.otherExpenses} tone="expense" onDrilldown={openDrilldown} />}
+              <ResultRow label="Net Profit / (Loss)" amount={metrics.netProfit} prominent onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses,data.otherIncome,data.otherExpenses),"Net Profit / (Loss)")} />
               <div className="grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-3" data-report-total>
                 <div><span className="block text-xs text-slate-500">Total Income</span><span className="font-mono font-bold text-emerald-700">{formatCurrency(metrics.totalIncome)}</span></div>
                 <div><span className="block text-xs text-slate-500">Total Expenses</span><span className="font-mono font-bold text-rose-700">{formatCurrency(metrics.totalExpenses)}</span></div>
@@ -587,6 +653,44 @@ export default function ProfitLoss() {
           </>
         )}
       </div>
+
+      {drilldown && (
+        <div className="no-print fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-3" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget)setDrilldown(null)}}>
+          <section role="dialog" aria-modal="true" aria-labelledby="pl-drilldown-title" className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+            <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-3">
+              <div><h2 id="pl-drilldown-title" className="text-sm font-bold text-slate-900">{drilldown.title} — Posted Ledger Details</h2>
+                <p className="mt-1 text-xs text-slate-500">{formatReportDate(fromDate)} to {formatReportDate(toDate)} · current company, unit and report scope</p></div>
+              <button type="button" onClick={()=>setDrilldown(null)} className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Close</button>
+            </header>
+            <div className="overflow-auto">
+              <table className="w-full min-w-[760px] border-collapse text-left text-xs">
+                <thead className="sticky top-0 bg-slate-100 text-slate-600"><tr>
+                  <th className="px-3 py-2">Date</th><th className="px-3 py-2">Account</th><th className="px-3 py-2">Source</th><th className="px-3 py-2 text-right">Debit</th><th className="px-3 py-2 text-right">Credit</th><th className="px-3 py-2 text-right">Net</th><th className="px-3 py-2">Entry</th>
+                </tr></thead>
+                <tbody className="divide-y divide-slate-100">
+                  {drilldownRows.filter(line=>line.account_id&&drilldown.accountIds.includes(line.account_id)).map((line,index)=>{
+                    const journal=line.journal_entry_id?drilldownJournals[line.journal_entry_id]:undefined;
+                    const account=drilldownAccountNames[line.account_id??""]??"Unknown account";
+                    const accountType=data.operatingRevenue.items.find(item=>(item.accountIds??[]).includes(line.account_id??""))?"income":data.otherIncome.items.find(item=>(item.accountIds??[]).includes(line.account_id??""))?"income":data.costOfSales.items.find(item=>(item.accountIds??[]).includes(line.account_id??""))||data.operatingExpenses.items.find(item=>(item.accountIds??[]).includes(line.account_id??""))||data.otherExpenses.items.find(item=>(item.accountIds??[]).includes(line.account_id??""))?"expense":"income";
+                    const net=accountType==="income"?Number(line.credit??0)-Number(line.debit??0):Number(line.debit??0)-Number(line.credit??0);
+                    return <tr key={line.journal_entry_id+":"+line.account_id+":"+line.entry_date+":"+index} className="hover:bg-slate-50">
+                      <td className="whitespace-nowrap px-3 py-2">{formatReportDate(line.entry_date)}</td>
+                      <td className="px-3 py-2 font-medium">{account}</td>
+                      <td className="px-3 py-2">{journal?.source_document_type||journal?.trans_type||"Ledger posting"}</td>
+                      <td className="px-3 py-2 text-right font-mono">{formatCurrency(Number(line.debit??0))}</td>
+                      <td className="px-3 py-2 text-right font-mono">{formatCurrency(Number(line.credit??0))}</td>
+                      <td className={`px-3 py-2 text-right font-mono ${net<0?"text-rose-700":"text-slate-900"}`}>{formatCurrency(net)}</td>
+                      <td className="px-3 py-2">{line.journal_entry_id?<Link to={`/accounting/${line.journal_entry_id}`} onClick={()=>setDrilldown(null)} className="font-semibold text-blue-700 underline">Open journal</Link>:"—"}</td>
+                    </tr>;
+                  })}
+                  {!drilldownRows.some(line=>line.account_id&&drilldown.accountIds.includes(line.account_id))&&
+                    <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-500">No posted ledger entries found for this row in the selected period.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      )}
 
       {reportPrintSettings && (
         <div className="mt-8 hidden border-t border-slate-300 pt-3 text-xs text-slate-500 print:block">
