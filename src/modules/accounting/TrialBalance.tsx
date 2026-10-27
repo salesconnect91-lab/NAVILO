@@ -1,4 +1,5 @@
 import DataTable from "@/components/DataTable";
+import { Link } from "react-router-dom";
 import ConfigurableReport from '../transport/ConfigurableReport';
 import {useAuth} from '@/auth/AuthContext';
 import NaviloDateInput from '@/components/NaviloDateInput';
@@ -349,6 +350,10 @@ export default function TrialBalance() {
 
   const amountCell = (amount: number) =>
     Math.abs(amount) >= 0.005 ? formatCurrency(amount) : "—";
+  const ledgerHref=(row:TrialBalanceRow)=>`/accounting/ledgers?account=${encodeURIComponent(row.id)}&from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`;
+  const drillAmount=(row:TrialBalanceRow,amount:number)=>Math.abs(amount)>=0.005
+    ? <Link to={ledgerHref(row)} title="Open this account's General Ledger for the selected period" className="font-mono text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(amount)}</Link>
+    : "—";
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-6 pb-12"><AccountingReportScopeSelect value={scope} onChange={setScope}/><details className="no-print"><summary>Customize Trial Balance headers / export</summary><ConfigurableReport module="accounting" preferenceKey="accounting-trial-balance" report={{title:'Trial Balance',description:`${fromDate} to ${toDate} · Canonical posted ledger`,columns:['Account','Opening debit','Opening credit','Period debit','Period credit','Closing debit','Closing credit'],rows:[...rows.map(r=>[r.name,r.openingDebit,r.openingCredit,r.periodDebit,r.periodCredit,r.closingDebit,r.closingCredit]),['TOTAL',totals.openingDebit,totals.openingCredit,totals.periodDebit,totals.periodCredit,totals.closingDebit,totals.closingCredit]]}}/></details>
@@ -571,14 +576,14 @@ export default function TrialBalance() {
           ) : (
             <div className="overflow-x-auto">
               <DataTable columns={[
-{key:"name",label:"Account Name"},
+{key:"name",label:"Account Name",render:(r:TrialBalanceRow)=><Link to={ledgerHref(r)} title="Open this account in General Ledger" className="font-medium text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{r.name}</Link>},
 {key:"type",label:"Type"},
-{key:"openingDebit",label:"Opening Debit",render:(r:any)=>amountCell(r.openingDebit),getFilterValue:(r:any)=>r.openingDebit},
-{key:"openingCredit",label:"Opening Credit",render:(r:any)=>amountCell(r.openingCredit),getFilterValue:(r:any)=>r.openingCredit},
-{key:"periodDebit",label:"Period Debit",render:(r:any)=>amountCell(r.periodDebit),getFilterValue:(r:any)=>r.periodDebit},
-{key:"periodCredit",label:"Period Credit",render:(r:any)=>amountCell(r.periodCredit),getFilterValue:(r:any)=>r.periodCredit},
-{key:"closingDebit",label:"Closing Debit",render:(r:any)=>amountCell(r.closingDebit),getFilterValue:(r:any)=>r.closingDebit},
-{key:"closingCredit",label:"Closing Credit",render:(r:any)=>amountCell(r.closingCredit),getFilterValue:(r:any)=>r.closingCredit}
+{key:"openingDebit",label:"Opening Debit",render:(r:TrialBalanceRow)=>drillAmount(r,r.openingDebit),getFilterValue:(r:any)=>r.openingDebit},
+{key:"openingCredit",label:"Opening Credit",render:(r:TrialBalanceRow)=>drillAmount(r,r.openingCredit),getFilterValue:(r:any)=>r.openingCredit},
+{key:"periodDebit",label:"Period Debit",render:(r:TrialBalanceRow)=>drillAmount(r,r.periodDebit),getFilterValue:(r:any)=>r.periodDebit},
+{key:"periodCredit",label:"Period Credit",render:(r:TrialBalanceRow)=>drillAmount(r,r.periodCredit),getFilterValue:(r:any)=>r.periodCredit},
+{key:"closingDebit",label:"Closing Debit",render:(r:TrialBalanceRow)=>drillAmount(r,r.closingDebit),getFilterValue:(r:any)=>r.closingDebit},
+{key:"closingCredit",label:"Closing Credit",render:(r:TrialBalanceRow)=>drillAmount(r,r.closingCredit),getFilterValue:(r:any)=>r.closingCredit}
 ]} rows={rows} emptyMessage="No posted balances for this period."/><div className="grid grid-cols-2 gap-2 border-t bg-slate-100 p-3 text-xs font-semibold sm:grid-cols-4 lg:grid-cols-8"><span>Total</span><span>Opening DR: {formatCurrency(totals.openingDebit)}</span><span>Opening CR: {formatCurrency(totals.openingCredit)}</span><span>Period DR: {formatCurrency(totals.periodDebit)}</span><span>Period CR: {formatCurrency(totals.periodCredit)}</span><span>Closing DR: {formatCurrency(totals.closingDebit)}</span><span>Closing CR: {formatCurrency(totals.closingCredit)}</span></div>
             </div>
           )}
