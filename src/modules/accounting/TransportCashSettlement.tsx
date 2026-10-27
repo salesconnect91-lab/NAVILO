@@ -32,8 +32,8 @@ export default function TransportCashSettlement({side,party,onPosted,onBusyChang
  },[scope,side,party,activeCompany?.company_id,activeBusinessUnit?.business_unit_id]);
  useEffect(()=>{setDocuments([]);if(party)void load().catch(()=>{});else setLoading(false);return()=>{generation.current++}},[load,party]);
  if(!party)return <p className="text-sm text-slate-500">Select a {side==='customer'?'customer':'supplier'} first.</p>;
- return <div>
-  <div className="flex items-center justify-between"><p className="text-xs text-slate-600">Select posted invoices by Invoice No. or Trip No. Partial allocations are supported. A bill covering several trips is settled at invoice level.</p><button type="button" className="btn-secondary" disabled={loading} onClick={()=>void load().catch(()=>{})}>Refresh invoices</button></div>
+ return <div className="min-w-0 max-w-full overflow-hidden">
+  <div className="flex flex-wrap items-center justify-between gap-2"><p className="min-w-0 flex-1 text-xs text-slate-600">Select posted invoices by Invoice No. or Trip No. Partial allocations are supported. A bill covering several trips is settled at invoice level.</p><button type="button" className="btn-secondary" disabled={loading} onClick={()=>void load().catch(()=>{})}>Refresh invoices</button></div>
   {error&&<p role="alert" className="text-red-700">{error}</p>}
   {loading&&<p role="status">Loading open Transport invoices…</p>}
   {!error&&(!loading||documents.length>0)&&<>
