@@ -1565,8 +1565,9 @@ export default function CashCounter() {
       setSelectedInvoiceId("");
     } catch (err: any) {
       setError(
-        err?.message ||
-          "Failed to receive customer payment."
+        (err?.message ||
+          "Failed to receive customer payment.") +
+          " If the request timed out, check Recent Receipts before retrying to avoid double payment."
       );
     } finally {
       postingRef.current = false;
