@@ -68,6 +68,7 @@ export default function PaymentVoucherHistory({
   const [workingId, setWorkingId] =
     useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [correctionPreview, setCorrectionPreview] = useState<any | null>(null);
 
   const transactionType =
     mode === "customer"
@@ -111,6 +112,25 @@ export default function PaymentVoucherHistory({
   useEffect(() => {
     void load();
   }, [load]);
+
+  const previewCorrection = async (voucher: Voucher) => {
+    if (workingId) return;
+    setWorkingId(voucher.id);
+    setError(null);
+    setCorrectionPreview(null);
+    try {
+      const { data, error: previewError } = await supabase.rpc(
+        "admin_payment_correction_preview",
+        { p_entry_id: voucher.id } as any
+      );
+      if (previewError) throw previewError;
+      setCorrectionPreview(data);
+    } catch (err: any) {
+      setError(err?.message || "Admin correction preview unavailable.");
+    } finally {
+      setWorkingId(null);
+    }
+  };
 
   const loadVisibility = async (): Promise<Visibility> => {
     const {
@@ -513,6 +533,14 @@ ${
         </div>
       )}
 
+      {correctionPreview && (
+        <div className="mx-4 mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+          <div className="flex justify-between gap-3"><strong>Admin correction check — {correctionPreview.entry_no}</strong><button type="button" onClick={() => setCorrectionPreview(null)} className="font-semibold text-slate-600">Close</button></div>
+          <p className="mt-1">Journal lines: {correctionPreview.line_count} · Debit: {money(correctionPreview.debit_total)} · Credit: {money(correctionPreview.credit_total)} · {correctionPreview.balanced ? "Balanced" : "Out of balance"}</p>
+          <p className="mt-1">Customer allocations: {correctionPreview.customer_allocation_count} · Supplier allocations: {correctionPreview.supplier_allocation_count}</p>
+          <p className="mt-1 text-amber-700">Read-only check. Posted editing is not enabled; linked allocations and ledgers must be reconciled first.</p>
+        </div>
+      )}
       {loading ? (
         <div className="flex items-center justify-center gap-2 p-8 text-sm text-slate-500">
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -531,7 +559,7 @@ ${
  {key:"balance_before",label:"Previous",render:(row:any)=>`${currentCurrency()} ${money(Number(row.balance_before||0))}`,getFilterValue:(row:any)=>Number(row.balance_before||0)},
  {key:"payment_amount",label:"Amount",render:(row:any)=>`${currentCurrency()} ${money(Number(row.payment_amount||0))}`,getFilterValue:(row:any)=>Number(row.payment_amount||0)},
  {key:"balance_after",label:"Closing",render:(row:any)=>`${currentCurrency()} ${money(Number(row.balance_after||0))}`,getFilterValue:(row:any)=>Number(row.balance_after||0)},
- {key:"actions",label:"Actions",sortable:false,filterable:false,render:(row:any)=><div className="flex justify-end gap-2"><button type="button" disabled={workingId===row.id} onClick={()=>void printVoucher(row)} className="btn-secondary inline-flex items-center gap-1.5 text-xs">{workingId===row.id?<Loader2 className="h-3.5 w-3.5 animate-spin"/>:<Printer className="h-3.5 w-3.5"/>}Print</button><button type="button" disabled={workingId===row.id} onClick={()=>void downloadPdf(row)} className="btn-secondary inline-flex items-center gap-1.5 text-xs"><FileDown className="h-3.5 w-3.5"/>PDF</button></div>}
+ {key:"actions",label:"Actions",sortable:false,filterable:false,render:(row:any)=><div className="flex justify-end gap-2"><button type="button" disabled={workingId===row.id} onClick={()=>void printVoucher(row)} className="btn-secondary inline-flex items-center gap-1.5 text-xs">{workingId===row.id?<Loader2 className="h-3.5 w-3.5 animate-spin"/>:<Printer className="h-3.5 w-3.5"/>}Print</button><button type="button" disabled={workingId===row.id} onClick={()=>void downloadPdf(row)} className="btn-secondary inline-flex items-center gap-1.5 text-xs"><FileDown className="h-3.5 w-3.5"/>PDF</button><button type="button" disabled={workingId===row.id} onClick={()=>void previewCorrection(row)} className="btn-secondary inline-flex items-center gap-1.5 text-xs">Admin Check</button></div>}
  ]} rows={rows} emptyMessage="No payment vouchers found."/>
         </div>
       )}
