@@ -683,7 +683,7 @@ export default function ProfitLoss() {
                   {drilldown.serviceSalesAdjustments?.map((adjustment,index)=><tr key={"service-sales-adjustment:"+adjustment.accountId+":"+index} className="bg-amber-50/60">
                     <td className="whitespace-nowrap px-3 py-2">—</td>
                     <td className="px-3 py-2 font-medium">{drilldownAccountNames[adjustment.accountId]??"Revenue account"}</td>
-                    <td className="px-3 py-2">Classification adjustment · Sales Income already shown above</td>
+                    <td className="px-3 py-2">Memo adjustment · Sales Income already included above</td>
                     <td className="px-3 py-2 text-right font-mono">{formatCurrency(adjustment.amount)}</td>
                     <td className="px-3 py-2 text-right font-mono">—</td>
                     <td className="px-3 py-2 text-right font-mono text-rose-700">{formatCurrency(-adjustment.amount)}</td>
