@@ -1,4 +1,5 @@
 import ConfigurableReport from '../transport/ConfigurableReport';
+import { Link } from "react-router-dom";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
 import {salarySheetPosition} from '@/lib/salaryBalanceSheet';
@@ -19,6 +20,7 @@ import { fetchAllPages, fetchByIdChunks } from "@/lib/fetchAllPages";
 interface BSItem {
   name: string;
   amount: number;
+  accountIds?: string[];
   parentHead?: string;
   detailType?: string;
 }
@@ -179,9 +181,9 @@ export default function BalanceSheet() {
       };
     });
 
-    const assetMap: Record<string, { amount: number; parentHead: string; detailType: string }> = {};
-    const liabilityMap: Record<string, { amount: number; parentHead: string; detailType: string }> = {};
-    const equityMap: Record<string, { amount: number; parentHead: string; detailType: string }> = {};
+    const assetMap: Record<string, { amount: number; parentHead: string; detailType: string; accountIds: string[] }> = {};
+    const liabilityMap: Record<string, { amount: number; parentHead: string; detailType: string; accountIds: string[] }> = {};
+    const equityMap: Record<string, { amount: number; parentHead: string; detailType: string; accountIds: string[] }> = {};
     let totalRevenue = 0;
     let totalExpenses = 0;
 
@@ -203,6 +205,7 @@ export default function BalanceSheet() {
           amount: 0,
           parentHead: meta.parentHead,
           detailType: meta.detailType,
+          accountIds: [acc.id],
         };
       }
     });
@@ -228,7 +231,9 @@ export default function BalanceSheet() {
             amount:0,
             parentHead:meta.parentHead,
             detailType:meta.detailType,
+            accountIds:[line.account_id],
           };
+          else if(!target[name].accountIds.includes(line.account_id))target[name].accountIds.push(line.account_id);
           target[name].amount+=position.signedAmount;
           return;
         }
@@ -237,20 +242,23 @@ export default function BalanceSheet() {
       if (type === "asset") {
         const net = debit - credit;
         if (!assetMap[accountName]) {
-          assetMap[accountName] = { amount: 0, parentHead: meta.parentHead, detailType: meta.detailType };
+          assetMap[accountName] = { amount: 0, parentHead: meta.parentHead, detailType: meta.detailType, accountIds: [] };
         }
+        if(!assetMap[accountName].accountIds.includes(line.account_id))assetMap[accountName].accountIds.push(line.account_id);
         assetMap[accountName].amount += net;
       } else if (type === "liability") {
         const net = credit - debit;
         if (!liabilityMap[accountName]) {
-          liabilityMap[accountName] = { amount: 0, parentHead: meta.parentHead, detailType: meta.detailType };
+          liabilityMap[accountName] = { amount: 0, parentHead: meta.parentHead, detailType: meta.detailType, accountIds: [] };
         }
+        if(!liabilityMap[accountName].accountIds.includes(line.account_id))liabilityMap[accountName].accountIds.push(line.account_id);
         liabilityMap[accountName].amount += net;
       } else if (type === "equity") {
         const net = credit - debit;
         if (!equityMap[accountName]) {
-          equityMap[accountName] = { amount: 0, parentHead: meta.parentHead, detailType: meta.detailType };
+          equityMap[accountName] = { amount: 0, parentHead: meta.parentHead, detailType: meta.detailType, accountIds: [] };
         }
+        if(!equityMap[accountName].accountIds.includes(line.account_id))equityMap[accountName].accountIds.push(line.account_id);
         equityMap[accountName].amount += net;
       } else if (type === "revenue") {
         totalRevenue += credit - debit;
@@ -308,6 +316,7 @@ export default function BalanceSheet() {
         amount: assetMap[key].amount,
         parentHead: assetMap[key].parentHead,
         detailType: assetMap[key].detailType,
+        accountIds: assetMap[key].accountIds,
       }))
       .filter((item) => !hideZeroBalances || Math.abs(item.amount) >= 0.005);
 
@@ -317,6 +326,7 @@ export default function BalanceSheet() {
         amount: liabilityMap[key].amount,
         parentHead: liabilityMap[key].parentHead,
         detailType: liabilityMap[key].detailType,
+        accountIds: liabilityMap[key].accountIds,
       }))
       .filter((item) => !hideZeroBalances || Math.abs(item.amount) >= 0.005);
 
@@ -326,6 +336,7 @@ export default function BalanceSheet() {
         amount: equityMap[key].amount,
         parentHead: equityMap[key].parentHead,
         detailType: equityMap[key].detailType,
+        accountIds: equityMap[key].accountIds,
       }))
       .filter((item) => !hideZeroBalances || Math.abs(item.amount) >= 0.005);
 
@@ -394,6 +405,9 @@ export default function BalanceSheet() {
   const statementRows=classifiedBalanceSheetRows(statementSections,statementView,customExpanded,equationDifference,comparisonDifference);
   const reportData=classifiedBalanceSheetExport(statementRows,statementView,asOfDate,comparisonDate);
   const comparable=statementView==="comparative";
+  const balanceSheetItems=row.section==="Assets"?assets.items:row.section==="Liabilities"?liabilities.items:equity.items;
+  const balanceSheetAccountIds=row.kind==="detail"?(balanceSheetItems.find(item=>item.name===row.account)?.accountIds??[]):[];
+  const balanceSheetLedgerHref=(accountId:string,date:string)=>`/accounting/ledgers?account=${encodeURIComponent(accountId)}&to=${encodeURIComponent(date)}`;
   const statementColumnCount=2+(comparable?1:0);
   const printReport={
     title:"Balance Sheet",
@@ -577,10 +591,14 @@ export default function BalanceSheet() {
                     return <tr key={index} className={style}>
                       <td className={`py-1.5 pr-4 text-xs ${leftPadding} ${row.kind==="detail"?"":"font-semibold"}`}>{row.account}</td>
                       <td className={`px-4 py-1.5 text-right font-mono text-xs ${emphasis?"font-bold":""}`}>
-                        {row.current===null?"":formatCurrency(row.current)}
+                        {row.current===null?"":row.kind==="detail"&&balanceSheetAccountIds.length?
+                          <Link to={balanceSheetLedgerHref(balanceSheetAccountIds[0],asOfDate)} title="Open this account's General Ledger as of this date" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(row.current)}</Link>:
+                          formatCurrency(row.current)}
                       </td>
                       {comparable && <td className={`px-4 py-1.5 text-right font-mono text-xs ${emphasis?"font-bold":""}`}>
-                        {row.previous===null?"":formatCurrency(row.previous)}
+                        {row.previous===null?"":row.kind==="detail"&&balanceSheetAccountIds.length?
+                          <Link to={balanceSheetLedgerHref(balanceSheetAccountIds[0],comparisonDate)} title="Open this account's General Ledger as of the comparison date" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(row.previous)}</Link>:
+                          formatCurrency(row.previous)}
                       </td>}
                     </tr>;
                   })}
