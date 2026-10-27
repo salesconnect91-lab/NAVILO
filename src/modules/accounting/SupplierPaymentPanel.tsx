@@ -1,3 +1,4 @@
+import {fetchAllPages} from "@/lib/fetchAllPages";
 import {currentCurrency} from "@/components/ui";
 import { escapePrintHtml, createPrintDocument } from "@/lib/printDocument";
 import {useAuth} from "@/auth/AuthContext";
@@ -83,14 +84,13 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
     setInvoiceLoading(true);
     let cancelled=false;
     const getInvoices=async()=>{
-      const {data,error}=await supabase.from("purchase_orders")
+      const data=await fetchAllPages<PurchaseOrder>((from,to)=>supabase.from("purchase_orders")
         .select("id,order_no,order_date,supplier_id,total,paid_amount,outstanding_amount,payment_status,status")
         .eq("supplier_id",supplierId).eq("status","posted")
         .gt("outstanding_amount",0).neq("payment_status","paid")
-        .order("order_date",{ascending:true}).limit(1000);
+        .order("order_date",{ascending:true}).order("id",{ascending:true}).range(from,to));
       if(cancelled||token!==invoiceRequest.current)return;
-      if(error)setError(error.message);
-      else setOrders((data??[]).map(row=>({...row,total:Number(row.total||0),paid_amount:Number(row.paid_amount||0),outstanding_amount:Number(row.outstanding_amount||0)})) as PurchaseOrder[]);
+      setOrders(data.map(row=>({...row,total:Number(row.total||0),paid_amount:Number(row.paid_amount||0),outstanding_amount:Number(row.outstanding_amount||0)})));
       setInvoiceLoading(false);
     };
     void getInvoices().catch(e=>{if(!cancelled&&token===invoiceRequest.current){setError(e?.message||"Unable to load supplier invoices");setInvoiceLoading(false);}});
