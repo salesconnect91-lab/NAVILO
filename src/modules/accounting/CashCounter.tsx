@@ -130,7 +130,7 @@ export default function CashCounter() {
 
   // Synchronous guard: rapid clicks/Enter must never launch parallel receipt RPCs.
   const postingRef = useRef(false);
-  const paymentRequestRef = useRef<string | null>(null);
+  const paymentRequestRef = useRef<{ id: string; payload: string } | null>(null);
 
   const [customers, setCustomers] =
     useState<Customer[]>([]);
@@ -1463,9 +1463,12 @@ export default function CashCounter() {
             p_allocations:
               rpcAllocations,
           };
-      paymentRequestRef.current ??= crypto.randomUUID();
+      const payloadSignature = JSON.stringify(paymentPayload);
+      if (paymentRequestRef.current?.payload !== payloadSignature) {
+        paymentRequestRef.current = { id: crypto.randomUUID(), payload: payloadSignature };
+      }
       const { data, error: rpcError } = await supabase.rpc("cash_counter_post_once", {
-        p_request_id: paymentRequestRef.current,
+        p_request_id: paymentRequestRef.current.id,
         p_kind: "customer",
         p_payload: paymentPayload,
       } as any);
