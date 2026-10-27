@@ -51,6 +51,9 @@ type LedgerRow = {
 
 type JournalMeta = {
   id: string;
+  entry_no?: string | null;
+  source_module?: string | null;
+  source_document_id?: string | null;
   trans_type: string | null;
   source_document_type?: string | null;
   fiscal_year_closure_id: string | null;
@@ -322,7 +325,7 @@ export default function ProfitLoss() {
           (ids,fromRow,toRow) =>
             supabase
               .from("journal_entries")
-              .select("id,trans_type,source_document_type,fiscal_year_closure_id,monthly_profit_closure_id")
+              .select("id,entry_no,source_module,source_document_id,trans_type,source_document_type,fiscal_year_closure_id,monthly_profit_closure_id")
               .in("id",ids)
               .order("id",{ascending:true})
               .range(fromRow,toRow)
@@ -678,11 +681,11 @@ export default function ProfitLoss() {
                     return <tr key={line.journal_entry_id+":"+line.account_id+":"+line.entry_date+":"+index} className="hover:bg-slate-50">
                       <td className="whitespace-nowrap px-3 py-2">{formatReportDate(line.entry_date)}</td>
                       <td className="px-3 py-2 font-medium">{account}</td>
-                      <td className="px-3 py-2">{journal?.source_document_type||journal?.trans_type||"Ledger posting"}</td>
+                      <td className="px-3 py-2">{journal?.source_module&&journal?.source_document_type?`${journal.source_module} · ${journal.source_document_type}`:journal?.trans_type||"Ledger posting"}</td>
                       <td className="px-3 py-2 text-right font-mono">{formatCurrency(Number(line.debit??0))}</td>
                       <td className="px-3 py-2 text-right font-mono">{formatCurrency(Number(line.credit??0))}</td>
                       <td className={`px-3 py-2 text-right font-mono ${net<0?"text-rose-700":"text-slate-900"}`}>{formatCurrency(net)}</td>
-                      <td className="px-3 py-2">{line.journal_entry_id?<Link to={`/accounting/${line.journal_entry_id}`} onClick={()=>setDrilldown(null)} className="font-semibold text-blue-700 underline">Open journal</Link>:"—"}</td>
+                      <td className="px-3 py-2">{journal?.source_module==="sales"&&journal.source_document_id?<Link to={`/sales/${journal.source_document_id}`} onClick={()=>setDrilldown(null)} className="font-semibold text-blue-700 underline">{journal.entry_no||"Open invoice"}</Link>:journal?.source_module==="purchase"&&journal.source_document_id?<Link to={`/purchase/${journal.source_document_id}`} onClick={()=>setDrilldown(null)} className="font-semibold text-blue-700 underline">{journal.entry_no||"Open invoice"}</Link>:line.journal_entry_id?<Link to={`/accounting/${line.journal_entry_id}`} onClick={()=>setDrilldown(null)} className="font-semibold text-blue-700 underline">{journal?.entry_no||"Open journal"}</Link>:"—"}</td>
                     </tr>;
                   })}
                   {!drilldownRows.some(line=>line.account_id&&drilldown.accountIds.includes(line.account_id))&&
