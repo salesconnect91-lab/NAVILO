@@ -243,6 +243,7 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
   // The dashboard opens trips for its selected date range, without stale session filters.
   const dashboardFrom=params.get("dashboard_from")??"";
   const dashboardTo=params.get("dashboard_to")??"";
+  const dashboardSearch=params.get("dashboard_search")??"";
   const dashboardDrilldown=/^\d{4}-\d{2}-\d{2}$/.test(dashboardFrom)&&/^\d{4}-\d{2}-\d{2}$/.test(dashboardTo)&&dashboardFrom<=dashboardTo;
   const dashboardStatus=params.get("dashboard_status");
   const dashboardPpr=params.get("dashboard_ppr");
@@ -284,8 +285,8 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
   const importScopeRef=useRef(importScope);importScopeRef.current=importScope;
   useEffect(()=>{importStop.current=true;setImportJob(null);void storedImport(importScope).then(job=>{if(importScopeRef.current===importScope)setImportJob(job)}).catch(()=>{});return()=>{importStop.current=true}},[importScope]);
   const [page,setPage]=useState(()=>dashboardDrilldown?0:(savedRegisterView.page??0));
-  const [registerSearch,setRegisterSearch]=useState(()=>dashboardDrilldown?'':(savedRegisterView.registerSearch??''));
-  const [registerSearchDraft,setRegisterSearchDraft]=useState(()=>dashboardDrilldown?'':(savedRegisterView.registerSearch??''));
+  const [registerSearch,setRegisterSearch]=useState(()=>dashboardSearch||(dashboardDrilldown?'':(savedRegisterView.registerSearch??'')));
+  const [registerSearchDraft,setRegisterSearchDraft]=useState(()=>dashboardSearch||(dashboardDrilldown?'':(savedRegisterView.registerSearch??'')));
   const [registerSearchMode,setRegisterSearchMode]=useState<'contains'|'starts_with'>(()=>savedRegisterView.registerSearchMode??'contains');
   const [registerSearchModeDraft,setRegisterSearchModeDraft]=useState<'contains'|'starts_with'>(()=>savedRegisterView.registerSearchMode??'contains');
   const [registerMeta,setRegisterMeta]=useState<any>({count:0,totals:{},completed:0,paper_pending:0,statuses:[]});
