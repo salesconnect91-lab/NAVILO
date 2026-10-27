@@ -5,7 +5,7 @@ import TransportCashSettlement from "./TransportCashSettlement";
 import NaviloDateInput from '@/components/NaviloDateInput';
 import SearchableSelect from "@/components/SearchableSelect";
 import QuickMasterAdd from "@/components/QuickMasterAdd";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import jsPDF from "jspdf";
@@ -28,7 +28,7 @@ type SupplierPaymentReceipt = {
   payment_method: string; account: string; amount: number; balance_before?: number; balance_after?: number;
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const money = (value: number) => new Intl.NumberFormat("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0));
 
 export default function SupplierPaymentPanel({initialTransport=false}:{initialTransport?:boolean}) {
@@ -48,6 +48,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const postingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [lastPaymentReceipt, setLastPaymentReceipt] = useState<SupplierPaymentReceipt | null>(null);
@@ -127,12 +128,14 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
   };
 
   const handlePost = async () => {
+    if (postingRef.current) return;
     setError(null); setSuccess(null);
     if (!supplierId) return setError("Select supplier");
     if (!selectedOrder) return setError("Select open purchase invoice");
     if (!Number.isFinite(amountNumber) || amountNumber <= 0) return setError("Enter valid payment amount");
     if (amountNumber > selectedOrder.outstanding_amount + 0.005) return setError("Payment cannot exceed outstanding balance.");
     if (!accountId) return setError("Select Payment Account.");
+    postingRef.current = true;
     setSaving(true);
     try {
       const { data, error: rpcError } = await supabase.rpc("pay_supplier", { p_supplier_id: supplierId, p_payment_date: paymentDate, p_payment_account_id: accountId, p_payment_method: paymentMethod, p_reference: reference.trim() || null, p_description: `Payment against ${selectedOrder.order_no}`, p_notes: notes.trim() || null, p_purchase_order_id: selectedOrder.id, p_amount: amountNumber });
@@ -141,10 +144,10 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
       setSuccess(`Supplier payment posted successfully${result.entry_no ? ` — ${result.entry_no}` : ""}. ${currentCurrency()} ${money(result.payment_amount ?? amountNumber)}`);
       const selectedAccount = accounts.find((account) => account.id === accountId); const selectedSupplier = suppliers.find((supplier) => supplier.id === supplierId);
       let supplierBalanceSnapshot: { balance_before: number | null; payment_amount: number | null; balance_after: number | null } | null = null;
-      if (result.journal_entry_id) { const { data: snapshotData, error: snapshotError } = await supabase.from("journal_entries").select("balance_before,payment_amount,balance_after").eq("id", result.journal_entry_id).maybeSingle(); if (snapshotError) throw snapshotError; supplierBalanceSnapshot = snapshotData; }
+      if (result.journal_entry_id) { const { data: snapshotData, error: snapshotError } = await supabase.from("journal_entries").select("balance_before,payment_amount,balance_after").eq("id", result.journal_entry_id).maybeSingle(); if (!snapshotError) supplierBalanceSnapshot = snapshotData; }
       setLastPaymentReceipt({ entry_no: result.entry_no || "Supplier Payment", supplier_name: selectedSupplier?.name || "Supplier", invoice_no: selectedOrder.order_no, date: paymentDate, payment_method: paymentMethod, account: selectedAccount?.name || "—", amount: result.payment_amount ?? amountNumber, balance_before: Number(supplierBalanceSnapshot?.balance_before ?? 0), balance_after: Number(supplierBalanceSnapshot?.balance_after ?? 0) });
-      setOrderId(""); setAmount(""); setReference(""); setNotes(""); await loadData();
-    } catch (err: any) { setError(err?.message || err?.details || err?.hint || "Failed to post supplier payment."); } finally { setSaving(false); }
+      setOrderId(""); setAmount(""); setReference(""); setNotes(""); void loadData(true).catch(() => {});
+    } catch (err: any) { setError(err?.message || err?.details || err?.hint || "Failed to post supplier payment."); } finally { postingRef.current = false; setSaving(false); }
   };
 
   if (loading) return <div className="flex min-h-[250px] items-center justify-center rounded-xl border border-slate-200 bg-white text-sm text-slate-500"><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Loading supplier payments...</div>;
