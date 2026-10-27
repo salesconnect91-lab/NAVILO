@@ -50,6 +50,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const postingRef = useRef(false);
+  const paymentRequestRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [lastPaymentReceipt, setLastPaymentReceipt] = useState<SupplierPaymentReceipt | null>(null);
@@ -139,8 +140,11 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
     postingRef.current = true;
     setSaving(true);
     try {
-      const { data, error: rpcError } = await supabase.rpc("pay_supplier", { p_supplier_id: supplierId, p_payment_date: paymentDate, p_payment_account_id: accountId, p_payment_method: paymentMethod, p_reference: reference.trim() || null, p_description: `Payment against ${selectedOrder.order_no}`, p_notes: notes.trim() || null, p_purchase_order_id: selectedOrder.id, p_amount: amountNumber });
+      const paymentPayload = { p_supplier_id: supplierId, p_payment_date: paymentDate, p_payment_account_id: accountId, p_payment_method: paymentMethod, p_reference: reference.trim() || null, p_description: `Payment against ${selectedOrder.order_no}`, p_notes: notes.trim() || null, p_purchase_order_id: selectedOrder.id, p_amount: amountNumber };
+      paymentRequestRef.current ??= crypto.randomUUID();
+      const { data, error: rpcError } = await supabase.rpc("cash_counter_post_once", { p_request_id: paymentRequestRef.current, p_kind: "supplier", p_payload: paymentPayload } as any);
       if (rpcError) throw rpcError;
+      paymentRequestRef.current = null;
       const result = (data ?? {}) as { entry_no?: string; journal_entry_id?: string; payment_amount?: number };
       setSuccess(`Supplier payment posted successfully${result.entry_no ? ` — ${result.entry_no}` : ""}. ${currentCurrency()} ${money(result.payment_amount ?? amountNumber)}`);
       const selectedAccount = accounts.find((account) => account.id === accountId); const selectedSupplier = suppliers.find((supplier) => supplier.id === supplierId);
