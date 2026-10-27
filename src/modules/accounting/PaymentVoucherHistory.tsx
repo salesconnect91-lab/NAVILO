@@ -332,9 +332,9 @@ ${
       setError(message);
       // A popup opened before the asynchronous lookup must never stay blank.
       try {
-        if (!popup.closed) {
-          popup.document.body.textContent = "Unable to prepare voucher: " + message;
-        }
+        popup.document.open();
+        popup.document.write("<!doctype html><html><head><meta charset=\"utf-8\"><title>Voucher error</title></head><body style=\"font:14px Arial,sans-serif;padding:24px\"><h2>Unable to prepare voucher</h2><p>" + escapeHtml(message) + "</p></body></html>");
+        popup.document.close();
       } catch {
         // Ignore a window that was closed by the cashier.
       }
