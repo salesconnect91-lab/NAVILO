@@ -664,7 +664,7 @@ export default function ProfitLoss() {
                     if(!drilldown.dedicatedAccountIds?.includes(line.account_id)||!line.journal_entry_id)return true;
                     const journal=drilldownJournals[line.journal_entry_id];
                     const manualTypes=new Set(["","General","Journal Entry","Manual Journal","Journal Reversal"]);
-                    return Boolean(journal?.source_document_type)||!manualTypes.has(journal?.trans_type??"");
+                    return !journal||Boolean(journal.source_document_type)||!manualTypes.has(journal.trans_type??"");
                   }).map((line,index)=>{
                     const journal=line.journal_entry_id?drilldownJournals[line.journal_entry_id]:undefined;
                     const account=drilldownAccountNames[line.account_id??""]??"Unknown account";
@@ -694,7 +694,7 @@ export default function ProfitLoss() {
                     if(!drilldown.dedicatedAccountIds?.includes(line.account_id)||!line.journal_entry_id)return true;
                     const journal=drilldownJournals[line.journal_entry_id];
                     const manualTypes=new Set(["","General","Journal Entry","Manual Journal","Journal Reversal"]);
-                    return Boolean(journal?.source_document_type)||!manualTypes.has(journal?.trans_type??"");
+                    return !journal||Boolean(journal.source_document_type)||!manualTypes.has(journal.trans_type??"");
                   })&&
                     <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-500">No posted ledger entries found for this row in the selected period.</td></tr>}
                 </tbody>
