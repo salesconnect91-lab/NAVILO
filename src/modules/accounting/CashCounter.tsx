@@ -445,9 +445,12 @@ export default function CashCounter() {
     if (invoice) {
       const alreadyAllocated = Object.values(invoiceAllocations).reduce((sum, val) => sum + toNumber(val), 0);
       const remaining = Math.max(0, toNumber(amount) - alreadyAllocated);
-      const allocated = remaining > 0 ? Math.min(remaining, invoice.outstanding_amount) : invoice.outstanding_amount;
-      setInvoiceAllocations(prev => ({ ...prev, [invoiceId]: String(allocated) }));
-      if (toNumber(amount) <= 0) setAmount(String(allocated));
+      if (remaining < 0.005) {
+        setError("Amount Received is fully allocated. Increase it or edit/remove an existing allocation.");
+        return;
+      }
+      const allocated = Math.min(remaining, invoice.outstanding_amount);
+      setInvoiceAllocations(prev => ({ ...prev, [invoiceId]: String(Number(allocated.toFixed(2))) }));
     }
 
     setTimeout(() => {
@@ -1998,7 +2001,12 @@ export default function CashCounter() {
                         <input type="number" min="0" max={invoice.outstanding_amount} step="0.01"
                           aria-label={`Allocation for ${invoice.order_no}`}
                           value={invoiceAllocations[invoice.id]}
-                          onChange={e => setInvoiceAllocations(prev => ({ ...prev, [invoice.id]: e.target.value }))}
+                          onChange={e => setInvoiceAllocations(prev => {
+                            const others = Object.entries(prev).reduce((sum, [id, value]) => id === invoice.id ? sum : sum + toNumber(value), 0);
+                            const allowed = Math.max(0, Math.min(invoice.outstanding_amount, amountNumber - others));
+                            const requested = Math.max(0, toNumber(e.target.value));
+                            return { ...prev, [invoice.id]: e.target.value === "" ? "" : String(Number(Math.min(requested, allowed).toFixed(2))) };
+                          })}
                           className="h-9 w-full rounded border border-slate-300 px-2 text-right font-semibold" />
                         <button type="button" onClick={() => { setSelectedInvoiceId(""); setInvoiceAllocations(prev => { const next = {...prev}; delete next[invoice.id]; return next; }); }}
                           className="h-9 rounded border border-slate-200 text-rose-700">Remove</button>
@@ -2069,12 +2077,23 @@ export default function CashCounter() {
                       e.target.value;
 
                     setAmount(value);
-
-                    if (
-                      paymentType ===
-                      "invoice"
-                    ) {
-                      // Invoice-wise allocation remains unchanged until cashier edits the individual rows.
+                    if (paymentType === "invoice") {
+                      // Keep existing selections in order, reducing/removing allocations
+                      // whenever the receipt amount is lowered.
+                      const limit = Math.max(0, toNumber(value));
+                      setInvoiceAllocations(prev => {
+                        let remaining = limit;
+                        const next: Record<string, string> = {};
+                        for (const [id, raw] of Object.entries(prev)) {
+                          const due = customerInvoices.find(invoice => invoice.id === id)?.outstanding_amount ?? 0;
+                          const allowed = Math.min(toNumber(raw), due, remaining);
+                          if (allowed >= 0.005) {
+                            next[id] = String(Number(allowed.toFixed(2)));
+                            remaining = Math.max(0, Number((remaining - allowed).toFixed(2)));
+                          }
+                        }
+                        return next;
+                      });
                     }
                   }}
                   placeholder="0.00"
