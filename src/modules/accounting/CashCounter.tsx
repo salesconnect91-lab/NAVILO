@@ -81,8 +81,14 @@ type Receipt = {
 };
 
 
-const today = () =>
-  new Date().toISOString().slice(0, 10);
+// Use the cashier's local calendar date, not UTC (which can shift the day).
+const today = () => {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 const toNumber = (value: unknown) => {
   const n = Number(value);
