@@ -95,6 +95,9 @@ export default function GeneralCashBankPanel(){
  if(transactionType==="expense_payment"){
   if(!counterAccounts.some(a=>a.id===counterAccountId))throw new Error("Select an eligible operating expense account. Bills, salary, COGS and controlled accounts must use their own workflows.");
   if(!notes.trim())throw new Error("Enter expense particulars in Notes (what was purchased or paid for).");
+  const expenseAccount=accounts.find(a=>a.id===counterAccountId);
+  if(expenseAccount && (String(expenseAccount.detail_type||"").toLowerCase()==="transport" || /vehicle|truck|freight|transport/i.test(expenseAccount.name)))
+    throw new Error("Vehicle/Transport expense requires vehicle-specific expense posting so the vehicle ledger and P&L agree. Use the Transport Vehicle Expense workflow; do not post it as an unlinked General Expense.");
   if(expenseArea==="office"||expenseArea==="yard"){
     const selected=accounts.find(a=>a.id===counterAccountId);
     if(!selected?.name.toLowerCase().includes(expenseArea))
@@ -138,7 +141,7 @@ export default function GeneralCashBankPanel(){
     value={expenseArea} onChange={e=>setExpenseArea(e.target.value as "office"|"yard"|"general")}>
     <option value="office">Office</option><option value="yard">Yard</option><option value="general">General</option>
   </SearchableSelect>
-  <span className="mt-1 block text-xs font-normal text-slate-500">Saved on voucher. Office/Yard must use a matching Expense GL account for correct P&amp;L classification. General uses the selected operating expense account.</span>
+  <span className="mt-1 block text-xs font-normal text-slate-500">Saved on voucher. Office/Yard require matching GL accounts. Vehicle expenses must be posted through Transport Vehicle Expense for vehicle ledger attribution.</span>
  </label>}
  <div><label className="font-semibold">Transaction Account</label><div className="mt-2"><SearchableSelect value={counterAccountId} onChange={e=>setCounterAccountId(e.target.value)} searchPlaceholder="Type to search account..."><option value="">Select account...</option>{counterAccounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</SearchableSelect></div><QuickMasterAdd kind="account" compact disabled={saving||loading} onRefresh={refreshCashAccounts}/>{isLoan&&<p className="mt-1 text-xs text-slate-500">Loan transactions use the dedicated Loan Payable liability account.</p>}</div><div><label className="font-semibold">Cash / Bank</label><div className="mt-2"><SearchableSelect value={cashBankAccountId} onChange={e=>setCashBankAccountId(e.target.value)} searchPlaceholder="Type to search account..."><option value="">Select cash/bank...</option>{cashBankAccounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</SearchableSelect></div><QuickMasterAdd kind="account" compact disabled={saving||loading} onRefresh={refreshCashAccounts}/></div>
  {transactionType==="salary_payment"&&employeeId&&salaryLoading&&<div className="md:col-span-2 rounded-lg bg-slate-50 p-4 text-slate-600">Loading salary balance...</div>}
