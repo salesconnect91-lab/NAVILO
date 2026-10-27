@@ -1691,11 +1691,11 @@ export default function CashCounter() {
       {counterMode === "general" && <GeneralCashBankPanel />}
 
       <div
-        className={`grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_330px] ${
+        className={`grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_330px] ${
           counterMode !== "customer" ? "hidden" : ""
         }`}
       >
-        <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <section className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-5 py-4">
             <div className="flex items-center justify-between">
               <div>
