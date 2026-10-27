@@ -201,7 +201,7 @@ export default function ProfitLoss() {
   const [error, setError] = useState<string | null>(null);
   const [reportPrintSettings, setReportPrintSettings] = useState<any>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [transportIncome,setTransportIncome]=useState<{sales:number;service:number;other:number;vehicleLedgerTotal:number;vehicleLedgerAdjustment:number;vehicleLedgerAccounts:{vehicle_no:string;debit:number;credit:number;net:number}[];dedicatedSales:number;vehicles:VehicleIncome[];residual:number;vehicleError:string;salesAccountIds:string[];serviceAccountIds:string[];serviceVehicleAccountIds:string[];serviceSalesAdjustments:{accountId:string;amount:number}[]}|null>(null);
+  const [transportIncome,setTransportIncome]=useState<{sales:number;mappedSales:number;service:number;other:number;vehicleLedgerTotal:number;vehicleLedgerAdjustment:number;vehicleLedgerAccounts:{account_id:string;account_name:string;vehicle_no:string;debit:number;credit:number;net:number}[];dedicatedSales:number;vehicles:VehicleIncome[];residual:number;vehicleError:string;salesAccountIds:string[];serviceAccountIds:string[];serviceVehicleAccountIds:string[];serviceSalesAdjustments:{accountId:string;amount:number}[]}|null>(null);
   const [verifiedTransportUnit,setVerifiedTransportUnit]=useState<{companyId:string;businessUnitId:string;isTransport:boolean}|null>(null);
   const companyId=activeCompany?.company_id??'';
   const businessUnitId=activeBusinessUnit?.business_unit_id??'';
@@ -436,6 +436,7 @@ export default function ProfitLoss() {
           id:a.id,code:a.code,type:a.type,is_group:a.is_group,is_active:a.is_active,
         })),vehicleLedgerLines).map(row=>({
           vehicle_id:row.id,vehicle_no:row.vehicle_no,amount:row.amount,status:row.status,
+          account_id:vehicleResult.vehicles.find(vehicle=>vehicle.id===row.id)?.revenue_account_id??null,
         }));
         const service=mappedService;
         const dedicatedVehicleIds=new Set(linkedVehicleRows
@@ -466,7 +467,8 @@ export default function ProfitLoss() {
             const movements=vehicleLedgerLines.filter(line=>line.account_id===accountId);
             const debit=Number(movements.reduce((sum,line)=>sum+Number(line.debit??0),0).toFixed(2));
             const credit=Number(movements.reduce((sum,line)=>sum+Number(line.credit??0),0).toFixed(2));
-            return {vehicle_no:row.vehicle_no,debit,credit,net:Number((credit-debit).toFixed(2))};
+            return {account_id:accountId??'',account_name:accounts.find(account=>account.id===accountId)?.name??row.vehicle_no,
+              vehicle_no:row.vehicle_no,debit,credit,net:Number((credit-debit).toFixed(2))};
           }).sort((a,b)=>a.vehicle_no.localeCompare(b.vehicle_no,undefined,{numeric:true}));
         const incomeSources=reconcileTransportProfitLossSources(
           next.operatingRevenue.total+next.otherIncome.total,sales,service,vehicleLedgerTotal,dedicatedSales,
@@ -482,7 +484,7 @@ export default function ProfitLoss() {
         const serviceAccountIds=new Set<string>();
         if(serviceAccountId)serviceAccountIds.add(serviceAccountId);
         setTransportIncome({
-          sales,service,
+          sales,mappedSales,service,
           // Revenue classifications must add back to the posted GL total exactly once.
           other:incomeSources.otherIncome,
           vehicleLedgerTotal,vehicleLedgerAdjustment,vehicleLedgerAccounts,dedicatedSales,
@@ -535,7 +537,7 @@ export default function ProfitLoss() {
     ['Sales Income — Normal Invoices','Sales Revenue GL plus invoice-linked revenue accounts',transportIncome.sales],
     ['Trip Service Income — Trip Register Invoices','Mapped service revenue',transportIncome.service],
     ['Other Income','Other income GL',transportIncome.other],
-    ...transportIncome.vehicleLedgerAccounts.map(vehicle=>['Company Vehicle Ledger — Dr / Cr',vehicle.vehicle_no,`Dr ${formatCurrency(vehicle.debit)} · Cr ${formatCurrency(vehicle.credit)} · Net ${formatCurrency(vehicle.net)}`]),
+    ...transportIncome.vehicleLedgerAccounts.map(vehicle=>['Company Vehicle Ledger — Dr / Cr',vehicle.vehicle_no,`Debit ${formatCurrency(vehicle.debit)} · Credit ${formatCurrency(vehicle.credit)}`]),
     ...(Math.abs(transportIncome.residual)>=0.005?[['Vehicle Sales Not Allocated','Needs vehicle allocation review',transportIncome.residual]]:[])
   ]:printSectionRows('Operating Revenue',data.operatingRevenue);
 
@@ -551,6 +553,17 @@ export default function ProfitLoss() {
     &&(!drilldown.journalIds?.length||Boolean(line.journal_entry_id&&drilldown.journalIds.includes(line.journal_entry_id)))
     &&(!drilldown.excludeJournalIds?.length||!line.journal_entry_id||!drilldown.excludeJournalIds.includes(line.journal_entry_id))):[];
 
+  const vehicleLedgerNet=transportIncome?.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.net,0)??0;
+  const incomeRemainder=isTransport&&transportIncome
+    ?Number((data.operatingRevenue.total-vehicleLedgerNet-transportIncome.mappedSales-transportIncome.service).toFixed(2)):0;
+  const printableTransportIncomeRows=isTransport&&transportIncome?[
+    ...transportIncome.vehicleLedgerAccounts.map(row=>({name:row.account_name,amount:row.net})),
+    ...(Math.abs(transportIncome.mappedSales)>=0.005?[{name:'Sales Revenue',amount:transportIncome.mappedSales}]:[]),
+    {name:'Services',amount:transportIncome.service},
+    ...(Math.abs(incomeRemainder)>=0.005?[{name:'Uncategorized Income',amount:incomeRemainder}]:[]),
+  ]:[];
+  const printableTransportExpenses=[...data.costOfSales.items,...data.operatingExpenses.items];
+
   const setThisMonth = () => {
     const today = new Date();
     setFromDate(localDateValue(new Date(today.getFullYear(), today.getMonth(), 1)));
@@ -564,7 +577,7 @@ export default function ProfitLoss() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-12"><AccountingReportScopeSelect value={scope} onChange={setScope}/>
-      <style>{`@page{size:A4 portrait;margin:12mm}@media(max-width:640px){#printable-profit-loss section>div:first-child{align-items:flex-start;flex-wrap:wrap}#printable-profit-loss section>div:first-child h3{max-width:100%;white-space:normal;overflow-wrap:anywhere}#printable-profit-loss section .divide-y>div,#printable-profit-loss section .divide-y>button{align-items:flex-start}#printable-profit-loss .vehicle-ledger-drcr table{min-width:500px}}@media print{html,body{background:#fff!important;margin:0!important;padding:0!important}body *{visibility:hidden}#printable-profit-loss,#printable-profit-loss *{visibility:visible}#printable-profit-loss{position:absolute!important;left:0!important;top:0!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;gap:10px!important;color:#111827!important}.no-print{display:none!important}#printable-profit-loss header{break-inside:avoid;page-break-inside:avoid;box-shadow:none!important}#printable-profit-loss section{break-inside:avoid;page-break-inside:avoid;box-shadow:none!important}#printable-profit-loss .vehicle-ledger-drcr{break-inside:auto;page-break-inside:auto}#printable-profit-loss .vehicle-ledger-drcr table{width:100%!important;min-width:0!important;table-layout:fixed;border-collapse:collapse!important;font-size:9pt!important}#printable-profit-loss .vehicle-ledger-drcr th,#printable-profit-loss .vehicle-ledger-drcr td{padding:5px 7px!important;border-bottom:1px solid #d1d5db!important;white-space:normal!important}#printable-profit-loss .vehicle-ledger-drcr thead{display:table-header-group}#printable-profit-loss .vehicle-ledger-drcr tr{break-inside:avoid;page-break-inside:avoid}#printable-profit-loss .vehicle-ledger-drcr .overflow-x-auto{overflow:visible!important}.no-print{display:none!important}}`}</style>
+      <style>{`@page{size:A4 portrait;margin:12mm}@media(max-width:640px){#printable-profit-loss section>div:first-child{align-items:flex-start;flex-wrap:wrap}#printable-profit-loss section>div:first-child h3{max-width:100%;white-space:normal;overflow-wrap:anywhere}#printable-profit-loss section .divide-y>div,#printable-profit-loss section .divide-y>button{align-items:flex-start}#printable-profit-loss .vehicle-ledger-drcr table{min-width:500px}}@media print{html,body{background:#fff!important;margin:0!important;padding:0!important}body *{visibility:hidden}#printable-profit-loss,#printable-profit-loss *{visibility:visible}#printable-profit-loss{position:absolute!important;left:0!important;top:0!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;gap:10px!important;color:#111827!important}.no-print{display:none!important}#printable-profit-loss .profit-loss-screen{display:none!important}#printable-profit-loss .profit-loss-print-statement{display:block!important;break-inside:auto}#printable-profit-loss header{break-inside:avoid;page-break-inside:avoid;box-shadow:none!important}#printable-profit-loss section{break-inside:avoid;page-break-inside:avoid;box-shadow:none!important}#printable-profit-loss .vehicle-ledger-drcr{break-inside:auto;page-break-inside:auto}#printable-profit-loss .vehicle-ledger-drcr table{width:100%!important;min-width:0!important;table-layout:fixed;border-collapse:collapse!important;font-size:9pt!important}#printable-profit-loss .vehicle-ledger-drcr th,#printable-profit-loss .vehicle-ledger-drcr td{padding:5px 7px!important;border-bottom:1px solid #d1d5db!important;white-space:normal!important}#printable-profit-loss .vehicle-ledger-drcr thead{display:table-header-group}#printable-profit-loss .vehicle-ledger-drcr tr{break-inside:avoid;page-break-inside:avoid}#printable-profit-loss .vehicle-ledger-drcr .overflow-x-auto{overflow:visible!important}.profit-loss-print-statement table{width:100%;border-collapse:collapse;font-size:9pt;line-height:1.25}.profit-loss-print-statement th,.profit-loss-print-statement td{padding:4px 6px;border-bottom:1px solid #e1e5ea;text-align:left}.profit-loss-print-statement .pl-amount{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.profit-loss-print-statement .pl-band{background:#eef1f5;font-weight:700}.profit-loss-print-statement .pl-total{font-weight:700;border-top:1px solid #6b7280}.profit-loss-print-statement .pl-final{font-weight:800;border-top:1px solid #4b5563;border-bottom:3px double #4b5563;background:#eef1f5}.profit-loss-print-statement header{text-align:center;margin:0 0 14mm;border:0!important;padding:0!important;background:#fff!important}.profit-loss-print-statement header h1{font-size:15pt;margin:2mm 0;color:#27364a}.profit-loss-print-statement header p{font-size:9pt;margin:0;color:#475569}.no-print{display:none!important}}`}</style>
 
       <div id="printable-profit-loss" className="space-y-6" aria-busy={loading}>
         {reportPrintSettings && (
@@ -577,7 +590,35 @@ export default function ProfitLoss() {
           </div>
         )}
 
-        <header className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center">
+        {isTransport&&transportIncome&&<div className="profit-loss-print-statement hidden">
+          <header>
+            <div className="text-base font-bold">{reportPrintSettings?.company?.company_name||activeCompany?.company_name||'NAVILO'}</div>
+            <h1>Profit and Loss</h1>
+            <p>{formatReportDate(fromDate)} – {formatReportDate(toDate)}</p>
+          </header>
+          <table>
+            <thead><tr><th>Account</th><th className="pl-amount">Total</th></tr></thead>
+            <tbody>
+              <tr className="pl-band"><td colSpan={2}>Income</td></tr>
+              {printableTransportIncomeRows.map((row,index)=><tr key={`pl-income-${index}`}><td>{row.name}</td><td className="pl-amount">{formatCurrency(row.amount)}</td></tr>)}
+              <tr className="pl-total"><td>Total for Income</td><td className="pl-amount">{formatCurrency(data.operatingRevenue.total)}</td></tr>
+              <tr className="pl-final"><td>Gross Profit</td><td className="pl-amount">{formatCurrency(metrics.grossProfit)}</td></tr>
+              <tr className="pl-band"><td colSpan={2}>Other Income (Loss)</td></tr>
+              {data.otherIncome.items.map((row,index)=><tr key={`pl-other-income-${index}`}><td>{row.name}</td><td className="pl-amount">{formatCurrency(row.amount)}</td></tr>)}
+              {!data.otherIncome.items.length&&<tr><td>Other income</td><td className="pl-amount">{formatCurrency(data.otherIncome.total)}</td></tr>}
+              <tr className="pl-total"><td>Total for Other Income (Loss)</td><td className="pl-amount">{formatCurrency(data.otherIncome.total)}</td></tr>
+              <tr className="pl-band"><td colSpan={2}>Expenses</td></tr>
+              {printableTransportExpenses.map((row,index)=><tr key={`pl-expense-${index}`}><td>{row.name}</td><td className="pl-amount">{formatCurrency(row.amount)}</td></tr>)}
+              <tr className="pl-total"><td>Total for Expenses</td><td className="pl-amount">{formatCurrency(data.costOfSales.total+data.operatingExpenses.total)}</td></tr>
+              <tr className="pl-band"><td colSpan={2}>Other Expenses</td></tr>
+              {data.otherExpenses.items.map((row,index)=><tr key={`pl-other-expense-${index}`}><td>{row.name}</td><td className="pl-amount">{formatCurrency(row.amount)}</td></tr>)}
+              <tr className="pl-total"><td>Total for Other Expenses</td><td className="pl-amount">{formatCurrency(data.otherExpenses.total)}</td></tr>
+              <tr className="pl-final"><td>Net Earnings</td><td className="pl-amount">{formatCurrency(metrics.netProfit)}</td></tr>
+            </tbody>
+          </table>
+        </div>}
+
+        <header className={`flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center ${isTransport?'profit-loss-screen':''}`}>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Profit & Loss Statement</h1>
             <p className="mt-1 text-sm text-slate-500">For the period {formatReportDate(fromDate)} to {formatReportDate(toDate)}</p>
@@ -616,7 +657,7 @@ export default function ProfitLoss() {
               ))}
             </div>
 
-            <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className={`space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm ${isTransport?'profit-loss-screen':''}`}>
               {isTransport&&transportIncome?<>
                 <StatementSection title="Sales Income — Normal Invoices"
                   section={{total:transportIncome.sales,items:[{
@@ -640,20 +681,18 @@ export default function ProfitLoss() {
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[540px] border-collapse text-sm">
                       <thead><tr className="border-b border-slate-200 text-left text-xs font-bold text-slate-500">
-                        <th className="px-4 py-2">Vehicle</th><th className="px-4 py-2 text-right">Debit</th><th className="px-4 py-2 text-right">Credit</th><th className="px-4 py-2 text-right">Net (Cr − Dr)</th>
+                        <th className="px-4 py-2">Vehicle</th><th className="px-4 py-2 text-right">Debit</th><th className="px-4 py-2 text-right">Credit</th>
                       </tr></thead>
                       <tbody className="divide-y divide-slate-100">
                         {transportIncome.vehicleLedgerAccounts.map(vehicle=><tr key={vehicle.vehicle_no}>
                           <td className="px-4 py-2 font-semibold text-slate-800">{vehicle.vehicle_no}</td>
                           <td className="px-4 py-2 text-right font-mono">{formatCurrency(vehicle.debit)}</td>
                           <td className="px-4 py-2 text-right font-mono">{formatCurrency(vehicle.credit)}</td>
-                          <td className="px-4 py-2 text-right font-mono font-semibold">{formatCurrency(vehicle.net)}</td>
                         </tr>)}
                         <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold">
                           <td className="px-4 py-2">Total</td>
                           <td className="px-4 py-2 text-right font-mono">{formatCurrency(transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.debit,0))}</td>
                           <td className="px-4 py-2 text-right font-mono">{formatCurrency(transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.credit,0))}</td>
-                          <td className="px-4 py-2 text-right font-mono">{formatCurrency(transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.net,0))}</td>
                         </tr>
                       </tbody>
                     </table>
