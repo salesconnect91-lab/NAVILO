@@ -595,12 +595,12 @@ export default function BalanceSheet() {
                     return <tr key={index} className={style}>
                       <td className={`py-1.5 pr-4 text-xs ${leftPadding} ${row.kind==="detail"?"":"font-semibold"}`}>{row.account}</td>
                       <td className={`px-4 py-1.5 text-right font-mono text-xs ${emphasis?"font-bold":""}`}>
-                        {row.current===null?"":row.kind==="detail"&&balanceSheetAccountIds.length?
+                        {row.current===null?"":row.kind==="detail"&&balanceSheetAccountIds.length===1?
                           <Link to={balanceSheetLedgerHref(balanceSheetAccountIds[0],asOfDate)} title="Open this account's General Ledger as of this date" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(row.current)}</Link>:
                           formatCurrency(row.current)}
                       </td>
                       {comparable && <td className={`px-4 py-1.5 text-right font-mono text-xs ${emphasis?"font-bold":""}`}>
-                        {row.previous===null?"":row.kind==="detail"&&balanceSheetAccountIds.length?
+                        {row.previous===null?"":row.kind==="detail"&&balanceSheetAccountIds.length===1?
                           <Link to={balanceSheetLedgerHref(balanceSheetAccountIds[0],comparisonDate)} title="Open this account's General Ledger as of the comparison date" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(row.previous)}</Link>:
                           formatCurrency(row.previous)}
                       </td>}
