@@ -430,9 +430,11 @@ export default function CashCounter() {
   const selectInvoice = (
     invoiceId: string
   ) => {
-    setSelectedInvoiceId(
-      invoiceId
-    );
+    if (!invoiceId || Object.prototype.hasOwnProperty.call(invoiceAllocations, invoiceId)) {
+      setSelectedInvoiceId("");
+      return;
+    }
+    setSelectedInvoiceId("");
 
     const invoice =
       customerInvoices.find(
@@ -1966,10 +1968,10 @@ export default function CashCounter() {
                   <option value="">
                     {!selectedCustomerId
                       ? "Select customer first"
-                      : invoiceLoading ? "Loading customer invoices…" : invoiceLoadError ? "Invoice loading failed — retry" : "— Select open invoice —"}
+                      : invoiceLoading ? "Loading customer invoices…" : invoiceLoadError ? "Invoice loading failed — retry" : "— Add another open invoice (partial allowed) —"}
                   </option>
 
-                  {customerInvoices.map(
+                  {customerInvoices.filter(invoice => !Object.prototype.hasOwnProperty.call(invoiceAllocations, invoice.id)).map(
                     (invoice) => (
                       <option
                         key={invoice.id}
@@ -2000,7 +2002,7 @@ export default function CashCounter() {
                           value={invoiceAllocations[invoice.id]}
                           onChange={e => setInvoiceAllocations(prev => ({ ...prev, [invoice.id]: e.target.value }))}
                           className="h-9 w-full rounded border border-slate-300 px-2 text-right font-semibold" />
-                        <button type="button" onClick={() => setInvoiceAllocations(prev => { const next = {...prev}; delete next[invoice.id]; return next; })}
+                        <button type="button" onClick={() => { setSelectedInvoiceId(""); setInvoiceAllocations(prev => { const next = {...prev}; delete next[invoice.id]; return next; }); }}
                           className="h-9 rounded border border-slate-200 text-rose-700">Remove</button>
                       </div>
                     ))}
