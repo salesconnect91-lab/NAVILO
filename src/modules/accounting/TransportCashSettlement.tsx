@@ -16,6 +16,9 @@ export default function TransportCashSettlement({side,party,onPosted,onBusyChang
  const scope=`${activeCompany?.company_id}:${activeBusinessUnit?.business_unit_id}:${location}:${side}:${party}`;
  const [documents,setDocuments]=useState<PartyDocument[]>([]),[accounts,setAccounts]=useState<Account[]>([]);
  const [loading,setLoading]=useState(true),[error,setError]=useState('');
+ const [showAdvanceTools,setShowAdvanceTools]=useState(false);
+ const [showPreinvoiceTools,setShowPreinvoiceTools]=useState(false);
+ useEffect(()=>{setShowAdvanceTools(false);setShowPreinvoiceTools(false)},[scope]);
  const generation=useRef(0);
  const load=useCallback(async()=>{
   const current=++generation.current;setLoading(true);setError('');
@@ -39,8 +42,12 @@ export default function TransportCashSettlement({side,party,onPosted,onBusyChang
   {!error&&(!loading||documents.length>0)&&<>
    {!documents.some(d=>Number(d.current_outstanding_gross)>0)&&<p className="my-2 text-sm text-amber-800">No outstanding linked Transport invoices for this party in the active branch. Imported opening invoices are included; new finalized rates require invoice posting.</p>}
    <TransportPartySettlement key={scope} side={side} party={party} documents={documents} accounts={accounts} onBusyChange={onBusyChange} onPosted={async()=>{await load();await onPosted()}}/>
-   <TransportAdvanceOperations onChanged={async()=>{await load();await onPosted()}}/>
-   <TransportPrepostTripSettlement side={side} party={party} onChanged={onPosted}/>
+   <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+    <button type="button" className="btn-secondary text-xs" aria-expanded={showAdvanceTools} onClick={()=>setShowAdvanceTools(v=>!v)}>{showAdvanceTools?'Hide':'Show'} advance receipt / adjustment</button>
+    <button type="button" className="btn-secondary text-xs" aria-expanded={showPreinvoiceTools} onClick={()=>setShowPreinvoiceTools(v=>!v)}>{showPreinvoiceTools?'Hide':'Show'} pre-invoice trip advance reservation</button>
+   </div>
+   {showAdvanceTools&&<div className="min-w-0 max-w-full overflow-hidden"><TransportAdvanceOperations onChanged={async()=>{await load();await onPosted()}}/></div>}
+   {showPreinvoiceTools&&<div className="min-w-0 max-w-full overflow-hidden"><TransportPrepostTripSettlement side={side} party={party} onChanged={onPosted}/></div>}
   </>}
  </div>;
 }
