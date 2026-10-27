@@ -539,6 +539,8 @@ export default function ProfitLoss() {
     if(uniqueIds.length)setDrilldown({title,accountIds:uniqueIds});
   };
   const pAndLAccountIds=(...sections:PLSectionData[])=>[...new Set(sections.flatMap(section=>section.items.flatMap(item=>item.accountIds??[])))];
+  const otherTransportRevenueIds=()=>pAndLAccountIds(data.operatingRevenue)
+    .filter(id=>!new Set([...(transportIncome?.salesAccountIds??[]),...(transportIncome?.serviceAccountIds??[])]).has(id));
 
   const setThisMonth = () => {
     const today = new Date();
@@ -635,7 +637,7 @@ export default function ProfitLoss() {
                   }]:[]}} tone="income" onDrilldown={openDrilldown} />
                 {(Math.abs(transportIncome.other)>=0.005||!hideZeroBalances)&&
                   <StatementSection title="Other Operating Revenue" section={{total:transportIncome.other,
-                    items:[{name:'Other revenue accounts / manual adjustments',amount:transportIncome.other,detailType:'Posted GL — outside Sales and Service Revenue',accountIds:pAndLAccountIds(data.operatingRevenue)}]}} tone="income" onDrilldown={openDrilldown}/>}
+                    items:[{name:'Other revenue accounts / manual adjustments',amount:transportIncome.other,detailType:'Posted GL — outside Sales and Service Revenue',accountIds:otherTransportRevenueIds()}]}} tone="income" onDrilldown={openDrilldown}/>}
               </>:<StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" onDrilldown={openDrilldown} />}
               <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} />
               <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales),"Gross Profit / (Loss)")} />
