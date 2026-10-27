@@ -95,6 +95,11 @@ export default function CashFlowStatement(){
             ['TOTAL / Net change','',Number(report.movement)],
             ['Closing cash and bank','',Number(report.closing)]
           ]
+        }} getRowLinks={(sourceRow)=>{
+          const activity=String(sourceRow[0]??'');
+          if(!Object.values(names).includes(activity))return [];
+          const params=new URLSearchParams({from,to});
+          return [{label:'Review posted entries for this period in General Ledger',href:`/accounting/ledgers?${params.toString()}`}];
         }}/>
         {Math.abs(Number(report.difference))>=0.005&&<p role="alert">Cash flow does not reconcile to the posted ledger. Review the canonical journals and account mappings.</p>}
         <p className="text-xs">Open Accounting → Day Book or General Ledger to inspect the source vouchers. Unclassified amounts remain in the cash reconciliation.</p>
