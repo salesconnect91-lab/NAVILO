@@ -7,7 +7,7 @@ import {createImportTemplateWorkbook} from '@/lib/importExcelTemplate';
  * The Action column is a UI control and must not appear in an Excel data file.
  */
 export const SIMPLE_JOURNAL_HEADERS=[
- 'entry_no','entry_date','account_name','line_description','party_type','party_name','debit','credit'
+ 'entry_no','entry_date','account_name','line_description','party','debit','credit'
 ] as const;
 const str=(v:unknown)=>String(v??'').trim();
 const key=(v:unknown)=>str(v).toLowerCase().replace(/[\s_-]+/g,'');
@@ -59,11 +59,13 @@ function legacyRelatedTo(value:unknown,line:number,account:string){
  const normalizedAccount=account.toLowerCase().replace(/\s+/g,' ').trim();
  if(normalizedAccount==='accounts receivable')return {partyType:'customer',partyName:s};
  if(normalizedAccount==='accounts payable')return {partyType:'supplier',partyName:s};
- throw Error(`Row ${line}: legacy Related To is ambiguous. Use Party Type/Party Name only for a genuine AR/AP party. Vehicle is not selected on General Journal lines.`);
+ throw Error(`Row ${line}: Related To is ambiguous. Use the single Party column only on the mapped Accounts Receivable or Accounts Payable account. Vehicle is not selected on General Journal lines.`);
 }
 export function isSimpleJournalTemplate(headers:readonly unknown[]):boolean{
  const h=headers.map(key);
- return SIMPLE_JOURNAL_HEADERS.every(x=>h.includes(key(x)))&&!h.includes('fundingaccount')&&!h.includes(key('description'));
+ const core=['entry_no','entry_date','account_name','line_description','debit','credit'];
+ const hasParty=h.includes(key('party'))||(h.includes(key('party_type'))&&h.includes(key('party_name')))||h.includes(key('related_to'));
+ return core.every(x=>h.includes(key(x)))&&hasParty&&!h.includes('fundingaccount')&&!h.includes(key('description'));
 }
 /**
  * Converts the simplified two-line spreadsheet to the existing validated
@@ -73,11 +75,15 @@ export function isSimpleJournalTemplate(headers:readonly unknown[]):boolean{
 export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[]):string[][]{
  if(rows.length<2)throw Error('Add at least two journal lines below the Excel headers.');
  const headers=rows[0].map(key);
- for(const h of SIMPLE_JOURNAL_HEADERS){
+ for(const h of SIMPLE_JOURNAL_HEADERS.filter(h=>h!=='party')){
   if(!headers.includes(key(h)))throw Error(`Missing simple journal column: ${h}.`);
  }
+ const partyIndex=headers.indexOf(key('party'));
+ const partyTypeIndex=headers.indexOf(key('party_type'));
+ const partyNameIndex=headers.indexOf(key('party_name'));
  const idx=(h:string)=>headers.indexOf(key(h));
  const legacyRelatedToIndex=headers.indexOf(key('related_to'));
+ if(partyIndex<0&&partyNameIndex<0&&legacyRelatedToIndex<0)throw Error('Missing simple journal column: party.');
  // Explain multiple common Excel mistakes together instead of forcing a
  // repeated choose-file/fix-one-row/reupload cycle.
  const supplied=rows.slice(1).map((r,index)=>({r,line:index+2})).filter(({r})=>r.some(cell=>str(cell)));
@@ -87,9 +93,10 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
  for(const {r,line} of supplied){
   const dr=Number(str(r[idx('debit')]).replace(/,/g,'')),cr=Number(str(r[idx('credit')]).replace(/,/g,''));
   if(Number.isFinite(dr)&&Number.isFinite(cr)&&dr>0&&cr>0)
-   problems.push(`Row ${line}, columns G/H: enter a positive Debit OR Credit, not both. Move the funding side to another row (e.g. Amjad Payable Credit).`);
-  if(str(r[idx('party_name')]).toLowerCase()==='amjad payable')
-   problems.push(`Row ${line}, column F (party_name): Amjad Payable is a Chart of Accounts name, not a Party. Use Amjad Payable as Account Name on a separate Credit row.`);
+   problems.push(`Row ${line}: enter a positive Debit OR Credit, not both. Move the funding side to another row (e.g. Amjad Payable Credit).`);
+  const partyValue=partyIndex>=0?str(r[partyIndex]):str(r[partyNameIndex]);
+  if(partyValue.toLowerCase()==='amjad payable')
+   problems.push(`Row ${line}, Party column: Amjad Payable is a Chart of Accounts name, not a Party. Use Amjad Payable as Account Name on a separate Credit row.`);
  }
  if(problems.length){
   const visible=problems.slice(0,9);
@@ -117,8 +124,11 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   if(!description)throw Error(`Row ${line}: Line Description is required on every line.`);
   const debit=money(row[idx('debit')],line,'Debit'),credit=money(row[idx('credit')],line,'Credit');
   if((debit>0)===(credit>0))throw Error(`Row ${line}: enter a positive Debit OR Credit, not both or neither.`);
-  const partyType=str(row[idx('party_type')]).toLowerCase();
-  const partyName=str(row[idx('party_name')]);
+  const partyType=partyTypeIndex>=0?str(row[partyTypeIndex]).toLowerCase():'';
+  const legacyPartyName=partyNameIndex>=0?str(row[partyNameIndex]):'';
+  const partyName=partyIndex>=0?str(row[partyIndex]):legacyPartyName;
+  if(partyIndex>=0&&legacyPartyName)throw Error(`Row ${line}: enter the party once in the Party column.`);
+  if(partyTypeIndex>=0&&partyType&&!legacyPartyName)throw Error(`Row ${line}: Party Type was supplied without Party Name. Use the single Party column.`);
   const vehicleIndex=headers.indexOf(key('vehicle_no'));
   const vehicle=vehicleIndex>=0?str(row[vehicleIndex]):'';
   if(vehicle)throw Error(`Row ${line}: Vehicle allocation is not part of General Journal. Use the Transport Vehicle Expenses module for vehicle-specific costs.`);
@@ -127,9 +137,9 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
    partyType:partyType||legacy.partyType,
    partyName:partyName||legacy.partyName,
   };
-  if((partyType||partyName)&&(legacy.partyType||legacy.partyName))throw Error(`Row ${line}: use either the separate Party Type/Party Name columns or the legacy Related To column, not both.`);
-  if(related.partyType&&!['customer','supplier'].includes(related.partyType))throw Error(`Row ${line}: Party Type must be Customer or Supplier.`);
-  if((related.partyType&&!related.partyName)||(!related.partyType&&related.partyName))throw Error(`Row ${line}: Party Type and Party Name must be provided together.`);
+  if((partyType||partyName)&&(legacy.partyType||legacy.partyName))throw Error(`Row ${line}: use either the Party column or the legacy Related To column, not both.`);
+  if(related.partyType&&!['customer','supplier'].includes(related.partyType))throw Error(`Row ${line}: legacy Party Type must be Customer or Supplier.`);
+  if(related.partyType&&!related.partyName)throw Error(`Row ${line}: legacy Party Name is required when Party Type is provided.`);
   const groupKey=entry.toLowerCase();
   const prior=groups.get(groupKey);
   if(prior&&prior.date!==date)throw Error(`Row ${line}: Entry No ${entry} has conflicting dates.`);
@@ -161,7 +171,7 @@ export function downloadSimpleJournalTemplate():void{
    'Syarah Fuel is a prepaid CURRENT ASSET: wallet top-up Debit Syarah Fuel Payable, Credit Amjad Payable. Later fuel consumption uses the relevant expense workflow and credits Syarah Fuel Payable.',
    'Existing driver salary liability payment: Debit Asif Driver Salary Running Account and Credit Amjad Payable. DO NOT expense driver wages again if already accrued.',
    'New, not-yet-accrued driver wages: Debit Driver Salary & Wages; Credit Amjad Payable. Avoid double-counting.',
-   'Use Party Type/Party Name only for genuine AR/AP control accounts; leave both blank for ordinary expense, funding and liability lines.',
+   'Party is one field: enter the exact Customer on the mapped Accounts Receivable account or Supplier on the mapped Accounts Payable account. NAVILO determines Customer/Supplier from the account; leave Party blank on ordinary expense and funding lines.',
    'Imported journals first become DRAFTS. Posting after review affects GL, genuine Party ledgers and P&L. General Journal entries are not attributed to a vehicle.',
    'Do not re-import posted journals or reversed transactions. An existing Entry No will fail duplicate checks. No cash/bank account is invented.',
    'The Worked Examples sheet is for learning and is NEVER imported. The first sheet is deliberately empty.'
@@ -170,26 +180,25 @@ export function downloadSimpleJournalTemplate():void{
    {field:'entry_date',rule:'YYYY-MM-DD on both lines or just first line of each journal'},
    {field:'account_name',rule:'Exact Debit/Credit GL account from Chart of Accounts'},
    {field:'line_description',rule:'What was paid/earned, vehicle/driver details, supplier and receipt reference'},
-   {field:'party_type',rule:'Customer or Supplier only for mapped AR/AP control accounts; otherwise blank'},
-   {field:'party_name',rule:'Exact existing Customer/Supplier name when Party Type is selected; otherwise blank'},
+   {field:'party',rule:'Exact Customer name on mapped Accounts Receivable or Supplier name on mapped Accounts Payable; leave blank on other accounts'},
    {field:'debit',rule:'Amount ONLY for debit line; other side blank or 0'},
    {field:'credit',rule:'Amount ONLY for credit line; other side blank or 0'},
   ]
  });
  const examples=XLSX.utils.aoa_to_sheet([
-  ['Scenario','entry_no','entry_date','account_name','line_description','party_type','party_name','debit','credit'],
-  ['Repair funded by Amjad','EXAMPLE-001','2026-09-05','General Expenses','Vehicle 7979 repair','','',600,0],
-  ['↳ Amjad owes','','','Amjad Payable','Repair paid by Amjad','','',0,600],
-  ['New driver wages','EXAMPLE-002','2026-09-06','Driver Salary & Wages','Driver wages for 7979','','',250,0],
-  ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad','','',0,250],
-  ['Existing driver liability','EXAMPLE-003','2026-09-07','Asif Driver Salary Running Account','Settle previously accrued wages','', '',417,0],
-  ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad','','',0,417],
-  ['Syarah wallet recharge','EXAMPLE-004','2026-09-08','Syarah Fuel Payable','Syarah wallet credit','','',1000,0],
-  ['↳ Amjad owes','','','Amjad Payable','Wallet funded by Amjad','','',0,1000],
-  ['Syarah fuel consumption','EXAMPLE-005','2026-09-09','Transport & Freight','Fuel consumed by 7979','','',300,0],
-  ['↳ wallet decreases','','','Syarah Fuel Payable','Deduct from Syarah wallet','','',0,300],
+  ['Scenario','entry_no','entry_date','account_name','line_description','party','debit','credit'],
+  ['Repair funded by Amjad','EXAMPLE-001','2026-09-05','General Expenses','Vehicle 7979 repair','',600,0],
+  ['↳ Amjad owes','','','Amjad Payable','Repair paid by Amjad','',0,600],
+  ['New driver wages','EXAMPLE-002','2026-09-06','Driver Salary & Wages','Driver wages for 7979','',250,0],
+  ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad','',0,250],
+  ['Existing driver liability','EXAMPLE-003','2026-09-07','Asif Driver Salary Running Account','Settle previously accrued wages','',417,0],
+  ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad','',0,417],
+  ['Syarah wallet recharge','EXAMPLE-004','2026-09-08','Syarah Fuel Payable','Syarah wallet credit','',1000,0],
+  ['↳ Amjad owes','','','Amjad Payable','Wallet funded by Amjad','',0,1000],
+  ['Syarah fuel consumption','EXAMPLE-005','2026-09-09','Transport & Freight','Fuel consumed by 7979','',300,0],
+  ['↳ wallet decreases','','','Syarah Fuel Payable','Deduct from Syarah wallet','',0,300],
  ]);
-examples['!cols']=[{wch:26},{wch:20},{wch:16},{wch:36},{wch:44},{wch:14},{wch:26},{wch:14},{wch:14}];
+examples['!cols']=[{wch:26},{wch:20},{wch:16},{wch:36},{wch:44},{wch:32},{wch:14},{wch:14}];
  XLSX.utils.book_append_sheet(book,examples,'Worked Examples - DO NOT IMPORT');
  XLSX.writeFile(book,'NAVILO-Journal-Simple-Debit-Credit.xlsx');
 }

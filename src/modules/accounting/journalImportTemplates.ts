@@ -6,8 +6,7 @@ export const TEMPLATE_HEADERS = [
   "description",
   "account_name",
   "line_description",
-  "party_type",
-  "party_name",
+  "party",
   "debit",
   "credit",
 ];
@@ -77,7 +76,7 @@ export const downloadExcelTemplate = () => {
    'Upload creates DRAFT journals only. Review and post each journal in Accounting; no entries are posted automatically.',
    'All rows with the same entry_no must have the same entry_date and description. Debit and credit totals for each entry MUST balance.',
    'Account Name is the GL account receiving the debit or credit. General Journal lines do not carry a vehicle selection.',
-   'Party Type/Party Name are for genuine AR/AP control accounts only. For vehicle-specific costs, use the Transport Vehicle Expenses module; for vehicle income, use the relevant transport invoice/import workflow.',
+   'Party is one column. Enter the exact Customer on the mapped Accounts Receivable line or Supplier on the mapped Accounts Payable line; NAVILO determines the party type from the account. Leave Party blank on other lines.',
    'Do not invent missing accounts or use group accounts. If an account name is ambiguous, use the optional legacy account_head column to disambiguate.',
    'Supplier payment examples: DEBIT Accounts Payable with the correct Supplier Party and CREDIT Cash/Bank. Review direction and any existing allocations before posting.',
    'line_description is optional per line; description is the overall journal narration. Debit/Credit must balance per Entry No, with only one nonzero side per line.',
@@ -86,9 +85,9 @@ export const downloadExcelTemplate = () => {
  });
  const sheet=XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS,...TEMPLATE_ROWS]);
  sheet['!cols']=[
-  {wch:18},{wch:15},{wch:35},{wch:34},{wch:38},{wch:16},{wch:36},{wch:17},{wch:17}
+  {wch:18},{wch:15},{wch:35},{wch:34},{wch:38},{wch:36},{wch:17},{wch:17}
  ];
- sheet['!autofilter']={ref:`A1:I${TEMPLATE_ROWS.length+1}`};
+ sheet['!autofilter']={ref:`A1:H${TEMPLATE_ROWS.length+1}`};
  workbook.Sheets['Journal Import']=sheet;
  XLSX.writeFile(workbook,'journal-import-template.xlsx');
 };

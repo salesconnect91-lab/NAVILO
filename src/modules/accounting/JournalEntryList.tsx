@@ -810,10 +810,14 @@ export default function JournalEntryList() {
         const vehicleNoIndex=columnIndex('vehicleno');
         const vehicleNo=vehicleNoIndex>=0?normalize(row[vehicleNoIndex]):'';
         if(vehicleNo)throw new Error(`Row ${i+1}: Vehicle allocation is not part of General Journal. Use Transport Vehicle Expenses for vehicle-specific costs.`);
+        const partyIndex = columnIndex("party");
         const partyTypeIndex = columnIndex('partytype');
         const partyNameIndex = columnIndex("partyname");
         const partyType = partyTypeIndex >= 0 ? normalize(row[partyTypeIndex]).toLowerCase() : "";
-        const partyName = partyNameIndex >= 0 ? normalize(row[partyNameIndex]) : "";
+        const partyName = partyIndex >= 0 ? normalize(row[partyIndex]) : partyNameIndex >= 0 ? normalize(row[partyNameIndex]) : "";
+        if (partyIndex >= 0 && partyNameIndex >= 0 && normalize(row[partyIndex]) && normalize(row[partyNameIndex])) {
+          throw new Error(`Row ${i + 1}: enter the party once in the Party column.`);
+        }
 
         const debit =
           parseAmount(
@@ -841,7 +845,6 @@ export default function JournalEntryList() {
           !accountHead &&
           !accountName &&
           !lineDescription &&
-          !partyType &&
           !partyName &&
           debit === 0 &&
           credit === 0;
@@ -888,7 +891,7 @@ export default function JournalEntryList() {
         throw new Error(
           "This file appears to contain customer-wise receivables in AccountName. " +
           "Bulk Journal Import currently accepts Chart of Accounts names, not Customer Master names. " +
-          "Use individual Journal Entry > Import Excel with the mapped Accounts Receivable name and Party Type/Party Name; " +
+          "Use individual Journal Entry > Import Excel with the mapped Accounts Receivable account and one Party name; " +
           "do not post until customer balances have been reconciled. " +
           "Affected Excel rows: " +
           customerLikeRows.map((item) => item.rowNumber).join(", ")
@@ -1664,17 +1667,24 @@ export default function JournalEntryList() {
               continue;
             }
 
-            /* CUSTOMER / SUPPLIER PARTY SAFETY */
-            const partyType = normalizeKey(row.partyType);
+            /* Party is one import column. Infer Customer/Supplier from the mapped
+               control account, matching the single Party field in the journal UI. */
             const partyName = normalize(row.partyName);
+            const inferredPartyType = account.id === receivableAccountId
+              ? "customer"
+              : account.id === payableAccountId
+              ? "supplier"
+              : "";
+            const partyType = normalizeKey(row.partyType) || inferredPartyType;
+            if (partyType && !row.partyType) row.partyType = partyType;
             if (partyType && partyType !== "customer" && partyType !== "supplier") {
               errors.push(`Row ${row.rowNumber}: Party Type must be Customer or Supplier.`);
             }
             if (partyName && !partyType) {
-              errors.push(`Row ${row.rowNumber}: Party Type is required with Party Name.`);
+              errors.push(`Row ${row.rowNumber}: Party can only be entered on the mapped Accounts Receivable or Accounts Payable account.`);
             }
             if (partyType && !partyName) {
-              errors.push(`Row ${row.rowNumber}: Party Name is required for ${partyType}.`);
+              errors.push(`Row ${row.rowNumber}: Party is required for ${partyType}.`);
             }
             if (account.id === receivableAccountId && (partyType !== "customer" || !partyName)) {
               errors.push(`Row ${row.rowNumber}: Accounts Receivable requires an existing Customer Party Name.`);
