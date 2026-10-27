@@ -9,7 +9,7 @@ import type {JournalEntry} from '@/types';
 type JournalPreviewLine={
  id:string;entry_id:string;account:string|null;account_id:string|null;
  debit:number|string|null;credit:number|string|null;
- party_name:string|null;description:string|null;
+ party_type?:string|null;party_name:string|null;transport_vehicle_id?:string|null;description:string|null;
 };
 type Overview={lines:JournalPreviewLine[];debit:number;credit:number;accountsDr:string;accountsCr:string;party:string;description:string;balanced:boolean};
 type Props={
@@ -28,6 +28,11 @@ const money=(value:number,currency:string)=>`${currency||'SAR'} ${value.toLocale
 const num=(v:number|string|null)=>Number(v??0);
 const distinct=(a:string[])=>[...new Set(a.filter(Boolean))];
 const displayNames=(items:string[],limit=2)=>items.slice(0,limit).join(' · ')+(items.length>limit?` +${items.length-limit}`:'');
+export function journalOverviewPartyName(line:Pick<JournalPreviewLine,'party_type'|'party_name'>):string{
+ const name=line.party_name?.trim()||'';
+ if(!name||line.party_type?.trim().toLowerCase()==='vehicle'||/^vehicle\s*:/i.test(name))return '';
+ return name;
+}
 const pageSizes=[25,50,100];
 const journalColumnDefaults=[12,25,13,12,9,11,7,11];
 const journalColumnLabels=['Entry # / Date','Description / Type','Debit Account (Dr)','Credit Account (Cr)','Party','Amount (Dr = Cr)','Status','Actions'];
@@ -41,7 +46,7 @@ export function buildJournalOverview(lines:JournalPreviewLine[]):Overview{
  const credit=lines.reduce((n,l)=>n+num(l.credit),0);
  const dr=distinct(lines.filter(l=>num(l.debit)>0).map(l=>l.account?.trim()||l.account_id||'Unassigned account'));
  const cr=distinct(lines.filter(l=>num(l.credit)>0).map(l=>l.account?.trim()||l.account_id||'Unassigned account'));
- const parties=distinct(lines.map(l=>l.party_name?.trim()||''));
+ const parties=distinct(lines.map(journalOverviewPartyName));
  return {lines,debit,credit,accountsDr:displayNames(dr),accountsCr:displayNames(cr),
   party:displayNames(parties,3),
   description:distinct(lines.map(line=>line.description?.trim()||'')).join('\n'),
@@ -100,7 +105,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
   setLoading(true);setDetailError('');setDetails({});
   (async()=>{
    const {data,error}=await supabase.from('journal_lines')
-    .select('id,entry_id,account,account_id,debit,credit,party_name,description')
+    .select('id,entry_id,account,account_id,debit,credit,party_type,party_name,transport_vehicle_id,description')
     .in('entry_id',ids).order('id').limit(1501);
    if(error)throw new Error(error.message||'Unable to load journal lines');
    if((data??[]).length>=1501)throw new Error('More than 1,500 journal lines on this page. Choose a smaller page size.');
@@ -230,7 +235,7 @@ export default function JournalEntryOverview({entries,currency,copyingId,onCopy,
           <tbody>{info.lines.map(line=><tr key={line.id} className="border-t border-slate-200">
            <td className="p-2">{line.account||line.account_id||'—'}</td>
            <td className="p-2 whitespace-pre-wrap break-words">{line.description||entry.description||'—'}</td>
-           <td className="p-2">{line.party_name||'—'}</td>
+           <td className="p-2">{journalOverviewPartyName(line)||'—'}</td>
            <td className="p-2 text-right tabular-nums">{num(line.debit)?money(num(line.debit),currency):'—'}</td>
            <td className="p-2 text-right tabular-nums">{num(line.credit)?money(num(line.credit),currency):'—'}</td>
           </tr>)}</tbody>

@@ -2,7 +2,7 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {MemoryRouter} from 'react-router-dom';
-import JournalEntryOverview,{buildJournalOverview} from './JournalEntryOverview';
+import JournalEntryOverview,{buildJournalOverview,journalOverviewPartyName} from './JournalEntryOverview';
 import type {JournalEntry} from '@/types';
 
 const state=vi.hoisted(()=>({
@@ -44,6 +44,21 @@ describe('Journal Entry list detailed preview',()=>{
    debit:150,credit:150,accountsDr:'1120 - Cash',accountsCr:'4100 - Sales Revenue',
    party:'CASH Customer',balanced:true
   });
+ });
+ it('hides legacy vehicle attribution from the Party column but keeps real parties',()=>{
+  const legacyVehicle={...rows[0],party_type:'vehicle',party_name:'Vehicle: 2512',transport_vehicle_id:'vehicle-2512'};
+  expect(journalOverviewPartyName(legacyVehicle)).toBe('');
+  expect(buildJournalOverview([...rows,legacyVehicle]).party).toBe('CASH Customer');
+  expect(journalOverviewPartyName({...rows[0],party_type:null,party_name:'Vehicle: 7979'})).toBe('');
+ });
+ it('does not show legacy vehicle labels in collapsed or expanded journal rows',async()=>{
+  state.lines=[{...rows[0],id:'legacy-vehicle',party_type:'vehicle',party_name:'Vehicle: 2512',transport_vehicle_id:'vehicle-2512'}];
+  render(<MemoryRouter><JournalEntryOverview entries={[entry(1)]} currency="SAR" copyingId={null} onCopy={vi.fn()} onPrint={vi.fn()} postingSelected={false} onPostSelected={vi.fn().mockResolvedValue(true)} deletingSelected={false} onDeleteSelected={vi.fn().mockResolvedValue(true)}/></MemoryRouter>);
+  await waitFor(()=>expect(screen.queryByText('Loading…')).toBeNull());
+  expect(screen.queryByText(/Vehicle:/)).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Show lines for JE-00001'}));
+  expect(await screen.findByText('Journal voucher lines · JE-00001')).toBeTruthy();
+  expect(screen.queryByText(/Vehicle:/)).toBeNull();
  });
  it('shows saved line description in the list when the journal header is blank',async()=>{
   const narration='Al Rajhi Bank-PAID TO PAK FOR CHARITY / USMAN';
