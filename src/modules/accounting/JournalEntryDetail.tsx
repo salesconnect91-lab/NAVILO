@@ -483,8 +483,8 @@ export default function JournalEntryDetail() {
   const manualAccountEligible = isManualJournalAccountEligible;
 
   const postingAccounts = accounts.filter(manualAccountEligible);
-  const journalExcludedAccounts = accounts.length - postingAccounts.length;
   const visibleManualAccounts = accounts.filter(isManualJournalAccountVisible);
+  const visibleUnavailableAccounts = visibleManualAccounts.length - postingAccounts.length;
 
   const customerAccountIds =
     new Set(
@@ -2734,7 +2734,7 @@ export default function JournalEntryDetail() {
               </div>
 
               <div className="min-w-0 px-2 py-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
-                <span title="Inactive, group and manual-disabled accounts remain visible but cannot be selected.">{postingAccounts.length} posting accounts · {journalExcludedAccounts} unavailable</span>
+                <span title="Group accounts are hidden. Inactive and manual-disabled posting accounts remain visible but cannot be selected.">{postingAccounts.length} posting accounts · {visibleUnavailableAccounts} unavailable</span>
                 <div className="flex items-center gap-2"><QuickMasterAdd kind="account" compact disabled={saving||posting||importing} onRefresh={fetchAccounts}/><button type="button" className="rounded border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50" data-navilo-keep-local-action="true" onClick={() => { void fetchAccounts().catch((e:unknown) => setError(e instanceof Error ? e.message : "Unable to refresh Chart of Accounts.")); }}>
                   Refresh Accounts
                 </button></div>

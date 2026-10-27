@@ -24,8 +24,8 @@ describe('Manual Journal account policy',()=>{
     expect(isManualJournalAccountEligible({...base,allow_manual_entries:false})).toBe(false);
     expect(isManualJournalAccountEligible({...base,is_active:false})).toBe(false);
   });
-  it('keeps every account searchable and explains inactive, group, or manual-disabled status',()=>{
-    expect(isManualJournalAccountVisible({...base,is_group:true})).toBe(true);
+  it('hides group accounts and explains unavailable posting accounts',()=>{
+    expect(isManualJournalAccountVisible({...base,is_group:true})).toBe(false);
     expect(manualJournalAccountRestriction({...base,is_group:true})).toBe('Group account · choose a posting account');
     expect(isManualJournalAccountVisible({...base,is_active:false})).toBe(true);
     expect(manualJournalAccountRestriction({...base,is_active:false})).toBe('Inactive account');
