@@ -60,7 +60,7 @@ const ELEMENTS: Array<{ key: VisibilityKey; label: string }> = [
   { key: "show_logo", label: "Company Logo" },
   { key: "show_address", label: "Address" },
   { key: "show_phone_email", label: "Phone / Email" },
-  { key: "show_tax_details", label: "NTN / STRN" },
+  { key: "show_tax_details", label: "Tax registration details" },
   { key: "show_header", label: "Header" },
   { key: "show_footer", label: "Footer" },
   { key: "show_signatures", label: "Signatures" },
