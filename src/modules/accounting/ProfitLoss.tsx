@@ -155,7 +155,7 @@ function StatementSection({ title, section, tone, onDrilldown }: {
               </>
             );
             return onDrilldown && item.accountIds?.length ? (
-              <button type="button" key={item.name} onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)}
+              <button type="button" key={item.accountIds?.[0]??item.name} onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)}
                 title="Open the posted ledger entries behind this account"
                 className="flex w-full cursor-pointer flex-col items-start justify-between gap-1 py-2.5 text-left text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:flex-row sm:items-center sm:gap-4">
                 {row}
@@ -195,7 +195,7 @@ export default function ProfitLoss() {
   const [drilldownJournals, setDrilldownJournals] = useState<Record<string,JournalMeta>>({});
   const [fromDate, setFromDate] = useState(getYearStart);
   const [toDate, setToDate] = useState(getLocalToday);
-  const [hideZeroBalances, setHideZeroBalances] = useState(true);
+  const [hideZeroBalances, setHideZeroBalances] = useState(false);
   const [scope,setScope]=useState<AccountingReportScope>('branch');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -344,7 +344,8 @@ export default function ProfitLoss() {
     // Year-end closing journals transfer annual profit/loss to Retained Earnings.
     // They belong in the General Ledger and Balance Sheet, but NOT in the historical
     // P&L itself, otherwise a closed year would incorrectly show zero profit/loss.
-    const ledgerLines = rawLedger.filter((line) => !line.journal_entry_id || !closingJournalIds.has(line.journal_entry_id));
+    // Carry-forward balances belong on the Balance Sheet; exclude the RPC row dated fromDate - 1.
+    const ledgerLines = rawLedger.filter((line) => line.entry_date >= fromDate && (!line.journal_entry_id || !closingJournalIds.has(line.journal_entry_id)));
     const vehicleLedgerLines = ledgerLines;
     const presentationLedgerLines=ledgerLines;
 
@@ -385,8 +386,8 @@ export default function ProfitLoss() {
 
     if (!hideZeroBalances) {
       accountMap.forEach((account) => {
-        if (account.bucket && !account.isGroup && account.allowManualEntries && account.isActive) {
-          bucketMaps[account.bucket].set(account.name, { name: account.name, amount: 0, detailType: account.detailType, accountIds: [account.id] });
+        if (account.bucket && !account.isGroup && account.isActive) {
+          bucketMaps[account.bucket].set(account.id, { name: account.name, amount: 0, detailType: account.detailType, accountIds: [account.id] });
         }
       });
     }
@@ -398,8 +399,8 @@ export default function ProfitLoss() {
       const debit = Number(line.debit ?? 0);
       const credit = Number(line.credit ?? 0);
       const movement = account.type === "revenue" || account.type === "income" ? credit - debit : debit - credit;
-      const current = bucketMaps[account.bucket].get(account.name);
-      bucketMaps[account.bucket].set(account.name, {
+      const current = bucketMaps[account.bucket].get(line.account_id);
+      bucketMaps[account.bucket].set(line.account_id, {
         name: account.name,
         amount: (current?.amount ?? 0) + movement,
         detailType: account.detailType,
@@ -532,13 +533,13 @@ export default function ProfitLoss() {
     };
   }, [data]);
 
-  // P&L exports keep vehicle debit/credit activity in its own ledger schedule.
+  // P&L exports show account balances, with each vehicle ledger netted once.
   const revenueExportRows:(string|number)[][]=isTransport&&transportIncome?[
-    ['Sales Income — Normal Invoices','Sales Revenue GL plus invoice-linked revenue accounts',transportIncome.sales],
-    ['Trip Service Income — Trip Register Invoices','Mapped service revenue',transportIncome.service],
-    ['Other Income','Other income GL',transportIncome.other],
-    ...transportIncome.vehicleLedgerAccounts.map(vehicle=>['Company Vehicle Ledger — Dr / Cr',vehicle.vehicle_no,`Debit ${formatCurrency(vehicle.debit)} · Credit ${formatCurrency(vehicle.credit)}`]),
-    ...(Math.abs(transportIncome.residual)>=0.005?[['Vehicle Sales Not Allocated','Needs vehicle allocation review',transportIncome.residual]]:[])
+    ...transportIncome.vehicleLedgerAccounts.map(row=>['Income — Vehicles',row.vehicle_no,row.net] as (string|number)[]),
+    ...[...data.operatingRevenue.items,...data.otherIncome.items]
+      .filter(item=>!(item.accountIds??[]).some(id=>transportIncome.vehicleLedgerAccounts.some(vehicle=>vehicle.account_id===id)))
+      .map(item=>['Other Income',item.name,item.amount] as (string|number)[]),
+    ['Income','Total Income',metrics.totalIncome],
   ]:printSectionRows('Operating Revenue',data.operatingRevenue);
 
   const openDrilldown=(accountIds:string[],title:string,journalIds?:string[],excludeJournalIds?:string[] )=>{
@@ -546,23 +547,19 @@ export default function ProfitLoss() {
     if(uniqueIds.length)setDrilldown({title,accountIds:uniqueIds,journalIds,excludeJournalIds});
   };
   const pAndLAccountIds=(...sections:PLSectionData[])=>[...new Set(sections.flatMap(section=>section.items.flatMap(item=>item.accountIds??[])))];
-  const otherTransportRevenueIds=()=>pAndLAccountIds(data.operatingRevenue,data.otherIncome)
-    .filter(id=>!new Set([...(transportIncome?.salesAccountIds??[]),...(transportIncome?.serviceAccountIds??[])]).has(id));
   const visibleDrilldownRows=drilldown?drilldownRows.filter(line=>Boolean(line.account_id)
     &&drilldown.accountIds.includes(line.account_id!)
     &&(!drilldown.journalIds?.length||Boolean(line.journal_entry_id&&drilldown.journalIds.includes(line.journal_entry_id)))
     &&(!drilldown.excludeJournalIds?.length||!line.journal_entry_id||!drilldown.excludeJournalIds.includes(line.journal_entry_id))):[];
 
-  const vehicleLedgerNet=transportIncome?.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.net,0)??0;
-  const incomeRemainder=isTransport&&transportIncome
-    ?Number((data.operatingRevenue.total-vehicleLedgerNet-transportIncome.mappedSales-transportIncome.service).toFixed(2)):0;
+  const vehicleAccountIds=new Set(transportIncome?.vehicleLedgerAccounts.map(row=>row.account_id)??[]);
   const printableTransportIncomeRows=isTransport&&transportIncome?[
     ...transportIncome.vehicleLedgerAccounts.map(row=>({name:row.account_name,amount:row.net})),
-    ...(Math.abs(transportIncome.mappedSales)>=0.005?[{name:'Sales Revenue',amount:transportIncome.mappedSales}]:[]),
-    {name:'Services',amount:transportIncome.service},
-    ...(Math.abs(incomeRemainder)>=0.005?[{name:'Uncategorized Income',amount:incomeRemainder}]:[]),
+    ...[...data.operatingRevenue.items,...data.otherIncome.items]
+      .filter(row=>!(row.accountIds??[]).some(id=>vehicleAccountIds.has(id)))
+      .map(row=>({name:row.name,amount:row.amount})),
   ]:[];
-  const printableTransportExpenses=[...data.costOfSales.items,...data.operatingExpenses.items];
+  const printableTransportExpenses=[...data.costOfSales.items,...data.operatingExpenses.items,...data.otherExpenses.items];
 
   const setThisMonth = () => {
     const today = new Date();
@@ -601,18 +598,10 @@ export default function ProfitLoss() {
             <tbody>
               <tr className="pl-band"><td colSpan={2}>Income</td></tr>
               {printableTransportIncomeRows.map((row,index)=><tr key={`pl-income-${index}`}><td>{row.name}</td><td className="pl-amount">{formatCurrency(row.amount)}</td></tr>)}
-              <tr className="pl-total"><td>Total for Income</td><td className="pl-amount">{formatCurrency(data.operatingRevenue.total)}</td></tr>
-              <tr className="pl-final"><td>Gross Profit</td><td className="pl-amount">{formatCurrency(metrics.grossProfit)}</td></tr>
-              <tr className="pl-band"><td colSpan={2}>Other Income (Loss)</td></tr>
-              {data.otherIncome.items.map((row,index)=><tr key={`pl-other-income-${index}`}><td>{row.name}</td><td className="pl-amount">{formatCurrency(row.amount)}</td></tr>)}
-              {!data.otherIncome.items.length&&<tr><td>Other income</td><td className="pl-amount">{formatCurrency(data.otherIncome.total)}</td></tr>}
-              <tr className="pl-total"><td>Total for Other Income (Loss)</td><td className="pl-amount">{formatCurrency(data.otherIncome.total)}</td></tr>
+              <tr className="pl-total"><td>Total for Income</td><td className="pl-amount">{formatCurrency(metrics.totalIncome)}</td></tr>
               <tr className="pl-band"><td colSpan={2}>Expenses</td></tr>
               {printableTransportExpenses.map((row,index)=><tr key={`pl-expense-${index}`}><td>{row.name}</td><td className="pl-amount">{formatCurrency(row.amount)}</td></tr>)}
-              <tr className="pl-total"><td>Total for Expenses</td><td className="pl-amount">{formatCurrency(data.costOfSales.total+data.operatingExpenses.total)}</td></tr>
-              <tr className="pl-band"><td colSpan={2}>Other Expenses</td></tr>
-              {data.otherExpenses.items.map((row,index)=><tr key={`pl-other-expense-${index}`}><td>{row.name}</td><td className="pl-amount">{formatCurrency(row.amount)}</td></tr>)}
-              <tr className="pl-total"><td>Total for Other Expenses</td><td className="pl-amount">{formatCurrency(data.otherExpenses.total)}</td></tr>
+              <tr className="pl-total"><td>Total for Expenses</td><td className="pl-amount">{formatCurrency(metrics.totalExpenses)}</td></tr>
               <tr className="pl-final"><td>Net Earnings</td><td className="pl-amount">{formatCurrency(metrics.netProfit)}</td></tr>
             </tbody>
           </table>
@@ -645,7 +634,7 @@ export default function ProfitLoss() {
           <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-slate-400 shadow-sm">Loading Profit & Loss statement...</div>
         ) : (
           <>
-            <details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; monthly and year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...revenueExportRows,...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...(isTransport?[]:printSectionRows('Other Income',data.otherIncome)),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; monthly and year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...revenueExportRows,...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...(isTransport?[]:printSectionRows('Other Income',data.otherIncome)),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details>{!isTransport&&(<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {([
                 ["Revenue", data.operatingRevenue.total, "text-emerald-700"],
                 ["Cost of Sales", data.costOfSales.total, "text-rose-700"],
@@ -655,57 +644,41 @@ export default function ProfitLoss() {
               ] as Array<[string, number, string]>).map(([label, value, tone]) => (
                 <div key={label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="block text-[12px] font-bold uppercase tracking-wide text-slate-500">{label}</span><span className={`mt-1 block font-mono text-base font-bold ${tone}`}>{formatCurrency(value)}</span></div>
               ))}
-            </div>
+            </div>)}
 
             <div className={`space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm ${isTransport?'profit-loss-screen':''}`}>
               {isTransport&&transportIncome?<>
-                <StatementSection title="Sales Income — Normal Invoices"
-                  section={{total:transportIncome.sales,items:[{
-                    name:'Sales Revenue — posted Normal Sales invoices',
-                    amount:transportIncome.sales,detailType:'Mapped Sales Revenue plus invoice-linked revenue accounts',
-                    accountIds:transportIncome.salesAccountIds,
-                  }]}} tone="income" onDrilldown={openDrilldown} />
-                <StatementSection title="Trip Service Income — Trip Register Invoices"
-                  section={{total:transportIncome.service,items:[{
-                    name:'Service Revenue — posted Trip Register invoices',
-                    amount:transportIncome.service,detailType:'Mapped Service Revenue account',
-                    accountIds:transportIncome.serviceAccountIds,
-                  }]}} tone="income" onDrilldown={openDrilldown} />
-                <StatementSection title="Other Income" section={{total:transportIncome.other,
-                  items:[{name:'Other income accounts / manual adjustments',amount:transportIncome.other,detailType:'Posted GL — outside Normal Sales and Trip Service Revenue',accountIds:otherTransportRevenueIds()}]}} tone="income" onDrilldown={openDrilldown}/>
-                <section className="vehicle-ledger-drcr overflow-hidden rounded-xl border border-slate-200 bg-white" aria-label="Company vehicle ledger debit and credit">
-                  <div className="flex flex-col gap-1 border-b border-slate-200 bg-slate-50 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-                    <h3 className="text-sm font-bold text-slate-700">Company Vehicle Ledger — Debit / Credit</h3>
-                    <span className="text-xs text-slate-500">Ledger movement only · not an expense category</span>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[540px] border-collapse text-sm">
-                      <thead><tr className="border-b border-slate-200 text-left text-xs font-bold text-slate-500">
-                        <th className="px-4 py-2">Vehicle</th><th className="px-4 py-2 text-right">Debit</th><th className="px-4 py-2 text-right">Credit</th>
-                      </tr></thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {transportIncome.vehicleLedgerAccounts.map(vehicle=><tr key={vehicle.vehicle_no}>
-                          <td className="px-4 py-2 font-semibold text-slate-800">{vehicle.vehicle_no}</td>
-                          <td className="px-4 py-2 text-right font-mono">{formatCurrency(vehicle.debit)}</td>
-                          <td className="px-4 py-2 text-right font-mono">{formatCurrency(vehicle.credit)}</td>
-                        </tr>)}
-                        <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold">
-                          <td className="px-4 py-2">Total</td>
-                          <td className="px-4 py-2 text-right font-mono">{formatCurrency(transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.debit,0))}</td>
-                          <td className="px-4 py-2 text-right font-mono">{formatCurrency(transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.credit,0))}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
+                <StatementSection title="Income — Vehicles" section={{
+                  total:transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.net,0),
+                  items:transportIncome.vehicleLedgerAccounts.map(row=>({
+                    name:row.vehicle_no,amount:row.net,detailType:'Net posted ledger balance for the selected period',accountIds:[row.account_id],
+                  })),
+                }} tone="income" onDrilldown={openDrilldown} />
+                <StatementSection title="Other Income" section={{
+                  items:[...data.operatingRevenue.items,...data.otherIncome.items]
+                    .filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id))),
+                  total:[...data.operatingRevenue.items,...data.otherIncome.items]
+                    .filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id)))
+                    .reduce((sum,item)=>sum+item.amount,0),
+                }} tone="income" onDrilldown={openDrilldown} />
               </>:<StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" onDrilldown={openDrilldown} />}
-              <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} />
-              <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales),"Gross Profit / (Loss)")} />
-              <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" onDrilldown={openDrilldown} />
-              <ResultRow label="Operating Profit / (Loss)" amount={metrics.operatingProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses),"Operating Profit / (Loss)")} />
-              {!isTransport&&(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income" section={data.otherIncome} tone="income" onDrilldown={openDrilldown} />}
-              {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses" section={data.otherExpenses} tone="expense" onDrilldown={openDrilldown} />}
-              <ResultRow label="Net Profit / (Loss)" amount={metrics.netProfit} prominent onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses,data.otherIncome,data.otherExpenses),"Net Profit / (Loss)")} />
+              {isTransport?<>
+                <StatementSection title="Expenses" section={{
+                  items:[...data.costOfSales.items,...data.operatingExpenses.items,...data.otherExpenses.items],
+                  total:metrics.totalExpenses,
+                }} tone="expense" onDrilldown={openDrilldown} />
+                <ResultRow label="Net Earnings" amount={metrics.netProfit} prominent
+                  onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.otherIncome,data.costOfSales,data.operatingExpenses,data.otherExpenses),"Net Earnings")} />
+              </>:<>
+                <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} />
+                <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales),"Gross Profit / (Loss)")} />
+                <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" onDrilldown={openDrilldown} />
+                <ResultRow label="Operating Profit / (Loss)" amount={metrics.operatingProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses),"Operating Profit / (Loss)")} />
+                {(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income" section={data.otherIncome} tone="income" onDrilldown={openDrilldown} />}
+                {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses" section={data.otherExpenses} tone="expense" onDrilldown={openDrilldown} />}
+                <ResultRow label="Net Profit / (Loss)" amount={metrics.netProfit} prominent
+                  onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses,data.otherIncome,data.otherExpenses),"Net Profit / (Loss)")} />
+              </>}
               <div className="grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-3" data-report-total>
                 <div><span className="block text-xs text-slate-500">Total Income</span><span className="font-mono font-bold text-emerald-700">{formatCurrency(metrics.totalIncome)}</span></div>
                 <div><span className="block text-xs text-slate-500">Total Expenses</span><span className="font-mono font-bold text-rose-700">{formatCurrency(metrics.totalExpenses)}</span></div>
