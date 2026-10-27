@@ -1,17 +1,41 @@
 import { NavLink } from "react-router-dom";
 import CashCounter from "./CashCounter";
 
-export default function CashCounterWorkspace(){
-  return <div className="space-y-4">
-    <div className="no-print flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-3" data-no-print data-no-export>
-      <div className="flex flex-wrap gap-2">
-        <NavLink to="/accounting/cash-counter" className={({isActive})=>isActive?"btn-primary":"btn-secondary"}>Cash Counter</NavLink>
-        <NavLink to="/accounting/payroll" className="btn-secondary">Payroll & Salary Ledger</NavLink>
-        <NavLink to="/accounting/loans" className="btn-secondary">Loan & Lender Ledger</NavLink>
-        <NavLink to="/accounting/daily-closing" className="btn-secondary">Daily Cash &amp; Bank Closing</NavLink>
-      </div>
-      <span data-navilo-standard-tools-host className="contents" />
+const links = [
+  { to: "/accounting/cash-counter", label: "Cash Counter", end: true },
+  { to: "/accounting/payroll", label: "Payroll & Salary" },
+  { to: "/accounting/loans", label: "Loans" },
+  { to: "/accounting/daily-closing", label: "Daily Closing" },
+];
+
+export default function CashCounterWorkspace() {
+  return (
+    <div className="min-w-0 space-y-2">
+      <nav
+        aria-label="Cash Counter related pages"
+        className="no-print flex min-w-0 flex-wrap items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5"
+        data-no-print
+        data-no-export
+      >
+        {links.map(({ to, label, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) =>
+              `inline-flex min-h-8 items-center rounded-md px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
+                isActive
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`
+            }
+          >
+            {label}
+          </NavLink>
+        ))}
+        <span data-navilo-standard-tools-host className="contents" />
+      </nav>
+      <CashCounter />
     </div>
-    <CashCounter />
-  </div>;
+  );
 }
