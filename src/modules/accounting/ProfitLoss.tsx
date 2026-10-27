@@ -134,11 +134,11 @@ function StatementSection({ title, section, tone, onDrilldown }: {
         {onDrilldown && sectionAccountIds.length ? (
           <button type="button" onClick={() => onDrilldown(sectionAccountIds, title)}
             title="Open the posted ledger entries behind this total"
-            className={`cursor-pointer rounded px-1 font-mono text-sm font-bold underline decoration-dotted underline-offset-2 hover:bg-white ${tone === "income" ? "text-emerald-700" : "text-rose-700"}`}>
+            className={`cursor-pointer rounded px-1 font-mono text-sm font-bold underline decoration-dotted underline-offset-2 hover:bg-white text-slate-900`}>
             {formatCurrency(section.total)}
           </button>
         ) : (
-          <span className={`font-mono text-sm font-bold ${tone === "income" ? "text-emerald-700" : "text-rose-700"}`}>
+          <span className={`font-mono text-sm font-bold text-slate-900`}>
             {formatCurrency(section.total)}
           </span>
         )}
@@ -689,9 +689,9 @@ export default function ProfitLoss() {
                   onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses,data.otherIncome,data.otherExpenses),"Net Profit / (Loss)")} />
               </>}
               <div className="grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-3" data-report-total>
-                <div><span className="block text-xs text-slate-500">Total Income</span><span className="font-mono font-bold text-emerald-700">{formatCurrency(metrics.totalIncome)}</span></div>
-                <div><span className="block text-xs text-slate-500">Total Expenses</span><span className="font-mono font-bold text-rose-700">{formatCurrency(metrics.totalExpenses)}</span></div>
-                <div><span className="block text-xs text-slate-500">Net Margin</span><span className={`font-mono font-bold ${metrics.netMargin >= 0 ? "text-blue-700" : "text-rose-700"}`}>{metrics.netMargin.toFixed(2)}%</span></div>
+                <div><span className="block text-xs text-slate-500">Total Income</span><span className="font-mono font-bold text-slate-900">{formatCurrency(metrics.totalIncome)}</span></div>
+                <div><span className="block text-xs text-slate-500">Total Expenses</span><span className="font-mono font-bold text-slate-900">{formatCurrency(metrics.totalExpenses)}</span></div>
+                <div><span className="block text-xs text-slate-500">Net Margin</span><span className="font-mono font-bold text-slate-900">{metrics.netMargin.toFixed(2)}%</span></div>
               </div>
             </div>
           </>
