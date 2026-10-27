@@ -8,6 +8,7 @@ import type {PartyMovement} from '@/modules/transport/transportPartyReporting';
 import {linkedPartyRows} from '@/modules/transport/transportOpeningInvoices';
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import { fetchAllPages, fetchByIdChunks } from "@/lib/fetchAllPages";
 import { supabase } from "@/lib/supabase";
 import {
@@ -168,6 +169,7 @@ export function excludeOwnerCancelledLedgerRows<T extends { journal_entry_id?: s
 
 export default function Ledgers() {
   const {activeCompany,activeBusinessUnit,accessContext}=useAuth();
+  const [reportParams] = useSearchParams();
   const scope=accessContext as unknown as {current_operating_location?:{id?:string;operating_location_id?:string};operating_location_id?:string}|null;
   const branch=scope?.current_operating_location?.id??scope?.current_operating_location?.operating_location_id??scope?.operating_location_id;
   const [viewMode, setViewMode] = useState<ViewMode>("general");
@@ -201,9 +203,9 @@ export default function Ledgers() {
   const [partyRows, setPartyRows] = useState<PartyLedgerRow[]>([]);
   const [openingBalances,setOpeningBalances]=useState<Record<string,number>>({});
 
-  const [selectedAccount, setSelectedAccount] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [selectedAccount, setSelectedAccount] = useState(() => reportParams.get("account") ?? "");
+  const [fromDate, setFromDate] = useState(() => reportParams.get("from") ?? "");
+  const [toDate, setToDate] = useState(() => reportParams.get("to") ?? "");
   const [defaultSaved, setDefaultSaved] = useState(false);
   const [partyFilterType, setPartyFilterType] =
     useState<PartyFilterType>("all");
