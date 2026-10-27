@@ -12,6 +12,33 @@ export function excludeUnattributedManualJournalMovements<T extends {journal_ent
  return rows.filter(row=>!row.journal_entry_id||!manualIds.has(row.journal_entry_id));
 }
 
+/** Keep manual Dr/Cr on a dedicated company-vehicle income account out of
+ * invoice income, and return its signed debit for the vehicle expense section.
+ */
+export function separateManualVehicleLedgerMovements<T extends LedgerMovement>(
+ rows:T[],journals:VehicleJournalSource[],vehicleAccountIds:ReadonlySet<string>,
+):{invoiceLedgerRows:T[];manualNetDebitByAccount:Map<string,number>;manualJournalIdsByAccount:Map<string,string[]>}{
+ const manualTypes=new Set(['','General','Journal Entry','Manual Journal','Journal Reversal']);
+ const manualIds=new Set(journals.filter(j=>!j.source_document_type&&manualTypes.has(j.trans_type??'')).map(j=>j.id));
+ const centsByAccount=new Map<string,number>();
+ const journalIdsByAccount=new Map<string,Set<string>>();
+ const invoiceLedgerRows=rows.filter(row=>{
+  const accountId=row.account_id;
+  if(!accountId||!vehicleAccountIds.has(accountId)||!row.journal_entry_id||!manualIds.has(row.journal_entry_id))return true;
+  const netDebit=cents(Number(row.debit??0))-cents(Number(row.credit??0));
+  centsByAccount.set(accountId,(centsByAccount.get(accountId)??0)+netDebit);
+  const journalIds=journalIdsByAccount.get(accountId)??new Set<string>();
+  journalIds.add(row.journal_entry_id);
+  journalIdsByAccount.set(accountId,journalIds);
+  return false;
+ });
+ return {
+  invoiceLedgerRows,
+  manualNetDebitByAccount:new Map([...centsByAccount].map(([id,value])=>[id,amount(value)])),
+  manualJournalIdsByAccount:new Map([...journalIdsByAccount].map(([id,ids])=>[id,[...ids]])),
+ };
+}
+
 const cents=(value:number)=>Math.round(value*100);
 const amount=(n:number)=>Number((n/100).toFixed(2));
 

@@ -148,7 +148,7 @@ export default function TransportNormalInvoiceCreate({side}:{side:Side}){
  const sideName=side==='customer'?'Sale':'Purchase';
  const partyName=side==='customer'?'Customer':'Supplier';
  const money=(value:number)=>value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
- const invoiceImportLink='/workspace/imports';
+ const invoiceImportLink='/workspace/imports?section=normal';
  return <main className="navilo-invoice-editor navilo-invoice-pro navilo-transport-invoice" data-navilo-invoice-side={side} data-navilo-document-editor="true" aria-label={`${sideName} Invoice`}>
   <header className="navilo-invoice-hero">
    <div className="navilo-invoice-hero-main">

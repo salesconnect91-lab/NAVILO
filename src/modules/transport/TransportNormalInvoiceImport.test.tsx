@@ -44,9 +44,38 @@ describe('Normal invoice Import Center draft workflow',()=>{
   fireEvent.click(screen.getByRole('button',{name:'Import 1 Sale Invoice Drafts'}));
 
   await screen.findByRole('status');
-  expect(mock.rpc).toHaveBeenCalledWith('transport_normal_invoice_import_vat',{
-   p_side:'customer',p_rows:expect.arrayContaining([expect.objectContaining({invoice_no:'ORIGINAL-1'})]),p_post:false
+  expect(mock.rpc).toHaveBeenCalledWith('transport_normal_invoice_import_vat_with_override',{
+   p_side:'customer',p_rows:expect.arrayContaining([expect.objectContaining({invoice_no:'ORIGINAL-1'})]),p_post:false,p_allow_duplicate_invoice:false
   });
   expect(screen.getByRole('status').textContent).toContain('saved as draft');
+ });
+ it('shows invoice conflicts and passes an authorized duplicate override to the atomic import',async()=>{
+  mock.from.mockImplementation(queryFor);
+  mock.rpc.mockImplementation(async(name:string)=>{
+   if(name==='transport_invoice_duplicate_override_allowed')return {data:true,error:null};
+   if(name==='transport_invoice_number_conflicts')return {data:{matches:[{company:'Orbit',trips:['OIC-0001'],date:'2026-10-17',status:'posted'}]},error:null};
+   return {data:{invoices:1,lines:1},error:null};
+  });
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+   ['Invoice Group','Invoice No','Date','Customer','Description','Vehicle No','Amount','Reference','VAT Treatment'],
+   ['INV-1','ORIGINAL-1','2026-10-17','Customer A','Service','1631',300,'REF-1','Master']
+  ]),'Normal Invoices');
+  const buffer=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+  const file=new File([buffer],'normal-invoice.xlsx');
+  Object.defineProperty(file,'arrayBuffer',{value:async()=>buffer});
+  render(<MemoryRouter><TransportNormalInvoiceImport side="customer"/></MemoryRouter>);
+  await screen.findByRole('button',{name:'Choose Excel/CSV'});
+  fireEvent.change(screen.getByLabelText('Normal Sale import file'),{target:{files:[file]}});
+  expect(await screen.findByText(/already used/i)).toBeTruthy();
+  const importButton=screen.getByRole('button',{name:'Import 1 Sale Invoice Drafts'}) as HTMLButtonElement;
+  expect(importButton.disabled).toBe(true);
+  fireEvent.click(screen.getByRole('checkbox'));
+  expect(importButton.disabled).toBe(false);
+  fireEvent.click(importButton);
+  await screen.findByRole('status');
+  expect(mock.rpc).toHaveBeenCalledWith('transport_normal_invoice_import_vat_with_override',{
+   p_side:'customer',p_rows:expect.arrayContaining([expect.objectContaining({invoice_no:'ORIGINAL-1'})]),p_post:false,p_allow_duplicate_invoice:true
+  });
  });
 });
