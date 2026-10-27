@@ -193,21 +193,21 @@ export default function Reports(){
  const groups=useMemo(()=>{if(!groupBy)return[{name:"",items:rows}];const grouped=new Map<string,typeof rows>();rows.forEach(row=>{const name=groupBy==="__category"?(categoryNames[itemCategoryIds[String(row.item_id??"")]]??"Unspecified"):(String(row[groupBy]??"Unspecified")||"Unspecified");const items=grouped.get(name)||[];items.push(row);grouped.set(name,items)});return Array.from(grouped,([name,items])=>({name,items})).sort((a,b)=>a.name.localeCompare(b.name))},[rows,groupBy,categoryNames,itemCategoryIds]);
  // The flat operational report registers use the same Smart Table as NAVILO
  // master screens. Financial/grouped reports keep their own reconciled totals.
- const smartTableEnabled = ["/reports/sales-register","/reports/purchase-register",
+ const smartTableEnabled = ["/reports/sales-margin","/reports/sales-register","/reports/purchase-register",
    "/reports/customer-aging","/reports/supplier-aging","/reports/customer-item-history",
    "/reports/supplier-item-history","/reports/returns-register"].includes(loc.pathname) && !groupBy && !inventoryCategoryMode;
  const smartTableRows = useMemo(()=>smartTableEnabled
-   ? rows.map((record,index)=>({...record,sourceId:record.sales_order_id??record.purchase_order_id??record.id,id:`report-row-${index}`}))
+   ? rows.map((record,index)=>({...record,sourceId:record.sales_order_id??record.purchase_order_id??record.source_document_id??record.id,id:`report-row-${index}`}))
    : [],[rows,smartTableEnabled]);
  const smartTableColumns = useMemo<Column<any>[]>(()=>def.cols.map(col=>({
    key:col.key,label:col.label,sortable:true,
    className:col.kind&&col.kind!=="date"?"text-right tabular-nums":"",
    render:(record:any)=>{
      const sourceId=String(record.sourceId??"");
-     const isInvoiceColumn=["order_no","invoice_no"].includes(col.key);
+     const isInvoiceColumn=["order_no","invoice_no","note_no"].includes(col.key);
      const isInvoiceValue=col.kind==="money";
-     const supportsInvoiceLinks=["/reports/sales-register","/reports/purchase-register","/reports/customer-aging","/reports/supplier-aging","/reports/customer-item-history","/reports/supplier-item-history"].includes(loc.pathname);
-     const side=loc.pathname.includes("purchase")||loc.pathname.includes("supplier")?"purchase":"sales";
+     const supportsInvoiceLinks=["/reports/sales-register","/reports/purchase-register","/reports/customer-aging","/reports/supplier-aging","/reports/customer-item-history","/reports/supplier-item-history","/reports/returns-register"].includes(loc.pathname);
+     const side=record.party_type==="supplier"||loc.pathname.includes("purchase")||loc.pathname.includes("supplier")?"purchase":"sales";
      if(col.key==="item_name"&&record.item_name){
        const query=new URLSearchParams({item:String(record.item_name),...(from?{from}:{}),...(to?{to}:{})});
        return <Link to={`/reports/customer-item-history?${query.toString()}`} title="Open this item's transaction history" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{show(record[col.key],col.kind)}</Link>;
