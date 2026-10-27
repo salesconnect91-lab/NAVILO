@@ -39,6 +39,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [invoiceLoading,setInvoiceLoading] = useState(false);
+  const [invoiceReload,setInvoiceReload] = useState(0);
   const invoiceRequest = useRef(0);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [supplierId, setSupplierId] = useState("");
@@ -94,7 +95,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
     };
     void getInvoices().catch(e=>{if(!cancelled&&token===invoiceRequest.current){setError(e?.message||"Unable to load supplier invoices");setInvoiceLoading(false);}});
     return()=>{cancelled=true;};
-  },[supplierId]);
+  },[supplierId,invoiceReload]);
 
   const refreshPaymentAccounts=async()=>{
     const r=await supabase.from("chart_of_accounts").select("id,code,name")
@@ -123,6 +124,19 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
     if (remaining < 0.005) { setError("Amount Paid is fully allocated. Increase it or edit/remove an allocation."); return; }
     const value = Math.min(order.outstanding_amount,remaining);
     setInvoiceAllocations(prev=>({...prev,[id]:String(Number(value.toFixed(2)))}));
+  };
+
+  const autoAllocate = () => {
+    if(!(amountNumber>0)) {setError("Enter Amount Paid first.");return;}
+    let remaining=amountNumber;
+    const next:Record<string,string>={};
+    for(const invoice of [...supplierOrders].sort((a,b)=>a.order_date.localeCompare(b.order_date))){
+      if(remaining<0.005)break;
+      const allocated=Math.min(invoice.outstanding_amount,remaining);
+      if(allocated>=0.005){next[invoice.id]=String(Number(allocated.toFixed(2)));remaining=Number((remaining-allocated).toFixed(2));}
+    }
+    setInvoiceAllocations(next);
+    setError(remaining>=0.005?"Open invoice balances are insufficient for the entered payment.":"");
   };
 
   const printPaymentReceipt = async (receipt: SupplierPaymentReceipt) => {
@@ -191,7 +205,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
       let supplierBalanceSnapshot: { balance_before: number | null; payment_amount: number | null; balance_after: number | null } | null = null;
       if (result.journal_entry_id) { const { data: snapshotData, error: snapshotError } = await supabase.from("journal_entries").select("balance_before,payment_amount,balance_after").eq("id", result.journal_entry_id).maybeSingle(); if (!snapshotError) supplierBalanceSnapshot = snapshotData; }
       setLastPaymentReceipt({ entry_no: result.entry_no || "Supplier Payment", supplier_name: selectedSupplier?.name || "Supplier", invoice_no: selectedOrder.order_no, date: paymentDate, payment_method: paymentMethod, account: selectedAccount?.name || "—", amount: result.payment_amount ?? amountNumber, balance_before: supplierBalanceSnapshot?.balance_before ?? null, balance_after: supplierBalanceSnapshot?.balance_after ?? null });
-      setOrderId(""); setInvoiceAllocations({}); setAmount(""); setReference(""); setNotes(""); void loadData(true).catch(() => {});
+      setOrderId(""); setInvoiceAllocations({}); setAmount(""); setReference(""); setNotes(""); setInvoiceReload(x=>x+1);
     } catch (err: any) { setError((err?.message || err?.details || err?.hint || "Failed to post supplier payment.") + " If the request timed out, check Posted Payments before retrying to avoid a duplicate payment."); } finally { postingRef.current = false; setSaving(false); }
   };
 
@@ -210,7 +224,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
         <div><label className="mb-1.5 block text-xs font-semibold">Payment Account</label><SearchableSelect value={accountId} onChange={(e) => setAccountId(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select payment account</option>{accounts.map((account) => <option key={account.id} value={account.id} data-search={account.code}>{account.name}</option>)}</SearchableSelect><QuickMasterAdd kind="account" compact disabled={saving} onRefresh={refreshPaymentAccounts}/></div>
       </div>
       <div className="grid gap-4 md:grid-cols-2"><div><label className="mb-1.5 block text-xs font-semibold">Supplier</label><SearchableSelect value={supplierId} onChange={(e) => { setSupplierId(e.target.value); setOrderId(""); setInvoiceAllocations({}); setAmount(""); setSuccess(null); }} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</SearchableSelect><QuickMasterAdd kind="supplier" compact disabled={saving} onCreated={createdSupplier}/></div><div><label className="mb-1.5 block text-xs font-semibold">Open Purchase Invoice</label><SearchableSelect nativeCompatibility preserveLabel value={orderId} disabled={!supplierId || invoiceLoading} onChange={(e) => selectOrder(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3 disabled:bg-slate-50"><option value="">{invoiceLoading?"Loading supplier invoices…":"— Add open invoice (partial allowed) —"}</option>{supplierOrders.filter(order=>!Object.prototype.hasOwnProperty.call(invoiceAllocations,order.id)).map((order) => <option key={order.id} value={order.id}>{order.payment_status==="partial"?"[PARTIAL] ":""}{order.order_no} — Outstanding {currentCurrency()} {money(order.outstanding_amount)}</option>)}</SearchableSelect></div></div>
-      {selectedInvoices.length>0 && <div className="space-y-2 rounded-lg border border-slate-200 p-3"><div className="text-xs font-bold">Selected invoices — one payment voucher</div>{selectedInvoices.map(o=><div key={o.id} className="grid grid-cols-[1fr_130px_65px] items-center gap-2 text-xs"><span className="truncate">{o.order_no} · Due {currentCurrency()} {money(o.outstanding_amount)}</span><input aria-label={`Allocation for ${o.order_no}`} type="number" min="0" max={o.outstanding_amount} step="0.01" value={invoiceAllocations[o.id]} onChange={e=>setInvoiceAllocations(prev=>{
+      {selectedInvoices.length>0 && <div className="space-y-2 rounded-lg border border-slate-200 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-bold">Selected invoices — one payment voucher</span><button type="button" onClick={autoAllocate} className="btn-secondary text-xs">Auto Allocate (oldest first)</button></div>{selectedInvoices.map(o=><div key={o.id} className="grid grid-cols-[1fr_130px_65px] items-center gap-2 text-xs"><span className="truncate">{o.order_no} · Due {currentCurrency()} {money(o.outstanding_amount)}</span><input aria-label={`Allocation for ${o.order_no}`} type="number" min="0" max={o.outstanding_amount} step="0.01" value={invoiceAllocations[o.id]} onChange={e=>setInvoiceAllocations(prev=>{
       const others=Object.entries(prev).reduce((sum,[id,val])=>id===o.id?sum:sum+Number(val||0),0);
       const max=Math.max(0,Math.min(o.outstanding_amount,amountNumber-others));
       const requested=Number(e.target.value||0);
