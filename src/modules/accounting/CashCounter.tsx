@@ -343,7 +343,7 @@ export default function CashCounter() {
           invoice.customer_id ===
             selectedCustomerId &&
           invoice.outstanding_amount > 0
-      ),
+      ).sort((a,b) => (a.payment_status === "partial" ? 0 : 1) - (b.payment_status === "partial" ? 0 : 1)),
     [invoices, selectedCustomerId]
   );
 
@@ -1977,9 +1977,7 @@ export default function CashCounter() {
                         key={invoice.id}
                         value={invoice.id}
                       >
-                        {
-                          invoice.order_no
-                        }{" "}
+                        {invoice.payment_status === "partial" ? "[PARTIAL] " : ""}{invoice.order_no}{" "}
                         — Outstanding {currentCurrency()}{" "}
                         {money(
                           invoice.outstanding_amount
