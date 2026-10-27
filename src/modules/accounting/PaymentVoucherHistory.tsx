@@ -184,6 +184,14 @@ export default function PaymentVoucherHistory({
   };
 
   const printVoucher = async (voucher: Voucher) => {
+    if (workingId) return;
+    // Open during the click gesture; opening after network requests is
+    // commonly blocked by browser popup protection.
+    const popup = createPrintDocument();
+    if (!popup) {
+      setError("Please allow pop-ups to print the voucher.");
+      return;
+    }
     setWorkingId(voucher.id);
     setError(null);
 
@@ -194,14 +202,6 @@ export default function PaymentVoucherHistory({
           loadVisibility(),
           loadCompany(),
         ]);
-
-      const popup = createPrintDocument();
-
-      if (!popup) {
-        throw new Error(
-          "Please allow pop-ups to print the voucher."
-        );
-      }
 
       const title =
         mode === "customer"
