@@ -177,6 +177,15 @@
     margin-inline: 0 !important;
   }
 
+  /* The enterprise shell uses this direct child as its page frame. Older
+     rules capped it at 1480px, leaving visible gutters on wide monitors. */
+  .erp-shell.navilo-modern #navilo-main-content[data-navilo-standard="true"] > div:not(:has([role="dialog"])) {
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
+
   .erp-shell.navilo-modern #navilo-main-content :is(
     .navilo-page-root,
     [data-navilo-workspace-width="full"],
