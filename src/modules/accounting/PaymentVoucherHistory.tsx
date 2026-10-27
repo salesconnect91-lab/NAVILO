@@ -44,6 +44,12 @@ const money = (value: number) =>
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
 
+// Never print a missing balance snapshot as a real zero balance.
+const balanceText = (value: number | null) =>
+  value == null || !Number.isFinite(Number(value))
+    ? "Not available"
+    : `${currentCurrency()} ${money(Number(value))}`;
+
 const escapeHtml = (value: unknown) =>
   String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -287,9 +293,7 @@ ${
   visibility.show_previous_balance
     ? `<div class="amount">
          <span>Previous Balance</span>
-         <strong>${currentCurrency()} ${money(
-           Number(detail.balance_before || 0)
-         )}</strong>
+         <strong>${balanceText(detail.balance_before)}</strong>
        </div>`
     : ""
 }
@@ -303,9 +307,7 @@ ${
   visibility.show_closing_balance
     ? `<div class="amount">
          <span>Closing Balance</span>
-         <strong>${currentCurrency()} ${money(
-           Number(detail.balance_after || 0)
-         )}</strong>
+         <strong>${balanceText(detail.balance_after)}</strong>
        </div>`
     : ""
 }
@@ -417,9 +419,7 @@ ${
         pdf.text("Previous Balance", 18, y);
         pdf.setFontSize(15);
         pdf.text(
-          `${currentCurrency()} ${money(
-            Number(detail.balance_before || 0)
-          )}`,
+          `${balanceText(detail.balance_before)}`,
           190,
           y,
           { align: "right" }
@@ -449,9 +449,7 @@ ${
         pdf.text("Closing Balance", 18, y);
         pdf.setFontSize(15);
         pdf.text(
-          `${currentCurrency()} ${money(
-            Number(detail.balance_after || 0)
-          )}`,
+          `${balanceText(detail.balance_after)}`,
           190,
           y,
           { align: "right" }
