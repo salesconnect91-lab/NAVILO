@@ -45,7 +45,11 @@
   }
   .erp-shell.navilo-modern .navilo-nav-link.is-active {
     background:#087f68!important;
+    color:#fff!important;
     box-shadow:inset 3px 0 #9ad7ca!important;
+  }
+  .erp-shell.navilo-modern .navilo-nav-link.is-active::before {
+    background:#9ad7ca;
   }
   .erp-shell.navilo-modern .navilo-topbar {
     background:#fff!important;
