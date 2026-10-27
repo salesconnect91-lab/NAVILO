@@ -9,7 +9,7 @@ import { navigation, filterNode, flatten, shellLabel, type NavNode } from "@/con
 
 export type CatalogEntry = { key: string; label: string; to: string; group: string; report: boolean; module?: ModuleKey };
 export const workspacePaths = ["/workspace/functions", "/workspace/reports", "/workspace/imports", "/workspace/favorites", "/workspace/recent"];
-const reportKeys = new Set(["vat-register", "day-book", "ledgers", "salesperson-ledger", "stock-aging", "transport-vehicle-ledger", "transport-trip-reports", "transport-profitability-reporting"]);
+const reportKeys = new Set(["vat-register", "day-book", "ledgers", "salesperson-ledger", "stock-aging", "transport-trip-reports"]);
 export function catalogFromNavigation(nodes: NavNode[]): CatalogEntry[] {
   const seen = new Set<string>();
   return nodes.flatMap(group => flatten([group]).flatMap(node => {
@@ -41,7 +41,7 @@ export function WorkspaceCatalogProvider({children}:{children:ReactNode}) {
   const entries=catalogFromNavigation(visible).filter(e=>{if(e.to.startsWith("/owner"))return owner;const feature=matchFeatureForPath(e.to.split("?")[0]);return feature&&access.isFeatureEnabled(feature.key,"view")});
   const keys=new Set(entries.map(e=>e.key));
   for(const feature of FEATURE_REGISTRY){
-    if(keys.has(feature.key)||feature.key==="transport-workspace"||!moduleAllowed(feature.module)||!access.isFeatureEnabled(feature.key,"view"))continue;
+    if(keys.has(feature.key)||feature.key==="transport-workspace"||feature.key==="transport-vehicle-ledger"||!moduleAllowed(feature.module)||!access.isFeatureEnabled(feature.key,"view"))continue;
     // Existing navigation restrictions remain authoritative for catalogued leaves.
     if(flatten(navigation).some(n=>n.key===feature.key))continue;
     if(entries.some(e=>e.to===feature.route))continue;

@@ -528,13 +528,9 @@ export default function ProfitLoss() {
     };
   }, [data]);
 
-  // Export uses identical attribution as the visible screen; never add vehicle
-  // subtotals to GL Total Income a second time.
+  // Revenue export rows preserve posted GL attribution without adding memo subtotals.
   const revenueExportRows:(string|number)[][]=isTransport&&transportIncome?[
-    ['Vehicle Profitability Summary — memo','Non-additive vehicle GL attribution',transportIncome.sales+transportIncome.vehicleLedgerTotal-transportIncome.dedicatedSales],
-    ...(transportIncome.vehicleError?[]:transportIncome.vehicles.map(v=>['Vehicle Net Profit / (Loss)','Vehicle '+v.vehicle_no+' — net profit / (loss)',v.amount] as (string|number)[])),
-    ...(transportIncome.vehicleError?[]:Math.abs(transportIncome.residual)>=0.005?[['Sales Income — Normal Invoices','Sales Revenue GL adjustments / legacy attribution',transportIncome.residual]]:[]),
-    ['Sales Income — Normal Invoices','Sales Revenue GL plus dedicated vehicle accounts linked to Normal Sales Invoice journals',transportIncome.sales],
+    ['Sales Income — Normal Invoices','Sales Revenue GL plus invoice-linked revenue accounts',transportIncome.sales],
     ['Service Income — Trip Invoices','Service Revenue GL total',transportIncome.service],
     ...(Math.abs(transportIncome.other)>=0.005?[['Other Operating Revenue','Other revenue GL',transportIncome.other]]:[])
   ]:printSectionRows('Operating Revenue',data.operatingRevenue);
@@ -614,30 +610,16 @@ export default function ProfitLoss() {
 
             <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               {isTransport&&transportIncome?<>
-                <StatementSection title="Vehicle Profitability Summary — Memo"
-                  section={{total:transportIncome.sales+transportIncome.vehicleLedgerTotal-transportIncome.dedicatedSales,items:transportIncome.vehicleError?[]:[
-                    ...transportIncome.vehicles.map(v=>({
-                      name:'Vehicle '+v.vehicle_no,amount:v.amount,
-                      detailType:'Memo only · vehicle ledger movement is already included in GL totals',
-                    })),
-                    ...(Math.abs(transportIncome.residual)>=0.005?[{
-                      name:'Sales Revenue GL adjustments / unallocated legacy postings',
-                      amount:transportIncome.residual,detailType:'Reconciliation difference — review accounting entries',
-                    }]:[]),
-                  ]}} tone="income" />
-                {transportIncome.vehicleError&&<p role="alert" className="rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-                  Vehicle breakdown unavailable: {transportIncome.vehicleError}. Sales Revenue GL balance remains authoritative; do not assume zero vehicle income.
-                </p>}
                 <StatementSection title="Sales Income — Normal Invoices"
                   section={{total:transportIncome.sales,items:Math.abs(transportIncome.sales)>=0.005||!hideZeroBalances?[{
                     name:'Sales Revenue — posted Normal Sales invoices',
-                    amount:transportIncome.sales,detailType:'Mapped Sales Revenue plus dedicated vehicle accounts linked to Normal Sales Invoice journals',
+                    amount:transportIncome.sales,detailType:'Mapped Sales Revenue plus invoice-linked revenue accounts',
                     accountIds:transportIncome.salesAccountIds,
                   }]:[]}} tone="income" onDrilldown={openDrilldown} />
                 <StatementSection title="Service Income — Trip Invoices"
                   section={{total:transportIncome.service,items:Math.abs(transportIncome.service)>=0.005||!hideZeroBalances?[{
                     name:'Service Revenue — posted Trip and vehicle service income',
-                    amount:transportIncome.service,detailType:'Mapped service revenue plus dedicated vehicle service-income GL',
+                    amount:transportIncome.service,detailType:'Mapped service revenue plus invoice-linked service accounts',
                     accountIds:transportIncome.serviceAccountIds,
                   }]:[]}} tone="income" onDrilldown={openDrilldown} />
                 {(Math.abs(transportIncome.other)>=0.005||!hideZeroBalances)&&

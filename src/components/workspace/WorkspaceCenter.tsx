@@ -23,7 +23,6 @@ const importTasks=[
   {key:"trips",name:"Daily trip upload",effect:"Trip records only",to:"/settings/imports?section=trips",module:"transport"},
   {key:"service",name:"Service invoices & ready invoices",effect:"Validate and import drafts",to:"/settings/imports?section=service",module:"transport"},
   {key:"normal",name:"Sale / Purchase — without trips",effect:"Independent draft invoices",to:"/settings/imports?section=normal",module:"transport"},
-  {key:"expenses",name:"Vehicle expense Excel",effect:"Validate → draft → review",to:"/settings/imports?section=vehicle-expenses",module:"transport"},
   {key:"money",name:"Receipts, payments & journals",effect:"Payments post; journals start as drafts",to:"/settings/imports?section=accounting",module:"accounting"},
   {key:"transfer",name:"One-time records & transfer",effect:"Controlled one-time workflow",to:"/settings/imports?section=history",module:"transport"},
 ];
