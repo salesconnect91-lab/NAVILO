@@ -14,10 +14,9 @@ export function isManualJournalAccountEligible(account: ManualJournalAccount): b
   return true;
 }
 
-/** Keep every COA row searchable; eligibility controls whether it can be chosen. */
+/** Keep posting accounts searchable, but omit group/header rows from journal choices. */
 export function isManualJournalAccountVisible(account: ManualJournalAccount): boolean {
-  void account;
-  return true;
+  return !account.is_group;
 }
 
 /** Explains why an otherwise valid COA account cannot be posted manually. */
