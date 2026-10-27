@@ -349,6 +349,7 @@ export default function ProfitLoss() {
     const vehicleLedgerLines = excludeUnattributedManualJournalMovements(ledgerLines,journalRows);
 
     const accountMap = new Map<string, {
+      id: string;
       name: string;
       type: string;
       detailType: string;
@@ -363,6 +364,7 @@ export default function ProfitLoss() {
       const name = String(account.name ?? "").trim();
       const detailType = account.detail_type || "General";
       accountMap.set(account.id, {
+        id: account.id,
         name,
         type,
         detailType,
