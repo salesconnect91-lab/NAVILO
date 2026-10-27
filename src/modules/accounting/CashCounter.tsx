@@ -126,6 +126,9 @@ export default function CashCounter() {
   const amountInputRef =
     useRef<HTMLInputElement>(null);
 
+  // Synchronous guard: rapid clicks/Enter must never launch parallel receipt RPCs.
+  const postingRef = useRef(false);
+
   const [customers, setCustomers] =
     useState<Customer[]>([]);
 
@@ -1345,6 +1348,7 @@ export default function CashCounter() {
   };
 
   const handlePost = async () => {
+    if (postingRef.current) return;
     setError(null);
     setSuccess(null);
 
@@ -1417,6 +1421,7 @@ export default function CashCounter() {
     }
 
     if (paymentType === "transport") return;
+    postingRef.current = true;
     setSaving(true);
 
     try {
@@ -1498,8 +1503,9 @@ export default function CashCounter() {
             .eq("id", result.journal_entry_id)
             .maybeSingle();
 
-        if (snapshotError) throw snapshotError;
-        customerBalanceSnapshot = snapshotData;
+        // The RPC has already posted successfully. A failed optional balance
+        // lookup must not report a posting failure or invite a second payment.
+        if (!snapshotError) customerBalanceSnapshot = snapshotData;
       }
 
       const receipt: Receipt = {
@@ -1546,8 +1552,9 @@ export default function CashCounter() {
         )}.`
       );
 
-      await Promise.all([
-        loadMasterData(),
+      // Refresh asynchronously after a confirmed post; do not turn a
+      // successful receipt into a perceived failure if a read times out.
+      void Promise.allSettled([
         loadRecentPayments(),
         loadInvoicesForCustomer(selectedCustomerId),
       ]);
@@ -1564,6 +1571,7 @@ export default function CashCounter() {
           "Failed to receive customer payment."
       );
     } finally {
+      postingRef.current = false;
       setSaving(false);
     }
   };
