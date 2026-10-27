@@ -1694,7 +1694,7 @@ export default function CashCounter() {
       {counterMode === "general" && <GeneralCashBankPanel />}
 
       <div
-        className={`grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_330px] ${
+        className={`grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-1 ${
           counterMode !== "customer" ? "hidden" : ""
         }`}
       >
@@ -2241,77 +2241,6 @@ export default function CashCounter() {
           </div>
         </section>
 
-        <aside className="space-y-4">
-          <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-4 py-3">
-              <div className="flex items-center gap-2">
-                <Clock3 className="h-4 w-4 text-slate-500" />
-                <h3 className="text-sm font-bold text-slate-900">
-                  Recent Receipts
-                </h3>
-              </div>
-            </div>
-
-            <div className="divide-y divide-slate-100">
-              {recentPayments.length ? (
-                recentPayments.map(
-                  (payment) => (
-                    <div
-                      key={payment.id}
-                      className="px-4 py-3"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="truncate text-xs font-bold text-slate-800">
-                            {
-                              payment.party_name
-                            }
-                          </div>
-                          <div className="mt-0.5 text-[12px] text-slate-400">
-                            {
-                              payment.entry_no
-                            }{" "}
-                            •{" "}
-                            {formatDate(
-                              payment.entry_date
-                            )}
-                          </div>
-                        </div>
-
-                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-[12px] font-bold text-emerald-700">
-                          Posted
-                        </span>
-                      </div>
-                    </div>
-                  )
-                )
-              ) : (
-                <div className="px-4 py-8 text-center text-xs text-slate-400">
-                  No receipts yet.
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-            <div className="flex items-start gap-2">
-              <FileText className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-              <div className="text-xs leading-5 text-blue-900">
-                <strong>Cashier workflow</strong>
-                <br />
-                Customer → Invoice / Advance →
-                Amount → Receive &amp; Post → Print Receipt.
-                <br />
-                <br />
-                The posting uses the existing
-                <code className="mx-1 font-mono">
-                  receive_customer_payment
-                </code>
-                accounting engine.
-              </div>
-            </div>
-          </section>
-        </aside>
       </div>
 
       {counterMode !== "general" && (
