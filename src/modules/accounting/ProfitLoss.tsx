@@ -533,7 +533,7 @@ export default function ProfitLoss() {
   // Revenue export rows preserve posted GL attribution without adding memo subtotals.
   const revenueExportRows:(string|number)[][]=isTransport&&transportIncome?[
     ['Sales Income — Normal Invoices','Sales Revenue GL plus invoice-linked revenue accounts',transportIncome.sales],
-    ['Service Income — Trip Invoices','Service Revenue GL total',transportIncome.service],
+    ['Service / Vehicle Ledger Net','Service Revenue and vehicle ledger net',transportIncome.service],
     ...(Math.abs(transportIncome.other)>=0.005?[['Other Operating Revenue','Other revenue GL',transportIncome.other]]:[])
   ]:printSectionRows('Operating Revenue',data.operatingRevenue);
 
@@ -618,10 +618,10 @@ export default function ProfitLoss() {
                     amount:transportIncome.sales,detailType:'Mapped Sales Revenue plus invoice-linked revenue accounts',
                     accountIds:transportIncome.salesAccountIds,
                   }]:[]}} tone="income" onDrilldown={openDrilldown} />
-                <StatementSection title="Service Income — Trip Invoices"
+                <StatementSection title="Service / Vehicle Ledger Net"
                   section={{total:transportIncome.service,items:Math.abs(transportIncome.service)>=0.005||!hideZeroBalances?[{
-                    name:'Service Revenue — posted Trip invoices',
-                    amount:transportIncome.service,detailType:'Mapped service revenue plus invoice-linked service accounts',
+                    name:'Service and vehicle ledger net movement',
+                    amount:transportIncome.service,detailType:'Mapped service revenue, vehicle-account postings, and sales-allocation adjustments',
                     accountIds:transportIncome.serviceAccountIds,
                   }]:[]}} tone="income" onDrilldown={(ids,title)=>openDrilldown(ids,title,transportIncome.serviceSalesAdjustments,transportIncome.serviceVehicleAccountIds)} />
                 {(Math.abs(transportIncome.other)>=0.005||!hideZeroBalances)&&
@@ -659,13 +659,7 @@ export default function ProfitLoss() {
                   <th className="px-3 py-2">Date</th><th className="px-3 py-2">Account</th><th className="px-3 py-2">Source</th><th className="px-3 py-2 text-right">Debit</th><th className="px-3 py-2 text-right">Credit</th><th className="px-3 py-2 text-right">Net</th><th className="px-3 py-2">Entry</th>
                 </tr></thead>
                 <tbody className="divide-y divide-slate-100">
-                  {drilldownRows.filter(line=>{
-                    if(!line.account_id||!drilldown.accountIds.includes(line.account_id))return false;
-                    if(!drilldown.dedicatedAccountIds?.includes(line.account_id)||!line.journal_entry_id)return true;
-                    const journal=drilldownJournals[line.journal_entry_id];
-                    const manualTypes=new Set(["","General","Journal Entry","Manual Journal","Journal Reversal"]);
-                    return !journal||Boolean(journal.source_document_type)||!manualTypes.has(journal.trans_type??"");
-                  }).map((line,index)=>{
+                  {drilldownRows.filter(line=>Boolean(line.account_id)&&drilldown.accountIds.includes(line.account_id)).map((line,index)=>{
                     const journal=line.journal_entry_id?drilldownJournals[line.journal_entry_id]:undefined;
                     const account=drilldownAccountNames[line.account_id??""]??"Unknown account";
                     const accountType=data.operatingRevenue.items.find(item=>(item.accountIds??[]).includes(line.account_id??""))?"income":data.otherIncome.items.find(item=>(item.accountIds??[]).includes(line.account_id??""))?"income":data.costOfSales.items.find(item=>(item.accountIds??[]).includes(line.account_id??""))||data.operatingExpenses.items.find(item=>(item.accountIds??[]).includes(line.account_id??""))||data.otherExpenses.items.find(item=>(item.accountIds??[]).includes(line.account_id??""))?"expense":"income";
@@ -689,13 +683,7 @@ export default function ProfitLoss() {
                     <td className="px-3 py-2 text-right font-mono text-rose-700">{formatCurrency(-adjustment.amount)}</td>
                     <td className="px-3 py-2">—</td>
                   </tr>)}
-                  {!drilldownRows.some(line=>{
-                    if(!line.account_id||!drilldown.accountIds.includes(line.account_id))return false;
-                    if(!drilldown.dedicatedAccountIds?.includes(line.account_id)||!line.journal_entry_id)return true;
-                    const journal=drilldownJournals[line.journal_entry_id];
-                    const manualTypes=new Set(["","General","Journal Entry","Manual Journal","Journal Reversal"]);
-                    return !journal||Boolean(journal.source_document_type)||!manualTypes.has(journal.trans_type??"");
-                  })&&
+                  {!drilldownRows.some(line=>Boolean(line.account_id)&&drilldown.accountIds.includes(line.account_id))&&
                     <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-500">No posted ledger entries found for this row in the selected period.</td></tr>}
                 </tbody>
               </table>
