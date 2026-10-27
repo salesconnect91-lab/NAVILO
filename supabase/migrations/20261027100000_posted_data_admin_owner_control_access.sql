@@ -42,7 +42,23 @@ REVOKE ALL ON FUNCTION public.owner_posted_control_access() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.owner_posted_control_access() TO authenticated;
 
 COMMENT ON FUNCTION public.owner_posted_control_access() IS
-  'Authorization gate for posted-record controls. Allows active platform owner, company Main Admin, or company Owner Control role in the selected company and business unit.';
+  'Authorization gate for posted-record controls. Allows only an active platform owner, company Main Admin, or company Owner Control role in the selected company and business unit.';
+
+CREATE OR REPLACE FUNCTION public.company_admin_posted_journal_edit_access()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT public.owner_posted_control_access();
+$function$;
+
+REVOKE ALL ON FUNCTION public.company_admin_posted_journal_edit_access() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.company_admin_posted_journal_edit_access() TO authenticated;
+
+COMMENT ON FUNCTION public.company_admin_posted_journal_edit_access() IS
+  'Posted manual journal edits use the same Main Admin / Owner Control authorization as other posted-record actions.';
 
 CREATE OR REPLACE FUNCTION public.company_can_permanently_delete()
 RETURNS boolean
@@ -51,35 +67,14 @@ STABLE
 SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
 AS $function$
-  SELECT auth.uid() IS NOT NULL
-    AND public.current_company_id() IS NOT NULL
-    AND public.current_business_unit_id() IS NOT NULL
-    AND (
-      public.owner_posted_control_access()
-      OR (
-        EXISTS (
-          SELECT 1
-          FROM public.company_memberships m
-          WHERE m.company_id = public.current_company_id()
-            AND m.user_id = auth.uid()
-            AND m.is_active
-        )
-        AND EXISTS (
-          SELECT 1
-          FROM public.company_permanent_delete_grants g
-          WHERE g.company_id = public.current_company_id()
-            AND g.user_id = auth.uid()
-            AND g.allowed
-        )
-      )
-    );
+  SELECT public.owner_posted_control_access();
 $function$;
 
 REVOKE ALL ON FUNCTION public.company_can_permanently_delete() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.company_can_permanently_delete() TO authenticated;
 
 COMMENT ON FUNCTION public.company_can_permanently_delete() IS
-  'Allows audited permanent deletion controls to the active platform owner, company Main Admin, company Owner Control role, or an explicitly delegated company delete-control grant.';
+  'Posted-data permanent deletion is restricted to the active platform owner, company Main Admin, or company Owner Control role. Delegated user grants do not independently authorize this action.';
 
 CREATE OR REPLACE FUNCTION navilo_private.transport_invoice_admin_access()
 RETURNS boolean
