@@ -1527,6 +1527,7 @@ export default function CashCounter() {
 
       setAmount("");
       setAllocation("");
+      setInvoiceAllocations({});
       setReference("");
       setDescription("");
       setNotes("");
