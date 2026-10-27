@@ -273,6 +273,7 @@ export default function BalanceSheet() {
         amount: currentProfitOrLoss,
         parentHead: "Capital & Reserves",
         detailType: "Current Earnings",
+        accountIds: [],
       };
     }
 
@@ -283,6 +284,7 @@ export default function BalanceSheet() {
           amount: (liabilityMap["Customer Advances"]?.amount ?? 0) + Math.abs(item.amount),
           parentHead: "Current Liabilities",
           detailType: "Customer Credit Balances",
+          accountIds: [...new Set([...(liabilityMap["Customer Advances"]?.accountIds??[]),...item.accountIds])],
         };
         delete assetMap[name];
       } else if (
@@ -293,6 +295,7 @@ export default function BalanceSheet() {
           amount: (liabilityMap["Bank Overdraft"]?.amount ?? 0) + Math.abs(item.amount),
           parentHead: "Current Liabilities",
           detailType: "Bank Overdraft",
+          accountIds: [...new Set([...(liabilityMap["Bank Overdraft"]?.accountIds??[]),...item.accountIds])],
         };
         delete assetMap[name];
       }
@@ -305,6 +308,7 @@ export default function BalanceSheet() {
           amount: (assetMap["Supplier Advances"]?.amount ?? 0) + Math.abs(item.amount),
           parentHead: "Current Assets",
           detailType: "Supplier Debit Balances",
+          accountIds: [...new Set([...(assetMap["Supplier Advances"]?.accountIds??[]),...item.accountIds])],
         };
         delete liabilityMap[name];
       }
@@ -405,8 +409,6 @@ export default function BalanceSheet() {
   const statementRows=classifiedBalanceSheetRows(statementSections,statementView,customExpanded,equationDifference,comparisonDifference);
   const reportData=classifiedBalanceSheetExport(statementRows,statementView,asOfDate,comparisonDate);
   const comparable=statementView==="comparative";
-  const balanceSheetItems=row.section==="Assets"?assets.items:row.section==="Liabilities"?liabilities.items:equity.items;
-  const balanceSheetAccountIds=row.kind==="detail"?(balanceSheetItems.find(item=>item.name===row.account)?.accountIds??[]):[];
   const balanceSheetLedgerHref=(accountId:string,date:string)=>`/accounting/ledgers?account=${encodeURIComponent(accountId)}&to=${encodeURIComponent(date)}`;
   const statementColumnCount=2+(comparable?1:0);
   const printReport={
@@ -577,6 +579,8 @@ export default function BalanceSheet() {
                 <tbody>
                   {statementRows.map((row,index)=>{
                     const isSection=row.kind==="section";
+                    const balanceSheetItems=row.section==="Assets"?assets.items:row.section==="Liabilities"?liabilities.items:equity.items;
+                    const balanceSheetAccountIds=row.kind==="detail"?(balanceSheetItems.find(item=>item.name===row.account)?.accountIds??[]):[];
                     if(isSection)return <tr key={index} className="bg-slate-100">
                       <th scope="rowgroup" colSpan={statementColumnCount}
                         className="px-4 py-2 text-left text-xs font-bold uppercase tracking-wider text-slate-800">{row.account}</th>
