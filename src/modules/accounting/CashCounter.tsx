@@ -170,6 +170,7 @@ export default function CashCounter() {
 
   const [allocation, setAllocation] =
     useState("");
+  const [invoiceAllocations, setInvoiceAllocations] = useState<Record<string, string>>({});
 
   const [reference, setReference] =
     useState("");
@@ -384,8 +385,12 @@ export default function CashCounter() {
   const amountNumber =
     toNumber(amount);
 
-  const allocationNumber =
-    toNumber(allocation);
+  const allocatedInvoices = customerInvoices.filter(invoice => Object.prototype.hasOwnProperty.call(invoiceAllocations, invoice.id));
+  const allocationNumber = allocatedInvoices.reduce((sum, invoice) => sum + toNumber(invoiceAllocations[invoice.id]), 0);
+  const allocationsValid = allocatedInvoices.length > 0 && allocatedInvoices.every(invoice =>
+    toNumber(invoiceAllocations[invoice.id]) > 0 &&
+    toNumber(invoiceAllocations[invoice.id]) <= toNumber(invoice.outstanding_amount) + 0.005
+  );
 
   const canPost =
     Boolean(selectedCustomerId) &&
@@ -395,15 +400,8 @@ export default function CashCounter() {
     !invoiceLoading &&
     (paymentType === "advance"
       ? true
-      : Boolean(selectedInvoiceId) &&
-        allocationNumber > 0 &&
-        allocationNumber <=
-          amountNumber + 0.005 &&
-        allocationNumber <=
-          toNumber(
-            selectedInvoice
-              ?.outstanding_amount
-          ) + 0.005);
+      : allocationsValid &&
+        Math.abs(allocationNumber - amountNumber) < 0.005);
 
   const selectCustomer = (
     customer: Customer
@@ -417,6 +415,7 @@ export default function CashCounter() {
     );
     setSelectedInvoiceId("");
     setAllocation("");
+    setInvoiceAllocations({});
     setSuccess(null);
 
     setTimeout(() => {
@@ -442,9 +441,11 @@ export default function CashCounter() {
       );
 
     if (invoice) {
-      const received=toNumber(amount);
-      setAllocation(String(received>0?Math.min(received,invoice.outstanding_amount):invoice.outstanding_amount));
-      if(received<=0)setAmount(String(invoice.outstanding_amount));
+      const alreadyAllocated = Object.values(invoiceAllocations).reduce((sum, val) => sum + toNumber(val), 0);
+      const remaining = Math.max(0, toNumber(amount) - alreadyAllocated);
+      const allocated = remaining > 0 ? Math.min(remaining, invoice.outstanding_amount) : invoice.outstanding_amount;
+      setInvoiceAllocations(prev => ({ ...prev, [invoiceId]: String(allocated) }));
+      if (toNumber(amount) <= 0) setAmount(String(allocated));
     }
 
     setTimeout(() => {
@@ -459,6 +460,7 @@ export default function CashCounter() {
 
     if (type === "advance") {
       setSelectedInvoiceId("");
+      setInvoiceAllocations({});
       setAllocation("0");
     } else {
       setAllocation("");
@@ -472,6 +474,7 @@ export default function CashCounter() {
   const resetEntry = () => {
     setSelectedCustomerId("");
     setSelectedInvoiceId("");
+    setInvoiceAllocations({});
     setCustomerSearch("");
     setPaymentType("invoice");
     setAmount("");
@@ -1378,49 +1381,15 @@ export default function CashCounter() {
       return;
     }
 
-    if (
-      paymentType === "invoice" &&
-      !selectedInvoice
-    ) {
-      setError(
-        "Select an open invoice."
-      );
-      return;
-    }
-
-    if (
-      paymentType === "invoice" &&
-      allocationNumber <= 0
-    ) {
-      setError(
-        "Enter allocation amount."
-      );
-      return;
-    }
-
-    if (
-      paymentType === "invoice" &&
-      allocationNumber >
-        toNumber(
-          selectedInvoice?.outstanding_amount
-        ) +
-          0.005
-    ) {
-      setError(
-        "Allocation cannot exceed invoice outstanding balance."
-      );
-      return;
-    }
-
-    if (
-      paymentType === "invoice" &&
-      allocationNumber >
-        amountNumber + 0.005
-    ) {
-      setError(
-        "Allocation cannot exceed received amount."
-      );
-      return;
+    if (paymentType === "invoice") {
+      if (!allocationsValid) {
+        setError("Select invoices and enter valid allocation for each.");
+        return;
+      }
+      if (Math.abs(allocationNumber - amountNumber) >= 0.005) {
+        setError("Invoice allocations must equal Amount Received. Adjust each invoice amount.");
+        return;
+      }
     }
 
     if (paymentType === "transport") return;
@@ -1428,17 +1397,9 @@ export default function CashCounter() {
     setSaving(true);
 
     try {
-      const rpcAllocations =
-        paymentType === "invoice"
-          ? [
-              {
-                sales_order_id:
-                  selectedInvoice!.id,
-                amount:
-                  allocationNumber,
-              },
-            ]
-          : [];
+      const rpcAllocations = paymentType === "invoice"
+        ? allocatedInvoices.map(invoice => ({ sales_order_id: invoice.id, amount: toNumber(invoiceAllocations[invoice.id]) }))
+        : [];
 
       const paymentPayload = {
             p_customer_id:
@@ -1457,7 +1418,7 @@ export default function CashCounter() {
               (paymentType ===
               "advance"
                 ? "Customer advance payment"
-                : `Payment against ${selectedInvoice?.order_no}`),
+                : `Payment against ${allocatedInvoices.map(invoice => invoice.order_no).join(", ")}`),
             p_notes:
               notes.trim() || null,
             p_allocations:
@@ -2027,6 +1988,25 @@ export default function CashCounter() {
 
                 {selectedCustomerId&&invoiceLoadError&&<div role="alert" className="mt-2 flex gap-2 text-sm text-rose-700"><span>{invoiceLoadError}</span><button type="button" className="underline" onClick={()=>void loadInvoicesForCustomer(selectedCustomerId)}>Retry</button></div>}
                 {selectedCustomerId&&!invoiceLoading&&!invoiceLoadError&&customerInvoices.length===0&&<p className="mt-2 text-sm text-amber-800">No posted outstanding invoices for this customer. For Transport, post the bill first or use Advance Payment.</p>}
+                {paymentType === "invoice" && allocatedInvoices.length > 0 && (
+                  <div className="mt-2 space-y-1.5 rounded-lg border border-slate-200 p-2">
+                    <div className="text-xs font-semibold text-slate-600">Selected invoices — allocate this receipt across multiple invoices</div>
+                    {allocatedInvoices.map(invoice => (
+                      <div key={invoice.id} className="grid grid-cols-[1fr_140px_65px] items-center gap-2 text-xs">
+                        <div className="min-w-0 truncate"><strong>{invoice.order_no}</strong> · Due {currentCurrency()} {money(invoice.outstanding_amount)}</div>
+                        <input type="number" min="0" max={invoice.outstanding_amount} step="0.01"
+                          aria-label={`Allocation for ${invoice.order_no}`}
+                          value={invoiceAllocations[invoice.id]}
+                          onChange={e => setInvoiceAllocations(prev => ({ ...prev, [invoice.id]: e.target.value }))}
+                          className="h-9 w-full rounded border border-slate-300 px-2 text-right font-semibold" />
+                        <button type="button" onClick={() => setInvoiceAllocations(prev => { const next = {...prev}; delete next[invoice.id]; return next; })}
+                          className="h-9 rounded border border-slate-200 text-rose-700">Remove</button>
+                      </div>
+                    ))}
+                    <div className="text-right text-xs font-semibold">Allocated {currentCurrency()} {money(allocationNumber)} / Received {currentCurrency()} {money(amountNumber)}</div>
+                    {Math.abs(allocationNumber - amountNumber) >= 0.005 && <div className="text-right text-xs text-amber-700">Difference {currentCurrency()} {money(amountNumber - allocationNumber)} — totals must match before posting</div>}
+                  </div>
+                )}
                 {selectedInvoice && (
                   <div className="mt-2 grid grid-cols-3 gap-2">
                     <div className="rounded-lg bg-slate-50 p-2.5">
@@ -2093,7 +2073,7 @@ export default function CashCounter() {
                       paymentType ===
                       "invoice"
                     ) {
-                      setAllocation(value);
+                      // Invoice-wise allocation remains unchanged until cashier edits the individual rows.
                     }
                   }}
                   placeholder="0.00"
@@ -2109,27 +2089,9 @@ export default function CashCounter() {
                     : "Unapplied Advance"}
                 </label>
 
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={
-                    paymentType ===
-                    "advance"
-                      ? "0"
-                      : allocation
-                  }
-                  onChange={(e) =>
-                    setAllocation(
-                      e.target.value
-                    )
-                  }
-                  disabled={
-                    paymentType ===
-                    "advance"
-                  }
-                  className="h-12 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-right text-lg font-bold outline-none disabled:text-slate-400"
-                />
+                <div className="flex h-12 items-center justify-end rounded-lg border border-slate-200 bg-slate-50 px-3 text-lg font-bold text-emerald-700">
+                  {money(paymentType === "advance" ? 0 : allocationNumber)}
+                </div>
               </div>
             </div>
 
