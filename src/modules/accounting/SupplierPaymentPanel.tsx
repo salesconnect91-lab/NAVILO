@@ -38,6 +38,8 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
   useEffect(()=>setTransportMode(initialTransport),[initialTransport]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
+  const [invoiceLoading,setInvoiceLoading] = useState(false);
+  const invoiceRequest = useRef(0);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [supplierId, setSupplierId] = useState("");
   const [orderId, setOrderId] = useState("");
@@ -58,13 +60,11 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
 
   const loadData = async (quiet=false) => {
     if(!quiet)setLoading(true); setError(null);
-    const [supplierResult, orderResult, accountResult] = await Promise.all([
+    const [supplierResult, accountResult] = await Promise.all([
       supabase.from("suppliers").select("id,name").eq("is_active", true).order("name"),
-      supabase.from("purchase_orders").select("id,order_no,order_date,supplier_id,total,paid_amount,outstanding_amount,payment_status,status").eq("status", "posted").gt("outstanding_amount", 0).neq("payment_status", "paid").order("order_date", { ascending: true }),
       supabase.from("chart_of_accounts").select("id,code,name").eq("is_active", true).eq("is_group", false).eq("allow_manual_entries", true).in("detail_type", ["Cash on Hand", "Bank Account"]).order("code"),
     ]);
     if (supplierResult.error) setError(supplierResult.error.message); else setSuppliers((supplierResult.data ?? []) as Supplier[]);
-    if (orderResult.error) setError(orderResult.error.message); else setOrders((orderResult.data ?? []).map((row: any) => ({ ...row, total: Number(row.total || 0), paid_amount: Number(row.paid_amount || 0), outstanding_amount: Number(row.outstanding_amount || 0) })) as PurchaseOrder[]);
     if (accountResult.error) setError(accountResult.error.message); else {
       const loaded = (accountResult.data ?? []) as Account[]; setAccounts(loaded);
       if (!accountId && loaded.length) {
@@ -75,6 +75,27 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
     setLoading(false);
   };
 
+  useEffect(()=>{
+    const token=++invoiceRequest.current;
+    setOrders([]);
+    if(!supplierId){setInvoiceLoading(false);return;}
+    setInvoiceLoading(true);
+    let cancelled=false;
+    const getInvoices=async()=>{
+      const {data,error}=await supabase.from("purchase_orders")
+        .select("id,order_no,order_date,supplier_id,total,paid_amount,outstanding_amount,payment_status,status")
+        .eq("supplier_id",supplierId).eq("status","posted")
+        .gt("outstanding_amount",0).neq("payment_status","paid")
+        .order("order_date",{ascending:true}).limit(1000);
+      if(cancelled||token!==invoiceRequest.current)return;
+      if(error)setError(error.message);
+      else setOrders((data??[]).map(row=>({...row,total:Number(row.total||0),paid_amount:Number(row.paid_amount||0),outstanding_amount:Number(row.outstanding_amount||0)})) as PurchaseOrder[]);
+      setInvoiceLoading(false);
+    };
+    void getInvoices().catch(e=>{if(!cancelled&&token===invoiceRequest.current){setError(e?.message||"Unable to load supplier invoices");setInvoiceLoading(false);}});
+    return()=>{cancelled=true;};
+  },[supplierId]);
+
   const refreshPaymentAccounts=async()=>{
     const r=await supabase.from("chart_of_accounts").select("id,code,name")
       .eq("is_active",true).eq("is_group",false).eq("allow_manual_entries",true)
@@ -83,7 +104,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
   };
   const createdSupplier=async(record:{id:string;name:string})=>{
     setSuppliers(v=>v.some(s=>s.id===record.id)?v:[...v,record]);
-    setSupplierId(record.id);setOrderId("");setAmount("");setSuccess(null);
+    setSupplierId(record.id);setOrderId("");setInvoiceAllocations({});setAmount("");setSuccess(null);
   };
   useEffect(() => { void loadData(); }, []);
   const supplierOrders = useMemo(() => orders.filter((order) => order.supplier_id === supplierId && order.outstanding_amount > 0).sort((a,b)=>(a.payment_status==="partial"?0:1)-(b.payment_status==="partial"?0:1)), [orders, supplierId]);
@@ -188,7 +209,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
         <div><label className="mb-1.5 block text-xs font-semibold">Payment Method</label><SearchableSelect value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="Cash">Cash</option><option value="Bank">Bank</option><option value="Cheque">Cheque</option><option value="Online">Online</option><option value="Other">Other</option></SearchableSelect></div>
         <div><label className="mb-1.5 block text-xs font-semibold">Payment Account</label><SearchableSelect value={accountId} onChange={(e) => setAccountId(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select payment account</option>{accounts.map((account) => <option key={account.id} value={account.id} data-search={account.code}>{account.name}</option>)}</SearchableSelect><QuickMasterAdd kind="account" compact disabled={saving} onRefresh={refreshPaymentAccounts}/></div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2"><div><label className="mb-1.5 block text-xs font-semibold">Supplier</label><SearchableSelect value={supplierId} onChange={(e) => { setSupplierId(e.target.value); setOrderId(""); setInvoiceAllocations({}); setAmount(""); setSuccess(null); }} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</SearchableSelect><QuickMasterAdd kind="supplier" compact disabled={saving} onCreated={createdSupplier}/></div><div><label className="mb-1.5 block text-xs font-semibold">Open Purchase Invoice</label><SearchableSelect nativeCompatibility preserveLabel value={orderId} disabled={!supplierId} onChange={(e) => selectOrder(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3 disabled:bg-slate-50"><option value="">— Add open invoice (partial allowed) —</option>{supplierOrders.filter(order=>!Object.prototype.hasOwnProperty.call(invoiceAllocations,order.id)).map((order) => <option key={order.id} value={order.id}>{order.payment_status==="partial"?"[PARTIAL] ":""}{order.order_no} — Outstanding {currentCurrency()} {money(order.outstanding_amount)}</option>)}</SearchableSelect></div></div>
+      <div className="grid gap-4 md:grid-cols-2"><div><label className="mb-1.5 block text-xs font-semibold">Supplier</label><SearchableSelect value={supplierId} onChange={(e) => { setSupplierId(e.target.value); setOrderId(""); setInvoiceAllocations({}); setAmount(""); setSuccess(null); }} className="h-10 w-full rounded-lg border border-slate-200 px-3"><option value="">Select supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</SearchableSelect><QuickMasterAdd kind="supplier" compact disabled={saving} onCreated={createdSupplier}/></div><div><label className="mb-1.5 block text-xs font-semibold">Open Purchase Invoice</label><SearchableSelect nativeCompatibility preserveLabel value={orderId} disabled={!supplierId || invoiceLoading} onChange={(e) => selectOrder(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-3 disabled:bg-slate-50"><option value="">{invoiceLoading?"Loading supplier invoices…":"— Add open invoice (partial allowed) —"}</option>{supplierOrders.filter(order=>!Object.prototype.hasOwnProperty.call(invoiceAllocations,order.id)).map((order) => <option key={order.id} value={order.id}>{order.payment_status==="partial"?"[PARTIAL] ":""}{order.order_no} — Outstanding {currentCurrency()} {money(order.outstanding_amount)}</option>)}</SearchableSelect></div></div>
       {selectedInvoices.length>0 && <div className="space-y-2 rounded-lg border border-slate-200 p-3"><div className="text-xs font-bold">Selected invoices — one payment voucher</div>{selectedInvoices.map(o=><div key={o.id} className="grid grid-cols-[1fr_130px_65px] items-center gap-2 text-xs"><span className="truncate">{o.order_no} · Due {currentCurrency()} {money(o.outstanding_amount)}</span><input aria-label={`Allocation for ${o.order_no}`} type="number" min="0" max={o.outstanding_amount} step="0.01" value={invoiceAllocations[o.id]} onChange={e=>setInvoiceAllocations(prev=>{
       const others=Object.entries(prev).reduce((sum,[id,val])=>id===o.id?sum:sum+Number(val||0),0);
       const max=Math.max(0,Math.min(o.outstanding_amount,amountNumber-others));
