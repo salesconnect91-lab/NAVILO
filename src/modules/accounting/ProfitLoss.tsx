@@ -84,6 +84,11 @@ const getYearStart = () => {
   return localDateValue(new Date(today.getFullYear(), 0, 1));
 };
 
+function vehicleLedgerLabel(type: string, vehicleNo: string, accountName?: string) {
+  const inferredType = type.trim() || (accountName ?? "").replace(vehicleNo, "").trim().replace(/[\\s–—-]+$/, "");
+  return [inferredType, vehicleNo].filter(Boolean).join(" · ") || accountName || vehicleNo;
+}
+
 function formatReportDate(value: string) {
   if (!value) return "";
   return new Intl.DateTimeFormat("en-GB", {
@@ -149,7 +154,7 @@ function StatementSection({ title, section, tone, onDrilldown }: {
                   <span className="block whitespace-normal break-words font-medium text-slate-800">{item.name}</span>
                   <span className="block whitespace-normal break-words text-[12px] text-slate-500">{item.detailType}</span>
                 </div>
-                <span className={`shrink-0 whitespace-nowrap font-mono font-semibold ${item.amount < 0 ? "text-rose-600" : "text-slate-900"}`}>
+                <span className="shrink-0 whitespace-nowrap font-mono font-semibold text-slate-900">
                   {formatCurrency(item.amount)}
                 </span>
               </>
@@ -177,7 +182,7 @@ function ResultRow({ label, amount, prominent = false, onClick }: {
   onClick?: () => void;
 }) {
   return (
-    <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${prominent ? (amount >= 0 ? "border-emerald-400 bg-slate-900 text-white" : "border-rose-400 bg-rose-950 text-white") : "border-slate-300 bg-slate-100 text-slate-900"}`}>
+    <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${"border-slate-300 bg-slate-100 text-slate-900"}`}>
       <span className="text-sm font-bold uppercase tracking-wide">{label}</span>
       {onClick ? <button type="button" onClick={onClick} title="Open contributing posted ledger entries"
         className="cursor-pointer rounded font-mono text-lg font-bold underline decoration-dotted underline-offset-2 hover:opacity-80">{formatCurrency(amount)}</button>
@@ -201,7 +206,7 @@ export default function ProfitLoss() {
   const [error, setError] = useState<string | null>(null);
   const [reportPrintSettings, setReportPrintSettings] = useState<any>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [transportIncome,setTransportIncome]=useState<{sales:number;mappedSales:number;service:number;other:number;vehicleLedgerTotal:number;vehicleLedgerAdjustment:number;vehicleLedgerAccounts:{account_id:string;account_name:string;vehicle_no:string;debit:number;credit:number;net:number}[];dedicatedSales:number;vehicles:VehicleIncome[];residual:number;vehicleError:string;salesAccountIds:string[];serviceAccountIds:string[];serviceVehicleAccountIds:string[];serviceSalesAdjustments:{accountId:string;amount:number}[]}|null>(null);
+  const [transportIncome,setTransportIncome]=useState<{sales:number;mappedSales:number;service:number;other:number;vehicleLedgerTotal:number;vehicleLedgerAdjustment:number;vehicleLedgerAccounts:{account_id:string;account_name:string;vehicle_no:string;truck_type:string;debit:number;credit:number;net:number}[];dedicatedSales:number;vehicles:VehicleIncome[];residual:number;vehicleError:string;salesAccountIds:string[];serviceAccountIds:string[];serviceVehicleAccountIds:string[];serviceSalesAdjustments:{accountId:string;amount:number}[]}|null>(null);
   const [verifiedTransportUnit,setVerifiedTransportUnit]=useState<{companyId:string;businessUnitId:string;isTransport:boolean}|null>(null);
   const companyId=activeCompany?.company_id??'';
   const businessUnitId=activeBusinessUnit?.business_unit_id??'';
@@ -293,9 +298,9 @@ export default function ProfitLoss() {
                 const externalRows=await readExternalVehicleIncomeFast({
                   companyId,businessUnitId,locationId,scope,fromDate,toDate,
                 });
-                const vehicles=await fetchAllPages<{id:string;vehicle_no:string;revenue_account_id:string|null}>(
+                const vehicles=await fetchAllPages<{id:string;vehicle_no:string;revenue_account_id:string|null;truck_type:string|null}>(
                   (from,to)=>{
-                    let q=supabase.from('transport_vehicles').select('id,vehicle_no,revenue_account_id')
+                    let q=supabase.from('transport_vehicles').select('id,vehicle_no,revenue_account_id,truck_type')
                       .eq('company_id',companyId).eq('ownership_type','company').eq('is_active',true);
                     if(scope!=='company')q=q.eq('business_unit_id',businessUnitId);
                     return q.order('vehicle_no',{ascending:true}).range(from,to);
@@ -468,9 +473,13 @@ export default function ProfitLoss() {
             const movements=vehicleLedgerLines.filter(line=>line.account_id===accountId);
             const debit=Number(movements.reduce((sum,line)=>sum+Number(line.debit??0),0).toFixed(2));
             const credit=Number(movements.reduce((sum,line)=>sum+Number(line.credit??0),0).toFixed(2));
-            return {account_id:accountId??'',account_name:accounts.find(account=>account.id===accountId)?.name??row.vehicle_no,
-              vehicle_no:row.vehicle_no,debit,credit,net:Number((credit-debit).toFixed(2))};
-          }).sort((a,b)=>a.vehicle_no.localeCompare(b.vehicle_no,undefined,{numeric:true}));
+            const accountName=accounts.find(account=>account.id===accountId)?.name??row.vehicle_no;
+            const vehicle=vehicleResult.vehicles.find(item=>item.id===row.vehicle_id);
+            return {account_id:accountId??'',account_name:accountName,
+              vehicle_no:row.vehicle_no,truck_type:vehicle?.truck_type?.trim()||accountName.replace(row.vehicle_no,'').trim().replace(/[\\s–—-]+$/,''),
+              debit,credit,net:Number((credit-debit).toFixed(2))};
+          }).filter(row=>!hideZeroBalances||Math.abs(row.net)>=0.005)
+            .sort((a,b)=>a.vehicle_no.localeCompare(b.vehicle_no,undefined,{numeric:true}));
         const incomeSources=reconcileTransportProfitLossSources(
           next.operatingRevenue.total+next.otherIncome.total,sales,service,vehicleLedgerTotal,dedicatedSales,
         );
@@ -554,7 +563,7 @@ export default function ProfitLoss() {
 
   const vehicleAccountIds=new Set(transportIncome?.vehicleLedgerAccounts.map(row=>row.account_id)??[]);
   const printableTransportIncomeRows=isTransport&&transportIncome?[
-    ...transportIncome.vehicleLedgerAccounts.map(row=>({name:row.account_name,amount:row.net})),
+    ...transportIncome.vehicleLedgerAccounts.map(row=>({name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net})),
     ...[...data.operatingRevenue.items,...data.otherIncome.items]
       .filter(row=>!(row.accountIds??[]).some(id=>vehicleAccountIds.has(id)))
       .map(row=>({name:row.name,amount:row.amount})),
@@ -624,7 +633,7 @@ export default function ProfitLoss() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1.35fr_auto] lg:items-end">
             <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">From Date</span><NaviloDateInput type="date" value={fromDate} max={toDate} onChange={(e) => setFromDate(e.target.value)} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
             <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">To Date</span><NaviloDateInput type="date" value={toDate} min={fromDate} max={getLocalToday()} onChange={(e) => setToDate(e.target.value)} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
-            <label className="flex h-10 cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3"><input type="checkbox" checked={hideZeroBalances} onChange={(e) => setHideZeroBalances(e.target.checked)} className="h-4 w-4" /><span className="text-sm font-medium text-slate-800">Hide zero-balance accounts</span></label>
+            <label className="flex h-10 cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3"><input type="checkbox" checked={!hideZeroBalances} onChange={(e) => setHideZeroBalances(!e.target.checked)} className="h-4 w-4" /><span className="text-sm font-medium text-slate-800">Show zero values</span></label>
             <div className="flex gap-2"><button type="button" onClick={setThisMonth} className="h-10 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">This Month</button><button type="button" onClick={setThisYear} className="h-10 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">This Year</button></div>
           </div>
           {lastUpdated && <div className="mt-2 text-right text-[12px] text-slate-400">Posted operational ledger entries only · Updated {lastUpdated.toLocaleTimeString()}</div>}
@@ -651,7 +660,7 @@ export default function ProfitLoss() {
                 <StatementSection title="Income — Vehicles" section={{
                   total:transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.net,0),
                   items:transportIncome.vehicleLedgerAccounts.map(row=>({
-                    name:row.vehicle_no,amount:row.net,detailType:'Net posted ledger balance for the selected period',accountIds:[row.account_id],
+                    name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net,detailType:'Vehicle master → mapped Chart of Accounts ledger · selected period',accountIds:[row.account_id],
                   })),
                 }} tone="income" onDrilldown={openDrilldown} />
                 <StatementSection title="Other Income" section={{
