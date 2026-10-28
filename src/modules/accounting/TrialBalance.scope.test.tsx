@@ -56,13 +56,13 @@ describe('Trial Balance tenant guard and fail-closed evidence',()=>{
  });
  it('malformed RPC output never shows a fabricated balanced trial balance',async()=>{
   mock.malformed=true;
-  render(<TrialBalance/>);
+  render(<MemoryRouter><TrialBalance/></MemoryRouter>);
   await waitFor(()=>expect(screen.getByText('Incomplete Trial Balance evidence; totals withheld.')).toBeTruthy());
   expect(screen.queryByText(/300\.00/)).toBeNull();
  });
  it('missing company prevents query',async()=>{
   mock.company='';
-  render(<TrialBalance/>);
+  render(<MemoryRouter><TrialBalance/></MemoryRouter>);
   await waitFor(()=>expect(screen.getByText('Active company and business unit required.')).toBeTruthy());
   expect(mock.journalCalls).toHaveLength(0);
  });
