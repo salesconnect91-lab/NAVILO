@@ -26,7 +26,7 @@ describe('Vehicle accounting reports',()=>{
 
  it('displays verified source billing separately without adding it to vehicle GL profit',async()=>{
   render(<VehicleAccounting/>);
-  await screen.findByRole('option',{name:'7979'});
+  await screen.findByRole('option',{name:'7979 · Dyna'});
   fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});
   fireEvent.change(screen.getByLabelText('Statement'),{target:{value:'source'}});
   await waitFor(()=>expect(screen.getByTestId('report').textContent).toContain('CLIENT-001'));
@@ -36,8 +36,8 @@ describe('Vehicle accounting reports',()=>{
   expect(table.description).toContain('must NOT be added again');
   expect(mock.calls.some(c=>c.n==='transport_vehicle_source_billing'&&c.args.p_vehicle==='v1')).toBe(true);
  });
- it('withholds totals on incomplete accounting response',async()=>{mock.count=3;render(<VehicleAccounting/>);await screen.findByRole('option',{name:'7979'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});expect((await screen.findByRole('alert')).textContent).toContain('Incomplete');expect(screen.queryByTestId('report')).toBeNull();});
- it('clears previous-company rows and selection on workspace change',async()=>{const view=render(<VehicleAccounting/>);await screen.findByRole('option',{name:'7979'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});await screen.findByTestId('report');mock.company='c2';mock.unit='b2';view.rerender(<VehicleAccounting/>);await waitFor(()=>expect((screen.getByLabelText('Vehicle') as HTMLSelectElement).value).toBe(''));expect(screen.queryByTestId('report')).toBeNull();});
- it('shows a clear server error instead of an empty ledger on network failure',async()=>{mock.networkFailed=true;render(<VehicleAccounting/>);await screen.findByRole('option',{name:'7979'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});expect((await screen.findByRole('alert')).textContent).toContain('could not reach the accounting server');expect(screen.queryByTestId('report')).toBeNull();});
- it('does not turn denied access into zero profit',async()=>{mock.failed=true;render(<VehicleAccounting/>);await screen.findByRole('option',{name:'7979'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});expect((await screen.findByRole('alert')).textContent).toContain('permission');expect(screen.queryByTestId('report')).toBeNull();});
+ it('withholds totals on incomplete accounting response',async()=>{mock.count=3;render(<VehicleAccounting/>);await screen.findByRole('option',{name:'7979 · Dyna'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});expect((await screen.findByRole('alert')).textContent).toContain('Incomplete');expect(screen.queryByTestId('report')).toBeNull();});
+ it('clears previous-company rows and selection on workspace change',async()=>{const view=render(<VehicleAccounting/>);await screen.findByRole('option',{name:'7979 · Dyna'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});await screen.findByTestId('report');mock.company='c2';mock.unit='b2';view.rerender(<VehicleAccounting/>);await waitFor(()=>expect((screen.getByLabelText('Vehicle') as HTMLSelectElement).value).toBe(''));expect(screen.queryByTestId('report')).toBeNull();});
+ it('shows a clear server error instead of an empty ledger on network failure',async()=>{mock.networkFailed=true;render(<VehicleAccounting/>);await screen.findByRole('option',{name:'7979 · Dyna'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});expect((await screen.findByRole('alert')).textContent).toContain('could not reach the accounting server');expect(screen.queryByTestId('report')).toBeNull();});
+ it('does not turn denied access into zero profit',async()=>{mock.failed=true;render(<VehicleAccounting/>);await screen.findByRole('option',{name:'7979 · Dyna'});fireEvent.change(screen.getByLabelText('Vehicle'),{target:{value:'v1'}});expect((await screen.findByRole('alert')).textContent).toContain('permission');expect(screen.queryByTestId('report')).toBeNull();});
 });
