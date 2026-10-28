@@ -715,7 +715,6 @@ export default function JournalEntryList() {
       const requiredHeaders = [
         "entryno",
         "entrydate",
-        "description",
         "accountname",
         "debit",
         "credit",
@@ -771,13 +770,9 @@ export default function JournalEntryList() {
           );
 
         const description =
-          normalize(
-            row[
-              columnIndex(
-                "description"
-              )
-            ]
-          );
+          normalize(row[columnIndex("description")]) ||
+          normalize(row[columnIndex("linedescription")]) ||
+          entryNo;
 
         const accountCodeIndex =
           columnIndex(
