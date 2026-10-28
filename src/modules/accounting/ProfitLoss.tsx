@@ -681,22 +681,22 @@ export default function ProfitLoss() {
                   total:[...data.operatingRevenue.items,...data.otherIncome.items]
                     .filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id)))
                     .reduce((sum,item)=>sum+item.amount,0),
-                }} tone="income" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />
-              </>:<StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />}
+                }} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
+              </>:<StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />}
               {isTransport?<>
                 <StatementSection title="Expenses" section={{
                   items:[...data.costOfSales.items,...data.operatingExpenses.items,...data.otherExpenses.items],
                   total:metrics.totalExpenses,
-                }} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />
+                }} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
                 <ResultRow label="Net Earnings" amount={metrics.netProfit} prominent
                   onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.otherIncome,data.costOfSales,data.operatingExpenses,data.otherExpenses),"Net Earnings")} />
               </>:<>
-                <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />
+                <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
                 <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales),"Gross Profit / (Loss)")} />
-                <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />
+                <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
                 <ResultRow label="Operating Profit / (Loss)" amount={metrics.operatingProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses),"Operating Profit / (Loss)")} />
-                {(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income" section={data.otherIncome} tone="income" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />}
-                {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses" section={data.otherExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />}
+                {(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income" section={data.otherIncome} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />}
+                {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses" section={data.otherExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />}
                 <ResultRow label="Net Profit / (Loss)" amount={metrics.netProfit} prominent
                   onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses,data.otherIncome,data.otherExpenses),"Net Profit / (Loss)")} />
               </>}
