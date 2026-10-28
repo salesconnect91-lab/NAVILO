@@ -18,6 +18,12 @@ const validDate=(s:string)=>{
 };
 /** Accept ISO dates, Excel serial dates, or NAVILO dd-mmm-yy display dates. */
 export function journalImportISODate(input:unknown):string{
+ // SheetJS can return a real Date object for Excel cells formatted as dates.
+ // Convert it using UTC calendar parts so local timezone offsets cannot shift the day.
+ if(input instanceof Date && Number.isFinite(input.getTime())){
+  const iso=`${input.getUTCFullYear()}-${String(input.getUTCMonth()+1).padStart(2,'0')}-${String(input.getUTCDate()).padStart(2,'0')}`;
+  if(validDate(iso))return iso;
+ }
  const value=str(input);
  if(validDate(value))return value;
  if(/^\d{5}(?:\.0+)?$/.test(value)){
