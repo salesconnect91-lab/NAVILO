@@ -33,7 +33,7 @@ vi.mock('@/lib/documentPrintSettings',()=>({
  loadDocumentPrintSettings:async()=>null,documentContactText:()=>'',documentTaxText:()=>'',
 }));
 vi.mock('@/lib/accountingReportPdf',()=>({downloadAccountingReportPdf:vi.fn()}));
-vi.mock('../transport/ConfigurableReport',()=>({default:({report}:any)=><pre data-testid="trial-export">{JSON.stringify(report)}</pre>}));
+vi.mock('@/modules/transport/ConfigurableReport',()=>({default:({report}:any)=><pre data-testid="trial-export">{JSON.stringify(report)}</pre>}));
 vi.mock('@/components/NaviloDateInput',()=>({default:({value,onChange,...props}:any)=><input type="date" value={value} onChange={onChange} {...props}/>}));
 vi.mock('./AccountingReportScopeSelect',()=>({default:({value,onChange}:any)=><select aria-label="Report scope" value={value} onChange={e=>onChange(e.target.value)}><option value="branch">Branch</option><option value="company">Company</option></select>}));
 beforeEach(()=>{mock.company='company-A';mock.businessUnit='BU-A';mock.failure=false;mock.malformed=false;mock.accountScopes=[];mock.journalCalls=[];mock.pending=null});
@@ -56,7 +56,7 @@ describe('Trial Balance tenant guard and fail-closed evidence',()=>{
  });
  it('malformed RPC output never shows a fabricated balanced trial balance',async()=>{
   mock.malformed=true;
-  render(<TrialBalance/>);
+  render(<MemoryRouter><TrialBalance/></MemoryRouter>);
   await waitFor(()=>expect(screen.getByText('Incomplete Trial Balance evidence; totals withheld.')).toBeTruthy());
   expect(screen.queryByText(/300\.00/)).toBeNull();
  });
