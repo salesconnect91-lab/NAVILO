@@ -121,12 +121,14 @@ function classifyAccount(type: string, name: string, parentHead?: string, detail
   return null;
 }
 
-function StatementSection({ title, section, onDrilldown, showDetails = true }: {
+function StatementSection({ title, section, onDrilldown, showDetails = true, fromDate, toDate }: {
   title: string;
   section: PLSectionData;
   tone: "income" | "expense";
   onDrilldown?: (accountIds: string[], title: string, journalIds?: string[]) => void;
   showDetails?: boolean;
+  fromDate: string;
+  toDate: string;
 }) {
   const sectionAccountIds = [...new Set(section.items.flatMap(item => item.accountIds ?? []))];
   return (
@@ -145,7 +147,7 @@ function StatementSection({ title, section, onDrilldown, showDetails = true }: {
             {item.detailType && normalized(item.detailType) !== normalized(item.name) && <span className="ml-2 text-[11px] text-slate-500">{item.detailType}</span>}
           </td>
           <td className="px-4 py-1.5 text-right font-mono text-xs">
-            {onDrilldown && item.accountIds?.length === 1 ? <button type="button" onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)} title="Open this account's General Ledger" className="cursor-pointer border-0 bg-transparent p-0 text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900 focus:outline-none focus-visible:underline">{formatCurrency(item.amount)}</button> : <span className="text-slate-800">{formatCurrency(item.amount)}</span>}
+            {item.accountIds?.length === 1 ? <Link to={`/accounting/ledgers?account=${encodeURIComponent(item.accountIds[0])}&from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`} title="Open this account's General Ledger for the selected period" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(item.amount)}</Link> : <span className="text-slate-800">{formatCurrency(item.amount)}</span>}
           </td>
         </tr>
       ))}
@@ -644,18 +646,18 @@ export default function ProfitLoss() {
                   <thead><tr className="bg-white text-left text-xs uppercase tracking-wide text-slate-500"><th className="border-b border-slate-200 px-4 py-2 font-semibold">Account / Group</th><th className="border-b border-slate-200 px-4 py-2 text-right font-semibold">Amount</th></tr></thead>
                   <tbody>
                     {isTransport&&transportIncome?<>
-                      <StatementSection title="Income — Vehicles" section={{total:transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.net,0),items:transportIncome.vehicleLedgerAccounts.map(row=>({name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net,detailType:row.mapping_status==='dedicated'?'Vehicle ledger · selected period':row.mapping_status==='shared'?'Vehicle account mapping is shared · amount not double-counted':'Vehicle account mapping missing or incompatible · check vehicle master / COA',accountIds:row.account_id?[row.account_id]:[]}))}} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
-                      <StatementSection title="Other Income" section={{items:[...data.operatingRevenue.items,...data.otherIncome.items].filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id))),total:[...data.operatingRevenue.items,...data.otherIncome.items].filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id))).reduce((sum,item)=>sum+item.amount,0)}} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
-                      <StatementSection title="Expenses" section={{items:[...data.costOfSales.items,...data.operatingExpenses.items,...data.otherExpenses.items],total:metrics.totalExpenses}} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
+                      <StatementSection title="Income — Vehicles" section={{total:transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.net,0),items:transportIncome.vehicleLedgerAccounts.map(row=>({name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net,detailType:row.mapping_status==='dedicated'?'Vehicle ledger · selected period':row.mapping_status==='shared'?'Vehicle account mapping is shared · amount not double-counted':'Vehicle account mapping missing or incompatible · check vehicle master / COA',accountIds:row.account_id?[row.account_id]:[]}))}} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} fromDate={fromDate} toDate={toDate} />
+                      <StatementSection title="Other Income" section={{items:[...data.operatingRevenue.items,...data.otherIncome.items].filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id))),total:[...data.operatingRevenue.items,...data.otherIncome.items].filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id))).reduce((sum,item)=>sum+item.amount,0)}} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} fromDate={fromDate} toDate={toDate} />
+                      <StatementSection title="Expenses" section={{items:[...data.costOfSales.items,...data.operatingExpenses.items,...data.otherExpenses.items],total:metrics.totalExpenses}} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} fromDate={fromDate} toDate={toDate} />
                       <ResultRow label="Net Earnings" amount={metrics.netProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.otherIncome,data.costOfSales,data.operatingExpenses,data.otherExpenses),"Net Earnings")} />
                     </>:<>
-                      <StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
-                      <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
+                      <StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} fromDate={fromDate} toDate={toDate} />
+                      <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} fromDate={fromDate} toDate={toDate} />
                       <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales),"Gross Profit / (Loss)")} />
-                      <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
+                      <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} fromDate={fromDate} toDate={toDate} />
                       <ResultRow label="Operating Profit / (Loss)" amount={metrics.operatingProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses),"Operating Profit / (Loss)")} />
-                      {(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income" section={data.otherIncome} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />}
-                      {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses" section={data.otherExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />}
+                      {(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income" section={data.otherIncome} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} fromDate={fromDate} toDate={toDate} />}
+                      {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses" section={data.otherExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} fromDate={fromDate} toDate={toDate} />}
                       <ResultRow label="Net Profit / (Loss)" amount={metrics.netProfit} prominent onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses,data.otherIncome,data.otherExpenses),"Net Profit / (Loss)")} />
                     </>}
                     <tr className="border-t border-slate-300 bg-slate-50"><td className="py-1.5 px-4 text-xs font-semibold">Total Income</td><td className="px-4 py-1.5 text-right font-mono text-xs">{formatCurrency(metrics.totalIncome)}</td></tr>
