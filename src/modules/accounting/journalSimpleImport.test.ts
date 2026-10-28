@@ -4,8 +4,8 @@ import {SIMPLE_JOURNAL_HEADERS,isSimpleJournalTemplate,normalizeSimpleJournalRow
 vi.mock('xlsx',async(importOriginal)=>({...await importOriginal<typeof import('xlsx')>(),writeFile:vi.fn()}));
 const headers=[...SIMPLE_JOURNAL_HEADERS];
 const pair=[
- ['ORB-SEP-001','2026-09-05','General Expenses','Vehicle 7979 repair','','',600,''],
- ['','','Amjad Payable','Paid by Amjad','','','',600]
+ ['ORB-SEP-001','2026-09-05','General Expenses','Vehicle 7979 repair','',600,0],
+ ['','','Amjad Payable','Paid by Amjad','',0,600]
 ];
 describe('Simple Debit/Credit Journal import has no vehicle field',()=>{
  it('keeps GL and Party separate and omits vehicle attribution from RPC lines',()=>{
@@ -17,31 +17,31 @@ describe('Simple Debit/Credit Journal import has no vehicle field',()=>{
  });
  it('explains common Excel mistakes with row and field names',()=>{
   const wrong=[headers,
-   ['ORB-SEP-002','2026-09-01','General Expenses','Repair','','Amjad Payable',600,600],
-   ['ORB-SEP-003','2026-09-01','General Expenses','Fuel','','Amjad Payable',500,500]
+   ['ORB-SEP-002','2026-09-01','General Expenses','Repair','Amjad Payable',600,600],
+   ['ORB-SEP-003','2026-09-01','General Expenses','Fuel','Amjad Payable',500,500]
   ];
   let message='';try{normalizeSimpleJournalRows(wrong)}catch(e){message=String((e as Error).message)}
-  expect(message).toContain('columns G/H');
-  expect(message).toContain('column F (party_name)');
+  expect(message).toContain('positive Debit OR Credit, not both');
+  expect(message).toContain('Party column');
   expect(message).toContain('4 problem(s)');
  });
  it('rejects vehicle allocation in new and legacy templates with a useful route',()=>{
   const oldHeaders=[...headers,'vehicle_no'];
   expect(()=>normalizeSimpleJournalRows([oldHeaders,
-   ['JE','2026-09-05','General Expenses','Vehicle 7979 repair','','',600,0,'7979'],
-   ['','','Amjad Payable','Paid','','',0,600,'']
+   ['JE','2026-09-05','General Expenses','Vehicle 7979 repair','',600,0,'7979'],
+   ['','','Amjad Payable','Paid','',0,600,'']
   ])).toThrow(/Vehicle allocation is not part of General Journal/);
   expect(()=>normalizeSimpleJournalRows([[...headers,'related_to'],
-   ['JE','2026-09-05','General Expenses','Vehicle 7979 repair','','',600,0,'Vehicle: 7979'],
+   ['JE','2026-09-05','General Expenses','Vehicle 7979 repair','',600,0,'Vehicle: 7979'],
    ['','','Amjad Payable','Paid','','',0,600,'']
   ])).toThrow(/Transport Vehicle Expenses/);
  });
  it('groups blank entry numbers by date without inventing balancing lines',()=>{
   const rows=normalizeSimpleJournalRows([headers,
-   ['', '2026-09-02','General Expenses','Locks','','',40,0],
-   ['', '2026-09-02','Amjad Payable','Funding','','',0,40],
-   ['', '2026-09-05','General Expenses','Welding','','',250,0],
-   ['', '2026-09-05','Amjad Payable','Funding','','',0,250],
+   ['', '2026-09-02','General Expenses','Locks','',40,0],
+   ['', '2026-09-02','Amjad Payable','Funding','',0,40],
+   ['', '2026-09-05','General Expenses','Welding','',250,0],
+   ['', '2026-09-05','Amjad Payable','Funding','',0,250],
   ]);
   expect(rows.slice(1).map(row=>row[0])).toEqual(['IMPORT-2026-09-02','IMPORT-2026-09-02','IMPORT-2026-09-05','IMPORT-2026-09-05']);
   expect(()=>normalizeSimpleJournalRows([headers,['','2026-09-02','General Expenses','Unfunded','', '',40,0]])).toThrow(/at least two lines/);
@@ -51,27 +51,28 @@ describe('Simple Debit/Credit Journal import has no vehicle field',()=>{
   expect(journalImportISODate('01-Sep-26')).toBe('2026-09-01');
   expect(journalImportISODate('15-Oct-2026')).toBe('2026-10-15');
   expect(journalImportISODate('2026-09-05')).toBe('2026-09-05');
-  const rows=normalizeSimpleJournalRows([headers,['R','46266','General Expenses','Repair','','',500,0],['R','','Amjad Payable','Funded','','',0,500]]);
+  const rows=normalizeSimpleJournalRows([headers,['R','46266','General Expenses','Repair','',500,0],['R','','Amjad Payable','Funded','',0,500]]);
   expect(rows[1][1]).toBe('2026-09-01');
  });
  it('supports legacy AR/AP parties but refuses ambiguous Related To values',()=>{
   const oldHeaders=[...headers,'related_to'];
   const ar=normalizeSimpleJournalRows([oldHeaders,
-   ['AR','2026-09-08','Accounts Receivable','Customer opening','','',500,0,'Customer: ABC Trading'],
-   ['','','Amjad Payable','Funded','','',0,500,'']
+   ['AR','2026-09-08','Accounts Receivable','Customer opening','',500,0,'Customer: ABC Trading'],
+   ['','','Amjad Payable','Funded','',0,500,'']
   ]);
   expect(ar[1].slice(5,7)).toEqual(['customer','ABC Trading']);
   expect(()=>normalizeSimpleJournalRows([oldHeaders,
-   ['ERR','2026-09-08','Driver Salary Running Account','Salary','','',500,0,'Yasir'],
+   ['ERR','2026-09-08','Driver Salary Running Account','Salary','',500,0,'Yasir'],
    ['','','Amjad Payable','Funded','','',0,500,'']
   ])).toThrow(/legacy Related To is ambiguous/);
  });
  it('requires Party Type and Party Name together and preserves party identity',()=>{
-  expect(()=>normalizeSimpleJournalRows([headers,
+  const legacyHeaders=['entry_no','entry_date','account_name','line_description','party_type','party_name','debit','credit'];
+  expect(()=>normalizeSimpleJournalRows([legacyHeaders,
    ['X','2026-09-05','Accounts Receivable','Customer','customer','',600,0],
    ['','','Amjad Payable','Funded','','',0,600]
-  ])).toThrow(/must be provided together/);
-  const result=normalizeSimpleJournalRows([headers,
+  ])).toThrow(/Party Type was supplied without Party Name/);
+  const result=normalizeSimpleJournalRows([legacyHeaders,
    ['AR','2026-09-08','Accounts Receivable','Customer opening','customer','ABC Trading',500,0],
    ['','','Service Revenue','Sales','','',0,500]
   ]);
@@ -81,8 +82,8 @@ describe('Simple Debit/Credit Journal import has no vehicle field',()=>{
  it('rejects unbalanced, single-sided, invalid and conflicting journals before RPC',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,pair[0]])).toThrow(/at least two/);
   expect(()=>normalizeSimpleJournalRows([headers,pair[0],['','','Amjad Payable','Paid','','',0,550]])).toThrow(/not balanced/);
-  expect(()=>normalizeSimpleJournalRows([headers,['X','2026-02-31','General Expenses','Repair','','',600,0],['','','Amjad Payable','Funded','','',0,600]])).toThrow(/valid YYYY-MM-DD/);
-  expect(()=>normalizeSimpleJournalRows([headers,['X','2026-09-05','General Expenses','repair','','',600,0],['X','2026-09-06','Amjad Payable','funded','','',0,600]])).toThrow(/conflicting dates/);
+  expect(()=>normalizeSimpleJournalRows([headers,['X','2026-02-31','General Expenses','Repair','',600,0],['','','Amjad Payable','Funded','','',0,600]])).toThrow(/valid YYYY-MM-DD/);
+  expect(()=>normalizeSimpleJournalRows([headers,['X','2026-09-05','General Expenses','repair','',600,0],['X','2026-09-06','Amjad Payable','funded','',0,600]])).toThrow(/conflicting dates/);
  });
  it('recognizes the simple Debit/Credit layout and keeps advanced format separate',()=>{
   expect(isSimpleJournalTemplate(headers)).toBe(true);
