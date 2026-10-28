@@ -1,5 +1,5 @@
 import {useAuth} from '@/auth/AuthContext';
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import ConfigurableReport from '../transport/ConfigurableReport';
 import NaviloDateInput from '@/components/NaviloDateInput';
 import AccountingReportScopeSelect,{type AccountingReportScope} from './AccountingReportScopeSelect';
@@ -197,6 +197,7 @@ function ResultRow({ label, amount, onClick }: {
 }
 
 export default function ProfitLoss() {
+  const navigate = useNavigate();
   const {activeBusinessUnit,activeCompany}=useAuth();
   const [data, setData] = useState<PLData>(emptyPLData);
   const [drilldown, setDrilldown] = useState<PLDrilldown | null>(null);
@@ -557,9 +558,12 @@ export default function ProfitLoss() {
     ['Income','Total Income',metrics.totalIncome],
   ]:printSectionRows('Operating Revenue',data.operatingRevenue);
 
-  const openDrilldown=(accountIds:string[],title:string,journalIds?:string[],excludeJournalIds?:string[] )=>{
+  const openDrilldown=(accountIds:string[],_title:string,_journalIds?:string[],_excludeJournalIds?:string[] )=>{
     const uniqueIds=[...new Set(accountIds.filter(Boolean))];
-    if(uniqueIds.length)setDrilldown({title,accountIds:uniqueIds,journalIds,excludeJournalIds});
+    if(!uniqueIds.length)return;
+    const params=new URLSearchParams({from:fromDate,to:toDate});
+    if(uniqueIds.length===1)params.set("account",uniqueIds[0]);
+    navigate(`/accounting/ledgers?${params.toString()}`);
   };
   const pAndLAccountIds=(...sections:PLSectionData[])=>[...new Set(sections.flatMap(section=>section.items.flatMap(item=>item.accountIds??[])))];
   const visibleDrilldownRows=drilldown?drilldownRows.filter(line=>Boolean(line.account_id)
