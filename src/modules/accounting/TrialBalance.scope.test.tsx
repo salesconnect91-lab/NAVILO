@@ -2,6 +2,7 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {cleanup,render,screen,waitFor} from '@testing-library/react';
 import TrialBalance from './TrialBalance';
+import {MemoryRouter} from 'react-router-dom';
 
 const mock=vi.hoisted(()=>({
  company:'company-A',businessUnit:'BU-A',
@@ -32,30 +33,30 @@ vi.mock('@/lib/documentPrintSettings',()=>({
  loadDocumentPrintSettings:async()=>null,documentContactText:()=>'',documentTaxText:()=>'',
 }));
 vi.mock('@/lib/accountingReportPdf',()=>({downloadAccountingReportPdf:vi.fn()}));
-vi.mock('../transport/ConfigurableReport',()=>({default:({report}:any)=><pre data-testid="trial-export">{JSON.stringify(report)}</pre>}));
+vi.mock('@/modules/transport/ConfigurableReport',()=>({default:({report}:any)=><pre data-testid="trial-export">{JSON.stringify(report)}</pre>}));
 vi.mock('@/components/NaviloDateInput',()=>({default:({value,onChange,...props}:any)=><input type="date" value={value} onChange={onChange} {...props}/>}));
 vi.mock('./AccountingReportScopeSelect',()=>({default:({value,onChange}:any)=><select aria-label="Report scope" value={value} onChange={e=>onChange(e.target.value)}><option value="branch">Branch</option><option value="company">Company</option></select>}));
 beforeEach(()=>{mock.company='company-A';mock.businessUnit='BU-A';mock.failure=false;mock.malformed=false;mock.accountScopes=[];mock.journalCalls=[];mock.pending=null});
 afterEach(cleanup);
 describe('Trial Balance tenant guard and fail-closed evidence',()=>{
  it('explicitly scopes chart of accounts and loads posted balance data',async()=>{
-  render(<TrialBalance/>);
+  render(<MemoryRouter><TrialBalance/></MemoryRouter>);
   await waitFor(()=>expect(mock.journalCalls.length).toBeGreaterThan(0));
   await waitFor(()=>expect(mock.accountScopes).toContain('company-A'));
   expect(mock.journalCalls[0].name).toBe('accounting_report_balances_scoped');
   expect(mock.journalCalls[0].args.p_scope).toBe('branch');
  });
  it('permission denial hides stale report totals after changing company',async()=>{
-  const v=render(<TrialBalance/>);
+  const v=render(<MemoryRouter><TrialBalance/></MemoryRouter>);
   await waitFor(()=>expect(screen.getByTestId('trial-export').textContent).toContain('300'));
-  mock.company='company-B';mock.failure=true;v.rerender(<TrialBalance/>);
+  mock.company='company-B';mock.failure=true;v.rerender(<MemoryRouter><TrialBalance/></MemoryRouter>);
   await waitFor(()=>expect(screen.getByText('Accounting permission denied')).toBeTruthy());
   expect(mock.accountScopes).toContain('company-B');
   expect(screen.queryByText(/300\.00/)).toBeNull();
  });
  it('malformed RPC output never shows a fabricated balanced trial balance',async()=>{
   mock.malformed=true;
-  render(<TrialBalance/>);
+  render(<MemoryRouter><TrialBalance/></MemoryRouter>);
   await waitFor(()=>expect(screen.getByText('Incomplete Trial Balance evidence; totals withheld.')).toBeTruthy());
   expect(screen.queryByText(/300\.00/)).toBeNull();
  });

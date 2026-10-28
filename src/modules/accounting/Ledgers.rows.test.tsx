@@ -2,6 +2,7 @@
 import {afterEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {clonePrintSource} from '@/lib/printDocument';
+import {MemoryRouter} from 'react-router-dom';
 const fixture=vi.hoisted(()=>{
  const events=Array.from({length:202},(_,i)=>({event_id:`e${String(i).padStart(3,'0')}`,kind:'opening_balance',event_type:'opening_balance',order_id:`d${i}`,order_no:`INV${i}`,side:'customer',party_id:'bari',party_name:'CASH BARI',journal_entry_id:'opening',event_date:'2026-10-12',created_at:'2026-10-12',description:'Opening',debit:5,credit:0,amount:5,original_net:10,original_gross:10,historical_settled:5}));
  return {events,ledger:[{id:'bari-ledger',party_type:'customer',party_id:'bari',party_name:'CASH BARI',journal_entry_id:'opening',entry_date:'2026-10-12',created_at:'2026-10-12',debit:1010,credit:0},{id:'other',party_type:'customer',party_id:'other',party_name:'OTHER CUSTOMER',journal_entry_id:'native',entry_date:'2026-10-12',created_at:'2026-10-12',debit:10,credit:0}]};
@@ -31,7 +32,7 @@ vi.mock('@/modules/transport/transportOpeningInvoices',()=>({linkedPartyRows:asy
 import Ledgers from './Ledgers';
 afterEach(()=>{cleanup();localStorage.clear();vi.clearAllMocks()});
 it('shows a compact ledger-style Party Statement and avoids expensive unfiltered reads',async()=>{
- const {container}=render(<Ledgers/>);
+ const {container}=render(<MemoryRouter><Ledgers/></MemoryRouter>);
  fireEvent.change(screen.getAllByRole('combobox')[0],{target:{value:'party'}});
  await screen.findByText(/Select a party to view its ledger/);
  expect(api.reads.mock.calls.some(([table])=>table==='party_ledgers')).toBe(false);
@@ -45,7 +46,7 @@ it('shows a compact ledger-style Party Statement and avoids expensive unfiltered
  expect(api.rpc.mock.calls.some(([name])=>name==='transport_document_trip_detail_query')).toBe(false);
 },30000);
 it('loads selected-party invoice evidence only on demand and prints all rows',async()=>{
- const {container}=render(<Ledgers/>);
+ const {container}=render(<MemoryRouter><Ledgers/></MemoryRouter>);
  fireEvent.change(screen.getAllByRole('combobox')[0],{target:{value:'party'}});
  const input=screen.getByPlaceholderText('Type customer or supplier name...');
  fireEvent.change(input,{target:{value:'CASH BARI'}});
