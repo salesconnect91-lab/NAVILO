@@ -3,10 +3,8 @@ import {createImportTemplateWorkbook} from '@/lib/importExcelTemplate';
 export const TEMPLATE_HEADERS = [
   "entry_no",
   "entry_date",
-  "description",
   "account_name",
   "line_description",
-  "party",
   "debit",
   "credit",
 ];
@@ -74,20 +72,20 @@ export const downloadExcelTemplate = () => {
   title:'NAVILO General Journal bulk import',
   notes:[
    'Upload creates DRAFT journals only. Review and post each journal in Accounting; no entries are posted automatically.',
-   'All rows with the same entry_no must have the same entry_date and description. Debit and credit totals for each entry MUST balance.',
+   'All rows with the same entry_no must have the same entry_date. Debit and credit totals for each entry MUST balance.',
    'Account Name is the GL account receiving the debit or credit. General Journal lines do not carry a vehicle selection.',
-   'Party is one column. Enter the exact Customer on the mapped Accounts Receivable line or Supplier on the mapped Accounts Payable line; NAVILO determines the party type from the account. Leave Party blank on other lines.',
+   'The visible template has exactly six columns. Customer/supplier party details are not standard Journal columns; use the mapped AR/AP workflows when party attribution is required.',
    'Do not invent missing accounts or use group accounts. If an account name is ambiguous, use the optional legacy account_head column to disambiguate.',
    'Supplier payment examples: DEBIT Accounts Payable with the correct Supplier Party and CREDIT Cash/Bank. Review direction and any existing allocations before posting.',
-   'line_description is optional per line; description is the overall journal narration. Debit/Credit must balance per Entry No, with only one nonzero side per line.',
+   'Line Description is the narration for each line and is used as the journal description when no separate description column is supplied. Debit/Credit must balance per Entry No, with only one nonzero side per line.',
    'There is no sales/purchase invoice or receipt created by general Journal import. Do not re-import posted vouchers.'
   ]
  });
  const sheet=XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS,...TEMPLATE_ROWS]);
  sheet['!cols']=[
-  {wch:18},{wch:15},{wch:35},{wch:34},{wch:38},{wch:36},{wch:17},{wch:17}
+  {wch:18},{wch:15},{wch:34},{wch:38},{wch:17},{wch:17}
  ];
- sheet['!autofilter']={ref:`A1:H${TEMPLATE_ROWS.length+1}`};
+ sheet['!autofilter']={ref:`A1:F${TEMPLATE_ROWS.length+1}`};
  workbook.Sheets['Journal Import']=sheet;
  XLSX.writeFile(workbook,'journal-import-template.xlsx');
 };
