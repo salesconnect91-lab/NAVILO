@@ -34,11 +34,19 @@ export default function TransportRegisterDraftInvoiceEditor({row,onClose,onSaved
   if(row.side==='customer')candidates=candidates.filter(x=>x.customer_id===context.party_id&&x.customer_rate_state==='finalized'&&!x.customer_rate_locked);
   else candidates=candidates.filter(x=>String(x.party_id||x.owner_supplier_id||'')===context.party_id&&!x.posted&&!x.draftLinked&&!x.legacyBlocked&&x.rent?.state==='finalized');
   const current:TripRow[]=[];
-  for(const tripId of [...new Set(context.trip_ids||[])]){
-   const r=await supabase.rpc('transport_bulk_rate_page',{p_side:row.side,p_limit:500,p_offset:0,p_filters:{party:context.party_id,initialTrip:tripId,columns:{},status:''}});
-   if(r.error)throw r.error;
-   const rows=(Array.isArray(r.data?.rows)?r.data.rows:[]) as TripRow[];
-   current.push(...rows.filter(x=>context.line_ids.includes(lineIdFor(row.side,x))));
+  // Load linked Trips in small parallel batches. A sequential RPC per Trip made
+  // larger invoices feel frozen while the editor rebuilt its current selection.
+  const linkedTripIds=[...new Set(context.trip_ids||[])];
+  for(let offset=0;offset<linkedTripIds.length;offset+=8){
+   const batch=linkedTripIds.slice(offset,offset+8);
+   const results=await Promise.all(batch.map(tripId=>supabase.rpc('transport_bulk_rate_page',{
+    p_side:row.side,p_limit:500,p_offset:0,p_filters:{party:context.party_id,initialTrip:tripId,columns:{},status:''}
+   })));
+   for(const r of results){
+    if(r.error)throw r.error;
+    const rows=(Array.isArray(r.data?.rows)?r.data.rows:[]) as TripRow[];
+    current.push(...rows.filter(x=>context.line_ids.includes(lineIdFor(row.side,x))));
+   }
   }
   const merged=[...current,...candidates.filter(x=>!context.line_ids.includes(lineIdFor(row.side,x)))];
   if(posted&&merged.length){
