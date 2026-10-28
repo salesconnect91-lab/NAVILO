@@ -20,20 +20,21 @@ export default function TransportRegisterDraftInvoiceEditor({row,onClose,onSaved
  const [context,setContext]=useState<Context|null>(null),[trips,setTrips]=useState<TripRow[]>([]),[selected,setSelected]=useState<string[]>([]);
  const [invoiceNo,setInvoiceNo]=useState(row.invoice_no),[invoiceDate,setInvoiceDate]=useState(row.invoice_date),[search,setSearch]=useState(''),[searchQuery,setSearchQuery]=useState('');
  useEffect(()=>{const timer=window.setTimeout(()=>setSearchQuery(search.trim()),300);return()=>window.clearTimeout(timer)},[search]);
- const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
+ const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[loadingMore,setLoadingMore]=useState(false),[hasMore,setHasMore]=useState(false),[nextOffset,setNextOffset]=useState(0),[error,setError]=useState(''),[message,setMessage]=useState('');
  useEffect(()=>{let live=true;void (async()=>{setLoading(true);setError('');try{
   const result=await supabase.rpc(posted?'transport_register_posted_invoice_edit_context':'transport_register_draft_invoice_edit_context',{p_side:row.side,p_document_id:row.document_id});
   if(result.error)throw result.error;const data=result.data as Context;if(!data?.account_id)throw new Error('This draft has no active revenue/expense account. It needs an account mapping before it can be edited.');
   if(live){setContext(data);setInvoiceNo(data.invoice_no);setInvoiceDate(String(data.invoice_date).slice(0,10));setSelected(data.line_ids||[]);}
  }catch(e:any){if(live)setError(e?.message||'Could not load this draft for editing.')}finally{if(live)setLoading(false)}})();return()=>{live=false}},[row.side,row.document_id,posted]);
 
- useEffect(()=>{if(!context)return;let live=true;void (async()=>{setLoading(true);setError('');try{
+ useEffect(()=>{if(!context)return;let live=true;void (async()=>{setLoading(true);setHasMore(false);setNextOffset(0);setError('');try{
   // Search is applied by the database before pagination, so a Trip outside the
   // first 500 rows can still be found without loading the entire register.
   const filters=row.side==='customer'?{party:context.party_id,search:searchQuery,columns:{},status:'',unpostedOnly:true}:{party:context.party_id,search:searchQuery,columns:{},status:''};
   const page=await supabase.rpc('transport_bulk_rate_page',{p_side:row.side,p_limit:500,p_offset:0,p_filters:filters});
   if(page.error)throw page.error;
-  let candidates=(Array.isArray(page.data?.rows)?page.data.rows:[]) as TripRow[];
+  const rawRows=(Array.isArray(page.data?.rows)?page.data.rows:[]) as TripRow[];
+  let candidates=rawRows;
   if(row.side==='customer')candidates=candidates.filter(x=>x.customer_id===context.party_id&&x.customer_rate_state==='finalized'&&!x.customer_rate_locked);
   else candidates=candidates.filter(x=>String(x.party_id||x.owner_supplier_id||'')===context.party_id&&!x.posted&&!x.draftLinked&&!x.legacyBlocked&&x.rent?.state==='finalized');
   const current:TripRow[]=[];
@@ -64,8 +65,23 @@ export default function TransportRegisterDraftInvoiceEditor({row,onClose,onSaved
    for(const entry of base.data||[]){const item=entry as Record<string,any>;initial[item.id]={base_amount:String(row.side==='customer'?(item.customer_base_rate??item.customer_rate):(item.base_amount??item.amount)),manualAdjustment:Number(item.customer_manual_adjustment||0),charges:(charges.data||[]).filter(raw=>{const charge=raw as Record<string,any>;return (row.side==='customer'?charge.trip_id:charge.rent_id)===item.id}).map(raw=>{const charge=raw as Record<string,any>;return {charge_master_id:charge.charge_master_id,amount:String(charge.amount)}})};}
    if(live){setEdits(initial);setChargeMasters((masters.data||[]).filter(x=>x.applies_to==='both'||x.applies_to===(row.side==='customer'?'sales':'purchase')) as ChargeMaster[]);}
   }
-  if(live)setTrips(merged);
+  if(live){setTrips(merged);setNextOffset(rawRows.length);setHasMore(rawRows.length===500);}
  }catch(e:any){if(live)setError(e?.message||'Could not load eligible Trips for this draft.')}finally{if(live)setLoading(false)}})();return()=>{live=false}},[context,row.side,posted,searchQuery]);
+
+ async function loadMore(){
+  if(!context||loading||loadingMore||!hasMore)return;setLoadingMore(true);setError('');
+  try{
+   const filters=row.side==='customer'?{party:context.party_id,search:searchQuery,columns:{},status:'',unpostedOnly:true}:{party:context.party_id,search:searchQuery,columns:{},status:''};
+   const page=await supabase.rpc('transport_bulk_rate_page',{p_side:row.side,p_limit:500,p_offset:nextOffset,p_filters:filters});
+   if(page.error)throw page.error;
+   const rawRows=(Array.isArray(page.data?.rows)?page.data.rows:[]) as TripRow[];
+   let candidates=rawRows;
+   if(row.side==='customer')candidates=candidates.filter(x=>x.customer_id===context.party_id&&x.customer_rate_state==='finalized'&&!x.customer_rate_locked);
+   else candidates=candidates.filter(x=>String(x.party_id||x.owner_supplier_id||'')===context.party_id&&!x.posted&&!x.draftLinked&&!x.legacyBlocked&&x.rent?.state==='finalized');
+   setTrips(current=>{const seen=new Set(current.map(x=>lineIdFor(row.side,x)));return [...current,...candidates.filter(x=>!seen.has(lineIdFor(row.side,x)))];});
+   setNextOffset(current=>current+rawRows.length);setHasMore(rawRows.length===500);
+  }catch(e:any){setError(e?.message||'Could not load the next Trip page.')}finally{setLoadingMore(false)}
+ }
 
  function changeLine(id:string,update:Partial<LineEdit>){setEdits(current=>({...current,[id]:{...current[id],...update}}));}
  const invalidEdits=posted&&selected.some(id=>{const edit=edits[id];return !edit||!Number.isFinite(Number(edit.base_amount))||Number(edit.base_amount)<=0||edit.charges.some(charge=>!charge.charge_master_id||!Number.isFinite(Number(charge.amount))||Number(charge.amount)<=0)});
@@ -90,6 +106,7 @@ export default function TransportRegisterDraftInvoiceEditor({row,onClose,onSaved
  {(edits[lineId]?.charges||[]).map((charge,chargeIndex)=><div key={charge.charge_master_id} className="my-1 flex items-center gap-1"><span>{chargeMasters.find(master=>master.id===charge.charge_master_id)?.charge_name||'Saved charge'}</span><input aria-label={`Charge ${chargeIndex+1} amount Trip ${trip.trip_no}`} className="input h-7 w-20" type="number" min="0.01" step="0.01" value={charge.amount} disabled={saving||!selected.includes(lineId)} onChange={e=>changeLine(lineId,{charges:edits[lineId].charges.map((item,i)=>i===chargeIndex?{...item,amount:e.target.value}:item),chargesDirty:true})}/><button type="button" className="btn" aria-label={`Remove charge ${chargeIndex+1} Trip ${trip.trip_no}`} disabled={saving||!selected.includes(lineId)} onClick={()=>changeLine(lineId,{charges:edits[lineId].charges.filter((_,i)=>i!==chargeIndex),chargesDirty:true})}>−</button></div>)}
  <select aria-label={`Add charge Trip ${trip.trip_no}`} className="input h-7 max-w-56" value="" disabled={saving||!selected.includes(lineId)} onChange={e=>{const master=chargeMasters.find(item=>item.id===e.target.value);if(master)changeLine(lineId,{charges:[...(edits[lineId]?.charges||[]),{charge_master_id:master.id,amount:String(master.default_rate||0)}],chargesDirty:true})}}><option value="">+ Add Charge</option>{chargeMasters.filter(master=>!edits[lineId]?.charges.some(charge=>charge.charge_master_id===master.id)).map(master=><option key={master.id} value={master.id}>{master.charge_name}</option>)}</select>
  </details></td>}</tr>})}{!loading&&visible.length===0&&<tr><td colSpan={posted?8:7} className="p-4 text-center text-slate-500">No eligible Trips found for this party and search.</td></tr>}</tbody></table>{loading&&<p role="status" className="p-4 text-center">Loading Trips…</p>}</div>
+  {hasMore&&<div className="flex justify-center py-2"><button type="button" className="btn" disabled={loading||loadingMore||saving} onClick={()=>void loadMore()}>{loadingMore?'Loading more Trips…':'Load more Trips'}</button></div>}
   {selectedRows.length>0&&<p className="mt-2 text-right text-[11px]">Selected net amount: <strong>{financialNumber(selectedRows.reduce((sum,t)=>sum+amountFor(t),0))}</strong></p>}
   {posted&&<TransportReasonSelect className="mt-2" kind="finance" label="Posted invoice edit reason" value={reason} onChange={setReason} disabled={saving}/> }
   <footer className="mt-2 flex items-center justify-between"><span className="text-[10px] text-slate-500">{posted?'Save updates the posted invoice and original journal atomically. Existing payments stay linked; credit notes, stock and other dependent records must be resolved first.':'Editing changes trip links and draft totals together. Posting remains a separate action.'}</span><div className="flex gap-2"><button className="btn" disabled={saving} onClick={onClose}>Cancel</button><button className="btn-primary" disabled={loading||saving||!context?.account_id||!invoiceDate||!invoiceNo.trim()||selected.length===0||invalidEdits||(posted&&reason.trim().length<10)} onClick={()=>void save()}>{saving?'Saving…':posted?'Save Posted Changes':'Save Draft Changes'}</button></div></footer>
