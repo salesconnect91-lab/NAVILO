@@ -130,53 +130,30 @@ function StatementSection({ title, section, onDrilldown, showDetails = true }: {
 }) {
   const sectionAccountIds = [...new Set(section.items.flatMap(item => item.accountIds ?? []))];
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-200 bg-slate-100 px-3 py-2">
-        <h3 className="text-xs font-bold uppercase tracking-wide text-slate-800">{title}</h3>
-        {onDrilldown && sectionAccountIds.length ? (
-          <button type="button" onClick={() => onDrilldown(sectionAccountIds, title)}
-            title="Open the posted ledger entries behind this total"
-            className="cursor-pointer font-mono text-xs font-bold text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">
-            {formatCurrency(section.total)}
-          </button>
-        ) : <span className="font-mono text-xs font-bold text-slate-900">{formatCurrency(section.total)}</span>}
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[440px] border-collapse text-sm" data-business-data>
-          <thead><tr className="bg-white text-left text-xs uppercase tracking-wide text-slate-500">
-            <th className="border-b border-slate-200 px-3 py-2 font-semibold">Account / Group</th>
-            <th className="border-b border-slate-200 px-3 py-2 text-right font-semibold">Amount</th>
-          </tr></thead>
-          <tbody>
-            {!showDetails ? <tr><td colSpan={2} className="px-3 py-2 text-xs text-slate-500">Account details hidden · section total remains visible.</td></tr>
-            : section.items.length === 0 ? <tr><td colSpan={2} className="px-3 py-4 text-center text-xs text-slate-400">No balances for this period.</td></tr>
-            : section.items.map((item,index) => {
-              const content = onDrilldown && item.accountIds?.length ? (
-                <button type="button" onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)}
-                  title="Open this account's General Ledger"
-                  className="text-left font-medium text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">
-                  {item.name}
-                </button>
-              ) : <span className="font-medium text-slate-800">{item.name}</span>;
-              return <tr key={item.accountIds?.[0] ?? item.name} className={index%2===1?"bg-slate-50/60":"border-b border-slate-100"}>
-                <td className="px-3 py-1.5 text-xs">{content}
-                  {item.detailType && normalized(item.detailType) !== normalized(item.name) && <span className="ml-2 text-[11px] text-slate-500">{item.detailType}</span>}
-                </td>
-                <td className="px-3 py-1.5 text-right font-mono text-xs">
-                  {onDrilldown && item.accountIds?.length ? <button type="button" onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)}
-                    title="Open this account's General Ledger" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(item.amount)}</button>
-                    : <span className="text-slate-800">{formatCurrency(item.amount)}</span>}
-                </td>
-              </tr>;
-            })}
-            <tr className="border-t border-slate-300 bg-slate-50 font-bold">
-              <td className="px-3 py-2 text-xs">Total {title}</td>
-              <td className="px-3 py-2 text-right font-mono text-xs">{formatCurrency(section.total)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <>
+      <tr className="bg-slate-100">
+        <th scope="rowgroup" colSpan={2} className="px-4 py-2 text-left text-xs font-bold uppercase tracking-wider text-slate-800">{title}</th>
+      </tr>
+      {!showDetails ? (
+        <tr><td colSpan={2} className="px-4 py-1.5 text-xs text-slate-500">Account details hidden · section total remains visible.</td></tr>
+      ) : section.items.length === 0 ? (
+        <tr><td colSpan={2} className="px-4 py-2 text-xs text-slate-400">No balances for this period.</td></tr>
+      ) : section.items.map((item,index) => (
+        <tr key={item.accountIds?.[0] ?? item.name} className={index%2===1 ? "bg-slate-50/60" : "border-t border-slate-100"}>
+          <td className="py-1.5 pr-4 pl-12 text-xs">
+            {onDrilldown && item.accountIds?.length ? <button type="button" onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)} title="Open this account's General Ledger" className="text-left font-medium text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{item.name}</button> : <span className="font-medium text-slate-800">{item.name}</span>}
+            {item.detailType && normalized(item.detailType) !== normalized(item.name) && <span className="ml-2 text-[11px] text-slate-500">{item.detailType}</span>}
+          </td>
+          <td className="px-4 py-1.5 text-right font-mono text-xs">
+            {onDrilldown && item.accountIds?.length ? <button type="button" onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)} title="Open this account's General Ledger" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(item.amount)}</button> : <span className="text-slate-800">{formatCurrency(item.amount)}</span>}
+          </td>
+        </tr>
+      ))}
+      <tr className="border-t border-slate-300 bg-slate-50 font-semibold">
+        <td className="py-1.5 pr-4 pl-7 text-xs">Total {title}</td>
+        <td className="px-4 py-1.5 text-right font-mono text-xs">{onDrilldown && sectionAccountIds.length ? <button type="button" onClick={() => onDrilldown(sectionAccountIds, title)} className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(section.total)}</button> : formatCurrency(section.total)}</td>
+      </tr>
+    </>
   );
 }
 
@@ -187,12 +164,12 @@ function ResultRow({ label, amount, onClick }: {
   onClick?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between border-t-2 border-slate-600 bg-slate-50 px-3 py-2 text-slate-900">
-      <span className="text-xs font-bold uppercase tracking-wide">{label}</span>
-      {onClick ? <button type="button" onClick={onClick} title="Open contributing posted ledger entries"
-        className="cursor-pointer font-mono text-sm font-bold text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(amount)}</button>
-        : <span className="font-mono text-lg font-bold">{formatCurrency(amount)}</span>}
-    </div>
+    <tr className="border-t-2 border-slate-600 bg-slate-50 text-slate-900">
+      <th scope="row" className="py-2 pr-4 pl-4 text-left text-xs font-bold uppercase tracking-wide">{label}</th>
+      <td className="px-4 py-2 text-right font-mono text-xs font-bold">
+        {onClick ? <button type="button" onClick={onClick} title="Open contributing posted ledger entries" className="cursor-pointer text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(amount)}</button> : formatCurrency(amount)}
+      </td>
+    </tr>
   );
 }
 
@@ -654,55 +631,34 @@ export default function ProfitLoss() {
           <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-slate-400 shadow-sm">Loading Profit & Loss statement...</div>
         ) : (
           <>
-            <details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; monthly and year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...revenueExportRows,...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...(isTransport?[]:printSectionRows('Other Income',data.otherIncome)),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details>{!isTransport&&(<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              {([
-                ["Revenue", data.operatingRevenue.total, "text-emerald-700"],
-                ["Cost of Sales", data.costOfSales.total, "text-rose-700"],
-                ["Gross Profit", metrics.grossProfit, metrics.grossProfit >= 0 ? "text-emerald-700" : "text-rose-700"],
-                ["Operating Expenses", data.operatingExpenses.total, "text-rose-700"],
-                ["Net Profit / Loss", metrics.netProfit, metrics.netProfit >= 0 ? "text-blue-700" : "text-rose-700"],
-              ] as Array<[string, number, string]>).map(([label, value, tone]) => (
-                <div key={label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><span className="block text-[12px] font-bold uppercase tracking-wide text-slate-500">{label}</span><span className={`mt-1 block font-mono text-base font-bold ${tone}`}>{formatCurrency(value)}</span></div>
-              ))}
-            </div>)}
-
-            <div className={`space-y-3 border border-slate-200 bg-white ${isTransport?'profit-loss-screen':''}`}>
-              {isTransport&&transportIncome?<>
-                <StatementSection title="Income — Vehicles" section={{
-                  total:transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.net,0),
-                  items:transportIncome.vehicleLedgerAccounts.map(row=>({
-                    name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net,detailType:'Vehicle master → mapped Chart of Accounts ledger · selected period',accountIds:[row.account_id],
-                  })),
-                }} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
-                <StatementSection title="Other Income" section={{
-                  items:[...data.operatingRevenue.items,...data.otherIncome.items]
-                    .filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id))),
-                  total:[...data.operatingRevenue.items,...data.otherIncome.items]
-                    .filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id)))
-                    .reduce((sum,item)=>sum+item.amount,0),
-                }} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
-              </>:<StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />}
-              {isTransport?<>
-                <StatementSection title="Expenses" section={{
-                  items:[...data.costOfSales.items,...data.operatingExpenses.items,...data.otherExpenses.items],
-                  total:metrics.totalExpenses,
-                }} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
-                <ResultRow label="Net Earnings" amount={metrics.netProfit} prominent
-                  onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.otherIncome,data.costOfSales,data.operatingExpenses,data.otherExpenses),"Net Earnings")} />
-              </>:<>
-                <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
-                <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales),"Gross Profit / (Loss)")} />
-                <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
-                <ResultRow label="Operating Profit / (Loss)" amount={metrics.operatingProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses),"Operating Profit / (Loss)")} />
-                {(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income" section={data.otherIncome} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />}
-                {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses" section={data.otherExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />}
-                <ResultRow label="Net Profit / (Loss)" amount={metrics.netProfit} prominent
-                  onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses,data.otherIncome,data.otherExpenses),"Net Profit / (Loss)")} />
-              </>}
-              <div className="grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-3" data-report-total>
-                <div><span className="block text-xs text-slate-500">Total Income</span><span className="font-mono font-bold text-slate-900">{formatCurrency(metrics.totalIncome)}</span></div>
-                <div><span className="block text-xs text-slate-500">Total Expenses</span><span className="font-mono font-bold text-slate-900">{formatCurrency(metrics.totalExpenses)}</span></div>
-                <div><span className="block text-xs text-slate-500">Net Margin</span><span className="font-mono font-bold text-slate-900">{metrics.netMargin.toFixed(2)}%</span></div>
+            <details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; monthly and year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...revenueExportRows,...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...(isTransport?[]:printSectionRows('Other Income',data.otherIncome)),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-business-data>
+              <div className="flex flex-col gap-1 border-b border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div><div className="text-sm font-bold text-slate-900">Statement of Profit and Loss</div><div className="mt-0.5 text-xs text-slate-500">For the period {formatReportDate(fromDate)} to {formatReportDate(toDate)}</div></div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[680px] border-collapse text-sm">
+                  <thead><tr className="bg-white text-left text-xs uppercase tracking-wide text-slate-500"><th className="border-b border-slate-200 px-4 py-2 font-semibold">Account / Group</th><th className="border-b border-slate-200 px-4 py-2 text-right font-semibold">Amount</th></tr></thead>
+                  <tbody>
+                    {isTransport&&transportIncome?<>
+                      <StatementSection title="Income — Vehicles" section={{total:transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.net,0),items:transportIncome.vehicleLedgerAccounts.map(row=>({name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net,detailType:'Vehicle master → mapped Chart of Accounts ledger · selected period',accountIds:[row.account_id]}))}} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
+                      <StatementSection title="Other Income" section={{items:[...data.operatingRevenue.items,...data.otherIncome.items].filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id))),total:[...data.operatingRevenue.items,...data.otherIncome.items].filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id))).reduce((sum,item)=>sum+item.amount,0)}} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
+                      <StatementSection title="Expenses" section={{items:[...data.costOfSales.items,...data.operatingExpenses.items,...data.otherExpenses.items],total:metrics.totalExpenses}} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
+                      <ResultRow label="Net Earnings" amount={metrics.netProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.otherIncome,data.costOfSales,data.operatingExpenses,data.otherExpenses),"Net Earnings")} />
+                    </>:<>
+                      <StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
+                      <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
+                      <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales),"Gross Profit / (Loss)")} />
+                      <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
+                      <ResultRow label="Operating Profit / (Loss)" amount={metrics.operatingProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses),"Operating Profit / (Loss)")} />
+                      {(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income" section={data.otherIncome} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />}
+                      {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses" section={data.otherExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />}
+                      <ResultRow label="Net Profit / (Loss)" amount={metrics.netProfit} prominent onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses,data.otherIncome,data.otherExpenses),"Net Profit / (Loss)")} />
+                    </>}
+                    <tr className="border-t border-slate-300 bg-slate-50"><td className="py-1.5 px-4 text-xs font-semibold">Total Income</td><td className="px-4 py-1.5 text-right font-mono text-xs">{formatCurrency(metrics.totalIncome)}</td></tr>
+                    <tr className="border-t border-slate-100"><td className="py-1.5 px-4 text-xs font-semibold">Total Expenses</td><td className="px-4 py-1.5 text-right font-mono text-xs">{formatCurrency(metrics.totalExpenses)}</td></tr>
+                    <tr className="border-t border-slate-100"><td className="py-1.5 px-4 text-xs font-semibold">Net Margin</td><td className="px-4 py-1.5 text-right font-mono text-xs">{metrics.netMargin.toFixed(2)}%</td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </>
