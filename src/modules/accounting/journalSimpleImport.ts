@@ -64,7 +64,6 @@ function legacyRelatedTo(value:unknown,line:number,account:string){
 export function isSimpleJournalTemplate(headers:readonly unknown[]):boolean{
  const h=headers.map(key);
  const core=['entry_no','entry_date','account_name','line_description','debit','credit'];
- const hasParty=h.includes(key('party'))||(h.includes(key('party_type'))&&h.includes(key('party_name')))||h.includes(key('related_to'));
  // The six-column user-facing template intentionally has no Party column.
  // Older seven/nine-column simple templates remain supported for AR/AP attribution.
  return core.every(x=>h.includes(key(x)))&&!h.includes('fundingaccount')&&!h.includes(key('description'));
