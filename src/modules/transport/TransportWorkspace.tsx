@@ -893,6 +893,9 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
     setToFilter("");
     setPprFilter("");
     setStatusFilters([]);
+    // Column filters are persisted with the Register view too; Reset Filters
+    // must clear them or old selections can silently hide most Trips.
+    setColumnFilters({});
     setStatusSearch("");
     setStatusOpen(false);
   };
