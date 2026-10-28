@@ -207,8 +207,8 @@ export default function ProfitLoss() {
   const [drilldownJournals, setDrilldownJournals] = useState<Record<string,JournalMeta>>({});
   const [fromDate, setFromDate] = useState(getYearStart);
   const [toDate, setToDate] = useState(getLocalToday);
-  const [hideZeroBalances, setHideZeroBalances] = useState(false);
-  const [presentationView, setPresentationView] = useState<"detailed" | "summary">("detailed");
+  const [hideZeroBalances, setHideZeroBalances] = useState(true);
+  const [presentationView, setPresentationView] = useState<"classified" | "detailed" | "summary">("classified");
   const [scope,setScope]=useState<AccountingReportScope>('branch');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -645,7 +645,7 @@ export default function ProfitLoss() {
             <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">From Date</span><NaviloDateInput type="date" value={fromDate} max={toDate} onChange={(e) => setFromDate(e.target.value)} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
             <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">To Date</span><NaviloDateInput type="date" value={toDate} min={fromDate} max={getLocalToday()} onChange={(e) => setToDate(e.target.value)} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
             <label className="flex h-10 cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3"><input type="checkbox" checked={hideZeroBalances} onChange={(e) => setHideZeroBalances(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" /><span className="text-sm font-medium text-slate-800">Hide zero-balance accounts</span></label>
-            <label className="block" data-report-filter-label="Statement layout" data-report-filter-value={presentationView}><span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Statement layout</span><SearchableSelect preserveLabel className="input h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm" aria-label="Statement layout" searchPlaceholder="Search statement format..." value={presentationView} onChange={e=>setPresentationView(e.target.value as "detailed"|"summary")}><option value="detailed">Detailed · Ledger classifications</option><option value="summary">Summary · Group totals</option></SearchableSelect></label>
+            <label className="block" data-report-filter-label="Statement layout" data-report-filter-value={presentationView}><span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Statement layout</span><SearchableSelect preserveLabel className="input h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm" aria-label="Statement layout" searchPlaceholder="Search statement format..." value={presentationView} onChange={e=>setPresentationView(e.target.value as "classified"|"detailed"|"summary")}><option value="classified">Classified (default)</option><option value="summary">Summary · Group totals</option><option value="detailed">Detailed · Ledger classifications</option></SearchableSelect></label>
             <div className="flex gap-2"><button type="button" onClick={setThisMonth} className="h-10 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">This Month</button><button type="button" onClick={setThisYear} className="h-10 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">This Year</button></div>
           </div>
           {lastUpdated && <div className="mt-2 text-right text-[12px] text-slate-400">Posted operational ledger entries only · Updated {lastUpdated.toLocaleTimeString()}</div>}
@@ -674,7 +674,7 @@ export default function ProfitLoss() {
                   items:transportIncome.vehicleLedgerAccounts.map(row=>({
                     name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net,detailType:'Vehicle master → mapped Chart of Accounts ledger · selected period',accountIds:[row.account_id],
                   })),
-                }} tone="income" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />
+                }} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
                 <StatementSection title="Other Income" section={{
                   items:[...data.operatingRevenue.items,...data.otherIncome.items]
                     .filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id))),
