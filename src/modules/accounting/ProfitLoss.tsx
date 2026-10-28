@@ -141,17 +141,17 @@ function StatementSection({ title, section, onDrilldown, showDetails = true }: {
       ) : section.items.map((item,index) => (
         <tr key={item.accountIds?.[0] ?? item.name} className={index%2===1 ? "bg-slate-50/60" : "border-t border-slate-100"}>
           <td className="py-1.5 pr-4 pl-12 text-xs">
-            {onDrilldown && item.accountIds?.length ? <button type="button" onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)} title="Open this account's General Ledger" className="text-left font-medium text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{item.name}</button> : <span className="font-medium text-slate-800">{item.name}</span>}
+            <span className="font-medium text-slate-800">{item.name}</span>
             {item.detailType && normalized(item.detailType) !== normalized(item.name) && <span className="ml-2 text-[11px] text-slate-500">{item.detailType}</span>}
           </td>
           <td className="px-4 py-1.5 text-right font-mono text-xs">
-            {onDrilldown && item.accountIds?.length ? <button type="button" onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)} title="Open this account's General Ledger" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(item.amount)}</button> : <span className="text-slate-800">{formatCurrency(item.amount)}</span>}
+            {onDrilldown && item.accountIds?.length === 1 ? <button type="button" onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)} title="Open this account's General Ledger" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(item.amount)}</button> : <span className="text-slate-800">{formatCurrency(item.amount)}</span>}
           </td>
         </tr>
       ))}
       <tr className="border-t border-slate-300 bg-slate-50 font-semibold">
         <td className="py-1.5 pr-4 pl-7 text-xs">Total {title}</td>
-        <td className="px-4 py-1.5 text-right font-mono text-xs">{onDrilldown && sectionAccountIds.length ? <button type="button" onClick={() => onDrilldown(sectionAccountIds, title)} className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(section.total)}</button> : formatCurrency(section.total)}</td>
+        <td className="px-4 py-1.5 text-right font-mono text-xs">{formatCurrency(section.total)}</td>
       </tr>
     </>
   );
@@ -167,7 +167,7 @@ function ResultRow({ label, amount, onClick }: {
     <tr className="border-t-2 border-slate-600 bg-slate-50 text-slate-900">
       <th scope="row" className="py-2 pr-4 pl-4 text-left text-xs font-bold uppercase tracking-wide">{label}</th>
       <td className="px-4 py-2 text-right font-mono text-xs font-bold">
-        {onClick ? <button type="button" onClick={onClick} title="Open contributing posted ledger entries" className="cursor-pointer text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(amount)}</button> : formatCurrency(amount)}
+        {formatCurrency(amount)}
       </td>
     </tr>
   );
