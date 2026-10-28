@@ -6,12 +6,13 @@ import NaviloDateInput from '@/components/NaviloDateInput';
 import {formatNaviloDate} from '@/lib/naviloDate';
 import ConfigurableReport from './ConfigurableReport';
 import type {ReportTable} from './transportPartyExport';
+import {vehicleDisplayLabel} from '@/lib/transportVehicleLabel';
 export default function TransportVehicleAccountingReport(){
  const {activeCompany,activeBusinessUnit}=useAuth();const c=activeCompany?.company_id,b=activeBusinessUnit?.business_unit_id,scope=`${c}/${b}`;
  const ledgerCache=useRef<{key:string;rows:any[];revenue:number;cost:number}|null>(null);
- const [vehicles,setVehicles]=useState<{id:string;vehicle_no:string}[]>([]),[vehicle,setVehicle]=useState(''),[from,setFrom]=useState(''),[to,setTo]=useState('');
+ const [vehicles,setVehicles]=useState<{id:string;vehicle_no:string;truck_type?:string|null}[]>([]),[vehicle,setVehicle]=useState(''),[from,setFrom]=useState(''),[to,setTo]=useState('');
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[report,setReport]=useState<ReportTable|null>(null),[mode,setMode]=useState('ledger');const selection=`${scope}/${vehicle}/${from}/${to}/${mode}`;const [loaded,setLoaded]=useState('');
- useEffect(()=>{let live=true;setVehicles([]);setVehicle('');setReport(null);setError('');if(!c||!b)return;void (async()=>{const rows:typeof vehicles=[];for(let offset=0;;offset+=500){const r=await supabase.from('transport_vehicles').select('id,vehicle_no').eq('company_id',c).eq('business_unit_id',b).order('id').range(offset,offset+499);if(r.error)throw r.error;rows.push(...r.data??[]);if((r.data??[]).length<500)break;}if(live)setVehicles(rows);})().catch(e=>{if(live)setError(e.message);});return()=>{live=false};},[c,b,scope]);
+ useEffect(()=>{let live=true;setVehicles([]);setVehicle('');setReport(null);setError('');if(!c||!b)return;void (async()=>{const rows:typeof vehicles=[];for(let offset=0;;offset+=500){const r=await supabase.from('transport_vehicles').select('id,vehicle_no,truck_type').eq('company_id',c).eq('business_unit_id',b).order('id').range(offset,offset+499);if(r.error)throw r.error;rows.push(...r.data??[]);if((r.data??[]).length<500)break;}if(live)setVehicles(rows);})().catch(e=>{if(live)setError(e.message);});return()=>{live=false};},[c,b,scope]);
  useEffect(()=>{let live=true;setReport(null);setLoaded('');setError('');if(!vehicle||from&&to&&from>to){setBusy(false);return;}setBusy(true);
   void (async()=>{if(mode==='source'){
     let count:number|null=null,net=0,vat=0,gross=0;
@@ -29,7 +30,8 @@ export default function TransportVehicleAccountingReport(){
      if(rows.length>=count||d.rows.length<500)break;
     }
     if(rows.length!==count)throw Error('Incomplete source billing report; totals withheld.');
-    const name=vehicles.find(v=>v.id===vehicle)?.vehicle_no??'';
+    const selectedVehicle=vehicles.find(v=>v.id===vehicle);
+    const name=selectedVehicle?vehicleDisplayLabel(selectedVehicle.vehicle_no,selectedVehicle.truck_type):'';
     const table:ReportTable={
      title:`Vehicle ${name} — Source-linked Trip Billings`,
      description:`${activeCompany?.company_name??''} / ${activeBusinessUnit?.business_unit_name??''} · Source invoice dates ${from?formatNaviloDate(from):'Beginning'} to ${to?formatNaviloDate(to):'All'} · Posted, unreversed source-linked Trip invoices attributed to this vehicle. Income here is already present in company accounting and must NOT be added again to General P&L or vehicle GL. VAT separately identified. This is not a vehicle expense or net profit statement.`,
@@ -51,7 +53,8 @@ export default function TransportVehicleAccountingReport(){
     if(rows.length!==count)throw Error('Incomplete report; totals withheld.');
     if(live)ledgerCache.current={key:ledgerKey,rows,revenue,cost};
    }
-   const title=`Vehicle ${vehicles.find(v=>v.id===vehicle)?.vehicle_no??''} — Ledger`;
+   const selectedVehicle=vehicles.find(v=>v.id===vehicle);
+   const title=`Vehicle ${selectedVehicle?vehicleDisplayLabel(selectedVehicle.vehicle_no,selectedVehicle.truck_type):''} — Ledger`;
    const description=`${activeCompany?.company_name??''} / ${activeBusinessUnit?.business_unit_name??''} · Posting dates ${from?formatNaviloDate(from):'Beginning'} to ${to?formatNaviloDate(to):'All'} · Posted vehicle movements shown as debit and credit entries. Reversals use their posting dates.`;
    let debitTotal=0,creditTotal=0;
    const movements=rows.map(x=>{
@@ -69,5 +72,5 @@ export default function TransportVehicleAccountingReport(){
    if(live){setReport(table);setLoaded(selection);}
   })().catch(e=>{if(live){const message=String(e?.message??'');setError(/failed to fetch|networkerror|load failed|timeout|520/i.test(message)?'Vehicle Ledger could not reach the accounting server. Your records were not changed. Try a shorter date range; if this continues, the database RPC needs optimization.':message||'Vehicle accounting report unavailable');}}).finally(()=>{if(live)setBusy(false);});return()=>{live=false};
  },[c,b,vehicle,from,to,mode,selection,vehicles,activeCompany?.company_name,activeBusinessUnit?.business_unit_name]);
- return <section className="space-y-2 rounded border bg-white p-3 text-xs"><div className="flex flex-wrap items-end gap-2"><label>Vehicle<SearchableSelect nativeCompatibility className="input block" value={vehicle} onChange={e=>setVehicle(e.target.value)}><option value="">Select Vehicle Master</option>{vehicles.map(v=><option key={v.id} value={v.id}>{v.vehicle_no}</option>)}</SearchableSelect></label><label>{mode==='source'?'Source Invoice Date From':'Posting Date From'}<NaviloDateInput className="input block" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>To<NaviloDateInput className="input block" value={to} onChange={e=>setTo(e.target.value)}/></label><label>Statement<SearchableSelect nativeCompatibility className="input block" value={mode} onChange={e=>setMode(e.target.value)}><option value="ledger">Vehicle Ledger · Debit / Credit</option><option value="source">Source-linked Trip Billings (separate)</option></SearchableSelect></label></div>{from&&to&&from>to&&<p role="alert">From must be on or before To.</p>}{busy&&<p role="status">Loading vehicle ledger…</p>}{error&&<p role="alert" className="text-red-700">{error}</p>}{report&&loaded===selection&&!busy&&!error&&<ConfigurableReport report={report} preferenceKey={`vehicle-accounting-${scope}-${mode}`}/>}</section>;
+ return <section className="space-y-2 rounded border bg-white p-3 text-xs"><div className="flex flex-wrap items-end gap-2"><label>Vehicle<SearchableSelect nativeCompatibility className="input block" value={vehicle} onChange={e=>setVehicle(e.target.value)}><option value="">Select Vehicle Master</option>{vehicles.map(v=><option key={v.id} value={v.id}>{vehicleDisplayLabel(v.vehicle_no,v.truck_type)}</option>)}</SearchableSelect></label><label>{mode==='source'?'Source Invoice Date From':'Posting Date From'}<NaviloDateInput className="input block" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>To<NaviloDateInput className="input block" value={to} onChange={e=>setTo(e.target.value)}/></label><label>Statement<SearchableSelect nativeCompatibility className="input block" value={mode} onChange={e=>setMode(e.target.value)}><option value="ledger">Vehicle Ledger · Debit / Credit</option><option value="source">Source-linked Trip Billings (separate)</option></SearchableSelect></label></div>{from&&to&&from>to&&<p role="alert">From must be on or before To.</p>}{busy&&<p role="status">Loading vehicle ledger…</p>}{error&&<p role="alert" className="text-red-700">{error}</p>}{report&&loaded===selection&&!busy&&!error&&<ConfigurableReport report={report} preferenceKey={`vehicle-accounting-${scope}-${mode}`}/>}</section>;
 }
