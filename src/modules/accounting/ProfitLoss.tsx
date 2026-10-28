@@ -190,7 +190,7 @@ export default function ProfitLoss() {
   const [error, setError] = useState<string | null>(null);
   const [reportPrintSettings, setReportPrintSettings] = useState<any>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [transportIncome,setTransportIncome]=useState<{sales:number;mappedSales:number;service:number;other:number;vehicleLedgerTotal:number;vehicleLedgerAdjustment:number;vehicleLedgerAccounts:{account_id:string;account_name:string;vehicle_no:string;truck_type:string;debit:number;credit:number;net:number}[];dedicatedSales:number;vehicles:VehicleIncome[];residual:number;vehicleError:string;salesAccountIds:string[];serviceAccountIds:string[];serviceVehicleAccountIds:string[];serviceSalesAdjustments:{accountId:string;amount:number}[]}|null>(null);
+  const [transportIncome,setTransportIncome]=useState<{sales:number;mappedSales:number;service:number;other:number;vehicleLedgerTotal:number;vehicleLedgerAdjustment:number;vehicleLedgerAccounts:{account_id:string;account_name:string;vehicle_no:string;truck_type:string;debit:number;credit:number;net:number;mapping_status:'dedicated'|'shared'|'missing'}[];dedicatedSales:number;vehicles:VehicleIncome[];residual:number;vehicleError:string;salesAccountIds:string[];serviceAccountIds:string[];serviceVehicleAccountIds:string[];serviceSalesAdjustments:{accountId:string;amount:number}[]}|null>(null);
   const [verifiedTransportUnit,setVerifiedTransportUnit]=useState<{companyId:string;businessUnitId:string;isTransport:boolean}|null>(null);
   const companyId=activeCompany?.company_id??'';
   const businessUnitId=activeBusinessUnit?.business_unit_id??'';
@@ -450,20 +450,24 @@ export default function ProfitLoss() {
           : reconcileNormalVehicleIncome(mappedSales,vehicleData,hideZeroBalances);
         const vehicleLedgerRows=vehicleResult.error?[]:linkedVehicleRows;
         const vehicleLedgerTotal=totalVehicleLedgerMovement(vehicleLedgerRows);
+        // Keep every active company vehicle visible. Only a unique, valid leaf-account
+        // mapping can contribute an amount; shared/missing mappings are flagged without
+        // copying one GL balance across multiple vehicles or changing P&L totals.
         const vehicleLedgerAccounts=vehicleResult.error?[]:linkedVehicleRows
-          .filter(row=>row.status==='dedicated')
           .map(row=>{
-            const accountId=vehicleResult.vehicles.find(vehicle=>vehicle.id===row.vehicle_id)?.revenue_account_id;
-            const movements=vehicleLedgerLines.filter(line=>line.account_id===accountId);
+            const vehicle=vehicleResult.vehicles.find(item=>item.id===row.vehicle_id);
+            const mappedAccountId=vehicle?.revenue_account_id??null;
+            const accountId=row.status==='dedicated'?mappedAccountId:null;
+            const movements=accountId?vehicleLedgerLines.filter(line=>line.account_id===accountId):[];
             const debit=Number(movements.reduce((sum,line)=>sum+Number(line.debit??0),0).toFixed(2));
             const credit=Number(movements.reduce((sum,line)=>sum+Number(line.credit??0),0).toFixed(2));
-            const accountName=accounts.find(account=>account.id===accountId)?.name??row.vehicle_no;
-            const vehicle=vehicleResult.vehicles.find(item=>item.id===row.vehicle_id);
+            const accountName=accountId?accounts.find(account=>account.id===accountId)?.name??row.vehicle_no:row.vehicle_no;
             return {account_id:accountId??'',account_name:accountName,
               vehicle_no:row.vehicle_no,truck_type:vehicle?.truck_type?.trim()||accountName.replace(row.vehicle_no,'').trim().replace(/[\\s–—-]+$/,''),
-              debit,credit,net:Number((credit-debit).toFixed(2))};
-          }).filter(row=>!hideZeroBalances||Math.abs(row.net)>=0.005)
-            .sort((a,b)=>a.vehicle_no.localeCompare(b.vehicle_no,undefined,{numeric:true}));
+              debit,credit,net:Number((credit-debit).toFixed(2)),mapping_status:row.status};
+          })
+          .filter(row=>row.mapping_status!=='dedicated'||!hideZeroBalances||Math.abs(row.net)>=0.005)
+          .sort((a,b)=>a.vehicle_no.localeCompare(b.vehicle_no,undefined,{numeric:true}));
         const incomeSources=reconcileTransportProfitLossSources(
           next.operatingRevenue.total+next.otherIncome.total,sales,service,vehicleLedgerTotal,dedicatedSales,
         );
@@ -640,7 +644,7 @@ export default function ProfitLoss() {
                   <thead><tr className="bg-white text-left text-xs uppercase tracking-wide text-slate-500"><th className="border-b border-slate-200 px-4 py-2 font-semibold">Account / Group</th><th className="border-b border-slate-200 px-4 py-2 text-right font-semibold">Amount</th></tr></thead>
                   <tbody>
                     {isTransport&&transportIncome?<>
-                      <StatementSection title="Income — Vehicles" section={{total:transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.net,0),items:transportIncome.vehicleLedgerAccounts.map(row=>({name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net,detailType:'Vehicle master → mapped Chart of Accounts ledger · selected period',accountIds:[row.account_id]}))}} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
+                      <StatementSection title="Income — Vehicles" section={{total:transportIncome.vehicleLedgerAccounts.reduce((sum,row)=>sum+row.net,0),items:transportIncome.vehicleLedgerAccounts.map(row=>({name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net,detailType:row.mapping_status==='dedicated'?'Vehicle ledger · selected period':row.mapping_status==='shared'?'Vehicle account mapping is shared · amount not double-counted':'Vehicle account mapping missing or incompatible · check vehicle master / COA',accountIds:row.account_id?[row.account_id]:[]}))}} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
                       <StatementSection title="Other Income" section={{items:[...data.operatingRevenue.items,...data.otherIncome.items].filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id))),total:[...data.operatingRevenue.items,...data.otherIncome.items].filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id))).reduce((sum,item)=>sum+item.amount,0)}} tone="income" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
                       <StatementSection title="Expenses" section={{items:[...data.costOfSales.items,...data.operatingExpenses.items,...data.otherExpenses.items],total:metrics.totalExpenses}} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView!=="summary"} />
                       <ResultRow label="Net Earnings" amount={metrics.netProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.otherIncome,data.costOfSales,data.operatingExpenses,data.otherExpenses),"Net Earnings")} />
