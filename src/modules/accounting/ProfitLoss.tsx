@@ -534,7 +534,7 @@ export default function ProfitLoss() {
 
   // P&L exports show account balances, with each vehicle ledger netted once.
   const revenueExportRows:(string|number)[][]=isTransport&&transportIncome?[
-    ...transportIncome.vehicleLedgerAccounts.map(row=>['Income — Vehicles',row.vehicle_no,row.net] as (string|number)[]),
+    ...transportIncome.vehicleLedgerAccounts.map(row=>['Income — Vehicles',vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),row.net] as (string|number)[]),
     ...[...data.operatingRevenue.items,...data.otherIncome.items]
       .filter(item=>!(item.accountIds??[]).some(id=>transportIncome.vehicleLedgerAccounts.some(vehicle=>vehicle.account_id===id)))
       .map(item=>['Other Income',item.name,item.amount] as (string|number)[]),
