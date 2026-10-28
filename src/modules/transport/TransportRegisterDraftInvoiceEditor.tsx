@@ -1,5 +1,5 @@
 import TransportReasonSelect from './TransportReasonSelect';
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import TransportDialog from './TransportDialog';
 import {supabase} from '@/lib/supabase';
 import {financialNumber} from './transportFinancialTypes';
@@ -18,6 +18,7 @@ export default function TransportRegisterDraftInvoiceEditor({row,onClose,onSaved
  const posted=mode==='posted';
  const [reason,setReason]=useState(''),[edits,setEdits]=useState<Record<string,LineEdit>>({}),[chargeMasters,setChargeMasters]=useState<ChargeMaster[]>([]);
  const [context,setContext]=useState<Context|null>(null),[trips,setTrips]=useState<TripRow[]>([]),[selected,setSelected]=useState<string[]>([]);
+ const tripsCache=useRef<Record<string,TripRow>>({});const selectedRef=useRef<string[]>([]);selectedRef.current=selected;
  const [invoiceNo,setInvoiceNo]=useState(row.invoice_no),[invoiceDate,setInvoiceDate]=useState(row.invoice_date),[search,setSearch]=useState(''),[searchQuery,setSearchQuery]=useState('');
  useEffect(()=>{const timer=window.setTimeout(()=>setSearchQuery(search.trim()),300);return()=>window.clearTimeout(timer)},[search]);
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[loadingMore,setLoadingMore]=useState(false),[hasMore,setHasMore]=useState(false),[nextOffset,setNextOffset]=useState(0),[error,setError]=useState(''),[message,setMessage]=useState('');
@@ -52,7 +53,8 @@ export default function TransportRegisterDraftInvoiceEditor({row,onClose,onSaved
     current.push(...rows.filter(x=>context.line_ids.includes(lineIdFor(row.side,x))));
    }
   }
-  const merged=[...current,...candidates.filter(x=>!context.line_ids.includes(lineIdFor(row.side,x)))];
+  const retainedSelected=Object.values(tripsCache.current).filter(x=>selectedRef.current.includes(lineIdFor(row.side,x)));
+  const merged=[...new Map([...current,...retainedSelected,...candidates].map(x=>[lineIdFor(row.side,x),x])).values()];
   if(posted&&merged.length){
    const ids=merged.map(x=>lineIdFor(row.side,x));
    const [base,charges,masters]=await Promise.all([
@@ -65,7 +67,7 @@ export default function TransportRegisterDraftInvoiceEditor({row,onClose,onSaved
    for(const entry of base.data||[]){const item=entry as Record<string,any>;initial[item.id]={base_amount:String(row.side==='customer'?(item.customer_base_rate??item.customer_rate):(item.base_amount??item.amount)),manualAdjustment:Number(item.customer_manual_adjustment||0),charges:(charges.data||[]).filter(raw=>{const charge=raw as Record<string,any>;return (row.side==='customer'?charge.trip_id:charge.rent_id)===item.id}).map(raw=>{const charge=raw as Record<string,any>;return {charge_master_id:charge.charge_master_id,amount:String(charge.amount)}})};}
    if(live){setEdits(initial);setChargeMasters((masters.data||[]).filter(x=>x.applies_to==='both'||x.applies_to===(row.side==='customer'?'sales':'purchase')) as ChargeMaster[]);}
   }
-  if(live){setTrips(merged);setNextOffset(rawRows.length);setHasMore(rawRows.length===500);}
+  if(live){for(const trip of merged)tripsCache.current[lineIdFor(row.side,trip)]=trip;setTrips(merged);setNextOffset(rawRows.length);setHasMore(rawRows.length===500);}
  }catch(e:any){if(live)setError(e?.message||'Could not load eligible Trips for this draft.')}finally{if(live)setLoading(false)}})();return()=>{live=false}},[context,row.side,posted,searchQuery]);
 
  async function loadMore(){
@@ -78,6 +80,7 @@ export default function TransportRegisterDraftInvoiceEditor({row,onClose,onSaved
    let candidates=rawRows;
    if(row.side==='customer')candidates=candidates.filter(x=>x.customer_id===context.party_id&&x.customer_rate_state==='finalized'&&!x.customer_rate_locked);
    else candidates=candidates.filter(x=>String(x.party_id||x.owner_supplier_id||'')===context.party_id&&!x.posted&&!x.draftLinked&&!x.legacyBlocked&&x.rent?.state==='finalized');
+   for(const trip of candidates)tripsCache.current[lineIdFor(row.side,trip)]=trip;
    setTrips(current=>{const seen=new Set(current.map(x=>lineIdFor(row.side,x)));return [...current,...candidates.filter(x=>!seen.has(lineIdFor(row.side,x)))];});
    setNextOffset(current=>current+rawRows.length);setHasMore(rawRows.length===500);
   }catch(e:any){setError(e?.message||'Could not load the next Trip page.')}finally{setLoadingMore(false)}
