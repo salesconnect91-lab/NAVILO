@@ -24,7 +24,7 @@ beforeEach(()=>{
   if(name==='transport_register_draft_invoice_edit_context')return {data:{side:args.p_side,document_id:'doc-1',order_id:'order-1',invoice_no:args.p_side==='supplier'?'SUP-001':'INV-001',invoice_date:'2026-10-20',party_id:args.p_side==='supplier'?'supplier-1':'customer-1',party_name:args.p_side==='supplier'?'Supplier A':'Customer A',account_id:args.p_side==='supplier'?'expense-1':'revenue-1',line_ids:['trip-1'],trip_ids:[]},error:null};
   if(name==='transport_bulk_rate_page'){
    const f=args.p_filters||{};
-   const source=args.p_side==='supplier'?allSupplierTrips:allTrips;
+   const source: Array<Record<string,any>>=args.p_side==='supplier'?allSupplierTrips:allTrips;
    const searched=source.filter(t=>(args.p_side==='supplier'?t.party_id===f.party:t.customer_id===f.party)&&(!f.search||`${t.trip_no} ${t.from_location} ${t.to_location} ${t.vehicle_no} ${t.driver_name}`.toLowerCase().includes(String(f.search).toLowerCase())));
    return {data:{rows:searched.slice(args.p_offset,args.p_offset+args.p_limit)},error:null};
   }
