@@ -120,11 +120,12 @@ function classifyAccount(type: string, name: string, parentHead?: string, detail
   return null;
 }
 
-function StatementSection({ title, section, onDrilldown }: {
+function StatementSection({ title, section, onDrilldown, showDetails = true }: {
   title: string;
   section: PLSectionData;
   tone: "income" | "expense";
   onDrilldown?: (accountIds: string[], title: string, journalIds?: string[]) => void;
+  showDetails?: boolean;
 }) {
   const sectionAccountIds = [...new Set(section.items.flatMap(item => item.accountIds ?? []))];
   return (
@@ -143,7 +144,9 @@ function StatementSection({ title, section, onDrilldown }: {
           </span>
         )}
       </div>
-      {section.items.length === 0 ? (
+      {!showDetails ? (
+        <div className="px-4 py-2 text-xs text-slate-500">Account details hidden · section total remains visible.</div>
+      ) : section.items.length === 0 ? (
         <div className="px-4 py-6 text-center text-sm text-slate-400">No balances for this period.</div>
       ) : (
         <div className="divide-y divide-slate-100 px-4">
@@ -203,6 +206,7 @@ export default function ProfitLoss() {
   const [fromDate, setFromDate] = useState(getYearStart);
   const [toDate, setToDate] = useState(getLocalToday);
   const [hideZeroBalances, setHideZeroBalances] = useState(false);
+  const [presentationView, setPresentationView] = useState<"detailed" | "summary">("detailed");
   const [scope,setScope]=useState<AccountingReportScope>('branch');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -584,7 +588,7 @@ export default function ProfitLoss() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-12"><AccountingReportScopeSelect value={scope} onChange={setScope}/>
+    <div className="mx-auto max-w-[1500px] space-y-4 pb-6"><AccountingReportScopeSelect value={scope} onChange={setScope}/>
       <style>{`@page{size:A4 portrait;margin:12mm}@media(max-width:640px){#printable-profit-loss section>div:first-child{align-items:flex-start;flex-wrap:wrap}#printable-profit-loss section>div:first-child h3{max-width:100%;white-space:normal;overflow-wrap:anywhere}#printable-profit-loss section .divide-y>div,#printable-profit-loss section .divide-y>button{align-items:flex-start}#printable-profit-loss .vehicle-ledger-drcr table{min-width:500px}}@media print{html,body{background:#fff!important;margin:0!important;padding:0!important}body *{visibility:hidden}#printable-profit-loss,#printable-profit-loss *{visibility:visible}#printable-profit-loss{position:absolute!important;left:0!important;top:0!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;gap:10px!important;color:#111827!important}.no-print{display:none!important}#printable-profit-loss .profit-loss-screen{display:none!important}#printable-profit-loss .profit-loss-print-statement{display:block!important;break-inside:auto}#printable-profit-loss header{break-inside:avoid;page-break-inside:avoid;box-shadow:none!important}#printable-profit-loss section{break-inside:avoid;page-break-inside:avoid;box-shadow:none!important}#printable-profit-loss .vehicle-ledger-drcr{break-inside:auto;page-break-inside:auto}#printable-profit-loss .vehicle-ledger-drcr table{width:100%!important;min-width:0!important;table-layout:fixed;border-collapse:collapse!important;font-size:9pt!important}#printable-profit-loss .vehicle-ledger-drcr th,#printable-profit-loss .vehicle-ledger-drcr td{padding:5px 7px!important;border-bottom:1px solid #d1d5db!important;white-space:normal!important}#printable-profit-loss .vehicle-ledger-drcr thead{display:table-header-group}#printable-profit-loss .vehicle-ledger-drcr tr{break-inside:avoid;page-break-inside:avoid}#printable-profit-loss .vehicle-ledger-drcr .overflow-x-auto{overflow:visible!important}.profit-loss-print-statement table{width:100%;border-collapse:collapse;font-size:9pt;line-height:1.25}.profit-loss-print-statement th,.profit-loss-print-statement td{padding:4px 6px;border-bottom:1px solid #e1e5ea;text-align:left}.profit-loss-print-statement .pl-amount{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.profit-loss-print-statement .pl-band{background:#eef1f5;font-weight:700}.profit-loss-print-statement .pl-total{font-weight:700;border-top:1px solid #6b7280}.profit-loss-print-statement .pl-final{font-weight:800;border-top:1px solid #4b5563;border-bottom:3px double #4b5563;background:#eef1f5}.profit-loss-print-statement header{text-align:center;margin:0 0 14mm;border:0!important;padding:0!important;background:#fff!important}.profit-loss-print-statement header h1{font-size:15pt;margin:2mm 0;color:#27364a}.profit-loss-print-statement header p{font-size:9pt;margin:0;color:#475569}.no-print{display:none!important}}`}</style>
 
       <div id="printable-profit-loss" className="space-y-6" aria-busy={loading}>
@@ -618,7 +622,7 @@ export default function ProfitLoss() {
           </table>
         </div>}
 
-        <header className={`flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center ${isTransport?'profit-loss-screen':''}`}>
+        <header className={`flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center ${isTransport?'profit-loss-screen':''}`}>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Profit & Loss Statement</h1>
             <p className="mt-1 text-sm text-slate-500">For the period {formatReportDate(fromDate)} to {formatReportDate(toDate)}</p>
@@ -631,11 +635,12 @@ export default function ProfitLoss() {
 
         {error && <ErrorBanner message={error} />}
 
-        <div className="no-print rounded-xl border border-slate-200 bg-white p-4 shadow-sm" data-report-filters>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1.35fr_auto] lg:items-end">
+        <div className="no-print rounded-xl border border-slate-200 bg-white p-3 shadow-sm" data-report-filters>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.35fr_auto] lg:items-end">
             <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">From Date</span><NaviloDateInput type="date" value={fromDate} max={toDate} onChange={(e) => setFromDate(e.target.value)} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
             <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">To Date</span><NaviloDateInput type="date" value={toDate} min={fromDate} max={getLocalToday()} onChange={(e) => setToDate(e.target.value)} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
             <label className="flex h-10 cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3"><input type="checkbox" checked={!hideZeroBalances} onChange={(e) => setHideZeroBalances(!e.target.checked)} className="h-4 w-4" /><span className="text-sm font-medium text-slate-800">Show zero values</span></label>
+            <label><span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Presentation</span><select value={presentationView} onChange={e=>setPresentationView(e.target.value as "detailed"|"summary")} className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="detailed">Detailed · Account rows</option><option value="summary">Summary · Section totals</option></select></label>
             <div className="flex gap-2"><button type="button" onClick={setThisMonth} className="h-10 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">This Month</button><button type="button" onClick={setThisYear} className="h-10 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">This Year</button></div>
           </div>
           {lastUpdated && <div className="mt-2 text-right text-[12px] text-slate-400">Posted operational ledger entries only · Updated {lastUpdated.toLocaleTimeString()}</div>}
@@ -664,29 +669,29 @@ export default function ProfitLoss() {
                   items:transportIncome.vehicleLedgerAccounts.map(row=>({
                     name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net,detailType:'Vehicle master → mapped Chart of Accounts ledger · selected period',accountIds:[row.account_id],
                   })),
-                }} tone="income" onDrilldown={openDrilldown} />
+                }} tone="income" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />
                 <StatementSection title="Other Income" section={{
                   items:[...data.operatingRevenue.items,...data.otherIncome.items]
                     .filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id))),
                   total:[...data.operatingRevenue.items,...data.otherIncome.items]
                     .filter(item=>!(item.accountIds??[]).some(id=>vehicleAccountIds.has(id)))
                     .reduce((sum,item)=>sum+item.amount,0),
-                }} tone="income" onDrilldown={openDrilldown} />
-              </>:<StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" onDrilldown={openDrilldown} />}
+                }} tone="income" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />
+              </>:<StatementSection title="Operating Revenue" section={data.operatingRevenue} tone="income" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />}
               {isTransport?<>
                 <StatementSection title="Expenses" section={{
                   items:[...data.costOfSales.items,...data.operatingExpenses.items,...data.otherExpenses.items],
                   total:metrics.totalExpenses,
-                }} tone="expense" onDrilldown={openDrilldown} />
+                }} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />
                 <ResultRow label="Net Earnings" amount={metrics.netProfit} prominent
                   onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.otherIncome,data.costOfSales,data.operatingExpenses,data.otherExpenses),"Net Earnings")} />
               </>:<>
-                <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} />
+                <StatementSection title="Less: Cost of Sales" section={data.costOfSales} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />
                 <ResultRow label="Gross Profit / (Loss)" amount={metrics.grossProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales),"Gross Profit / (Loss)")} />
-                <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" onDrilldown={openDrilldown} />
+                <StatementSection title="Operating Expenses" section={data.operatingExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />
                 <ResultRow label="Operating Profit / (Loss)" amount={metrics.operatingProfit} onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses),"Operating Profit / (Loss)")} />
-                {(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income" section={data.otherIncome} tone="income" onDrilldown={openDrilldown} />}
-                {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses" section={data.otherExpenses} tone="expense" onDrilldown={openDrilldown} />}
+                {(data.otherIncome.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Income" section={data.otherIncome} tone="income" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />}
+                {(data.otherExpenses.items.length > 0 || !hideZeroBalances) && <StatementSection title="Other Expenses" section={data.otherExpenses} tone="expense" onDrilldown={openDrilldown} showDetails={presentationView==="detailed"} />}
                 <ResultRow label="Net Profit / (Loss)" amount={metrics.netProfit} prominent
                   onClick={()=>openDrilldown(pAndLAccountIds(data.operatingRevenue,data.costOfSales,data.operatingExpenses,data.otherIncome,data.otherExpenses),"Net Profit / (Loss)")} />
               </>}
