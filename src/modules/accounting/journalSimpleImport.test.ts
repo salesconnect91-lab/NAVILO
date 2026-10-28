@@ -38,7 +38,7 @@ describe('Simple Debit/Credit Journal import',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,
    ['','','General Expenses','Locks',40,0],
    ['','','Amjad Payable','Funding',0,40],
-  ])).toThrow(/valid YYYY-MM-DD date on the first row of this journal/);
+  ])).toThrow(/Entry No is required for the first row of every journal/);
  });
  it('rejects invalid calendar dates and unbalanced journals',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,
