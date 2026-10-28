@@ -93,7 +93,7 @@ export function isSimpleJournalTemplate(headers:readonly unknown[]):boolean{
 export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[]):string[][]{
  if(rows.length<2)throw Error('Add at least two journal lines below the Excel headers.');
  const headers=rows[0].map(key);
- for(const h of SIMPLE_JOURNAL_HEADERS.filter(h=>h!=='party')){
+ for(const h of SIMPLE_JOURNAL_HEADERS){
   if(!headers.includes(key(h)))throw Error(`Missing simple journal column: ${h}.`);
  }
  const partyIndex=headers.indexOf(key('party'));
