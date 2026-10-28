@@ -130,53 +130,52 @@ function StatementSection({ title, section, onDrilldown, showDetails = true }: {
 }) {
   const sectionAccountIds = [...new Set(section.items.flatMap(item => item.accountIds ?? []))];
   return (
-    <section className="overflow-hidden rounded-sm border border-slate-200 bg-white">
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-200 bg-slate-100 px-3 py-2">
         <h3 className="text-xs font-bold uppercase tracking-wide text-slate-800">{title}</h3>
         {onDrilldown && sectionAccountIds.length ? (
           <button type="button" onClick={() => onDrilldown(sectionAccountIds, title)}
             title="Open the posted ledger entries behind this total"
-            className="cursor-pointer font-mono text-sm font-bold text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">
+            className="cursor-pointer font-mono text-xs font-bold text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">
             {formatCurrency(section.total)}
           </button>
-        ) : (
-          <span className={`font-mono text-sm font-bold text-slate-900`}>
-            {formatCurrency(section.total)}
-          </span>
-        )}
+        ) : <span className="font-mono text-xs font-bold text-slate-900">{formatCurrency(section.total)}</span>}
       </div>
-      {!showDetails ? (
-        <div className="px-4 py-2 text-xs text-slate-500">Account details hidden · section total remains visible.</div>
-      ) : section.items.length === 0 ? (
-        <div className="px-4 py-6 text-center text-sm text-slate-400">No balances for this period.</div>
-      ) : (
-        <div className="divide-y divide-slate-100">
-          {section.items.map((item) => {
-            const row = (
-              <>
-                <div className="min-w-0 flex-1 text-left">
-                  <span className="block whitespace-normal break-words font-medium text-slate-800">{item.name}</span>
-                  {item.detailType && normalized(item.detailType) !== normalized(item.name) && (
-                    <span className="block whitespace-normal break-words text-[12px] text-slate-500">{item.detailType}</span>
-                  )}
-                </div>
-                <span className="shrink-0 whitespace-nowrap text-right font-mono text-xs font-semibold text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">
-                  {formatCurrency(item.amount)}
-                </span>
-              </>
-            );
-            return onDrilldown && item.accountIds?.length ? (
-              <button type="button" key={item.accountIds?.[0]??item.name} onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)}
-                title="Open the posted ledger entries behind this account"
-                className="flex w-full cursor-pointer flex-col items-start justify-between gap-1 border-b border-slate-100 px-3 py-1.5 text-left text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:flex-row sm:items-center sm:gap-4">
-                {row}
-              </button>
-            ) : (
-              <div key={item.name} className="flex flex-col items-start justify-between gap-1 border-b border-slate-100 px-3 py-1.5 text-left text-xs sm:flex-row sm:items-center sm:gap-4">{row}</div>
-            );
-          })}
-        </div>
-      )}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[440px] border-collapse text-sm" data-business-data>
+          <thead><tr className="bg-white text-left text-xs uppercase tracking-wide text-slate-500">
+            <th className="border-b border-slate-200 px-3 py-2 font-semibold">Account / Group</th>
+            <th className="border-b border-slate-200 px-3 py-2 text-right font-semibold">Amount</th>
+          </tr></thead>
+          <tbody>
+            {!showDetails ? <tr><td colSpan={2} className="px-3 py-2 text-xs text-slate-500">Account details hidden · section total remains visible.</td></tr>
+            : section.items.length === 0 ? <tr><td colSpan={2} className="px-3 py-4 text-center text-xs text-slate-400">No balances for this period.</td></tr>
+            : section.items.map((item,index) => {
+              const content = onDrilldown && item.accountIds?.length ? (
+                <button type="button" onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)}
+                  title="Open this account's General Ledger"
+                  className="text-left font-medium text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">
+                  {item.name}
+                </button>
+              ) : <span className="font-medium text-slate-800">{item.name}</span>;
+              return <tr key={item.accountIds?.[0] ?? item.name} className={index%2===1?"bg-slate-50/60":"border-b border-slate-100"}>
+                <td className="px-3 py-1.5 text-xs">{content}
+                  {item.detailType && normalized(item.detailType) !== normalized(item.name) && <span className="ml-2 text-[11px] text-slate-500">{item.detailType}</span>}
+                </td>
+                <td className="px-3 py-1.5 text-right font-mono text-xs">
+                  {onDrilldown && item.accountIds?.length ? <button type="button" onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)}
+                    title="Open this account's General Ledger" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(item.amount)}</button>
+                    : <span className="text-slate-800">{formatCurrency(item.amount)}</span>}
+                </td>
+              </tr>;
+            })}
+            <tr className="border-t border-slate-300 bg-slate-50 font-bold">
+              <td className="px-3 py-2 text-xs">Total {title}</td>
+              <td className="px-3 py-2 text-right font-mono text-xs">{formatCurrency(section.total)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
