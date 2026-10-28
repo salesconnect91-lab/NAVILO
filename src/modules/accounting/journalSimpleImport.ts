@@ -2,8 +2,7 @@ import * as XLSX from 'xlsx';
 import {createImportTemplateWorkbook} from '@/lib/importExcelTemplate';
 
 /**
- * The user-facing columns mirror an on-screen General Journal:
- * date/reference header + Account, Line Description, Party, Debit, Credit.
+ * The user-facing import template is the canonical six-column journal format.
  * The Action column is a UI control and must not appear in an Excel data file.
  */
 export const SIMPLE_JOURNAL_HEADERS=[
@@ -185,7 +184,7 @@ export function downloadSimpleJournalTemplate():void{
  const book=createImportTemplateWorkbook({
   filename:'NAVILO-Journal-Simple-Debit-Credit.xlsx',
   sheetName:'Journal Import',headers:SIMPLE_JOURNAL_HEADERS,example:[],
-  title:'NAVILO General Journal — Account, Party, Debit and Credit',
+  title:'NAVILO General Journal — Account, Description, Debit and Credit',
   notes:[
    'Each transaction must have TWO or more lines with matching Debit/Credit totals. When the entire Entry No column is blank, entries are automatically grouped by date (one compound draft per date).',
    'For individual vouchers write Entry No on the first row of each group and repeat it or leave it blank on continuation lines. To group ALL rows by date, leave EVERY Entry No blank and supply a date on EVERY row.',
@@ -195,7 +194,6 @@ export function downloadSimpleJournalTemplate():void{
    'Syarah Fuel is a prepaid CURRENT ASSET: wallet top-up Debit Syarah Fuel Payable, Credit Amjad Payable. Later fuel consumption uses the relevant expense workflow and credits Syarah Fuel Payable.',
    'Existing driver salary liability payment: Debit Asif Driver Salary Running Account and Credit Amjad Payable. DO NOT expense driver wages again if already accrued.',
    'New, not-yet-accrued driver wages: Debit Driver Salary & Wages; Credit Amjad Payable. Avoid double-counting.',
-   'Party is one field: enter the exact Customer on the mapped Accounts Receivable account or Supplier on the mapped Accounts Payable account. NAVILO determines Customer/Supplier from the account; leave Party blank on ordinary expense and funding lines.',
    'Imported journals first become DRAFTS. Posting after review affects GL, genuine Party ledgers and P&L. General Journal entries are not attributed to a vehicle.',
    'Do not re-import posted journals or reversed transactions. An existing Entry No will fail duplicate checks. No cash/bank account is invented.',
    'The Worked Examples sheet is for learning and is NEVER imported. The first sheet is deliberately empty.'
@@ -204,25 +202,24 @@ export function downloadSimpleJournalTemplate():void{
    {field:'entry_date',rule:'YYYY-MM-DD on both lines or just first line of each journal'},
    {field:'account_name',rule:'Exact Debit/Credit GL account from Chart of Accounts'},
    {field:'line_description',rule:'What was paid/earned, vehicle/driver details, supplier and receipt reference'},
-   {field:'party',rule:'Exact Customer name on mapped Accounts Receivable or Supplier name on mapped Accounts Payable; leave blank on other accounts'},
    {field:'debit',rule:'Amount ONLY for debit line; other side blank or 0'},
    {field:'credit',rule:'Amount ONLY for credit line; other side blank or 0'},
   ]
  });
  const examples=XLSX.utils.aoa_to_sheet([
-  ['Scenario','entry_no','entry_date','account_name','line_description','party','debit','credit'],
-  ['Repair funded by Amjad','EXAMPLE-001','2026-09-05','General Expenses','Vehicle 7979 repair','',600,0],
-  ['↳ Amjad owes','','','Amjad Payable','Repair paid by Amjad','',0,600],
-  ['New driver wages','EXAMPLE-002','2026-09-06','Driver Salary & Wages','Driver wages for 7979','',250,0],
-  ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad','',0,250],
-  ['Existing driver liability','EXAMPLE-003','2026-09-07','Asif Driver Salary Running Account','Settle previously accrued wages','',417,0],
-  ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad','',0,417],
-  ['Syarah wallet recharge','EXAMPLE-004','2026-09-08','Syarah Fuel Payable','Syarah wallet credit','',1000,0],
-  ['↳ Amjad owes','','','Amjad Payable','Wallet funded by Amjad','',0,1000],
-  ['Syarah fuel consumption','EXAMPLE-005','2026-09-09','Transport & Freight','Fuel consumed by 7979','',300,0],
-  ['↳ wallet decreases','','','Syarah Fuel Payable','Deduct from Syarah wallet','',0,300],
+  ['Scenario','entry_no','entry_date','account_name','line_description','debit','credit'],
+  ['Repair funded by Amjad','EXAMPLE-001','2026-09-05','General Expenses','Vehicle 7979 repair',600,0],
+  ['↳ Amjad owes','','','Amjad Payable','Repair paid by Amjad',0,600],
+  ['New driver wages','EXAMPLE-002','2026-09-06','Driver Salary & Wages','Driver wages for 7979',250,0],
+  ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad',0,250],
+  ['Existing driver liability','EXAMPLE-003','2026-09-07','Asif Driver Salary Running Account','Settle previously accrued wages',417,0],
+  ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad',0,417],
+  ['Syarah wallet recharge','EXAMPLE-004','2026-09-08','Syarah Fuel Payable','Syarah wallet credit',1000,0],
+  ['↳ Amjad owes','','','Amjad Payable','Wallet funded by Amjad',0,1000],
+  ['Syarah fuel consumption','EXAMPLE-005','2026-09-09','Transport & Freight','Fuel consumed by 7979',300,0],
+  ['↳ wallet decreases','','','Syarah Fuel Payable','Deduct from Syarah wallet',0,300],
  ]);
-examples['!cols']=[{wch:26},{wch:20},{wch:16},{wch:36},{wch:44},{wch:32},{wch:14},{wch:14}];
+examples['!cols']=[{wch:26},{wch:20},{wch:16},{wch:36},{wch:44},{wch:14},{wch:14}];
  XLSX.utils.book_append_sheet(book,examples,'Worked Examples - DO NOT IMPORT');
  XLSX.writeFile(book,'NAVILO-Journal-Simple-Debit-Credit.xlsx');
 }
