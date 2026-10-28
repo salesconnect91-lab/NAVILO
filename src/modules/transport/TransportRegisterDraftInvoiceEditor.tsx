@@ -18,7 +18,8 @@ export default function TransportRegisterDraftInvoiceEditor({row,onClose,onSaved
  const posted=mode==='posted';
  const [reason,setReason]=useState(''),[edits,setEdits]=useState<Record<string,LineEdit>>({}),[chargeMasters,setChargeMasters]=useState<ChargeMaster[]>([]);
  const [context,setContext]=useState<Context|null>(null),[trips,setTrips]=useState<TripRow[]>([]),[selected,setSelected]=useState<string[]>([]);
- const [invoiceNo,setInvoiceNo]=useState(row.invoice_no),[invoiceDate,setInvoiceDate]=useState(row.invoice_date),[search,setSearch]=useState('');
+ const [invoiceNo,setInvoiceNo]=useState(row.invoice_no),[invoiceDate,setInvoiceDate]=useState(row.invoice_date),[search,setSearch]=useState(''),[searchQuery,setSearchQuery]=useState('');
+ useEffect(()=>{const timer=window.setTimeout(()=>setSearchQuery(search.trim()),300);return()=>window.clearTimeout(timer)},[search]);
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  useEffect(()=>{let live=true;void (async()=>{setLoading(true);setError('');try{
   const result=await supabase.rpc(posted?'transport_register_posted_invoice_edit_context':'transport_register_draft_invoice_edit_context',{p_side:row.side,p_document_id:row.document_id});
@@ -27,7 +28,9 @@ export default function TransportRegisterDraftInvoiceEditor({row,onClose,onSaved
  }catch(e:any){if(live)setError(e?.message||'Could not load this draft for editing.')}finally{if(live)setLoading(false)}})();return()=>{live=false}},[row.side,row.document_id,posted]);
 
  useEffect(()=>{if(!context)return;let live=true;void (async()=>{setLoading(true);setError('');try{
-  const filters=row.side==='customer'?{party:context.party_id,search:'',columns:{},status:'',unpostedOnly:true}:{party:context.party_id,search:'',columns:{},status:''};
+  // Search is applied by the database before pagination, so a Trip outside the
+  // first 500 rows can still be found without loading the entire register.
+  const filters=row.side==='customer'?{party:context.party_id,search:searchQuery,columns:{},status:'',unpostedOnly:true}:{party:context.party_id,search:searchQuery,columns:{},status:''};
   const page=await supabase.rpc('transport_bulk_rate_page',{p_side:row.side,p_limit:500,p_offset:0,p_filters:filters});
   if(page.error)throw page.error;
   let candidates=(Array.isArray(page.data?.rows)?page.data.rows:[]) as TripRow[];
@@ -62,7 +65,7 @@ export default function TransportRegisterDraftInvoiceEditor({row,onClose,onSaved
    if(live){setEdits(initial);setChargeMasters((masters.data||[]).filter(x=>x.applies_to==='both'||x.applies_to===(row.side==='customer'?'sales':'purchase')) as ChargeMaster[]);}
   }
   if(live)setTrips(merged);
- }catch(e:any){if(live)setError(e?.message||'Could not load eligible Trips for this draft.')}finally{if(live)setLoading(false)}})();return()=>{live=false}},[context,row.side,posted]);
+ }catch(e:any){if(live)setError(e?.message||'Could not load eligible Trips for this draft.')}finally{if(live)setLoading(false)}})();return()=>{live=false}},[context,row.side,posted,searchQuery]);
 
  function changeLine(id:string,update:Partial<LineEdit>){setEdits(current=>({...current,[id]:{...current[id],...update}}));}
  const invalidEdits=posted&&selected.some(id=>{const edit=edits[id];return !edit||!Number.isFinite(Number(edit.base_amount))||Number(edit.base_amount)<=0||edit.charges.some(charge=>!charge.charge_master_id||!Number.isFinite(Number(charge.amount))||Number(charge.amount)<=0)});
