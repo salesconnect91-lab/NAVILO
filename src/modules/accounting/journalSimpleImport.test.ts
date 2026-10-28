@@ -51,6 +51,8 @@ describe('Simple Debit/Credit Journal import has no vehicle field',()=>{
   expect(journalImportISODate('01-Sep-26')).toBe('2026-09-01');
   expect(journalImportISODate('15-Oct-2026')).toBe('2026-10-15');
   expect(journalImportISODate('2026-09-05')).toBe('2026-09-05');
+  expect(journalImportISODate(new Date('2026-09-02T00:00:00.000Z'))).toBe('2026-09-02');
+  expect(journalImportISODate(new Date('2026-09-02T23:00:00.000Z'))).toBe('2026-09-02');
   const rows=normalizeSimpleJournalRows([headers,['R','46266','General Expenses','Repair','','',500,0],['R','','Amjad Payable','Funded','','',0,500]]);
   expect(rows[1][1]).toBe('2026-09-01');
  });
