@@ -145,7 +145,7 @@ function StatementSection({ title, section, onDrilldown, showDetails = true }: {
             {item.detailType && normalized(item.detailType) !== normalized(item.name) && <span className="ml-2 text-[11px] text-slate-500">{item.detailType}</span>}
           </td>
           <td className="px-4 py-1.5 text-right font-mono text-xs">
-            {onDrilldown && item.accountIds?.length === 1 ? <button type="button" onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)} title="Open this account's General Ledger" className="text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(item.amount)}</button> : <span className="text-slate-800">{formatCurrency(item.amount)}</span>}
+            {onDrilldown && item.accountIds?.length === 1 ? <button type="button" onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)} title="Open this account's General Ledger" className="cursor-pointer border-0 bg-transparent p-0 text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900 focus:outline-none focus-visible:underline">{formatCurrency(item.amount)}</button> : <span className="text-slate-800">{formatCurrency(item.amount)}</span>}
           </td>
         </tr>
       ))}
