@@ -2,7 +2,8 @@ import {describe,expect,it,vi} from 'vitest';
 import * as XLSX from 'xlsx';
 import {SIMPLE_JOURNAL_HEADERS,isSimpleJournalTemplate,normalizeSimpleJournalRows,downloadSimpleJournalTemplate,journalImportISODate} from './journalSimpleImport';
 vi.mock('xlsx',async(importOriginal)=>({...await importOriginal<typeof import('xlsx')>(),writeFile:vi.fn()}));
-const headers=[...SIMPLE_JOURNAL_HEADERS];
+// Legacy seven-column layout remains accepted for party attribution regression coverage.
+const headers=['entry_no','entry_date','account_name','line_description','party','debit','credit'];
 const pair=[
  ['ORB-SEP-001','2026-09-05','General Expenses','Vehicle 7979 repair','',600,0],
  ['','','Amjad Payable','Paid by Amjad','',0,600]
@@ -105,7 +106,7 @@ describe('Simple Debit/Credit Journal import has no vehicle field',()=>{
   const [book,filename]=vi.mocked(XLSX.writeFile).mock.calls[vi.mocked(XLSX.writeFile).mock.calls.length-1];
   expect(filename).toBe('NAVILO-Journal-Simple-Debit-Credit.xlsx');
   expect(book.SheetNames).toEqual(['Journal Import','Instructions','Worked Examples - DO NOT IMPORT']);
-  expect(XLSX.utils.sheet_to_json<any[]>(book.Sheets['Journal Import'],{header:1})).toEqual([headers]);
+  expect(XLSX.utils.sheet_to_json<any[]>(book.Sheets['Journal Import'],{header:1})).toEqual([SIMPLE_JOURNAL_HEADERS]);
   expect(headers).not.toContain('vehicle_no');
   expect(XLSX.utils.sheet_to_json<any[]>(book.Sheets['Worked Examples - DO NOT IMPORT'],{header:1}).length).toBeGreaterThan(5);
  });
