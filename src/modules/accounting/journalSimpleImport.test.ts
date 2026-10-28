@@ -49,6 +49,14 @@ describe('Simple Debit/Credit Journal import',()=>{
   expect(rows.slice(1).map(row=>row[0])).toEqual(['IMPORT-2026-09-02','IMPORT-2026-09-02','IMPORT-2026-09-05','IMPORT-2026-09-05']);
   expect(()=>normalizeSimpleJournalRows([headers,['','2026-09-02','General Expenses','Unfunded','',40,0]])).toThrow(/at least two lines/);
  });
+ it('inherits the journal date when continuation rows leave the date blank',()=>{
+  const rows=normalizeSimpleJournalRows([headers,
+   ['','2026-09-02','General Expenses','Locks','',40,0],
+   ['','','Amjad Payable','Funding','',0,40],
+  ]);
+  expect(rows.slice(1).map(row=>row[1])).toEqual(['2026-09-02','2026-09-02']);
+  expect(rows.slice(1).map(row=>row[0])).toEqual(['IMPORT-2026-09-02','IMPORT-2026-09-02']);
+ });
  it('accepts Excel serial dates and NAVILO dates without shifting calendar day',()=>{
   expect(journalImportISODate('46266')).toBe('2026-09-01');
   expect(journalImportISODate('01-Sep-26')).toBe('2026-09-01');
