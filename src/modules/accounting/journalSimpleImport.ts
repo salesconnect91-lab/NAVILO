@@ -1,13 +1,9 @@
 import * as XLSX from 'xlsx';
 import {createImportTemplateWorkbook} from '@/lib/importExcelTemplate';
 
-/**
- * The user-facing columns mirror an on-screen General Journal:
- * date/reference header + Account, Line Description, Party, Debit, Credit.
- * The Action column is a UI control and must not appear in an Excel data file.
- */
+/** Six-column General Journal import template. Legacy party-bearing sheets remain supported. */
 export const SIMPLE_JOURNAL_HEADERS=[
- 'entry_no','entry_date','account_name','line_description','party','debit','credit'
+ 'entry_no','entry_date','account_name','line_description','debit','credit'
 ] as const;
 const str=(v:unknown)=>String(v??'').trim();
 const key=(v:unknown)=>str(v).toLowerCase().replace(/[\s_-]+/g,'');
@@ -162,7 +158,7 @@ export function downloadSimpleJournalTemplate():void{
  const book=createImportTemplateWorkbook({
   filename:'NAVILO-Journal-Simple-Debit-Credit.xlsx',
   sheetName:'Journal Import',headers:SIMPLE_JOURNAL_HEADERS,example:[],
-  title:'NAVILO General Journal — Account, Party, Debit and Credit',
+  title:'NAVILO General Journal — Account, Line Description, Debit and Credit',
   notes:[
    'Each transaction must have TWO or more lines with matching Debit/Credit totals. When the entire Entry No column is blank, entries are automatically grouped by date (one compound draft per date).',
    'For individual vouchers write Entry No on the first row of each group and repeat it or leave it blank on continuation lines. To group ALL rows by date, leave EVERY Entry No blank and supply a date on EVERY row.',
@@ -172,7 +168,7 @@ export function downloadSimpleJournalTemplate():void{
    'Syarah Fuel is a prepaid CURRENT ASSET: wallet top-up Debit Syarah Fuel Payable, Credit Amjad Payable. Later fuel consumption uses the relevant expense workflow and credits Syarah Fuel Payable.',
    'Existing driver salary liability payment: Debit Asif Driver Salary Running Account and Credit Amjad Payable. DO NOT expense driver wages again if already accrued.',
    'New, not-yet-accrued driver wages: Debit Driver Salary & Wages; Credit Amjad Payable. Avoid double-counting.',
-   'Party is one field: enter the exact Customer on the mapped Accounts Receivable account or Supplier on the mapped Accounts Payable account. NAVILO determines Customer/Supplier from the account; leave Party blank on ordinary expense and funding lines.',
+   'The standard import sheet has six columns and no Party field. Legacy sheets with Party / Party Type + Party Name remain supported for genuine AR/AP attribution; confirm party attribution through the mapped AR/AP workflow before posting.',
    'Imported journals first become DRAFTS. Posting after review affects GL, genuine Party ledgers and P&L. General Journal entries are not attributed to a vehicle.',
    'Do not re-import posted journals or reversed transactions. An existing Entry No will fail duplicate checks. No cash/bank account is invented.',
    'The Worked Examples sheet is for learning and is NEVER imported. The first sheet is deliberately empty.'
@@ -181,7 +177,6 @@ export function downloadSimpleJournalTemplate():void{
    {field:'entry_date',rule:'YYYY-MM-DD on both lines or just first line of each journal'},
    {field:'account_name',rule:'Exact Debit/Credit GL account from Chart of Accounts'},
    {field:'line_description',rule:'What was paid/earned, vehicle/driver details, supplier and receipt reference'},
-   {field:'party',rule:'Exact Customer name on mapped Accounts Receivable or Supplier name on mapped Accounts Payable; leave blank on other accounts'},
    {field:'debit',rule:'Amount ONLY for debit line; other side blank or 0'},
    {field:'credit',rule:'Amount ONLY for credit line; other side blank or 0'},
   ]
