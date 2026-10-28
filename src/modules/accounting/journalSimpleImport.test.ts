@@ -85,8 +85,17 @@ describe('Simple Debit/Credit Journal import has no vehicle field',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,['X','2026-02-31','General Expenses','Repair','',600,0],['','','Amjad Payable','Funded','','',0,600]])).toThrow(/valid YYYY-MM-DD/);
   expect(()=>normalizeSimpleJournalRows([headers,['X','2026-09-05','General Expenses','repair','',600,0],['X','2026-09-06','Amjad Payable','funded','',0,600]])).toThrow(/conflicting dates/);
  });
- it('recognizes the simple Debit/Credit layout and keeps advanced format separate',()=>{
-  expect(isSimpleJournalTemplate(headers)).toBe(true);
+ it('recognizes the six-column General Journal template and normalizes it without party data',()=>{
+  const six=['entry_no','entry_date','account_name','line_description','debit','credit'];
+  expect(isSimpleJournalTemplate(six)).toBe(true);
+  const normalized=normalizeSimpleJournalRows([six,
+   ['SIX-1','2026-09-05','General Expenses','Repair',600,0],
+   ['','2026-09-05','Amjad Payable','Funding',0,600]
+  ]);
+  expect(normalized[1]).toEqual(['SIX-1','2026-09-05','Repair','General Expenses','Repair','','','600.00','0.00']);
+  expect(normalized[2].slice(-2)).toEqual(['0.00','600.00']);
+ });
+ it('recognizes the simple Debit/Credit layout and keeps advanced format separate',()=>{\n  expect(isSimpleJournalTemplate(headers)).toBe(true);
   expect(isSimpleJournalTemplate(['entry_no','entry_date','account_name','line_description','related_to','amount','funding_account'])).toBe(false);
   expect(isSimpleJournalTemplate(['entry_no','entry_date','description','account_name','line_description','party_type','party_name','debit','credit'])).toBe(false);
  });
