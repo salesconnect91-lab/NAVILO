@@ -2,12 +2,11 @@ import * as XLSX from 'xlsx';
 import {createImportTemplateWorkbook} from '@/lib/importExcelTemplate';
 
 /**
- * The user-facing columns mirror an on-screen General Journal:
- * date/reference header + Account, Line Description, Party, Debit, Credit.
+ * The user-facing import template is the canonical six-column journal format.
  * The Action column is a UI control and must not appear in an Excel data file.
  */
 export const SIMPLE_JOURNAL_HEADERS=[
- 'entry_no','entry_date','account_name','line_description','party','debit','credit'
+ 'entry_no','entry_date','account_name','line_description','debit','credit'
 ] as const;
 const str=(v:unknown)=>String(v??'').trim();
 const key=(v:unknown)=>str(v).toLowerCase().replace(/[\s_-]+/g,'');
@@ -83,8 +82,8 @@ function legacyRelatedTo(value:unknown,line:number,account:string){
 export function isSimpleJournalTemplate(headers:readonly unknown[]):boolean{
  const h=headers.map(key);
  const core=['entry_no','entry_date','account_name','line_description','debit','credit'];
- const hasParty=h.includes(key('party'))||(h.includes(key('party_type'))&&h.includes(key('party_name')))||h.includes(key('related_to'));
- return core.every(x=>h.includes(key(x)))&&hasParty&&!h.includes('fundingaccount')&&!h.includes(key('description'));
+ const hasLegacyParty=h.includes(key('party'))||(h.includes(key('party_type'))&&h.includes(key('party_name')))||h.includes(key('related_to'));
+ return core.every(x=>h.includes(key(x)))&&!h.includes('fundingaccount')&&!h.includes(key('description'))&&(!hasLegacyParty||h.includes(key('party'))||(h.includes(key('party_type'))&&h.includes(key('party_name')))||h.includes(key('related_to')));
 }
 /**
  * Converts the simplified two-line spreadsheet to the existing validated
@@ -94,7 +93,7 @@ export function isSimpleJournalTemplate(headers:readonly unknown[]):boolean{
 export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[]):string[][]{
  if(rows.length<2)throw Error('Add at least two journal lines below the Excel headers.');
  const headers=rows[0].map(key);
- for(const h of SIMPLE_JOURNAL_HEADERS.filter(h=>h!=='party')){
+ for(const h of SIMPLE_JOURNAL_HEADERS){
   if(!headers.includes(key(h)))throw Error(`Missing simple journal column: ${h}.`);
  }
  const partyIndex=headers.indexOf(key('party'));
@@ -102,7 +101,7 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
  const partyNameIndex=headers.indexOf(key('party_name'));
  const idx=(h:string)=>headers.indexOf(key(h));
  const legacyRelatedToIndex=headers.indexOf(key('related_to'));
- if(partyIndex<0&&partyNameIndex<0&&legacyRelatedToIndex<0)throw Error('Missing simple journal column: party.');
+ // Party fields are optional in the canonical six-column template; legacy party columns remain supported.
  // Explain multiple common Excel mistakes together instead of forcing a
  // repeated choose-file/fix-one-row/reupload cycle.
  const supplied=rows.slice(1).map((r,index)=>({r,line:index+2})).filter(({r})=>r.some(cell=>str(cell)));
@@ -132,11 +131,16 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   const line=i+1;
   const suppliedId=str(row[idx('entry_no')]);
   const suppliedDate=journalImportISODate(row[idx('entry_date')]);
-  const entry=allEntryNumbersBlank?(validDate(suppliedDate)?`IMPORT-${suppliedDate}`:''):(suppliedId||currentEntry);
-  const date=allEntryNumbersBlank?suppliedDate:(suppliedDate||(!suppliedId||suppliedId.toLowerCase()===currentEntry.toLowerCase()?currentDate:''));
+  // A new explicit Entry No starts a new journal and must carry its own date.
+  // Only continuation rows (blank Entry No) may inherit the current date.
+  // When all Entry No cells are blank, dates delimit the compound journals.
+  if(suppliedId&&!suppliedDate)currentDate='';
+  const date=suppliedDate||(!suppliedId?currentDate:'');
+  const entry=allEntryNumbersBlank?(validDate(date)?`IMPORT-${date}`:''):(suppliedId||currentEntry);
   if(!entry||entry.length>80)throw Error(`Row ${line}: Entry No is required for the first row of every journal (max 80 characters).`);
   if(!validDate(date))throw Error(`Row ${line}: enter a valid YYYY-MM-DD date on the first row of this journal.`);
-  if(suppliedId){currentEntry=entry;currentDate=date;}
+  currentDate=date;
+  if(suppliedId)currentEntry=entry;
   const account=str(row[idx('account_name')]);
   const description=str(row[idx('line_description')]);
   if(!account)throw Error(`Row ${line}: Account is required on every debit/credit line.`);
@@ -180,7 +184,7 @@ export function downloadSimpleJournalTemplate():void{
  const book=createImportTemplateWorkbook({
   filename:'NAVILO-Journal-Simple-Debit-Credit.xlsx',
   sheetName:'Journal Import',headers:SIMPLE_JOURNAL_HEADERS,example:[],
-  title:'NAVILO General Journal — Account, Party, Debit and Credit',
+  title:'NAVILO General Journal — Account, Description, Debit and Credit',
   notes:[
    'Each transaction must have TWO or more lines with matching Debit/Credit totals. When the entire Entry No column is blank, entries are automatically grouped by date (one compound draft per date).',
    'For individual vouchers write Entry No on the first row of each group and repeat it or leave it blank on continuation lines. To group ALL rows by date, leave EVERY Entry No blank and supply a date on EVERY row.',
@@ -190,7 +194,6 @@ export function downloadSimpleJournalTemplate():void{
    'Syarah Fuel is a prepaid CURRENT ASSET: wallet top-up Debit Syarah Fuel Payable, Credit Amjad Payable. Later fuel consumption uses the relevant expense workflow and credits Syarah Fuel Payable.',
    'Existing driver salary liability payment: Debit Asif Driver Salary Running Account and Credit Amjad Payable. DO NOT expense driver wages again if already accrued.',
    'New, not-yet-accrued driver wages: Debit Driver Salary & Wages; Credit Amjad Payable. Avoid double-counting.',
-   'Party is one field: enter the exact Customer on the mapped Accounts Receivable account or Supplier on the mapped Accounts Payable account. NAVILO determines Customer/Supplier from the account; leave Party blank on ordinary expense and funding lines.',
    'Imported journals first become DRAFTS. Posting after review affects GL, genuine Party ledgers and P&L. General Journal entries are not attributed to a vehicle.',
    'Do not re-import posted journals or reversed transactions. An existing Entry No will fail duplicate checks. No cash/bank account is invented.',
    'The Worked Examples sheet is for learning and is NEVER imported. The first sheet is deliberately empty.'
@@ -199,25 +202,24 @@ export function downloadSimpleJournalTemplate():void{
    {field:'entry_date',rule:'YYYY-MM-DD on both lines or just first line of each journal'},
    {field:'account_name',rule:'Exact Debit/Credit GL account from Chart of Accounts'},
    {field:'line_description',rule:'What was paid/earned, vehicle/driver details, supplier and receipt reference'},
-   {field:'party',rule:'Exact Customer name on mapped Accounts Receivable or Supplier name on mapped Accounts Payable; leave blank on other accounts'},
    {field:'debit',rule:'Amount ONLY for debit line; other side blank or 0'},
    {field:'credit',rule:'Amount ONLY for credit line; other side blank or 0'},
   ]
  });
  const examples=XLSX.utils.aoa_to_sheet([
-  ['Scenario','entry_no','entry_date','account_name','line_description','party','debit','credit'],
-  ['Repair funded by Amjad','EXAMPLE-001','2026-09-05','General Expenses','Vehicle 7979 repair','',600,0],
-  ['↳ Amjad owes','','','Amjad Payable','Repair paid by Amjad','',0,600],
-  ['New driver wages','EXAMPLE-002','2026-09-06','Driver Salary & Wages','Driver wages for 7979','',250,0],
-  ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad','',0,250],
-  ['Existing driver liability','EXAMPLE-003','2026-09-07','Asif Driver Salary Running Account','Settle previously accrued wages','',417,0],
-  ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad','',0,417],
-  ['Syarah wallet recharge','EXAMPLE-004','2026-09-08','Syarah Fuel Payable','Syarah wallet credit','',1000,0],
-  ['↳ Amjad owes','','','Amjad Payable','Wallet funded by Amjad','',0,1000],
-  ['Syarah fuel consumption','EXAMPLE-005','2026-09-09','Transport & Freight','Fuel consumed by 7979','',300,0],
-  ['↳ wallet decreases','','','Syarah Fuel Payable','Deduct from Syarah wallet','',0,300],
+  ['Scenario','entry_no','entry_date','account_name','line_description','debit','credit'],
+  ['Repair funded by Amjad','EXAMPLE-001','2026-09-05','General Expenses','Vehicle 7979 repair',600,0],
+  ['↳ Amjad owes','','','Amjad Payable','Repair paid by Amjad',0,600],
+  ['New driver wages','EXAMPLE-002','2026-09-06','Driver Salary & Wages','Driver wages for 7979',250,0],
+  ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad',0,250],
+  ['Existing driver liability','EXAMPLE-003','2026-09-07','Asif Driver Salary Running Account','Settle previously accrued wages',417,0],
+  ['↳ Amjad owes','','','Amjad Payable','Paid by Amjad',0,417],
+  ['Syarah wallet recharge','EXAMPLE-004','2026-09-08','Syarah Fuel Payable','Syarah wallet credit',1000,0],
+  ['↳ Amjad owes','','','Amjad Payable','Wallet funded by Amjad',0,1000],
+  ['Syarah fuel consumption','EXAMPLE-005','2026-09-09','Transport & Freight','Fuel consumed by 7979',300,0],
+  ['↳ wallet decreases','','','Syarah Fuel Payable','Deduct from Syarah wallet',0,300],
  ]);
-examples['!cols']=[{wch:26},{wch:20},{wch:16},{wch:36},{wch:44},{wch:32},{wch:14},{wch:14}];
+examples['!cols']=[{wch:26},{wch:20},{wch:16},{wch:36},{wch:44},{wch:14},{wch:14}];
  XLSX.utils.book_append_sheet(book,examples,'Worked Examples - DO NOT IMPORT');
  XLSX.writeFile(book,'NAVILO-Journal-Simple-Debit-Credit.xlsx');
 }
