@@ -44,7 +44,7 @@ describe('Simple Debit/Credit Journal import has no vehicle field',()=>{
    ['', '2026-09-05','Amjad Payable','Funding','',0,250],
   ]);
   expect(rows.slice(1).map(row=>row[0])).toEqual(['IMPORT-2026-09-02','IMPORT-2026-09-02','IMPORT-2026-09-05','IMPORT-2026-09-05']);
-  expect(()=>normalizeSimpleJournalRows([headers,['','2026-09-02','General Expenses','Unfunded','', '',40,0]])).toThrow(/at least two lines/);
+  expect(()=>normalizeSimpleJournalRows([headers,['','2026-09-02','General Expenses','Unfunded','',40,0]])).toThrow(/at least two lines/);
  });
  it('accepts Excel serial dates and NAVILO dates without changing the entry date',()=>{
   expect(journalImportISODate('46266')).toBe('2026-09-01');
@@ -63,7 +63,7 @@ describe('Simple Debit/Credit Journal import has no vehicle field',()=>{
   expect(ar[1].slice(5,7)).toEqual(['customer','ABC Trading']);
   expect(()=>normalizeSimpleJournalRows([oldHeaders,
    ['ERR','2026-09-08','Driver Salary Running Account','Salary','',500,0,'Yasir'],
-   ['','','Amjad Payable','Funded','','',0,500,'']
+   ['','','Amjad Payable','Funded','',0,500,'']
   ])).toThrow(/legacy Related To is ambiguous/);
  });
  it('requires Party Type and Party Name together and preserves party identity',()=>{
@@ -81,7 +81,7 @@ describe('Simple Debit/Credit Journal import has no vehicle field',()=>{
  });
  it('rejects unbalanced, single-sided, invalid and conflicting journals before RPC',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,pair[0]])).toThrow(/at least two/);
-  expect(()=>normalizeSimpleJournalRows([headers,pair[0],['','','Amjad Payable','Paid','','',0,550]])).toThrow(/not balanced/);
+  expect(()=>normalizeSimpleJournalRows([headers,pair[0],['','','Amjad Payable','Paid','',0,550]])).toThrow(/not balanced/);
   expect(()=>normalizeSimpleJournalRows([headers,['X','2026-02-31','General Expenses','Repair','',600,0],['','','Amjad Payable','Funded','','',0,600]])).toThrow(/valid YYYY-MM-DD/);
   expect(()=>normalizeSimpleJournalRows([headers,['X','2026-09-05','General Expenses','repair','',600,0],['X','2026-09-06','Amjad Payable','funded','',0,600]])).toThrow(/conflicting dates/);
  });
