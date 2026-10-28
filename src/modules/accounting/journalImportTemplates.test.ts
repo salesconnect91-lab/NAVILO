@@ -6,8 +6,7 @@ import {TEMPLATE_HEADERS,TEMPLATE_ROWS,downloadExcelTemplate} from './journalImp
 describe('Journal bulk template / Fast Journal field parity',()=>{
  it('uses one account column, genuine party fields, and no vehicle field',()=>{
   expect(TEMPLATE_HEADERS).toEqual([
-    'entry_no','entry_date','description','account_name',
-    'line_description','party','debit','credit'
+    'entry_no','entry_date','account_name','line_description','debit','credit'
   ]);
  });
  it('downloads a valid blank Excel journal workbook and separate instructions',()=>{
