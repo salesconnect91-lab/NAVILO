@@ -136,7 +136,7 @@ function StatementSection({ title, section, onDrilldown, showDetails = true }: {
         {onDrilldown && sectionAccountIds.length ? (
           <button type="button" onClick={() => onDrilldown(sectionAccountIds, title)}
             title="Open the posted ledger entries behind this total"
-            className={`cursor-pointer rounded px-1 font-mono text-sm font-bold underline decoration-dotted underline-offset-2 hover:bg-white text-slate-900`}>
+            className="cursor-pointer font-mono text-sm font-bold text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">
             {formatCurrency(section.total)}
           </button>
         ) : (
@@ -160,7 +160,7 @@ function StatementSection({ title, section, onDrilldown, showDetails = true }: {
                     <span className="block whitespace-normal break-words text-[12px] text-slate-500">{item.detailType}</span>
                   )}
                 </div>
-                <span className="shrink-0 whitespace-nowrap font-mono font-semibold text-slate-900">
+                <span className="shrink-0 whitespace-nowrap font-mono font-semibold text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">
                   {formatCurrency(item.amount)}
                 </span>
               </>
@@ -168,7 +168,7 @@ function StatementSection({ title, section, onDrilldown, showDetails = true }: {
             return onDrilldown && item.accountIds?.length ? (
               <button type="button" key={item.accountIds?.[0]??item.name} onClick={() => onDrilldown(item.accountIds ?? [], item.name, item.journalIds)}
                 title="Open the posted ledger entries behind this account"
-                className="flex w-full cursor-pointer flex-col items-start justify-between gap-1 py-2.5 text-left text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:flex-row sm:items-center sm:gap-4">
+                className="flex w-full cursor-pointer flex-col items-start justify-between gap-1 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:flex-row sm:items-center sm:gap-4">
                 {row}
               </button>
             ) : (
@@ -191,7 +191,7 @@ function ResultRow({ label, amount, onClick }: {
     <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${"border-slate-300 bg-slate-100 text-slate-900"}`}>
       <span className="text-sm font-bold uppercase tracking-wide">{label}</span>
       {onClick ? <button type="button" onClick={onClick} title="Open contributing posted ledger entries"
-        className="cursor-pointer rounded font-mono text-lg font-bold underline decoration-dotted underline-offset-2 hover:opacity-80">{formatCurrency(amount)}</button>
+        className="cursor-pointer font-mono text-lg font-bold text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900">{formatCurrency(amount)}</button>
         : <span className="font-mono text-lg font-bold">{formatCurrency(amount)}</span>}
     </div>
   );
