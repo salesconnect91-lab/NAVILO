@@ -26,6 +26,19 @@ export function journalImportISODate(input:unknown):string{
  }
  const value=str(input);
  if(validDate(value))return value;
+ // Excel/browser readers may stringify a date cell as an ISO datetime rather
+ // than a Date object (for example 2026-09-02T00:00:00.000Z).
+ const isoDateTime=value.match(/^(\d{4}-\d{2}-\d{2})(?:[Tt ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)$/);
+ if(isoDateTime&&validDate(isoDateTime[1]))return isoDateTime[1];
+ // Common Excel text dates such as 9/1/26 are interpreted as M/D/YY,
+ // matching Excel's usual US-style date serialization.
+ const slash=value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+ if(slash){
+  const month=Number(slash[1]),day=Number(slash[2]),rawYear=Number(slash[3]);
+  const year=slash[3].length===2?2000+rawYear:rawYear;
+  const iso=String(year)+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+  if(validDate(iso))return iso;
+ }
  if(/^\d{5}(?:\.0+)?$/.test(value)){
   const serial=Number(value);
   if(serial>20000&&serial<80000){
