@@ -132,11 +132,15 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   const line=i+1;
   const suppliedId=str(row[idx('entry_no')]);
   const suppliedDate=journalImportISODate(row[idx('entry_date')]);
-  const entry=allEntryNumbersBlank?(validDate(suppliedDate)?`IMPORT-${suppliedDate}`:''):(suppliedId||currentEntry);
-  const date=allEntryNumbersBlank?suppliedDate:(suppliedDate||(!suppliedId||suppliedId.toLowerCase()===currentEntry.toLowerCase()?currentDate:''));
+  // A journal date may be entered on its first line only. Continuation
+  // lines inherit that date, including files that leave the entire Entry No
+  // column blank and are grouped into one compound draft per date.
+  const date=suppliedDate||currentDate;
+  const entry=allEntryNumbersBlank?(validDate(date)?`IMPORT-${date}`:''):(suppliedId||currentEntry);
   if(!entry||entry.length>80)throw Error(`Row ${line}: Entry No is required for the first row of every journal (max 80 characters).`);
   if(!validDate(date))throw Error(`Row ${line}: enter a valid YYYY-MM-DD date on the first row of this journal.`);
-  if(suppliedId){currentEntry=entry;currentDate=date;}
+  currentDate=date;
+  if(suppliedId)currentEntry=entry;
   const account=str(row[idx('account_name')]);
   const description=str(row[idx('line_description')]);
   if(!account)throw Error(`Row ${line}: Account is required on every debit/credit line.`);
