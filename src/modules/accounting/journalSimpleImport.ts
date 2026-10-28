@@ -132,10 +132,11 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   const line=i+1;
   const suppliedId=str(row[idx('entry_no')]);
   const suppliedDate=journalImportISODate(row[idx('entry_date')]);
-  // A journal date may be entered on its first line only. Continuation
-  // lines inherit that date, including files that leave the entire Entry No
-  // column blank and are grouped into one compound draft per date.
-  const date=suppliedDate||currentDate;
+  // A new explicit Entry No starts a new journal and must carry its own date.
+  // Only continuation rows (blank Entry No) may inherit the current date.
+  // When all Entry No cells are blank, dates delimit the compound journals.
+  if(suppliedId&&!suppliedDate)currentDate='';
+  const date=suppliedDate||(!suppliedId?currentDate:'');
   const entry=allEntryNumbersBlank?(validDate(date)?`IMPORT-${date}`:''):(suppliedId||currentEntry);
   if(!entry||entry.length>80)throw Error(`Row ${line}: Entry No is required for the first row of every journal (max 80 characters).`);
   if(!validDate(date))throw Error(`Row ${line}: enter a valid YYYY-MM-DD date on the first row of this journal.`);
