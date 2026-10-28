@@ -46,7 +46,7 @@ it('shows a compact ledger-style Party Statement and avoids expensive unfiltered
  expect(api.rpc.mock.calls.some(([name])=>name==='transport_document_trip_detail_query')).toBe(false);
 },30000);
 it('loads selected-party invoice evidence only on demand and prints all rows',async()=>{
- const {container}=render(<Ledgers/>);
+ const {container}=render(<MemoryRouter><Ledgers/></MemoryRouter>);
  fireEvent.change(screen.getAllByRole('combobox')[0],{target:{value:'party'}});
  const input=screen.getByPlaceholderText('Type customer or supplier name...');
  fireEvent.change(input,{target:{value:'CASH BARI'}});
