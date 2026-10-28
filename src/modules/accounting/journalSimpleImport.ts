@@ -7,7 +7,7 @@ import {createImportTemplateWorkbook} from '@/lib/importExcelTemplate';
  * The Action column is a UI control and must not appear in an Excel data file.
  */
 export const SIMPLE_JOURNAL_HEADERS=[
- 'entry_no','entry_date','account_name','line_description','party','debit','credit'
+ 'entry_no','entry_date','account_name','line_description','debit','credit'
 ] as const;
 const str=(v:unknown)=>String(v??'').trim();
 const key=(v:unknown)=>str(v).toLowerCase().replace(/[\s_-]+/g,'');
@@ -83,8 +83,8 @@ function legacyRelatedTo(value:unknown,line:number,account:string){
 export function isSimpleJournalTemplate(headers:readonly unknown[]):boolean{
  const h=headers.map(key);
  const core=['entry_no','entry_date','account_name','line_description','debit','credit'];
- const hasParty=h.includes(key('party'))||(h.includes(key('party_type'))&&h.includes(key('party_name')))||h.includes(key('related_to'));
- return core.every(x=>h.includes(key(x)))&&hasParty&&!h.includes('fundingaccount')&&!h.includes(key('description'));
+ const hasLegacyParty=h.includes(key('party'))||(h.includes(key('party_type'))&&h.includes(key('party_name')))||h.includes(key('related_to'));
+ return core.every(x=>h.includes(key(x)))&&!h.includes('fundingaccount')&&!h.includes(key('description'))&&(!hasLegacyParty||h.includes(key('party'))||(h.includes(key('party_type'))&&h.includes(key('party_name')))||h.includes(key('related_to')));
 }
 /**
  * Converts the simplified two-line spreadsheet to the existing validated
@@ -102,7 +102,7 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
  const partyNameIndex=headers.indexOf(key('party_name'));
  const idx=(h:string)=>headers.indexOf(key(h));
  const legacyRelatedToIndex=headers.indexOf(key('related_to'));
- if(partyIndex<0&&partyNameIndex<0&&legacyRelatedToIndex<0)throw Error('Missing simple journal column: party.');
+ // Party fields are optional in the canonical six-column template; legacy party columns remain supported.
  // Explain multiple common Excel mistakes together instead of forcing a
  // repeated choose-file/fix-one-row/reupload cycle.
  const supplied=rows.slice(1).map((r,index)=>({r,line:index+2})).filter(({r})=>r.some(cell=>str(cell)));
