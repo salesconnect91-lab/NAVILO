@@ -157,7 +157,7 @@ function StatementSection({ title, section, onDrilldown, showDetails = true }: {
   );
 }
 
-function ResultRow({ label, amount, onClick }: {
+function ResultRow({ label, amount }: {
   label: string;
   amount: number;
   prominent?: boolean;
