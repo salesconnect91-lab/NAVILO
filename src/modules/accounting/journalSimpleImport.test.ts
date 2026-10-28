@@ -72,7 +72,7 @@ describe('Simple Debit/Credit Journal import',()=>{
   expect(()=>normalizeSimpleJournalRows([oldHeaders,
    ['ERR','2026-09-08','Driver Salary Running Account','Salary','',500,0,'Yasir'],
    ['','','Amjad Payable','Funded','',0,500,''],
-  ])).toThrow(/legacy Related To is ambiguous/);
+  ])).toThrow(/Related To is ambiguous/);
  });
  it('requires Party Type and Party Name together and preserves party identity',()=>{
   const typedHeaders=['entry_no','entry_date','account_name','line_description','party_type','party_name','debit','credit'];
