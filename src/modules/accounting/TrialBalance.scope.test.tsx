@@ -2,6 +2,7 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {cleanup,render,screen,waitFor} from '@testing-library/react';
 import TrialBalance from './TrialBalance';
+import {MemoryRouter} from 'react-router-dom';
 
 const mock=vi.hoisted(()=>({
  company:'company-A',businessUnit:'BU-A',
@@ -39,16 +40,16 @@ beforeEach(()=>{mock.company='company-A';mock.businessUnit='BU-A';mock.failure=f
 afterEach(cleanup);
 describe('Trial Balance tenant guard and fail-closed evidence',()=>{
  it('explicitly scopes chart of accounts and loads posted balance data',async()=>{
-  render(<TrialBalance/>);
+  render(<MemoryRouter><TrialBalance/></MemoryRouter>);
   await waitFor(()=>expect(mock.journalCalls.length).toBeGreaterThan(0));
   await waitFor(()=>expect(mock.accountScopes).toContain('company-A'));
   expect(mock.journalCalls[0].name).toBe('accounting_report_balances_scoped');
   expect(mock.journalCalls[0].args.p_scope).toBe('branch');
  });
  it('permission denial hides stale report totals after changing company',async()=>{
-  const v=render(<TrialBalance/>);
+  const v=render(<MemoryRouter><TrialBalance/></MemoryRouter>);
   await waitFor(()=>expect(screen.getByTestId('trial-export').textContent).toContain('300'));
-  mock.company='company-B';mock.failure=true;v.rerender(<TrialBalance/>);
+  mock.company='company-B';mock.failure=true;v.rerender(<MemoryRouter><TrialBalance/></MemoryRouter>);
   await waitFor(()=>expect(screen.getByText('Accounting permission denied')).toBeTruthy());
   expect(mock.accountScopes).toContain('company-B');
   expect(screen.queryByText(/300\.00/)).toBeNull();
