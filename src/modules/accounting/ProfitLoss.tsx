@@ -556,7 +556,9 @@ export default function ProfitLoss() {
 
   const vehicleAccountIds=new Set(transportIncome?.vehicleLedgerAccounts.map(row=>row.account_id)??[]);
   const printableTransportIncomeRows=isTransport&&transportIncome?[
-    ...transportIncome.vehicleLedgerAccounts.map(row=>({name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net})),
+    ...[...transportIncome.vehicleLedgerAccounts]
+      .sort((a,b)=>a.vehicle_no.localeCompare(b.vehicle_no,undefined,{numeric:true,sensitivity:'base'}))
+      .map(row=>({name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net})),
     ...[...data.operatingRevenue.items,...data.otherIncome.items]
       .filter(row=>!(row.accountIds??[]).some(id=>vehicleAccountIds.has(id)))
       .map(row=>({name:row.name,amount:row.amount})),
