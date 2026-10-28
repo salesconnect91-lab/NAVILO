@@ -2388,12 +2388,12 @@ function TransportWorkspaceScoped({importOnlyMode}:{importOnlyMode?:'bulk'|'hist
     <div className="px-4 pb-2 pt-3">
       {standaloneMobile&&<button type="button" onClick={()=>{setError("");setEditingTripId(null);setEditingTripNo("");setEditingOriginalAssignment({vehicle_id:"",driver_id:""});setTab("mobile")}} className="mb-2 inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700">← Recent Trips</button>}
       <h2 className="font-bold text-slate-950">
-        {importOnlyMode?(importOnlyMode==='bulk'?'Daily Trip Upload':'One-time Transport Import'):editingTripId?<span className="inline-flex items-center gap-1.5">Edit Trip - {editingTripNo}{editingTripLocked&&<span title="Locked: customer and supplier financial sides are posted. Normal Trip editing is disabled; use controlled correction." className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"><LockKeyhole className="h-3 w-3"/>Locked</span>}</span>:"New Trip"}
+        {importOnlyMode?(importOnlyMode==='bulk'?'Daily Trip Upload':'One-time Transport Import'):editingTripId?<span className="inline-flex items-center gap-1.5">Edit Trip - {editingTripNo}{editingTripLocked&&<span title="Locked: posted financial links require an Owner/Admin controlled correction." className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"><LockKeyhole className="h-3 w-3"/>Locked</span>}</span>:"New Trip"}
       </h2>
 
       {standaloneMobile&&currentVoiceDraftId&&<div className="mb-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900"><strong>Voice draft ready.</strong> Check the matched Customer, Vehicle, Driver, route and amounts, then tap Create Trip. If anything was not recognized, select it manually.</div>}
       <p className="text-xs text-slate-500">
-        {editingTripLocked?"Locked Trip is read-only. Use the controlled correction / reversal workflow for later changes.":editingTripId?"Trip No is permanent. Unposted changes require an audit reason; posted financial fields stay protected.":"Trip number is generated automatically by NAVILO."}
+        {editingTripLocked?"Posted Trip is locked for normal users. An Owner/Admin controlled correction is required for financial changes.":editingTripId?"Trip No is permanent. Unposted changes require an audit reason; posted financial fields stay protected.":"Trip number is generated automatically by NAVILO."}
       </p>
     </div>
 
