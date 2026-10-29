@@ -200,6 +200,10 @@ export default function CashCounter() {
   const [recentPayments, setRecentPayments] =
     useState<any[]>([]);
 
+  useEffect(()=>{
+    setSelectedCustomerId("");setCustomerSearch("");setSelectedInvoiceId("");setInvoices([]);setInvoiceAllocations({});setPaymentAccountId("");
+  },[companyId]);
+
   const loadMasterData = useCallback(
     async (quiet=false) => {
       if(!quiet)setLoading(true);
