@@ -55,6 +55,7 @@ describe('Simple Debit/Credit Journal import',()=>{
   expect(journalImportISODate('01-Sep-26')).toBe('2026-09-01');
   expect(journalImportISODate('15-Oct-2026')).toBe('2026-10-15');
   expect(journalImportISODate('2026-09-05')).toBe('2026-09-05');
+  expect(journalImportISODate('| 2026-09-02 |')).toBe('2026-09-02');
  });
  it('recognizes the canonical template and downloads it without party or vehicle columns',()=>{
   expect(isSimpleJournalTemplate(headers)).toBe(true);
