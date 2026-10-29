@@ -76,12 +76,12 @@ begin
  perform public.transport_finalize_supplier_rent(rent,400,'No-op authorized correction');
  if (select count(*) from public.transport_trip_audit where trip_id=trip)<>count_before then raise exception 'True no-op created audit';end if;
  execute 'set local role authenticated';
- result:=public.transport_post_cost_request(request_id,trip,'other',supplier,25,current_date,acct,false,'Same intent');
- again:=public.transport_post_cost_request(request_id,trip,'other',supplier,25,current_date,acct,false,'Same intent');
+ result:=public.transport_post_cost_request(request_id,trip,'other',supplier,25,current_date,acct,false,null);
+ again:=public.transport_post_cost_request(request_id,trip,'other',supplier,25,current_date,acct,false,null);
  if result is distinct from again or (select count(*) from public.transport_service_cost_links where trip_id=trip)<>1 then raise exception 'Cost retry duplicated financial evidence';end if;
- rejected:=false;begin perform public.transport_post_cost_request(request_id,trip,'other',supplier,26,current_date,acct,false,'Same intent');exception when others then rejected:=sqlerrm like '%mismatch%';end;
+ rejected:=false;begin perform public.transport_post_cost_request(request_id,trip,'other',supplier,26,current_date,acct,false,null);exception when others then rejected:=sqlerrm like '%mismatch%';end;
  if not rejected then raise exception 'Changed intent payload accepted';end if;
- again:=public.transport_post_cost_request(gen_random_uuid(),trip,'other',supplier,25,current_date,acct,false,'Same intent');
+ again:=public.transport_post_cost_request(gen_random_uuid(),trip,'other',supplier,25,current_date,acct,false,null);
  if result->>'document_id'=again->>'document_id' or (select count(*) from public.transport_service_cost_links where trip_id=trip)<>2 then raise exception 'Distinct equal-value intents merged';end if;
  rejected:=false;begin perform public.transport_post_cost(trip,'other',supplier,25,current_date,acct,false);exception when insufficient_privilege then rejected:=true;end;
  if not rejected then raise exception 'Unprotected cost signature exposed';end if;
