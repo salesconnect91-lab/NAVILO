@@ -49,7 +49,7 @@ BEGIN
      );
 
   IF NOT allow_override OR NOT public.transport_invoice_duplicate_override_allowed('supplier') THEN
-    RAISE EXCEPTION 'Supplier invoice number is already in use in this company. Review the duplicate list; authorized override is required.';
+    RAISE EXCEPTION 'Supplier invoice number "%" is already in use in this company. Review the duplicate list; authorized override is required.',number;
   END IF;
 
   INSERT INTO public.transport_invoice_duplicate_override_events(
