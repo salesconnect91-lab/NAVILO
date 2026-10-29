@@ -106,9 +106,14 @@ const roundMoney = (value: number) =>
   Math.round((value + Number.EPSILON) * 100) / 100;
 
 const normalizeJournalImportDate = (value: unknown): string => {
+  // XLSX may return actual Date objects depending on workbook cell typing.
+  if (value instanceof Date && Number.isFinite(value.getTime())) {
+    return [String(value.getFullYear()).padStart(4, "0"), String(value.getMonth() + 1).padStart(2, "0"), String(value.getDate()).padStart(2, "0")].join("-");
+  }
   const input = normalize(value);
   if (!input) return "";
-  const iso = input.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  // Accept ISO dates with optional time suffix, as produced by some spreadsheet exports.
+  const iso = input.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/i);
   const slash = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
   let year: number;
   let month: number;
@@ -120,7 +125,8 @@ const normalizeJournalImportDate = (value: unknown): string => {
     year = Number(slash[3]);
     if (slash[3].length === 2) year += year >= 70 ? 1900 : 2000;
   } else if (/^\d{5}$/.test(input)) {
-    const date = new Date(Date.UTC(1899, 11, 30) + Number(input) * 86400000);
+    const serial = Number(input);
+    const date = new Date(Date.UTC(1899, 11, 30) + serial * 86400000);
     return date.toISOString().slice(0, 10);
   } else {
     return input;
