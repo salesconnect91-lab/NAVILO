@@ -93,7 +93,7 @@ export function isSimpleJournalTemplate(headers:readonly unknown[]):boolean{
 export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[]):string[][]{
  if(rows.length<2)throw Error('Add at least two journal lines below the Excel headers.');
  const headers=rows[0].map(key);
- for(const h of SIMPLE_JOURNAL_HEADERS)if(!headers.includes(key(h)))throw Error(`Missing simple journal column: ${h}.`);
+ for(const h of ['entry_no','entry_date','account_name','line_description','debit','credit'])if(!headers.includes(key(h)))throw Error(`Missing simple journal column: ${h}.`);
  const partyIndex=headers.indexOf(key('party'));
  const partyTypeIndex=headers.indexOf(key('party_type'));
  const partyNameIndex=headers.indexOf(key('party_name'));
@@ -135,7 +135,8 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   const legacyPartyName=partyNameIndex>=0?str(row[partyNameIndex]):'';
   const partyName=partyIndex>=0?str(row[partyIndex]):legacyPartyName;
   if(partyIndex>=0&&legacyPartyName)throw Error(`Row ${line}: enter the party once in the Party column.`);
-  if(partyTypeIndex>=0&&partyType&&!legacyPartyName)throw Error(`Row ${line}: Party Type was supplied without Party Name. Use the single Party column.`);
+  if(partyTypeIndex>=0&&partyType&&!legacyPartyName)throw Error(`Row ${line}: Party Type was supplied without Party Name.`);
+  if(!partyType&&legacyPartyName)throw Error(`Row ${line}: Party Type is required when Party Name is supplied.`);
   const vehicleIndex=headers.indexOf(key('vehicle_no')),vehicle=vehicleIndex>=0?str(row[vehicleIndex]):'';
   if(vehicle)throw Error(`Row ${line}: Vehicle allocation is not part of General Journal. Use the Transport Vehicle Expenses module for vehicle-specific costs.`);
   const legacy=legacyRelatedToIndex>=0?legacyRelatedTo(row[legacyRelatedToIndex],line,account):{partyType:'',partyName:''};
