@@ -1,3 +1,4 @@
+import {parseNaviloImportDate} from '@/lib/importExcelTemplate';
 /** Pure, reusable validation for supplier-less direct Cash/Bank expenses.
  * No VAT is claimed here: recoverable tax uses supplier tax invoice workflow. */
 export type DirectCashExpenseRow={
@@ -20,9 +21,9 @@ export function parseDirectCashExpenseRows(
  const refs=new Set<string>();
  return raw.map((r,index)=>{
   const line=index+2;const get=(k:string)=>clean(find(r,k));
-  const date=get("Date"),area=get("Area").toLowerCase();
+  const date=parseNaviloImportDate(find(r,"Date")),area=get("Area").toLowerCase();
   const expense=get("Expense Account"),payment=get("Cash / Bank Account"),reference=get("Source Reference"),paid_to=get("Paid To"),description=get("Description");
-  if(!validDate(date))throw Error("Row "+line+": valid ISO Date YYYY-MM-DD required.");
+  if(!validDate(date))throw Error("Row "+line+": valid date required (dd-mmm-yy, e.g. 15-Oct-26; ISO and Excel dates are also accepted).");
   if(!["office","yard","general"].includes(area))throw Error("Row "+line+": Area must be Office, Yard or General. Vehicle expenses use Vehicle Expense Excel.");
   if(!description||description.length>500)throw Error("Row "+line+": Description required (max 500 characters).");
   if(!reference||reference.length>100)throw Error("Row "+line+": unique Source Reference required (max 100 characters).");
