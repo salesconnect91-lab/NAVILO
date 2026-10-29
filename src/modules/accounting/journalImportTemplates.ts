@@ -75,7 +75,7 @@ export const downloadExcelTemplate = () => {
    'Upload creates DRAFT journals only. Review and post each journal in Accounting; no entries are posted automatically.',
    'All rows with the same entry_no must have the same entry_date. Debit and credit totals for each entry MUST balance.',
    'Account Name is the GL account receiving the debit or credit. General Journal lines do not carry a vehicle selection.',
-   'The template follows the Journal Entry line layout: Account, Line Description, Party, Debit, Credit. Party is one combined column; use 'Customer: Name' or 'Supplier: Name' for party-specific AR/AP lines. Leave Party blank for ordinary GL lines. Action is a screen control and is not an Excel column.',
+   "The template follows the Journal Entry line layout: Account, Line Description, Party, Debit, Credit. Party is one combined column; use Customer: Name or Supplier: Name for party-specific AR/AP lines. Leave Party blank for ordinary GL lines. Action is a screen control and is not an Excel column.",
    'Do not invent missing accounts or use group accounts. If an account name is ambiguous, use the optional legacy account_head column to disambiguate.',
    'Supplier payment examples: DEBIT Accounts Payable with the correct Supplier Party and CREDIT Cash/Bank. Review direction and any existing allocations before posting.',
    'Line Description is the narration for each line and is used as the journal description when no separate description column is supplied. Debit/Credit must balance per Entry No, with only one nonzero side per line.',
