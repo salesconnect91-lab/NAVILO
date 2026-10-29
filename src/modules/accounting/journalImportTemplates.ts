@@ -85,7 +85,7 @@ export const downloadExcelTemplate = () => {
  sheet['!cols']=[
   {wch:18},{wch:15},{wch:34},{wch:38},{wch:17},{wch:17}
  ];
- sheet['!autofilter']={ref:`A1:F${TEMPLATE_ROWS.length+1}`};
+ sheet['!autofilter']={ref:`A1:H${TEMPLATE_ROWS.length+1}`};
  workbook.Sheets['Journal Import']=sheet;
  XLSX.writeFile(workbook,'journal-import-template.xlsx');
 };
