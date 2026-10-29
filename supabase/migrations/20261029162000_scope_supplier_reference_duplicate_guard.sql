@@ -13,6 +13,7 @@ DECLARE
   allow_override boolean := coalesce(current_setting('app.transport_duplicate_invoice_override',true),'0')='1';
   conflict_exists boolean := false;
   conflict_rows jsonb := '[]'::jsonb;
+  company_label text;
 BEGIN
   IF number IS NULL THEN RETURN NEW; END IF;
   IF NEW.company_id IS NOT NULL THEN
@@ -32,11 +33,20 @@ BEGIN
 
   IF NOT conflict_exists THEN RETURN NEW; END IF;
 
-  SELECT coalesce(jsonb_agg(m.value),'[]'::jsonb)
+  SELECT name INTO company_label FROM public.companies WHERE id=NEW.company_id;
+  SELECT coalesce(jsonb_agg(jsonb_build_object(
+    'side','supplier','company',company_label,'invoice_number',po.order_no,
+    'supplier_invoice_no',po.supplier_invoice_no,'date',po.order_date,
+    'status',po.status,'document_id',po.id
+  )),'[]'::jsonb)
     INTO conflict_rows
-    FROM jsonb_array_elements(coalesce(public.transport_invoice_number_conflicts('supplier',number)->'matches','[]'::jsonb)) AS m(value)
-   WHERE m.value->>'document_id' IS DISTINCT FROM NEW.id::text
-     AND m.value->>'company' IS NOT NULL;
+    FROM public.purchase_orders po
+   WHERE po.company_id=NEW.company_id
+     AND po.id IS DISTINCT FROM NEW.id
+     AND (
+       lower(btrim(coalesce(po.order_no,'')))=lower(number)
+       OR lower(btrim(coalesce(po.supplier_invoice_no,'')))=lower(number)
+     );
 
   IF NOT allow_override OR NOT public.transport_invoice_duplicate_override_allowed('supplier') THEN
     RAISE EXCEPTION 'Supplier invoice number is already in use in this company. Review the duplicate list; authorized override is required.';
