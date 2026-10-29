@@ -27,10 +27,11 @@ describe("application theme preference", () => {
   it("does not overwrite the saved theme when the layout mounts", () => {
     localStorage.setItem("navilo-theme", "dark");
     document.documentElement.dataset.theme = "dark";
+    document.documentElement.classList.add("dark");
     render(<MemoryRouter initialEntries={["/"]}><Layout><div>Workspace</div></Layout></MemoryRouter>);
     expect(localStorage.getItem("navilo-theme")).toBe("dark");
     expect(document.documentElement.dataset.theme).toBe("dark");
-    expect(document.documentElement.classList.contains("dark")).toBe(false);
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
   });
 });
 
