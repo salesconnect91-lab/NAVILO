@@ -81,6 +81,7 @@ begin
  bad:=false;begin perform public.transport_vehicle_expense_save(payload,doc);exception when others then bad:=true;end;
  if not bad then raise exception 'Posted expense editable';end if;
  -- A read-only company user cannot call posted-reversal APIs directly.
+ update public.user_profiles set role='user' where id=u;
  update public.company_memberships set role='viewer' where company_id=c and user_id=u;
  update public.business_unit_memberships set role='viewer' where business_unit_id=b and user_id=u;
  update public.operating_location_memberships set role='viewer' where operating_location_id=loc and user_id=u;
