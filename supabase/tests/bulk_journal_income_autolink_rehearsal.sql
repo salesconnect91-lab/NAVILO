@@ -46,20 +46,19 @@ BEGIN
  v2:=public.transport_create_vehicle_master('BV-B-'||code,tt,'company',null,current_date-1);
  UPDATE public.transport_vehicles SET revenue_account_id=income WHERE id=v1;
 
- -- A dedicated Vehicle Income GL cannot be silently converted into an ordinary journal line.
- bad:=false;
- BEGIN
-  PERFORM public.bulk_load_journal_entries(jsonb_build_array(jsonb_build_object(
-   'entry_no','BULK-DEDICATED-'||code,'entry_date',current_date::text,'description','Dedicated vehicle income',
-   'lines',jsonb_build_array(
-    jsonb_build_object('account_name','Dedicated Vehicle Income '||code,'line_description','Vehicle income','debit',0,'credit',500),
-    jsonb_build_object('account_name',(SELECT name FROM public.chart_of_accounts WHERE id=cash),'line_description','Cash received','debit',500,'credit',0)
-   )
-  )));
- EXCEPTION WHEN OTHERS THEN bad:=true;
- END;
- IF NOT bad OR EXISTS(SELECT 1 FROM public.journal_entries WHERE company_id=c AND entry_no='BULK-DEDICATED-'||code)
- THEN RAISE EXCEPTION 'Dedicated vehicle income was accepted through General Journal'; END IF;
+ -- General Journal can use a valid Income GL, but must not add a Vehicle dimension.
+ result:=public.bulk_load_journal_entries(jsonb_build_array(jsonb_build_object(
+  'entry_no','BULK-DEDICATED-'||code,'entry_date',current_date::text,'description','Dedicated vehicle income GL',
+  'lines',jsonb_build_array(
+   jsonb_build_object('account_name','Dedicated Vehicle Income '||code,'line_description','Vehicle income','debit',0,'credit',500),
+   jsonb_build_object('account_name',(SELECT name FROM public.chart_of_accounts WHERE id=cash),'line_description','Cash received','debit',500,'credit',0)
+  )
+ )));
+ id1:=(result->'entries'->0->>'id')::uuid;
+ IF (SELECT count(*) FROM public.journal_lines WHERE entry_id=id1)<>2
+ OR EXISTS(SELECT 1 FROM public.journal_lines WHERE entry_id=id1 AND transport_vehicle_id IS NOT NULL)
+ OR (SELECT status FROM public.journal_entries WHERE id=id1)<>'draft'
+ THEN RAISE EXCEPTION 'General Journal added Vehicle dimension or auto-posted'; END IF;
 
  -- Shared revenue GL remains unchanged and creates a draft only, with no vehicle dimension.
  result:=public.bulk_load_journal_entries(jsonb_build_array(jsonb_build_object(
