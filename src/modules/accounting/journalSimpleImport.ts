@@ -25,6 +25,8 @@ export function journalImportISODate(input:unknown):string{
  }
  // Tolerate ISO dates copied from a Markdown/table view with surrounding pipe delimiters.
  const value=str(input).replace(/^\|+|\|+$/g,'').trim();
+ const sharedDate=parseNaviloImportDate(value);
+ if(validDate(sharedDate))return sharedDate;
  if(validDate(value))return value;
  // Excel/browser readers may stringify a date cell as an ISO datetime rather
  // than a Date object (for example 2026-09-02T00:00:00.000Z).
@@ -49,7 +51,7 @@ export function journalImportISODate(input:unknown):string{
    if(validDate(result))return result;
   }
  }
- const named=value.match(/^(\d{1,2})[-\s]([A-Za-z]{3,9})[-\s](\d{2}|\d{4})$/);
+ const named=value.match(/^(\d{1,2})[-\s]([A-Za-z]{3,9})[-\s](\d{2}|\d{4})(?:\s+.*)?$/);
  if(named){
   const months=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
   const month=months.indexOf(named[2].toLowerCase().slice(0,3))+1;
