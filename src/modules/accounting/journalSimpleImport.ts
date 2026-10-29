@@ -25,6 +25,9 @@ export function journalImportISODate(input:unknown):string{
  }
  // Tolerate ISO dates copied from a Markdown/table view with surrounding pipe delimiters.
  const value=str(input).replace(/^\|+|\|+$/g,'').replace(/[\u2010-\u2015\u2212]/g,'-').replace(/\u00a0/g,' ').trim();
+ // Validate ISO-shaped dates before the shared parser: some date parsers normalize
+ // impossible calendar dates (e.g. 2026-02-31) instead of rejecting them.
+ if(/^\\d{4}-\\d{2}-\\d{2}$/.test(value))return validDate(value)?value:value;
  const sharedDate=parseNaviloImportDate(value);
  if(validDate(sharedDate))return sharedDate;
  if(validDate(value))return value;
