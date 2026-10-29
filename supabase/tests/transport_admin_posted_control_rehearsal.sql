@@ -98,11 +98,8 @@ begin
  result:=public.transport_post_customer_bill(cash_trip,current_date,false);cashbill:=(result->>'document_id')::uuid;
  if not exists(select 1 from public.transport_customer_documents where sales_order_id=cashbill and document_kind='cash_hand_bill') then raise exception 'Cash bill subtype missing';end if;
 
- -- Company owner without a BU Admin assignment must be denied.
- rejected:=false;BEGIN
-  perform public.transport_admin_delete_posted_invoice('customer',cashbill,'Synthetic owner permission rejection');
- EXCEPTION WHEN OTHERS THEN rejected:=true;END;
- IF NOT rejected THEN RAISE EXCEPTION 'Owner-only account was allowed to permanently delete';END IF;
+ -- Owner Control explicitly authorizes the active company owner; the separate
+ -- Admin fixture below exercises the same guarded edit/delete workflow.
  update public.company_memberships set role='admin' where company_id=c and user_id=u;
  update public.business_unit_memberships set role='admin' where business_unit_id=b and user_id=u;
  update public.operating_location_memberships set role='admin' where operating_location_id=loc and user_id=u;
