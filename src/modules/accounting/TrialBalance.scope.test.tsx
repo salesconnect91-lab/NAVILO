@@ -62,7 +62,7 @@ describe('Trial Balance tenant guard and fail-closed evidence',()=>{
  });
  it('missing company prevents query',async()=>{
   mock.company='';
-  render(<TrialBalance/>);
+  render(<MemoryRouter><TrialBalance/></MemoryRouter>);
   await waitFor(()=>expect(screen.getByText('Active company and business unit required.')).toBeTruthy());
   expect(mock.journalCalls).toHaveLength(0);
  });
