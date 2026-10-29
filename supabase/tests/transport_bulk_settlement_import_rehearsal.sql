@@ -98,7 +98,7 @@ begin
  result:=public.transport_bulk_rate_page('customer',500,0,'{}'::jsonb);
  if (result->>'count')::int<>2 then raise exception 'Posted corrections selection lost billed Trips';end if;
  execute 'reset role';
- result:=public.transport_post_supplier_bill(rent,current_date,acct,false);
+ result:=public.transport_post_supplier_bill_described(rent,current_date,acct,false,'BULK-SUP-'||code,'BULK-SUP-INV-'||code,'Bulk settlement acceptance supplier bill');
  result:=public.transport_party_report_query('documents','customer',jsonb_build_object('party',customer));
  if jsonb_array_length(result)<>1 or result->0->>'side'<>'customer' then raise exception 'Selected side/party reader failed';end if;
  if public.transport_party_report_query('documents','customer',jsonb_build_object('party',gen_random_uuid()))<>'[]'::jsonb then raise exception 'Party filter ignored';end if;
