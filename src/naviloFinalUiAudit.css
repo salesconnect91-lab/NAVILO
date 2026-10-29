@@ -229,3 +229,52 @@
     margin-inline: 0 !important;
   }
 }
+
+
+/* Shared control baseline: resolve legacy 26/32/34px overlap without changing
+   the dense Transport Register, print/PDF surfaces, or searchable menu internals.
+   Touch targets remain 44px on mobile/coarse-pointer screens. */
+@media screen and (min-width: 768px) {
+  :is(.erp-shell #navilo-main-content, .erp-shell [data-navilo-ui-dialog], .erp-shell [role="dialog"])
+    :is(button, a.btn-primary, a.btn-secondary, a.btn-danger)
+    :not(:disabled):not([aria-haspopup="menu"]):not([role="tab"])
+    :not(:where([data-navilo-transport-register] *, [data-navilo-print-preview] *, .navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-searchable-dropdown] *)) {
+    box-sizing: border-box;
+    min-height: 32px !important;
+    height: auto;
+    padding: 5px 10px !important;
+    font-size: 12.5px !important;
+    line-height: 1.35 !important;
+  }
+
+  :is(.erp-shell #navilo-main-content, .erp-shell [data-navilo-ui-dialog], .erp-shell [role="dialog"])
+    :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]), select, textarea)
+    :not(:where([data-navilo-transport-register] *, [data-navilo-print-preview] *, .navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-searchable-dropdown] *)) {
+    box-sizing: border-box;
+    min-height: 32px !important;
+    padding: 5px 8px !important;
+    font-size: 13px !important;
+    line-height: 1.35 !important;
+  }
+
+  :is(.erp-shell #navilo-main-content, .erp-shell [data-navilo-ui-dialog], .erp-shell [role="dialog"])
+    :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]), select)
+    :not(:where([data-navilo-transport-register] *, [data-navilo-print-preview] *, .navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-searchable-dropdown] *)) {
+    height: 32px !important;
+  }
+}
+
+@media screen and (max-width: 767px), screen and (pointer: coarse) {
+  :is(.erp-shell #navilo-main-content, .erp-shell [data-navilo-ui-dialog], .erp-shell [role="dialog"])
+    :is(button, a.btn-primary, a.btn-secondary, a.btn-danger, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]), select, textarea)
+    :not(:where([data-navilo-transport-register] *, [data-navilo-print-preview] *, .navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-searchable-dropdown] *)) {
+    min-height: 44px !important;
+    font-size: 16px !important;
+  }
+
+  :is(.erp-shell #navilo-main-content, .erp-shell [data-navilo-ui-dialog], .erp-shell [role="dialog"])
+    :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]), select)
+    :not(:where([data-navilo-transport-register] *, [data-navilo-print-preview] *, .navilo-live-preview *, .navilo-print-output *, .navilo-generic-report *, [data-navilo-searchable-dropdown] *)) {
+    height: 44px !important;
+  }
+}
