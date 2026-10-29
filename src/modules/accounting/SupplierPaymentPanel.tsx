@@ -100,6 +100,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
   },[supplierId,invoiceReload,companyId]);
 
   const refreshPaymentAccounts=async()=>{
+    if(!companyId){setAccounts([]);throw new Error("Select an active company before choosing a supplier payment account.");}
     const r=await supabase.from("chart_of_accounts").select("id,code,name")
       .eq("company_id",companyId).eq("is_active",true).eq("is_group",false).eq("allow_manual_entries",true)
       .in("detail_type",["Cash on Hand","Bank Account"]).order("code");
