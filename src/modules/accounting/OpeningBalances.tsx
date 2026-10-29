@@ -84,7 +84,7 @@ export default function OpeningBalances() {
     setLoading(false);
   };
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { setRows([row(), row()]); setError(null); setSuccess(null); void load(); }, [companyId, businessUnitId]);
 
   const update = (key: string, patch: Partial<Row>) => setRows((current) => current.map((item) => item.key === key ? { ...item, ...patch } : item));
   const selectAccount = (item: Row, accountId: string) => {
