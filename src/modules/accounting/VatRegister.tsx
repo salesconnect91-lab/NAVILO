@@ -28,6 +28,7 @@ try{
   ee=await fetchAllPages<Entry>((fromRow,toRow)=>
     supabase.from("journal_entries")
       .select("id,entry_no,entry_date,trans_type,party_name,description")
+      .eq("company_id",companyId!)
       .eq("status","posted")
       .gte("entry_date",from)
       .lte("entry_date",to)
