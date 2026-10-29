@@ -814,6 +814,15 @@ export default function JournalEntryList() {
         if (partyIndex >= 0 && partyNameIndex >= 0 && normalize(row[partyIndex]) && normalize(row[partyNameIndex])) {
           throw new Error(`Row ${i + 1}: enter the party once in the Party column.`);
         }
+        if (partyType && !["customer", "supplier"].includes(partyType)) {
+          throw new Error(`Row ${i + 1}: Party Type must be customer or supplier.`);
+        }
+        if (partyType && !partyName) {
+          throw new Error(`Row ${i + 1}: Party Name is required when Party Type is supplied.`);
+        }
+        if (partyName && !partyType) {
+          throw new Error(`Row ${i + 1}: Party Type is required when Party Name is supplied.`);
+        }
 
         const debit =
           parseAmount(
