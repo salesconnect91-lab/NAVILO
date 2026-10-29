@@ -809,10 +809,22 @@ export default function JournalEntryList() {
         const partyIndex = columnIndex("party");
         const partyTypeIndex = columnIndex('partytype');
         const partyNameIndex = columnIndex("partyname");
-        const partyType = partyTypeIndex >= 0 ? normalize(row[partyTypeIndex]).toLowerCase() : "";
-        const partyName = partyIndex >= 0 ? normalize(row[partyIndex]) : partyNameIndex >= 0 ? normalize(row[partyNameIndex]) : "";
+        let partyType = partyTypeIndex >= 0 ? normalize(row[partyTypeIndex]).toLowerCase() : "";
+        let partyName = partyIndex >= 0 ? normalize(row[partyIndex]) : partyNameIndex >= 0 ? normalize(row[partyNameIndex]) : "";
         if (partyIndex >= 0 && partyNameIndex >= 0 && normalize(row[partyIndex]) && normalize(row[partyNameIndex])) {
           throw new Error(`Row ${i + 1}: enter the party once in the Party column.`);
+        }
+        if (partyIndex >= 0 && partyName) {
+          const taggedParty = partyName.match(/^(customer|supplier)\\s*:\\s*(.+)$/i);
+          if (taggedParty) {
+            partyType = taggedParty[1].toLowerCase();
+            partyName = taggedParty[2].trim();
+          } else {
+            const normalizedAccount = accountName.toLowerCase().replace(/\\s+/g, " ").trim();
+            if (normalizedAccount === "accounts receivable") partyType = "customer";
+            else if (normalizedAccount === "accounts payable") partyType = "supplier";
+            else throw new Error(`Row ${i + 1}: Party must use Customer: Exact Name or Supplier: Exact Name for an AR/AP line.`);
+          }
         }
         if (partyType && !["customer", "supplier"].includes(partyType)) {
           throw new Error(`Row ${i + 1}: Party Type must be customer or supplier.`);
