@@ -4,8 +4,8 @@ const key=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
 export function invoiceImportDate(value:unknown):string{
  if(value instanceof Date&&!Number.isNaN(value.valueOf()))return `${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}`;
  if(typeof value==='number')return new Date(Math.round((value-25569)*86400000)).toISOString().slice(0,10);
- const s=text(value).replace(/^\\|+|\\|+$/g,'').trim();if(!s)return '';
- let result=s;const match=s.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2}|\d{4})$/);
+ const s=text(value).replace(/^\|+|\|+$/g,'').trim();if(!s)return '';
+ let result=s;const match=s.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2}|\d{4})(?:\s+.*)?$/);
  if(match){const m=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].indexOf(match[2].toLowerCase())+1;result=`${match[3].length===2?'20':''}${match[3]}-${String(m).padStart(2,'0')}-${match[1].padStart(2,'0')}`;}
  if(!/^\d{4}-\d{2}-\d{2}$/.test(result)||!Number.isFinite(Date.parse(result))||new Date(result).toISOString().slice(0,10)!==result)throw new Error(`Invalid date: ${s}. Use dd-mmm-yy or yyyy-mm-dd.`);
  return result;
