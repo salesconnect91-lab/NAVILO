@@ -92,7 +92,10 @@ begin
  bad:=false;begin perform public.transport_vehicle_expense_reverse(doc,'2026-10-18','Denied read-only user');exception when others then bad:=true;end;
  if not bad then raise exception 'Read-only user bypassed posted expense reversal authorization';end if;
  reset role;
- update public.user_profiles set platform_role='super_admin' where id=u;
+ update public.user_profiles set role='admin',platform_role='user' where id=u;
+ update public.company_memberships set role='admin' where company_id=c and user_id=u;
+ update public.business_unit_memberships set role='admin' where business_unit_id=b and user_id=u;
+ update public.operating_location_memberships set role='admin' where operating_location_id=loc and user_id=u;
  set local role authenticated;
  bad:=false;begin perform public.reverse_manual_journal_entry(je,'2026-10-18','Wrong screen');exception when insufficient_privilege then bad:=true;end;if not bad then raise exception 'Raw manual reversal API was not restricted to its audited wrapper';end if;
  res:=public.transport_vehicle_expense_reverse(doc,'2026-10-18','Isolated expense correction');rev:=(res->>'reversal_entry_id')::uuid;
