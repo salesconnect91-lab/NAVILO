@@ -106,6 +106,10 @@ export default function AccountMappingSetup() {
 
   async function saveKeys(keys: MappingKey[]) {
     if (keys.length === 0) return;
+    if (!companyId) {
+      setError("Select an active company before saving account mappings.");
+      return;
+    }
     setError("");
     setSuccess("");
     setSavingKey(keys.length === 1 ? keys[0] : "all");
@@ -113,9 +117,9 @@ export default function AccountMappingSetup() {
       for (const key of keys) {
         const accountId = selections[key];
         if (!accountId) throw new Error(`Select an account for ${MAPPING_LABELS[key]}.`);
-        await setMapping(key, accountId, companyId ?? undefined);
+        await setMapping(key, accountId, companyId);
       }
-      const refreshedMappings = await listMappings(companyId ?? undefined);
+      const refreshedMappings = await listMappings(companyId);
       setMappings(refreshedMappings);
       setSelections(
         Object.fromEntries(refreshedMappings.map((mapping) => [mapping.mapping_key, mapping.account_id]))
