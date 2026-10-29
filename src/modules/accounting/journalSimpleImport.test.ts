@@ -5,13 +5,13 @@ vi.mock('xlsx',async(importOriginal)=>({...await importOriginal<typeof import('x
 
 const headers=[...SIMPLE_JOURNAL_HEADERS];
 const pair=[
- ['ORB-SEP-001','2026-09-05','General Expenses','Vehicle 7979 repair',600,0],
- ['','','Amjad Payable','Paid by Amjad',0,600],
+ ['ORB-SEP-001','2026-09-05','General Expenses','Vehicle 7979 repair','','',600,0],
+ ['','','Amjad Payable','Paid by Amjad','','',0,600],
 ];
 describe('Simple Debit/Credit Journal import',()=>{
- it('uses the canonical six-column template and maps balanced lines',()=>{
+ it('uses the party-aware eight-column template and maps balanced lines',()=>{
   const result=normalizeSimpleJournalRows([headers,...pair]);
-  expect(headers).toEqual(['entry_no','entry_date','account_name','line_description','debit','credit']);
+  expect(headers).toEqual(['entry_no','entry_date','account_name','line_description','party_type','party_name','debit','credit']);
   expect(result[0]).toEqual(['entry_no','entry_date','description','account_name','line_description','party_type','party_name','debit','credit']);
   expect(result[1]).toEqual(['ORB-SEP-001','2026-09-05','Vehicle 7979 repair','General Expenses','Vehicle 7979 repair','','','600.00','0.00']);
   expect(result[2]).toEqual(['ORB-SEP-001','2026-09-05','Vehicle 7979 repair','Amjad Payable','Paid by Amjad','','','0.00','600.00']);
@@ -60,7 +60,7 @@ describe('Simple Debit/Credit Journal import',()=>{
   expect(journalImportISODate('2026-09-05')).toBe('2026-09-05');
   expect(journalImportISODate('| 2026-09-02 |')).toBe('2026-09-02');
  });
- it('recognizes the canonical template and downloads it without party or vehicle columns',()=>{
+ it('recognizes the template and downloads it with party fields but without vehicle column',()=>{
   expect(isSimpleJournalTemplate(headers)).toBe(true);
   expect(isSimpleJournalTemplate(['entry_no','entry_date','account_name','line_description','debit','credit','vehicle_no'])).toBe(true);
   downloadSimpleJournalTemplate();
