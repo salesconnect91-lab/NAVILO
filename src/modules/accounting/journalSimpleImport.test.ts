@@ -39,19 +39,19 @@ describe('Simple Debit/Credit Journal import',()=>{
  });
  it('rejects a blank date when a new explicit journal starts',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,
-   ['JE-1','2026-09-02','General Expenses','Locks',40,0],
+   ['JE-1','2026-09-02','General Expenses','Locks','','',40,0],
    ['JE-2','','Amjad Payable','Funding','','',0,40],
   ])).toThrow(/valid date such as 17-Oct-26/);
  });
  it('groups entirely blank entry numbers by date and rejects missing first dates',()=>{
   const result=normalizeSimpleJournalRows([headers,
    ['','2026-09-02','General Expenses','Locks','','',40,0],
-   ['','','Amjad Payable','Funding',0,40],
+   ['','','Amjad Payable','Funding','','',0,40],
   ]);
   expect(result.slice(1).map(row=>row[0])).toEqual(['IMPORT-2026-09-02','IMPORT-2026-09-02']);
   expect(()=>normalizeSimpleJournalRows([headers,
-   ['','','General Expenses','Locks',40,0],
-   ['','','Amjad Payable','Funding',0,40],
+   ['','','General Expenses','Locks','','',40,0],
+   ['','','Amjad Payable','Funding','','',0,40],
   ])).toThrow(/Entry No is required for the first row of every journal/);
  });
  it('rejects invalid calendar dates and unbalanced journals',()=>{
