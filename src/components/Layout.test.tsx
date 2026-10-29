@@ -23,6 +23,17 @@ vi.mock("@/components/UniversalDataTools", () => ({ default: () => null }));
 beforeEach(() => localStorage.setItem("navilo-sidebar-collapsed", "true"));
 afterEach(() => { cleanup(); localStorage.clear(); });
 
+describe("application theme preference", () => {
+  it("does not overwrite the saved theme when the layout mounts", () => {
+    localStorage.setItem("navilo-theme", "dark");
+    document.documentElement.dataset.theme = "dark";
+    render(<MemoryRouter initialEntries={["/"]}><Layout><div>Workspace</div></Layout></MemoryRouter>);
+    expect(localStorage.getItem("navilo-theme")).toBe("dark");
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+  });
+});
+
 describe("collapsed navigation", () => {
   it("returns from the new Trip form to the register", async () => {
     function RouteView() { const route=useLocation(); return <output data-testid="trip-path">{route.pathname+route.search}</output>; }
