@@ -32,7 +32,7 @@ begin
  select account_id into cost from public.account_mappings where company_id=c and mapping_key='cogs';
  select account_id into cash_id from public.account_mappings where company_id=c and mapping_key='cash';
  select id into acct from public.chart_of_accounts where company_id=c and type='expense' and is_active and not is_group
-  and id<>cost order by id limit 1;
+  and id<>cost and coalesce(detail_type,'') not in ('COGS','Salaries') order by id limit 1;
  if acct is null then acct:=cost; end if;
  if ar is null or ap is null or acct is null or cash_id is null then raise exception 'Canonical accounting setup missing'; end if;
  insert into public.customers(user_id,company_id,name,account_id) values(u,c,'Service Customer',ar) returning id into customer;
