@@ -32,7 +32,7 @@ describe('supplier-less direct cash expenses Excel',()=>{
  });
  it('rejects duplicate references and invalid dates or amounts before any financial RPC',()=>{
   expect(()=>parseDirectCashExpenseRows([row(),row()],accounts)).toThrow(/duplicate source reference/);
-  expect(()=>parseDirectCashExpenseRows([row({'Date':'2026-02-30'})],accounts)).toThrow(/valid ISO Date/);
+  expect(()=>parseDirectCashExpenseRows([row({'Date':'2026-02-30'})],accounts)).toThrow(/valid date required/);
   expect(()=>parseDirectCashExpenseRows([row({'Amount SAR':'-10.00'})],accounts)).toThrow(/positive SAR/);
   expect(()=>parseDirectCashExpenseRows([row({'Area':'Vehicle'})],accounts)).toThrow(/Vehicle Expense Excel/);
  });
