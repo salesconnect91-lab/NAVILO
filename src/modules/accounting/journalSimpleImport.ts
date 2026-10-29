@@ -2,11 +2,11 @@ import * as XLSX from 'xlsx';
 import {createImportTemplateWorkbook,parseNaviloImportDate} from '@/lib/importExcelTemplate';
 
 /**
- * Excel import includes explicit party fields for genuine AR/AP journal lines.
+ * Excel import mirrors the Journal Entry line layout with one combined Party column.
  * The Action column is a UI control and must not appear in an Excel data file.
  */
 export const SIMPLE_JOURNAL_HEADERS=[
- 'entry_no','entry_date','account_name','line_description','party_type','party_name','debit','credit'
+ 'entry_no','entry_date','account_name','line_description','party','debit','credit'
 ] as const;
 const str=(v:unknown)=>String(v??'').trim();
 const key=(v:unknown)=>str(v).toLowerCase().replace(/[\s_-]+/g,'');
@@ -131,12 +131,18 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   if(!description)throw Error(`Row ${line}: Line Description is required on every line.`);
   const debit=money(row[idx('debit')],line,'Debit'),credit=money(row[idx('credit')],line,'Credit');
   if((debit>0)===(credit>0))throw Error(`Row ${line}: enter a positive Debit OR Credit, not both or neither.`);
-  const partyType=partyTypeIndex>=0?str(row[partyTypeIndex]).toLowerCase():'';
+  let partyType=partyTypeIndex>=0?str(row[partyTypeIndex]).toLowerCase():'';
   const legacyPartyName=partyNameIndex>=0?str(row[partyNameIndex]):'';
-  const partyName=partyIndex>=0?str(row[partyIndex]):legacyPartyName;
+  let partyName=partyIndex>=0?str(row[partyIndex]):legacyPartyName;
   if(partyIndex>=0&&legacyPartyName)throw Error(`Row ${line}: enter the party once in the Party column.`);
-  if(partyTypeIndex>=0&&partyType&&!legacyPartyName)throw Error(`Row ${line}: Party Type was supplied without Party Name.`);
-  if(!partyType&&legacyPartyName)throw Error(`Row ${line}: Party Type is required when Party Name is supplied.`);
+  if(partyIndex>=0&&partyName){
+   const parsedParty=legacyRelatedTo(partyName,line,account);
+   partyType=parsedParty.partyType;
+   partyName=parsedParty.partyName;
+  } else {
+   if(partyTypeIndex>=0&&partyType&&!legacyPartyName)throw Error(`Row ${line}: Party Type was supplied without Party Name.`);
+   if(!partyType&&legacyPartyName)throw Error(`Row ${line}: Party Type is required when Party Name is supplied.`);
+  }
   const vehicleIndex=headers.indexOf(key('vehicle_no')),vehicle=vehicleIndex>=0?str(row[vehicleIndex]):'';
   if(vehicle)throw Error(`Row ${line}: Vehicle allocation is not part of General Journal. Use the Transport Vehicle Expenses module for vehicle-specific costs.`);
   const legacy=legacyRelatedToIndex>=0?legacyRelatedTo(row[legacyRelatedToIndex],line,account):{partyType:'',partyName:''};
@@ -168,12 +174,12 @@ export function downloadSimpleJournalTemplate():void{
    'Each transaction must have TWO or more lines with matching Debit/Credit totals. When the entire Entry No column is blank, entries are automatically grouped by date (one compound draft per date).',
    'For individual vouchers write Entry No on the first row of each group and repeat it or leave it blank on continuation lines. To group ALL rows by date, leave EVERY Entry No blank and supply a date on EVERY row.',
    'Line Description explains the original receipt or transaction. Account Name must exactly match an active Chart of Accounts posting account.',
-   'Party Type must be customer or supplier and Party Name must match an active party linked to the mapped AR/AP control account. Leave both blank for ordinary GL lines. Vehicle is not selected on journal lines.',
+   'Use one Party value as Customer: Exact Name or Supplier: Exact Name on AR/AP lines. Leave Party blank for ordinary GL lines. Vehicle is not selected on journal lines.',
    'Orbit Example: Vehicle 7979 repair SAR 600: Debit the applicable Expense GL 600; Credit Amjad Payable 600. To attach the expense to a vehicle ledger, record it through Transport Vehicle Expenses.',
    'Syarah Fuel is a prepaid CURRENT ASSET: wallet top-up Debit Syarah Fuel Payable, Credit Amjad Payable. Later fuel consumption uses the relevant expense workflow and credits Syarah Fuel Payable.',
    'Existing driver salary liability payment: Debit Asif Driver Salary Running Account and Credit Amjad Payable. DO NOT expense driver wages again if already accrued.',
    'New, not-yet-accrued driver wages: Debit Driver Salary & Wages; Credit Amjad Payable. Avoid double-counting.',
-   'Imported journals first become DRAFTS. Posting after review affects GL, genuine Party ledgers and P&L. For AR/AP lines, fill party_type and party_name together. General Journal entries are not attributed to a vehicle.',
+   'Imported journals first become DRAFTS. Posting after review affects GL, genuine Party ledgers and P&L. For AR/AP lines, use Customer: Exact Name or Supplier: Exact Name in the single Party column. General Journal entries are not attributed to a vehicle.',
    'Do not re-import posted journals or reversed transactions. An existing Entry No will fail duplicate checks. No cash/bank account is invented.',
    'Worked Examples sheet is for learning and is NEVER imported. The first sheet is deliberately empty.'
   ],fields:[
@@ -181,14 +187,13 @@ export function downloadSimpleJournalTemplate():void{
    {field:'entry_date',rule:'dd-mmm-yy (e.g. 15-Oct-26) on each line or just first line of each journal'},
    {field:'account_name',rule:'Exact Debit/Credit GL account from Chart of Accounts'},
    {field:'line_description',rule:'What was paid/earned, vehicle/driver details, supplier and receipt reference'},
-  {field:'party_type',rule:'customer for mapped Accounts Receivable, supplier for mapped Accounts Payable; otherwise blank'},
-  {field:'party_name',rule:'Exact active customer/supplier name linked to that AR/AP account; otherwise blank'}, 
+  {field:'party',rule:'Customer: Exact Name or Supplier: Exact Name for mapped AR/AP lines; otherwise blank'}, 
    {field:'debit',rule:'Amount ONLY for debit line; other side blank or 0'},
    {field:'credit',rule:'Amount ONLY for credit line; other side blank or 0'},
   ]
  });
  const examples=XLSX.utils.aoa_to_sheet([
-  ['Scenario','entry_no','entry_date','account_name','line_description','party_type','party_name','debit','credit'],
+  ['Scenario','entry_no','entry_date','account_name','line_description','party','debit','credit'],
   ['Repair funded by Amjad','EXAMPLE-001','2026-09-05','General Expenses','Vehicle 7979 repair','', '',600,0],
   ['↳ Amjad owes','','','Amjad Payable','Repair paid by Amjad','', '',0,600],
   ['New driver wages','EXAMPLE-002','2026-09-06','Driver Salary & Wages','Driver wages for 7979','', '',250,0],
@@ -200,7 +205,7 @@ export function downloadSimpleJournalTemplate():void{
   ['Syarah fuel consumption','EXAMPLE-005','2026-09-09','Transport & Freight','Fuel consumed by 7979','', '',300,0],
   ['↳ wallet decreases','','','Syarah Fuel Payable','Deduct from Syarah wallet','', '',0,300],
  ]);
- examples['!cols']=[{wch:26},{wch:20},{wch:16},{wch:36},{wch:44},{wch:14},{wch:28},{wch:14},{wch:14}];
+ examples['!cols']=[{wch:26},{wch:20},{wch:16},{wch:36},{wch:44},{wch:34},{wch:14},{wch:14}];
  XLSX.utils.book_append_sheet(book,examples,'Worked Examples - DO NOT IMPORT');
  XLSX.writeFile(book,'NAVILO-Journal-Simple-Debit-Credit.xlsx');
 }
