@@ -351,7 +351,7 @@ function InventoryPurchaseInvoiceDetail() {
           title="Correct this posted purchase through an audited debit note; original stock and journal history stay intact">Correct Posted Invoice</Link>}
         {order.status === "posted" && canPostFullReversal && order.document_kind !== "service" && <Link className="btn-danger inline-flex items-center gap-1.5"
           to={`/accounting/returns?type=purchase_debit&invoice_id=${encodeURIComponent(order.id)}&full_reversal=1`}
-          title="Post a full debit note for all remaining quantities; the original invoice stays in audit history">Delete Posted Invoice</Link>}
+          title="Create a full debit note for remaining quantities; this does not delete the original invoice">Create Full Debit Note</Link>}
         {order.status !== "posted" && <button className="btn-danger" onClick={async () => { if (!window.confirm("Delete this draft Purchase Invoice?")) return; setError(null); const { data: deleted, error: delError } = await supabase.rpc("delete_draft_purchase_invoice", { p_order_id: order.id }); if (delError) { setError(delError.message); return; } if (!deleted) { setError("Draft Purchase Invoice could not be deleted. Refresh and try again."); return; } navigate("/purchase"); }}>Delete</button>}
       </div>
     </div>
