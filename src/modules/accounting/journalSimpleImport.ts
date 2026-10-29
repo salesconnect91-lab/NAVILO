@@ -202,7 +202,7 @@ export function downloadSimpleJournalTemplate():void{
    'The Worked Examples sheet is for learning and is NEVER imported. The first sheet is deliberately empty.'
   ],fields:[
    {field:'entry_no',rule:'Unique reference per journal, same on its Debit and Credit lines'},
-   {field:'entry_date',rule:'YYYY-MM-DD on both lines or just first line of each journal'},
+   {field:'entry_date',rule:'dd-mmm-yy (e.g. 15-Oct-26) on each line or just first line of each journal'},
    {field:'account_name',rule:'Exact Debit/Credit GL account from Chart of Accounts'},
    {field:'line_description',rule:'What was paid/earned, vehicle/driver details, supplier and receipt reference'},
    {field:'debit',rule:'Amount ONLY for debit line; other side blank or 0'},
