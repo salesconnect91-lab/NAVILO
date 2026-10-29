@@ -38,7 +38,8 @@ function WorkspaceLayout({children}:{children:ReactNode}){
     window.addEventListener("keydown",closeOnEscape);
     return ()=>{window.removeEventListener("keydown",closeOnEscape);if(surface)surface.inert=wasInert};
   },[mobileOpen]);
-  useEffect(()=>{localStorage.setItem("navilo-theme","light");document.documentElement.dataset.theme="light";document.documentElement.classList.remove("dark");},[]);
+  // Do not force a theme during layout mount. Theme preferences belong to the
+  // user-facing appearance settings/runtime, not to the shared application shell.
   const { navigation: visible } = useWorkspaceCatalog();
   const pageTitle=location.pathname.startsWith("/workspace/") ? ({reports:"Reports Center",imports:"Import Center",favorites:"Favorites",recent:"Recent Pages",functions:"All Functions"}[location.pathname.split("/")[2]]??"Workspace") : title(location.pathname);
   const ownerWorkspace=location.pathname.startsWith("/owner");
