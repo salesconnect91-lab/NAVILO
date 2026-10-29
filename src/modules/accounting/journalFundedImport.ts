@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import {createImportTemplateWorkbook} from '@/lib/importExcelTemplate';
+import {createImportTemplateWorkbook,parseNaviloImportDate} from '@/lib/importExcelTemplate';
 
 export const FUNDED_HEADERS=[
  'entry_no','entry_date','account_name','line_description','amount','funding_account'
@@ -38,7 +38,7 @@ export function expandFundedJournalRows(rows:readonly (readonly unknown[])[]):st
  for(let i=1;i<rows.length;i++){
   const r=rows[i];if(!r.some(x=>normal(x)))continue;
   const line=i+1;
-  const id=normal(r[idx('entry_no')]),date=normal(r[idx('entry_date')]);
+  const id=normal(r[idx('entry_no')]),date=parseNaviloImportDate(r[idx('entry_date')]);
   const account=normal(r[idx('account_name')]),desc=normal(r[idx('line_description')]);
   const funding=normal(r[idx('funding_account')]);
   if(!id||id.length>80)throw Error(`Row ${line}: unique Entry No required (maximum 80 characters).`);
@@ -82,7 +82,7 @@ export function downloadFundedJournalTemplate():void{
    'This format assumes funds are paid DIRECTLY on Orbit behalf by the funding party. If funds were first deposited in company cash/bank, use an ordinary two-line journal.'
   ],fields:[
    {field:'entry_no',rule:'Unique reference per transaction, e.g. ORB-SEP-001 (must not already exist)'},
-   {field:'entry_date',rule:'YYYY-MM-DD (real transaction date)'},
+   {field:'entry_date',rule:'dd-mmm-yy (example: 15-Oct-26; ISO dates also accepted)'},
    {field:'account_name',rule:'Debit account: General Expenses, Driver Salary & Wages, existing Driver Running Account, or Syarah wallet'},
    {field:'line_description',rule:'What was paid; keep original receipt/ref details'},
    {field:'amount',rule:'Positive SAR amount; maximum 2 decimals'},
