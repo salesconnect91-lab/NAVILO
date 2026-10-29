@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import jsPDF from "jspdf";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/auth/AuthContext";
 
 type Mode = "customer" | "supplier";
 
@@ -63,6 +64,8 @@ export default function PaymentVoucherHistory({
 }: {
   mode: Mode;
 }) {
+  const { activeCompany } = useAuth();
+  const companyId = activeCompany?.company_id ?? null;
   const [rows, setRows] = useState<Voucher[]>([]);
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] =
@@ -77,13 +80,14 @@ export default function PaymentVoucherHistory({
 
   const printRoot = useRef<HTMLElement|null>(null);
   useEffect(()=>{if(!printRoot.current)return;return registerPrintSource(printRoot.current,async()=>{
-    const all=await fetchAllPages<Voucher>((from,to)=>supabase.from('journal_entries').select('id,entry_no,entry_date,description,trans_type,party_name,payment_mode,balance_before,payment_amount,balance_after').eq('status','posted').eq('trans_type',transactionType).order('entry_date',{ascending:false}).order('entry_no',{ascending:false}).order('id').range(from,to));
+    const all=companyId?await fetchAllPages<Voucher>((from,to)=>supabase.from('journal_entries').select('id,entry_no,entry_date,description,trans_type,party_name,payment_mode,balance_before,payment_amount,balance_after').eq('company_id',companyId).eq('status','posted').eq('trans_type',transactionType).order('entry_date',{ascending:false}).order('entry_no',{ascending:false}).order('id').range(from,to)):[];
     return printTableMarkup(transactionType+' History',['Voucher','Date','Party','Previous','Amount','Closing'],all.map(row=>[row.entry_no,formatNaviloDate(row.entry_date),row.party_name||'—',row.balance_before??'—',row.payment_amount??'—',row.balance_after??'—']),'All posted vouchers in the active company/business scope.');
-  });},[transactionType]);
+  });},[transactionType,companyId]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    if (!companyId) { setRows([]); setLoading(false); return; }
 
     try {
       const { data, error } = await supabase
@@ -91,6 +95,7 @@ export default function PaymentVoucherHistory({
         .select(
           "id,entry_no,entry_date,description,trans_type,party_name,payment_mode,balance_before,payment_amount,balance_after"
         )
+        .eq("company_id", companyId)
         .eq("status", "posted")
         .eq("trans_type", transactionType)
         .order("entry_date", { ascending: false })
@@ -107,7 +112,7 @@ export default function PaymentVoucherHistory({
     } finally {
       setLoading(false);
     }
-  }, [transactionType]);
+  }, [transactionType, companyId]);
 
   useEffect(() => {
     void load();
