@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+  import { useAuth } from "@/auth/AuthContext";
 import SearchableSelect from "@/components/SearchableSelect";
 import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
   import {
@@ -402,6 +403,8 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
   /* -------------------------------------------------------------------------- */
 
   export default function ChartOfAccounts() {
+    const { activeCompany } = useAuth();
+    const companyId = activeCompany?.company_id ?? null;
     const [accounts, setAccounts] = useState<
       AccountRow[]
     >([]);
@@ -455,11 +458,17 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
     /* ------------------------------------------------------------------------ */
 
     async function loadAccounts() {
+      if (!companyId) {
+        setAccounts([]);
+        setError("Select an active company before viewing the Chart of Accounts.");
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         setError(null);
 
-        const data = await listAccounts();
+        const data = await listAccounts(companyId);
 
         const rows =
           (data ?? []) as AccountRow[];
@@ -493,8 +502,8 @@ import OwnerOpeningAccountCorrection from "./OwnerOpeningAccountCorrection";
     }
 
     useEffect(() => {
-      loadAccounts();
-    }, []);
+      void loadAccounts();
+    }, [companyId]);
 
     async function loadCustomDetails() {
       const { data, error } = await supabase.from("account_detail_types").select("id,account_type,value,label,is_active").order("label");

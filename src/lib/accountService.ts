@@ -402,9 +402,12 @@ type SaveAccountInput = {
 /* List accounts                                                               */
 /* -------------------------------------------------------------------------- */
 
-export async function listAccounts(): Promise<ChartOfAccount[]> {
+export async function listAccounts(companyId: string): Promise<ChartOfAccount[]> {
+  if (!companyId) {
+    throw new Error("An active company is required to list chart of accounts.");
+  }
   return fetchAllPages<ChartOfAccount>((from,to)=>supabase
-    .from("chart_of_accounts").select("*")
+    .from("chart_of_accounts").select("*").eq("company_id",companyId)
     .order("code",{ascending:true}).order("id",{ascending:true}).range(from,to));
 }
 
@@ -975,12 +978,13 @@ export async function deleteAccount(
 /* Account mappings                                                            */
 /* -------------------------------------------------------------------------- */
 
-export async function listMappings(): Promise<
-  AccountMapping[]
-> {
+export async function listMappings(companyId: string): Promise<AccountMapping[]> {
+  if (!companyId) {
+    throw new Error("An active company is required to list accounting mappings.");
+  }
   return fetchAllPages<AccountMapping>((from,to)=>supabase
     .from("account_mappings").select("*, account:chart_of_accounts(*)")
-    .order("mapping_key").order("id").range(from,to));
+    .eq("company_id",companyId).order("mapping_key").order("id").range(from,to));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -989,8 +993,12 @@ export async function listMappings(): Promise<
 
 export async function setMapping(
   mappingKey: string,
-  accountId: string
+  accountId: string,
+  companyId: string
 ): Promise<void> {
+  if (!companyId) {
+    throw new Error("An active company is required to save accounting mappings.");
+  }
   if (!mappingKey || !accountId) {
     throw new Error(
       "Mapping key and account are required."
@@ -1006,10 +1014,11 @@ export async function setMapping(
     );
   }
 
-  const { data: account, error: accountError } = await supabase
-    .from("chart_of_accounts")
+  const accountQuery = supabase.from("chart_of_accounts")
     .select("id,type,is_active,is_group")
-    .eq("id", accountId)
+    .eq("id", accountId);
+  const { data: account, error: accountError } = await accountQuery
+    .eq("company_id", companyId)
     .maybeSingle();
 
   if (accountError) {
@@ -1046,6 +1055,7 @@ export async function setMapping(
       {
         mapping_key: normalizedKey,
         account_id: accountId,
+        company_id: companyId,
       },
       {
         onConflict: "company_id,mapping_key",
@@ -1062,13 +1072,16 @@ export async function setMapping(
 /* -------------------------------------------------------------------------- */
 
 export async function resolveMappedAccount(
-  mappingKey: string
+  mappingKey: string,
+  companyId: string
 ): Promise<ChartOfAccount> {
+  if (!companyId) {
+    throw new Error("An active company is required to resolve accounting mappings.");
+  }
   const { data, error } = await supabase
     .from("account_mappings")
-    .select(
-      "account:chart_of_accounts(*)"
-    )
+    .select("account:chart_of_accounts(*)")
+    .eq("company_id", companyId)
     .eq("mapping_key", mappingKey)
     .maybeSingle();
 

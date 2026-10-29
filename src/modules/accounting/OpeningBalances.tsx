@@ -5,6 +5,7 @@ import { Download, Plus, Trash2, Upload } from "lucide-react";
 import * as XLSX from "xlsx";
 import SearchableSelect from "@/components/SearchableSelect";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/auth/AuthContext";
 import { ErrorBanner, formatCurrency } from "@/components/ui";
 
 type Account = { id: string; code: string; name: string; type: string; is_active: boolean; is_group: boolean };
@@ -19,6 +20,9 @@ const amount = (value: unknown) => Math.round((Number(value || 0) + Number.EPSIL
 const normalize = (value: unknown) => String(value ?? "").trim().toLowerCase();
 
 export default function OpeningBalances() {
+  const { activeCompany, activeBusinessUnit } = useAuth();
+  const companyId = activeCompany?.company_id ?? null;
+  const businessUnitId = activeBusinessUnit?.business_unit_id ?? null;
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [customers, setCustomers] = useState<Party[]>([]);
   const [suppliers, setSuppliers] = useState<Party[]>([]);
@@ -53,13 +57,19 @@ export default function OpeningBalances() {
 
   const load = async () => {
     setLoading(true); setError(null);
+    if (!companyId || !businessUnitId) {
+      setAccounts([]); setCustomers([]); setSuppliers([]); setMappings([]); setBatches([]); setCutoverBatches([]);
+      setError("Select an active company and business unit before loading opening balances.");
+      setLoading(false);
+      return;
+    }
     const [a, c, s, m, b, cb] = await Promise.all([
-      supabase.from("chart_of_accounts").select("id,code,name,type,is_active,is_group").eq("is_active", true).order("code"),
-      supabase.from("customers").select("id,name,account_id,is_active").eq("is_active", true).order("name"),
-      supabase.from("suppliers").select("id,name,account_id,is_active").eq("is_active", true).order("name"),
-      supabase.from("account_mappings").select("mapping_key,account_id").in("mapping_key", ["accounts_receivable", "accounts_payable"]),
-      supabase.from("opening_balance_batches").select("id,opening_year,opening_date,total_debit,total_credit,journal_entry_id").order("opening_year", { ascending: false }),
-      supabase.from("cutover_opening_balance_batches").select("id,cutover_date,total_debit,total_credit,journal_entry_id").order("created_at", { ascending: false }),
+      supabase.from("chart_of_accounts").select("id,code,name,type,is_active,is_group").eq("company_id", companyId).eq("is_active", true).order("code"),
+      supabase.from("customers").select("id,name,account_id,is_active").eq("company_id", companyId).eq("is_active", true).order("name"),
+      supabase.from("suppliers").select("id,name,account_id,is_active").eq("company_id", companyId).eq("is_active", true).order("name"),
+      supabase.from("account_mappings").select("mapping_key,account_id").eq("company_id", companyId).in("mapping_key", ["accounts_receivable", "accounts_payable"]),
+      supabase.from("opening_balance_batches").select("id,opening_year,opening_date,total_debit,total_credit,journal_entry_id").eq("company_id", companyId).eq("business_unit_id", businessUnitId).order("opening_year", { ascending: false }),
+      supabase.from("cutover_opening_balance_batches").select("id,cutover_date,total_debit,total_credit,journal_entry_id").eq("company_id", companyId).eq("business_unit_id", businessUnitId).order("created_at", { ascending: false }),
     ]);
     const firstError = a.error || c.error || s.error || m.error || b.error || cb.error;
     if (firstError) setError(firstError.message);
@@ -74,7 +84,7 @@ export default function OpeningBalances() {
     setLoading(false);
   };
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { setRows([row(), row()]); setError(null); setSuccess(null); void load(); }, [companyId, businessUnitId]);
 
   const update = (key: string, patch: Partial<Row>) => setRows((current) => current.map((item) => item.key === key ? { ...item, ...patch } : item));
   const selectAccount = (item: Row, accountId: string) => {

@@ -1,4 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
+import { useAuth } from "@/auth/AuthContext";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Link2, RotateCcw, Save } from "lucide-react";
 import { ErrorBanner, LoadingState, PageHeader } from "@/components/ui";
@@ -43,6 +44,8 @@ const MAPPING_GROUPS: Array<{
 const MAPPING_LABELS = Object.fromEntries(DEFAULT_MAPPINGS) as Record<MappingKey, string>;
 
 export default function AccountMappingSetup() {
+  const { activeCompany } = useAuth();
+  const companyId = activeCompany?.company_id ?? null;
   const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
   const [mappings, setMappings] = useState<AccountMapping[]>([]);
   const [selections, setSelections] = useState<Record<string, string>>({});
@@ -71,8 +74,13 @@ export default function AccountMappingSetup() {
   async function loadData(showLoader = true) {
     if (showLoader) setLoading(true);
     setError("");
+    if (!companyId) {
+      setAccounts([]); setMappings([]); setSelections({}); setError("Select an active company before configuring account mappings.");
+      if (showLoader) setLoading(false);
+      return;
+    }
     try {
-      const [accountRows, mappingRows] = await Promise.all([listAccounts(), listMappings()]);
+      const [accountRows, mappingRows] = await Promise.all([listAccounts(companyId), listMappings(companyId)]);
       setAccounts(accountRows);
       setMappings(mappingRows);
       setSelections(
@@ -87,7 +95,7 @@ export default function AccountMappingSetup() {
 
   useEffect(() => {
     void loadData();
-  }, []);
+  }, [companyId]);
 
   function eligibleAccounts(key: MappingKey) {
     const requiredType = ACCOUNT_MAPPING_TYPES[key];
@@ -98,6 +106,10 @@ export default function AccountMappingSetup() {
 
   async function saveKeys(keys: MappingKey[]) {
     if (keys.length === 0) return;
+    if (!companyId) {
+      setError("Select an active company before saving account mappings.");
+      return;
+    }
     setError("");
     setSuccess("");
     setSavingKey(keys.length === 1 ? keys[0] : "all");
@@ -105,9 +117,9 @@ export default function AccountMappingSetup() {
       for (const key of keys) {
         const accountId = selections[key];
         if (!accountId) throw new Error(`Select an account for ${MAPPING_LABELS[key]}.`);
-        await setMapping(key, accountId);
+        await setMapping(key, accountId, companyId);
       }
-      const refreshedMappings = await listMappings();
+      const refreshedMappings = await listMappings(companyId);
       setMappings(refreshedMappings);
       setSelections(
         Object.fromEntries(refreshedMappings.map((mapping) => [mapping.mapping_key, mapping.account_id]))
