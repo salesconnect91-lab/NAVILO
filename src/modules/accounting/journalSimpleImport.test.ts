@@ -16,6 +16,20 @@ describe('Simple Debit/Credit Journal import',()=>{
   expect(result[1]).toEqual(['ORB-SEP-001','2026-09-05','Vehicle 7979 repair','General Expenses','Vehicle 7979 repair','','','600.00','0.00']);
   expect(result[2]).toEqual(['ORB-SEP-001','2026-09-05','Vehicle 7979 repair','Amjad Payable','Paid by Amjad','','','0.00','600.00']);
  });
+ it('preserves explicit customer/supplier party fields in the RPC-ready rows',()=>{
+  const result=normalizeSimpleJournalRows([
+   headers,
+   ['JE-AR-1','2026-09-05','Accounts Receivable','Customer invoice settlement','customer','Test Customer',100,0],
+   ['','','Bank','Receipt received','','',0,100],
+  ]);
+  expect(result[1].slice(5,7)).toEqual(['customer','Test Customer']);
+  expect(result[2].slice(5,7)).toEqual(['','']);
+  expect(()=>normalizeSimpleJournalRows([
+   headers,
+   ['JE-AR-2','2026-09-05','Accounts Receivable','Customer invoice settlement','','Test Customer',100,0],
+   ['','','Bank','Receipt received','','',0,100],
+  ])).toThrow(/Party Type is required when Party Name is supplied/);
+ });
  it('inherits the date only on continuation rows in the same journal',()=>{
   const result=normalizeSimpleJournalRows([headers,
    ['JE-1','2026-09-02','General Expenses','Locks','','',40,0],
