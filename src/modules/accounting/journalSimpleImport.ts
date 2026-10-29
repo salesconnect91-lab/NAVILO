@@ -17,26 +17,18 @@ const validDate=(s:string)=>{
 };
 /** Accept ISO dates, Excel serial dates, or NAVILO dd-mmm-yy display dates. */
 export function journalImportISODate(input:unknown):string{
- // SheetJS can return a real Date object for Excel cells formatted as dates.
- // Convert it using UTC calendar parts so local timezone offsets cannot shift the day.
  if(input instanceof Date && Number.isFinite(input.getTime())){
   const iso=`${input.getUTCFullYear()}-${String(input.getUTCMonth()+1).padStart(2,'0')}-${String(input.getUTCDate()).padStart(2,'0')}`;
   if(validDate(iso))return iso;
  }
- // Tolerate ISO dates copied from a Markdown/table view with surrounding pipe delimiters.
  const value=str(input).replace(/^\|+|\|+$/g,'').replace(/[\u2010-\u2015\u2212]/g,'-').replace(/\u00a0/g,' ').trim();
- // Validate ISO-shaped dates before the shared parser: some date parsers normalize
- // impossible calendar dates (e.g. 2026-02-31) instead of rejecting them.
- if(/^\\d{4}-\\d{2}-\\d{2}$/.test(value))return validDate(value)?value:value;
+ // Do not pass impossible ISO dates to permissive parsers that normalize them.
+ if(/^\d{4}-\d{2}-\d{2}$/.test(value))return validDate(value)?value:'';
  const sharedDate=parseNaviloImportDate(value);
  if(validDate(sharedDate))return sharedDate;
  if(validDate(value))return value;
- // Excel/browser readers may stringify a date cell as an ISO datetime rather
- // than a Date object (for example 2026-09-02T00:00:00.000Z).
  const isoDateTime=value.match(/^(\d{4}-\d{2}-\d{2})(?:[Tt ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)$/);
  if(isoDateTime&&validDate(isoDateTime[1]))return isoDateTime[1];
- // Common Excel text dates such as 9/1/26 are interpreted as M/D/YY,
- // matching Excel's usual US-style date serialization.
  const slash=value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
  if(slash){
   const month=Number(slash[1]),day=Number(slash[2]),rawYear=Number(slash[3]);
@@ -44,8 +36,6 @@ export function journalImportISODate(input:unknown):string{
   const iso=String(year)+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
   if(validDate(iso))return iso;
  }
- // Excel date cells can include a fractional day when a time component is
- // present. Use the whole-day serial; do not reject valid dates like 46266.5.
  if(/^\d{5}(?:\.\d+)?$/.test(value)){
   const serial=Number(value);
   if(Number.isFinite(serial)&&serial>20000&&serial<80000){
@@ -65,7 +55,6 @@ export function journalImportISODate(input:unknown):string{
    if(validDate(iso))return iso;
   }
  }
- // Final compatibility fallback for Excel/browser stringified dates (e.g. "Wed Sep 02 2026 ...").
  const parsedTime=Date.parse(value);
  if(Number.isFinite(parsedTime)){
   const d=new Date(parsedTime);
@@ -101,40 +90,25 @@ export function isSimpleJournalTemplate(headers:readonly unknown[]):boolean{
  const hasLegacyParty=h.includes(key('party'))||(h.includes(key('party_type'))&&h.includes(key('party_name')))||h.includes(key('related_to'));
  return core.every(x=>h.includes(key(x)))&&!h.includes('fundingaccount')&&!h.includes(key('description'))&&(!hasLegacyParty||h.includes(key('party'))||(h.includes(key('party_type'))&&h.includes(key('party_name')))||h.includes(key('related_to')));
 }
-/**
- * Converts the simplified two-line spreadsheet to the existing validated
- * bulk Journal RPC schema. No accounts, parties, or funds are invented.
- * The same Entry No is used on both sides, as in the Journal Entry form.
- */
 export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[]):string[][]{
  if(rows.length<2)throw Error('Add at least two journal lines below the Excel headers.');
  const headers=rows[0].map(key);
- for(const h of SIMPLE_JOURNAL_HEADERS){
-  if(!headers.includes(key(h)))throw Error(`Missing simple journal column: ${h}.`);
- }
+ for(const h of SIMPLE_JOURNAL_HEADERS)if(!headers.includes(key(h)))throw Error(`Missing simple journal column: ${h}.`);
  const partyIndex=headers.indexOf(key('party'));
  const partyTypeIndex=headers.indexOf(key('party_type'));
  const partyNameIndex=headers.indexOf(key('party_name'));
  const idx=(h:string)=>headers.indexOf(key(h));
  const legacyRelatedToIndex=headers.indexOf(key('related_to'));
- // Party fields are optional in the canonical six-column template; legacy party columns remain supported.
- // Explain multiple common Excel mistakes together instead of forcing a
- // repeated choose-file/fix-one-row/reupload cycle.
  const supplied=rows.slice(1).map((r,index)=>({r,line:index+2})).filter(({r})=>r.some(cell=>str(cell)));
  const problems:string[]=[];
- // Blank Entry No files can be grouped into date-specific compound draft journals.
- // Never guess missing contra accounts or allow an unbalanced date to post.
  for(const {r,line} of supplied){
   const dr=Number(str(r[idx('debit')]).replace(/,/g,'')),cr=Number(str(r[idx('credit')]).replace(/,/g,''));
-  if(Number.isFinite(dr)&&Number.isFinite(cr)&&dr>0&&cr>0)
-   problems.push(`Row ${line}: enter a positive Debit OR Credit, not both. Move the funding side to another row (e.g. Amjad Payable Credit).`);
+  if(Number.isFinite(dr)&&Number.isFinite(cr)&&dr>0&&cr>0)problems.push(`Row ${line}: enter a positive Debit OR Credit, not both. Move the funding side to another row (e.g. Amjad Payable Credit).`);
   const partyValue=partyIndex>=0?str(r[partyIndex]):str(r[partyNameIndex]);
-  if(partyValue.toLowerCase()==='amjad payable')
-   problems.push(`Row ${line}, Party column: Amjad Payable is a Chart of Accounts name, not a Party. Use Amjad Payable as Account Name on a separate Credit row.`);
+  if(partyValue.toLowerCase()==='amjad payable')problems.push(`Row ${line}, Party column: Amjad Payable is a Chart of Accounts name, not a Party. Use Amjad Payable as Account Name on a separate Credit row.`);
  }
  if(problems.length){
-  const visible=problems.slice(0,9);
-  const remaining=problems.length-visible.length;
+  const visible=problems.slice(0,9),remaining=problems.length-visible.length;
   throw Error('Excel validation found '+problems.length+' problem(s):\n'+visible.join('\n')+(remaining?'\n…and '+remaining+' more similar issues.':''));
  }
  const output:string[][]=[['entry_no','entry_date','description','account_name','line_description','party_type','party_name','debit','credit']];
@@ -144,12 +118,7 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
  for(let i=1;i<rows.length;i++){
   const row=rows[i];
   if(!row.some(c=>str(c)))continue;
-  const line=i+1;
-  const suppliedId=str(row[idx('entry_no')]);
-  const suppliedDate=journalImportISODate(row[idx('entry_date')]);
-  // A new explicit Entry No starts a new journal and must carry its own date.
-  // Only continuation rows (blank Entry No) may inherit the current date.
-  // When all Entry No cells are blank, dates delimit the compound journals.
+  const line=i+1,suppliedId=str(row[idx('entry_no')]),suppliedDate=journalImportISODate(row[idx('entry_date')]);
   if(suppliedId&&!suppliedDate)currentDate='';
   const date=suppliedDate||(!suppliedId?currentDate:'');
   const entry=allEntryNumbersBlank?(validDate(date)?`IMPORT-${date}`:''):(suppliedId||currentEntry);
@@ -157,8 +126,7 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   if(!validDate(date))throw Error(`Row ${line}: enter a valid date such as 17-Oct-26 (YYYY-MM-DD is also accepted) on the first row of this journal.`);
   currentDate=date;
   if(suppliedId)currentEntry=entry;
-  const account=str(row[idx('account_name')]);
-  const description=str(row[idx('line_description')]);
+  const account=str(row[idx('account_name')]),description=str(row[idx('line_description')]);
   if(!account)throw Error(`Row ${line}: Account is required on every debit/credit line.`);
   if(!description)throw Error(`Row ${line}: Line Description is required on every line.`);
   const debit=money(row[idx('debit')],line,'Debit'),credit=money(row[idx('credit')],line,'Credit');
@@ -168,19 +136,14 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   const partyName=partyIndex>=0?str(row[partyIndex]):legacyPartyName;
   if(partyIndex>=0&&legacyPartyName)throw Error(`Row ${line}: enter the party once in the Party column.`);
   if(partyTypeIndex>=0&&partyType&&!legacyPartyName)throw Error(`Row ${line}: Party Type was supplied without Party Name. Use the single Party column.`);
-  const vehicleIndex=headers.indexOf(key('vehicle_no'));
-  const vehicle=vehicleIndex>=0?str(row[vehicleIndex]):'';
+  const vehicleIndex=headers.indexOf(key('vehicle_no')),vehicle=vehicleIndex>=0?str(row[vehicleIndex]):'';
   if(vehicle)throw Error(`Row ${line}: Vehicle allocation is not part of General Journal. Use the Transport Vehicle Expenses module for vehicle-specific costs.`);
   const legacy=legacyRelatedToIndex>=0?legacyRelatedTo(row[legacyRelatedToIndex],line,account):{partyType:'',partyName:''};
-  const related={
-   partyType:partyType||legacy.partyType,
-   partyName:partyName||legacy.partyName,
-  };
+  const related={partyType:partyType||legacy.partyType,partyName:partyName||legacy.partyName};
   if((partyType||partyName)&&(legacy.partyType||legacy.partyName))throw Error(`Row ${line}: use either the Party column or the legacy Related To column, not both.`);
   if(related.partyType&&!['customer','supplier'].includes(related.partyType))throw Error(`Row ${line}: legacy Party Type must be Customer or Supplier.`);
   if(related.partyType&&!related.partyName)throw Error(`Row ${line}: legacy Party Name is required when Party Type is provided.`);
-  const groupKey=entry.toLowerCase();
-  const prior=groups.get(groupKey);
+  const groupKey=entry.toLowerCase(),prior=groups.get(groupKey);
   if(prior&&prior.date!==date)throw Error(`Row ${line}: Entry No ${entry} has conflicting dates.`);
   const group=prior??{date,debit:0,credit:0,lines:0,firstDescription:description};
   group.debit+=debit;group.credit+=credit;group.lines++;
@@ -191,8 +154,7 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
  if(groups.size>200)throw Error('Maximum 200 journal entries per file.');
  for(const [id,g] of groups){
   if(g.lines<2)throw Error(`Entry ${id}: at least two lines are required: one Debit and one Credit. Check that both sides use the same date and reference.`);
-  if(Math.abs(Math.round(g.debit*100)-Math.round(g.credit*100))>0)
-   throw Error(`Entry ${id}: not balanced — Debit ${g.debit.toFixed(2)}, Credit ${g.credit.toFixed(2)}.`);
+  if(Math.abs(Math.round(g.debit*100)-Math.round(g.credit*100))>0)throw Error(`Entry ${id}: not balanced — Debit ${g.debit.toFixed(2)}, Credit ${g.credit.toFixed(2)}.`);
  }
  return output;
 }
@@ -212,7 +174,7 @@ export function downloadSimpleJournalTemplate():void{
    'New, not-yet-accrued driver wages: Debit Driver Salary & Wages; Credit Amjad Payable. Avoid double-counting.',
    'Imported journals first become DRAFTS. Posting after review affects GL, genuine Party ledgers and P&L. General Journal entries are not attributed to a vehicle.',
    'Do not re-import posted journals or reversed transactions. An existing Entry No will fail duplicate checks. No cash/bank account is invented.',
-   'The Worked Examples sheet is for learning and is NEVER imported. The first sheet is deliberately empty.'
+   'Worked Examples sheet is for learning and is NEVER imported. The first sheet is deliberately empty.'
   ],fields:[
    {field:'entry_no',rule:'Unique reference per journal, same on its Debit and Credit lines'},
    {field:'entry_date',rule:'dd-mmm-yy (e.g. 15-Oct-26) on each line or just first line of each journal'},
@@ -235,7 +197,7 @@ export function downloadSimpleJournalTemplate():void{
   ['Syarah fuel consumption','EXAMPLE-005','2026-09-09','Transport & Freight','Fuel consumed by 7979',300,0],
   ['↳ wallet decreases','','','Syarah Fuel Payable','Deduct from Syarah wallet',0,300],
  ]);
-examples['!cols']=[{wch:26},{wch:20},{wch:16},{wch:36},{wch:44},{wch:14},{wch:14}];
+ examples['!cols']=[{wch:26},{wch:20},{wch:16},{wch:36},{wch:44},{wch:14},{wch:14}];
  XLSX.utils.book_append_sheet(book,examples,'Worked Examples - DO NOT IMPORT');
  XLSX.writeFile(book,'NAVILO-Journal-Simple-Debit-Credit.xlsx');
 }
