@@ -1,3 +1,4 @@
+import {parseNaviloImportDate} from '@/lib/importExcelTemplate';
 /** Validate workbook data before atomic server-side draft import. */
 export type VehicleExpenseRow = {
   expense_group: string; expense_date: string; supplier_or_payee: string;
@@ -26,7 +27,7 @@ export function previewVehicleExpenseImport(raw:Record<string,unknown>[]):Vehicl
     const line=i+2;
     const get=(name:string)=>norm(pick(row,name));
     const expense_group=get('Expense Group');
-    const expense_date=get('Expense Date');
+    const expense_date=parseNaviloImportDate(pick(row,'Expense Date'));
     const supplier_or_payee=get('Supplier or Payee');
     const expense_type=get('Expense Type');
     const description=get('Description');
@@ -35,7 +36,7 @@ export function previewVehicleExpenseImport(raw:Record<string,unknown>[]):Vehicl
     const source_reference=get('Source Reference');
     const method=get('Payment Method').toLowerCase();
     if(!expense_group||!expense_type||!description||!vehicle_no||!source_reference)throw Error(`Row ${line}: group, type, description, vehicle and source reference required.`);
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(expense_date)||Number.isNaN(Date.parse(expense_date))||new Date(expense_date).toISOString().slice(0,10)!==expense_date)throw Error(`Row ${line}: date must be YYYY-MM-DD.`);
+    if(!expense_date)throw Error(`Row ${line}: date must be dd-mmm-yy, e.g. 15-Oct-26 (ISO and Excel dates are also accepted).`);
     if(!['cash','bank','payable'].includes(method))throw Error(`Row ${line}: payment method must be Cash, Bank or Payable.`);
     if(method==='payable'&&!supplier_or_payee)throw Error(`Row ${line}: Payable requires Supplier.`);
     const refKey=source_reference.toLowerCase();
