@@ -402,10 +402,12 @@ type SaveAccountInput = {
 /* List accounts                                                               */
 /* -------------------------------------------------------------------------- */
 
-export async function listAccounts(): Promise<ChartOfAccount[]> {
-  return fetchAllPages<ChartOfAccount>((from,to)=>supabase
-    .from("chart_of_accounts").select("*")
-    .order("code",{ascending:true}).order("id",{ascending:true}).range(from,to));
+export async function listAccounts(companyId?: string): Promise<ChartOfAccount[]> {
+  return fetchAllPages<ChartOfAccount>((from,to)=>companyId
+    ? supabase.from("chart_of_accounts").select("*").eq("company_id",companyId)
+        .order("code",{ascending:true}).order("id",{ascending:true}).range(from,to)
+    : supabase.from("chart_of_accounts").select("*")
+        .order("code",{ascending:true}).order("id",{ascending:true}).range(from,to));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -975,12 +977,12 @@ export async function deleteAccount(
 /* Account mappings                                                            */
 /* -------------------------------------------------------------------------- */
 
-export async function listMappings(): Promise<
-  AccountMapping[]
-> {
-  return fetchAllPages<AccountMapping>((from,to)=>supabase
-    .from("account_mappings").select("*, account:chart_of_accounts(*)")
-    .order("mapping_key").order("id").range(from,to));
+export async function listMappings(companyId?: string): Promise<AccountMapping[]> {
+  return fetchAllPages<AccountMapping>((from,to)=>companyId
+    ? supabase.from("account_mappings").select("*, account:chart_of_accounts(*)").eq("company_id",companyId)
+        .order("mapping_key").order("id").range(from,to)
+    : supabase.from("account_mappings").select("*, account:chart_of_accounts(*)")
+        .order("mapping_key").order("id").range(from,to));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -989,7 +991,8 @@ export async function listMappings(): Promise<
 
 export async function setMapping(
   mappingKey: string,
-  accountId: string
+  accountId: string,
+  companyId?: string
 ): Promise<void> {
   if (!mappingKey || !accountId) {
     throw new Error(
@@ -1006,11 +1009,11 @@ export async function setMapping(
     );
   }
 
-  const { data: account, error: accountError } = await supabase
-    .from("chart_of_accounts")
+  const accountQuery = supabase.from("chart_of_accounts")
     .select("id,type,is_active,is_group")
-    .eq("id", accountId)
-    .maybeSingle();
+    .eq("id", accountId);
+  const scopedAccountQuery = companyId ? accountQuery.eq("company_id", companyId) : accountQuery;
+  const { data: account, error: accountError } = await scopedAccountQuery.maybeSingle();
 
   if (accountError) {
     throw new Error(accountError.message);
@@ -1046,6 +1049,7 @@ export async function setMapping(
       {
         mapping_key: normalizedKey,
         account_id: accountId,
+        ...(companyId ? { company_id: companyId } : {}),
       },
       {
         onConflict: "company_id,mapping_key",
