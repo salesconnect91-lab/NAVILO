@@ -75,6 +75,17 @@ function printSectionRows(title: string, section: PLSectionData) {
   return [...section.items.map(item => [title, item.name, item.amount]), [title, 'Section total', section.total]];
 }
 
+function exportSectionRows(
+  title: string,
+  section: PLSectionData,
+  view: "classified" | "detailed" | "summary" | "custom",
+  expanded: Record<string, boolean>,
+  visibilityKey: string,
+) {
+  const showDetails = view !== "summary" && (view !== "custom" || expanded[visibilityKey] !== false);
+  return [...(showDetails ? section.items.map(item => [title, item.name, item.amount]) : []), [title, "Section total", section.total]];
+}
+
 function localDateValue(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
@@ -533,14 +544,16 @@ export default function ProfitLoss() {
     };
   }, [data]);
 
-  // P&L exports show account balances, with each vehicle ledger netted once.
+  // P&L exports respect the same detail-visibility choices as the on-screen statement.
+  const showExportDetails = (key: string) => presentationView !== "summary"
+    && (presentationView !== "custom" || customExpanded[key] !== false);
   const revenueExportRows:(string|number)[][]=isTransport&&transportIncome?[
-    ...transportIncome.vehicleLedgerAccounts.map(row=>['Income — Vehicles',vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),row.net] as (string|number)[]),
-    ...[...data.operatingRevenue.items,...data.otherIncome.items]
+    ...(showExportDetails("Income — Vehicles") ? transportIncome.vehicleLedgerAccounts.map(row=>['Income — Vehicles',vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),row.net] as (string|number)[]) : []),
+    ...(showExportDetails("Other Income") ? [...data.operatingRevenue.items,...data.otherIncome.items]
       .filter(item=>!(item.accountIds??[]).some(id=>transportIncome.vehicleLedgerAccounts.some(vehicle=>vehicle.account_id===id)))
-      .map(item=>['Other Income',item.name,item.amount] as (string|number)[]),
+      .map(item=>['Other Income',item.name,item.amount] as (string|number)[]) : []),
     ['Income','Total Income',metrics.totalIncome],
-  ]:printSectionRows('Operating Revenue',data.operatingRevenue);
+  ]:exportSectionRows('Operating Revenue',data.operatingRevenue,presentationView,customExpanded,'Operating Revenue');
 
   const openDrilldown=(accountIds:string[],_title:string,_journalIds?:string[],_excludeJournalIds?:string[] )=>{
     const uniqueIds=[...new Set(accountIds.filter(Boolean))];
@@ -654,7 +667,7 @@ export default function ProfitLoss() {
           <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-slate-400 shadow-sm">Loading Profit & Loss statement...</div>
         ) : (
           <>
-            <details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; monthly and year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...revenueExportRows,...printSectionRows('Cost of Sales',data.costOfSales),['Result','Gross Profit / Loss',metrics.grossProfit],...printSectionRows('Operating Expenses',data.operatingExpenses),['Result','Operating Profit / Loss',metrics.operatingProfit],...(isTransport?[]:printSectionRows('Other Income',data.otherIncome)),...printSectionRows('Other Expenses',data.otherExpenses),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-business-data>
+            <details data-print-primary-source data-report-orientation="portrait" className="no-print"><summary>Export / customize Profit and Loss</summary><ConfigurableReport module="accounting" preferenceKey="accounting-profit-loss" report={{title:'Profit and Loss',description:`${fromDate} to ${toDate} · Posted canonical ledger; monthly and year-end closing excluded`,columns:['Section','Account','Amount'],rows:[...revenueExportRows,...exportSectionRows('Cost of Sales',data.costOfSales,presentationView,customExpanded,isTransport?'Expenses':'Cost of Sales'),['Result','Gross Profit / Loss',metrics.grossProfit],...exportSectionRows('Operating Expenses',data.operatingExpenses,presentationView,customExpanded,isTransport?'Expenses':'Operating Expenses'),['Result','Operating Profit / Loss',metrics.operatingProfit],...(isTransport?[]:exportSectionRows('Other Income',data.otherIncome,presentationView,customExpanded,'Other Income')),...exportSectionRows('Other Expenses',data.otherExpenses,presentationView,customExpanded,isTransport?'Expenses':'Other Expenses'),['Result','Net Profit / Loss',metrics.netProfit]]}}/></details><div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-business-data>
               <div className="flex flex-col gap-1 border-b border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div><div className="text-sm font-bold text-slate-900">Statement of Profit and Loss</div><div className="mt-0.5 text-xs text-slate-500">For the period {formatReportDate(fromDate)} to {formatReportDate(toDate)}</div></div>
               </div>
