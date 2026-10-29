@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import {createImportTemplateWorkbook} from '@/lib/importExcelTemplate';
+import {createImportTemplateWorkbook,parseNaviloImportDate} from '@/lib/importExcelTemplate';
 
 /**
  * The user-facing import template is the canonical six-column journal format.
@@ -142,7 +142,7 @@ export function normalizeSimpleJournalRows(rows:readonly (readonly unknown[])[])
   const date=suppliedDate||(!suppliedId?currentDate:'');
   const entry=allEntryNumbersBlank?(validDate(date)?`IMPORT-${date}`:''):(suppliedId||currentEntry);
   if(!entry||entry.length>80)throw Error(`Row ${line}: Entry No is required for the first row of every journal (max 80 characters).`);
-  if(!validDate(date))throw Error(`Row ${line}: enter a valid YYYY-MM-DD date on the first row of this journal.`);
+  if(!validDate(date))throw Error(`Row ${line}: enter a valid date such as 17-Oct-26 (YYYY-MM-DD is also accepted) on the first row of this journal.`);
   currentDate=date;
   if(suppliedId)currentEntry=entry;
   const account=str(row[idx('account_name')]);
