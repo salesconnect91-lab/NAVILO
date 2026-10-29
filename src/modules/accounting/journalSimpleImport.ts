@@ -38,10 +38,13 @@ export function journalImportISODate(input:unknown):string{
   const iso=String(year)+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
   if(validDate(iso))return iso;
  }
- if(/^\d{5}(?:\.0+)?$/.test(value)){
+ // Excel date cells can include a fractional day when a time component is
+ // present. Use the whole-day serial; do not reject valid dates like 46266.5.
+ if(/^\d{5}(?:\.\d+)?$/.test(value)){
   const serial=Number(value);
-  if(serial>20000&&serial<80000){
-   const result=new Date(Date.UTC(1899,11,30)+serial*86400000).toISOString().slice(0,10);
+  if(Number.isFinite(serial)&&serial>20000&&serial<80000){
+   const wholeDay=Math.floor(serial);
+   const result=new Date(Date.UTC(1899,11,30)+wholeDay*86400000).toISOString().slice(0,10);
    if(validDate(result))return result;
   }
  }
