@@ -34,7 +34,8 @@ const balanceDisplay = (value: number | null | undefined) => value == null ? "No
 const money = (value: number) => new Intl.NumberFormat("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0));
 
 export default function SupplierPaymentPanel({initialTransport=false}:{initialTransport?:boolean}) {
-  const {activeBusinessUnit}=useAuth();
+  const {activeCompany,activeBusinessUnit}=useAuth();
+  const companyId=activeCompany?.company_id??null;
   const [transportMode,setTransportMode]=useState(initialTransport);
   useEffect(()=>setTransportMode(initialTransport),[initialTransport]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -62,9 +63,10 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
 
   const loadData = async (quiet=false) => {
     if(!quiet)setLoading(true); setError(null);
+    if(!companyId){setSuppliers([]);setOrders([]);setAccounts([]);setSupplierId("");setOrderId("");setAccountId("");setLoading(false);return;}
     const [supplierResult, accountResult] = await Promise.all([
-      supabase.from("suppliers").select("id,name").eq("is_active", true).order("name"),
-      supabase.from("chart_of_accounts").select("id,code,name").eq("is_active", true).eq("is_group", false).eq("allow_manual_entries", true).in("detail_type", ["Cash on Hand", "Bank Account"]).order("code"),
+      supabase.from("suppliers").select("id,name").eq("company_id",companyId).eq("is_active", true).order("name"),
+      supabase.from("chart_of_accounts").select("id,code,name").eq("company_id",companyId).eq("is_active", true).eq("is_group", false).eq("allow_manual_entries", true).in("detail_type", ["Cash on Hand", "Bank Account"]).order("code"),
     ]);
     if (supplierResult.error) setError(supplierResult.error.message); else setSuppliers((supplierResult.data ?? []) as Supplier[]);
     if (accountResult.error) setError(accountResult.error.message); else {
@@ -86,7 +88,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
     const getInvoices=async()=>{
       const data=await fetchAllPages<PurchaseOrder>((from,to)=>supabase.from("purchase_orders")
         .select("id,order_no,order_date,supplier_id,total,paid_amount,outstanding_amount,payment_status,status")
-        .eq("supplier_id",supplierId).eq("status","posted")
+        .eq("company_id",companyId).eq("supplier_id",supplierId).eq("status","posted")
         .gt("outstanding_amount",0).neq("payment_status","paid")
         .order("order_date",{ascending:true}).order("id",{ascending:true}).range(from,to));
       if(cancelled||token!==invoiceRequest.current)return;
@@ -95,11 +97,11 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
     };
     void getInvoices().catch(e=>{if(!cancelled&&token===invoiceRequest.current){setError(e?.message||"Unable to load supplier invoices");setInvoiceLoading(false);}});
     return()=>{cancelled=true;};
-  },[supplierId,invoiceReload]);
+  },[supplierId,invoiceReload,companyId]);
 
   const refreshPaymentAccounts=async()=>{
     const r=await supabase.from("chart_of_accounts").select("id,code,name")
-      .eq("is_active",true).eq("is_group",false).eq("allow_manual_entries",true)
+      .eq("company_id",companyId).eq("is_active",true).eq("is_group",false).eq("allow_manual_entries",true)
       .in("detail_type",["Cash on Hand","Bank Account"]).order("code");
     if(r.error)throw r.error;setAccounts((r.data||[]) as Account[]);
   };
@@ -107,7 +109,7 @@ export default function SupplierPaymentPanel({initialTransport=false}:{initialTr
     setSuppliers(v=>v.some(s=>s.id===record.id)?v:[...v,record]);
     setSupplierId(record.id);setOrderId("");setInvoiceAllocations({});setAmount("");setSuccess(null);
   };
-  useEffect(() => { void loadData(); }, []);
+  useEffect(() => { setSupplierId("");setOrderId("");setInvoiceAllocations({});setOrders([]);setAccountId("");void loadData(); }, [companyId]);
   const supplierOrders = useMemo(() => orders.filter((order) => order.supplier_id === supplierId && order.outstanding_amount > 0).sort((a,b)=>(a.payment_status==="partial"?0:1)-(b.payment_status==="partial"?0:1)), [orders, supplierId]);
   const selectedOrder = supplierOrders.find((order) => order.id === orderId) ?? null;
   const amountNumber = Number(amount || 0);
