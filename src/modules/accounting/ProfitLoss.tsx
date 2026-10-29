@@ -87,7 +87,7 @@ const getYearStart = () => {
 
 function vehicleLedgerLabel(type: string, vehicleNo: string, accountName?: string) {
   const inferredType = type.trim() || (accountName ?? "").replace(vehicleNo, "").trim().replace(/[\\s–—-]+$/, "");
-  return [inferredType, vehicleNo].filter(Boolean).join(" · ") || accountName || vehicleNo;
+  return [vehicleNo, inferredType].filter(Boolean).join(" · ") || accountName || vehicleNo;
 }
 
 function formatReportDate(value: string) {
