@@ -24,7 +24,7 @@ export function journalImportISODate(input:unknown):string{
   if(validDate(iso))return iso;
  }
  // Tolerate ISO dates copied from a Markdown/table view with surrounding pipe delimiters.
- const value=str(input).replace(/^\|+|\|+$/g,'').trim();
+ const value=str(input).replace(/^\|+|\|+$/g,'').replace(/[\u2010-\u2015\u2212]/g,'-').replace(/\u00a0/g,' ').trim();
  const sharedDate=parseNaviloImportDate(value);
  if(validDate(sharedDate))return sharedDate;
  if(validDate(value))return value;
@@ -61,6 +61,13 @@ export function journalImportISODate(input:unknown):string{
    const iso=String(year)+'-'+String(month).padStart(2,'0')+'-'+String(Number(named[1])).padStart(2,'0');
    if(validDate(iso))return iso;
   }
+ }
+ // Final compatibility fallback for Excel/browser stringified dates (e.g. "Wed Sep 02 2026 ...").
+ const parsedTime=Date.parse(value);
+ if(Number.isFinite(parsedTime)){
+  const d=new Date(parsedTime);
+  const iso=`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+  if(validDate(iso))return iso;
  }
  return value;
 }
