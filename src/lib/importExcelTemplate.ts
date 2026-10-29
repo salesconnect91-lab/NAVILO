@@ -13,7 +13,7 @@ export function parseNaviloImportDate(input:unknown):string{
   const dt=new Date(Date.UTC(1899,11,30)+Math.floor(input)*86400000);
   return valid(dt.getUTCFullYear(),dt.getUTCMonth()+1,dt.getUTCDate());
  }
- const s=String(input??'').trim().replace(/^\|+|\|+$/g,'').trim();if(!s)return '';
+ let s=String(input??'').trim();while(s.startsWith('|'))s=s.slice(1);while(s.endsWith('|'))s=s.slice(0,-1);s=s.trim();if(!s)return '';
  const iso=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[Tt ].*)?$/);
  if(iso)return valid(+iso[1],+iso[2],+iso[3]);
  const named=s.match(/^(\d{1,2})[-\s]([A-Za-z]{3,9})[-\s](\d{2}|\d{4})(?:\s+.*)?$/);
