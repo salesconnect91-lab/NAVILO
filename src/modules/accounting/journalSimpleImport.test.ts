@@ -27,7 +27,7 @@ describe('Simple Debit/Credit Journal import',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,
    ['JE-1','2026-09-02','General Expenses','Locks',40,0],
    ['JE-2','','Amjad Payable','Funding',0,40],
-  ])).toThrow(/valid YYYY-MM-DD date on the first row of this journal/);
+  ])).toThrow(/valid date such as 17-Oct-26/);
  });
  it('groups entirely blank entry numbers by date and rejects missing first dates',()=>{
   const result=normalizeSimpleJournalRows([headers,
@@ -44,7 +44,7 @@ describe('Simple Debit/Credit Journal import',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,
    ['JE','2026-02-31','General Expenses','Repair',600,0],
    ['','','Amjad Payable','Funded',0,600],
-  ])).toThrow(/valid YYYY-MM-DD date/);
+  ])).toThrow(/valid date such as 17-Oct-26/);
   expect(()=>normalizeSimpleJournalRows([headers,
    ['JE','2026-09-05','General Expenses','Repair',600,0],
    ['','','Amjad Payable','Funded',0,550],
@@ -55,6 +55,7 @@ describe('Simple Debit/Credit Journal import',()=>{
   expect(journalImportISODate('46266.5')).toBe('2026-09-01');
   expect(journalImportISODate('46266.99999')).toBe('2026-09-01');
   expect(journalImportISODate('01-Sep-26')).toBe('2026-09-01');
+  expect(journalImportISODate('17-Oct-26')).toBe('2026-10-17');
   expect(journalImportISODate('15-Oct-2026')).toBe('2026-10-15');
   expect(journalImportISODate('2026-09-05')).toBe('2026-09-05');
   expect(journalImportISODate('| 2026-09-02 |')).toBe('2026-09-02');
