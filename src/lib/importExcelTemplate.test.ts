@@ -1,6 +1,15 @@
 import {describe,expect,it} from 'vitest';
 import * as XLSX from 'xlsx';
-import {createImportTemplateWorkbook} from './importExcelTemplate';
+import {createImportTemplateWorkbook,parseNaviloImportDate} from './importExcelTemplate';
+describe('NAVILO import date format',()=>{
+ it('normalizes dd-mmm-yy while preserving ISO and Excel dates',()=>{
+  expect(parseNaviloImportDate('15-oct-26')).toBe('2026-10-15');
+  expect(parseNaviloImportDate('15-Oct-2026')).toBe('2026-10-15');
+  expect(parseNaviloImportDate('2026-10-15')).toBe('2026-10-15');
+  expect(parseNaviloImportDate(46310)).toBe('2026-10-15');
+  expect(parseNaviloImportDate('31-Feb-26')).toBe('');
+ });
+});
 describe('NAVILO import workbook schema',()=>{
  it('keeps only real upload headers on the first sheet and isolates sample values in instructions',()=>{
   const w=createImportTemplateWorkbook({filename:'test.xlsx',sheetName:'Invoices',headers:['Source Reference','Invoice Date','Amount'],example:['0000123','2026-10-01',500],title:'Sales invoice',notes:['Only drafts']});
@@ -22,6 +31,7 @@ describe('NAVILO import workbook schema',()=>{
   expect(roundtrip.Sheets['Journal Import']['!autofilter']?.ref).toBe('A1:D1');
   const help=XLSX.utils.sheet_to_json<unknown[]>(roundtrip.Sheets.Instructions,{header:1});
   expect(help.some(row=>String(row[1]).includes('starting in row 2'))).toBe(true);
+   expect(help.some(row=>String(row[0])==='DATES'&&String(row[1]).includes('15-Oct-26'))).toBe(true);
  });
  it('rejects a broken template where sample columns do not match headers',()=>{
   expect(()=>createImportTemplateWorkbook({filename:'bad.xlsx',sheetName:'Data',headers:['A','B'],example:['only one'],title:'Bad',notes:[]})).toThrow('example does not match headers');
