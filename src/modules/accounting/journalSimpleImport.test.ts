@@ -5,63 +5,63 @@ vi.mock('xlsx',async(importOriginal)=>({...await importOriginal<typeof import('x
 
 const headers=[...SIMPLE_JOURNAL_HEADERS];
 const pair=[
- ['ORB-SEP-001','2026-09-05','General Expenses','Vehicle 7979 repair','','',600,0],
- ['','','Amjad Payable','Paid by Amjad','','',0,600],
+ ['ORB-SEP-001','2026-09-05','General Expenses','Vehicle 7979 repair','',600,0],
+ ['','','Amjad Payable','Paid by Amjad','',0,600],
 ];
 describe('Simple Debit/Credit Journal import',()=>{
- it('uses the party-aware eight-column template and maps balanced lines',()=>{
+ it('uses the single-Party seven-column template and maps balanced lines',()=>{
   const result=normalizeSimpleJournalRows([headers,...pair]);
-  expect(headers).toEqual(['entry_no','entry_date','account_name','line_description','party_type','party_name','debit','credit']);
+  expect(headers).toEqual(['entry_no','entry_date','account_name','line_description','party','debit','credit']);
   expect(result[0]).toEqual(['entry_no','entry_date','description','account_name','line_description','party_type','party_name','debit','credit']);
   expect(result[1]).toEqual(['ORB-SEP-001','2026-09-05','Vehicle 7979 repair','General Expenses','Vehicle 7979 repair','','','600.00','0.00']);
   expect(result[2]).toEqual(['ORB-SEP-001','2026-09-05','Vehicle 7979 repair','Amjad Payable','Paid by Amjad','','','0.00','600.00']);
  });
- it('preserves explicit customer/supplier party fields in the RPC-ready rows',()=>{
+ it('parses tagged customer/supplier names from the combined Party column',()=>{
   const result=normalizeSimpleJournalRows([
    headers,
-   ['JE-AR-1','2026-09-05','Accounts Receivable','Customer invoice settlement','customer','Test Customer',100,0],
-   ['','','Bank','Receipt received','','',0,100],
+   ['JE-AR-1','2026-09-05','Accounts Receivable','Customer invoice settlement','Customer: Test Customer',100,0],
+   ['','','Bank','Receipt received','',0,100],
   ]);
   expect(result[1].slice(5,7)).toEqual(['customer','Test Customer']);
   expect(result[2].slice(5,7)).toEqual(['','']);
   expect(()=>normalizeSimpleJournalRows([
    headers,
-   ['JE-AR-2','2026-09-05','Accounts Receivable','Customer invoice settlement','','Test Customer',100,0],
-   ['','','Bank','Receipt received','','',0,100],
-  ])).toThrow(/Party Type is required when Party Name is supplied/);
+   ['JE-AR-2','2026-09-05','General Expenses','Ambiguous party','Test Customer',100,0],
+   ['','','Bank','Funding','',0,100],
+  ])).toThrow(/Related To is ambiguous/);
  });
  it('inherits the date only on continuation rows in the same journal',()=>{
   const result=normalizeSimpleJournalRows([headers,
-   ['JE-1','2026-09-02','General Expenses','Locks','','',40,0],
-   ['','','Amjad Payable','Funding','','',0,40],
+   ['JE-1','2026-09-02','General Expenses','Locks','',40,0],
+   ['','','Amjad Payable','Funding','',0,40],
   ]);
   expect(result.slice(1).map(row=>row[1])).toEqual(['2026-09-02','2026-09-02']);
  });
  it('rejects a blank date when a new explicit journal starts',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,
    ['JE-1','2026-09-02','General Expenses','Locks','','',40,0],
-   ['JE-2','','Amjad Payable','Funding','','',0,40],
+   ['JE-2','','Amjad Payable','Funding','',0,40],
   ])).toThrow(/valid date such as 17-Oct-26/);
  });
  it('groups entirely blank entry numbers by date and rejects missing first dates',()=>{
   const result=normalizeSimpleJournalRows([headers,
-   ['','2026-09-02','General Expenses','Locks','','',40,0],
+   ['','2026-09-02','General Expenses','Locks','',40,0],
    ['','','Amjad Payable','Funding','','',0,40],
   ]);
   expect(result.slice(1).map(row=>row[0])).toEqual(['IMPORT-2026-09-02','IMPORT-2026-09-02']);
   expect(()=>normalizeSimpleJournalRows([headers,
-   ['','','General Expenses','Locks','','',40,0],
+   ['','','General Expenses','Locks','',40,0],
    ['','','Amjad Payable','Funding','','',0,40],
   ])).toThrow(/Entry No is required for the first row of every journal/);
  });
  it('rejects invalid calendar dates and unbalanced journals',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,
-   ['JE','2026-02-31','General Expenses','Repair','','',600,0],
-   ['','','Amjad Payable','Funded','','',0,600],
+   ['JE','2026-02-31','General Expenses','Repair','',600,0],
+   ['','','Amjad Payable','Funded','',0,600],
   ])).toThrow(/valid date such as 17-Oct-26/);
   expect(()=>normalizeSimpleJournalRows([headers,
-   ['JE','2026-09-05','General Expenses','Repair','','',600,0],
-   ['','','Amjad Payable','Funded','','',0,550],
+   ['JE','2026-09-05','General Expenses','Repair','',600,0],
+   ['','','Amjad Payable','Funded','',0,550],
   ])).toThrow(/not balanced/);
  });
  it('accepts Excel serial dates and NAVILO dates without shifting calendar day',()=>{
