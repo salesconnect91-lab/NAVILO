@@ -18,20 +18,20 @@ describe('Simple Debit/Credit Journal import',()=>{
  });
  it('inherits the date only on continuation rows in the same journal',()=>{
   const result=normalizeSimpleJournalRows([headers,
-   ['JE-1','2026-09-02','General Expenses','Locks',40,0],
-   ['','','Amjad Payable','Funding',0,40],
+   ['JE-1','2026-09-02','General Expenses','Locks','','',40,0],
+   ['','','Amjad Payable','Funding','','',0,40],
   ]);
   expect(result.slice(1).map(row=>row[1])).toEqual(['2026-09-02','2026-09-02']);
  });
  it('rejects a blank date when a new explicit journal starts',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,
    ['JE-1','2026-09-02','General Expenses','Locks',40,0],
-   ['JE-2','','Amjad Payable','Funding',0,40],
+   ['JE-2','','Amjad Payable','Funding','','',0,40],
   ])).toThrow(/valid date such as 17-Oct-26/);
  });
  it('groups entirely blank entry numbers by date and rejects missing first dates',()=>{
   const result=normalizeSimpleJournalRows([headers,
-   ['','2026-09-02','General Expenses','Locks',40,0],
+   ['','2026-09-02','General Expenses','Locks','','',40,0],
    ['','','Amjad Payable','Funding',0,40],
   ]);
   expect(result.slice(1).map(row=>row[0])).toEqual(['IMPORT-2026-09-02','IMPORT-2026-09-02']);
@@ -42,12 +42,12 @@ describe('Simple Debit/Credit Journal import',()=>{
  });
  it('rejects invalid calendar dates and unbalanced journals',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,
-   ['JE','2026-02-31','General Expenses','Repair',600,0],
-   ['','','Amjad Payable','Funded',0,600],
+   ['JE','2026-02-31','General Expenses','Repair','','',600,0],
+   ['','','Amjad Payable','Funded','','',0,600],
   ])).toThrow(/valid date such as 17-Oct-26/);
   expect(()=>normalizeSimpleJournalRows([headers,
-   ['JE','2026-09-05','General Expenses','Repair',600,0],
-   ['','','Amjad Payable','Funded',0,550],
+   ['JE','2026-09-05','General Expenses','Repair','','',600,0],
+   ['','','Amjad Payable','Funded','','',0,550],
   ])).toThrow(/not balanced/);
  });
  it('accepts Excel serial dates and NAVILO dates without shifting calendar day',()=>{
@@ -60,7 +60,7 @@ describe('Simple Debit/Credit Journal import',()=>{
   expect(journalImportISODate('2026-09-05')).toBe('2026-09-05');
   expect(journalImportISODate('| 2026-09-02 |')).toBe('2026-09-02');
  });
- it('recognizes the template and downloads it with party fields but without vehicle column',()=>{
+ it('recognizes party fields in template and keeps vehicle out',()=>{
   expect(isSimpleJournalTemplate(headers)).toBe(true);
   expect(isSimpleJournalTemplate(['entry_no','entry_date','account_name','line_description','debit','credit','vehicle_no'])).toBe(true);
   downloadSimpleJournalTemplate();
