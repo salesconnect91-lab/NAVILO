@@ -394,7 +394,7 @@ export default function SalesInvoiceDetail() {
           {locked && canPostFullReversal && order.document_kind !== "service" && (
             <Link className="btn-danger inline-flex items-center gap-1.5" to={`/accounting/returns?type=sales_credit&invoice_id=${encodeURIComponent(order.id)}&full_reversal=1`}
               title="Create a full credit note for remaining quantities; this does not delete the original invoice">
-              <Trash2 className="h-3.5 w-3.5" /> Delete Posted Invoice
+              <Trash2 className="h-3.5 w-3.5" /> Create Full Credit Note
             </Link>
           )}
           {canPrint && (
