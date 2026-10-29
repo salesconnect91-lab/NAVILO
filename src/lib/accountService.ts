@@ -1066,13 +1066,16 @@ export async function setMapping(
 /* -------------------------------------------------------------------------- */
 
 export async function resolveMappedAccount(
-  mappingKey: string
+  mappingKey: string,
+  companyId: string
 ): Promise<ChartOfAccount> {
+  if (!companyId) {
+    throw new Error("An active company is required to resolve accounting mappings.");
+  }
   const { data, error } = await supabase
     .from("account_mappings")
-    .select(
-      "account:chart_of_accounts(*)"
-    )
+    .select("account:chart_of_accounts(*)")
+    .eq("company_id", companyId)
     .eq("mapping_key", mappingKey)
     .maybeSingle();
 
