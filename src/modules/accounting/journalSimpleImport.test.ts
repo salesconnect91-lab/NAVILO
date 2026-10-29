@@ -4,28 +4,25 @@ import {SIMPLE_JOURNAL_HEADERS,isSimpleJournalTemplate,normalizeSimpleJournalRow
 vi.mock('xlsx',async(importOriginal)=>({...await importOriginal<typeof import('xlsx')>(),writeFile:vi.fn()}));
 
 const headers=[...SIMPLE_JOURNAL_HEADERS];
-const pair=[
- ['ORB-SEP-001','2026-09-05','General Expenses','Vehicle 7979 repair','',600,0],
- ['','','Amjad Payable','Paid by Amjad','',0,600],
-];
 describe('Simple Debit/Credit Journal import',()=>{
  it('uses the single-Party seven-column template and maps balanced lines',()=>{
-  const result=normalizeSimpleJournalRows([headers,...pair]);
+  const result=normalizeSimpleJournalRows([headers,
+   ['ORB-SEP-001','2026-09-05','General Expenses','Vehicle 7979 repair','',600,0],
+   ['','','Amjad Payable','Paid by Amjad','',0,600],
+  ]);
   expect(headers).toEqual(['entry_no','entry_date','account_name','line_description','party','debit','credit']);
   expect(result[0]).toEqual(['entry_no','entry_date','description','account_name','line_description','party_type','party_name','debit','credit']);
   expect(result[1]).toEqual(['ORB-SEP-001','2026-09-05','Vehicle 7979 repair','General Expenses','Vehicle 7979 repair','','','600.00','0.00']);
   expect(result[2]).toEqual(['ORB-SEP-001','2026-09-05','Vehicle 7979 repair','Amjad Payable','Paid by Amjad','','','0.00','600.00']);
  });
  it('parses tagged customer/supplier names from the combined Party column',()=>{
-  const result=normalizeSimpleJournalRows([
-   headers,
+  const result=normalizeSimpleJournalRows([headers,
    ['JE-AR-1','2026-09-05','Accounts Receivable','Customer invoice settlement','Customer: Test Customer',100,0],
    ['','','Bank','Receipt received','',0,100],
   ]);
   expect(result[1].slice(5,7)).toEqual(['customer','Test Customer']);
   expect(result[2].slice(5,7)).toEqual(['','']);
-  expect(()=>normalizeSimpleJournalRows([
-   headers,
+  expect(()=>normalizeSimpleJournalRows([headers,
    ['JE-AR-2','2026-09-05','General Expenses','Ambiguous party','Test Customer',100,0],
    ['','','Bank','Funding','',0,100],
   ])).toThrow(/Related To is ambiguous/);
@@ -39,19 +36,19 @@ describe('Simple Debit/Credit Journal import',()=>{
  });
  it('rejects a blank date when a new explicit journal starts',()=>{
   expect(()=>normalizeSimpleJournalRows([headers,
-   ['JE-1','2026-09-02','General Expenses','Locks','','',40,0],
+   ['JE-1','2026-09-02','General Expenses','Locks','',40,0],
    ['JE-2','','Amjad Payable','Funding','',0,40],
   ])).toThrow(/valid date such as 17-Oct-26/);
  });
  it('groups entirely blank entry numbers by date and rejects missing first dates',()=>{
   const result=normalizeSimpleJournalRows([headers,
    ['','2026-09-02','General Expenses','Locks','',40,0],
-   ['','','Amjad Payable','Funding','','',0,40],
+   ['','','Amjad Payable','Funding','',0,40],
   ]);
   expect(result.slice(1).map(row=>row[0])).toEqual(['IMPORT-2026-09-02','IMPORT-2026-09-02']);
   expect(()=>normalizeSimpleJournalRows([headers,
    ['','','General Expenses','Locks','',40,0],
-   ['','','Amjad Payable','Funding','','',0,40],
+   ['','','Amjad Payable','Funding','',0,40],
   ])).toThrow(/Entry No is required for the first row of every journal/);
  });
  it('rejects invalid calendar dates and unbalanced journals',()=>{
@@ -74,7 +71,7 @@ describe('Simple Debit/Credit Journal import',()=>{
   expect(journalImportISODate('2026-09-05')).toBe('2026-09-05');
   expect(journalImportISODate('| 2026-09-02 |')).toBe('2026-09-02');
  });
- it('recognizes party fields in template and keeps vehicle out',()=>{
+ it('recognizes the combined Party column and keeps vehicle out',()=>{
   expect(isSimpleJournalTemplate(headers)).toBe(true);
   expect(isSimpleJournalTemplate(['entry_no','entry_date','account_name','line_description','debit','credit','vehicle_no'])).toBe(true);
   downloadSimpleJournalTemplate();
