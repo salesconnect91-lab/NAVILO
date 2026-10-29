@@ -98,7 +98,7 @@ const getYearStart = () => {
 
 function vehicleLedgerLabel(type: string, vehicleNo: string, accountName?: string) {
   const inferredType = type.trim() || (accountName ?? "").replace(vehicleNo, "").trim().replace(/[\\s–—-]+$/, "");
-  return [inferredType, vehicleNo].filter(Boolean).join(" · ") || accountName || vehicleNo;
+  return [vehicleNo, inferredType].filter(Boolean).join(" · ") || accountName || vehicleNo;
 }
 
 function formatReportDate(value: string) {
@@ -569,15 +569,18 @@ export default function ProfitLoss() {
     &&(!drilldown.excludeJournalIds?.length||!line.journal_entry_id||!drilldown.excludeJournalIds.includes(line.journal_entry_id))):[];
 
   const vehicleAccountIds=new Set(transportIncome?.vehicleLedgerAccounts.map(row=>row.account_id)??[]);
+  const printShowsDetails=(key:string)=>presentationView!=="summary"
+    &&(presentationView!=="custom"||customExpanded[key]!==false);
   const printableTransportIncomeRows=isTransport&&transportIncome?[
-    ...[...transportIncome.vehicleLedgerAccounts]
+    ...(printShowsDetails("Income — Vehicles")?[...transportIncome.vehicleLedgerAccounts]
       .sort((a,b)=>a.vehicle_no.localeCompare(b.vehicle_no,undefined,{numeric:true,sensitivity:'base'}))
-      .map(row=>({name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net})),
-    ...[...data.operatingRevenue.items,...data.otherIncome.items]
+      .map(row=>({name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net})):[]),
+    ...(printShowsDetails("Other Income")?[...data.operatingRevenue.items,...data.otherIncome.items]
       .filter(row=>!(row.accountIds??[]).some(id=>vehicleAccountIds.has(id)))
-      .map(row=>({name:row.name,amount:row.amount})),
+      .map(row=>({name:row.name,amount:row.amount})):[]),
   ]:[];
-  const printableTransportExpenses=[...data.costOfSales.items,...data.operatingExpenses.items,...data.otherExpenses.items];
+  const printableTransportExpenses=printShowsDetails("Expenses")
+    ?[...data.costOfSales.items,...data.operatingExpenses.items,...data.otherExpenses.items]:[];
 
   const setThisMonth = () => {
     const today = new Date();
