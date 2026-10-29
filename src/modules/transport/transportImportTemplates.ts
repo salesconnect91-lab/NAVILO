@@ -10,7 +10,7 @@ export const TRANSPORT_TRIP_HEADERS=[
 
 export function createDailyTripTemplateWorkbook(){
  const example=[
-  '2026-10-01','Flatbed','PO-001','Replace with active Customer','Driver A','', 'ABC-123',
+  '15-Oct-26','Flatbed','PO-001','Replace with active Customer','Driver A','', 'ABC-123',
   'Dammam','Riyadh','PPR PENDING','',1200,'','','',''
  ];
  return createImportTemplateWorkbook({
@@ -29,7 +29,7 @@ export function createDailyTripTemplateWorkbook(){
    'Maximum 20,000 rows per file. Duplicate journeys are detected; repeat real trips need different PO/DO/Job No or distinct source identity.'
   ],
   fields:[
-   {field:'DATE (first)',rule:'Required Trip Date (YYYY-MM-DD).'},
+   {field:'DATE (first)',rule:'Required Trip Date (dd-mmm-yy, e.g. 15-Oct-26; ISO and Excel dates are also accepted).'},
    {field:'COMPANY NAME',rule:'Required Customer name from shared Customer Master; billing mode must already be configured for active Transport business.'},
    {field:'FROM / TO',rule:'Required active Transport Locations.'},
    {field:'TRUCK TYPE / PLATE # / DRIVER NAME',rule:'Active Transport master values. Vehicle ownership must cover Trip Date.'},
@@ -52,9 +52,9 @@ export function createHistoricalTemplateWorkbook(){
   'Sale Type (Cash / Credit)',...HISTORY_COLUMNS,'TRIP NO'
  ];
  const sample=[
-  '2026-10-01','Flatbed','JOB-1','ORIG-2026-001','Example Customer','Example Driver','Example Supplier',
+  '15-Oct-26','Flatbed','JOB-1','ORIG-2026-001','Example Customer','Example Driver','Example Supplier',
   'ABC-123','From','To','PPR PENDING',2000,1700,'Credit',
-  'OLD-0001','Yes','2026-10-01','No',2000,600,1400,'Yes','2026-10-01','No',1700,1000,700,''
+  'OLD-0001','Yes','15-Oct-26','No',2000,600,1400,'Yes','15-Oct-26','No',1700,1000,700,''
  ];
  const wb=createImportTemplateWorkbook({
   filename:'Transport-One-time-Import-Template.xlsx',sheetName:'Trips',
@@ -69,7 +69,7 @@ export function createHistoricalTemplateWorkbook(){
    'For posted CREDIT customer Sales, INVOICE NUMBER must contain the actual original invoice number. YES, CLEARED, NO INVOICE, BAD DEBTS and H-S references are not invoice numbers. Missing numbers cannot be posted.',
    'Customer Gross - Customer Received = Customer Remaining; Supplier Gross - Supplier Paid = Supplier Remaining.',
    'For any nonzero amount received/paid, add matching actual dated allocations to the Payments sheet using existing Chart of Accounts cash/bank CODES.',
-   'Each Payments row requires Source Record ID, customer/supplier Side, Date, positive Amount, Cash / Bank Account Code and Reference.',
+   'Each Payments row requires Source Record ID, customer/supplier Side, Date (dd-mmm-yy, e.g. 15-Oct-26), positive Amount, Cash / Bank Account Code and Reference.',
    'The Payments upload sheet is intentionally blank. Never import fabricated receipt or supplier payment rows.',
    'Do not duplicate balances in accounting openings; closed periods and ownership histories must be reviewed before confirmation.'
   ]
