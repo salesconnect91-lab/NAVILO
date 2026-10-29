@@ -4,9 +4,9 @@ vi.mock('xlsx',async(importOriginal)=>({...await importOriginal<typeof import('x
 import {TEMPLATE_HEADERS,TEMPLATE_ROWS,downloadExcelTemplate} from './journalImportTemplates';
 
 describe('Journal bulk template / Fast Journal field parity',()=>{
- it('uses one account column, genuine party fields, and no vehicle field',()=>{
+ it('uses one account column, restores party type/name fields, and omits vehicle field',()=>{
   expect(TEMPLATE_HEADERS).toEqual([
-    'entry_no','entry_date','account_name','line_description','debit','credit'
+    'entry_no','entry_date','account_name','line_description','party_type','party_name','debit','credit'
   ]);
  });
  it('downloads a valid blank Excel journal workbook and separate instructions',()=>{
@@ -22,6 +22,8 @@ describe('Journal bulk template / Fast Journal field parity',()=>{
   expect(TEMPLATE_ROWS).toEqual([]);
   expect(TEMPLATE_HEADERS).not.toContain('account_code');
   expect(TEMPLATE_HEADERS).not.toContain('account_head');
+  expect(TEMPLATE_HEADERS).toContain('party_type');
+  expect(TEMPLATE_HEADERS).toContain('party_name');
   expect(TEMPLATE_HEADERS).not.toContain('vehicle_no');
  });
 });
