@@ -23,7 +23,8 @@ export function journalImportISODate(input:unknown):string{
   const iso=`${input.getUTCFullYear()}-${String(input.getUTCMonth()+1).padStart(2,'0')}-${String(input.getUTCDate()).padStart(2,'0')}`;
   if(validDate(iso))return iso;
  }
- const value=str(input);
+ // Tolerate ISO dates copied from a Markdown/table view with surrounding pipe delimiters.
+ const value=str(input).replace(/^\|+|\|+$/g,'').trim();
  if(validDate(value))return value;
  // Excel/browser readers may stringify a date cell as an ISO datetime rather
  // than a Date object (for example 2026-09-02T00:00:00.000Z).
