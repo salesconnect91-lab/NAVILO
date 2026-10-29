@@ -52,6 +52,8 @@ describe('Simple Debit/Credit Journal import',()=>{
  });
  it('accepts Excel serial dates and NAVILO dates without shifting calendar day',()=>{
   expect(journalImportISODate('46266')).toBe('2026-09-01');
+  expect(journalImportISODate('46266.5')).toBe('2026-09-01');
+  expect(journalImportISODate('46266.99999')).toBe('2026-09-01');
   expect(journalImportISODate('01-Sep-26')).toBe('2026-09-01');
   expect(journalImportISODate('15-Oct-2026')).toBe('2026-10-15');
   expect(journalImportISODate('2026-09-05')).toBe('2026-09-05');
