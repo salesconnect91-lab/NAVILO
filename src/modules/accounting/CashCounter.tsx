@@ -112,7 +112,8 @@ const escapeHtml = (value: unknown) =>
     .replace(/'/g, "&#039;");
 
 export default function CashCounter() {
-  const {activeBusinessUnit}=useAuth();
+  const {activeCompany,activeBusinessUnit}=useAuth();
+  const companyId=activeCompany?.company_id??null;
   const [searchParams] = useSearchParams();
   const [counterMode, setCounterMode] = useState<"customer" | "supplier" | "general">(()=>searchParams.get("mode")==="supplier"?"supplier":searchParams.get("mode")==="general"?"general":"customer");
   const transportEntry=activeBusinessUnit?.business_unit_type==="transport"&&searchParams.get("allocation")==="transport";
@@ -203,6 +204,7 @@ export default function CashCounter() {
     async (quiet=false) => {
       if(!quiet)setLoading(true);
       setError(null);
+      if(!companyId){setCustomers([]);setAccounts([]);setRecentPayments([]);setLoading(false);return;}
 
       const [
         customerResult,
@@ -211,12 +213,14 @@ export default function CashCounter() {
         supabase
           .from("customers")
           .select("id,name,phone,account_id")
+          .eq("company_id",companyId)
           .eq("is_active", true)
           .order("name"),
 
         supabase
           .from("chart_of_accounts")
           .select("id,code,name")
+          .eq("company_id",companyId)
           .eq("is_active", true)
           .eq("is_group", false)
           .eq("allow_manual_entries", true)
@@ -244,19 +248,20 @@ export default function CashCounter() {
 
       setLoading(false);
     },
-    []
+    [companyId]
   );
 
   const loadInvoicesForCustomer=useCallback(async(customerId:string)=>{
     const request=++invoiceRequest.current;
     setInvoiceLoadError(null);
-    if(!customerId){setInvoices([]);setInvoiceLoading(false);return;}
+    if(!companyId||!customerId){setInvoices([]);setInvoiceLoading(false);return;}
     setInvoiceLoading(true);
     setInvoices([]);
     try{
       const loaded=await fetchAllPages<Invoice>((from,to)=>supabase
         .from("sales_orders")
         .select("id,order_no,order_date,total,paid_amount,outstanding_amount,payment_status,customer_id")
+        .eq("company_id",companyId)
         .eq("customer_id",customerId)
         .eq("status","posted")
         .gt("outstanding_amount",0)
@@ -277,15 +282,17 @@ export default function CashCounter() {
     }finally{
       if(request===invoiceRequest.current)setInvoiceLoading(false);
     }
-  },[]);
+  },[companyId]);
 
   const loadRecentPayments =
     useCallback(async () => {
+      if(!companyId){setRecentPayments([]);return;}
       const { data } = await supabase
         .from("journal_entries")
         .select(
           "id,entry_no,entry_date,party_name,payment_mode,status"
         )
+        .eq("company_id",companyId)
         .eq(
           "trans_type",
           "Customer Receipt"
@@ -296,7 +303,7 @@ export default function CashCounter() {
         .limit(10);
 
       setRecentPayments(data ?? []);
-    }, []);
+    }, [companyId]);
 
   useEffect(() => {
     // Supplier/General Cash panels own their respective datasets.
