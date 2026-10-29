@@ -582,6 +582,7 @@ export default function ProfitLoss() {
     &&(presentationView!=="custom"||customExpanded[key]!==false);
   const printableTransportIncomeRows=isTransport&&transportIncome?[
     ...(printShowsDetails("Income — Vehicles")?[...transportIncome.vehicleLedgerAccounts]
+      .filter(row=>(presentationView!=='custom'||customExpanded[plDetailKey('Income — Vehicles',{name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),accountIds:row.account_id?[row.account_id]:[]})]!==false))
       .sort((a,b)=>a.vehicle_no.localeCompare(b.vehicle_no,undefined,{numeric:true,sensitivity:'base'}))
       .map(row=>({name:vehicleLedgerLabel(row.truck_type,row.vehicle_no,row.account_name),amount:row.net})):[]),
     ...(printShowsDetails("Other Income")?[...data.operatingRevenue.items,...data.otherIncome.items]
