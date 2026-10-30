@@ -36,7 +36,7 @@ export type TransportAction = "customer_finance_view" | "supplier_finance_view" 
 
 export function canTransportAction(role: CompanyRole | null | undefined,
   permissions: Record<string, unknown> | null | undefined, action: TransportAction, isPlatformOwner = false) {
-  if (isPlatformOwner) return true;
+  if (isPlatformOwner || role === "company_owner" || role === "admin" || role === "owner") return true;
   const override = (permissions?.transport_actions as Record<string, unknown> | undefined)?.[action];
   if (typeof override === "boolean") return override;
   return role === "company_owner" || role === "admin";
@@ -127,7 +127,7 @@ export function hasPermission(
   permissions?: PermissionMatrix | null,
   isPlatformOwner = false,
 ) {
-  if (isPlatformOwner) return true;
+  if (isPlatformOwner || role === "company_owner" || role === "admin" || role === "owner") return true;
   const effective = mergePermissions(defaultRolePermissions(role), permissions);
   return effective[module]?.[action] === true;
 }
