@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS trg_freeze_sales_order_line_costs ON public.sales_orders;
