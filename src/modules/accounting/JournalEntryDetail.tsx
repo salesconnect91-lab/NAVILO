@@ -206,13 +206,13 @@ export default function JournalEntryDetail() {
   const [permanentDeleteReason, setPermanentDeleteReason] = useState("");
   const [permanentDeleting, setPermanentDeleting] = useState(false);
   const handlePermanentDelete = async () => {
-    if (!entry || permanentDeleteReason.trim().length < 10 || permanentDeleting) return;
+    if (!entry || permanentDeleting) return;
     setPermanentDeleting(true);
     setError(null);
     try {
       const { data, error: deleteError } = await supabase.rpc("platform_admin_permanent_delete_manual_journal", {
         p_entry_id: entry.id,
-        p_reason: permanentDeleteReason.trim(),
+        p_reason: permanentDeleteReason.trim() || 'Deleted by user',
       });
       if (deleteError) throw new Error(deleteError.message);
       if (!data?.success) throw new Error("Permanent deletion was not confirmed.");
@@ -252,7 +252,7 @@ export default function JournalEntryDetail() {
           throw new Error("Account/party remapping is not enabled yet; original entry unchanged.");
       }
       const {data,error:rpcError}=await supabase.rpc("owner_edit_posted_manual_journal",{
-        p_entry_id:entry.id,p_reason:postedEditReason.trim(),p_entry_date:postedEditDate,
+        p_entry_id:entry.id,p_reason:postedEditReason.trim() || 'Updated by user',p_entry_date:postedEditDate,
         p_description:postedEditDescription,p_lines:draftLines.map(line=>({
           id:line.tempId,description:line.description,debit:Number(line.debit),credit:Number(line.credit)
         }))
@@ -273,7 +273,7 @@ export default function JournalEntryDetail() {
     let live = true;
     setOwnerCanCancel(false);
     if (!activeCompany?.company_id || !activeBusinessUnit?.business_unit_id) return;
-    void supabase.rpc("company_can_permanently_delete").then(({ data, error }) => {
+    void supabase.rpc("posted_journal_delete_access").then(({ data, error }) => {
       if (live && !error) setOwnerCanCancel(data === true);
     });
     return () => { live = false; };
@@ -2702,8 +2702,6 @@ export default function JournalEntryDetail() {
               {postedEditOpen && <div className="bg-white border-b p-3 flex flex-wrap items-end gap-2">
                 <label className="text-xs">Posting Date<NaviloDateInput className="input block" type="date" value={postedEditDate} onChange={e=>setPostedEditDate(e.target.value)}/></label>
                 <label className="text-xs">Journal Description<textarea className="input block" value={postedEditDescription} onChange={e=>setPostedEditDescription(e.target.value)} rows={2} style={{minHeight:32,height:40,resize:"vertical",whiteSpace:"pre-wrap",tabSize:4}} /></label>
-                <label className="text-xs">Reason (minimum 10 characters) — required to save<input className="input block" value={postedEditReason} onChange={e=>setPostedEditReason(e.target.value)} placeholder="Explain what was corrected"/></label>
-                {postedEditReason.trim().length < 10 && <span className="text-xs text-amber-700">Enter at least 10 characters to enable Save Original Journal.</span>}
 
                 <button className="btn-secondary" disabled={postedEditSaving} onClick={()=>setPostedEditOpen(false)}>Cancel Edit</button>
               </div>}
@@ -3000,7 +2998,7 @@ export default function JournalEntryDetail() {
                     saving ||
                     posting ||
                     importing ||
-                    (postedEditOpen ? (postedEditSaving || postedEditReason.trim().length < 10) : (activeDraftCount === 0 && !hasUnsavedDraftDate))
+                    (postedEditOpen ? postedEditSaving : (activeDraftCount === 0 && !hasUnsavedDraftDate))
                   }
                   className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -3100,13 +3098,10 @@ export default function JournalEntryDetail() {
             This permanently removes the posted journal and its ledger effects. No reversal journal is created.
             An immutable audit snapshot is retained. Linked documents are blocked by the server.
           </p>
-          <label className="block text-sm font-semibold">Reason (minimum 10 characters)</label>
-          <textarea className="input w-full" rows={3} value={permanentDeleteReason}
-            onChange={(event) => setPermanentDeleteReason(event.target.value)} />
           <div className="flex gap-2 justify-end">
             <button type="button" className="btn btn-secondary" disabled={permanentDeleting}
               onClick={() => setPermanentDeleteOpen(false)}>Cancel</button>
-            <button type="button" className="btn btn-danger" disabled={permanentDeleting || permanentDeleteReason.trim().length < 10}
+            <button type="button" className="btn btn-danger" disabled={permanentDeleting}
               onClick={() => void handlePermanentDelete()}>
               {permanentDeleting ? "Deleting..." : "Confirm Permanent Delete"}
             </button>
