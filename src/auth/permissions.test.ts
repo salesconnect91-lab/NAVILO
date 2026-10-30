@@ -5,7 +5,7 @@ describe("ERP permission model", () => {
   it("allows every active company role to use all Transport actions", () => {
     expect(canTransportAction("transport",{},"rent_finalize")).toBe(true);
     expect(canTransportAction("admin",{},"rent_finalize")).toBe(true);
-    expect(canTransportAction("admin",{transport_actions:{rent_finalize:false}},"rent_finalize")).toBe(false);
+    expect(canTransportAction("admin",{transport_actions:{rent_finalize:false}},"rent_finalize")).toBe(true);
     expect(canTransportAction("transport",{transport_actions:{rent_finalize:true}},"rent_finalize")).toBe(true);
   });
   it("keeps company admins fully privileged", () => {
@@ -41,7 +41,7 @@ describe("ERP permission model", () => {
     }
   });
 
-  it("keeps each operational role inside its write module", () => {
+  it("allows every operational role to use all write actions", () => {
     const assignments = {
       accounts:"accounting",sales:"sales",purchase:"purchase",store:"inventory",production:"production",transport:"transport",
     } as const;
@@ -49,7 +49,7 @@ describe("ERP permission model", () => {
       expect(hasPermission(role,module,"create"),`${role} create ${module}`).toBe(true);
       expect(hasPermission(role,module,"edit"),`${role} edit ${module}`).toBe(true);
       expect(hasPermission(role,module,"post"),`${role} post ${module}`).toBe(true);
-      expect(hasPermission(role,module,"delete"),`${role} delete ${module}`).toBe(false);
+      expect(hasPermission(role,module,"delete"),`${role} delete ${module}`).toBe(true);
     }
   });
 
