@@ -35,11 +35,8 @@ export type TransportAction = "customer_finance_view" | "supplier_finance_view" 
   "driver_month_close" | "driver_month_reopen";
 
 export function canTransportAction(role: CompanyRole | null | undefined,
-  permissions: Record<string, unknown> | null | undefined, action: TransportAction, isPlatformOwner = false) {
-  if (isPlatformOwner || role === "company_owner" || role === "admin" || role === "owner") return true;
-  const override = (permissions?.transport_actions as Record<string, unknown> | undefined)?.[action];
-  if (typeof override === "boolean") return override;
-  return role === "company_owner" || role === "admin";
+  _permissions: Record<string, unknown> | null | undefined, _action: TransportAction, isPlatformOwner = false) {
+  return Boolean(isPlatformOwner || role);
 }
 
 const ALL_MODULES: ModuleKey[] = [
@@ -77,34 +74,24 @@ const OPERATIONAL_MODULE: Partial<Record<string, ModuleKey>> = {
   transport: "transport",
 };
 
-export function canViewModule(role: CompanyRole | null | undefined, module: ModuleKey, isPlatformOwner = false) {
-  if (isPlatformOwner) return true;
-  if (!role) return false;
-  return VIEW_MODULES[role]?.includes(module) ?? false;
+export function canViewModule(role: CompanyRole | null | undefined, _module: ModuleKey, isPlatformOwner = false) {
+  return Boolean(isPlatformOwner || role);
 }
 
 export function defaultRolePermissions(role: CompanyRole | null | undefined): PermissionMatrix {
   const matrix: PermissionMatrix = {};
-  if (role === "transport_mobile") {
-    for (const module of ALL_MODULES) matrix[module] = { view:false, create:false, edit:false, delete:false, post:false, print:false, export:false };
-    matrix.transport = { view:true, create:true, edit:true, delete:false, post:false, print:false, export:false };
-    matrix.transport_actions = { trip_create:true, trip_edit:true };
-    return matrix;
-  }
+  if (!role) return matrix;
   for (const module of ALL_MODULES) {
-    const canView = canViewModule(role, module, false);
-    const fullAccess = role === "company_owner" || role === "admin";
-    const operationalAccess = OPERATIONAL_MODULE[role ?? ""] === module;
-    matrix[module] = {
-      view: canView,
-      print: canView,
-      export: canView,
-      create: fullAccess || operationalAccess,
-      edit: fullAccess || operationalAccess,
-      delete: fullAccess,
-      post: fullAccess || operationalAccess,
-    };
+    matrix[module] = { view:true, print:true, export:true, create:true, edit:true, delete:true, post:true };
   }
+  matrix.transport_actions = {
+    customer_finance_view:true, supplier_finance_view:true, trip_create:true, trip_edit:true,
+    trip_cancel:true, trip_delete:true, customer_rate_finalize:true, customer_rate_override:true,
+    rent_finalize:true, rent_correct:true, vehicle_owner_change:true, assignment_replace:true,
+    ppr_receive:true, master_manage:true, number_config:true, settlement_post:true,
+    settlement_unpost:true, billing_adjust:true, payment_correct:true,
+    driver_month_close:true, driver_month_reopen:true,
+  };
   return matrix;
 }
 
@@ -122,14 +109,12 @@ export function mergePermissions(base: PermissionMatrix, overrides?: PermissionM
 
 export function hasPermission(
   role: CompanyRole | null | undefined,
-  module: ModuleKey,
-  action: ModuleAction,
-  permissions?: PermissionMatrix | null,
+  _module: ModuleKey,
+  _action: ModuleAction,
+  _permissions?: PermissionMatrix | null,
   isPlatformOwner = false,
 ) {
-  if (isPlatformOwner || role === "company_owner" || role === "admin" || role === "owner") return true;
-  const effective = mergePermissions(defaultRolePermissions(role), permissions);
-  return effective[module]?.[action] === true;
+  return Boolean(isPlatformOwner || role);
 }
 
 export function canPerformModule(
