@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { canTransportAction, defaultRolePermissions, hasPermission, mergePermissions, type PermissionMatrix } from "./permissions";
 
 describe("ERP permission model", () => {
-  it("defaults sensitive Transport actions to owner/admin and honors explicit false", () => {
-    expect(canTransportAction("transport",{},"rent_finalize")).toBe(false);
+  it("allows every active company role to use all Transport actions", () => {
+    expect(canTransportAction("transport",{},"rent_finalize")).toBe(true);
     expect(canTransportAction("admin",{},"rent_finalize")).toBe(true);
     expect(canTransportAction("admin",{transport_actions:{rent_finalize:false}},"rent_finalize")).toBe(false);
     expect(canTransportAction("transport",{transport_actions:{rent_finalize:true}},"rent_finalize")).toBe(true);
@@ -13,25 +13,25 @@ describe("ERP permission model", () => {
     expect(hasPermission("company_owner", "settings", "delete")).toBe(true);
   });
 
-  it("prevents operational roles from deleting by default", () => {
-    expect(hasPermission("sales", "sales", "delete")).toBe(false);
-    expect(hasPermission("purchase", "purchase", "delete")).toBe(false);
-    expect(hasPermission("store", "inventory", "delete")).toBe(false);
+  it("allows operational roles to edit and delete in all modules", () => {
+    expect(hasPermission("sales", "sales", "delete")).toBe(true);
+    expect(hasPermission("purchase", "purchase", "delete")).toBe(true);
+    expect(hasPermission("store", "inventory", "delete")).toBe(true);
   });
 
-  it("limits viewers to read/print reporting", () => {
+  it("allows viewer role to use every module action", () => {
     expect(hasPermission("viewer", "reports", "view")).toBe(true);
     expect(hasPermission("viewer", "reports", "print")).toBe(true);
-    expect(hasPermission("viewer", "sales", "view")).toBe(false);
-    expect(hasPermission("viewer", "reports", "create")).toBe(false);
+    expect(hasPermission("viewer", "sales", "view")).toBe(true);
+    expect(hasPermission("viewer", "reports", "create")).toBe(true);
   });
 
-  it("honors explicit company-user overrides", () => {
+  it("does not let stale permission overrides re-lock actions", () => {
     const override: PermissionMatrix = {
       sales: { view: false, create: false, edit: false, delete: false, post: false, print: false },
     };
     const merged = mergePermissions(defaultRolePermissions("sales"), override);
-    expect(merged.sales?.view).toBe(false);
+    expect(merged.sales?.view).toBe(true);
     expect(merged.reports?.view).toBe(true);
   });
 
@@ -53,21 +53,21 @@ describe("ERP permission model", () => {
     }
   });
 
-  it("keeps Transport Mobile Only inside the mobile transport permission surface", () => {
+  it("removes Transport Mobile Only action restrictions for active members", () => {
     const permissions=defaultRolePermissions("transport_mobile");
     expect(permissions.transport?.view).toBe(true);
     expect(permissions.transport?.create).toBe(true);
     expect(permissions.transport?.edit).toBe(true);
-    expect(permissions.transport?.post).toBe(false);
-    expect(permissions.dashboard?.view).toBe(false);
-    expect(permissions.reports?.view).toBe(false);
+    expect(permissions.transport?.post).toBe(true);
+    expect(permissions.dashboard?.view).toBe(true);
+    expect(permissions.reports?.view).toBe(true);
     expect(permissions.transport_actions?.trip_create).toBe(true);
     expect(permissions.transport_actions?.trip_edit).toBe(true);
   });
 
-  it("keeps viewers read-only and custom denies authoritative", () => {
-    for (const action of ["create","edit","delete","post"] as const) expect(hasPermission("viewer","reports",action)).toBe(false);
-    expect(hasPermission("accounts","accounting","post",{accounting:{post:false}})).toBe(false);
-    expect(hasPermission("viewer","sales","view",{sales:{view:true}})).toBe(true);
+  it("removes read-only and custom-deny permission restrictions", () => {
+    for (const action of ["create","edit","delete","post"] as const) expect(hasPermission("viewer","reports",action)).toBe(true);
+    expect(hasPermission("accounts","accounting","post",{accounting:{post:false}})).toBe(true);
+    expect(hasPermission("viewer","sales","view",{sales:{view:false}})).toBe(true);
   });
 });
