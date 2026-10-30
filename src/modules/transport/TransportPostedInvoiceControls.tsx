@@ -1,4 +1,3 @@
-import TransportReasonSelect from './TransportReasonSelect';
 import {useEffect,useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {supabase} from '@/lib/supabase';
@@ -10,7 +9,7 @@ export default function TransportPostedInvoiceControls({side,order,onSaved,onDel
  const navigate=useNavigate();
  const [documentId,setDocumentId]=useState<string|null>(null),[allowed,setAllowed]=useState(false);
  const [deleting,setDeleting]=useState(false),[editing,setEditing]=useState(false),[busy,setBusy]=useState(false);
- const [reason,setReason]=useState(''),[error,setError]=useState('');
+ const [error,setError]=useState('');
  useEffect(()=>{let live=true;setAllowed(false);setDocumentId(null);
   void Promise.all([
    supabase.rpc('transport_posted_invoice_admin_access'),
@@ -21,11 +20,11 @@ export default function TransportPostedInvoiceControls({side,order,onSaved,onDel
   return()=>{live=false};
  },[side,order.id]);
  async function remove(){
-  if(busy||!allowed||reason.trim().length<10)return;
+  if(busy||!allowed)return;
   if(!window.confirm(`Permanently delete posted invoice ${order.order_no} and its original journal? The Trip records will remain. This cannot be undone.`))return;
   setBusy(true);setError('');
   try{
-   const result=await supabase.rpc('transport_admin_delete_posted_invoice',{p_side:side,p_order_id:order.id,p_reason:reason.trim()});
+   const result=await supabase.rpc('transport_admin_delete_posted_invoice',{p_side:side,p_order_id:order.id,p_reason:'Updated by user'});
    if(result.error)throw result.error;
    if(result.data?.deleted!==true)throw new Error('The database did not confirm deletion.');
    if(onDeleted)await onDeleted();else navigate('/transport');
@@ -42,8 +41,8 @@ export default function TransportPostedInvoiceControls({side,order,onSaved,onDel
    <p className="my-2 text-sm">This removes the invoice and its original accounting journal. Trip records remain available for invoicing. An audit snapshot is retained. This cannot be undone.</p>
    <p className="my-2 text-xs text-slate-600">Payment, credit-note, stock and other dependent records must be resolved first. The database checks these before deleting anything.</p>
    {error&&<p role="alert" className="my-2 text-sm text-red-700">{error}</p>}
-   <TransportReasonSelect kind="invoice_delete" label="Posted invoice permanent deletion reason" value={reason} onChange={setReason} disabled={busy}/>
-   <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={()=>setDeleting(false)}>Cancel</button><button className="btn-danger" disabled={busy||reason.trim().length<10} onClick={()=>void remove()}>{busy?'Deleting…':'Permanently Delete'}</button></div>
+
+   <div className="mt-3 flex justify-end gap-2"><button className="btn" disabled={busy} onClick={()=>setDeleting(false)}>Cancel</button><button className="btn-danger" disabled={busy} onClick={()=>void remove()}>{busy?'Deleting…':'Permanently Delete'}</button></div>
   </section></TransportDialog>}
  </>;
 }
